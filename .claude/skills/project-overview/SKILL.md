@@ -19,21 +19,62 @@ description: Project structure and development conventions for Garbanzo AI
 
 ```
 garbanzo_ai/
-├── lib/                    # Flutter app
+├── lib/                              # Flutter app
+│   ├── main.dart                     # App entry, AuthGate
 │   ├── core/
-│   │   ├── api_client.dart # HTTP client, token storage
-│   │   └── auth_service.dart
-│   └── pages/
-│       ├── login_page.dart
-│       ├── register_page.dart
-│       └── home_page.dart
-├── integration_test/       # Flutter E2E tests (desktop only)
-├── backend/                # FastAPI app
+│   │   ├── api_client.dart           # Centralized HTTP client (get/post/patch/delete/send)
+│   │   ├── auth_service.dart         # Register, login, logout, token management
+│   │   └── widgets/
+│   │       └── auth_form_layout.dart # Shared auth form scaffold, error banner, submit button
+│   ├── pages/
+│   │   ├── login_page.dart
+│   │   └── register_page.dart
+│   └── features/
+│       └── chat/
+│           ├── models/
+│           │   ├── chat_message.dart      # ChatMessage, ChatResponseChunk
+│           │   ├── conversation.dart      # Conversation, ConversationList
+│           │   └── model_info.dart        # ModelInfo, ModelList
+│           ├── providers/
+│           │   ├── chat_provider.dart     # Conversation + message state
+│           │   └── model_provider.dart    # LLM model selection state
+│           ├── services/
+│           │   └── chat_service.dart      # HTTP calls (via ApiClient)
+│           └── widgets/
+│               ├── chat_page.dart             # Main page (wires providers)
+│               ├── chat_input_widget.dart     # Text input + send/stop
+│               ├── chat_message_widget.dart   # Single message bubble
+│               ├── conversation_list_widget.dart # Sidebar list
+│               ├── empty_chat_state.dart      # Empty state + suggestions
+│               ├── mobile_drawer.dart         # Bottom-sheet conversation list
+│               └── model_selector_widget.dart # Model dropdown
+├── integration_test/                 # Flutter E2E tests (desktop only)
+├── backend/                          # FastAPI app
 │   └── app/
 │       ├── main.py
-│       └── core/security.py
-├── justfile                # All dev commands
-└── docker-compose.yml      # PostgreSQL
+│       ├── core/
+│       │   ├── config.py             # Settings (DB, CORS, LLM provider)
+│       │   └── security.py           # JWT, password hashing
+│       ├── api/v1/endpoints/
+│       │   ├── auth.py               # Register, login, /me
+│       │   ├── chat.py               # Conversation CRUD, streaming, models
+│       │   └── health.py
+│       ├── models/                   # SQLAlchemy ORM
+│       │   ├── user.py
+│       │   ├── conversation.py
+│       │   └── message.py
+│       ├── schemas/                  # Pydantic request/response
+│       │   ├── auth.py
+│       │   ├── user.py
+│       │   └── chat.py
+│       └── services/
+│           ├── user_service.py           # User lookup/creation
+│           ├── conversation_service.py   # Conversation CRUD
+│           ├── chat_service.py           # Messaging + LLM streaming
+│           ├── llm_provider.py           # Abstract LLM provider + registry
+│           └── ollama_provider.py        # Ollama implementation
+├── justfile                          # All dev commands
+└── docker-compose.yml                # PostgreSQL
 ```
 
 ## Common Commands

@@ -4,15 +4,12 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Base URL for API calls. Override with --dart-define=API_BASE_URL=... if needed.
-/// In debug mode (flutter run), defaults to http://localhost:8000 (the backend).
-/// Otherwise uses relative URLs when the web build is served from the backend.
 const _apiBaseUrl = String.fromEnvironment(
   'API_BASE_URL',
   defaultValue: '',
 );
 
-String _base() {
+String _resolveBaseUrl() {
   if (_apiBaseUrl.isNotEmpty) return _apiBaseUrl;
   if (kDebugMode) return 'http://localhost:8000';
   return '';
@@ -20,6 +17,8 @@ String _base() {
 
 const _tokenKey = 'auth_token';
 
+/// Centralized HTTP client that handles base URL resolution, auth headers,
+/// and JSON encoding for all API calls.
 class ApiClient {
   ApiClient._();
   static final ApiClient instance = ApiClient._();
@@ -47,13 +46,38 @@ class ApiClient {
     _token ??= await getToken();
   }
 
-  Uri _uri(String path) {
-    final base = _base();
+  /// Resolve an API path to a full [Uri].
+  Uri uri(String path, {Map<String, String>? queryParameters}) {
+    final base = _resolveBaseUrl();
     final p = path.startsWith('/') ? path : '/$path';
+    Uri result;
     if (base.isEmpty) {
-      return Uri.base.resolve(p);
+      result = Uri.base.resolve(p);
+    } else {
+      result = Uri.parse('$base$p');
     }
-    return Uri.parse('$base$p');
+    if (queryParameters != null) {
+      result = result.replace(queryParameters: queryParameters);
+    }
+    return result;
+  }
+
+  Future<Map<String, String>> _authHeaders({bool withAuth = true}) async {
+    final token = withAuth ? await getToken() : null;
+    return {
+      if (token != null) 'Authorization': 'Bearer $token',
+    };
+  }
+
+  Future<http.Response> get(
+    String path, {
+    bool withAuth = true,
+    Map<String, String>? queryParameters,
+  }) async {
+    return http.get(
+      uri(path, queryParameters: queryParameters),
+      headers: await _authHeaders(withAuth: withAuth),
+    );
   }
 
   Future<http.Response> post(
@@ -61,24 +85,49 @@ class ApiClient {
     Map<String, dynamic>? body,
     bool withAuth = false,
   }) async {
-    final token = withAuth ? await getToken() : null;
     return http.post(
-      _uri(path),
+      uri(path),
       headers: {
         'Content-Type': 'application/json',
-        if (token != null) 'Authorization': 'Bearer $token',
+        ...await _authHeaders(withAuth: withAuth),
       },
       body: body != null ? jsonEncode(body) : null,
     );
   }
 
-  Future<http.Response> get(String path, {bool withAuth = true}) async {
-    final token = withAuth ? await getToken() : null;
-    return http.get(
-      _uri(path),
+  Future<http.Response> patch(
+    String path, {
+    Map<String, dynamic>? body,
+    bool withAuth = true,
+  }) async {
+    return http.patch(
+      uri(path),
       headers: {
-        if (token != null) 'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+        ...await _authHeaders(withAuth: withAuth),
       },
+      body: body != null ? jsonEncode(body) : null,
     );
+  }
+
+  Future<http.Response> delete(
+    String path, {
+    bool withAuth = true,
+  }) async {
+    return http.delete(
+      uri(path),
+      headers: await _authHeaders(withAuth: withAuth),
+    );
+  }
+
+  /// Send a streaming request. Returns the [http.StreamedResponse] for
+  /// callers that need to process the response body as a byte stream (e.g. SSE).
+  Future<http.StreamedResponse> send(
+    http.Request request, {
+    bool withAuth = true,
+  }) async {
+    final headers = await _authHeaders(withAuth: withAuth);
+    request.headers.addAll(headers);
+    return request.send();
   }
 }

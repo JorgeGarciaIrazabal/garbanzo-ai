@@ -31,11 +31,11 @@ be-install:
 
 # Start FastAPI dev server with hot reload
 be-dev:
-    cd backend; uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+    cd backend; uv run uvicorn app.main:app --reload --port 8000
 
 # Start FastAPI production server
 be-run:
-    cd backend; uv run uvicorn app.main:app --host 0.0.0.0 --port 8000
+    cd backend; uv run uvicorn app.main:app --port 8000
 
 # Run ruff linter on backend
 be-lint:

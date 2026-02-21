@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     # Database
     database_url: str = "postgresql+asyncpg://garbanzo:garbanzo_dev@localhost:5432/garbanzo_ai"
 
+    # LLM
+    llm_provider: str = "ollama"
+
     # CORS
     cors_origins: str = "http://localhost:3000,http://localhost:8000"
 

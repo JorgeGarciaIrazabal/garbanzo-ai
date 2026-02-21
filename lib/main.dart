@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'core/auth_service.dart';
-import 'pages/home_page.dart';
+import 'features/chat/widgets/chat_page.dart';
 import 'pages/login_page.dart';
 import 'pages/register_page.dart';
 
@@ -82,7 +82,7 @@ class _AuthGateState extends State<AuthGate> {
     }
 
     if (_loggedIn) {
-      return HomePage(onLogout: _onLogout);
+      return ChatPage(onLogout: _onLogout);
     }
 
     if (_showRegister) {

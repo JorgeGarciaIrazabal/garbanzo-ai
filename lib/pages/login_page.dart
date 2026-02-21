@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/auth_service.dart';
+import '../core/widgets/auth_form_layout.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({
@@ -56,132 +57,58 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 400),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Icon(
-                    Icons.account_circle,
-                    size: 64,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                  const SizedBox(height: 24),
-                  Text(
-                    'Sign in',
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Garbanzo AI',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.outline,
-                        ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 32),
-                  TextFormField(
-                    controller: _emailController,
-                    keyboardType: TextInputType.emailAddress,
-                    textInputAction: TextInputAction.next,
-                    decoration: const InputDecoration(
-                      labelText: 'Email',
-                      hintText: 'you@example.com',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.email_outlined),
-                    ),
-                    validator: (v) {
-                      if (v == null || v.trim().isEmpty) {
-                        return 'Enter your email';
-                      }
-                      if (!v.contains('@')) return 'Enter a valid email';
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _passwordController,
-                    obscureText: true,
-                    textInputAction: TextInputAction.done,
-                    onFieldSubmitted: (_) => _submit(),
-                    decoration: const InputDecoration(
-                      labelText: 'Password',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.lock_outlined),
-                    ),
-                    validator: (v) {
-                      if (v == null || v.isEmpty) return 'Enter your password';
-                      return null;
-                    },
-                  ),
-                  if (_error != null) ...[
-                    const SizedBox(height: 16),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .errorContainer
-                            .withValues(alpha: 0.5),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.error_outline,
-                            color: Theme.of(context).colorScheme.error,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              _error!,
-                              style: TextStyle(
-                                color: Theme.of(context).colorScheme.error,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 24),
-                  FilledButton(
-                    onPressed: _loading ? null : _submit,
-                    style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                    child: _loading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Text('Sign in'),
-                  ),
-                  if (widget.onNavigateToRegister != null) ...[
-                    const SizedBox(height: 16),
-                    TextButton(
-                      onPressed: _loading ? null : widget.onNavigateToRegister,
-                      child: const Text('Create an account'),
-                    ),
-                  ],
-                ],
-              ),
-            ),
+    return AuthFormLayout(
+      icon: Icons.account_circle,
+      heading: 'Sign in',
+      formKey: _formKey,
+      children: [
+        TextFormField(
+          controller: _emailController,
+          keyboardType: TextInputType.emailAddress,
+          textInputAction: TextInputAction.next,
+          decoration: const InputDecoration(
+            labelText: 'Email',
+            hintText: 'you@example.com',
+            border: OutlineInputBorder(),
+            prefixIcon: Icon(Icons.email_outlined),
           ),
+          validator: (v) {
+            if (v == null || v.trim().isEmpty) return 'Enter your email';
+            if (!v.contains('@')) return 'Enter a valid email';
+            return null;
+          },
         ),
-      ),
+        const SizedBox(height: 16),
+        TextFormField(
+          controller: _passwordController,
+          obscureText: true,
+          textInputAction: TextInputAction.done,
+          onFieldSubmitted: (_) => _submit(),
+          decoration: const InputDecoration(
+            labelText: 'Password',
+            border: OutlineInputBorder(),
+            prefixIcon: Icon(Icons.lock_outlined),
+          ),
+          validator: (v) {
+            if (v == null || v.isEmpty) return 'Enter your password';
+            return null;
+          },
+        ),
+        if (_error != null) AuthErrorBanner(message: _error!),
+        const SizedBox(height: 24),
+        AuthSubmitButton(
+          label: 'Sign in',
+          isLoading: _loading,
+          onPressed: _submit,
+        ),
+        if (widget.onNavigateToRegister != null) ...[
+          const SizedBox(height: 16),
+          TextButton(
+            onPressed: _loading ? null : widget.onNavigateToRegister,
+            child: const Text('Create an account'),
+          ),
+        ],
+      ],
     );
   }
 }
