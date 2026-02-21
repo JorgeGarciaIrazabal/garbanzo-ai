@@ -1,4 +1,5 @@
 import os
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -8,9 +9,17 @@ from fastapi.staticfiles import StaticFiles
 
 from app.api.v1.router import api_router
 from app.core.config import get_settings
+from app.db.session import init_db
 
 # Get settings
 settings = get_settings()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await init_db()
+    yield
+
 
 # Create FastAPI app
 app = FastAPI(
@@ -18,12 +27,22 @@ app = FastAPI(
     description="FastAPI backend serving Garbanzo AI Flutter web app",
     version="0.1.0",
     debug=settings.debug,
+    lifespan=lifespan,
 )
 
 # Configure CORS
+# In debug mode, also allow Flutter dev server (random port, e.g. localhost:55596)
+cors_origins = settings.cors_origins_list
+if settings.debug:
+    cors_origins = list(cors_origins) + [
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:8080",
+        "http://127.0.0.1:5000",
+    ]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins_list,
+    allow_origins=cors_origins,
+    allow_origin_regex=r"http://(localhost|127\.0\.0\.1)(:\d+)?$" if settings.debug else None,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

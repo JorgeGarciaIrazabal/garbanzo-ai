@@ -16,6 +16,11 @@ _default:
 install: be-install fe-install
     @Write-Host "All dependencies installed!"
 
+# Start PostgreSQL for local development (run before be-dev)
+docker-up:
+    docker compose up -d
+    @Write-Host "PostgreSQL is running. Use 'just be-dev' to start the backend."
+
 # ============================================================================
 # Backend Commands (FastAPI)
 # ============================================================================
@@ -52,7 +57,7 @@ be-test:
 fe-install:
     flutter pub get
 
-# Run Flutter app on Chrome
+# Run Flutter app on Chrome (uses http://localhost:8000 for API in debug mode)
 fe-run:
     flutter run -d chrome
 
