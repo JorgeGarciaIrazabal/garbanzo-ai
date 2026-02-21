@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/semantics.dart';
 
 import 'core/auth_service.dart';
 import 'pages/home_page.dart';
@@ -7,8 +6,6 @@ import 'pages/login_page.dart';
 import 'pages/register_page.dart';
 
 void main() {
-  WidgetsFlutterBinding.ensureInitialized();
-  SemanticsBinding.instance.ensureSemantics();
   runApp(const GarbanzoApp());
 }
 
