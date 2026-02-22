@@ -42,21 +42,29 @@ class _RegisterPageState extends State<RegisterPage> {
       _loading = true;
     });
 
-    final result = await AuthService.instance.register(
-      _emailController.text,
-      _passwordController.text,
-      fullName: _fullNameController.text.trim().isEmpty
-          ? null
-          : _fullNameController.text,
-    );
+    try {
+      final result = await AuthService.instance.register(
+        _emailController.text,
+        _passwordController.text,
+        fullName: _fullNameController.text.trim().isEmpty
+            ? null
+            : _fullNameController.text,
+      );
 
-    if (!mounted) return;
-    setState(() => _loading = false);
+      if (!mounted) return;
+      setState(() => _loading = false);
 
-    if (result.success) {
-      widget.onRegisterSuccess();
-    } else {
-      setState(() => _error = result.error);
+      if (result.success) {
+        widget.onRegisterSuccess();
+      } else {
+        setState(() => _error = result.error);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = 'An unexpected error occurred. Please try again.';
+      });
     }
   }
 

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'api_client.dart';
 
@@ -13,47 +14,67 @@ class AuthService {
     String password, {
     String? fullName,
   }) async {
-    final res = await _client.post(
-      '/api/v1/auth/register',
-      body: {
-        'email': email.trim(),
-        'password': password,
-        if (fullName != null && fullName.trim().isNotEmpty) 'full_name': fullName.trim(),
-      },
-    );
+    try {
+      final res = await _client.post(
+        '/api/v1/auth/register',
+        body: {
+          'email': email.trim(),
+          'password': password,
+          if (fullName != null && fullName.trim().isNotEmpty) 'full_name': fullName.trim(),
+        },
+      );
 
-    if (res.statusCode == 201) {
-      // Auto-login after registration
-      return await login(email, password);
-    }
+      if (res.statusCode == 201) {
+        // Auto-login after registration
+        return await login(email, password);
+      }
 
-    if (res.statusCode == 400) {
-      final json = jsonDecode(res.body) as Map<String, dynamic>?;
-      final detail = json?['detail'] as String?;
-      return AuthResult.failure(detail ?? 'Registration failed');
+      if (res.statusCode == 400) {
+        final json = jsonDecode(res.body) as Map<String, dynamic>?;
+        final detail = json?['detail'] as String?;
+        return AuthResult.failure(detail ?? 'Registration failed');
+      }
+      return AuthResult.failure('Registration failed. Please try again.');
+    } on SocketException {
+      return AuthResult.failure('Unable to connect to server. Please check your internet connection.');
+    } on HttpException {
+      return AuthResult.failure('Server error. Please try again later.');
+    } on FormatException {
+      return AuthResult.failure('Invalid response from server. Please try again.');
+    } catch (e) {
+      return AuthResult.failure('An unexpected error occurred. Please try again.');
     }
-    return AuthResult.failure('Registration failed. Please try again.');
   }
 
   Future<AuthResult> login(String email, String password) async {
-    final res = await _client.post(
-      '/api/v1/auth/login',
-      body: {'email': email.trim(), 'password': password},
-    );
+    try {
+      final res = await _client.post(
+        '/api/v1/auth/login',
+        body: {'email': email.trim(), 'password': password},
+      );
 
-    if (res.statusCode == 200) {
-      final json = jsonDecode(res.body) as Map<String, dynamic>;
-      final token = json['access_token'] as String?;
-      if (token != null) {
-        await _client.setToken(token);
-        return AuthResult.success();
+      if (res.statusCode == 200) {
+        final json = jsonDecode(res.body) as Map<String, dynamic>;
+        final token = json['access_token'] as String?;
+        if (token != null) {
+          await _client.setToken(token);
+          return AuthResult.success();
+        }
       }
-    }
 
-    if (res.statusCode == 401) {
-      return AuthResult.failure('Incorrect email or password');
+      if (res.statusCode == 401) {
+        return AuthResult.failure('Incorrect email or password');
+      }
+      return AuthResult.failure('Login failed. Please try again.');
+    } on SocketException {
+      return AuthResult.failure('Unable to connect to server. Please check your internet connection.');
+    } on HttpException {
+      return AuthResult.failure('Server error. Please try again later.');
+    } on FormatException {
+      return AuthResult.failure('Invalid response from server. Please try again.');
+    } catch (e) {
+      return AuthResult.failure('An unexpected error occurred. Please try again.');
     }
-    return AuthResult.failure('Login failed. Please try again.');
   }
 
   Future<void> logout() async {

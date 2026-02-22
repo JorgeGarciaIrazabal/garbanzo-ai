@@ -1,9 +1,6 @@
 # Garbanzo AI - Just commands
 # https://github.com/casey/just
 
-# Use PowerShell on Windows
-set shell := ["powershell.exe", "-c"]
-
 # Default recipe - show help
 _default:
     @just --list
@@ -27,7 +24,11 @@ docker-up:
 
 # Install backend dependencies (uses uv)
 be-install:
-    cd backend; uv sync
+    cd backend; uv sync --extra dev
+
+# Upgrade backend dependencies (uses uv)
+be-upgrade:
+    cd backend; uv sync --upgrade --extra dev
 
 # Start FastAPI dev server with hot reload
 be-dev:
@@ -61,6 +62,10 @@ fe-install:
 # Good for manual development, NOT for automated testing
 fe-run:
     flutter run -d chrome
+
+# Run Flutter app on Chrome with WebGL/GPU flags (for WSL2 when webGLVersion is -1)
+fe-run-webgl:
+    CHROME_EXECUTABLE="{{ justfile_directory() }}/scripts/chrome-webgl" flutter run -d chrome
 
 # Run Flutter web server on fixed port WITHOUT launching browser
 # Use this for end-to-end testing with browser MCP

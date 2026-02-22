@@ -8,7 +8,9 @@ A Flutter web app with FastAPI backend.
 
 1. **Flutter** - Install from [flutter.dev](https://flutter.dev)
 2. **uv** - Install with `pip install uv`
-3. **just** (optional but recommended) - Install with `winget install Casey.Just`
+3. **just** (optional but recommended):
+   - **Windows**: `winget install Casey.Just`
+   - **Linux/WSL**: `sudo snap install just --classic` or `cargo install just` (if you have Rust)
 
 ### Development
 
@@ -83,7 +85,9 @@ Then start the backend — it will serve the Flutter app at the root URL.
 
 ## Troubleshooting
 
-If `just` command is not found after installing with winget, restart your terminal or run:
+**`just` not found (Windows):** Restart your terminal or run:
 ```powershell
 $env:Path += ";$env:LOCALAPPDATA\Microsoft\WinGet\Packages\Casey.Just_Microsoft.Winget.Source_8wekyb3d8bbwe"
 ```
+
+**WebGL unavailable (WSL2):** If you see `Falling back to CPU-only rendering. Reason: webGLVersion is -1`, try `just fe-run-webgl` or see `docs/WEBGL_WSL.md` for options.

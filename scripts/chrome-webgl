@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Chrome wrapper with WebGL/GPU flags for WSL2
+# Usage: CHROME_EXECUTABLE=$(pwd)/scripts/chrome-webgl just fe-run
+exec /usr/bin/google-chrome-stable \
+  --ignore-gpu-blocklist \
+  --ignore-gpu-blacklist \
+  --enable-unsafe-webgpu \
+  --use-gl=desktop \
+  --enable-features=Vulkan \
+  "$@"
