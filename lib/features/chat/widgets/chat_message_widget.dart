@@ -20,6 +20,8 @@ class ChatMessageWidget extends StatelessWidget {
     final colorScheme = theme.colorScheme;
 
     final isUser = message.isUser;
+    final thinkingContent = _extractThinkingContent();
+    final isThinking = isStreaming && thinkingContent != null && message.content.isEmpty;
 
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
@@ -67,7 +69,7 @@ class ChatMessageWidget extends StatelessWidget {
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-                    if (isStreaming) ...[
+                    if (isStreaming || isThinking) ...[
                       const SizedBox(width: 8),
                       SizedBox(
                         width: 12,
@@ -79,10 +81,27 @@ class ChatMessageWidget extends StatelessWidget {
                               : colorScheme.onSurfaceVariant,
                         ),
                       ),
+                      const SizedBox(width: 4),
+                      Text(
+                        isThinking ? 'Thinking...' : 'Generating...',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: isUser
+                              ? colorScheme.onPrimaryContainer
+                              : colorScheme.onSurfaceVariant,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
                     ],
                   ],
                 ),
                 const SizedBox(height: 8),
+                // Thinking content (expandable)
+                if (thinkingContent != null && !isUser)
+                  _ThinkingContent(
+                    thinkingContent: thinkingContent,
+                    colorScheme: colorScheme,
+                    textTheme: theme.textTheme,
+                  ),
                 // Message content
                 _MessageContent(
                   content: message.content,
@@ -91,7 +110,7 @@ class ChatMessageWidget extends StatelessWidget {
                   textTheme: theme.textTheme,
                 ),
                 // Copy button for assistant messages
-                if (!isUser)
+                if (!isUser && message.content.isNotEmpty)
                   Align(
                     alignment: Alignment.bottomRight,
                     child: _CopyButton(content: message.content),
@@ -101,6 +120,128 @@ class ChatMessageWidget extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  String? _extractThinkingContent() {
+    final metadata = message.metadata;
+    if (metadata == null) return null;
+    final thinking = metadata['thinking'];
+    if (thinking is String && thinking.isNotEmpty) {
+      return thinking;
+    }
+    return null;
+  }
+}
+
+/// Displays expandable thinking content.
+class _ThinkingContent extends StatefulWidget {
+  const _ThinkingContent({
+    required this.thinkingContent,
+    required this.colorScheme,
+    required this.textTheme,
+  });
+
+  final String thinkingContent;
+  final ColorScheme colorScheme;
+  final TextTheme textTheme;
+
+  @override
+  State<_ThinkingContent> createState() => _ThinkingContentState();
+}
+
+class _ThinkingContentState extends State<_ThinkingContent> {
+  bool _isExpanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        InkWell(
+          onTap: () => setState(() => _isExpanded = !_isExpanded),
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: widget.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: widget.colorScheme.outlineVariant.withValues(alpha: 0.3),
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.psychology_outlined,
+                  size: 14,
+                  color: widget.colorScheme.primary,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  _isExpanded ? 'Hide thinking' : 'Show thinking',
+                  style: widget.textTheme.labelSmall?.copyWith(
+                    color: widget.colorScheme.primary,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                AnimatedRotation(
+                  turns: _isExpanded ? 0.5 : 0,
+                  duration: const Duration(milliseconds: 200),
+                  child: Icon(
+                    Icons.keyboard_arrow_down,
+                    size: 16,
+                    color: widget.colorScheme.primary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        AnimatedCrossFade(
+          firstChild: const SizedBox.shrink(),
+          secondChild: Container(
+            width: double.infinity,
+            margin: const EdgeInsets.only(top: 8),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: widget.colorScheme.surfaceContainerLowest,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: widget.colorScheme.outlineVariant.withValues(alpha: 0.2),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Thinking Process',
+                  style: widget.textTheme.labelSmall?.copyWith(
+                    color: widget.colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SelectableText(
+                  widget.thinkingContent,
+                  style: widget.textTheme.bodySmall?.copyWith(
+                    color: widget.colorScheme.onSurfaceVariant,
+                    height: 1.4,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          crossFadeState: _isExpanded
+              ? CrossFadeState.showSecond
+              : CrossFadeState.showFirst,
+          duration: const Duration(milliseconds: 200),
+        ),
+        const SizedBox(height: 12),
+      ],
     );
   }
 }
@@ -121,6 +262,9 @@ class _MessageContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (content.isEmpty) {
+      return const SizedBox.shrink();
+    }
     // Simple text display - in production, consider using a markdown package
     return SelectableText(
       content,
@@ -173,7 +317,7 @@ class _CopyButtonState extends State<_CopyButton> {
               size: 14,
               color: _copied
                   ? colorScheme.primary
-                  : colorScheme.onSurfaceVariant.withOpacity(0.6),
+                  : colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
             ),
             const SizedBox(width: 4),
             Text(
@@ -182,7 +326,7 @@ class _CopyButtonState extends State<_CopyButton> {
                 fontSize: 12,
                 color: _copied
                     ? colorScheme.primary
-                    : colorScheme.onSurfaceVariant.withOpacity(0.6),
+                    : colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
               ),
             ),
           ],

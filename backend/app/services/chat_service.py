@@ -13,6 +13,7 @@ from app.models.message import Message
 from app.schemas.chat import ChatOptions, ModelInfo
 from app.services.conversation_service import ConversationService
 from app.services.llm_provider import ChatChunk, Message as LLMMessage, ProviderRegistry
+from app.core.config import get_settings
 from app.services.ollama_provider import OllamaProvider
 
 logger = logging.getLogger(__name__)
@@ -47,7 +48,8 @@ class ChatService:
 
     def _ensure_default_provider(self) -> None:
         if "ollama" not in ProviderRegistry.list_providers():
-            ProviderRegistry.register(OllamaProvider())
+            settings = get_settings()
+            ProviderRegistry.register(OllamaProvider(base_url=settings.ollama_base_url))
 
     def _get_provider(self) -> OllamaProvider:
         provider = ProviderRegistry.get(self._provider_name)
@@ -91,6 +93,7 @@ class ChatService:
         opts = options or ChatOptions()
 
         full_response = ""
+        thinking_content = ""
         metadata: Optional[dict] = None
 
         cancel_event = asyncio.Event()
@@ -103,19 +106,24 @@ class ChatService:
                 options=opts,
                 cancel_event=cancel_event,
             ):
-                if chunk.content:
+                if chunk.is_thinking:
+                    thinking_content += chunk.content
+                elif chunk.content:
                     full_response += chunk.content
                 if chunk.is_finished:
                     metadata = chunk.metadata
                 yield chunk
 
             if full_response:
+                msg_meta = dict(metadata) if metadata else {}
+                if thinking_content:
+                    msg_meta["thinking"] = thinking_content
                 assistant_message = Message(
                     id=str(uuid.uuid4()),
                     conversation_id=conversation_id,
                     role="assistant",
                     content=full_response,
-                    metadata=metadata,
+                    meta=msg_meta or None,
                 )
                 self.db.add(assistant_message)
                 await self.db.commit()

@@ -94,6 +94,23 @@ Low-level Chrome DevTools access. Use when you need JavaScript evaluation, perfo
 
 ---
 
+## Dev Test User
+
+When `TEST_USER_EMAIL` and `TEST_USER_PASSWORD` are set in `backend/.env`, the backend auto-creates that user on startup. This avoids needing to register through the UI every time the database is reset.
+
+Default credentials (already in `.env`):
+
+| Field | Value |
+|-------|-------|
+| Email | `test@garbanzo.dev` |
+| Password | `testpass123` |
+
+During E2E testing, skip the register page and go straight to login with these credentials.
+
+To disable: remove or empty the two env vars in `backend/.env`.
+
+---
+
 ## Typical E2E Workflow
 
 ```

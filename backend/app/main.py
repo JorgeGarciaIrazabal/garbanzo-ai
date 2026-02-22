@@ -1,3 +1,4 @@
+import logging
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -11,13 +12,40 @@ from app.api.v1.router import api_router
 from app.core.config import get_settings
 from app.db.session import init_db
 
+logger = logging.getLogger(__name__)
+
 # Get settings
 settings = get_settings()
+
+
+async def _ensure_test_user() -> None:
+    """Create the test user if TEST_USER_EMAIL and TEST_USER_PASSWORD are set."""
+    if not settings.test_user_email or not settings.test_user_password:
+        return
+
+    from app.core.security import hash_password
+    from app.db.session import async_session_maker
+    from app.services.user_service import UserService
+
+    async with async_session_maker() as db:
+        svc = UserService(db)
+        existing = await svc.get_by_email(settings.test_user_email)
+        if existing:
+            logger.info("Test user already exists: %s", settings.test_user_email)
+            return
+        await svc.create(
+            email=settings.test_user_email,
+            hashed_password=hash_password(settings.test_user_password),
+            full_name="Test User",
+        )
+        await db.commit()
+        logger.info("Created test user: %s", settings.test_user_email)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
+    await _ensure_test_user()
     yield
 
 

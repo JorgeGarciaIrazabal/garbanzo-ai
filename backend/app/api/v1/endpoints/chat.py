@@ -188,6 +188,8 @@ async def chat_stream(
                     response = ChatResponseChunk(
                         type="error", error=chunk.content, metadata=chunk.metadata,
                     )
+                elif chunk.is_thinking:
+                    response = ChatResponseChunk(type="thinking", content=chunk.content)
                 else:
                     response = ChatResponseChunk(type="chunk", content=chunk.content)
 

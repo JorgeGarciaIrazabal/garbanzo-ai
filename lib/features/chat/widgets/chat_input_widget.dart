@@ -25,8 +25,14 @@ class ChatInputWidget extends StatefulWidget {
 
 class _ChatInputWidgetState extends State<ChatInputWidget> {
   final TextEditingController _controller = TextEditingController();
-  final FocusNode _focusNode = FocusNode();
+  late final FocusNode _focusNode;
   bool _isComposing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode = FocusNode(onKeyEvent: _handleKeyEvent);
+  }
 
   @override
   void dispose() {
@@ -52,6 +58,30 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
     }
   }
 
+  /// Intercepts key events on the TextField's own FocusNode so we can
+  /// consume Enter before the engine inserts a newline.
+  KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+
+    final isEnter = event.logicalKey == LogicalKeyboardKey.enter ||
+        event.logicalKey == LogicalKeyboardKey.numpadEnter;
+    if (!isEnter) return KeyEventResult.ignored;
+
+    if (HardwareKeyboard.instance.isShiftPressed) {
+      final sel = _controller.selection;
+      final text = _controller.text;
+      final newText = text.replaceRange(sel.start, sel.end, '\n');
+      _controller.value = TextEditingValue(
+        text: newText,
+        selection: TextSelection.collapsed(offset: sel.start + 1),
+      );
+      setState(() => _isComposing = newText.trim().isNotEmpty);
+    } else {
+      _handleSubmitted();
+    }
+    return KeyEventResult.handled;
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -62,7 +92,7 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
         color: colorScheme.surface,
         border: Border(
           top: BorderSide(
-            color: colorScheme.outlineVariant.withOpacity(0.5),
+            color: colorScheme.outlineVariant.withValues(alpha: 0.5),
           ),
         ),
       ),
@@ -71,72 +101,42 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            // Text input field
             Expanded(
               child: Container(
                 decoration: BoxDecoration(
                   color: colorScheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(24),
                   border: Border.all(
-                    color: colorScheme.outlineVariant.withOpacity(0.5),
+                    color: colorScheme.outlineVariant.withValues(alpha: 0.5),
                   ),
                 ),
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxHeight: 200),
-                  child: KeyboardListener(
-                    focusNode: FocusNode(),
-                    onKeyEvent: (event) {
-                      if (event is! KeyDownEvent) return;
-                      final isEnter =
-                          event.logicalKey == LogicalKeyboardKey.enter ||
-                              event.logicalKey == LogicalKeyboardKey.numpadEnter;
-                      if (!isEnter) return;
-
-                      if (HardwareKeyboard.instance.isShiftPressed) {
-                        // Shift+Enter: insert a newline at cursor
-                        final sel = _controller.selection;
-                        final text = _controller.text;
-                        final newText =
-                            text.replaceRange(sel.start, sel.end, '\n');
-                        _controller.value = TextEditingValue(
-                          text: newText,
-                          selection: TextSelection.collapsed(
-                              offset: sel.start + 1),
-                        );
-                        setState(
-                            () => _isComposing = newText.trim().isNotEmpty);
-                      } else {
-                        // Enter: send message
-                        _handleSubmitted();
-                      }
-                    },
-                    child: TextField(
-                      controller: _controller,
-                      focusNode: _focusNode,
-                      onChanged: _handleTextChange,
-                      maxLines: null,
-                      minLines: 1,
-                      textCapitalization: TextCapitalization.sentences,
-                      decoration: InputDecoration(
-                        hintText: widget.hintText,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 12,
-                        ),
-                        border: InputBorder.none,
-                        hintStyle: TextStyle(
-                          color: colorScheme.onSurfaceVariant.withOpacity(0.6),
-                        ),
+                  child: TextField(
+                    controller: _controller,
+                    focusNode: _focusNode,
+                    onChanged: _handleTextChange,
+                    maxLines: null,
+                    minLines: 1,
+                    textCapitalization: TextCapitalization.sentences,
+                    decoration: InputDecoration(
+                      hintText: widget.hintText,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
                       ),
-                      style: theme.textTheme.bodyMedium,
-                      enabled: !widget.isLoading,
+                      border: InputBorder.none,
+                      hintStyle: TextStyle(
+                        color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                      ),
                     ),
+                    style: theme.textTheme.bodyMedium,
+                    enabled: !widget.isLoading,
                   ),
                 ),
               ),
             ),
             const SizedBox(width: 12),
-            // Send / Stop button
             AnimatedContainer(
               duration: const Duration(milliseconds: 200),
               curve: Curves.easeInOut,
@@ -160,7 +160,7 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
                             : colorScheme.surfaceContainerHighest,
                         foregroundColor: _isComposing
                             ? colorScheme.onPrimary
-                            : colorScheme.onSurfaceVariant.withOpacity(0.5),
+                            : colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
                         minimumSize: const Size(48, 48),
                       ),
                     ),

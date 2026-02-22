@@ -199,6 +199,7 @@ class ChatProvider extends ChangeNotifier {
     final assistantMessageId =
         'temp-${DateTime.now().millisecondsSinceEpoch + 1}';
     String accumulatedContent = '';
+    String accumulatedThinking = '';
 
     try {
       final stream = _chatService.streamChatResponse(
@@ -208,31 +209,32 @@ class ChatProvider extends ChangeNotifier {
 
       _streamSubscription = stream.listen(
         (chunk) {
-          if (chunk.isChunk && chunk.content != null) {
+          if (chunk.isThinking && chunk.content != null) {
+            accumulatedThinking += chunk.content!;
+            _upsertAssistantMessage(
+              assistantMessageId,
+              accumulatedContent,
+              accumulatedThinking,
+              null,
+            );
+            notifyListeners();
+          } else if (chunk.isChunk && chunk.content != null) {
             accumulatedContent += chunk.content!;
-
-            final existingIndex = _messages.indexWhere(
-              (m) => m.id == assistantMessageId,
+            _upsertAssistantMessage(
+              assistantMessageId,
+              accumulatedContent,
+              accumulatedThinking,
+              null,
             );
-
-            final assistantMessage = ChatMessage(
-              id: assistantMessageId,
-              role: 'assistant',
-              content: accumulatedContent,
-              createdAt: DateTime.now(),
-              metadata: chunk.metadata,
-            );
-
-            if (existingIndex >= 0) {
-              final newMessages = List<ChatMessage>.from(_messages);
-              newMessages[existingIndex] = assistantMessage;
-              _messages = newMessages;
-            } else {
-              _messages = [..._messages, assistantMessage];
-            }
-
             notifyListeners();
           } else if (chunk.isDone) {
+            // Apply final metadata (tokens, timing, etc.) to the message
+            _upsertAssistantMessage(
+              assistantMessageId,
+              accumulatedContent,
+              accumulatedThinking,
+              chunk.metadata,
+            );
             _isSending = false;
 
             if (_currentConversation != null) {
@@ -281,6 +283,35 @@ class ChatProvider extends ChangeNotifier {
       } catch (e) {
         if (kDebugMode) print('Failed to stop streaming on backend: $e');
       }
+    }
+  }
+
+  void _upsertAssistantMessage(
+    String id,
+    String content,
+    String thinking,
+    Map<String, dynamic>? doneMetadata,
+  ) {
+    final meta = <String, dynamic>{
+      if (thinking.isNotEmpty) 'thinking': thinking,
+      if (doneMetadata != null) ...doneMetadata,
+    };
+
+    final assistantMessage = ChatMessage(
+      id: id,
+      role: 'assistant',
+      content: content,
+      createdAt: DateTime.now(),
+      metadata: meta.isEmpty ? null : meta,
+    );
+
+    final existingIndex = _messages.indexWhere((m) => m.id == id);
+    if (existingIndex >= 0) {
+      final newMessages = List<ChatMessage>.from(_messages);
+      newMessages[existingIndex] = assistantMessage;
+      _messages = newMessages;
+    } else {
+      _messages = [..._messages, assistantMessage];
     }
   }
 

@@ -74,13 +74,13 @@ class ChatRequest(BaseModel):
 class ChatResponseChunk(BaseModel):
     """A chunk of a streaming chat response."""
 
-    type: Literal["chunk", "done", "error"] = Field(
+    type: Literal["chunk", "thinking", "done", "error"] = Field(
         ...,
         description="The type of response chunk",
     )
     content: Optional[str] = Field(
         None,
-        description="The content chunk (for type='chunk')",
+        description="The content chunk (for type='chunk' or 'thinking')",
     )
     error: Optional[str] = Field(
         None,
@@ -148,13 +148,24 @@ class ConversationOut(BaseModel):
     @classmethod
     def from_model(cls, conv: "Any") -> "ConversationOut":
         """Build from an ORM ``Conversation`` instance."""
+        from sqlalchemy import inspect as sa_inspect
+        from sqlalchemy.orm import InstanceState
+
+        message_count = 0
+        try:
+            state: InstanceState = sa_inspect(conv)
+            if "messages" not in state.unloaded:
+                message_count = len(conv.messages) if conv.messages else 0
+        except Exception:
+            pass
+
         return cls(
             id=conv.id,
             title=conv.title,
             model=conv.model,
             created_at=conv.created_at,
             updated_at=conv.updated_at,
-            message_count=len(conv.messages) if hasattr(conv, "messages") and conv.messages else 0,
+            message_count=message_count,
         )
 
 

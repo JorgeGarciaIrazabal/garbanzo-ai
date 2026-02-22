@@ -26,6 +26,11 @@ class Settings(BaseSettings):
 
     # LLM
     llm_provider: str = "ollama"
+    ollama_base_url: str = "http://host.docker.internal:11434"
+
+    # Dev test user — set both to auto-create a user on startup
+    test_user_email: str = ""
+    test_user_password: str = ""
 
     # CORS
     cors_origins: str = "http://localhost:3000,http://localhost:8000"

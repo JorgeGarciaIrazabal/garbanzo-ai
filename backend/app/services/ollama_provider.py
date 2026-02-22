@@ -81,7 +81,7 @@ class OllamaProvider(LLMProvider):
         }
 
         full_content = ""
-        total_tokens = 0
+        accumulated_thinking = ""
 
         try:
             async with client.stream(
@@ -109,7 +109,6 @@ class OllamaProvider(LLMProvider):
 
                     # Check for completion
                     if data.get("done", False):
-                        # Final chunk with metadata
                         metadata: dict[str, Any] = {}
                         if "eval_count" in data:
                             metadata["tokens_generated"] = data["eval_count"]
@@ -117,6 +116,8 @@ class OllamaProvider(LLMProvider):
                             metadata["tokens_prompt"] = data["prompt_eval_count"]
                         if "total_duration" in data:
                             metadata["total_duration_ns"] = data["total_duration"]
+                        if accumulated_thinking:
+                            metadata["thinking"] = accumulated_thinking
 
                         yield ChatChunk(
                             content="",
@@ -125,16 +126,18 @@ class OllamaProvider(LLMProvider):
                         )
                         break
 
-                    # Extract content from message
+                    # Extract content and thinking from message
                     message = data.get("message", {})
                     content = message.get("content", "")
+                    thinking = message.get("thinking", "")
+
+                    if thinking:
+                        accumulated_thinking += thinking
+                        yield ChatChunk(content=thinking, is_finished=False, is_thinking=True)
 
                     if content:
                         full_content += content
-                        yield ChatChunk(
-                            content=content,
-                            is_finished=False,
-                        )
+                        yield ChatChunk(content=content, is_finished=False)
 
         except httpx.HTTPStatusError as e:
             logger.error(f"Ollama HTTP error: {e.response.status_code} - {e.response.text}")

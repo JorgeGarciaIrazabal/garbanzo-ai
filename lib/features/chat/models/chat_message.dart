@@ -20,7 +20,8 @@ class ChatMessage {
       role: json['role'] as String,
       content: json['content'] as String,
       createdAt: DateTime.parse(json['created_at'] as String),
-      metadata: json['metadata'] as Map<String, dynamic>?,
+      // API serialises the field as 'meta'; 'metadata' kept for compatibility
+      metadata: (json['meta'] ?? json['metadata']) as Map<String, dynamic>?,
     );
   }
 
@@ -79,6 +80,7 @@ class ChatResponseChunk {
   }
 
   bool get isChunk => type == 'chunk';
+  bool get isThinking => type == 'thinking';
   bool get isDone => type == 'done';
   bool get isError => type == 'error';
 }

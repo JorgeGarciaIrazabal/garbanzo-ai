@@ -39,6 +39,7 @@ class ChatChunk:
 
     content: str
     is_finished: bool = False
+    is_thinking: bool = False
     metadata: Optional[dict[str, Any]] = None
 
 
