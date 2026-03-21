@@ -1,8 +1,10 @@
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../models/chat_attachment.dart';
 import '../models/chat_message.dart';
+import '../services/audio_service.dart';
 
 /// Widget for displaying a single chat message.
 class ChatMessageWidget extends StatelessWidget {
@@ -118,11 +120,18 @@ class ChatMessageWidget extends StatelessWidget {
                     colorScheme: colorScheme,
                     textTheme: theme.textTheme,
                   ),
-                // Copy button for assistant messages
+                // Action buttons for assistant messages
                 if (!isUser && message.content.isNotEmpty)
                   Align(
                     alignment: Alignment.bottomRight,
-                    child: _CopyButton(content: message.content),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _CopyButton(content: message.content),
+                        const SizedBox(width: 8),
+                        _SpeakButton(content: message.content),
+                      ],
+                    ),
                   ),
               ],
             ),
@@ -437,6 +446,113 @@ class _CopyButtonState extends State<_CopyButton> {
               style: TextStyle(
                 fontSize: 12,
                 color: _copied
+                    ? colorScheme.primary
+                    : colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Speak button for TTS playback of assistant messages.
+class _SpeakButton extends StatefulWidget {
+  const _SpeakButton({required this.content});
+
+  final String content;
+
+  @override
+  State<_SpeakButton> createState() => _SpeakButtonState();
+}
+
+class _SpeakButtonState extends State<_SpeakButton> {
+  bool _isPlaying = false;
+  bool _isLoading = false;
+  AudioPlayer? _player;
+
+  @override
+  void dispose() {
+    _player?.dispose();
+    super.dispose();
+  }
+
+  Future<void> _speak() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final audioBytes = await AudioService.instance.speak(widget.content);
+
+      _player?.dispose();
+      _player = AudioPlayer();
+      _player!.onPlayerComplete.listen((_) {
+        if (mounted) {
+          setState(() => _isPlaying = false);
+        }
+      });
+
+      await _player!.play(BytesSource(audioBytes));
+
+      if (mounted) {
+        setState(() {
+          _isPlaying = true;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Speech synthesis failed: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _stop() async {
+    await _player?.stop();
+    if (mounted) {
+      setState(() => _isPlaying = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    if (_isLoading) {
+      return const Padding(
+        padding: EdgeInsets.all(4),
+        child: SizedBox(
+          width: 14,
+          height: 14,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      );
+    }
+
+    return InkWell(
+      onTap: _isPlaying ? _stop : _speak,
+      borderRadius: BorderRadius.circular(4),
+      child: Padding(
+        padding: const EdgeInsets.all(4),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              _isPlaying ? Icons.stop : Icons.volume_up,
+              size: 14,
+              color: _isPlaying
+                  ? colorScheme.primary
+                  : colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              _isPlaying ? 'Stop' : 'Listen',
+              style: TextStyle(
+                fontSize: 12,
+                color: _isPlaying
                     ? colorScheme.primary
                     : colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
               ),

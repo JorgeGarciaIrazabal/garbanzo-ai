@@ -130,4 +130,24 @@ class ApiClient {
       ),
     );
   }
+
+  /// Send a POST request with multipart form data.
+  Future<Response> postMultipart(
+    String path, {
+    required FormData data,
+  }) {
+    return _dio.post(path, data: data);
+  }
+
+  /// Send a POST request expecting binary response data.
+  Future<Response<List<int>>> postBytes(
+    String path, {
+    Object? data,
+  }) {
+    return _dio.post<List<int>>(
+      path,
+      data: data,
+      options: Options(responseType: ResponseType.bytes),
+    );
+  }
 }

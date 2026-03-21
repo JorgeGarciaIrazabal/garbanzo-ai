@@ -21,10 +21,37 @@ completions-install:
 install: be-install fe-install
     @Write-Host "All dependencies installed!"
 
-# Start PostgreSQL for local development (run before be-dev)
+# Start Docker, backend, and frontend together — kills port 8000 if busy
+dev:
+    #!/usr/bin/env bash
+    set -e
+    if lsof -ti:8000 > /dev/null 2>&1; then
+        PIDS=$(lsof -ti:8000 | tr '\n' ' ')
+        printf "Port 8000 is in use by PID(s) %s. Kill? [y/N] " "$PIDS"
+        read -r answer
+        if [[ "$answer" =~ ^[Yy]$ ]]; then
+            lsof -ti:8000 | xargs kill
+            echo "Killed."
+        else
+            echo "Aborting."
+            exit 1
+        fi
+    fi
+    docker compose up -d
+    echo "Starting backend on :8000..."
+    (cd backend && uv run uvicorn app.main:app --reload --port 8000) &
+    BACKEND_PID=$!
+    trap "kill $BACKEND_PID 2>/dev/null; echo 'Backend stopped.'" EXIT INT TERM
+    echo "Starting frontend..."
+    flutter run -d linux
+
+# Start all services (PostgreSQL, STT, TTS)
 docker-up:
     docker compose up -d
-    @Write-Host "PostgreSQL is running. Use 'just be-dev' to start the backend."
+
+# Start only PostgreSQL for local development
+docker-up-db:
+    docker compose up -d postgres
 
 # ============================================================================
 # Backend Commands (FastAPI)

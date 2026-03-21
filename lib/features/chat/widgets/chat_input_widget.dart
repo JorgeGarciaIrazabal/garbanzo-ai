@@ -1,8 +1,13 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:record/record.dart';
 
 import '../models/chat_attachment.dart';
+import '../services/audio_service.dart';
 
 /// Widget for the chat text input field with optional file attachments.
 class ChatInputWidget extends StatefulWidget {
@@ -32,6 +37,13 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
   bool _isComposing = false;
   final List<ChatAttachment> _attachments = [];
 
+  // Voice recording state
+  AudioRecorder? _recorder;
+  bool _isRecording = false;
+  bool _isTranscribing = false;
+  Timer? _recordingTimer;
+  int _recordingDuration = 0;
+
   @override
   void initState() {
     super.initState();
@@ -42,6 +54,8 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
   void dispose() {
     _controller.dispose();
     _focusNode.dispose();
+    _recordingTimer?.cancel();
+    _recorder?.dispose();
     super.dispose();
   }
 
@@ -89,6 +103,116 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
       _handleSubmitted();
     }
     return KeyEventResult.handled;
+  }
+
+  Future<void> _toggleRecording() async {
+    if (_isRecording) {
+      await _stopRecording();
+    } else {
+      await _startRecording();
+    }
+  }
+
+  Future<void> _startRecording() async {
+    try {
+      _recorder = AudioRecorder();
+      final hasPermission = await _recorder!.hasPermission();
+      if (!hasPermission) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Microphone permission denied')),
+          );
+        }
+        _recorder?.dispose();
+        _recorder = null;
+        return;
+      }
+
+      final tempPath =
+          '${Directory.systemTemp.path}/garbanzo_voice_${DateTime.now().millisecondsSinceEpoch}.wav';
+
+      await _recorder!.start(
+        const RecordConfig(encoder: AudioEncoder.wav),
+        path: tempPath,
+      );
+
+      setState(() {
+        _isRecording = true;
+        _recordingDuration = 0;
+      });
+
+      _recordingTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+        setState(() => _recordingDuration++);
+      });
+    } catch (e) {
+      _recorder?.dispose();
+      _recorder = null;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to start recording: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _stopRecording() async {
+    _recordingTimer?.cancel();
+    _recordingTimer = null;
+
+    try {
+      final path = await _recorder?.stop();
+      _recorder?.dispose();
+      _recorder = null;
+
+      setState(() => _isRecording = false);
+
+      if (path == null) return;
+
+      setState(() => _isTranscribing = true);
+
+      final file = File(path);
+      final audioBytes = await file.readAsBytes();
+      final filename = path.split('/').last;
+
+      final transcript =
+          await AudioService.instance.transcribeAudio(audioBytes, filename);
+
+      if (mounted) {
+        // Insert transcript at cursor position
+        final currentText = _controller.text;
+        final selection = _controller.selection;
+        final insertPos =
+            selection.isValid ? selection.baseOffset : currentText.length;
+        final prefix = insertPos > 0 && currentText[insertPos - 1] != ' '
+            ? ' '
+            : '';
+        final newText = currentText.replaceRange(
+          insertPos,
+          insertPos,
+          '$prefix$transcript',
+        );
+        _controller.text = newText;
+        _controller.selection = TextSelection.collapsed(
+          offset: insertPos + prefix.length + transcript.length,
+        );
+        _handleTextChange(_controller.text);
+      }
+
+      // Clean up temp file
+      try {
+        await file.delete();
+      } catch (_) {}
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Transcription failed: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isTranscribing = false);
+      }
+    }
   }
 
   Future<void> _pickFiles() async {
@@ -164,6 +288,12 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
     setState(() => _attachments.removeAt(index));
   }
 
+  String _formatDuration(int seconds) {
+    final mins = seconds ~/ 60;
+    final secs = seconds % 60;
+    return '$mins:${secs.toString().padLeft(2, '0')}';
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -209,40 +339,102 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: colorScheme.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(
-                        color: colorScheme.outlineVariant.withValues(alpha: 0.5),
-                      ),
-                    ),
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxHeight: 200),
-                      child: TextField(
-                        controller: _controller,
-                        focusNode: _focusNode,
-                        onChanged: _handleTextChange,
-                        maxLines: null,
-                        minLines: 1,
-                        textCapitalization: TextCapitalization.sentences,
-                        decoration: InputDecoration(
-                          hintText: widget.hintText,
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
+                // Mic button
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: _isTranscribing
+                      ? const SizedBox(
+                          width: 40,
+                          height: 40,
+                          child: Padding(
+                            padding: EdgeInsets.all(8),
+                            child: CircularProgressIndicator(strokeWidth: 2),
                           ),
-                          border: InputBorder.none,
-                          hintStyle: TextStyle(
-                            color: colorScheme.onSurfaceVariant
-                                .withValues(alpha: 0.6),
+                        )
+                      : IconButton(
+                          onPressed:
+                              widget.isLoading ? null : _toggleRecording,
+                          icon:
+                              Icon(_isRecording ? Icons.stop : Icons.mic),
+                          tooltip: _isRecording
+                              ? 'Stop recording'
+                              : 'Voice input',
+                          style: IconButton.styleFrom(
+                            foregroundColor: _isRecording
+                                ? colorScheme.error
+                                : colorScheme.onSurfaceVariant,
+                            minimumSize: const Size(40, 40),
                           ),
                         ),
-                        style: theme.textTheme.bodyMedium,
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Stack(
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          color: colorScheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(24),
+                          border: Border.all(
+                            color: colorScheme.outlineVariant
+                                .withValues(alpha: 0.5),
+                          ),
+                        ),
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxHeight: 200),
+                          child: TextField(
+                            controller: _controller,
+                            focusNode: _focusNode,
+                            onChanged: _handleTextChange,
+                            maxLines: null,
+                            minLines: 1,
+                            textCapitalization: TextCapitalization.sentences,
+                            decoration: InputDecoration(
+                              hintText: widget.hintText,
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                              border: InputBorder.none,
+                              hintStyle: TextStyle(
+                                color: colorScheme.onSurfaceVariant
+                                    .withValues(alpha: 0.6),
+                              ),
+                            ),
+                            style: theme.textTheme.bodyMedium,
+                          ),
+                        ),
                       ),
-                    ),
+                      if (_isRecording)
+                        Positioned.fill(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: colorScheme.errorContainer
+                                  .withValues(alpha: 0.9),
+                              borderRadius: BorderRadius.circular(24),
+                              border: Border.all(
+                                color: colorScheme.error
+                                    .withValues(alpha: 0.5),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                _PulsingDot(color: colorScheme.error),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Recording ${_formatDuration(_recordingDuration)}',
+                                  style:
+                                      theme.textTheme.bodyMedium?.copyWith(
+                                    color: colorScheme.onErrorContainer,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -280,6 +472,53 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Pulsing red dot to indicate active recording.
+class _PulsingDot extends StatefulWidget {
+  const _PulsingDot({required this.color});
+
+  final Color color;
+
+  @override
+  State<_PulsingDot> createState() => _PulsingDotState();
+}
+
+class _PulsingDotState extends State<_PulsingDot>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(
+            color: widget.color.withValues(alpha: 0.5 + _controller.value * 0.5),
+            shape: BoxShape.circle,
+          ),
+        );
+      },
     );
   }
 }

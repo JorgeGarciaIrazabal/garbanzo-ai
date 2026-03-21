@@ -12,5 +12,27 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  faster-whisper:
+    image: fedirz/faster-whisper-server:latest-cpu
+    container_name: garbanzo_ai_whisper
+    restart: unless-stopped
+    environment:
+      WHISPER__MODEL: Systran/faster-whisper-large-v3
+    ports:
+      - "8010:8000"
+    volumes:
+      - whisper_models:/root/.cache/huggingface
+
+  kokoro-tts:
+    image: ghcr.io/remsky/kokoro-fastapi-cpu:latest
+    container_name: garbanzo_ai_kokoro
+    restart: unless-stopped
+    ports:
+      - "8020:8880"
+    volumes:
+      - kokoro_models:/app/api/src/voices/
+
 volumes:
   postgres_data:
+  whisper_models:
+  kokoro_models:

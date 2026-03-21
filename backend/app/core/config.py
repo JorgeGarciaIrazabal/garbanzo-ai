@@ -31,6 +31,12 @@ class Settings(BaseSettings):
     test_user_email: str = ""
     test_user_password: str = ""
 
+    # Voice services
+    faster_whisper_url: str = "http://localhost:8010"
+    kokoro_url: str = "http://localhost:8020"
+    default_tts_voice: str = "af_heart"
+    default_tts_speed: float = 1.0
+
     # CORS
     cors_origins: str = "http://localhost:3000,http://localhost:8000"
 

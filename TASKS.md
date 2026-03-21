@@ -18,13 +18,13 @@ TTS model research (2025):
              OpenAI TTS/Whisper API — proprietary, not self-hosted
 -->
 
-- [ ] **STT: Microphone input** — Record audio in the chat input widget with a hold-to-talk / tap-to-toggle button; use Flutter `record` package
-- [ ] **STT: faster-whisper service** — Dockerized `faster-whisper-server` (MIT) exposing `POST /v1/audio/transcriptions`; defaults to `large-v3`; swap for Parakeet TDT 0.6B v3 if an NVIDIA GPU is present
-- [ ] **STT: Backend transcription endpoint** — `POST /api/v1/stt/transcribe` that forwards audio to the faster-whisper service and returns the transcript text
+- [x] **STT: Microphone input** — Record audio in the chat input widget with a hold-to-talk / tap-to-toggle button; use Flutter `record` package
+- [x] **STT: faster-whisper service** — Dockerized `faster-whisper-server` (MIT) exposing `POST /v1/audio/transcriptions`; defaults to `large-v3`; swap for Parakeet TDT 0.6B v3 if an NVIDIA GPU is present
+- [x] **STT: Backend transcription endpoint** — `POST /api/v1/stt/transcribe` that forwards audio to the faster-whisper service and returns the transcript text
 - [ ] **STT: Auto-submit after transcription** — Option to auto-send the message once voice input stops and transcription completes
-- [ ] **TTS: Kokoro-82M service** — Dockerized `kokoro-fastapi` (Apache 2.0) exposing `/v1/audio/speech` (OpenAI-compatible); 48 voices across 8 languages
-- [ ] **TTS: Backend speech endpoint** — `POST /api/v1/tts/speak` that proxies to Kokoro and streams audio back to the client
-- [ ] **TTS: Per-message playback** — Play/stop button on each assistant message that calls the TTS endpoint and streams audio via the Flutter `audioplayers` package
+- [x] **TTS: Kokoro-82M service** — Dockerized `kokoro-fastapi` (Apache 2.0) exposing `/v1/audio/speech` (OpenAI-compatible); 48 voices across 8 languages
+- [x] **TTS: Backend speech endpoint** — `POST /api/v1/tts/speak` that proxies to Kokoro and streams audio back to the client
+- [x] **TTS: Per-message playback** — Play/stop button on each assistant message that calls the TTS endpoint and streams audio via the Flutter `audioplayers` package
 - [ ] **TTS: Auto-play mode** — Setting to auto-play TTS for every new assistant message as it finishes streaming
 - [ ] **TTS/STT: Voice settings UI** — Settings panel to choose: STT model (faster-whisper / Parakeet), TTS voice (from Kokoro's 48 voices), TTS language, and speaking speed
 - [ ] **TTS: Chatterbox Turbo voice cloning** — Optional: allow users to upload a 5-second voice sample; backend forwards to a Chatterbox Turbo service for personalized TTS output (MIT license)
