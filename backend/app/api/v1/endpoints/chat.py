@@ -181,6 +181,7 @@ async def chat_stream(
                 user_id=current_user["email"],
                 content=data.message,
                 options=data.options,
+                attachments=data.attachments or None,
             ):
                 if chunk.is_finished:
                     response = ChatResponseChunk(type="done", metadata=chunk.metadata)

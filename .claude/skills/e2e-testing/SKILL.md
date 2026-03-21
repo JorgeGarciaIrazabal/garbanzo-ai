@@ -3,86 +3,124 @@ name: e2e-testing
 description: E2E testing workflow for the Flutter app using MCP tools
 ---
 
-# E2E Testing with MCPs
+# E2E Testing with Marionette + Dart MCP
 
-## Starting the Stack
-
-Always start services in this order:
-
-1. **Backend** (FastAPI on port 8000):
-   ```powershell
-   just be-dev
-   # or: cd backend; uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-   ```
-
-2. **Flutter frontend** (web-server on fixed port 8080):
-   ```powershell
-   just fe-run-test-server
-   # or: flutter run -d web-server --web-port=8080 --web-hostname=localhost
-   ```
-
-   Do NOT use `just fe-run` / `flutter run -d chrome` for testing - it launches a new Chrome window on a random port that the browser MCP cannot access.
-
-3. **Verify both are up** by checking terminal output before proceeding.
-
-## Launching via Dart MCP (Alternative)
-
-The dart-mcp-server `launch_app` tool is available but opens a **separate browser window** the browser MCP cannot see. Only use it when widget-tree inspection via `get_widget_tree` / `flutter_driver` is needed.
+## Workflow Overview
 
 ```
-list_devices        → pick "edge" or "chrome"
-launch_app          → returns DTD URI + PID
-connect_dart_tooling_daemon(uri)
-get_widget_tree / get_app_logs / get_runtime_errors
+1. Start backend          → FastAPI on port 8000
+2. Launch Flutter app     → via Dart MCP (launch_app) → get VM service URI
+3. Connect Marionette     → connect(uri: <vm_service_uri>)
+4. Interact + assert      → tap / enter_text / take_screenshots / get_logs
+5. Inspect widget tree    → Dart MCP get_widget_tree / get_runtime_errors
+6. Stop                   → Dart MCP stop_app
 ```
 
-## Browser MCP Interaction Pattern
+## Step 1 — Start the Backend
 
-After navigating to `http://localhost:8080`:
-
-1. Flutter renders inside a `<flutter-view>` — the full widget tree is NOT in the DOM.
-2. Accessibility must be enabled first — click the `flutter-view` container (`e1` ref) once to reveal form fields as `role: textbox`.
-3. Then use `browser_fill` (not `browser_type`) to set field values reliably.
-4. Use `browser_press_key` with `"Tab"` to move between fields.
-5. Use `browser_press_key` with `"Enter"` or click the submit button ref to submit.
-6. Use `browser_snapshot` after every action to see the updated accessible tree.
-7. Use `browser_console_messages` to check for JS errors or network failures.
-
-### Checking API traffic
-
-After form submission, read the **backend terminal file** to confirm the HTTP request was made and check the status code. This is the most reliable verification method.
-
-## Stopping Processes
-
-```powershell
-# Stop all Flutter/Dart processes
-taskkill /F /FI "IMAGENAME eq dart.exe"
-
-# Stop backend (Python/uvicorn)
-taskkill /F /FI "IMAGENAME eq python.exe"
+```bash
+cd backend; uv run uvicorn app.main:app --reload --port 8000
+# or: just be-dev
 ```
 
-Or use the dart-mcp `stop_app` tool with the PID from `list_running_apps`.
+Verify it's up at `http://localhost:8000/health` before proceeding.
 
-## Integration Tests (flutter test)
+## Step 2 — Launch the Flutter App via Dart MCP
 
-`flutter test integration_test/ -d chrome` **does not work** — Flutter web is not yet supported for integration tests.
-
-Use `-d windows` (Windows desktop) for integration test runs:
-```powershell
-flutter test integration_test/app_test.dart -d windows
+```
+list_devices                     → pick "linux" (preferred) or "chrome"
+launch_app(device_id: "linux")   → returns { dtd_uri, vm_service_uri, pid }
 ```
 
-Integration tests live in `integration_test/` and require the `integration_test` SDK package (already in `pubspec.yaml`).
+The `vm_service_uri` will look like `ws://127.0.0.1:PORT/ws`. Save it — you need it for Marionette.
 
-## Key URLs
+> **Note:** `launch_app` on `linux` opens a native desktop window. On `chrome` it opens a browser. Either works for Marionette. Linux is preferred in WSL2 to avoid browser port randomness.
 
-| Service | URL |
-|---------|-----|
-| Backend API | http://localhost:8000 |
-| Flutter (test server) | http://localhost:8080 |
-| Flutter (backend-served prod build) | http://localhost:8000 |
+## Step 3 — Connect Marionette
 
-## API base URL
+```
+connect(uri: "<vm_service_uri from launch_app>")
+```
 
-In debug mode the Flutter app always calls `http://localhost:8000` (hardcoded in `lib/core/api_client.dart`). Override with `--dart-define=API_BASE_URL=https://...` for other environments.
+Marionette is now linked to the running Flutter app.
+
+## Step 4 — Discover UI Elements
+
+```
+get_interactive_elements()
+```
+
+Elements are matched by `ValueKey<String>` (more reliable) or by text content. If an element is missing, add a `ValueKey` to it in the source code and hot_reload.
+
+## Step 5 — Interact with the App
+
+| Action | Tool | Notes |
+|--------|------|-------|
+| Tap a button / element | `tap(key: "submit_button")` or `tap(text: "Send")` | Keys preferred |
+| Type into a field | `enter_text(key: "message_input", text: "Hello")` | Targets focused field |
+| Scroll | `scroll_to(key: "message_list")` | Scrolls element into view |
+| Screenshot | `take_screenshots()` | Check current UI state |
+| Read logs | `get_logs()` | Debug print statements, errors |
+| Hot reload after code change | `hot_reload()` | Preserves app state |
+
+## Step 6 — Inspect with Dart MCP
+
+```
+connect_dart_tooling_daemon(uri: "<dtd_uri from launch_app>")
+get_widget_tree()         → full widget hierarchy
+get_runtime_errors()      → Dart/Flutter errors
+get_app_logs()            → structured app output
+```
+
+Use `get_widget_tree` to find widget keys and verify rendering. Use `get_runtime_errors` after interactions to assert no crashes occurred.
+
+## Step 7 — Stop the App
+
+```
+stop_app(pid: <pid from launch_app>)
+# or: Dart MCP stop_app
+```
+
+## Running Unit/Integration Tests via Dart MCP
+
+```
+run_tests(path: "test/")                        → unit tests
+run_tests(path: "integration_test/app_test.dart", device_id: "linux")
+```
+
+> Flutter web integration tests (`-d chrome`) are not supported. Use `linux` desktop device.
+
+## Common Test Patterns
+
+### Verify a chat message was sent
+
+```
+1. enter_text(key: "message_input", text: "Hello AI")
+2. tap(key: "send_button")
+3. take_screenshots()          → confirm message appears in list
+4. get_logs()                  → confirm no errors
+5. get_runtime_errors()        → assert empty
+```
+
+### Verify backend API call
+
+After a user action, check the backend terminal output — HTTP request logs are the most reliable confirmation that the API was called.
+
+### Adding keys to widgets
+
+When `get_interactive_elements()` doesn't surface a widget, add a `ValueKey`:
+
+```dart
+TextField(key: const ValueKey('message_input'), ...)
+ElevatedButton(key: const ValueKey('send_button'), ...)
+```
+
+Then `hot_reload()` via Marionette — no restart needed.
+
+## Key References
+
+| Service | Value |
+|---------|-------|
+| Backend API | `http://localhost:8000` |
+| API base URL (debug) | `http://localhost:8000` (hardcoded in `lib/core/api_client.dart`) |
+| Override API URL | `--dart-define=API_BASE_URL=https://...` |

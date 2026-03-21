@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../../../core/api_client.dart';
+import '../models/chat_attachment.dart';
 import '../models/chat_message.dart';
 import '../models/conversation.dart';
 import '../models/model_info.dart';
@@ -126,6 +127,7 @@ class ChatService {
   Stream<ChatResponseChunk> streamChatResponse(
     String conversationId,
     String message, {
+    List<ChatAttachment> attachments = const [],
     double temperature = 0.7,
     int? maxTokens,
     double? topP,
@@ -138,6 +140,8 @@ class ChatService {
 
     request.body = jsonEncode({
       'message': message,
+      if (attachments.isNotEmpty)
+        'attachments': attachments.map((a) => a.toJson()).toList(),
       'options': {
         'temperature': temperature,
         'max_tokens': ?maxTokens,

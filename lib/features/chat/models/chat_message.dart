@@ -1,3 +1,5 @@
+import 'chat_attachment.dart';
+
 /// A single message in a chat conversation.
 class ChatMessage {
   final String id;
@@ -6,12 +8,18 @@ class ChatMessage {
   final DateTime createdAt;
   final Map<String, dynamic>? metadata;
 
+  /// Attachments are kept in memory for the current session only (not
+  /// persisted across reloads). The backend stores metadata about them
+  /// but not the raw bytes.
+  final List<ChatAttachment> attachments;
+
   const ChatMessage({
     required this.id,
     required this.role,
     required this.content,
     required this.createdAt,
     this.metadata,
+    this.attachments = const [],
   });
 
   factory ChatMessage.fromJson(Map<String, dynamic> json) {
@@ -41,6 +49,7 @@ class ChatMessage {
     String? content,
     DateTime? createdAt,
     Map<String, dynamic>? metadata,
+    List<ChatAttachment>? attachments,
   }) {
     return ChatMessage(
       id: id ?? this.id,
@@ -48,6 +57,7 @@ class ChatMessage {
       content: content ?? this.content,
       createdAt: createdAt ?? this.createdAt,
       metadata: metadata ?? this.metadata,
+      attachments: attachments ?? this.attachments,
     );
   }
 

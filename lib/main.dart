@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:marionette_flutter/marionette_flutter.dart';
 
 import 'core/auth_service.dart';
 import 'features/chat/widgets/chat_page.dart';
@@ -6,6 +8,9 @@ import 'pages/login_page.dart';
 import 'pages/register_page.dart';
 
 void main() {
+  if (kDebugMode) {
+    MarionetteBinding.ensureInitialized();
+  }
   runApp(const GarbanzoApp());
 }
 

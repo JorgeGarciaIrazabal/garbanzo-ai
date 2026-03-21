@@ -5,6 +5,24 @@ from pydantic import BaseModel, Field
 
 
 # ============================================================================
+# Attachment Schemas
+# ============================================================================
+
+class AttachmentIn(BaseModel):
+    """A file attached to a chat message."""
+
+    name: str = Field(..., description="Original filename")
+    mime_type: str = Field(..., description="MIME type of the file")
+    type: Literal["image", "document"] = Field(
+        ..., description="Attachment category"
+    )
+    data: str = Field(
+        ...,
+        description="Base64-encoded bytes for images; plain text for documents",
+    )
+
+
+# ============================================================================
 # Chat Message Schemas
 # ============================================================================
 
@@ -65,6 +83,10 @@ class ChatRequest(BaseModel):
     """Request to send a message in a conversation."""
 
     message: str = Field(..., min_length=1, description="The user's message")
+    attachments: list[AttachmentIn] = Field(
+        default_factory=list,
+        description="Files attached to this message",
+    )
     options: ChatOptions = Field(
         default_factory=ChatOptions,
         description="Generation options",

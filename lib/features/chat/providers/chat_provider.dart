@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../models/chat_attachment.dart';
 import '../models/chat_message.dart';
 import '../models/conversation.dart';
 import '../services/chat_service.dart';
@@ -87,6 +88,7 @@ class ChatProvider extends ChangeNotifier {
     String? title,
     String? model,
     String? initialMessage,
+    List<ChatAttachment> initialAttachments = const [],
   }) async {
     _error = null;
     notifyListeners();
@@ -107,7 +109,7 @@ class ChatProvider extends ChangeNotifier {
       _messages = [];
 
       if (initialMessage != null && initialMessage.isNotEmpty) {
-        await sendMessage(initialMessage);
+        await sendMessage(initialMessage, attachments: initialAttachments);
       } else {
         notifyListeners();
       }
@@ -173,8 +175,11 @@ class ChatProvider extends ChangeNotifier {
   // Messaging
   // ==========================================================================
 
-  Future<void> sendMessage(String content) async {
-    if (content.trim().isEmpty) return;
+  Future<void> sendMessage(
+    String content, {
+    List<ChatAttachment> attachments = const [],
+  }) async {
+    if (content.trim().isEmpty && attachments.isEmpty) return;
 
     _error = null;
     _isSending = true;
@@ -183,6 +188,7 @@ class ChatProvider extends ChangeNotifier {
       await createConversation(
         model: _selectedModelId() ?? 'llama3.2',
         initialMessage: content,
+        initialAttachments: attachments,
       );
       return;
     }
@@ -192,6 +198,7 @@ class ChatProvider extends ChangeNotifier {
       role: 'user',
       content: content,
       createdAt: DateTime.now(),
+      attachments: attachments,
     );
     _messages = [..._messages, userMessage];
     notifyListeners();
@@ -205,6 +212,7 @@ class ChatProvider extends ChangeNotifier {
       final stream = _chatService.streamChatResponse(
         _currentConversation!.id,
         content,
+        attachments: attachments,
       );
 
       _streamSubscription = stream.listen(

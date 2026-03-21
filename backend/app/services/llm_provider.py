@@ -12,6 +12,7 @@ class Message:
 
     role: str  # "user", "assistant", "system"
     content: str
+    images: list[str] | None = None  # base64-encoded images for multimodal models
 
 
 @dataclass

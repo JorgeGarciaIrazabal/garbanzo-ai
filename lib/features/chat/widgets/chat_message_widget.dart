@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../models/chat_attachment.dart';
 import '../models/chat_message.dart';
 
 /// Widget for displaying a single chat message.
@@ -95,6 +96,13 @@ class ChatMessageWidget extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 8),
+                // Attachments (images + document chips) for user messages
+                if (isUser && message.attachments.isNotEmpty)
+                  _AttachmentDisplay(
+                    attachments: message.attachments,
+                    colorScheme: colorScheme,
+                    textTheme: theme.textTheme,
+                  ),
                 // Thinking content (expandable)
                 if (thinkingContent != null && !isUser)
                   _ThinkingContent(
@@ -103,12 +111,13 @@ class ChatMessageWidget extends StatelessWidget {
                     textTheme: theme.textTheme,
                   ),
                 // Message content
-                _MessageContent(
-                  content: message.content,
-                  isUser: isUser,
-                  colorScheme: colorScheme,
-                  textTheme: theme.textTheme,
-                ),
+                if (message.content.isNotEmpty)
+                  _MessageContent(
+                    content: message.content,
+                    isUser: isUser,
+                    colorScheme: colorScheme,
+                    textTheme: theme.textTheme,
+                  ),
                 // Copy button for assistant messages
                 if (!isUser && message.content.isNotEmpty)
                   Align(
@@ -131,6 +140,109 @@ class ChatMessageWidget extends StatelessWidget {
       return thinking;
     }
     return null;
+  }
+}
+
+/// Displays attached images as thumbnails and documents as chips.
+class _AttachmentDisplay extends StatelessWidget {
+  const _AttachmentDisplay({
+    required this.attachments,
+    required this.colorScheme,
+    required this.textTheme,
+  });
+
+  final List<ChatAttachment> attachments;
+  final ColorScheme colorScheme;
+  final TextTheme textTheme;
+
+  @override
+  Widget build(BuildContext context) {
+    final images = attachments.where((a) => a.isImage).toList();
+    final docs = attachments.where((a) => a.isDocument).toList();
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (images.isNotEmpty)
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: images.map((img) => _ImageThumbnail(img)).toList(),
+            ),
+          if (docs.isNotEmpty) ...[
+            if (images.isNotEmpty) const SizedBox(height: 6),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: docs.map((doc) => _DocumentChip(doc, colorScheme, textTheme)).toList(),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ImageThumbnail extends StatelessWidget {
+  const _ImageThumbnail(this.attachment);
+  final ChatAttachment attachment;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: Image.memory(
+        attachment.bytes,
+        width: 160,
+        height: 160,
+        fit: BoxFit.cover,
+        errorBuilder: (ctx, err, stack) => const Icon(Icons.broken_image, size: 48),
+      ),
+    );
+  }
+}
+
+class _DocumentChip extends StatelessWidget {
+  const _DocumentChip(this.attachment, this.colorScheme, this.textTheme);
+  final ChatAttachment attachment;
+  final ColorScheme colorScheme;
+  final TextTheme textTheme;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: colorScheme.primaryContainer.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: colorScheme.primary.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.insert_drive_file_outlined,
+            size: 14,
+            color: colorScheme.onPrimaryContainer,
+          ),
+          const SizedBox(width: 6),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 200),
+            child: Text(
+              attachment.name,
+              overflow: TextOverflow.ellipsis,
+              style: textTheme.labelSmall?.copyWith(
+                color: colorScheme.onPrimaryContainer,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

@@ -1,0 +1,24 @@
+# Flutter build output
+build/
+
+# Flutter platform targets (not the web source in backend/)
+android/
+ios/
+linux/
+macos/
+windows/
+web/
+
+# Lock files
+pubspec.lock
+
+# Python / backend
+backend/.venv/
+backend/**/__pycache__/
+backend/**/*.pyc
+backend/**/*.pyo
+backend/.mypy_cache/
+backend/.ruff_cache/
+backend/.pytest_cache/
+backend/**/*.egg-info/
+backend/uv.lock

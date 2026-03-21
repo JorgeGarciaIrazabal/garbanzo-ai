@@ -102,7 +102,8 @@ class _ChatPageContentState extends State<_ChatPageContent> {
                   ),
                 Expanded(child: _buildMessageList(chatProvider, theme)),
                 ChatInputWidget(
-                  onSend: (message) => chatProvider.sendMessage(message),
+                  onSend: (message, attachments) =>
+                      chatProvider.sendMessage(message, attachments: attachments),
                   onStop: () => chatProvider.stopStreaming(),
                   isLoading: chatProvider.isSending,
                 ),

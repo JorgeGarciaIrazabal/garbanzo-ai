@@ -58,11 +58,13 @@ class OllamaProvider(LLMProvider):
         client = self._get_client()
         opts = options or ChatOptions()
 
-        # Convert messages to Ollama format
-        ollama_messages = [
-            {"role": msg.role, "content": msg.content}
-            for msg in messages
-        ]
+        # Convert messages to Ollama format (include images for multimodal models)
+        ollama_messages = []
+        for msg in messages:
+            entry: dict[str, Any] = {"role": msg.role, "content": msg.content}
+            if msg.images:
+                entry["images"] = msg.images
+            ollama_messages.append(entry)
 
         # Build options dict
         request_options: dict[str, Any] = {
@@ -140,9 +142,10 @@ class OllamaProvider(LLMProvider):
                         yield ChatChunk(content=content, is_finished=False)
 
         except httpx.HTTPStatusError as e:
-            logger.error(f"Ollama HTTP error: {e.response.status_code} - {e.response.text}")
+            logger.error(f"Ollama HTTP error: {e.response.status_code}")
             error_msg = f"Ollama error: {e.response.status_code}"
             try:
+                await e.response.aread()
                 error_data = e.response.json()
                 if "error" in error_data:
                     error_msg = f"Ollama error: {error_data['error']}"

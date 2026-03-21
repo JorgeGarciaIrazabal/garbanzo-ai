@@ -10,7 +10,7 @@ from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.message import Message
-from app.schemas.chat import ChatOptions, ModelInfo
+from app.schemas.chat import AttachmentIn, ChatOptions, ModelInfo
 from app.services.conversation_service import ConversationService
 from app.services.llm_provider import ChatChunk, Message as LLMMessage, ProviderRegistry
 from app.core.config import get_settings
@@ -63,6 +63,7 @@ class ChatService:
         user_id: str,
         content: str,
         options: Optional[ChatOptions] = None,
+        attachments: Optional[list[AttachmentIn]] = None,
     ) -> AsyncIterator[ChatChunk]:
         """Save user message, stream LLM response, and persist the result."""
         conversation = await self._conversations.get(conversation_id, user_id)
@@ -74,11 +75,31 @@ class ChatService:
             )
             return
 
+        # Build the content that goes into the DB (append document text inline)
+        stored_content = content
+        attachment_meta: list[dict] = []
+        image_b64_list: list[str] = []
+
+        if attachments:
+            doc_texts: list[str] = []
+            for att in attachments:
+                attachment_meta.append(
+                    {"name": att.name, "mime_type": att.mime_type, "type": att.type}
+                )
+                if att.type == "image":
+                    image_b64_list.append(att.data)
+                elif att.type == "document" and att.data:
+                    doc_texts.append(f"[Attached file: {att.name}]\n{att.data}")
+
+            if doc_texts:
+                stored_content = content + "\n\n" + "\n\n".join(doc_texts)
+
         user_message = Message(
             id=str(uuid.uuid4()),
             conversation_id=conversation_id,
             role="user",
-            content=content,
+            content=stored_content,
+            meta={"attachments": attachment_meta} if attachment_meta else None,
             conversation=conversation,
         )
         self.db.add(user_message)
@@ -87,7 +108,7 @@ class ChatService:
         conversation.updated_at = func.now()  # type: ignore[assignment]
         await self.db.flush()
 
-        llm_messages = self._build_message_history(conversation.messages)
+        llm_messages = self._build_message_history(conversation.messages, image_b64_list)
 
         provider = self._get_provider()
         opts = options or ChatOptions()
@@ -139,8 +160,17 @@ class ChatService:
         finally:
             ChatService._active_streams.pop(conversation_id, None)
 
-    def _build_message_history(self, messages: list[Message]) -> list[LLMMessage]:
-        return [LLMMessage(role=msg.role, content=msg.content) for msg in messages]
+    def _build_message_history(
+        self,
+        messages: list[Message],
+        pending_images: list[str] | None = None,
+    ) -> list[LLMMessage]:
+        result: list[LLMMessage] = []
+        for i, msg in enumerate(messages):
+            is_last = i == len(messages) - 1
+            images = pending_images if (is_last and pending_images) else None
+            result.append(LLMMessage(role=msg.role, content=msg.content, images=images))
+        return result
 
     async def list_available_models(self) -> list[ModelInfo]:
         provider = self._get_provider()
