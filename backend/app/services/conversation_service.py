@@ -2,7 +2,6 @@
 
 import logging
 import uuid
-from typing import Optional
 
 from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,9 +26,9 @@ class ConversationService:
     async def create(
         self,
         user_id: str,
-        title: Optional[str] = None,
+        title: str | None = None,
         model: str = "llama3.2",
-        initial_message: Optional[str] = None,
+        initial_message: str | None = None,
     ) -> Conversation:
         conversation_id = str(uuid.uuid4())
 
@@ -71,12 +70,8 @@ class ConversationService:
         conversation_id: str,
         user_id: str,
         include_messages: bool = True,
-    ) -> Optional[Conversation]:
-        query = select(Conversation).where(
-            Conversation.id == conversation_id,
-            Conversation.user_id == user_id,
-            Conversation.is_deleted == False,  # noqa: E712
-        )
+    ) -> Conversation | None:
+        query = Conversation.active(user_id).where(Conversation.id == conversation_id)
 
         if include_messages:
             query = query.options(selectinload(Conversation.messages))
@@ -90,20 +85,13 @@ class ConversationService:
         page: int = 1,
         page_size: int = 20,
     ) -> tuple[list[Conversation], int]:
-        count_query = select(func.count()).select_from(Conversation).where(
-            Conversation.user_id == user_id,
-            Conversation.is_deleted == False,  # noqa: E712
-        )
+        base = Conversation.active(user_id)
+        count_query = select(func.count()).select_from(base.subquery())
         total_result = await self.db.execute(count_query)
         total = total_result.scalar() or 0
 
         query = (
-            select(Conversation)
-            .where(
-                Conversation.user_id == user_id,
-                Conversation.is_deleted == False,  # noqa: E712
-            )
-            .options(selectinload(Conversation.messages))
+            base.options(selectinload(Conversation.messages))
             .order_by(desc(Conversation.updated_at))
             .offset((page - 1) * page_size)
             .limit(page_size)
@@ -118,9 +106,9 @@ class ConversationService:
         self,
         conversation_id: str,
         user_id: str,
-        title: Optional[str] = None,
-        model: Optional[str] = None,
-    ) -> Optional[Conversation]:
+        title: str | None = None,
+        model: str | None = None,
+    ) -> Conversation | None:
         conversation = await self.get(conversation_id, user_id, include_messages=False)
         if not conversation:
             return None

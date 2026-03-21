@@ -4,16 +4,16 @@ import asyncio
 import logging
 import uuid
 from collections.abc import AsyncIterator
-from typing import Optional
 
 from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import get_settings
 from app.models.message import Message
 from app.schemas.chat import AttachmentIn, ChatOptions, ModelInfo
 from app.services.conversation_service import ConversationService
-from app.services.llm_provider import ChatChunk, Message as LLMMessage, ProviderRegistry
-from app.core.config import get_settings
+from app.services.llm_provider import ChatChunk, LLMProvider, ProviderRegistry
+from app.services.llm_provider import Message as LLMMessage
 from app.services.ollama_provider import OllamaProvider
 
 logger = logging.getLogger(__name__)
@@ -51,19 +51,19 @@ class ChatService:
             settings = get_settings()
             ProviderRegistry.register(OllamaProvider(base_url=settings.ollama_base_url))
 
-    def _get_provider(self) -> OllamaProvider:
+    def _get_provider(self) -> LLMProvider:
         provider = ProviderRegistry.get(self._provider_name)
         if provider is None:
             raise ValueError(f"Unknown provider: {self._provider_name}")
-        return provider  # type: ignore[return-value]
+        return provider
 
     async def send_message(
         self,
         conversation_id: str,
         user_id: str,
         content: str,
-        options: Optional[ChatOptions] = None,
-        attachments: Optional[list[AttachmentIn]] = None,
+        options: ChatOptions | None = None,
+        attachments: list[AttachmentIn] | None = None,
     ) -> AsyncIterator[ChatChunk]:
         """Save user message, stream LLM response, and persist the result."""
         conversation = await self._conversations.get(conversation_id, user_id)
@@ -115,7 +115,7 @@ class ChatService:
 
         full_response = ""
         thinking_content = ""
-        metadata: Optional[dict] = None
+        metadata: dict | None = None
 
         cancel_event = asyncio.Event()
         ChatService._active_streams[conversation_id] = cancel_event

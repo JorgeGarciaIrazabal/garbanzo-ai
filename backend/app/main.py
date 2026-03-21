@@ -1,5 +1,6 @@
 import logging
-import os
+import logging.config
+import warnings
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -12,10 +13,48 @@ from app.api.v1.router import api_router
 from app.core.config import get_settings
 from app.db.session import init_db
 
+# Structured logging configuration
+logging.config.dictConfig(
+    {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "formatters": {
+            "standard": {
+                "format": "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+                "datefmt": "%Y-%m-%d %H:%M:%S",
+            },
+        },
+        "handlers": {
+            "console": {
+                "class": "logging.StreamHandler",
+                "formatter": "standard",
+                "stream": "ext://sys.stdout",
+            },
+        },
+        "root": {
+            "level": "INFO",
+            "handlers": ["console"],
+        },
+        "loggers": {
+            "app": {"level": "DEBUG", "propagate": True},
+            "uvicorn": {"level": "INFO", "propagate": False, "handlers": ["console"]},
+            "sqlalchemy.engine": {"level": "WARNING", "propagate": False, "handlers": ["console"]},
+        },
+    }
+)
+
 logger = logging.getLogger(__name__)
 
 # Get settings
 settings = get_settings()
+
+# Warn if SECRET_KEY is still the default
+if settings.secret_key == "change-this-in-production":
+    warnings.warn(
+        "SECRET_KEY is set to the default value. "
+        "Set a strong, unique SECRET_KEY in your .env file before deploying to production.",
+        stacklevel=1,
+    )
 
 
 async def _ensure_test_user() -> None:
@@ -109,7 +148,8 @@ else:
     # Fallback when web build doesn't exist
     @app.get("/", response_class=HTMLResponse)
     async def root_placeholder() -> HTMLResponse:
-        return HTMLResponse(content="""<!DOCTYPE html>
+        return HTMLResponse(
+            content="""<!DOCTYPE html>
 <html>
 <head>
     <title>Garbanzo AI Backend</title>
@@ -133,4 +173,5 @@ else:
     <h2>To build the Flutter web app:</h2>
     <pre><code>flutter build web --output ../backend/web</code></pre>
 </body>
-</html>""")
+</html>"""
+        )

@@ -1,65 +1,33 @@
+import 'package:freezed_annotation/freezed_annotation.dart';
+
 import 'chat_attachment.dart';
 
+part 'chat_message.freezed.dart';
+part 'chat_message.g.dart';
+
+/// Reads the metadata field from either 'meta' (backend canonical) or
+/// 'metadata' (legacy / local) key.
+Object? _readMetadata(Map json, String key) =>
+    json['meta'] ?? json['metadata'];
+
 /// A single message in a chat conversation.
-class ChatMessage {
-  final String id;
-  final String role; // 'user', 'assistant', or 'system'
-  final String content;
-  final DateTime createdAt;
-  final Map<String, dynamic>? metadata;
+@freezed
+class ChatMessage with _$ChatMessage {
+  const ChatMessage._();
 
-  /// Attachments are kept in memory for the current session only (not
-  /// persisted across reloads). The backend stores metadata about them
-  /// but not the raw bytes.
-  final List<ChatAttachment> attachments;
+  const factory ChatMessage({
+    required String id,
+    required String role,
+    required String content,
+    required DateTime createdAt,
+    @JsonKey(readValue: _readMetadata) Map<String, dynamic>? metadata,
+    @Default([])
+    @JsonKey(includeFromJson: false, includeToJson: false)
+    List<ChatAttachment> attachments,
+  }) = _ChatMessage;
 
-  const ChatMessage({
-    required this.id,
-    required this.role,
-    required this.content,
-    required this.createdAt,
-    this.metadata,
-    this.attachments = const [],
-  });
-
-  factory ChatMessage.fromJson(Map<String, dynamic> json) {
-    return ChatMessage(
-      id: json['id'] as String,
-      role: json['role'] as String,
-      content: json['content'] as String,
-      createdAt: DateTime.parse(json['created_at'] as String),
-      // API serialises the field as 'meta'; 'metadata' kept for compatibility
-      metadata: (json['meta'] ?? json['metadata']) as Map<String, dynamic>?,
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'role': role,
-      'content': content,
-      'created_at': createdAt.toIso8601String(),
-      'metadata': metadata,
-    };
-  }
-
-  ChatMessage copyWith({
-    String? id,
-    String? role,
-    String? content,
-    DateTime? createdAt,
-    Map<String, dynamic>? metadata,
-    List<ChatAttachment>? attachments,
-  }) {
-    return ChatMessage(
-      id: id ?? this.id,
-      role: role ?? this.role,
-      content: content ?? this.content,
-      createdAt: createdAt ?? this.createdAt,
-      metadata: metadata ?? this.metadata,
-      attachments: attachments ?? this.attachments,
-    );
-  }
+  factory ChatMessage.fromJson(Map<String, dynamic> json) =>
+      _$ChatMessageFromJson(json);
 
   bool get isUser => role == 'user';
   bool get isAssistant => role == 'assistant';
@@ -67,27 +35,19 @@ class ChatMessage {
 }
 
 /// A chunk of a streaming chat response.
-class ChatResponseChunk {
-  final String type; // 'chunk', 'done', or 'error'
-  final String? content;
-  final String? error;
-  final Map<String, dynamic>? metadata;
+@freezed
+class ChatResponseChunk with _$ChatResponseChunk {
+  const ChatResponseChunk._();
 
-  const ChatResponseChunk({
-    required this.type,
-    this.content,
-    this.error,
-    this.metadata,
-  });
+  const factory ChatResponseChunk({
+    required String type,
+    String? content,
+    String? error,
+    Map<String, dynamic>? metadata,
+  }) = _ChatResponseChunk;
 
-  factory ChatResponseChunk.fromJson(Map<String, dynamic> json) {
-    return ChatResponseChunk(
-      type: json['type'] as String,
-      content: json['content'] as String?,
-      error: json['error'] as String?,
-      metadata: json['metadata'] as Map<String, dynamic>?,
-    );
-  }
+  factory ChatResponseChunk.fromJson(Map<String, dynamic> json) =>
+      _$ChatResponseChunkFromJson(json);
 
   bool get isChunk => type == 'chunk';
   bool get isThinking => type == 'thinking';

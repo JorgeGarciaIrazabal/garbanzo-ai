@@ -1,7 +1,5 @@
-import 'dart:convert';
-
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 const _apiBaseUrl = String.fromEnvironment(
@@ -18,12 +16,32 @@ String _resolveBaseUrl() {
 const _tokenKey = 'auth_token';
 
 /// Centralized HTTP client that handles base URL resolution, auth headers,
-/// and JSON encoding for all API calls.
+/// and JSON encoding for all API calls using Dio.
 class ApiClient {
-  ApiClient._();
+  ApiClient._() {
+    _dio = Dio(BaseOptions(
+      baseUrl: _resolveBaseUrl(),
+      connectTimeout: const Duration(seconds: 30),
+      receiveTimeout: const Duration(seconds: 30),
+      contentType: 'application/json',
+      // Don't throw on non-2xx so callers can inspect status codes directly.
+      validateStatus: (status) => true,
+    ));
+
+    _dio.interceptors.add(InterceptorsWrapper(
+      onRequest: _onRequest,
+      onResponse: _onResponse,
+    ));
+  }
+
   static final ApiClient instance = ApiClient._();
 
+  late final Dio _dio;
   String? _token;
+
+  /// Callback invoked when a 401 is received on an authenticated request.
+  /// Set this from your app to trigger navigation to the login screen.
+  VoidCallback? onUnauthorized;
 
   Future<String?> getToken() async {
     if (_token != null) return _token;
@@ -46,88 +64,70 @@ class ApiClient {
     _token ??= await getToken();
   }
 
-  /// Resolve an API path to a full [Uri].
-  Uri uri(String path, {Map<String, String>? queryParameters}) {
-    final base = _resolveBaseUrl();
-    final p = path.startsWith('/') ? path : '/$path';
-    Uri result;
-    if (base.isEmpty) {
-      result = Uri.base.resolve(p);
-    } else {
-      result = Uri.parse('$base$p');
+  // ---------------------------------------------------------------------------
+  // Interceptors
+  // ---------------------------------------------------------------------------
+
+  Future<void> _onRequest(
+    RequestOptions options,
+    RequestInterceptorHandler handler,
+  ) async {
+    final token = await getToken();
+    if (token != null) {
+      options.headers['Authorization'] = 'Bearer $token';
     }
-    if (queryParameters != null) {
-      result = result.replace(queryParameters: queryParameters);
+    handler.next(options);
+  }
+
+  void _onResponse(Response response, ResponseInterceptorHandler handler) {
+    if (response.statusCode == 401 && _token != null) {
+      setToken(null);
+      onUnauthorized?.call();
     }
-    return result;
+    handler.next(response);
   }
 
-  Future<Map<String, String>> _authHeaders({bool withAuth = true}) async {
-    final token = withAuth ? await getToken() : null;
-    return {
-      if (token != null) 'Authorization': 'Bearer $token',
-    };
-  }
+  // ---------------------------------------------------------------------------
+  // Convenience HTTP methods
+  // ---------------------------------------------------------------------------
 
-  Future<http.Response> get(
+  Future<Response> get(
     String path, {
-    bool withAuth = true,
-    Map<String, String>? queryParameters,
-  }) async {
-    return http.get(
-      uri(path, queryParameters: queryParameters),
-      headers: await _authHeaders(withAuth: withAuth),
-    );
+    Map<String, dynamic>? queryParameters,
+  }) {
+    return _dio.get(path, queryParameters: queryParameters);
   }
 
-  Future<http.Response> post(
+  Future<Response> post(
     String path, {
-    Map<String, dynamic>? body,
-    bool withAuth = false,
-  }) async {
-    return http.post(
-      uri(path),
-      headers: {
-        'Content-Type': 'application/json',
-        ...await _authHeaders(withAuth: withAuth),
-      },
-      body: body != null ? jsonEncode(body) : null,
-    );
+    Object? data,
+  }) {
+    return _dio.post(path, data: data);
   }
 
-  Future<http.Response> patch(
+  Future<Response> patch(
     String path, {
-    Map<String, dynamic>? body,
-    bool withAuth = true,
-  }) async {
-    return http.patch(
-      uri(path),
-      headers: {
-        'Content-Type': 'application/json',
-        ...await _authHeaders(withAuth: withAuth),
-      },
-      body: body != null ? jsonEncode(body) : null,
-    );
+    Object? data,
+  }) {
+    return _dio.patch(path, data: data);
   }
 
-  Future<http.Response> delete(
+  Future<Response> delete(String path) {
+    return _dio.delete(path);
+  }
+
+  /// Send a POST request expecting an SSE stream response.
+  Future<Response> streamPost(
     String path, {
-    bool withAuth = true,
-  }) async {
-    return http.delete(
-      uri(path),
-      headers: await _authHeaders(withAuth: withAuth),
+    Object? data,
+  }) {
+    return _dio.post(
+      path,
+      data: data,
+      options: Options(
+        headers: {'Accept': 'text/event-stream'},
+        responseType: ResponseType.stream,
+      ),
     );
-  }
-
-  /// Send a streaming request. Returns the [http.StreamedResponse] for
-  /// callers that need to process the response body as a byte stream (e.g. SSE).
-  Future<http.StreamedResponse> send(
-    http.Request request, {
-    bool withAuth = true,
-  }) async {
-    final headers = await _authHeaders(withAuth: withAuth);
-    request.headers.addAll(headers);
-    return request.send();
   }
 }

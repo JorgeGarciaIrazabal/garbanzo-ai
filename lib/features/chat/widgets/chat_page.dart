@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/auth_service.dart';
+import '../../../core/responsive.dart';
 import '../providers/chat_provider.dart';
 import '../providers/model_provider.dart';
 import 'chat_input_widget.dart';
@@ -67,8 +68,7 @@ class _ChatPageContentState extends State<_ChatPageContent> {
     }
   }
 
-  bool _showSidebar(BuildContext context) =>
-      MediaQuery.of(context).size.width > 800;
+  bool _showSidebar(BuildContext context) => context.isWide;
 
   @override
   Widget build(BuildContext context) {

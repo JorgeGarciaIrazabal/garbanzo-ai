@@ -79,14 +79,20 @@ garbanzo_ai/
 
 ## Common Commands
 
-```powershell
-just be-dev             # Start FastAPI with hot-reload (port 8000)
-just fe-run             # Run Flutter on Chrome (dev, not for MCP testing)
-just fe-run-test-server # Run Flutter web-server on port 8080 (for MCP E2E)
-just fe-integration-test # flutter test integration_test/ -d windows
-just docker-up          # Start PostgreSQL via Docker
-just fe-lint            # flutter analyze
-just be-lint            # ruff check backend/
+> Always use `just` commands — never run `flutter`, `uvicorn`, `uv`, or `docker compose` directly.
+
+```bash
+just be-dev              # Start FastAPI with hot-reload (port 8000)
+just fe-run              # Run Flutter on Linux desktop (default)
+just fe-run-chrome       # Run Flutter on Chrome
+just fe-run-test-server  # Run Flutter web-server on port 8080 (for MCP E2E)
+just fe-integration-test # flutter test integration_test/ -d linux
+just docker-up           # Start PostgreSQL via Docker
+just fe-lint             # flutter analyze
+just be-lint             # ruff check backend/
+just fe-test             # flutter test (unit/widget)
+just be-test             # pytest
+just                     # list all available recipes
 ```
 
 ## Auth Flow

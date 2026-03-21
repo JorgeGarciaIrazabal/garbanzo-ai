@@ -1,5 +1,4 @@
-import 'dart:convert';
-import 'dart:io';
+import 'package:dio/dio.dart';
 
 import 'api_client.dart';
 
@@ -17,10 +16,11 @@ class AuthService {
     try {
       final res = await _client.post(
         '/api/v1/auth/register',
-        body: {
+        data: {
           'email': email.trim(),
           'password': password,
-          if (fullName != null && fullName.trim().isNotEmpty) 'full_name': fullName.trim(),
+          if (fullName != null && fullName.trim().isNotEmpty)
+            'full_name': fullName.trim(),
         },
       );
 
@@ -30,19 +30,17 @@ class AuthService {
       }
 
       if (res.statusCode == 400) {
-        final json = jsonDecode(res.body) as Map<String, dynamic>?;
-        final detail = json?['detail'] as String?;
+        final data = res.data;
+        final detail =
+            data is Map<String, dynamic> ? data['detail'] as String? : null;
         return AuthResult.failure(detail ?? 'Registration failed');
       }
       return AuthResult.failure('Registration failed. Please try again.');
-    } on SocketException {
-      return AuthResult.failure('Unable to connect to server. Please check your internet connection.');
-    } on HttpException {
-      return AuthResult.failure('Server error. Please try again later.');
-    } on FormatException {
-      return AuthResult.failure('Invalid response from server. Please try again.');
+    } on DioException catch (e) {
+      return AuthResult.failure(_dioErrorMessage(e));
     } catch (e) {
-      return AuthResult.failure('An unexpected error occurred. Please try again.');
+      return AuthResult.failure(
+          'An unexpected error occurred. Please try again.');
     }
   }
 
@@ -50,12 +48,12 @@ class AuthService {
     try {
       final res = await _client.post(
         '/api/v1/auth/login',
-        body: {'email': email.trim(), 'password': password},
+        data: {'email': email.trim(), 'password': password},
       );
 
       if (res.statusCode == 200) {
-        final json = jsonDecode(res.body) as Map<String, dynamic>;
-        final token = json['access_token'] as String?;
+        final data = res.data as Map<String, dynamic>;
+        final token = data['access_token'] as String?;
         if (token != null) {
           await _client.setToken(token);
           return AuthResult.success();
@@ -66,14 +64,11 @@ class AuthService {
         return AuthResult.failure('Incorrect email or password');
       }
       return AuthResult.failure('Login failed. Please try again.');
-    } on SocketException {
-      return AuthResult.failure('Unable to connect to server. Please check your internet connection.');
-    } on HttpException {
-      return AuthResult.failure('Server error. Please try again later.');
-    } on FormatException {
-      return AuthResult.failure('Invalid response from server. Please try again.');
+    } on DioException catch (e) {
+      return AuthResult.failure(_dioErrorMessage(e));
     } catch (e) {
-      return AuthResult.failure('An unexpected error occurred. Please try again.');
+      return AuthResult.failure(
+          'An unexpected error occurred. Please try again.');
     }
   }
 
@@ -91,7 +86,20 @@ class AuthService {
   Future<Map<String, dynamic>?> getCurrentUser() async {
     final res = await _client.get('/api/v1/auth/me');
     if (res.statusCode != 200) return null;
-    return jsonDecode(res.body) as Map<String, dynamic>?;
+    return res.data as Map<String, dynamic>?;
+  }
+
+  String _dioErrorMessage(DioException e) {
+    switch (e.type) {
+      case DioExceptionType.connectionError:
+      case DioExceptionType.connectionTimeout:
+        return 'Unable to connect to server. Please check your internet connection.';
+      case DioExceptionType.sendTimeout:
+      case DioExceptionType.receiveTimeout:
+        return 'Server took too long to respond. Please try again.';
+      default:
+        return 'An unexpected error occurred. Please try again.';
+    }
   }
 }
 

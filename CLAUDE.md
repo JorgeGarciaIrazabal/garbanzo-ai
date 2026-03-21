@@ -4,22 +4,26 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Commands
 
+> **IMPORTANT:** Always use `just` commands. Never run `flutter`, `uvicorn`, `uv`, `pytest`, or `docker compose` directly — the justfile is the single source of truth for all dev tasks. Run `just` with no arguments to list all available recipes.
+
 ### Backend (FastAPI)
 ```bash
 just be-dev          # Dev server with hot reload (port 8000)
 just be-test         # Run pytest
 just be-lint         # ruff check
 just be-format       # ruff format
-cd backend; uv run pytest tests/path/test_file.py::test_name  # Single test
+just be-install      # Install/sync backend deps
+# Single test: cd backend; uv run pytest tests/path/test_file.py::test_name
 ```
 
 ### Frontend (Flutter)
 ```bash
-just fe-run          # Run on Chrome (manual dev)
+just fe-run          # Run on Linux desktop (default)
+just fe-run-chrome   # Run on Chrome (browser)
 just fe-test         # Unit/widget tests
 just fe-lint         # flutter analyze
-flutter test test/path/widget_test.dart  # Single test file
 just fe-build        # Build web → backend/web/ (for prod)
+# Single test file: flutter test test/path/widget_test.dart
 ```
 
 ### Infrastructure
@@ -122,4 +126,6 @@ ACCESS_TOKEN_EXPIRE_MINUTES=30
 
 See `/e2e-testing` skill (`/e2e-testing` slash command). Uses Dart MCP to launch the app and Marionette MCP to drive UI interactions via the Flutter VM service URI.
 
-Flutter web integration tests (`-d chrome`) are not supported by Flutter. Use `-d linux` (desktop) for integration test runs.
+- Always use `just be-dev` to start the backend before E2E tests.
+- Flutter web integration tests (`-d chrome`) are not supported. Use `-d linux` (desktop).
+- For E2E with a fixed port web server use `just fe-run-test-server`.

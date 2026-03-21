@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, ForeignKey, String, func
+from sqlalchemy import DateTime, ForeignKey, Select, String, func, select
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -42,3 +42,14 @@ class Conversation(Base):
         cascade="all, delete-orphan",
         order_by="Message.created_at",
     )
+
+    @classmethod
+    def active(cls, user_id: str | None = None) -> Select["Conversation"]:
+        """Return a SELECT query pre-filtered to non-deleted conversations.
+
+        Optionally scoped to a specific user.
+        """
+        query = select(cls).where(cls.is_deleted == False)  # noqa: E712
+        if user_id is not None:
+            query = query.where(cls.user_id == user_id)
+        return query

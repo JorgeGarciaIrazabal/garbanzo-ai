@@ -1,70 +1,27 @@
+import 'package:freezed_annotation/freezed_annotation.dart';
+
 import 'chat_message.dart';
 
+part 'conversation.freezed.dart';
+part 'conversation.g.dart';
+
 /// A conversation thread between a user and the AI.
-class Conversation {
-  final String id;
-  final String? title;
-  final String model;
-  final DateTime createdAt;
-  final DateTime updatedAt;
-  final int messageCount;
-  final List<ChatMessage>? messages;
+@freezed
+class Conversation with _$Conversation {
+  const Conversation._();
 
-  const Conversation({
-    required this.id,
-    this.title,
-    required this.model,
-    required this.createdAt,
-    required this.updatedAt,
-    this.messageCount = 0,
-    this.messages,
-  });
-
-  factory Conversation.fromJson(Map<String, dynamic> json) {
-    return Conversation(
-      id: json['id'] as String,
-      title: json['title'] as String?,
-      model: json['model'] as String,
-      createdAt: DateTime.parse(json['created_at'] as String),
-      updatedAt: DateTime.parse(json['updated_at'] as String),
-      messageCount: json['message_count'] as int? ?? 0,
-      messages: (json['messages'] as List<dynamic>?)
-          ?.map((e) => ChatMessage.fromJson(e as Map<String, dynamic>))
-          .toList(),
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'title': title,
-      'model': model,
-      'created_at': createdAt.toIso8601String(),
-      'updated_at': updatedAt.toIso8601String(),
-      'message_count': messageCount,
-      'messages': messages?.map((m) => m.toJson()).toList(),
-    };
-  }
-
-  Conversation copyWith({
-    String? id,
+  const factory Conversation({
+    required String id,
     String? title,
-    String? model,
-    DateTime? createdAt,
-    DateTime? updatedAt,
-    int? messageCount,
+    required String model,
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    @Default(0) int messageCount,
     List<ChatMessage>? messages,
-  }) {
-    return Conversation(
-      id: id ?? this.id,
-      title: title ?? this.title,
-      model: model ?? this.model,
-      createdAt: createdAt ?? this.createdAt,
-      updatedAt: updatedAt ?? this.updatedAt,
-      messageCount: messageCount ?? this.messageCount,
-      messages: messages ?? this.messages,
-    );
-  }
+  }) = _Conversation;
+
+  factory Conversation.fromJson(Map<String, dynamic> json) =>
+      _$ConversationFromJson(json);
 
   String get displayTitle {
     if (title != null && title!.isNotEmpty) {
@@ -86,29 +43,19 @@ class Conversation {
 }
 
 /// A list of conversations with pagination info.
-class ConversationList {
-  final List<Conversation> items;
-  final int total;
-  final int page;
-  final int pageSize;
+@freezed
+class ConversationList with _$ConversationList {
+  const ConversationList._();
 
-  const ConversationList({
-    required this.items,
-    required this.total,
-    required this.page,
-    required this.pageSize,
-  });
+  const factory ConversationList({
+    required List<Conversation> items,
+    required int total,
+    required int page,
+    required int pageSize,
+  }) = _ConversationList;
 
-  factory ConversationList.fromJson(Map<String, dynamic> json) {
-    return ConversationList(
-      items: (json['items'] as List<dynamic>)
-          .map((e) => Conversation.fromJson(e as Map<String, dynamic>))
-          .toList(),
-      total: json['total'] as int,
-      page: json['page'] as int,
-      pageSize: json['page_size'] as int,
-    );
-  }
+  factory ConversationList.fromJson(Map<String, dynamic> json) =>
+      _$ConversationListFromJson(json);
 
   bool get hasMore => total > page * pageSize;
   int get totalPages => (total / pageSize).ceil();

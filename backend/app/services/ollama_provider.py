@@ -1,12 +1,11 @@
-"""Ollama LLM provider implementation."""
+"""Ollama LLM provider implementation using the official ollama-py SDK."""
 
 import asyncio
-import json
 import logging
 from collections.abc import AsyncIterator
-from typing import Any, Optional
+from typing import Any
 
-import httpx
+from ollama import AsyncClient, RequestError, ResponseError
 
 from app.services.llm_provider import (
     ChatChunk,
@@ -22,44 +21,37 @@ logger = logging.getLogger(__name__)
 class OllamaProvider(LLMProvider):
     """Ollama LLM provider.
 
-    Connects to a local or remote Ollama instance via HTTP API.
+    Connects to a local or remote Ollama instance via the official SDK.
     Default endpoint: http://localhost:11434
     """
 
     def __init__(self, base_url: str = "http://localhost:11434"):
         self.base_url = base_url.rstrip("/")
-        self._client: Optional[httpx.AsyncClient] = None
+        self._client: AsyncClient | None = None
 
     @property
     def name(self) -> str:
         return "ollama"
 
-    def _get_client(self) -> httpx.AsyncClient:
-        """Get or create HTTP client."""
-        if self._client is None or self._client.is_closed:
-            self._client = httpx.AsyncClient(
-                base_url=self.base_url,
-                timeout=httpx.Timeout(300.0),  # 5 minutes for long generations
-            )
+    def _get_client(self) -> AsyncClient:
+        """Get or create the Ollama async client."""
+        if self._client is None:
+            self._client = AsyncClient(host=self.base_url, timeout=300.0)
         return self._client
 
     async def stream_chat(
         self,
         messages: list[Message],
         model: str,
-        options: Optional[ChatOptions] = None,
-        cancel_event: Optional[asyncio.Event] = None,
+        options: ChatOptions | None = None,
+        cancel_event: asyncio.Event | None = None,
     ) -> AsyncIterator[ChatChunk]:
-        """Stream chat completion from Ollama.
-
-        Uses Ollama's /api/chat endpoint with streaming enabled.
-        Pass cancel_event to allow the caller to abort mid-stream.
-        """
+        """Stream chat completion from Ollama using the SDK."""
         client = self._get_client()
         opts = options or ChatOptions()
 
-        # Convert messages to Ollama format (include images for multimodal models)
-        ollama_messages = []
+        # Convert messages to Ollama format
+        ollama_messages: list[dict[str, Any]] = []
         for msg in messages:
             entry: dict[str, Any] = {"role": msg.role, "content": msg.content}
             if msg.images:
@@ -75,91 +67,63 @@ class OllamaProvider(LLMProvider):
         if opts.top_p is not None:
             request_options["top_p"] = opts.top_p
 
-        payload = {
-            "model": model,
-            "messages": ollama_messages,
-            "stream": True,
-            "options": request_options,
-        }
-
-        full_content = ""
         accumulated_thinking = ""
 
         try:
-            async with client.stream(
-                "POST",
-                "/api/chat",
-                json=payload,
-            ) as response:
-                response.raise_for_status()
-
-                async for line in response.aiter_lines():
-                    # Check for cancellation on every chunk.
-                    if cancel_event and cancel_event.is_set():
-                        await response.aclose()
-                        yield ChatChunk(content="", is_finished=True, metadata={"cancelled": True})
-                        return
-
-                    if not line:
-                        continue
-
-                    try:
-                        data = json.loads(line)
-                    except json.JSONDecodeError:
-                        logger.warning(f"Failed to parse Ollama response: {line}")
-                        continue
-
-                    # Check for completion
-                    if data.get("done", False):
-                        metadata: dict[str, Any] = {}
-                        if "eval_count" in data:
-                            metadata["tokens_generated"] = data["eval_count"]
-                        if "prompt_eval_count" in data:
-                            metadata["tokens_prompt"] = data["prompt_eval_count"]
-                        if "total_duration" in data:
-                            metadata["total_duration_ns"] = data["total_duration"]
-                        if accumulated_thinking:
-                            metadata["thinking"] = accumulated_thinking
-
-                        yield ChatChunk(
-                            content="",
-                            is_finished=True,
-                            metadata=metadata,
-                        )
-                        break
-
-                    # Extract content and thinking from message
-                    message = data.get("message", {})
-                    content = message.get("content", "")
-                    thinking = message.get("thinking", "")
-
-                    if thinking:
-                        accumulated_thinking += thinking
-                        yield ChatChunk(content=thinking, is_finished=False, is_thinking=True)
-
-                    if content:
-                        full_content += content
-                        yield ChatChunk(content=content, is_finished=False)
-
-        except httpx.HTTPStatusError as e:
-            logger.error(f"Ollama HTTP error: {e.response.status_code}")
-            error_msg = f"Ollama error: {e.response.status_code}"
-            try:
-                await e.response.aread()
-                error_data = e.response.json()
-                if "error" in error_data:
-                    error_msg = f"Ollama error: {error_data['error']}"
-            except Exception:
-                pass
-            yield ChatChunk(
-                content=error_msg,
-                is_finished=True,
-                metadata={"error": True, "status_code": e.response.status_code},
+            stream = await client.chat(
+                model=model,
+                messages=ollama_messages,
+                stream=True,
+                options=request_options,
             )
-        except httpx.RequestError as e:
-            logger.error(f"Ollama request error: {e}")
+
+            async for chunk in stream:
+                # Check for cancellation
+                if cancel_event and cancel_event.is_set():
+                    yield ChatChunk(content="", is_finished=True, metadata={"cancelled": True})
+                    return
+
+                # Final chunk with metadata
+                if chunk.get("done", False):
+                    metadata: dict[str, Any] = {}
+                    if chunk.eval_count is not None:
+                        metadata["tokens_generated"] = chunk.eval_count
+                    if chunk.prompt_eval_count is not None:
+                        metadata["tokens_prompt"] = chunk.prompt_eval_count
+                    if chunk.total_duration is not None:
+                        metadata["total_duration_ns"] = chunk.total_duration
+                    if accumulated_thinking:
+                        metadata["thinking"] = accumulated_thinking
+
+                    yield ChatChunk(content="", is_finished=True, metadata=metadata)
+                    break
+
+                # Extract content and thinking from the message
+                message = chunk.get("message")
+                if message is None:
+                    continue
+
+                content = message.get("content", "") or ""
+                thinking = message.get("thinking", "") or ""
+
+                if thinking:
+                    accumulated_thinking += thinking
+                    yield ChatChunk(content=thinking, is_finished=False, is_thinking=True)
+
+                if content:
+                    yield ChatChunk(content=content, is_finished=False)
+
+        except ResponseError as e:
+            logger.error("Ollama response error: %s", e)
             yield ChatChunk(
-                content=f"Failed to connect to Ollama: {e}",
+                content=f"Ollama error: {e.error}",
+                is_finished=True,
+                metadata={"error": True, "status_code": e.status_code},
+            )
+        except RequestError as e:
+            logger.error("Ollama request error: %s", e)
+            yield ChatChunk(
+                content=f"Failed to connect to Ollama: {e.error}",
                 is_finished=True,
                 metadata={"error": True},
             )
@@ -176,14 +140,12 @@ class OllamaProvider(LLMProvider):
         client = self._get_client()
 
         try:
-            response = await client.get("/api/tags")
-            response.raise_for_status()
-            data = response.json()
+            response = await client.list()
 
             models = []
-            for model in data.get("models", []):
-                model_name = model.get("name", "")
-                model_details = model.get("details", {})
+            for m in response.models:
+                model_name = m.model or ""
+                details = m.details
 
                 # Build a human-readable name
                 name_parts = model_name.split(":")
@@ -191,43 +153,44 @@ class OllamaProvider(LLMProvider):
                 if len(name_parts) > 1 and name_parts[1] != "latest":
                     display_name += f" ({name_parts[1]})"
 
-                # Extract context length if available
+                # Extract context length estimate based on parameter size
                 context_length = None
-                if "parameter_size" in model_details:
-                    # Rough estimate based on model size
-                    param_size = model_details["parameter_size"]
-                    if "B" in param_size:
-                        try:
-                            size = float(param_size.replace("B", ""))
-                            # Typical 7B models have 4K-8K context
-                            # 70B models might have 128K
-                            if size <= 3:
-                                context_length = 4096
-                            elif size <= 8:
-                                context_length = 8192
-                            elif size <= 20:
-                                context_length = 32768
-                            else:
-                                context_length = 131072
-                        except ValueError:
-                            pass
+                param_size = details.parameter_size if details else None
+                if param_size and "B" in param_size:
+                    try:
+                        size = float(param_size.replace("B", ""))
+                        if size <= 3:
+                            context_length = 4096
+                        elif size <= 8:
+                            context_length = 8192
+                        elif size <= 20:
+                            context_length = 32768
+                        else:
+                            context_length = 131072
+                    except ValueError:
+                        pass
 
-                models.append(ModelInfo(
-                    id=model_name,
-                    name=display_name,
-                    description=f"{model_details.get('parameter_size', 'Unknown size')} {model_details.get('family', '')}",
-                    context_length=context_length,
-                ))
+                description_parts = [
+                    param_size or "Unknown size",
+                    details.family if details else "",
+                ]
+                description = " ".join(p for p in description_parts if p)
+
+                models.append(
+                    ModelInfo(
+                        id=model_name,
+                        name=display_name,
+                        description=description,
+                        context_length=context_length,
+                    )
+                )
 
             return models
 
-        except httpx.HTTPStatusError as e:
-            logger.error(f"Failed to list Ollama models: {e.response.status_code}")
+        except (ResponseError, RequestError) as e:
+            logger.error("Failed to list Ollama models: %s", e)
             return []
-        except httpx.RequestError as e:
-            logger.error(f"Failed to connect to Ollama: {e}")
-            return []
-        except Exception as e:
+        except Exception:
             logger.exception("Unexpected error listing Ollama models")
             return []
 
@@ -236,13 +199,15 @@ class OllamaProvider(LLMProvider):
         client = self._get_client()
 
         try:
-            response = await client.get("/api/tags")
-            return response.status_code == 200
+            await client.list()
+            return True
         except Exception:
             return False
 
     async def close(self) -> None:
-        """Close the HTTP client."""
-        if self._client and not self._client.is_closed:
-            await self._client.aclose()
+        """Close the underlying HTTP client."""
+        if self._client is not None:
+            # The AsyncClient wraps an httpx client internally
+            if hasattr(self._client, "_client") and self._client._client is not None:
+                await self._client._client.aclose()
             self._client = None

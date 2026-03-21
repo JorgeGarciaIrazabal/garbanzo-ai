@@ -1,9 +1,12 @@
 """Abstract base class for LLM providers."""
 
+import asyncio
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from typing import Any, Optional
+
+from app.schemas.chat import ChatOptions
 
 
 @dataclass
@@ -21,17 +24,8 @@ class ModelInfo:
 
     id: str
     name: str
-    description: Optional[str] = None
-    context_length: Optional[int] = None
-
-
-@dataclass
-class ChatOptions:
-    """Options for chat completion."""
-
-    temperature: float = 0.7
-    max_tokens: Optional[int] = None
-    top_p: Optional[float] = None
+    description: str | None = None
+    context_length: int | None = None
 
 
 @dataclass
@@ -41,7 +35,7 @@ class ChatChunk:
     content: str
     is_finished: bool = False
     is_thinking: bool = False
-    metadata: Optional[dict[str, Any]] = None
+    metadata: dict[str, Any] | None = None
 
 
 class LLMProvider(ABC):
@@ -62,7 +56,8 @@ class LLMProvider(ABC):
         self,
         messages: list[Message],
         model: str,
-        options: Optional[ChatOptions] = None,
+        options: ChatOptions | None = None,
+        cancel_event: Optional["asyncio.Event"] = None,
     ) -> AsyncIterator[ChatChunk]:
         """Stream chat completion from the LLM.
 
@@ -70,6 +65,7 @@ class LLMProvider(ABC):
             messages: List of messages in the conversation
             model: The model identifier to use
             options: Optional generation parameters
+            cancel_event: Optional event to signal cancellation
 
         Yields:
             ChatChunk: Chunks of the generated response
@@ -110,7 +106,7 @@ class ProviderRegistry:
         cls._providers[provider.name] = provider
 
     @classmethod
-    def get(cls, name: str) -> Optional[LLMProvider]:
+    def get(cls, name: str) -> LLMProvider | None:
         """Get a provider by name."""
         return cls._providers.get(name)
 
@@ -120,7 +116,7 @@ class ProviderRegistry:
         return list(cls._providers.keys())
 
     @classmethod
-    def get_default(cls) -> Optional[LLMProvider]:
+    def get_default(cls) -> LLMProvider | None:
         """Get the default provider (first registered)."""
         if cls._providers:
             return next(iter(cls._providers.values()))

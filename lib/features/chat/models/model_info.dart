@@ -1,41 +1,30 @@
+import 'package:freezed_annotation/freezed_annotation.dart';
+
+part 'model_info.freezed.dart';
+part 'model_info.g.dart';
+
 /// Information about an available LLM model.
-class ModelInfo {
-  final String id;
-  final String name;
-  final String? description;
-  final int? contextLength;
-  final String provider;
+@freezed
+class ModelInfo with _$ModelInfo {
+  const factory ModelInfo({
+    required String id,
+    required String name,
+    String? description,
+    int? contextLength,
+    required String provider,
+  }) = _ModelInfo;
 
-  const ModelInfo({
-    required this.id,
-    required this.name,
-    this.description,
-    this.contextLength,
-    required this.provider,
-  });
-
-  factory ModelInfo.fromJson(Map<String, dynamic> json) {
-    return ModelInfo(
-      id: json['id'] as String,
-      name: json['name'] as String,
-      description: json['description'] as String?,
-      contextLength: json['context_length'] as int?,
-      provider: json['provider'] as String,
-    );
-  }
+  factory ModelInfo.fromJson(Map<String, dynamic> json) =>
+      _$ModelInfoFromJson(json);
 }
 
 /// A list of available models.
-class ModelList {
-  final List<ModelInfo> models;
+@freezed
+class ModelList with _$ModelList {
+  const factory ModelList({
+    required List<ModelInfo> models,
+  }) = _ModelList;
 
-  const ModelList({required this.models});
-
-  factory ModelList.fromJson(Map<String, dynamic> json) {
-    return ModelList(
-      models: (json['models'] as List<dynamic>)
-          .map((e) => ModelInfo.fromJson(e as Map<String, dynamic>))
-          .toList(),
-    );
-  }
+  factory ModelList.fromJson(Map<String, dynamic> json) =>
+      _$ModelListFromJson(json);
 }

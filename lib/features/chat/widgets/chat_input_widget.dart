@@ -109,10 +109,18 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
 
     if (result == null) return;
 
+    const maxFileSize = 10 * 1024 * 1024; // 10 MB
     final added = <ChatAttachment>[];
+    final rejected = <String>[];
+
     for (final file in result.files) {
       final bytes = file.bytes;
       if (bytes == null) continue;
+
+      if (bytes.length > maxFileSize) {
+        rejected.add(file.name);
+        continue;
+      }
 
       final mime = _inferMime(file.name, bytes);
       added.add(ChatAttachment.fromPicked(
@@ -120,6 +128,16 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
         mimeType: mime,
         bytes: bytes,
       ));
+    }
+
+    if (rejected.isNotEmpty && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Files exceed 10 MB limit: ${rejected.join(', ')}',
+          ),
+        ),
+      );
     }
 
     if (added.isNotEmpty) {

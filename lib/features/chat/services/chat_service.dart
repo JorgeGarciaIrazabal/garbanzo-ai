@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
 
 import '../../../core/api_client.dart';
 import '../models/chat_attachment.dart';
@@ -31,8 +31,7 @@ class ChatService {
   }) async {
     final response = await _api.post(
       '/api/v1/chat/conversations',
-      withAuth: true,
-      body: {
+      data: {
         'title': ?title,
         'model': model,
         'initial_message': ?initialMessage,
@@ -40,9 +39,7 @@ class ChatService {
     );
 
     if (response.statusCode == 201) {
-      return Conversation.fromJson(
-        jsonDecode(response.body) as Map<String, dynamic>,
-      );
+      return Conversation.fromJson(response.data as Map<String, dynamic>);
     }
 
     throw _handleError(response);
@@ -61,9 +58,7 @@ class ChatService {
     );
 
     if (response.statusCode == 200) {
-      return ConversationList.fromJson(
-        jsonDecode(response.body) as Map<String, dynamic>,
-      );
+      return ConversationList.fromJson(response.data as Map<String, dynamic>);
     }
 
     throw _handleError(response);
@@ -75,9 +70,7 @@ class ChatService {
     );
 
     if (response.statusCode == 200) {
-      return Conversation.fromJson(
-        jsonDecode(response.body) as Map<String, dynamic>,
-      );
+      return Conversation.fromJson(response.data as Map<String, dynamic>);
     }
 
     throw _handleError(response);
@@ -90,16 +83,14 @@ class ChatService {
   }) async {
     final response = await _api.patch(
       '/api/v1/chat/conversations/$conversationId',
-      body: {
+      data: {
         'title': ?title,
         'model': ?model,
       },
     );
 
     if (response.statusCode == 200) {
-      return Conversation.fromJson(
-        jsonDecode(response.body) as Map<String, dynamic>,
-      );
+      return Conversation.fromJson(response.data as Map<String, dynamic>);
     }
 
     throw _handleError(response);
@@ -132,32 +123,31 @@ class ChatService {
     int? maxTokens,
     double? topP,
   }) async* {
-    final uri = _api.uri('/api/v1/chat/conversations/$conversationId/chat');
-
-    final request = http.Request('POST', uri);
-    request.headers['Content-Type'] = 'application/json';
-    request.headers['Accept'] = 'text/event-stream';
-
-    request.body = jsonEncode({
-      'message': message,
-      if (attachments.isNotEmpty)
-        'attachments': attachments.map((a) => a.toJson()).toList(),
-      'options': {
-        'temperature': temperature,
-        'max_tokens': ?maxTokens,
-        'top_p': ?topP,
-        'stream': true,
+    final response = await _api.streamPost(
+      '/api/v1/chat/conversations/$conversationId/chat',
+      data: {
+        'message': message,
+        if (attachments.isNotEmpty)
+          'attachments': attachments.map((a) => a.toJson()).toList(),
+        'options': {
+          'temperature': temperature,
+          'max_tokens': ?maxTokens,
+          'top_p': ?topP,
+          'stream': true,
+        },
       },
-    });
+    );
 
-    final response = await _api.send(request);
+    final byteStream = (response.data as ResponseBody).stream;
 
     if (response.statusCode != 200) {
-      final body = await response.stream.bytesToString();
-      throw Exception('Chat failed: ${response.statusCode} - $body');
+      final errorBody =
+          await byteStream.cast<List<int>>().transform(utf8.decoder).join();
+      throw Exception('Chat failed: ${response.statusCode} - $errorBody');
     }
 
-    await for (final chunk in response.stream.transform(utf8.decoder)) {
+    await for (final chunk
+        in byteStream.cast<List<int>>().transform(utf8.decoder)) {
       final lines = chunk.split('\n');
       for (final line in lines) {
         final trimmed = line.trim();
@@ -186,9 +176,7 @@ class ChatService {
     final response = await _api.get('/api/v1/chat/models');
 
     if (response.statusCode == 200) {
-      return ModelList.fromJson(
-        jsonDecode(response.body) as Map<String, dynamic>,
-      );
+      return ModelList.fromJson(response.data as Map<String, dynamic>);
     }
 
     throw _handleError(response);
@@ -198,15 +186,12 @@ class ChatService {
   // Error Handling
   // ==========================================================================
 
-  Exception _handleError(http.Response response) {
-    try {
-      final body = jsonDecode(response.body) as Map<String, dynamic>;
+  Exception _handleError(Response response) {
+    final body = response.data;
+    if (body is Map<String, dynamic>) {
       final detail = body['detail'] as String? ?? 'Unknown error';
       return Exception('API Error (${response.statusCode}): $detail');
-    } catch (_) {
-      return Exception(
-        'API Error (${response.statusCode}): ${response.body}',
-      );
     }
+    return Exception('API Error (${response.statusCode}): $body');
   }
 }

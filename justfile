@@ -9,6 +9,14 @@ _default:
 # Setup & Combined Commands
 # ============================================================================
 
+# Add just bash completions to ~/.bashrc (run once)
+completions-install:
+    @SCRIPT="{{ justfile_directory() }}/scripts/just-completions.bash"; \
+    LINE="source \"$SCRIPT\""; \
+    grep -qF "$LINE" ~/.bashrc \
+        && echo "Completions already installed in ~/.bashrc" \
+        || { echo "$LINE" >> ~/.bashrc; echo "Added completions to ~/.bashrc — run 'source ~/.bashrc' to activate."; }
+
 # Install all dependencies (backend + frontend)
 install: be-install fe-install
     @Write-Host "All dependencies installed!"
@@ -58,20 +66,13 @@ be-test:
 fe-install:
     flutter pub get
 
-# Run Flutter app on Chrome (launches Chrome automatically, blocks terminal)
-# Good for manual development, NOT for automated testing
+# Run Flutter app on Linux desktop (default for development)
 fe-run:
+    flutter run -d linux
+
+# Run Flutter app on Chrome
+fe-run-chrome:
     flutter run -d chrome
-
-# Run Flutter app on Chrome with WebGL/GPU flags (for WSL2 when webGLVersion is -1)
-fe-run-webgl:
-    CHROME_EXECUTABLE="{{ justfile_directory() }}/scripts/chrome-webgl" flutter run -d chrome
-
-# Run Flutter web server on fixed port WITHOUT launching browser
-# Use this for end-to-end testing with browser MCP
-# The app will be available at http://localhost:8080
-fe-run-test-server:
-    flutter run -d web-server --web-port=8080 --web-hostname=localhost
 
 # Build Flutter web and copy to backend
 fe-build:
@@ -81,10 +82,9 @@ fe-build:
 fe-test:
     flutter test
 
-# Run Flutter integration tests (requires Chrome and running backend)
-# This runs full E2E tests including user registration and login
+# Run Flutter integration tests on Linux desktop
 fe-integration-test:
-    flutter test integration_test/app_test.dart -d chrome
+    flutter test integration_test/app_test.dart -d linux
 
 # Run all tests (unit + integration)
 fe-test-all: fe-test fe-integration-test
@@ -101,8 +101,8 @@ fe-clean:
 # End-to-End Testing (requires both dart-mcp-server and chrome-devtools MCPs)
 # ============================================================================
 
-# Run all tests (backend + frontend unit tests + e2e info)
-test: be-test fe-test fe-e2e-test
+# Run all tests (backend + frontend unit tests)
+test: be-test fe-test
 
 # ============================================================================
 # Full Build & Deploy
@@ -115,3 +115,15 @@ build: be-install fe-build
 # Clean everything
 clean: fe-clean
     @Write-Host "Cleaned Flutter build files"
+
+
+# ============================================================================
+# Claude code start up Commands
+# ============================================================================
+# Launch Claude Code with auto-approved permissions
+claude:
+    claude --dangerously-skip-permissions
+
+# Launch Claude Code with a specific model
+claude-ollama model="minimax-m2.7:cloud":
+    ollama launch claude --model {{model}} 

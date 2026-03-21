@@ -1,28 +1,24 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:freezed_annotation/freezed_annotation.dart';
+
+part 'chat_attachment.freezed.dart';
+
 /// Categories of attachable files.
 enum AttachmentType { image, document }
 
 /// A file the user has selected to attach to a chat message.
-class ChatAttachment {
-  const ChatAttachment({
-    required this.name,
-    required this.mimeType,
-    required this.type,
-    required this.bytes,
-  });
+@Freezed(toJson: false, fromJson: false)
+class ChatAttachment with _$ChatAttachment {
+  const ChatAttachment._();
 
-  /// Original filename.
-  final String name;
-
-  /// MIME type, e.g. `image/jpeg`, `text/plain`.
-  final String mimeType;
-
-  final AttachmentType type;
-
-  /// Raw file bytes.
-  final Uint8List bytes;
+  const factory ChatAttachment({
+    required String name,
+    required String mimeType,
+    required AttachmentType type,
+    required Uint8List bytes,
+  }) = _ChatAttachment;
 
   bool get isImage => type == AttachmentType.image;
   bool get isDocument => type == AttachmentType.document;

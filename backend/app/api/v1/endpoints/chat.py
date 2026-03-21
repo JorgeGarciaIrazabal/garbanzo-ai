@@ -187,7 +187,9 @@ async def chat_stream(
                     response = ChatResponseChunk(type="done", metadata=chunk.metadata)
                 elif chunk.metadata and chunk.metadata.get("error"):
                     response = ChatResponseChunk(
-                        type="error", error=chunk.content, metadata=chunk.metadata,
+                        type="error",
+                        error=chunk.content,
+                        metadata=chunk.metadata,
                     )
                 elif chunk.is_thinking:
                     response = ChatResponseChunk(type="thinking", content=chunk.content)
@@ -198,7 +200,9 @@ async def chat_stream(
 
         except Exception as e:
             error_response = ChatResponseChunk(
-                type="error", error=str(e), metadata={"error": True},
+                type="error",
+                error=str(e),
+                metadata={"error": True},
             )
             yield f"data: {error_response.model_dump_json()}\n\n"
 

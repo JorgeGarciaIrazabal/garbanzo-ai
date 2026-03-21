@@ -1,21 +1,19 @@
 from datetime import datetime
-from typing import Any, Literal, Optional
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
-
 
 # ============================================================================
 # Attachment Schemas
 # ============================================================================
+
 
 class AttachmentIn(BaseModel):
     """A file attached to a chat message."""
 
     name: str = Field(..., description="Original filename")
     mime_type: str = Field(..., description="MIME type of the file")
-    type: Literal["image", "document"] = Field(
-        ..., description="Attachment category"
-    )
+    type: Literal["image", "document"] = Field(..., description="Attachment category")
     data: str = Field(
         ...,
         description="Base64-encoded bytes for images; plain text for documents",
@@ -25,6 +23,7 @@ class AttachmentIn(BaseModel):
 # ============================================================================
 # Chat Message Schemas
 # ============================================================================
+
 
 class ChatMessage(BaseModel):
     """A single message in the chat."""
@@ -41,7 +40,7 @@ class ChatMessageOut(ChatMessage):
 
     id: str = Field(..., description="Unique message ID")
     created_at: datetime = Field(..., description="When the message was created")
-    meta: Optional[dict[str, Any]] = Field(
+    meta: dict[str, Any] | None = Field(
         None,
         description="Additional metadata (tokens, timing, etc.)",
     )
@@ -53,6 +52,7 @@ class ChatMessageOut(ChatMessage):
 # Chat Request/Response Schemas
 # ============================================================================
 
+
 class ChatOptions(BaseModel):
     """Options for the chat completion."""
 
@@ -62,12 +62,12 @@ class ChatOptions(BaseModel):
         le=2.0,
         description="Sampling temperature",
     )
-    max_tokens: Optional[int] = Field(
+    max_tokens: int | None = Field(
         default=None,
         ge=1,
         description="Maximum tokens to generate",
     )
-    top_p: Optional[float] = Field(
+    top_p: float | None = Field(
         default=None,
         ge=0.0,
         le=1.0,
@@ -100,15 +100,15 @@ class ChatResponseChunk(BaseModel):
         ...,
         description="The type of response chunk",
     )
-    content: Optional[str] = Field(
+    content: str | None = Field(
         None,
         description="The content chunk (for type='chunk' or 'thinking')",
     )
-    error: Optional[str] = Field(
+    error: str | None = Field(
         None,
         description="Error message (for type='error')",
     )
-    metadata: Optional[dict[str, Any]] = Field(
+    metadata: dict[str, Any] | None = Field(
         None,
         description="Final metadata (for type='done')",
     )
@@ -118,10 +118,11 @@ class ChatResponseChunk(BaseModel):
 # Conversation Schemas
 # ============================================================================
 
+
 class ConversationCreate(BaseModel):
     """Request to create a new conversation."""
 
-    title: Optional[str] = Field(
+    title: str | None = Field(
         None,
         max_length=200,
         description="Optional conversation title",
@@ -131,7 +132,7 @@ class ConversationCreate(BaseModel):
         max_length=100,
         description="The model to use for this conversation",
     )
-    initial_message: Optional[str] = Field(
+    initial_message: str | None = Field(
         None,
         description="Optional first message to start the conversation",
     )
@@ -140,12 +141,12 @@ class ConversationCreate(BaseModel):
 class ConversationUpdate(BaseModel):
     """Request to update a conversation."""
 
-    title: Optional[str] = Field(
+    title: str | None = Field(
         None,
         max_length=200,
         description="New title for the conversation",
     )
-    model: Optional[str] = Field(
+    model: str | None = Field(
         None,
         max_length=100,
         description="Change the model for future messages",
@@ -156,7 +157,7 @@ class ConversationOut(BaseModel):
     """Conversation as returned by the API."""
 
     id: str = Field(..., description="Unique conversation ID")
-    title: Optional[str] = Field(None, description="Conversation title")
+    title: str | None = Field(None, description="Conversation title")
     model: str = Field(..., description="Model used for this conversation")
     created_at: datetime = Field(..., description="When the conversation was created")
     updated_at: datetime = Field(..., description="When the conversation was last updated")
@@ -236,13 +237,14 @@ class ConversationList(BaseModel):
 # Model Info Schemas
 # ============================================================================
 
+
 class ModelInfo(BaseModel):
     """Information about an available LLM model."""
 
     id: str = Field(..., description="Model identifier")
     name: str = Field(..., description="Human-readable model name")
-    description: Optional[str] = Field(None, description="Model description")
-    context_length: Optional[int] = Field(
+    description: str | None = Field(None, description="Model description")
+    context_length: int | None = Field(
         None,
         description="Maximum context length in tokens",
     )
@@ -253,3 +255,26 @@ class ModelList(BaseModel):
     """List of available models."""
 
     models: list[ModelInfo] = Field(..., description="Available models")
+
+
+# ============================================================================
+# Message Metadata Schema
+# ============================================================================
+
+
+class MessageMetadata(BaseModel):
+    """Structured schema for the JSONB `Message.meta` column.
+
+    Validates token counts, timing information, and optional content
+    stored alongside each assistant message.
+    """
+
+    tokens_generated: int | None = Field(None, ge=0, description="Tokens in the response")
+    tokens_prompt: int | None = Field(None, ge=0, description="Tokens in the prompt")
+    total_duration_ns: int | None = Field(None, ge=0, description="Total duration in nanoseconds")
+    thinking: str | None = Field(None, description="Thinking/reasoning content from the model")
+    error: bool | None = Field(None, description="Whether this message is an error")
+    error_type: str | None = Field(None, description="Type of error if applicable")
+    status_code: int | None = Field(None, description="HTTP status code for error responses")
+    cancelled: bool | None = Field(None, description="Whether the stream was cancelled")
+    attachments: list[dict[str, Any]] | None = Field(None, description="File attachment metadata")

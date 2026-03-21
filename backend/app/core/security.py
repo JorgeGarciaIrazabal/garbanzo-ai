@@ -1,12 +1,12 @@
 from datetime import datetime, timedelta
-from typing import Any, Dict, Optional
+from typing import Any
 
 import bcrypt
 from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 
-from app.core.config import get_settings, Settings
+from app.core.config import Settings, get_settings
 
 security = HTTPBearer()
 
@@ -31,9 +31,9 @@ def hash_password(password: str) -> str:
 
 
 def create_access_token(
-    data: Dict[str, Any],
+    data: dict[str, Any],
     settings: Settings,
-    expires_delta: Optional[timedelta] = None,
+    expires_delta: timedelta | None = None,
 ) -> str:
     to_encode = data.copy()
     if expires_delta:
@@ -45,7 +45,7 @@ def create_access_token(
     return encoded_jwt
 
 
-def decode_token(token: str, settings: Settings) -> Optional[Dict[str, Any]]:
+def decode_token(token: str, settings: Settings) -> dict[str, Any] | None:
     try:
         payload = jwt.decode(token, settings.secret_key, algorithms=["HS256"])
         return payload
@@ -56,7 +56,7 @@ def decode_token(token: str, settings: Settings) -> Optional[Dict[str, Any]]:
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     settings: Settings = Depends(get_settings),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",

@@ -19,8 +19,7 @@ description: E2E testing workflow for the Flutter app using MCP tools
 ## Step 1 — Start the Backend
 
 ```bash
-cd backend; uv run uvicorn app.main:app --reload --port 8000
-# or: just be-dev
+just be-dev
 ```
 
 Verify it's up at `http://localhost:8000/health` before proceeding.
@@ -28,13 +27,13 @@ Verify it's up at `http://localhost:8000/health` before proceeding.
 ## Step 2 — Launch the Flutter App via Dart MCP
 
 ```
-list_devices                     → pick "linux" (preferred) or "chrome"
+list_devices                     → pick "linux" (desktop — always preferred)
 launch_app(device_id: "linux")   → returns { dtd_uri, vm_service_uri, pid }
 ```
 
 The `vm_service_uri` will look like `ws://127.0.0.1:PORT/ws`. Save it — you need it for Marionette.
 
-> **Note:** `launch_app` on `linux` opens a native desktop window. On `chrome` it opens a browser. Either works for Marionette. Linux is preferred in WSL2 to avoid browser port randomness.
+> **Note:** Always use `linux` desktop device. Chrome requires browser port randomness workarounds and Flutter web integration tests are not supported on `-d chrome`.
 
 ## Step 3 — Connect Marionette
 
@@ -83,12 +82,20 @@ stop_app(pid: <pid from launch_app>)
 
 ## Running Unit/Integration Tests via Dart MCP
 
+Use `just` commands when running from a terminal; use Dart MCP tools when driving tests programmatically:
+
+```bash
+just fe-test          # unit/widget tests
+just be-test          # backend pytest
+```
+
+Or via Dart MCP:
 ```
 run_tests(path: "test/")                        → unit tests
 run_tests(path: "integration_test/app_test.dart", device_id: "linux")
 ```
 
-> Flutter web integration tests (`-d chrome`) are not supported. Use `linux` desktop device.
+> Flutter web integration tests (`-d chrome`) are not supported. Always use `linux` desktop device.
 
 ## Common Test Patterns
 

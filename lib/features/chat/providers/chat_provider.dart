@@ -1,11 +1,14 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:uuid/uuid.dart';
 
 import '../models/chat_attachment.dart';
 import '../models/chat_message.dart';
 import '../models/conversation.dart';
 import '../services/chat_service.dart';
+
+const _uuid = Uuid();
 
 /// Provider for managing chat conversation and message state.
 ///
@@ -181,6 +184,9 @@ class ChatProvider extends ChangeNotifier {
   }) async {
     if (content.trim().isEmpty && attachments.isEmpty) return;
 
+    // Guard: prevent sending while already streaming.
+    if (_isSending) return;
+
     _error = null;
     _isSending = true;
 
@@ -194,7 +200,7 @@ class ChatProvider extends ChangeNotifier {
     }
 
     final userMessage = ChatMessage(
-      id: 'temp-${DateTime.now().millisecondsSinceEpoch}',
+      id: 'temp-${_uuid.v4()}',
       role: 'user',
       content: content,
       createdAt: DateTime.now(),
@@ -203,8 +209,7 @@ class ChatProvider extends ChangeNotifier {
     _messages = [..._messages, userMessage];
     notifyListeners();
 
-    final assistantMessageId =
-        'temp-${DateTime.now().millisecondsSinceEpoch + 1}';
+    final assistantMessageId = 'temp-${_uuid.v4()}';
     String accumulatedContent = '';
     String accumulatedThinking = '';
 

@@ -10,6 +10,9 @@ settings = get_settings()
 engine = create_async_engine(
     settings.database_url,
     echo=settings.debug,
+    pool_size=20,
+    max_overflow=10,
+    pool_pre_ping=True,
 )
 
 async_session_maker = async_sessionmaker(
@@ -26,7 +29,7 @@ async def init_db() -> None:
         await conn.run_sync(Base.metadata.create_all)
 
 
-async def get_db() -> AsyncGenerator[AsyncSession, None]:
+async def get_db() -> AsyncGenerator[AsyncSession]:
     async with async_session_maker() as session:
         try:
             yield session
