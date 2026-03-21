@@ -33,9 +33,13 @@ class Settings(BaseSettings):
 
     # Voice services
     faster_whisper_url: str = "http://localhost:8010"
-    kokoro_url: str = "http://localhost:8020"
+    kokoro_url: str = "http://localhost:8020"  # kept for fallback / external kokoro
     default_tts_voice: str = "af_heart"
     default_tts_speed: float = 1.0
+
+    # Kokoro native model paths (relative to backend/ or absolute)
+    kokoro_model_dir: str = "data/kokoro/models/v1_0"
+    kokoro_voices_dir: str = "data/kokoro/voices"
 
     # CORS
     cors_origins: str = "http://localhost:3000,http://localhost:8000"

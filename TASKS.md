@@ -41,11 +41,10 @@ TTS model research (2025):
 
 ## Memory (ChatGPT-like)
 - [ ] **Memory store DB model** — `UserMemory` table: id, user_id, content, source_conversation_id, created_at, is_active
-- [ ] **Auto-extract memories** — Background job after each conversation turn; LLM call to extract facts about the user worth remembering
+- [ ] **Auto-extract memories** — cron job after every day; LLM call to extract facts about the user worth remembering
 - [ ] **Memory injection** — Prepend relevant memories to system prompt on each request
 - [ ] **Memory management UI** — `/memory` page to view, edit, and delete memories
 - [ ] **Manual memory creation** — "Remember this" button/command in chat
-- [ ] **Memory search** — Vector-based semantic search (pgvector) over memories
 - [ ] **Memory toggle per conversation** — Option to disable memory for a specific conversation
 
 ## System Prompt
@@ -63,14 +62,6 @@ TTS model research (2025):
 - [ ] **Skills library UI** — Browse available skills/tools from connected MCP servers
 - [ ] **Per-conversation tool selection** — Toggle which tools are enabled for a conversation
 - [ ] **Admin: User management** — List, promote, disable users from admin portal
-
-## Multi-Provider LLM Support
-- [ ] **OpenAI provider** — `gpt-4o`, `gpt-4-turbo`, etc. via OpenAI SDK
-- [ ] **Anthropic provider** — `claude-sonnet-4-6`, `claude-opus-4-6` via Anthropic SDK; thinking blocks
-- [ ] **Groq provider** — Fast inference for open-source models
-- [ ] **Google Gemini provider** — `gemini-2.0-flash` etc.
-- [ ] **API key management UI** — Per-user API key storage (encrypted) for each provider
-- [ ] **Provider health indicators** — Show which providers are online in model selector
 
 ## Notifications
 - [ ] **Web Push notifications** — Service Worker registration; notify when a long-running response completes while tab is in background

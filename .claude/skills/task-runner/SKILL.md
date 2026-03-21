@@ -2,7 +2,6 @@
 name: task-runner
 description: Pick and implement tasks from TASKS.md in an organized way. Reads the backlog, selects the next task (or a user-specified one), plans the implementation, delegates to the team skill, and marks the task done on completion.
 argument-hint: "[task name or section filter, e.g. 'Memory' or 'Message editing']"
-allowed-tools: Read, Write, Edit, Bash, Glob, Grep, Agent, TodoWrite
 ---
 
 # Task Runner

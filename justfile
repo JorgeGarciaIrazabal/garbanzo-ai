@@ -21,10 +21,22 @@ completions-install:
 install: be-install fe-install
     @Write-Host "All dependencies installed!"
 
-# Start Docker, backend, and frontend together — kills port 8000 if busy
+# Install Linux system dependencies required for audio (GStreamer for audioplayers + record)
+dev-deps:
+    sudo apt-get install -y \
+        libgstreamer1.0-dev \
+        libgstreamer-plugins-base1.0-dev \
+        gstreamer1.0-plugins-good \
+        gstreamer1.0-plugins-bad
+
+# Start Docker, backend, TTS, and frontend together — kills port 8000 if busy
 dev:
     #!/usr/bin/env bash
     set -e
+    if ! pkg-config --exists gstreamer-1.0 2>/dev/null; then
+        echo "Error: GStreamer not found. Run 'just dev-deps' first to install audio dependencies."
+        exit 1
+    fi
     if lsof -ti:8000 > /dev/null 2>&1; then
         PIDS=$(lsof -ti:8000 | tr '\n' ' ')
         printf "Port 8000 is in use by PID(s) %s. Kill? [y/N] " "$PIDS"
@@ -38,10 +50,10 @@ dev:
         fi
     fi
     docker compose up -d
-    echo "Starting backend on :8000..."
+    echo "Starting backend on :8000 (includes in-process Kokoro TTS)..."
     (cd backend && uv run uvicorn app.main:app --reload --port 8000) &
     BACKEND_PID=$!
-    trap "kill $BACKEND_PID 2>/dev/null; echo 'Backend stopped.'" EXIT INT TERM
+    trap "kill $BACKEND_PID 2>/dev/null; echo 'Stopped.'" EXIT INT TERM
     echo "Starting frontend..."
     flutter run -d linux
 
@@ -65,7 +77,7 @@ be-install:
 be-upgrade:
     cd backend; uv sync --upgrade --extra dev
 
-# Start FastAPI dev server with hot reload
+# Start FastAPI dev server with hot reload (includes in-process Kokoro TTS)
 be-dev:
     cd backend; uv run uvicorn app.main:app --reload --port 8000
 
@@ -152,5 +164,5 @@ claude:
     claude --dangerously-skip-permissions
 
 # Launch Claude Code with a specific model
-claude-ollama model="minimax-m2.7:cloud":
+claude-ollama model="qwen3.5:397b-cloud":
     ollama launch claude --model {{model}} 

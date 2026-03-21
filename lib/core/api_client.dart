@@ -150,4 +150,16 @@ class ApiClient {
       options: Options(responseType: ResponseType.bytes),
     );
   }
+
+  /// Send a POST request expecting a streaming binary response.
+  Future<Response<ResponseBody>> postStreamBytes(
+    String path, {
+    Object? data,
+  }) {
+    return _dio.post<ResponseBody>(
+      path,
+      data: data,
+      options: Options(responseType: ResponseType.stream),
+    );
+  }
 }

@@ -48,3 +48,9 @@ app.*.map.json
 .cursor/mcp.json
 .mcp.json
 .claude/settings*
+
+#backend data
+backend/data/*
+
+# Vendored dependencies (installed locally, not checked in)
+vendor/

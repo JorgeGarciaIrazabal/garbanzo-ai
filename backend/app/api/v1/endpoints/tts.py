@@ -3,14 +3,20 @@
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.responses import Response
+from fastapi.responses import Response, StreamingResponse
 
-from app.core.config import Settings, get_settings
 from app.core.security import get_current_user
 from app.schemas.audio import SpeechRequest, VoiceList
 from app.services.tts_service import TTSService
 
 router = APIRouter()
+
+_CONTENT_TYPES = {
+    "mp3": "audio/mpeg",
+    "opus": "audio/opus",
+    "wav": "audio/wav",
+    "pcm": "audio/pcm",
+}
 
 
 @router.post(
@@ -20,9 +26,8 @@ router = APIRouter()
 async def speak(
     data: SpeechRequest,
     current_user: Annotated[dict[str, Any], Depends(get_current_user)],
-    settings: Annotated[Settings, Depends(get_settings)],
 ) -> Response:
-    service = TTSService(base_url=settings.kokoro_url)
+    service = await TTSService.get_instance()
     try:
         audio_bytes = await service.speak(
             text=data.text,
@@ -32,10 +37,37 @@ async def speak(
         )
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"TTS service unavailable: {e}",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"TTS generation failed: {e}",
         ) from e
-    return Response(content=audio_bytes, media_type="audio/mpeg")
+    content_type = _CONTENT_TYPES.get(data.response_format, "audio/mpeg")
+    return Response(content=audio_bytes, media_type=content_type)
+
+
+@router.post(
+    "/speak/stream",
+    summary="Stream synthesized speech audio",
+)
+async def speak_stream(
+    data: SpeechRequest,
+    current_user: Annotated[dict[str, Any], Depends(get_current_user)],
+) -> StreamingResponse:
+    service = await TTSService.get_instance()
+    content_type = _CONTENT_TYPES.get(data.response_format, "audio/mpeg")
+    return StreamingResponse(
+        service.stream_speak(
+            text=data.text,
+            voice=data.voice,
+            speed=data.speed,
+            response_format=data.response_format,
+        ),
+        media_type=content_type,
+        headers={
+            "X-Accel-Buffering": "no",
+            "Cache-Control": "no-cache",
+            "Transfer-Encoding": "chunked",
+        },
+    )
 
 
 @router.get(
@@ -45,9 +77,8 @@ async def speak(
 )
 async def list_voices(
     current_user: Annotated[dict[str, Any], Depends(get_current_user)],
-    settings: Annotated[Settings, Depends(get_settings)],
 ) -> VoiceList:
-    service = TTSService(base_url=settings.kokoro_url)
+    service = await TTSService.get_instance()
     return VoiceList(voices=service.list_voices())
 
 
@@ -55,9 +86,9 @@ async def list_voices(
     "/health",
     summary="Check TTS service health",
 )
-async def health_check(
-    settings: Annotated[Settings, Depends(get_settings)],
-) -> dict[str, str]:
-    service = TTSService(base_url=settings.kokoro_url)
-    healthy = await service.health_check()
-    return {"status": "ok" if healthy else "unavailable"}
+async def health_check() -> dict[str, str]:
+    try:
+        await TTSService.get_instance()
+        return {"status": "ok"}
+    except Exception:
+        return {"status": "unavailable"}
