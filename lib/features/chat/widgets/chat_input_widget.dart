@@ -241,7 +241,6 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
                           ),
                         ),
                         style: theme.textTheme.bodyMedium,
-                        enabled: !widget.isLoading,
                       ),
                     ),
                   ),

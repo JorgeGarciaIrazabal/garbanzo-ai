@@ -111,6 +111,13 @@ class ChatProvider extends ChangeNotifier {
       _currentConversation = conversation;
       _messages = [];
 
+      // Immediately add the new conversation to the list for sidebar visibility
+      _conversations = [
+        conversation.copyWith(messageCount: 0),
+        ..._conversations,
+      ];
+      notifyListeners();
+
       if (initialMessage != null && initialMessage.isNotEmpty) {
         await sendMessage(initialMessage, attachments: initialAttachments);
       } else {
@@ -175,6 +182,26 @@ class ChatProvider extends ChangeNotifier {
   }
 
   // ==========================================================================
+  // Helpers
+  // ==========================================================================
+
+  /// Updates the current conversation's entry in the conversations list.
+  void _updateConversationInList() {
+    if (_currentConversation == null) return;
+    final index = _conversations.indexWhere(
+      (c) => c.id == _currentConversation!.id,
+    );
+    if (index >= 0) {
+      _conversations = [
+        ..._conversations.sublist(0, index),
+        _currentConversation!,
+        ..._conversations.sublist(index + 1),
+      ];
+      notifyListeners();
+    }
+  }
+
+  // ==========================================================================
   // Messaging
   // ==========================================================================
 
@@ -188,7 +215,6 @@ class ChatProvider extends ChangeNotifier {
     if (_isSending) return;
 
     _error = null;
-    _isSending = true;
 
     if (_currentConversation == null) {
       await createConversation(
@@ -199,6 +225,8 @@ class ChatProvider extends ChangeNotifier {
       return;
     }
 
+    _isSending = true;
+
     final userMessage = ChatMessage(
       id: 'temp-${_uuid.v4()}',
       role: 'user',
@@ -207,6 +235,14 @@ class ChatProvider extends ChangeNotifier {
       attachments: attachments,
     );
     _messages = [..._messages, userMessage];
+
+    // Update current conversation with new message count for sidebar
+    if (_currentConversation != null) {
+      _currentConversation = _currentConversation!.copyWith(
+        messageCount: _messages.length,
+      );
+      _updateConversationInList();
+    }
     notifyListeners();
 
     final assistantMessageId = 'temp-${_uuid.v4()}';
@@ -254,6 +290,7 @@ class ChatProvider extends ChangeNotifier {
               _currentConversation = _currentConversation!.copyWith(
                 messageCount: _messages.length,
               );
+              _updateConversationInList();
             }
 
             notifyListeners();
