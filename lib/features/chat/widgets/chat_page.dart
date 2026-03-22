@@ -14,6 +14,8 @@ import '../providers/chat_provider.dart';
 import '../providers/model_provider.dart';
 import 'chat_input_widget.dart';
 import 'chat_message_widget.dart';
+import 'context_summary_widget.dart';
+import 'context_window_indicator.dart';
 import 'conversation_list_widget.dart';
 import 'empty_chat_state.dart';
 import 'mobile_drawer.dart';
@@ -71,6 +73,18 @@ class _ChatPageContentState extends State<_ChatPageContent> {
   void dispose() {
     _scrollController.dispose();
     super.dispose();
+  }
+
+  int? _getLastTokensPrompt(ChatProvider chatProvider) {
+    final msgs = chatProvider.messages;
+    for (var i = msgs.length - 1; i >= 0; i--) {
+      final meta = msgs[i].metadata;
+      if (meta != null) {
+        final t = meta['tokens_prompt'];
+        if (t != null) return (t as num).toInt();
+      }
+    }
+    return null;
   }
 
   void _scrollToBottom() {
@@ -234,6 +248,23 @@ class _ChatPageContentState extends State<_ChatPageContent> {
                           message: chatProvider.error!,
                           onDismiss: chatProvider.clearError,
                         ),
+                      Builder(
+                        builder: (ctx) {
+                          final tokensUsed =
+                              _getLastTokensPrompt(chatProvider);
+                          final contextLength =
+                              modelProvider.selectedModel?.contextLength;
+                          if (tokensUsed != null &&
+                              contextLength != null &&
+                              contextLength > 0) {
+                            return ContextWindowIndicator(
+                              tokensUsed: tokensUsed,
+                              contextLength: contextLength,
+                            );
+                          }
+                          return const SizedBox.shrink();
+                        },
+                      ),
                       Expanded(child: _buildMessageList(chatProvider, theme)),
                       Consumer<ChatProvider>(
                         builder: (context, provider, _) {
@@ -399,13 +430,21 @@ class _ChatPageContentState extends State<_ChatPageContent> {
       return const Center(child: CircularProgressIndicator());
     }
 
+    final summary = chatProvider.currentConversation?.contextSummary;
+    final hasSummary = summary != null && summary.isNotEmpty;
+    final itemOffset = hasSummary ? 1 : 0;
+
     return ListView.builder(
       controller: _scrollController,
       padding: const EdgeInsets.symmetric(vertical: 16),
-      itemCount: chatProvider.messages.length,
+      itemCount: chatProvider.messages.length + itemOffset,
       itemBuilder: (context, index) {
-        final message = chatProvider.messages[index];
-        final isLastMessage = index == chatProvider.messages.length - 1;
+        if (hasSummary && index == 0) {
+          return ContextSummaryWidget(summary: summary);
+        }
+        final msgIndex = index - itemOffset;
+        final message = chatProvider.messages[msgIndex];
+        final isLastMessage = msgIndex == chatProvider.messages.length - 1;
 
         return ChatMessageWidget(
           message: message,

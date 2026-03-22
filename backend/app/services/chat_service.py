@@ -127,6 +127,99 @@ class ChatService:
             raise ValueError(f"Unknown provider: {self._provider_name}")
         return provider
 
+    @staticmethod
+    def _estimate_context_length(model_name: str) -> int:
+        """Estimate context length from model name parameter size."""
+        import re
+
+        match = re.search(r"(\d+(?:\.\d+)?)b", model_name.lower())
+        if match:
+            size = float(match.group(1))
+            if size <= 3:
+                return 4096
+            elif size <= 8:
+                return 8192
+            elif size <= 20:
+                return 32768
+            else:
+                return 131072
+        return 8192
+
+    async def _maybe_summarize_context(
+        self,
+        conversation,
+        messages: list,
+    ) -> None:
+        """Summarize older messages if context window is near full (>80%)."""
+        if not messages:
+            return
+
+        last_assistant = next(
+            (m for m in reversed(messages) if m.role == "assistant" and m.meta),
+            None,
+        )
+        if not last_assistant or not last_assistant.meta:
+            return
+
+        tokens_prompt = last_assistant.meta.get("tokens_prompt")
+        if not tokens_prompt:
+            return
+
+        context_length = self._estimate_context_length(conversation.model)
+        if tokens_prompt < int(context_length * 0.8):
+            return
+
+        # Find start index (respect existing summary boundary)
+        start_idx = 0
+        if conversation.context_summary_until_id:
+            for i, m in enumerate(messages):
+                if m.id == conversation.context_summary_until_id:
+                    start_idx = i + 1
+                    break
+
+        # Keep last 10 messages intact, summarize everything before
+        end_idx = max(start_idx, len(messages) - 10)
+        if end_idx <= start_idx:
+            return
+
+        messages_to_summarize = messages[start_idx:end_idx]
+
+        text_parts = []
+        for msg in messages_to_summarize:
+            text_parts.append(f"{msg.role.upper()}: {msg.content[:800]}")
+        summary_input = "\n\n".join(text_parts)
+
+        prompt = (
+            "Summarize the following conversation excerpt in 3-5 concise sentences. "
+            "Focus on key topics, decisions, and context useful for continuing the conversation:\n\n"
+            + summary_input
+        )
+
+        try:
+            provider = self._get_provider()
+            summary_parts: list[str] = []
+            async for chunk in provider.stream_chat(
+                messages=[LLMMessage(role="user", content=prompt)],
+                model=conversation.model,
+                options=ChatOptions(temperature=0.3),
+            ):
+                if not chunk.is_thinking and chunk.content:
+                    summary_parts.append(chunk.content)
+
+            new_summary = "".join(summary_parts).strip()
+            if not new_summary:
+                return
+
+            if conversation.context_summary:
+                new_summary = f"{conversation.context_summary}\n\n{new_summary}"
+
+            conversation.context_summary = new_summary
+            conversation.context_summary_until_id = messages_to_summarize[-1].id
+            await self.db.flush()
+
+        except Exception as e:
+            logger.warning("Auto-summarization failed: %s", e)
+
     async def send_message(
         self,
         conversation_id: str,
@@ -198,11 +291,15 @@ class ChatService:
         conversation.updated_at = func.now()  # type: ignore[assignment]
         await self.db.flush()
 
+        await self._maybe_summarize_context(conversation, list(conversation.messages))
+
         llm_messages = await self._build_message_history_with_system_prompt(
             conversation.messages,
             image_b64_list,
             conversation.user_id,
             use_memory=conversation.use_memory,
+            context_summary=conversation.context_summary,
+            context_summary_until_id=conversation.context_summary_until_id,
         )
 
         provider = self._get_provider()
@@ -273,6 +370,8 @@ class ChatService:
         pending_images: list[str] | None = None,
         user_id: str | None = None,
         use_memory: bool = True,
+        context_summary: str | None = None,
+        context_summary_until_id: str | None = None,
     ) -> list[LLMMessage]:
         """Build message history with an optional system prompt prepended.
 
@@ -284,11 +383,21 @@ class ChatService:
             pending_images: Base64-encoded images for multimodal context
             user_id: The user ID to fetch memories for
             use_memory: Whether to inject memories into the system prompt
+            context_summary: Summary of earlier messages that were trimmed
+            context_summary_until_id: ID of last message included in the summary
 
         Returns:
             List of LLMMessage with system prompt as first message if memories exist
         """
         result: list[LLMMessage] = []
+
+        # Filter to unsummarized messages if summary exists
+        filtered_messages = list(messages)
+        if context_summary and context_summary_until_id:
+            for i, m in enumerate(filtered_messages):
+                if m.id == context_summary_until_id:
+                    filtered_messages = filtered_messages[i + 1 :]
+                    break
 
         # Build system prompt with memories if enabled
         system_prompt = await self._build_system_prompt(
@@ -299,9 +408,17 @@ class ChatService:
         if system_prompt:
             result.append(LLMMessage(role="system", content=system_prompt))
 
+        if context_summary:
+            result.append(
+                LLMMessage(
+                    role="system",
+                    content=f"[Earlier conversation summary]\n{context_summary}",
+                )
+            )
+
         # Add conversation messages
-        for i, msg in enumerate(messages):
-            is_last = i == len(messages) - 1
+        for i, msg in enumerate(filtered_messages):
+            is_last = i == len(filtered_messages) - 1
             images = pending_images if (is_last and pending_images) else None
             result.append(LLMMessage(role=msg.role, content=msg.content, images=images))
 

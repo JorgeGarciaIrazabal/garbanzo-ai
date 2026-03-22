@@ -111,9 +111,9 @@ TTS model research (2025):
 - [ ] **Knowledge base management UI** — Upload, view, delete documents in the knowledge base
 
 ## Context Management
-- [ ] **Context window indicator** — Visual token count showing how full the context window is
-- [ ] **Auto-summarization** — When context approaches the limit, summarize old messages and trim
-- [ ] **Conversation summary view** — Collapsible "Summary of earlier messages" block in thread
+- [x] **Context window indicator** — Visual token count showing how full the context window is
+- [x] **Auto-summarization** — When context approaches the limit, summarize old messages and trim
+- [x] **Conversation summary view** — Collapsible "Summary of earlier messages" block in thread
 
 ## Multi-Person & Multi-Agent Chat Rooms
 - [ ] **Room DB model** — `Room` table: id, name, description, owner_id, created_at; `RoomMember` table: room_id, user_id, role (owner/member), joined_at

@@ -205,6 +205,9 @@ class ConversationDetailOut(ConversationOut):
         default_factory=list,
         description="All messages in the conversation",
     )
+    context_summary: str | None = Field(
+        None, description="Summary of earlier messages trimmed from context"
+    )
 
     @classmethod
     def from_model(cls, conv: "Any") -> "ConversationDetailOut":
@@ -227,6 +230,8 @@ class ConversationDetailOut(ConversationOut):
             updated_at=conv.updated_at,
             message_count=len(messages),
             messages=messages,
+            use_memory=getattr(conv, "use_memory", True),
+            context_summary=getattr(conv, "context_summary", None),
         )
 
 
