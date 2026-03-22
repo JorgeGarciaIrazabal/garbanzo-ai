@@ -34,9 +34,25 @@ just docker-up       # Start all Docker services (PostgreSQL + Faster Whisper ST
 just docker-up-db    # Start only PostgreSQL
 just install         # Install all deps (backend + frontend)
 just test            # Run backend + frontend unit tests
+just db-migrate      # Apply all pending SQL migrations to the dev database
 ```
 
 > **IMPORTANT:** PostgreSQL must always be started via Docker (`just docker-up` or `just docker-up-db`). Never attempt to start or connect to a host-installed PostgreSQL instance. If `just docker-up` fails because Docker isn't running, start Docker first (`sudo service docker start` in WSL2).
+
+### Database Migrations
+
+This project does **not** use Alembic. Schema is bootstrapped by `Base.metadata.create_all()` on startup (creates missing tables only — never alters existing ones).
+
+When a SQLAlchemy model gains a new column, you must manually migrate existing databases:
+
+1. Add an idempotent SQL file to `backend/migrations/` following the naming pattern `NNN_description.sql` (e.g. `002_add_title.sql`). Always use `ADD COLUMN IF NOT EXISTS`.
+2. Run `just db-migrate` — applies every file in order against the dev database.
+3. The production database (Docker `postgres-prod`) will be up-to-date automatically the next time `just android` rebuilds the backend image, because `create_all()` creates the table fresh. If the prod DB already exists, run the migration manually:
+   ```bash
+   docker exec -i garbanzo_ai_postgres_prod psql -U garbanzo -d garbanzo_ai_prod < backend/migrations/NNN_description.sql
+   ```
+
+> **IMPORTANT:** Always run `just db-migrate` after pulling changes that modify a SQLAlchemy model. The symptom of a missing migration is an `UndefinedColumnError` from asyncpg.
 
 ## Architecture
 

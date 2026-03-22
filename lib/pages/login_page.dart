@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../core/api_client.dart';
 import '../core/auth_service.dart';
 import '../core/widgets/auth_form_layout.dart';
 
@@ -63,13 +64,45 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
+  String get _backendLabel {
+    final url = ApiClient.instance.baseUrl;
+    return url.isEmpty ? 'relative (same host)' : url;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
     return AuthFormLayout(
       icon: Icons.account_circle,
       heading: 'Sign in',
       formKey: _formKey,
       children: [
+        Center(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.cloud_outlined, size: 13, color: colorScheme.outline),
+                const SizedBox(width: 5),
+                Flexible(
+                  child: Text(
+                    _backendLabel,
+                    style: textTheme.labelSmall?.copyWith(color: colorScheme.outline),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
         TextFormField(
           controller: _emailController,
           keyboardType: TextInputType.emailAddress,

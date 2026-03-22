@@ -65,6 +65,16 @@ docker-up:
 docker-up-db:
     docker compose up -d postgres
 
+# Run all SQL migration files in backend/migrations/ against the dev database (idempotent)
+db-migrate:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    for f in "{{ justfile_directory() }}/backend/migrations/"*.sql; do
+        echo "Applying $(basename $f)..."
+        docker exec -i garbanzo_ai_postgres psql -U garbanzo -d garbanzo_ai < "$f"
+    done
+    echo "Done."
+
 # ============================================================================
 # Backend Commands (FastAPI)
 # ============================================================================
@@ -113,6 +123,11 @@ fe-run:
 fe-run-chrome:
     flutter run -d chrome
 
+# Run Flutter app on Linux desktop against an ngrok backend
+# Usage: just fe-run-ngrok https://xxxx.ngrok-free.app
+fe-run-ngrok url:
+    flutter run -d linux --dart-define=API_BASE_URL={{url}}
+
 # Build Flutter web and copy to backend
 fe-build:
     flutter build web --output backend/web
@@ -143,6 +158,10 @@ fe-clean:
 # Run all tests (backend + frontend unit tests)
 test: be-test fe-test
 
+# Run Flutter integration tests via a fixed-port web test server
+fe-run-test-server:
+    flutter run -d linux --dart-define=API_BASE_URL=http://localhost:8000
+
 # ============================================================================
 # Full Build & Deploy
 # ============================================================================
@@ -154,6 +173,52 @@ build: be-install fe-build
 # Clean everything
 clean: fe-clean
     @Write-Host "Cleaned Flutter build files"
+
+# Build backend Docker image + start all services + expose via ngrok + build Android APK
+# Usage:
+#   just android                              # use NGROK_DOMAIN from backend/.env
+#   just android https://xyz.ngrok-free.app  # override with a different URL
+android url="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    # Load NGROK_DOMAIN from backend/.env if present
+    if [ -f "{{ justfile_directory() }}/backend/.env" ]; then
+        export $(grep -E '^NGROK_DOMAIN=' "{{ justfile_directory() }}/backend/.env" | xargs)
+    fi
+
+    # 1. Start ngrok tunnel (static domain or auto-detect)
+    if [ -n "{{url}}" ]; then
+        API_URL="{{url}}"
+    elif [ -n "${NGROK_DOMAIN:-}" ]; then
+        API_URL="https://${NGROK_DOMAIN}"
+        if ! curl -s http://localhost:4040/api/tunnels > /dev/null 2>&1; then
+            echo "Starting ngrok tunnel → ${NGROK_DOMAIN}..."
+            ngrok http --domain "${NGROK_DOMAIN}" 8001 > /dev/null &
+            for i in $(seq 1 15); do
+                sleep 1
+                curl -s http://localhost:4040/api/tunnels > /dev/null 2>&1 && break
+                [ $i -eq 15 ] && { echo "Error: ngrok did not start"; exit 1; }
+            done
+        fi
+    else
+        echo "Error: set NGROK_DOMAIN in backend/.env or pass a URL"; exit 1
+    fi
+
+    # 2. Build frozen backend Docker image from current code
+    echo "Building backend Docker image (frozen snapshot)..."
+    docker compose build backend
+
+    # 3. Start all Docker services (postgres, whisper, backend)
+    echo "Starting services..."
+    docker compose up -d
+
+    # 4. Build Android APK with the ngrok URL baked in
+    echo "Building Android APK → API_BASE_URL=$API_URL"
+    cd "{{ justfile_directory() }}" && flutter build apk --release --dart-define=API_BASE_URL="$API_URL"
+    echo ""
+    echo "APK: build/app/outputs/flutter-apk/app-release.apk"
+    echo "Backend: $API_URL  (Docker-managed, edit code won't affect it until next build)"
 
 
 # ============================================================================

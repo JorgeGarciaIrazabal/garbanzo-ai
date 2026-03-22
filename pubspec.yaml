@@ -55,8 +55,6 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  integration_test:
-    sdk: flutter
   marionette_flutter: any
   mocktail: ^1.0.0
 

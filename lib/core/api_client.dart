@@ -39,6 +39,8 @@ class ApiClient {
   late final Dio _dio;
   String? _token;
 
+  String get baseUrl => _dio.options.baseUrl;
+
   /// Callback invoked when a 401 is received on an authenticated request.
   /// Set this from your app to trigger navigation to the login screen.
   VoidCallback? onUnauthorized;
@@ -75,6 +77,9 @@ class ApiClient {
     final token = await getToken();
     if (token != null) {
       options.headers['Authorization'] = 'Bearer $token';
+    }
+    if (options.uri.host.contains('ngrok')) {
+      options.headers['ngrok-skip-browser-warning'] = 'true';
     }
     handler.next(options);
   }

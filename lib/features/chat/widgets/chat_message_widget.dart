@@ -46,11 +46,16 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: ConstrainedBox(
         constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.85,
+          maxWidth: MediaQuery.of(context).size.width * 0.92,
         ),
         child: Card(
           elevation: 0,
-          margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+          margin: EdgeInsets.only(
+            top: 4,
+            bottom: 4,
+            left: isUser ? 0 : MediaQuery.of(context).size.width * 0.01,
+            right: isUser ? MediaQuery.of(context).size.width * 0.01 : 0,
+          ),
           color: isUser
               ? colorScheme.primaryContainer
               : colorScheme.surfaceContainerHighest,
