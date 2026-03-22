@@ -26,13 +26,17 @@ just fe-build        # Build web → backend/web/ (for prod)
 # Single test file: flutter test test/path/widget_test.dart
 ```
 
-### Infrastructure
+### Infrastructure & Combined
 ```bash
-just docker-up       # Start PostgreSQL (via Docker — always use this, never run postgres from the host)
+just dev             # Start everything: Docker + backend (with TTS) + frontend
+just dev-deps        # Install Linux audio deps (GStreamer — run once)
+just docker-up       # Start all Docker services (PostgreSQL + Faster Whisper STT)
+just docker-up-db    # Start only PostgreSQL
 just install         # Install all deps (backend + frontend)
+just test            # Run backend + frontend unit tests
 ```
 
-> **IMPORTANT:** PostgreSQL must always be started via Docker (`just docker-up`). Never attempt to start or connect to a host-installed PostgreSQL instance. If `just docker-up` fails because Docker isn't running, start Docker first (`sudo service docker start` in WSL2).
+> **IMPORTANT:** PostgreSQL must always be started via Docker (`just docker-up` or `just docker-up-db`). Never attempt to start or connect to a host-installed PostgreSQL instance. If `just docker-up` fails because Docker isn't running, start Docker first (`sudo service docker start` in WSL2).
 
 ## Architecture
 
@@ -40,24 +44,46 @@ just install         # Install all deps (backend + frontend)
 - **Backend:** FastAPI (async) + SQLAlchemy/AsyncPG + PostgreSQL + JWT auth
 - **Frontend:** Flutter (web/desktop) + Provider state management
 - **LLM:** Ollama (default) via a pluggable provider pattern
+- **TTS:** Kokoro (in-process, loaded on backend startup)
+- **STT:** Faster Whisper (Docker container, port 8010)
 - **Streaming:** Server-Sent Events (SSE) from backend to frontend
 
 ### Backend Layout (`backend/app/`)
 
 ```
 core/       config.py (pydantic-settings), security.py (JWT/bcrypt)
-api/v1/     endpoints/ auth.py, chat.py, health.py  →  router.py
-models/     SQLAlchemy ORM: User (email PK), Conversation, Message
-schemas/    Pydantic I/O: auth.py, chat.py
+api/v1/     endpoints/ auth.py, chat.py, health.py, stt.py, tts.py, memories.py  →  router.py
+models/     SQLAlchemy ORM: User (email PK), Conversation, Message, UserMemory
+schemas/    Pydantic I/O: auth.py, chat.py, memory.py
 services/   chat_service.py, conversation_service.py, user_service.py
             llm_provider.py (abstract base + ProviderRegistry)
             ollama_provider.py (concrete impl)
+            stt_service.py, tts_service.py
+            memory_service.py, memory_extraction.py
 db/         session.py (AsyncSession, init_db)
+jobs/       extract_memories_job.py (daily at 2 AM via APScheduler)
+scheduler.py
 ```
 
-- `main.py` runs `init_db()` on startup, serves Flutter web from `backend/web/`, and auto-creates a test user if `TEST_USER_EMAIL`/`TEST_USER_PASSWORD` are in `.env`.
+- `main.py` startup sequence: `init_db()` → create test user (if configured) → `TTSService.start_loading()` (background, non-blocking) → `start_scheduler()` (APScheduler).
+- Serves Flutter web from `backend/web/` in production.
 - All endpoints are under `/api/v1/`. Auth uses `get_current_user` dependency that validates `Authorization: Bearer <token>`.
 - Adding a new LLM provider: implement `LLMProvider` ABC in `services/` and register it in `ProviderRegistry`.
+- No Alembic/migrations — uses `Base.metadata.create_all()` for auto-schema creation on startup.
+
+### API Endpoints
+
+| Group | Endpoints |
+|-------|-----------|
+| Auth | `POST /auth/login`, `POST /auth/register` |
+| Chat | `GET/POST /chat/conversations`, `POST /chat/conversations/{id}/chat` (SSE stream), `DELETE /chat/conversations/{id}/chat` (cancel stream) |
+| Models | `GET /chat/models` |
+| STT | `POST /stt/transcribe`, `GET /stt/health` |
+| TTS | `POST /tts/speak`, `POST /tts/speak/stream`, `GET /tts/voices`, `GET /tts/health` |
+| Memories | `POST /memories`, `GET /memories`, `GET/PATCH/DELETE /memories/{id}` |
+| Health | `GET /health` |
+
+All prefixed with `/api/v1/`.
 
 ### Frontend Layout (`lib/`)
 
@@ -69,8 +95,15 @@ core/
 features/chat/
   models/           ChatMessage, Conversation, ChatAttachment, ModelInfo, ChatResponseChunk
   providers/        ChatProvider (ChangeNotifier), ModelProvider (ChangeNotifier)
-  services/         chat_service.dart — CRUD + SSE streaming
+  services/         chat_service.dart (CRUD + SSE streaming), audio_service.dart (STT/TTS)
+  utils/            text_cleaner.dart (strips markdown/emojis before TTS)
   widgets/          ChatPage, ChatInputWidget, ChatMessageWidget, ConversationListWidget, …
+features/memory/
+  providers/        MemoryProvider
+  pages/            MemoryPage (CRUD UI for user memories)
+features/settings/
+  providers/        SettingsProvider (voice, theme, auto-play toggles)
+  widgets/          SettingsDrawer
 pages/              LoginPage, RegisterPage
 ```
 
@@ -88,6 +121,8 @@ Two providers per `ChatPage` tree:
 - **`ModelProvider`** — available models + selected model. Kept separate so model selection survives conversation switches.
 - **`ChatProvider`** — conversations list, current conversation + messages, streaming state. Receives `onModelChanged` callback from `ModelProvider`.
 
+Additional providers: `MemoryProvider` (user memories CRUD), `SettingsProvider` (voice, theme, persisted prefs).
+
 ### SSE Streaming Protocol
 
 Each server event: `data: {"type":"chunk","content":"...","metadata":null}\n\n`
@@ -97,7 +132,9 @@ Client parses lines, strips `data: ` prefix, skips `[DONE]` sentinel.
 ### Database Notes
 
 - `Conversation.model` defaults to `"llama3.2"` — must match a model ID returned by `GET /api/v1/chat/models`.
+- `Conversation.use_memory` (boolean) controls whether user memories are injected into LLM context.
 - `Message.meta` is JSONB and stores token counts, generation timing, and thinking block content.
+- `UserMemory` stores extracted/manual user memories with `content`, `source_conversation_id`, `is_active`.
 - Conversations use soft delete (`is_deleted=True`), not hard delete.
 
 ### Auth Token Storage
@@ -110,6 +147,13 @@ Flutter stores the JWT in `SharedPreferences` under key `auth_token`. `ApiClient
 2. Debug mode → `http://localhost:8000`
 3. Web release → relative to current origin
 
+### Docker Services (`docker-compose.yml`)
+
+- **PostgreSQL** — port 5432, credentials `garbanzo:garbanzo_dev`, database `garbanzo_ai`
+- **Faster Whisper Server** — port 8010, CPU-based STT via `fedirz/faster-whisper-server`
+
+Kokoro TTS runs in-process in the backend (not as a Docker service).
+
 ### Environment Variables (backend `.env`)
 
 ```
@@ -117,6 +161,7 @@ SECRET_KEY=           # Required — JWT signing key
 DATABASE_URL=postgresql+asyncpg://garbanzo:garbanzo_dev@localhost:5432/garbanzo_ai
 LLM_PROVIDER=ollama
 OLLAMA_BASE_URL=http://localhost:11434   # host.docker.internal when in Docker
+FASTER_WHISPER_URL=http://localhost:8010
 TEST_USER_EMAIL=      # Optional — auto-creates test user on startup
 TEST_USER_PASSWORD=
 ACCESS_TOKEN_EXPIRE_MINUTES=30
