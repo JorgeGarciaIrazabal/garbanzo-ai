@@ -108,6 +108,7 @@ class ConversationService:
         user_id: str,
         title: str | None = None,
         model: str | None = None,
+        use_memory: bool | None = None,
     ) -> Conversation | None:
         conversation = await self.get(conversation_id, user_id, include_messages=False)
         if not conversation:
@@ -117,6 +118,8 @@ class ConversationService:
             conversation.title = title
         if model is not None:
             conversation.model = model
+        if use_memory is not None:
+            conversation.use_memory = use_memory
 
         await self.db.commit()
         await self.db.refresh(conversation)

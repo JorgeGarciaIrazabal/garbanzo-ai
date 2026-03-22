@@ -1,9 +1,11 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:marionette_flutter/marionette_flutter.dart';
+import 'package:provider/provider.dart';
 
 import 'core/auth_service.dart';
 import 'features/chat/widgets/chat_page.dart';
+import 'features/settings/providers/settings_provider.dart';
 import 'pages/login_page.dart';
 import 'pages/register_page.dart';
 
@@ -17,15 +19,73 @@ void main() {
 class GarbanzoApp extends StatelessWidget {
   const GarbanzoApp({super.key});
 
+  /// Light theme with a warm, professional color scheme.
+  ThemeData get _lightTheme {
+    return ThemeData(
+      useMaterial3: true,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: const Color(0xFF6750A4), // Deep purple
+        brightness: Brightness.light,
+      ),
+      appBarTheme: const AppBarTheme(
+        centerTitle: false,
+        elevation: 0,
+      ),
+      cardTheme: CardThemeData(
+        elevation: 1,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+      ),
+    );
+  }
+
+  /// Dark theme with proper contrast for readability.
+  ThemeData get _darkTheme {
+    return ThemeData(
+      useMaterial3: true,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: const Color(0xFF6750A4), // Deep purple
+        brightness: Brightness.dark,
+      ),
+      appBarTheme: const AppBarTheme(
+        centerTitle: false,
+        elevation: 0,
+      ),
+      cardTheme: CardThemeData(
+        elevation: 1,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Garbanzo AI',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
+    return ChangeNotifierProvider(
+      create: (_) => SettingsProvider(),
+      child: Consumer<SettingsProvider>(
+        builder: (context, settings, child) {
+          return MaterialApp(
+            title: 'Garbanzo AI',
+            theme: _lightTheme,
+            darkTheme: _darkTheme,
+            themeMode: settings.loaded ? settings.flutterThemeMode : ThemeMode.system,
+            home: const AuthGate(),
+          );
+        },
       ),
-      home: const AuthGate(),
     );
   }
 }

@@ -5,6 +5,19 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import '../../../core/api_client.dart';
 
+/// A TTS voice available from the backend.
+class VoiceOption {
+  final String id;
+  final String name;
+  final String language;
+
+  const VoiceOption({
+    required this.id,
+    required this.name,
+    required this.language,
+  });
+}
+
 class AudioService {
   AudioService._();
   static final AudioService instance = AudioService._();
@@ -44,6 +57,7 @@ class AudioService {
         'speed': speed,
         'response_format': 'mp3',
       },
+      receiveTimeout: const Duration(minutes: 3),
     );
 
     if (response.statusCode == 200 && response.data != null) {
@@ -51,6 +65,25 @@ class AudioService {
     }
 
     throw Exception('Speech synthesis failed: ${response.statusCode}');
+  }
+
+  /// Fetch the list of available TTS voices from the backend.
+  Future<List<VoiceOption>> listVoices() async {
+    final response = await _api.get('/api/v1/tts/voices');
+
+    if (response.statusCode == 200) {
+      final data = response.data as Map<String, dynamic>;
+      final voices = data['voices'] as List;
+      return voices
+          .map((v) => VoiceOption(
+                id: v['id'] as String,
+                name: v['name'] as String,
+                language: v['language'] as String,
+              ))
+          .toList();
+    }
+
+    throw Exception('Failed to load voices: ${response.statusCode}');
   }
 
   /// Stream synthesized speech to a temp file, calling [onReady] with the file

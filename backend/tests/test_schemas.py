@@ -23,7 +23,6 @@ from app.schemas.chat import (
 )
 from app.schemas.user import UserCreate, UserInDB, UserOut
 
-
 # ============================================================================
 # Auth schemas
 # ============================================================================

@@ -17,6 +17,7 @@ class Conversation with _$Conversation {
     required DateTime createdAt,
     required DateTime updatedAt,
     @Default(0) int messageCount,
+    @Default(true) bool useMemory,
     List<ChatMessage>? messages,
   }) = _Conversation;
 

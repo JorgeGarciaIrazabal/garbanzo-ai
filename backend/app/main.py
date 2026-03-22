@@ -85,7 +85,19 @@ async def _ensure_test_user() -> None:
 async def lifespan(app: FastAPI):
     await init_db()
     await _ensure_test_user()
+    # Start loading the Kokoro TTS model in the background (non-blocking).
+    from app.services.tts_service import TTSService
+
+    TTSService.start_loading()
+    # Start the APScheduler for background jobs
+    from app.scheduler import start_scheduler
+
+    start_scheduler()
     yield
+    # Shutdown scheduler on app exit
+    from app.scheduler import stop_scheduler
+
+    stop_scheduler()
 
 
 # Create FastAPI app

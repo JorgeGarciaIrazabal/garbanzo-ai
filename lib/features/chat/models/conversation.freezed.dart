@@ -27,6 +27,7 @@ mixin _$Conversation {
   DateTime get createdAt => throw _privateConstructorUsedError;
   DateTime get updatedAt => throw _privateConstructorUsedError;
   int get messageCount => throw _privateConstructorUsedError;
+  bool get useMemory => throw _privateConstructorUsedError;
   List<ChatMessage>? get messages => throw _privateConstructorUsedError;
 
   /// Serializes this Conversation to a JSON map.
@@ -53,6 +54,7 @@ abstract class $ConversationCopyWith<$Res> {
     DateTime createdAt,
     DateTime updatedAt,
     int messageCount,
+    bool useMemory,
     List<ChatMessage>? messages,
   });
 }
@@ -78,6 +80,7 @@ class _$ConversationCopyWithImpl<$Res, $Val extends Conversation>
     Object? createdAt = null,
     Object? updatedAt = null,
     Object? messageCount = null,
+    Object? useMemory = null,
     Object? messages = freezed,
   }) {
     return _then(
@@ -106,6 +109,10 @@ class _$ConversationCopyWithImpl<$Res, $Val extends Conversation>
                 ? _value.messageCount
                 : messageCount // ignore: cast_nullable_to_non_nullable
                       as int,
+            useMemory: null == useMemory
+                ? _value.useMemory
+                : useMemory // ignore: cast_nullable_to_non_nullable
+                      as bool,
             messages: freezed == messages
                 ? _value.messages
                 : messages // ignore: cast_nullable_to_non_nullable
@@ -132,6 +139,7 @@ abstract class _$$ConversationImplCopyWith<$Res>
     DateTime createdAt,
     DateTime updatedAt,
     int messageCount,
+    bool useMemory,
     List<ChatMessage>? messages,
   });
 }
@@ -156,6 +164,7 @@ class __$$ConversationImplCopyWithImpl<$Res>
     Object? createdAt = null,
     Object? updatedAt = null,
     Object? messageCount = null,
+    Object? useMemory = null,
     Object? messages = freezed,
   }) {
     return _then(
@@ -184,6 +193,10 @@ class __$$ConversationImplCopyWithImpl<$Res>
             ? _value.messageCount
             : messageCount // ignore: cast_nullable_to_non_nullable
                   as int,
+        useMemory: null == useMemory
+            ? _value.useMemory
+            : useMemory // ignore: cast_nullable_to_non_nullable
+                  as bool,
         messages: freezed == messages
             ? _value._messages
             : messages // ignore: cast_nullable_to_non_nullable
@@ -203,6 +216,7 @@ class _$ConversationImpl extends _Conversation {
     required this.createdAt,
     required this.updatedAt,
     this.messageCount = 0,
+    this.useMemory = true,
     final List<ChatMessage>? messages,
   }) : _messages = messages,
        super._();
@@ -223,6 +237,9 @@ class _$ConversationImpl extends _Conversation {
   @override
   @JsonKey()
   final int messageCount;
+  @override
+  @JsonKey()
+  final bool useMemory;
   final List<ChatMessage>? _messages;
   @override
   List<ChatMessage>? get messages {
@@ -235,7 +252,7 @@ class _$ConversationImpl extends _Conversation {
 
   @override
   String toString() {
-    return 'Conversation(id: $id, title: $title, model: $model, createdAt: $createdAt, updatedAt: $updatedAt, messageCount: $messageCount, messages: $messages)';
+    return 'Conversation(id: $id, title: $title, model: $model, createdAt: $createdAt, updatedAt: $updatedAt, messageCount: $messageCount, useMemory: $useMemory, messages: $messages)';
   }
 
   @override
@@ -252,6 +269,8 @@ class _$ConversationImpl extends _Conversation {
                 other.updatedAt == updatedAt) &&
             (identical(other.messageCount, messageCount) ||
                 other.messageCount == messageCount) &&
+            (identical(other.useMemory, useMemory) ||
+                other.useMemory == useMemory) &&
             const DeepCollectionEquality().equals(other._messages, _messages));
   }
 
@@ -265,6 +284,7 @@ class _$ConversationImpl extends _Conversation {
     createdAt,
     updatedAt,
     messageCount,
+    useMemory,
     const DeepCollectionEquality().hash(_messages),
   );
 
@@ -290,6 +310,7 @@ abstract class _Conversation extends Conversation {
     required final DateTime createdAt,
     required final DateTime updatedAt,
     final int messageCount,
+    final bool useMemory,
     final List<ChatMessage>? messages,
   }) = _$ConversationImpl;
   const _Conversation._() : super._();
@@ -309,6 +330,8 @@ abstract class _Conversation extends Conversation {
   DateTime get updatedAt;
   @override
   int get messageCount;
+  @override
+  bool get useMemory;
   @override
   List<ChatMessage>? get messages;
 

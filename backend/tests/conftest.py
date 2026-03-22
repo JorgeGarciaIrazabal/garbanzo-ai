@@ -2,13 +2,14 @@
 
 import pytest
 import pytest_asyncio
-from sqlalchemy import JSON, event
+from sqlalchemy import JSON
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.core.config import Settings
 from app.db.base import Base
 from app.models.conversation import Conversation  # noqa: F401 — register model
+from app.models.memory import UserMemory  # noqa: F401 — register model
 from app.models.message import Message  # noqa: F401 — register model
 from app.models.user import User  # noqa: F401 — register model
 
@@ -41,6 +42,9 @@ async def db_session():
     # Temporarily swap JSONB columns to JSON for table creation.
     _patch_jsonb_columns()
 
+    # Import all models to ensure tables are registered
+    import app.models.memory  # noqa: F401
+
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
@@ -65,11 +69,31 @@ async def db_session():
 
         yield session
 
+    # Clean up any remaining references before disposal
     _unpatch_jsonb_columns()
 
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-    await engine.dispose()
+
+@pytest_asyncio.fixture()
+async def test_user_email(db_session: AsyncSession) -> str:
+    """Return the test user email."""
+    return "test@example.com"
+
+
+@pytest_asyncio.fixture()
+async def test_conversation(db_session: AsyncSession, test_user_email: str):
+    """Create and return a test conversation."""
+    import uuid
+
+    conv = Conversation(
+        id=str(uuid.uuid4()),
+        user_id=test_user_email,
+        title="Test Conversation",
+        model="llama3.2",
+    )
+    db_session.add(conv)
+    await db_session.commit()
+    await db_session.refresh(conv)
+    return conv
 
 
 # ---------------------------------------------------------------------------

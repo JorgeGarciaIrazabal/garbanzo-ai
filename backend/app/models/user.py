@@ -8,6 +8,7 @@ from app.db.base import Base
 
 if TYPE_CHECKING:
     from app.models.conversation import Conversation
+    from app.models.memory import UserMemory
 
 
 class User(Base):
@@ -23,6 +24,10 @@ class User(Base):
 
     # Relationships
     conversations: Mapped[list["Conversation"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    memories: Mapped[list["UserMemory"]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
     )

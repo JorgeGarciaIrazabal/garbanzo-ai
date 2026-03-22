@@ -4,8 +4,10 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import 'package:record/record.dart';
 
+import '../../settings/providers/settings_provider.dart';
 import '../models/chat_attachment.dart';
 import '../services/audio_service.dart';
 
@@ -17,6 +19,7 @@ class ChatInputWidget extends StatefulWidget {
     this.onStop,
     this.isLoading = false,
     this.hintText = 'Type a message...',
+    this.initialAttachments,
   });
 
   final void Function(String message, List<ChatAttachment> attachments) onSend;
@@ -26,6 +29,9 @@ class ChatInputWidget extends StatefulWidget {
 
   final bool isLoading;
   final String hintText;
+
+  /// Pre-loaded attachments (e.g., from drag-and-drop).
+  final List<ChatAttachment>? initialAttachments;
 
   @override
   State<ChatInputWidget> createState() => _ChatInputWidgetState();
@@ -48,6 +54,10 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
   void initState() {
     super.initState();
     _focusNode = FocusNode(onKeyEvent: _handleKeyEvent);
+    // Pre-load attachments from drag-and-drop
+    if (widget.initialAttachments != null) {
+      _attachments.addAll(widget.initialAttachments!);
+    }
   }
 
   @override
@@ -86,6 +96,13 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
   KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
 
+    // Handle Ctrl+V for paste
+    if (HardwareKeyboard.instance.isControlPressed &&
+        event.logicalKey == LogicalKeyboardKey.keyV) {
+      _handlePaste();
+      return KeyEventResult.handled;
+    }
+
     final isEnter = event.logicalKey == LogicalKeyboardKey.enter ||
         event.logicalKey == LogicalKeyboardKey.numpadEnter;
     if (!isEnter) return KeyEventResult.ignored;
@@ -103,6 +120,26 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
       _handleSubmitted();
     }
     return KeyEventResult.handled;
+  }
+
+  /// Handle paste from clipboard - text only.
+  /// Image paste requires platform-specific implementation.
+  Future<void> _handlePaste() async {
+    final clipboardData = await Clipboard.getData('text/plain');
+    if (clipboardData?.text != null) {
+      final sel = _controller.selection;
+      final text = _controller.text;
+      final newText = text.replaceRange(
+        sel.start,
+        sel.end,
+        clipboardData!.text!,
+      );
+      _controller.text = newText;
+      _controller.selection = TextSelection.collapsed(
+        offset: sel.start + clipboardData.text!.length,
+      );
+      _handleTextChange(newText);
+    }
   }
 
   Future<void> _toggleRecording() async {
@@ -196,6 +233,14 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
           offset: insertPos + prefix.length + transcript.length,
         );
         _handleTextChange(_controller.text);
+
+        // Auto-submit if the setting is enabled
+        final settings = context.read<SettingsProvider>();
+        if (settings.autoSubmitStt && transcript.trim().isNotEmpty) {
+          // Short delay so the user can see the transcribed text
+          await Future.delayed(const Duration(milliseconds: 200));
+          if (mounted) _handleSubmitted();
+        }
       }
 
       // Clean up temp file
@@ -227,26 +272,51 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
         'txt', 'md', 'csv', 'json', 'xml', 'yaml', 'yml',
         'html', 'htm', 'css', 'js', 'ts', 'py', 'dart', 'rs',
         'go', 'java', 'kt', 'swift', 'c', 'cpp', 'h',
-        'pdf',
+        'pdf', 'xlsx', 'xls', 'ods',
       ],
     );
 
     if (result == null) return;
 
-    const maxFileSize = 10 * 1024 * 1024; // 10 MB
     final added = <ChatAttachment>[];
     final rejected = <String>[];
+    final validationErrors = <String>[];
 
     for (final file in result.files) {
       final bytes = file.bytes;
       if (bytes == null) continue;
 
-      if (bytes.length > maxFileSize) {
-        rejected.add(file.name);
+      // Validate file size based on type
+      final mime = _inferMime(file.name, bytes);
+      final isImage = mime.startsWith('image/');
+      final isPdf = mime == 'application/pdf';
+      final isSpreadsheet = mime.endsWith('spreadsheetml.sheet') ||
+          mime == 'application/vnd.ms-excel' ||
+          mime == 'application/vnd.oasis.opendocument.spreadsheet' ||
+          file.name.toLowerCase().endsWith('.csv') ||
+          file.name.toLowerCase().endsWith('.xlsx') ||
+          file.name.toLowerCase().endsWith('.xls') ||
+          file.name.toLowerCase().endsWith('.ods');
+
+      final maxBytes = isImage
+          ? 5 * 1024 * 1024 // 5 MB for images
+          : isPdf
+              ? 20 * 1024 * 1024 // 20 MB for PDFs
+              : isSpreadsheet
+                  ? 10 * 1024 * 1024 // 10 MB for spreadsheets/CSV
+                  : 10 * 1024 * 1024; // 10 MB for other documents
+
+      if (bytes.length > maxBytes) {
+        rejected.add('${file.name} (${_formatBytes(bytes.length)} - max ${_formatBytes(maxBytes)})');
         continue;
       }
 
-      final mime = _inferMime(file.name, bytes);
+      // Check for duplicate filenames
+      if (_attachments.any((a) => a.name == file.name)) {
+        validationErrors.add('Duplicate file: ${file.name}');
+        continue;
+      }
+
       added.add(ChatAttachment.fromPicked(
         name: file.name,
         mimeType: mime,
@@ -254,12 +324,22 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
       ));
     }
 
+    // Show validation errors
+    if (validationErrors.isNotEmpty && mounted) {
+      for (final error in validationErrors) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error)),
+        );
+      }
+    }
+
+    // Show rejection errors
     if (rejected.isNotEmpty && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            'Files exceed 10 MB limit: ${rejected.join(', ')}',
-          ),
+          content: Text('Files too large:\n${rejected.join('\n')}'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+          behavior: SnackBarBehavior.floating,
         ),
       );
     }
@@ -267,6 +347,12 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
     if (added.isNotEmpty) {
       setState(() => _attachments.addAll(added));
     }
+  }
+
+  String _formatBytes(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(2)} MB';
   }
 
   String _inferMime(String filename, Uint8List bytes) {

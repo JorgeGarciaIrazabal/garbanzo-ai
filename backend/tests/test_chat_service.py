@@ -2,12 +2,9 @@
 
 import asyncio
 
-import pytest
-
 from app.models.message import Message
 from app.services.chat_service import ChatService
 from app.services.llm_provider import Message as LLMMessage
-
 
 # ============================================================================
 # _build_message_history

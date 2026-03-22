@@ -133,7 +133,7 @@ class ChatProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> updateConversation({String? title, String? model}) async {
+  Future<void> updateConversation({String? title, String? model, bool? useMemory}) async {
     if (_currentConversation == null) return;
 
     _error = null;
@@ -144,6 +144,7 @@ class ChatProvider extends ChangeNotifier {
         _currentConversation!.id,
         title: title,
         model: model,
+        useMemory: useMemory,
       );
       _currentConversation = updated;
       await _loadConversations();
@@ -178,6 +179,27 @@ class ChatProvider extends ChangeNotifier {
     _currentConversation = null;
     _messages = [];
     _error = null;
+    notifyListeners();
+  }
+
+  bool get hasActiveConversation => _currentConversation != null;
+
+  /// Add attachments to the current message being composed.
+  /// Called when files are dragged onto the chat area.
+  void addAttachments(List<ChatAttachment> attachments) {
+    // For now, we just store them in a temporary holder.
+    // The attachments will be sent with the next message.
+    // This mirrors the file picker behavior in ChatInputWidget.
+    _pendingAttachments ??= [];
+    _pendingAttachments!.addAll(attachments);
+    notifyListeners();
+  }
+
+  List<ChatAttachment>? _pendingAttachments;
+  List<ChatAttachment>? get pendingAttachments => _pendingAttachments;
+
+  void clearPendingAttachments() {
+    _pendingAttachments = null;
     notifyListeners();
   }
 

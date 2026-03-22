@@ -143,11 +143,15 @@ class ApiClient {
   Future<Response<List<int>>> postBytes(
     String path, {
     Object? data,
+    Duration? receiveTimeout,
   }) {
     return _dio.post<List<int>>(
       path,
       data: data,
-      options: Options(responseType: ResponseType.bytes),
+      options: Options(
+        responseType: ResponseType.bytes,
+        receiveTimeout: receiveTimeout,
+      ),
     );
   }
 

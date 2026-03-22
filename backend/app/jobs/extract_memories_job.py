@@ -1,0 +1,61 @@
+"""Daily job for extracting user memories from conversations."""
+
+import logging
+
+from app.db.session import async_session_maker
+from app.services.memory_extraction import MemoryExtractionService
+
+logger = logging.getLogger(__name__)
+
+# Job configuration defaults
+DEFAULT_HOUR = 2  # 2 AM
+DEFAULT_MODEL = "llama3.2"
+DEFAULT_LOOKBACK_HOURS = 24
+
+
+async def run_memory_extraction_job(
+    hour: int = DEFAULT_HOUR,
+    model: str = DEFAULT_MODEL,
+    lookback_hours: int = DEFAULT_LOOKBACK_HOURS,
+) -> None:
+    """Run the memory extraction job.
+
+    This job:
+    1. Finds all users with conversations from the last N hours
+    2. Calls the LLM to extract memorable facts about each user
+    3. Stores the extracted facts as UserMemory records
+
+    Args:
+        hour: The hour of day to run (for logging purposes)
+        model: The LLM model to use for extraction
+        lookback_hours: How many hours of conversation history to analyze
+    """
+    logger.info("Starting memory extraction job (model=%s, lookback=%dh)", model, lookback_hours)
+
+    async with async_session_maker() as db:
+        service = MemoryExtractionService(db)
+
+        try:
+            results = await service.extract_memories_for_all_users(
+                hours=lookback_hours,
+                model=model,
+            )
+
+            total_memories = sum(len(memories) for memories in results.values())
+            users_with_memories = sum(1 for memories in results.values() if memories)
+
+            logger.info(
+                "Memory extraction complete: %d users processed, %d total memories created",
+                users_with_memories,
+                total_memories,
+            )
+
+            for user_id, memories in results.items():
+                if memories:
+                    logger.info("User %s: %d memories created", user_id, len(memories))
+
+        except Exception as e:
+            logger.exception("Memory extraction job failed: %s", e)
+            raise
+
+    logger.info("Memory extraction job finished")

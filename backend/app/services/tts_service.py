@@ -1,4 +1,8 @@
-"""In-process text-to-speech synthesis using Kokoro."""
+"""In-process text-to-speech synthesis using Kokoro.
+
+Heavy imports (torch, kokoro) are deferred so the backend starts instantly.
+The model loads in the background on startup via `TTSService.start_loading()`.
+"""
 
 import asyncio
 import logging
@@ -6,15 +10,15 @@ import os
 from collections.abc import AsyncIterator
 from io import BytesIO
 
-import av
 import numpy as np
-import torch
-from kokoro import KModel, KPipeline
 
 from app.core.config import get_settings
 from app.schemas.audio import VoiceInfo
 
 logger = logging.getLogger(__name__)
+
+# Suppress noisy phonemizer "words count mismatch" warnings
+logging.getLogger("phonemizer").setLevel(logging.ERROR)
 
 _VOICES = [
     VoiceInfo(id="af_heart", name="Heart", language="English"),
@@ -37,6 +41,8 @@ class _AudioEncoder:
     """Encodes raw audio samples to mp3/wav/opus using PyAV."""
 
     def __init__(self, fmt: str = "mp3", sample_rate: int = SAMPLE_RATE):
+        import av
+
         self.fmt = fmt.lower()
         self.sample_rate = sample_rate
         self.pts = 0
@@ -55,7 +61,8 @@ class _AudioEncoder:
             self._stream.bit_rate = 128_000
 
     def encode_chunk(self, samples: np.ndarray) -> bytes:
-        """Encode a chunk of int16 samples and return output bytes."""
+        import av
+
         if self.fmt == "pcm":
             return samples.tobytes()
 
@@ -73,7 +80,6 @@ class _AudioEncoder:
         return data
 
     def finalize(self) -> bytes:
-        """Flush encoder and return remaining bytes."""
         if self.fmt == "pcm":
             return b""
         for pkt in self._stream.encode(None):
@@ -85,41 +91,67 @@ class _AudioEncoder:
 
 
 class TTSService:
-    """In-process TTS using Kokoro KPipeline."""
+    """In-process TTS using Kokoro KPipeline.
+
+    Call `start_loading()` during app lifespan to begin background init.
+    Call `get_instance()` from endpoints — it awaits until the model is ready.
+    """
 
     _instance: "TTSService | None" = None
-    _lock = asyncio.Lock()
+    _ready = asyncio.Event()
+    _error: Exception | None = None
 
-    def __init__(self, model: KModel, voices_dir: str):
+    def __init__(self, model, voices_dir: str):
         self._model = model
         self._voices_dir = voices_dir
-        self._pipelines: dict[str, KPipeline] = {}
+        self._pipelines: dict = {}
+
+    @classmethod
+    def start_loading(cls) -> None:
+        """Kick off model loading in a background thread (non-blocking)."""
+        asyncio.create_task(cls._load_in_background())
+
+    @classmethod
+    async def _load_in_background(cls) -> None:
+        """Load the model off the event loop so startup isn't blocked."""
+        try:
+            instance = await asyncio.to_thread(cls._load_sync)
+            cls._instance = instance
+            logger.info("Kokoro TTS ready.")
+        except Exception as e:
+            logger.error("Failed to load Kokoro TTS: %s", e)
+            cls._error = e
+        finally:
+            cls._ready.set()
+
+    @staticmethod
+    def _load_sync() -> "TTSService":
+        """Synchronous heavy lifting — runs in a worker thread."""
+        from kokoro import KModel
+
+        settings = get_settings()
+        model_dir = os.path.abspath(settings.kokoro_model_dir)
+        voices_dir = os.path.abspath(settings.kokoro_voices_dir)
+        config_path = os.path.join(model_dir, "config.json")
+        model_path = os.path.join(model_dir, "kokoro-v1_0.pth")
+
+        logger.info("Loading Kokoro model from %s …", model_path)
+        model = KModel(config=config_path, model=model_path).eval().cpu()
+
+        return TTSService(model, voices_dir)
 
     @classmethod
     async def get_instance(cls) -> "TTSService":
-        """Lazy singleton — loads the model on first call."""
-        if cls._instance is not None:
-            return cls._instance
-        async with cls._lock:
-            if cls._instance is not None:
-                return cls._instance
-            settings = get_settings()
-            model_dir = os.path.abspath(settings.kokoro_model_dir)
-            voices_dir = os.path.abspath(settings.kokoro_voices_dir)
-            config_path = os.path.join(model_dir, "config.json")
-            model_path = os.path.join(model_dir, "kokoro-v1_0.pth")
-            logger.info("Loading Kokoro model from %s", model_path)
-            model = KModel(config=config_path, model=model_path).eval().cpu()
-            cls._instance = cls(model, voices_dir)
-            # Warmup
-            logger.info("Warming up Kokoro…")
-            pipeline = cls._instance._get_pipeline("a")
-            for _ in pipeline("Warmup.", voice=cls._instance._voice_path("af_heart"), speed=1.0):
-                pass
-            logger.info("Kokoro ready.")
-            return cls._instance
+        """Return the singleton, waiting if the model is still loading."""
+        await cls._ready.wait()
+        if cls._error is not None:
+            raise cls._error
+        assert cls._instance is not None
+        return cls._instance
 
-    def _get_pipeline(self, lang_code: str) -> KPipeline:
+    def _get_pipeline(self, lang_code: str):
+        from kokoro import KPipeline
+
         if lang_code not in self._pipelines:
             self._pipelines[lang_code] = KPipeline(
                 lang_code=lang_code, model=self._model, device="cpu"
@@ -129,17 +161,13 @@ class TTSService:
     def _voice_path(self, voice_id: str) -> str:
         return os.path.join(self._voices_dir, f"{voice_id}.pt")
 
-    def _generate_chunks(
-        self, text: str, voice: str, speed: float
-    ) -> list[np.ndarray]:
-        """Run KPipeline (CPU-bound) and collect audio chunks."""
+    def _generate_chunks(self, text: str, voice: str, speed: float) -> list[np.ndarray]:
         lang_code = voice[0].lower() if voice else "a"
         pipeline = self._get_pipeline(lang_code)
         voice_path = self._voice_path(voice)
         chunks = []
         for result in pipeline(text, voice=voice_path, speed=speed, model=self._model):
             if result.audio is not None:
-                # Convert float32 → int16
                 audio_int16 = (result.audio.numpy() * 32767).astype(np.int16)
                 chunks.append(audio_int16)
         return chunks
@@ -151,7 +179,6 @@ class TTSService:
         speed: float = 1.0,
         response_format: str = "mp3",
     ) -> bytes:
-        """Generate complete audio for text (non-streaming)."""
         chunks = await asyncio.to_thread(self._generate_chunks, text, voice, speed)
         encoder = _AudioEncoder(response_format)
         parts = [encoder.encode_chunk(c) for c in chunks]
@@ -165,7 +192,6 @@ class TTSService:
         speed: float = 1.0,
         response_format: str = "mp3",
     ) -> AsyncIterator[bytes]:
-        """Stream encoded audio chunks as they are generated."""
         encoder = _AudioEncoder(response_format)
         lang_code = voice[0].lower() if voice else "a"
         pipeline = self._get_pipeline(lang_code)

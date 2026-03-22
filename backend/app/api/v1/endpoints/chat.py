@@ -122,6 +122,7 @@ async def update_conversation(
         user_id=current_user["email"],
         title=data.title,
         model=data.model,
+        use_memory=data.use_memory,
     )
 
     if not conversation:

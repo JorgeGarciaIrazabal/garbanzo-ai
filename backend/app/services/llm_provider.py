@@ -73,6 +73,25 @@ class LLMProvider(ABC):
         ...
 
     @abstractmethod
+    async def chat(
+        self,
+        messages: list[Message],
+        model: str,
+        options: ChatOptions | None = None,
+    ) -> str:
+        """Non-streaming chat completion from the LLM.
+
+        Args:
+            messages: List of messages in the conversation
+            model: The model identifier to use
+            options: Optional generation parameters
+
+        Returns:
+            The complete response content as a string
+        """
+        ...
+
+    @abstractmethod
     async def list_models(self) -> list[ModelInfo]:
         """List available models from this provider.
 

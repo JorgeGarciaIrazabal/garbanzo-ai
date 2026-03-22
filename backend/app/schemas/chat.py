@@ -151,6 +151,10 @@ class ConversationUpdate(BaseModel):
         max_length=100,
         description="Change the model for future messages",
     )
+    use_memory: bool | None = Field(
+        None,
+        description="Enable/disable memory injection for this conversation",
+    )
 
 
 class ConversationOut(BaseModel):
@@ -165,6 +169,7 @@ class ConversationOut(BaseModel):
         default=0,
         description="Number of messages in the conversation",
     )
+    use_memory: bool = Field(default=True, description="Whether memory injection is enabled")
 
     model_config = {"from_attributes": True}
 
@@ -189,6 +194,7 @@ class ConversationOut(BaseModel):
             created_at=conv.created_at,
             updated_at=conv.updated_at,
             message_count=message_count,
+            use_memory=getattr(conv, "use_memory", True),
         )
 
 

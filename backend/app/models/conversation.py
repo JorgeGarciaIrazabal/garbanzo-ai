@@ -7,6 +7,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
 
 if TYPE_CHECKING:
+    from app.models.memory import UserMemory
     from app.models.message import Message
     from app.models.user import User
 
@@ -34,6 +35,7 @@ class Conversation(Base):
         onupdate=func.now(),
     )
     is_deleted: Mapped[bool] = mapped_column(default=False, nullable=False)
+    use_memory: Mapped[bool] = mapped_column(default=True, nullable=False)
 
     # Relationships
     user: Mapped["User"] = relationship(back_populates="conversations")
@@ -41,6 +43,10 @@ class Conversation(Base):
         back_populates="conversation",
         cascade="all, delete-orphan",
         order_by="Message.created_at",
+    )
+    memories: Mapped[list["UserMemory"]] = relationship(
+        back_populates="source_conversation",
+        foreign_keys="UserMemory.source_conversation_id",
     )
 
     @classmethod

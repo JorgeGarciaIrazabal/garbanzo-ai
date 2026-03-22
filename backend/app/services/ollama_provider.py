@@ -204,6 +204,48 @@ class OllamaProvider(LLMProvider):
         except Exception:
             return False
 
+    async def chat(
+        self,
+        messages: list[Message],
+        model: str,
+        options: ChatOptions | None = None,
+    ) -> str:
+        """Non-streaming chat completion from Ollama."""
+        client = self._get_client()
+        opts = options or ChatOptions()
+
+        # Convert messages to Ollama format
+        ollama_messages: list[dict[str, Any]] = []
+        for msg in messages:
+            entry: dict[str, Any] = {"role": msg.role, "content": msg.content}
+            if msg.images:
+                entry["images"] = msg.images
+            ollama_messages.append(entry)
+
+        # Build options dict
+        request_options: dict[str, Any] = {
+            "temperature": opts.temperature,
+        }
+        if opts.max_tokens is not None:
+            request_options["num_predict"] = opts.max_tokens
+        if opts.top_p is not None:
+            request_options["top_p"] = opts.top_p
+
+        try:
+            response = await client.chat(
+                model=model,
+                messages=ollama_messages,
+                stream=False,
+                options=request_options,
+            )
+            return response.message.content or ""
+        except (ResponseError, RequestError) as e:
+            logger.error("Ollama chat error: %s", e)
+            raise
+        except Exception:
+            logger.exception("Unexpected error in Ollama chat")
+            raise
+
     async def close(self) -> None:
         """Close the underlying HTTP client."""
         if self._client is not None:

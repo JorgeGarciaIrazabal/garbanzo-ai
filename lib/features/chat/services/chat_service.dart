@@ -80,12 +80,14 @@ class ChatService {
     String conversationId, {
     String? title,
     String? model,
+    bool? useMemory,
   }) async {
     final response = await _api.patch(
       '/api/v1/chat/conversations/$conversationId',
       data: {
         'title': ?title,
         'model': ?model,
+        'use_memory': ?useMemory,
       },
     );
 

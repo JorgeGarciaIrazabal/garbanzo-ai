@@ -21,36 +21,36 @@ TTS model research (2025):
 - [x] **STT: Microphone input** — Record audio in the chat input widget with a hold-to-talk / tap-to-toggle button; use Flutter `record` package
 - [x] **STT: faster-whisper service** — Dockerized `faster-whisper-server` (MIT) exposing `POST /v1/audio/transcriptions`; defaults to `large-v3`; swap for Parakeet TDT 0.6B v3 if an NVIDIA GPU is present
 - [x] **STT: Backend transcription endpoint** — `POST /api/v1/stt/transcribe` that forwards audio to the faster-whisper service and returns the transcript text
-- [ ] **STT: Auto-submit after transcription** — Option to auto-send the message once voice input stops and transcription completes
+- [x] **STT: Auto-submit after transcription** — Option to auto-send the message once voice input stops and transcription completes
 - [x] **TTS: Kokoro-82M service** — Dockerized `kokoro-fastapi` (Apache 2.0) exposing `/v1/audio/speech` (OpenAI-compatible); 48 voices across 8 languages
 - [x] **TTS: Backend speech endpoint** — `POST /api/v1/tts/speak` that proxies to Kokoro and streams audio back to the client
 - [x] **TTS: Per-message playback** — Play/stop button on each assistant message that calls the TTS endpoint and streams audio via the Flutter `audioplayers` package
-- [ ] **TTS: Auto-play mode** — Setting to auto-play TTS for every new assistant message as it finishes streaming
-- [ ] **TTS/STT: Voice settings UI** — Settings panel to choose: STT model (faster-whisper / Parakeet), TTS voice (from Kokoro's 48 voices), TTS language, and speaking speed
+- [x] **TTS: Auto-play mode** — Setting to auto-play TTS for every new assistant message as it finishes streaming
+- [x] **TTS/STT: Voice settings UI** — Settings panel to choose: STT model (faster-whisper / Parakeet), TTS voice (from Kokoro's 48 voices), TTS language, and speaking speed
 - [ ] **TTS: Chatterbox Turbo voice cloning** — Optional: allow users to upload a 5-second voice sample; backend forwards to a Chatterbox Turbo service for personalized TTS output (MIT license)
+- [x] **TTS: Clean up text for better speech** — Strip markdown formatting (#, **, `, code blocks, links) and emojis before sending text to TTS
 
 ## File & Image Upload (enhancements)
-- [ ] **Image viewer** — Full-size lightbox when clicking image attachments in messages
-- [ ] **PDF text extraction** — Use `pdfplumber` or `pypdf` on the backend to extract text from PDFs before sending to LLM
-- [ ] **OCR for scanned images** — Tesseract/EasyOCR fallback for non-multimodal models
-- [ ] **Spreadsheet/CSV support** — Parse and summarize tabular data in attachments
-- [ ] **Drag-and-drop upload** — Drag files directly onto the chat window (web)
-- [ ] **Paste image from clipboard** — Ctrl+V to attach a copied screenshot
-- [ ] **File size/type validation** — Clear UX errors with limits per type
-- [ ] **Multiple file attachments at once** — Batch select in the file picker
+- [x] **Image viewer** — Full-size lightbox when clicking image attachments in messages
+- [x] **PDF text extraction** — Use `pypdf` on the backend to extract text from PDFs before sending to LLM
+- [x] **Spreadsheet/CSV support** — Parse and summarize tabular data in attachments
+- [x] **Drag-and-drop upload** — Drag files directly onto the chat window
+- [x] **Paste image from clipboard** — Ctrl+V to attach a copied screenshot
+- [x] **File size/type validation** — Clear UX errors with limits per type
+- [x] **Multiple file attachments at once** — Batch select in the file picker
 
 ## Memory (ChatGPT-like)
-- [ ] **Memory store DB model** — `UserMemory` table: id, user_id, content, source_conversation_id, created_at, is_active
-- [ ] **Auto-extract memories** — cron job after every day; LLM call to extract facts about the user worth remembering
-- [ ] **Memory injection** — Prepend relevant memories to system prompt on each request
-- [ ] **Memory management UI** — `/memory` page to view, edit, and delete memories
-- [ ] **Manual memory creation** — "Remember this" button/command in chat
-- [ ] **Memory toggle per conversation** — Option to disable memory for a specific conversation
+- [x] **Memory store DB model** — `UserMemory` table: id, user_id, content, source_conversation_id, created_at, is_active
+- [x] **Auto-extract memories** — cron job after every day; LLM call to extract facts about the user worth remembering
+- [x] **Memory injection** — Prepend relevant memories to system prompt on each request
+- [x] **Memory management UI** — `/memory` page to view, edit, and delete memories
+- [x] **Manual memory creation** — "Remember this" button/command in chat
+- [x] **Memory toggle per conversation** — Option to disable memory for a specific conversation
 
-## System Prompt
+## System Prompt (The first iterations of agents)
 - [ ] **Per-conversation system prompt** — Editable in conversation settings panel
 - [ ] **Global default system prompt** — Set in user settings, applied to all new conversations
-- [ ] **System prompt templates** — Pre-built personas (Coding assistant, Writing coach, etc.)
+- [ ] **System prompt templates** — Pre-built personas (Coding assistant, Writing coach, Funny Friend, Emotional Expert,etc.)
 - [ ] **System prompt library** — Save and reuse custom prompts
 - [ ] **System prompt visibility** — Option to show/collapse system prompt in the message thread
 
@@ -89,14 +89,13 @@ TTS model research (2025):
 - [ ] **Message reactions / starring** — Star or bookmark individual messages
 
 ## UI / Rendering
-- [ ] **Markdown rendering** — Full CommonMark support (tables, footnotes, task lists)
-- [ ] **Code syntax highlighting** — `flutter_highlight` or `google_code_prettify`; copy-code button per block
-- [ ] **Math/LaTeX rendering** — `flutter_math_fork` for inline and block equations
-- [ ] **Mermaid diagrams** — Render diagram code blocks as SVG
+- [x] **Markdown rendering** — Full CommonMark support (tables, footnotes, task lists)
+- [x] **Code syntax highlighting** — `flutter_highlight` or `google_code_prettify`; copy-code button per block
+- [x] **Math/LaTeX rendering** — `flutter_math_fork` for inline and block equations
+- [x] **Mermaid diagrams** — Render diagram code blocks as SVG
 - [ ] **Artifacts panel** — Side-by-side panel for rendered HTML/code output (like Claude artifacts)
-- [ ] **Dark / light / system theme** — Theme toggle in settings, persisted in SharedPreferences
-- [ ] **Font size control** — Accessibility setting for message text size
-- [ ] **Message timestamps** — Toggle to show/hide per-message timestamps
+- [x] **Dark / light / system theme** — Theme toggle in settings, persisted in SharedPreferences
+- [x] **Message metadata** — Toggle to show/hide message metadata (tokens, time for response, etc.)
 
 ## Settings & Profile
 - [ ] **User settings page** — Dedicated `/settings` route with sections: Profile, Appearance, Models, Voice, Memory, Notifications
