@@ -89,6 +89,11 @@ async def lifespan(app: FastAPI):
     from app.services.tts_service import TTSService
 
     TTSService.start_loading()
+
+    # Start loading the Faster-Whisper STT model in the background (non-blocking).
+    from app.services.stt_service import STTService
+
+    STTService.start_loading()
     # Start the APScheduler for background jobs
     from app.scheduler import start_scheduler
 

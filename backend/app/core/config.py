@@ -32,7 +32,11 @@ class Settings(BaseSettings):
     test_user_password: str = ""
 
     # Voice services
-    faster_whisper_url: str = "http://localhost:8010"
+    faster_whisper_url: str = "http://localhost:8010"  # only used if stt_mode=remote
+    stt_mode: str = "local"  # "local" (in-process) or "remote" (Docker)
+    stt_model: str = "Systran/faster-distil-whisper-large-v3"
+    stt_device: str = "auto"  # "auto", "cpu", or "cuda"
+    stt_language: str = "en"
     kokoro_url: str = "http://localhost:8020"  # kept for fallback / external kokoro
     default_tts_voice: str = "af_heart"
     default_tts_speed: float = 1.0

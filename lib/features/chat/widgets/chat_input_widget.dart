@@ -45,6 +45,8 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
 
   // Voice recording state
   AudioRecorder? _recorder;
+  Process? _arecordProcess;
+  String? _arecordPath;
   bool _isRecording = false;
   bool _isTranscribing = false;
   Timer? _recordingTimer;
@@ -66,6 +68,7 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
     _focusNode.dispose();
     _recordingTimer?.cancel();
     _recorder?.dispose();
+    _arecordProcess?.kill();
     super.dispose();
   }
 
@@ -150,56 +153,138 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
     }
   }
 
-  Future<void> _startRecording() async {
+  /// Check whether a binary is available on this system.
+  Future<bool> _hasBinary(String name) async {
     try {
-      _recorder = AudioRecorder();
-      final hasPermission = await _recorder!.hasPermission();
-      if (!hasPermission) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Microphone permission denied')),
-          );
-        }
-        _recorder?.dispose();
-        _recorder = null;
-        return;
+      final result = await Process.run('which', [name]);
+      return result.exitCode == 0;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Find the best ALSA capture card by parsing `arecord -l`.
+  ///
+  /// Returns the card number (e.g. "2") of a real microphone, preferring
+  /// webcam/built-in over docking-station devices.
+  Future<String?> _findAlsaCaptureCard() async {
+    try {
+      final result = await Process.run('arecord', ['-l']);
+      if (result.exitCode != 0) return null;
+
+      final output = result.stdout as String;
+      // Lines like: "card 2: Webcam [NexiGo N660P FHD Webcam], device 0: ..."
+      final lineRe = RegExp(r'card\s+(\d+):\s+\S+\s+\[(.+?)\]');
+
+      String? bestCard;
+      String? firstCard;
+
+      for (final match in lineRe.allMatches(output)) {
+        final cardNum = match.group(1)!;
+        final name = match.group(2)!.toLowerCase();
+
+        firstCard ??= cardNum;
+
+        // Skip docking stations — these often have no actual mic
+        if (name.contains('dock') || name.contains('hdmi')) continue;
+
+        bestCard ??= cardNum;
       }
 
-      final tempPath =
-          '${Directory.systemTemp.path}/garbanzo_voice_${DateTime.now().millisecondsSinceEpoch}.wav';
+      return bestCard ?? firstCard;
+    } catch (_) {
+      return null;
+    }
+  }
 
-      await _recorder!.start(
-        const RecordConfig(encoder: AudioEncoder.wav),
-        path: tempPath,
-      );
+  Future<void> _startRecording() async {
+    final tempPath =
+        '${Directory.systemTemp.path}/garbanzo_voice_${DateTime.now().millisecondsSinceEpoch}.wav';
 
-      setState(() {
-        _isRecording = true;
-        _recordingDuration = 0;
-      });
-
-      _recordingTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-        setState(() => _recordingDuration++);
-      });
-    } catch (e) {
-      _recorder?.dispose();
-      _recorder = null;
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to start recording: $e')),
-        );
+    // Use arecord with direct ALSA hardware access (bypasses PipeWire routing
+    // issues where the wrong default source captures silence).
+    if (await _hasBinary('arecord')) {
+      try {
+        final card = await _findAlsaCaptureCard();
+        final device = card != null ? 'plughw:$card,0' : 'default';
+        _arecordPath = tempPath;
+        _arecordProcess = await Process.start('arecord', [
+          '-D', device,
+          '-f', 'S16_LE',
+          '-r', '44100',
+          '-c', '1',
+          tempPath,
+        ]);
+      } catch (e) {
+        _arecordProcess = null;
+        _arecordPath = null;
       }
     }
+
+    // Fallback: try the record package (uses parecord → PulseAudio/PipeWire)
+    if (_arecordProcess == null && await _hasBinary('parecord')) {
+      try {
+        _recorder = AudioRecorder();
+        final hasPermission = await _recorder!.hasPermission();
+        if (!hasPermission) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Microphone permission denied')),
+            );
+          }
+          _recorder?.dispose();
+          _recorder = null;
+          return;
+        }
+
+        await _recorder!.start(
+          const RecordConfig(encoder: AudioEncoder.wav),
+          path: tempPath,
+        );
+      } catch (_) {
+        _recorder?.dispose();
+        _recorder = null;
+      }
+    }
+
+    if (_arecordProcess == null && _recorder == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Microphone not available. Install alsa-utils or pulseaudio-utils.')),
+        );
+      }
+      return;
+    }
+
+    setState(() {
+      _isRecording = true;
+      _recordingDuration = 0;
+    });
+
+    _recordingTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      setState(() => _recordingDuration++);
+    });
   }
 
   Future<void> _stopRecording() async {
     _recordingTimer?.cancel();
     _recordingTimer = null;
 
+    String? path;
+
     try {
-      final path = await _recorder?.stop();
-      _recorder?.dispose();
-      _recorder = null;
+      // Stop whichever recording method is active
+      if (_arecordProcess != null) {
+        _arecordProcess!.kill(ProcessSignal.sigint);
+        await _arecordProcess!.exitCode;
+        path = _arecordPath;
+        _arecordProcess = null;
+        _arecordPath = null;
+      } else {
+        path = await _recorder?.stop();
+        _recorder?.dispose();
+        _recorder = null;
+      }
 
       setState(() => _isRecording = false);
 
@@ -215,6 +300,16 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
           await AudioService.instance.transcribeAudio(audioBytes, filename);
 
       if (mounted) {
+        if (transcript.trim().isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'No speech detected. Check that your microphone is set as '
+                'the default input device.',
+              ),
+            ),
+          );
+        } else {
         // Insert transcript at cursor position
         final currentText = _controller.text;
         final selection = _controller.selection;
@@ -241,6 +336,7 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
           await Future.delayed(const Duration(milliseconds: 200));
           if (mounted) _handleSubmitted();
         }
+        } // end else (transcript not empty)
       }
 
       // Clean up temp file

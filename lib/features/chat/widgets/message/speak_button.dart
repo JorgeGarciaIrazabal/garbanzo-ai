@@ -126,8 +126,11 @@ class _SpeakButtonState extends State<SpeakButton> {
           _isLoading = false;
           _isPlaying = false;
         });
+        final message = e.toString().contains('500') || e.toString().contains('unavailable')
+            ? 'Text-to-speech is currently unavailable'
+            : 'Speech synthesis failed: $e';
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Speech synthesis failed: $e')),
+          SnackBar(content: Text(message)),
         );
       }
     }

@@ -101,9 +101,8 @@ class TTSService:
     _ready = asyncio.Event()
     _error: Exception | None = None
 
-    def __init__(self, model, voices_dir: str):
+    def __init__(self, model):
         self._model = model
-        self._voices_dir = voices_dir
         self._pipelines: dict = {}
 
     @classmethod
@@ -131,14 +130,18 @@ class TTSService:
 
         settings = get_settings()
         model_dir = os.path.abspath(settings.kokoro_model_dir)
-        voices_dir = os.path.abspath(settings.kokoro_voices_dir)
         config_path = os.path.join(model_dir, "config.json")
         model_path = os.path.join(model_dir, "kokoro-v1_0.pth")
 
-        logger.info("Loading Kokoro model from %s …", model_path)
-        model = KModel(config=config_path, model=model_path).eval().cpu()
+        # Try local files first, fall back to auto-download from HuggingFace
+        if os.path.exists(model_path) and os.path.exists(config_path):
+            logger.info("Loading Kokoro model from %s …", model_path)
+            model = KModel(config=config_path, model=model_path).eval().cpu()
+        else:
+            logger.info("Local Kokoro model not found, downloading from HuggingFace …")
+            model = KModel(repo_id="hexgrad/Kokoro-82M").eval().cpu()
 
-        return TTSService(model, voices_dir)
+        return TTSService(model)
 
     @classmethod
     async def get_instance(cls) -> "TTSService":
@@ -158,15 +161,20 @@ class TTSService:
             )
         return self._pipelines[lang_code]
 
-    def _voice_path(self, voice_id: str) -> str:
-        return os.path.join(self._voices_dir, f"{voice_id}.pt")
+    def _resolve_voice(self, voice_id: str) -> str:
+        """Return a local voice path if it exists, otherwise the bare voice ID
+        (KPipeline will auto-download from HuggingFace)."""
+        settings = get_settings()
+        voices_dir = os.path.abspath(settings.kokoro_voices_dir)
+        local = os.path.join(voices_dir, f"{voice_id}.pt")
+        return local if os.path.exists(local) else voice_id
 
     def _generate_chunks(self, text: str, voice: str, speed: float) -> list[np.ndarray]:
         lang_code = voice[0].lower() if voice else "a"
         pipeline = self._get_pipeline(lang_code)
-        voice_path = self._voice_path(voice)
+        voice_ref = self._resolve_voice(voice)
         chunks = []
-        for result in pipeline(text, voice=voice_path, speed=speed, model=self._model):
+        for result in pipeline(text, voice=voice_ref, speed=speed, model=self._model):
             if result.audio is not None:
                 audio_int16 = (result.audio.numpy() * 32767).astype(np.int16)
                 chunks.append(audio_int16)
@@ -195,7 +203,7 @@ class TTSService:
         encoder = _AudioEncoder(response_format)
         lang_code = voice[0].lower() if voice else "a"
         pipeline = self._get_pipeline(lang_code)
-        voice_path = self._voice_path(voice)
+        voice_ref = self._resolve_voice(voice)
 
         def _next_chunk(iterator):
             try:
@@ -203,7 +211,7 @@ class TTSService:
             except StopIteration:
                 return None
 
-        iterator = iter(pipeline(text, voice=voice_path, speed=speed, model=self._model))
+        iterator = iter(pipeline(text, voice=voice_ref, speed=speed, model=self._model))
         while True:
             result = await asyncio.to_thread(_next_chunk, iterator)
             if result is None:

@@ -78,7 +78,7 @@ class ChatProvider extends ChangeNotifier {
     try {
       final conversation = await _chatService.getConversation(conversationId);
       _currentConversation = conversation;
-      _messages = conversation.messages ?? [];
+      _messages = _hydrateAttachments(conversation.messages ?? []);
     } catch (e) {
       _error = 'Failed to load conversation: $e';
       if (kDebugMode) print(_error);
@@ -394,6 +394,25 @@ class ChatProvider extends ChangeNotifier {
     } catch (e) {
       if (kDebugMode) print('Failed to reload conversation: $e');
     }
+  }
+
+  // ==========================================================================
+  // Attachment hydration
+  // ==========================================================================
+
+  /// Restore [ChatAttachment] objects from the metadata stored by the backend.
+  List<ChatMessage> _hydrateAttachments(List<ChatMessage> messages) {
+    return messages.map((msg) {
+      final raw = msg.metadata?['attachments'];
+      if (raw is! List || raw.isEmpty) return msg;
+
+      final attachments = raw
+          .whereType<Map<String, dynamic>>()
+          .map((a) => ChatAttachment.fromMetadata(a))
+          .toList();
+
+      return msg.copyWith(attachments: attachments);
+    }).toList();
   }
 
   // ==========================================================================

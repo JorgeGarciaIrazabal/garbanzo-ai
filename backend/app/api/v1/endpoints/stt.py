@@ -7,7 +7,6 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from app.core.config import Settings, get_settings
 from app.core.security import get_current_user
 from app.schemas.audio import TranscriptionResponse
-from app.services.stt_service import STTService
 
 router = APIRouter()
 
@@ -27,8 +26,18 @@ async def transcribe_audio(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Empty audio file"
         )
-    service = STTService(base_url=settings.faster_whisper_url)
     try:
+        if settings.stt_mode == "remote":
+            from app.services.stt_service import RemoteSTTService
+
+            service = RemoteSTTService(base_url=settings.faster_whisper_url)
+            return await service.transcribe(
+                audio_bytes, file.filename or "audio.wav", language=settings.stt_language
+            )
+
+        from app.services.stt_service import STTService
+
+        service = await STTService.get_instance()
         return await service.transcribe(audio_bytes, file.filename or "audio.wav")
     except Exception as e:
         raise HTTPException(
@@ -44,6 +53,17 @@ async def transcribe_audio(
 async def health_check(
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> dict[str, str]:
-    service = STTService(base_url=settings.faster_whisper_url)
-    healthy = await service.health_check()
+    try:
+        if settings.stt_mode == "remote":
+            from app.services.stt_service import RemoteSTTService
+
+            service = RemoteSTTService(base_url=settings.faster_whisper_url)
+            healthy = await service.health_check()
+        else:
+            from app.services.stt_service import STTService
+
+            await STTService.get_instance()
+            healthy = True
+    except Exception:
+        healthy = False
     return {"status": "ok" if healthy else "unavailable"}

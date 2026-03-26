@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+> **New machine?** See [`setup.md`](./setup.md) for a complete list of prerequisites (Flutter, uv, Docker, GStreamer, lld, Ollama, Android SDK, etc.).
+
 ## Commands
 
 > **IMPORTANT:** Always use `just` commands. Never run `flutter`, `uvicorn`, `uv`, `pytest`, or `docker compose` directly — the justfile is the single source of truth for all dev tasks. Run `just` with no arguments to list all available recipes.

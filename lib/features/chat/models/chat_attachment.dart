@@ -23,6 +23,9 @@ class ChatAttachment with _$ChatAttachment {
   bool get isImage => type == AttachmentType.image;
   bool get isDocument => type == AttachmentType.document;
 
+  /// Whether this attachment has actual file data (false for reloaded messages).
+  bool get hasBytes => bytes.isNotEmpty;
+
   /// Base64-encoded bytes (used when sending images to the backend).
   String get base64Data => base64Encode(bytes);
 
@@ -52,6 +55,19 @@ class ChatAttachment with _$ChatAttachment {
       mimeType: mimeType,
       type: _typeFromMime(mimeType),
       bytes: bytes,
+    );
+  }
+
+  /// Reconstruct from the metadata stored in [Message.meta['attachments']].
+  ///
+  /// The backend only persists name, mime_type, and type — not the raw bytes.
+  factory ChatAttachment.fromMetadata(Map<String, dynamic> json) {
+    final mimeType = json['mime_type'] as String? ?? 'application/octet-stream';
+    return ChatAttachment(
+      name: json['name'] as String? ?? 'unknown',
+      mimeType: mimeType,
+      type: _typeFromMime(mimeType),
+      bytes: Uint8List(0),
     );
   }
 }

@@ -76,6 +76,34 @@ class _ImageThumbnailState extends State<ImageThumbnail> {
 
   @override
   Widget build(BuildContext context) {
+    // No bytes available (reloaded from backend) — show a placeholder chip.
+    if (!widget.attachment.hasBytes) {
+      return Container(
+        width: 160,
+        height: 160,
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.image_outlined, size: 32,
+                color: Theme.of(context).colorScheme.onSurfaceVariant),
+            const SizedBox(height: 4),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Text(
+                widget.attachment.name,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.labelSmall,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return GestureDetector(
       onTap: _openViewer,
       child: ClipRRect(
