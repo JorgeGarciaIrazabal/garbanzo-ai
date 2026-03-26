@@ -1,0 +1,32 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "garbanzo-ai",
+            "request": "launch",
+            "type": "dart",
+            "args": ["--dart-define=API_BASE_URL=http://localhost:8000"]
+        },
+        {
+            "name": "garbanzo-ai (profile mode)",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "profile",
+        },
+        {
+            "name": "garbanzo-ai (release mode)",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "release",
+        },
+        {
+            "name": "build_tool",
+            "cwd": "build/irondash_engine_context/build/build_tool",
+            "request": "launch",
+            "type": "dart"
+        }
+    ]
+}
