@@ -29,14 +29,12 @@ dev-deps:
         gstreamer1.0-plugins-good \
         gstreamer1.0-plugins-bad
 
-# Start Docker, backend, TTS, and frontend together — kills port 8000 if busy
+# Start Docker, backend, TTS, and frontend on Android (real device or emulator) — kills port 8000 if busy
 dev:
     #!/usr/bin/env bash
     set -e
-    if ! pkg-config --exists gstreamer-1.0 2>/dev/null; then
-        echo "Error: GStreamer not found. Run 'just dev-deps' first to install audio dependencies."
-        exit 1
-    fi
+    export ANDROID_HOME="$HOME/Android/Sdk"
+    export PATH="$HOME/.local/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH"
     if lsof -ti:8000 > /dev/null 2>&1; then
         PIDS=$(lsof -ti:8000 | tr '\n' ' ')
         printf "Port 8000 is in use by PID(s) %s. Kill? [y/N] " "$PIDS"
@@ -51,11 +49,41 @@ dev:
     fi
     docker compose up -d
     echo "Starting backend on :8000 (includes in-process Kokoro TTS)..."
-    (cd backend && uv run uvicorn app.main:app --reload --port 8000) &
+    (cd backend && uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000) &
     BACKEND_PID=$!
     trap "kill $BACKEND_PID 2>/dev/null; echo 'Stopped.'" EXIT INT TERM
+    # Check for a real USB-connected Android device first
+    DEVICES_OUTPUT=$(flutter devices 2>/dev/null)
+    REAL_DEVICE=$(echo "$DEVICES_OUTPUT" | grep "android" | grep -v "emulator" | head -1)
+    if [ -n "$REAL_DEVICE" ]; then
+        DEVICE_ID=$(echo "$REAL_DEVICE" | sed 's/.*• \([^ ]*\) • android.*/\1/')
+        LOCAL_IP=$(ip route get 1 | awk '{for(i=1;i<=NF;i++) if($i=="src") print $(i+1); exit}')
+        API_URL="http://${LOCAL_IP}:8000"
+        echo "Real device detected: $DEVICE_ID"
+        echo "Using host IP: $API_URL"
+    else
+        # Fall back to emulator
+        if ! echo "$DEVICES_OUTPUT" | grep -q "emulator"; then
+            echo "No Android device found. Launching emulator..."
+            flutter emulators --launch Medium_Phone_API_36.1
+            echo "Waiting for emulator to boot..."
+            adb wait-for-device
+            while [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" != "1" ]; do
+                sleep 2
+            done
+            echo "Emulator ready."
+        fi
+        DEVICE_ID=$(flutter devices 2>/dev/null | grep "emulator" | head -1 | sed 's/.*• \(emulator-[0-9]*\) .*/\1/')
+        API_URL="http://10.0.2.2:8000"
+        echo "Using emulator: $DEVICE_ID"
+        echo "Using host alias: $API_URL"
+    fi
+    if [ -z "$DEVICE_ID" ]; then
+        echo "Error: Could not determine Android device ID."
+        exit 1
+    fi
     echo "Starting frontend..."
-    flutter run -d linux
+    flutter run -d "$DEVICE_ID" --dart-define=API_BASE_URL="$API_URL"
 
 # Start all services (PostgreSQL, STT, TTS)
 docker-up:

@@ -201,28 +201,9 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
     final tempPath =
         '${Directory.systemTemp.path}/garbanzo_voice_${DateTime.now().millisecondsSinceEpoch}.wav';
 
-    // Use arecord with direct ALSA hardware access (bypasses PipeWire routing
-    // issues where the wrong default source captures silence).
-    if (await _hasBinary('arecord')) {
-      try {
-        final card = await _findAlsaCaptureCard();
-        final device = card != null ? 'plughw:$card,0' : 'default';
-        _arecordPath = tempPath;
-        _arecordProcess = await Process.start('arecord', [
-          '-D', device,
-          '-f', 'S16_LE',
-          '-r', '44100',
-          '-c', '1',
-          tempPath,
-        ]);
-      } catch (e) {
-        _arecordProcess = null;
-        _arecordPath = null;
-      }
-    }
-
-    // Fallback: try the record package (uses parecord → PulseAudio/PipeWire)
-    if (_arecordProcess == null && await _hasBinary('parecord')) {
+    // On mobile (Android/iOS) use the record package directly — arecord/parecord
+    // are Linux desktop tools and do not exist on mobile.
+    if (Platform.isAndroid || Platform.isIOS) {
       try {
         _recorder = AudioRecorder();
         final hasPermission = await _recorder!.hasPermission();
@@ -236,14 +217,62 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
           _recorder = null;
           return;
         }
-
         await _recorder!.start(
-          const RecordConfig(encoder: AudioEncoder.wav),
+          const RecordConfig(
+            encoder: AudioEncoder.wav,
+            sampleRate: 16000,
+            numChannels: 1,
+          ),
           path: tempPath,
         );
-      } catch (_) {
+      } catch (e) {
         _recorder?.dispose();
         _recorder = null;
+      }
+    } else {
+      // Desktop: use arecord with direct ALSA hardware access (bypasses
+      // PipeWire routing issues where the wrong source captures silence).
+      if (await _hasBinary('arecord')) {
+        try {
+          final card = await _findAlsaCaptureCard();
+          final device = card != null ? 'plughw:$card,0' : 'default';
+          _arecordPath = tempPath;
+          _arecordProcess = await Process.start('arecord', [
+            '-D', device,
+            '-f', 'S16_LE',
+            '-r', '44100',
+            '-c', '1',
+            tempPath,
+          ]);
+        } catch (e) {
+          _arecordProcess = null;
+          _arecordPath = null;
+        }
+      }
+
+      // Fallback: try the record package (uses parecord → PulseAudio/PipeWire)
+      if (_arecordProcess == null && await _hasBinary('parecord')) {
+        try {
+          _recorder = AudioRecorder();
+          final hasPermission = await _recorder!.hasPermission();
+          if (!hasPermission) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Microphone permission denied')),
+              );
+            }
+            _recorder?.dispose();
+            _recorder = null;
+            return;
+          }
+          await _recorder!.start(
+            const RecordConfig(encoder: AudioEncoder.wav),
+            path: tempPath,
+          );
+        } catch (_) {
+          _recorder?.dispose();
+          _recorder = null;
+        }
       }
     }
 
@@ -288,16 +317,32 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
 
       setState(() => _isRecording = false);
 
-      if (path == null) return;
+      if (path == null) {
+        debugPrint('STT: recording path is null');
+        return;
+      }
 
       setState(() => _isTranscribing = true);
 
       final file = File(path);
-      final audioBytes = await file.readAsBytes();
+      final exists = await file.exists();
+      final audioBytes = exists ? await file.readAsBytes() : Uint8List(0);
       final filename = path.split('/').last;
+      debugPrint('STT: path=$path exists=$exists size=${audioBytes.length} bytes');
+
+      if (audioBytes.isEmpty) {
+        debugPrint('STT: audio file is empty, skipping transcription');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Recording failed — audio file is empty')),
+          );
+        }
+        return;
+      }
 
       final transcript =
           await AudioService.instance.transcribeAudio(audioBytes, filename);
+      debugPrint('STT: transcript="${transcript}" (${transcript.length} chars)');
 
       if (mounted) {
         if (transcript.trim().isEmpty) {

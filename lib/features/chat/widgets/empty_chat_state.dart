@@ -12,7 +12,8 @@ class EmptyChatState extends StatelessWidget {
     final colorScheme = theme.colorScheme;
 
     return Center(
-      child: Column(
+      child: SingleChildScrollView(
+        child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
@@ -60,6 +61,7 @@ class EmptyChatState extends StatelessWidget {
             ],
           ),
         ],
+      ),
       ),
     );
   }

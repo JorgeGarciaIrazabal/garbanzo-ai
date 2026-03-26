@@ -26,22 +26,51 @@ Verify it's up at `http://localhost:8000/health` before proceeding.
 
 ## Step 2 — Launch the Flutter App via Dart MCP
 
+Prefer Android (real device) > Linux desktop > Chrome (not supported).
+
 ```
-list_devices                     → pick "linux" (desktop — always preferred)
+list_devices   → check for a real Android device (emulator: false, targetPlatform: android-arm64)
+```
+
+**If a real Android device is connected (preferred):**
+1. Set up ADB reverse port forwarding so the device can reach the host backend:
+   ```bash
+   ~/Android/Sdk/platform-tools/adb reverse tcp:8000 tcp:8000
+   ```
+2. Launch the app:
+   ```
+   launch_app(device_id: "<android-device-id>")  → returns { dtd_uri, pid }
+   ```
+3. Get the VM service URI from **Dart MCP app logs** (most reliable — `adb logcat` often flushes the buffer):
+   ```
+   connect_dart_tooling_daemon(uri: "<dtd_uri>")
+   get_app_logs(pid: <pid>, maxLines: -1)
+   ```
+   Look for the `app.debugPort` JSON event in the logs:
+   ```json
+   {"event":"app.debugPort","params":{"port":35707,"wsUri":"ws://127.0.0.1:35707/TOKEN=/ws"}}
+   ```
+   The `wsUri` field contains the VM service URI. The Flutter tooling already sets up port forwarding, so the host port in the URI is directly accessible — **no need to manually `adb forward`**.
+4. Verify the port is accessible: `curl -s http://127.0.0.1:<PORT>/` should return "missing or invalid authentication code".
+5. The Marionette URI is the `wsUri` value from the `app.debugPort` event (already in `ws://` format).
+
+**If no Android device is available, fall back to Linux desktop:**
+```
 launch_app(device_id: "linux")   → returns { dtd_uri, vm_service_uri, pid }
 ```
+The `vm_service_uri` is returned directly and used as-is for Marionette.
 
-The `vm_service_uri` will look like `ws://127.0.0.1:PORT/ws`. Save it — you need it for Marionette.
-
-> **Note:** Always use `linux` desktop device. Chrome requires browser port randomness workarounds and Flutter web integration tests are not supported on `-d chrome`.
+> **Note:** The debug default URL in `api_client.dart` is `http://127.0.0.1:8000`. On Android this routes through the ADB reverse tunnel to the host. On Linux it hits the host directly. Chrome (`-d chrome`) is not supported for E2E tests.
 
 ## Step 3 — Connect Marionette
 
 ```
-connect(uri: "<vm_service_uri from launch_app>")
+connect(uri: "<vm_service_uri>")
 ```
 
 Marionette is now linked to the running Flutter app.
+
+> **Note:** After a hot restart on Android, Marionette loses its connection. Reconnect using the same URI — the ADB port forwarding stays active across restarts.
 
 ## Step 4 — Discover UI Elements
 
@@ -90,10 +119,12 @@ This section documents the UI structure, element matching strategies, and common
 
 **Prefer text matching** for most elements. Marionette's `tap(text: "...")` and `enter_text(focused_element: true, ...)` work reliably.
 
-**Use coordinates** when text matching fails (e.g., for TextFormFields without labels):
+**Use coordinates** when text matching fails (e.g., for TextFormFields without labels).
 
-| Element | Bounds (center) | Notes |
-|---------|----------------|-------|
+> **Warning:** Coordinates differ by device. The values below are for **Linux desktop** (1280×720). On a real Android device (e.g. Pixel 9, 1080×2400) coordinates will be different — use `take_screenshots()` + `get_interactive_elements()` to discover the correct positions.
+
+| Element | Bounds (center) — Linux desktop | Notes |
+|---------|--------------------------------|-------|
 | Login email field | (640, 368) | First TextFormField on login page |
 | Login password field | (640, 432) | Second TextFormField on login page |
 | Login submit button | (640, 498) | FilledButton below password |
@@ -422,9 +453,20 @@ get_interactive_elements()
 3. Try coordinate-based tapping as fallback
 4. Add `ValueKey` to the widget in source and `hot_reload()`
 
+### Coordinates — NEVER Guess, Always Discover
+Coordinates use **Flutter logical pixels**, NOT device pixels. They differ between Linux desktop, Android, and even different Android devices.
+
+**Always** call `get_interactive_elements()` first and compute coordinates from the `bounds` field:
+```
+center_x = bounds.x + bounds.width / 2
+center_y = bounds.y + bounds.height / 2
+```
+Do NOT reuse coordinates from a previous session or different device — rediscover them each time.
+
 ### Timing Issues
 - Use `get_interactive_elements()` to verify page loaded before interacting
 - Check for loading indicators (CircularProgressIndicator) before proceeding
+- After tapping a button that triggers an async operation, `sleep 3-5` seconds before checking results
 
 ### Text Field Focus
 - Always tap a text field before using `enter_text(focused_element: true, ...)`
@@ -434,6 +476,30 @@ get_interactive_elements()
 1. Tap the dropdown to open it
 2. Wait for options to appear
 3. Tap the desired option by text
+
+### Android Permission Dialogs
+Android runtime permissions (camera, microphone, etc.) pop up as system dialogs that Marionette cannot interact with. **Pre-grant them via ADB** before testing:
+```bash
+~/Android/Sdk/platform-tools/adb shell pm grant com.example.garbanzo_ai android.permission.RECORD_AUDIO
+```
+Verify: `adb shell dumpsys package com.example.garbanzo_ai | grep RECORD_AUDIO` → `granted=true`
+
+### Manifest Changes Require Full Rebuild
+Hot reload/restart does NOT apply changes to `AndroidManifest.xml` (new permissions, intent filters, etc.). You must **stop and relaunch** the app via `stop_app` + `launch_app` to trigger a full APK rebuild and reinstall.
+
+### When Frontend Shows Errors, Check Backend Logs
+If an operation fails on the frontend (e.g., transcription returns empty, API errors), always check backend logs for the root cause:
+```bash
+tail -50 /tmp/backend.log | grep -i "error\|exception\|warn"
+```
+The frontend often shows a generic error while the backend log reveals the specific failure (e.g., "VAD filter removed 100% of audio").
+
+### Marionette Connection Lost After Hot Restart
+On Android, hot restart kills the Dart VM and starts a new one. The Marionette connection breaks. To reconnect:
+1. Get new VM service URI from `get_app_logs(pid, maxLines: -1)` — look for latest `app.debugPort` event
+2. Call `connect(uri: "<new_uri>")`
+
+Hot reload (not restart) preserves the connection — prefer it when possible.
 
 ---
 

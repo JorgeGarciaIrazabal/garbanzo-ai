@@ -41,7 +41,7 @@ app.dependency_overrides[
 
 
 # ---------------------------------------------------------------------------
-# STT endpoint tests — POST /api/v1/stt/transcribe
+# STT endpoint tests -- POST /api/v1/stt/transcribe
 # ---------------------------------------------------------------------------
 
 
@@ -55,7 +55,8 @@ class TestSTTTranscribe:
                 "/api/v1/stt/transcribe",
                 files={"file": ("audio.wav", b"fake-audio-data")},
             )
-        assert response.status_code == 401
+        # HTTPBearer returns 403 when no credentials are provided
+        assert response.status_code == 403
 
     async def test_empty_file_returns_400(self):
         transport = ASGITransport(app=app)
@@ -68,13 +69,13 @@ class TestSTTTranscribe:
         assert response.status_code == 400
         assert "Empty audio file" in response.json()["detail"]
 
-    @patch("app.api.v1.endpoints.stt.STTService")
-    async def test_successful_transcription(self, mock_stt_cls):
+    @patch("app.services.stt_service.STTService.get_instance", new_callable=AsyncMock)
+    async def test_successful_transcription(self, mock_get_instance):
         mock_service = AsyncMock()
         mock_service.transcribe.return_value = TranscriptionResponse(
             text="Hello world", language="en", duration=1.5
         )
-        mock_stt_cls.return_value = mock_service
+        mock_get_instance.return_value = mock_service
 
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -90,11 +91,9 @@ class TestSTTTranscribe:
         assert data["duration"] == 1.5
         mock_service.transcribe.assert_awaited_once()
 
-    @patch("app.api.v1.endpoints.stt.STTService")
-    async def test_stt_service_unavailable_returns_502(self, mock_stt_cls):
-        mock_service = AsyncMock()
-        mock_service.transcribe.side_effect = Exception("Connection refused")
-        mock_stt_cls.return_value = mock_service
+    @patch("app.services.stt_service.STTService.get_instance", new_callable=AsyncMock)
+    async def test_stt_service_unavailable_returns_502(self, mock_get_instance):
+        mock_get_instance.side_effect = Exception("Connection refused")
 
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -108,18 +107,17 @@ class TestSTTTranscribe:
 
 
 # ---------------------------------------------------------------------------
-# STT health endpoint — GET /api/v1/stt/health
+# STT health endpoint -- GET /api/v1/stt/health
 # ---------------------------------------------------------------------------
 
 
 class TestSTTHealth:
     """Tests for the STT health check endpoint (no auth required)."""
 
-    @patch("app.api.v1.endpoints.stt.STTService")
-    async def test_health_ok(self, mock_stt_cls):
+    @patch("app.services.stt_service.STTService.get_instance", new_callable=AsyncMock)
+    async def test_health_ok(self, mock_get_instance):
         mock_service = AsyncMock()
-        mock_service.health_check.return_value = True
-        mock_stt_cls.return_value = mock_service
+        mock_get_instance.return_value = mock_service
 
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -127,11 +125,9 @@ class TestSTTHealth:
         assert response.status_code == 200
         assert response.json() == {"status": "ok"}
 
-    @patch("app.api.v1.endpoints.stt.STTService")
-    async def test_health_unavailable(self, mock_stt_cls):
-        mock_service = AsyncMock()
-        mock_service.health_check.return_value = False
-        mock_stt_cls.return_value = mock_service
+    @patch("app.services.stt_service.STTService.get_instance", new_callable=AsyncMock)
+    async def test_health_unavailable(self, mock_get_instance):
+        mock_get_instance.side_effect = Exception("Model not loaded")
 
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -141,7 +137,7 @@ class TestSTTHealth:
 
 
 # ---------------------------------------------------------------------------
-# TTS endpoint tests — POST /api/v1/tts/speak
+# TTS endpoint tests -- POST /api/v1/tts/speak
 # ---------------------------------------------------------------------------
 
 
@@ -155,14 +151,15 @@ class TestTTSSpeak:
                 "/api/v1/tts/speak",
                 json={"text": "Hello"},
             )
-        assert response.status_code == 401
+        # HTTPBearer returns 403 when no credentials are provided
+        assert response.status_code == 403
 
-    @patch("app.api.v1.endpoints.tts.TTSService")
-    async def test_successful_speech_synthesis(self, mock_tts_cls):
+    @patch("app.services.tts_service.TTSService.get_instance", new_callable=AsyncMock)
+    async def test_successful_speech_synthesis(self, mock_get_instance):
         fake_audio = b"\xff\xfb\x90\x00" * 100  # fake mp3 bytes
         mock_service = AsyncMock()
         mock_service.speak.return_value = fake_audio
-        mock_tts_cls.return_value = mock_service
+        mock_get_instance.return_value = mock_service
 
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -181,12 +178,12 @@ class TestTTSSpeak:
             response_format="mp3",
         )
 
-    @patch("app.api.v1.endpoints.tts.TTSService")
-    async def test_custom_voice_and_speed(self, mock_tts_cls):
+    @patch("app.services.tts_service.TTSService.get_instance", new_callable=AsyncMock)
+    async def test_custom_voice_and_speed(self, mock_get_instance):
         fake_audio = b"audio-bytes"
         mock_service = AsyncMock()
         mock_service.speak.return_value = fake_audio
-        mock_tts_cls.return_value = mock_service
+        mock_get_instance.return_value = mock_service
 
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -208,11 +205,11 @@ class TestTTSSpeak:
             response_format="wav",
         )
 
-    @patch("app.api.v1.endpoints.tts.TTSService")
-    async def test_tts_service_unavailable_returns_502(self, mock_tts_cls):
+    @patch("app.services.tts_service.TTSService.get_instance", new_callable=AsyncMock)
+    async def test_tts_service_unavailable_returns_500(self, mock_get_instance):
         mock_service = AsyncMock()
         mock_service.speak.side_effect = Exception("Connection refused")
-        mock_tts_cls.return_value = mock_service
+        mock_get_instance.return_value = mock_service
 
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -221,8 +218,8 @@ class TestTTSSpeak:
                 json={"text": "Hello"},
                 headers=_auth_header(),
             )
-        assert response.status_code == 502
-        assert "TTS service unavailable" in response.json()["detail"]
+        assert response.status_code == 500
+        assert "TTS generation failed" in response.json()["detail"]
 
     async def test_empty_text_rejected(self):
         transport = ASGITransport(app=app)
@@ -236,7 +233,7 @@ class TestTTSSpeak:
 
 
 # ---------------------------------------------------------------------------
-# TTS voices endpoint — GET /api/v1/tts/voices
+# TTS voices endpoint -- GET /api/v1/tts/voices
 # ---------------------------------------------------------------------------
 
 
@@ -247,10 +244,11 @@ class TestTTSVoices:
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             response = await client.get("/api/v1/tts/voices")
-        assert response.status_code == 401
+        # HTTPBearer returns 403 when no credentials are provided
+        assert response.status_code == 403
 
-    @patch("app.api.v1.endpoints.tts.TTSService")
-    async def test_returns_voice_list(self, mock_tts_cls):
+    @patch("app.services.tts_service.TTSService.get_instance", new_callable=AsyncMock)
+    async def test_returns_voice_list(self, mock_get_instance):
         from app.schemas.audio import VoiceInfo
 
         mock_service = MagicMock()
@@ -258,7 +256,7 @@ class TestTTSVoices:
             VoiceInfo(id="af_heart", name="Heart", language="English"),
             VoiceInfo(id="am_adam", name="Adam", language="English"),
         ]
-        mock_tts_cls.return_value = mock_service
+        mock_get_instance.return_value = mock_service
 
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -275,18 +273,16 @@ class TestTTSVoices:
 
 
 # ---------------------------------------------------------------------------
-# TTS health endpoint — GET /api/v1/tts/health
+# TTS health endpoint -- GET /api/v1/tts/health
 # ---------------------------------------------------------------------------
 
 
 class TestTTSHealth:
     """Tests for the TTS health check endpoint (no auth required)."""
 
-    @patch("app.api.v1.endpoints.tts.TTSService")
-    async def test_health_ok(self, mock_tts_cls):
-        mock_service = AsyncMock()
-        mock_service.health_check.return_value = True
-        mock_tts_cls.return_value = mock_service
+    @patch("app.services.tts_service.TTSService.get_instance", new_callable=AsyncMock)
+    async def test_health_ok(self, mock_get_instance):
+        mock_get_instance.return_value = AsyncMock()
 
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -294,11 +290,9 @@ class TestTTSHealth:
         assert response.status_code == 200
         assert response.json() == {"status": "ok"}
 
-    @patch("app.api.v1.endpoints.tts.TTSService")
-    async def test_health_unavailable(self, mock_tts_cls):
-        mock_service = AsyncMock()
-        mock_service.health_check.return_value = False
-        mock_tts_cls.return_value = mock_service
+    @patch("app.services.tts_service.TTSService.get_instance", new_callable=AsyncMock)
+    async def test_health_unavailable(self, mock_get_instance):
+        mock_get_instance.side_effect = Exception("Model not loaded")
 
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:

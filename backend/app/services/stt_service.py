@@ -129,7 +129,21 @@ class STTService:
             vad_filter=True,
             beam_size=5,
         )
-        return " ".join(seg.text.strip() for seg in segments).strip()
+        text = " ".join(seg.text.strip() for seg in segments).strip()
+
+        # If VAD removed everything, retry without VAD — the filter can be
+        # overly aggressive with certain microphone/sample-rate combinations.
+        if not text:
+            logger.info("VAD returned empty result, retrying without VAD filter")
+            segments, _info = self._model.transcribe(
+                audio_data,
+                language=language,
+                vad_filter=False,
+                beam_size=5,
+            )
+            text = " ".join(seg.text.strip() for seg in segments).strip()
+
+        return text
 
     # ------------------------------------------------------------------
     # Health

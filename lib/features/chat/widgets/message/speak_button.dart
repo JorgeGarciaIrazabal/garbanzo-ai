@@ -160,6 +160,7 @@ class _SpeakButtonState extends State<SpeakButton> {
     }
 
     return InkWell(
+      key: const ValueKey('speak_button'),
       onTap: _isPlaying ? _stop : _speak,
       borderRadius: BorderRadius.circular(4),
       child: Padding(

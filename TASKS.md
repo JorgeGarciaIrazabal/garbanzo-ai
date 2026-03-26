@@ -63,11 +63,14 @@ TTS model research (2025):
 - [ ] **Per-conversation tool selection** — Toggle which tools are enabled for a conversation
 - [ ] **Admin: User management** — List, promote, disable users from admin portal
 
-## Notifications
-- [ ] **Web Push notifications** — Service Worker registration; notify when a long-running response completes while tab is in background
-- [ ] **Desktop notifications** — Flutter local_notifications package for desktop
+## Notifications (Android-oriented)
+> Also used to notify participants in multi-user, multi-agent chat rooms (e.g., new messages from other users or agent responses while away).
+
+- [ ] **Android Push notifications (FCM)** — Firebase Cloud Messaging setup; notify when a long-running response completes while app is in background
+- [ ] **Android notification channels** — Separate channels for chat responses, reminders, and system alerts with per-channel importance levels
+- [ ] **Backend FCM integration** — Store device tokens per user; send push via Firebase Admin SDK when SSE stream completes and client is disconnected
 - [ ] **In-app notification center** — Bell icon with read/unread notifications list
-- [ ] **Notification preferences** — Per-user settings for which events trigger notifications
+- [ ] **Notification preferences** — Per-user settings for which events trigger notifications, synced with Android channel settings
 
 ## Scheduled Actions
 - [ ] **Scheduled messages** — "Remind me to do X at 3pm" parsed and stored as a cron job

@@ -9,7 +9,7 @@ const _apiBaseUrl = String.fromEnvironment(
 
 String _resolveBaseUrl() {
   if (_apiBaseUrl.isNotEmpty) return _apiBaseUrl;
-  if (kDebugMode) return 'http://localhost:8000';
+  if (kDebugMode) return 'http://127.0.0.1:8000';
   return '';
 }
 
