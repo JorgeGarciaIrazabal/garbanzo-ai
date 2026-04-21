@@ -3,9 +3,11 @@
 import asyncio
 import base64
 import io
+import json
 import logging
 import uuid
 from collections.abc import AsyncIterator
+from typing import Any
 
 from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,11 +18,22 @@ from app.schemas.chat import AttachmentIn, ChatOptions, ModelInfo
 from app.services.conversation_service import ConversationService
 from app.services.llm_provider import ChatChunk, LLMProvider, ProviderRegistry
 from app.services.llm_provider import Message as LLMMessage
+from app.services.mcp_service import MCPService, split_tool_key, to_ollama_tools, tool_key
 from app.services.memory_service import MemoryService
 from app.services.ollama_provider import OllamaProvider
 from app.services.system_prompt_service import SystemPromptService
 
+MAX_TOOL_ITERATIONS = 5
+
 logger = logging.getLogger(__name__)
+
+
+def _stringify_tool_result(result: Any) -> str:
+    """Coerce a tool-call result dict into a string suitable for ``Message.content``."""
+    try:
+        return json.dumps(result, default=str)
+    except Exception:
+        return str(result)
 
 
 async def _extract_pdf_text(data: str) -> str:
@@ -103,6 +116,7 @@ class ChatService:
         self._conversations = ConversationService(db)
         self._memories = MemoryService(db)
         self._system_prompts = SystemPromptService(db)
+        self._mcp = MCPService(db)
         self._ensure_default_provider()
 
     @classmethod
@@ -308,41 +322,118 @@ class ChatService:
         provider = self._get_provider()
         opts = options or ChatOptions()
 
-        full_response = ""
-        thinking_content = ""
-        metadata: dict | None = None
-
         cancel_event = asyncio.Event()
         ChatService._active_streams[conversation_id] = cancel_event
 
         try:
-            async for chunk in provider.stream_chat(
-                messages=llm_messages,
-                model=conversation.model,
-                options=opts,
-                cancel_event=cancel_event,
-            ):
-                if chunk.is_thinking:
-                    thinking_content += chunk.content
-                elif chunk.content:
-                    full_response += chunk.content
-                if chunk.is_finished:
-                    metadata = chunk.metadata
-                yield chunk
+            # Resolve the tool list (enabled_tools semantics).
+            ollama_tools = await self._resolve_tools_for_conversation(conversation)
 
-            if full_response:
-                msg_meta = dict(metadata) if metadata else {}
-                if thinking_content:
-                    msg_meta["thinking"] = thinking_content
-                assistant_message = Message(
+            for iteration in range(MAX_TOOL_ITERATIONS):
+                full_response = ""
+                thinking_content = ""
+                metadata: dict | None = None
+                tool_calls_this_iter: list[dict] | None = None
+
+                async for chunk in provider.stream_chat(
+                    messages=llm_messages,
+                    model=conversation.model,
+                    options=opts,
+                    cancel_event=cancel_event,
+                    tools=ollama_tools or None,
+                ):
+                    if chunk.tool_calls:
+                        tool_calls_this_iter = chunk.tool_calls
+                        yield chunk
+                        continue
+                    if chunk.is_thinking:
+                        thinking_content += chunk.content
+                    elif chunk.content:
+                        full_response += chunk.content
+                    if chunk.is_finished:
+                        metadata = chunk.metadata
+                    yield chunk
+
+                # Persist any assistant text produced during this iteration.
+                if full_response:
+                    msg_meta = dict(metadata) if metadata else {}
+                    if thinking_content:
+                        msg_meta["thinking"] = thinking_content
+                    assistant_message = Message(
+                        id=str(uuid.uuid4()),
+                        conversation_id=conversation_id,
+                        role="assistant",
+                        content=full_response,
+                        meta=msg_meta or None,
+                    )
+                    self.db.add(assistant_message)
+                    await self.db.flush()
+                    # Append to history in case we loop again.
+                    llm_messages.append(
+                        LLMMessage(role="assistant", content=full_response)
+                    )
+
+                # No tool calls → we're done. Commit & exit the loop.
+                if not tool_calls_this_iter:
+                    await self.db.commit()
+                    return
+
+                # Persist the tool_call message and run each tool.
+                tool_call_payload = json.dumps(tool_calls_this_iter)
+                tool_call_msg = Message(
                     id=str(uuid.uuid4()),
                     conversation_id=conversation_id,
-                    role="assistant",
-                    content=full_response,
-                    meta=msg_meta or None,
+                    role="tool_call",
+                    content=tool_call_payload,
+                    meta={"tool_calls": tool_calls_this_iter},
                 )
-                self.db.add(assistant_message)
+                self.db.add(tool_call_msg)
+                await self.db.flush()
+
+                # Surface the assistant's tool-call request to the LLM context.
+                llm_messages.append(
+                    LLMMessage(role="assistant", content=tool_call_payload)
+                )
+
+                for call in tool_calls_this_iter:
+                    result = await self._execute_tool_call(call)
+                    result_meta = {
+                        "tool_call_id": call.get("id"),
+                        "tool_name": call.get("name"),
+                        "result": result,
+                    }
+                    result_text = _stringify_tool_result(result)
+                    tool_result_msg = Message(
+                        id=str(uuid.uuid4()),
+                        conversation_id=conversation_id,
+                        role="tool_result",
+                        content=result_text,
+                        meta=result_meta,
+                    )
+                    self.db.add(tool_result_msg)
+                    await self.db.flush()
+
+                    yield ChatChunk(
+                        content="",
+                        is_finished=False,
+                        metadata={"tool_result": result_meta},
+                    )
+
+                    # Feed the result back into the LLM context.
+                    llm_messages.append(LLMMessage(role="tool", content=result_text))
+
                 await self.db.commit()
+
+            # Iteration cap hit — emit a soft error so the client knows.
+            yield ChatChunk(
+                content="",
+                is_finished=True,
+                metadata={
+                    "error": True,
+                    "error_type": "tool_iteration_cap",
+                    "max_iterations": MAX_TOOL_ITERATIONS,
+                },
+            )
 
         except Exception as e:
             logger.exception("Error in chat streaming")
@@ -354,6 +445,52 @@ class ChatService:
             await self.db.rollback()
         finally:
             ChatService._active_streams.pop(conversation_id, None)
+
+    async def _resolve_tools_for_conversation(self, conversation) -> list[dict]:
+        """Return Ollama-shaped tool schemas for this conversation."""
+        enabled = getattr(conversation, "enabled_tools", None)
+        if enabled is not None and not enabled:
+            # [] → opt out of all tools
+            return []
+
+        try:
+            all_tools = await self._mcp.list_all_tools(enabled_only=True)
+        except Exception as exc:
+            logger.warning("Failed to list MCP tools: %s", exc)
+            return []
+
+        if enabled is None:
+            filtered = all_tools
+        else:
+            allowed = set(enabled)
+            filtered = [
+                t for t in all_tools if tool_key(t["server_id"], t["name"]) in allowed
+            ]
+        return to_ollama_tools(filtered)
+
+    async def _execute_tool_call(self, call: dict) -> dict:
+        """Run a single tool call through ``MCPService``.
+
+        ``call["name"]`` is expected to be the Ollama-shaped function name,
+        which we set to ``"{server_id}:{tool_name}"``.
+        """
+        name = call.get("name") or ""
+        args = call.get("arguments") or {}
+        if isinstance(args, str):
+            try:
+                args = json.loads(args)
+            except Exception:
+                args = {}
+
+        if ":" not in name:
+            return {"ok": False, "error": f"Tool name missing server prefix: {name}"}
+
+        server_id, tool_name = split_tool_key(name)
+        try:
+            return await self._mcp.call_tool(server_id, tool_name, args)
+        except Exception as exc:
+            logger.exception("Tool execution failed: %s", name)
+            return {"ok": False, "error": str(exc)}
 
     def _build_message_history(
         self,
@@ -425,7 +562,15 @@ class ChatService:
         for i, msg in enumerate(filtered_messages):
             is_last = i == len(filtered_messages) - 1
             images = pending_images if (is_last and pending_images) else None
-            result.append(LLMMessage(role=msg.role, content=msg.content, images=images))
+            # Normalize tool-related roles for the LLM: Ollama expects "tool"
+            # for a tool result; tool_call messages from the assistant collapse
+            # back to an assistant turn whose content is the JSON tool request.
+            if msg.role == "tool_result":
+                result.append(LLMMessage(role="tool", content=msg.content))
+            elif msg.role == "tool_call":
+                result.append(LLMMessage(role="assistant", content=msg.content))
+            else:
+                result.append(LLMMessage(role=msg.role, content=msg.content, images=images))
 
         return result
 

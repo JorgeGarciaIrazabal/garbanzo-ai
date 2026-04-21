@@ -36,6 +36,10 @@ class ChatChunk:
     is_finished: bool = False
     is_thinking: bool = False
     metadata: dict[str, Any] | None = None
+    # Tool calls requested by the model on this chunk. Each entry has
+    # {id, name, arguments}. When set, ``content`` is typically empty and
+    # ``is_finished`` is False — the normal "done" chunk follows.
+    tool_calls: list[dict[str, Any]] | None = None
 
 
 class LLMProvider(ABC):
@@ -58,6 +62,7 @@ class LLMProvider(ABC):
         model: str,
         options: ChatOptions | None = None,
         cancel_event: Optional["asyncio.Event"] = None,
+        tools: list[dict[str, Any]] | None = None,
     ) -> AsyncIterator[ChatChunk]:
         """Stream chat completion from the LLM.
 
@@ -78,6 +83,7 @@ class LLMProvider(ABC):
         messages: list[Message],
         model: str,
         options: ChatOptions | None = None,
+        tools: list[dict[str, Any]] | None = None,
     ) -> str:
         """Non-streaming chat completion from the LLM.
 

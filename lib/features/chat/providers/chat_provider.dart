@@ -141,6 +141,8 @@ class ChatProvider extends ChangeNotifier {
     bool? useMemory,
     String? systemPrompt,
     bool clearSystemPrompt = false,
+    List<String>? enabledTools,
+    bool clearEnabledTools = false,
   }) async {
     if (_currentConversation == null) return;
 
@@ -155,6 +157,8 @@ class ChatProvider extends ChangeNotifier {
         useMemory: useMemory,
         systemPrompt: systemPrompt,
         clearSystemPrompt: clearSystemPrompt,
+        enabledTools: enabledTools,
+        clearEnabledTools: clearEnabledTools,
       );
       _currentConversation = updated;
       await _loadConversations();
@@ -308,6 +312,12 @@ class ChatProvider extends ChangeNotifier {
               null,
             );
             notifyListeners();
+          } else if (chunk.isToolCall) {
+            _appendToolCallMessages(chunk.toolCalls ?? const []);
+            notifyListeners();
+          } else if (chunk.isToolResult) {
+            _appendToolResultMessage(chunk.toolResult);
+            notifyListeners();
           } else if (chunk.isDone) {
             // Apply final metadata (tokens, timing, etc.) to the message
             _upsertAssistantMessage(
@@ -395,6 +405,56 @@ class ChatProvider extends ChangeNotifier {
     } else {
       _messages = [..._messages, assistantMessage];
     }
+  }
+
+  /// Inserts a display-only `tool_call` message for each call streamed.
+  /// The backend will persist canonical tool_call messages that replace these
+  /// once the stream finishes and the conversation is reloaded.
+  void _appendToolCallMessages(List<ToolCall> calls) {
+    if (calls.isEmpty) return;
+    final additions = <ChatMessage>[];
+    for (final call in calls) {
+      additions.add(
+        ChatMessage(
+          id: 'temp-tool-call-${call.id}',
+          role: 'tool_call',
+          content: call.name,
+          createdAt: DateTime.now(),
+          metadata: {
+            'tool_calls': [
+              {
+                'id': call.id,
+                'name': call.name,
+                'arguments': call.arguments ?? const {},
+              }
+            ],
+          },
+        ),
+      );
+    }
+    _messages = [..._messages, ...additions];
+  }
+
+  /// Inserts a display-only `tool_result` message for the streamed result.
+  void _appendToolResultMessage(ToolResult? result) {
+    if (result == null) return;
+    final summary = result.toolName;
+    _messages = [
+      ..._messages,
+      ChatMessage(
+        id: 'temp-tool-result-${result.toolCallId}',
+        role: 'tool_result',
+        content: summary,
+        createdAt: DateTime.now(),
+        metadata: {
+          'tool_result': {
+            'tool_call_id': result.toolCallId,
+            'tool_name': result.toolName,
+            'result': result.result,
+          },
+        },
+      ),
+    ];
   }
 
   Future<void> _reloadCurrentConversation() async {

@@ -48,9 +48,20 @@ class Settings(BaseSettings):
     # CORS
     cors_origins: str = "http://localhost:3000,http://localhost:8000"
 
+    # Admin — comma-separated list of emails auto-promoted to is_admin=True on startup
+    admin_emails: str = ""
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",")]
+
+    @property
+    def admin_emails_list(self) -> list[str]:
+        return [
+            e.strip().lower()
+            for e in self.admin_emails.split(",")
+            if e.strip()
+        ]
 
 
 @lru_cache

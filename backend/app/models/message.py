@@ -25,7 +25,7 @@ class Message(Base):
     role: Mapped[str] = mapped_column(
         String(20),
         nullable=False,
-        comment="One of: user, assistant, system",
+        comment="One of: user, assistant, system, tool_call, tool_result",
     )
     content: Mapped[str] = mapped_column(Text, nullable=False)
     meta: Mapped[dict | None] = mapped_column(

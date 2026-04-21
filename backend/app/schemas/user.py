@@ -20,6 +20,8 @@ class UserOut(BaseModel):
     email: str
     full_name: str | None = None
     created_at: datetime
+    is_admin: bool = False
+    is_disabled: bool = False
 
     model_config = {"from_attributes": True}
 

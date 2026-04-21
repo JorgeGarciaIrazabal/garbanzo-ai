@@ -8,6 +8,12 @@ class AuthService {
 
   final _client = ApiClient.instance;
 
+  UserInfo? _cachedUser;
+
+  /// The most recently fetched [UserInfo], or null if none has been fetched yet.
+  /// Cleared on [logout]. Refreshed by calling [getCurrentUser].
+  UserInfo? get cachedUser => _cachedUser;
+
   Future<AuthResult> register(
     String email,
     String password, {
@@ -73,6 +79,7 @@ class AuthService {
   }
 
   Future<void> logout() async {
+    _cachedUser = null;
     await _client.setToken(null);
   }
 
@@ -81,7 +88,11 @@ class AuthService {
     if (token == null) return false;
     try {
       final res = await _client.get('/api/v1/auth/me');
-      return res.statusCode == 200;
+      if (res.statusCode == 200 && res.data is Map<String, dynamic>) {
+        _cachedUser = UserInfo.fromJson(res.data as Map<String, dynamic>);
+        return true;
+      }
+      return false;
     } on DioException {
       // Backend unreachable — treat as not-logged-in so the UI falls through
       // to the login screen instead of hanging on the splash spinner.
@@ -89,10 +100,20 @@ class AuthService {
     }
   }
 
-  Future<Map<String, dynamic>?> getCurrentUser() async {
-    final res = await _client.get('/api/v1/auth/me');
-    if (res.statusCode != 200) return null;
-    return res.data as Map<String, dynamic>?;
+  /// Fetch the current authenticated user from the backend and cache the
+  /// result in [cachedUser]. Returns null on error.
+  Future<UserInfo?> getCurrentUser() async {
+    try {
+      final res = await _client.get('/api/v1/auth/me');
+      if (res.statusCode != 200) return null;
+      final data = res.data;
+      if (data is! Map<String, dynamic>) return null;
+      final user = UserInfo.fromJson(data);
+      _cachedUser = user;
+      return user;
+    } on DioException {
+      return null;
+    }
   }
 
   String _dioErrorMessage(DioException e) {
@@ -120,4 +141,44 @@ class AuthResult {
         success: false,
         error: message,
       );
+}
+
+/// Information about the currently-authenticated user returned by `/auth/me`.
+class UserInfo {
+  final String email;
+  final String? fullName;
+  final DateTime? createdAt;
+  final bool isAdmin;
+  final bool isDisabled;
+
+  const UserInfo({
+    required this.email,
+    this.fullName,
+    this.createdAt,
+    this.isAdmin = false,
+    this.isDisabled = false,
+  });
+
+  factory UserInfo.fromJson(Map<String, dynamic> json) {
+    DateTime? parsedCreatedAt;
+    final createdRaw = json['created_at'];
+    if (createdRaw is String && createdRaw.isNotEmpty) {
+      parsedCreatedAt = DateTime.tryParse(createdRaw);
+    }
+    return UserInfo(
+      email: (json['email'] as String?) ?? '',
+      fullName: json['full_name'] as String?,
+      createdAt: parsedCreatedAt,
+      isAdmin: json['is_admin'] as bool? ?? false,
+      isDisabled: json['is_disabled'] as bool? ?? false,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'email': email,
+        'full_name': fullName,
+        'created_at': createdAt?.toIso8601String(),
+        'is_admin': isAdmin,
+        'is_disabled': isDisabled,
+      };
 }

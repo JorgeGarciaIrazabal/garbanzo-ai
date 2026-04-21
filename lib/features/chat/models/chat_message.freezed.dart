@@ -316,6 +316,419 @@ abstract class _ChatMessage extends ChatMessage {
       throw _privateConstructorUsedError;
 }
 
+ToolCall _$ToolCallFromJson(Map<String, dynamic> json) {
+  return _ToolCall.fromJson(json);
+}
+
+/// @nodoc
+mixin _$ToolCall {
+  String get id => throw _privateConstructorUsedError;
+  String get name => throw _privateConstructorUsedError;
+  Map<String, dynamic>? get arguments => throw _privateConstructorUsedError;
+
+  /// Serializes this ToolCall to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
+
+  /// Create a copy of ToolCall
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  $ToolCallCopyWith<ToolCall> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class $ToolCallCopyWith<$Res> {
+  factory $ToolCallCopyWith(ToolCall value, $Res Function(ToolCall) then) =
+      _$ToolCallCopyWithImpl<$Res, ToolCall>;
+  @useResult
+  $Res call({String id, String name, Map<String, dynamic>? arguments});
+}
+
+/// @nodoc
+class _$ToolCallCopyWithImpl<$Res, $Val extends ToolCall>
+    implements $ToolCallCopyWith<$Res> {
+  _$ToolCallCopyWithImpl(this._value, this._then);
+
+  // ignore: unused_field
+  final $Val _value;
+  // ignore: unused_field
+  final $Res Function($Val) _then;
+
+  /// Create a copy of ToolCall
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? id = null,
+    Object? name = null,
+    Object? arguments = freezed,
+  }) {
+    return _then(
+      _value.copyWith(
+            id: null == id
+                ? _value.id
+                : id // ignore: cast_nullable_to_non_nullable
+                      as String,
+            name: null == name
+                ? _value.name
+                : name // ignore: cast_nullable_to_non_nullable
+                      as String,
+            arguments: freezed == arguments
+                ? _value.arguments
+                : arguments // ignore: cast_nullable_to_non_nullable
+                      as Map<String, dynamic>?,
+          )
+          as $Val,
+    );
+  }
+}
+
+/// @nodoc
+abstract class _$$ToolCallImplCopyWith<$Res>
+    implements $ToolCallCopyWith<$Res> {
+  factory _$$ToolCallImplCopyWith(
+    _$ToolCallImpl value,
+    $Res Function(_$ToolCallImpl) then,
+  ) = __$$ToolCallImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call({String id, String name, Map<String, dynamic>? arguments});
+}
+
+/// @nodoc
+class __$$ToolCallImplCopyWithImpl<$Res>
+    extends _$ToolCallCopyWithImpl<$Res, _$ToolCallImpl>
+    implements _$$ToolCallImplCopyWith<$Res> {
+  __$$ToolCallImplCopyWithImpl(
+    _$ToolCallImpl _value,
+    $Res Function(_$ToolCallImpl) _then,
+  ) : super(_value, _then);
+
+  /// Create a copy of ToolCall
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? id = null,
+    Object? name = null,
+    Object? arguments = freezed,
+  }) {
+    return _then(
+      _$ToolCallImpl(
+        id: null == id
+            ? _value.id
+            : id // ignore: cast_nullable_to_non_nullable
+                  as String,
+        name: null == name
+            ? _value.name
+            : name // ignore: cast_nullable_to_non_nullable
+                  as String,
+        arguments: freezed == arguments
+            ? _value._arguments
+            : arguments // ignore: cast_nullable_to_non_nullable
+                  as Map<String, dynamic>?,
+      ),
+    );
+  }
+}
+
+/// @nodoc
+@JsonSerializable()
+class _$ToolCallImpl extends _ToolCall {
+  const _$ToolCallImpl({
+    required this.id,
+    required this.name,
+    final Map<String, dynamic>? arguments,
+  }) : _arguments = arguments,
+       super._();
+
+  factory _$ToolCallImpl.fromJson(Map<String, dynamic> json) =>
+      _$$ToolCallImplFromJson(json);
+
+  @override
+  final String id;
+  @override
+  final String name;
+  final Map<String, dynamic>? _arguments;
+  @override
+  Map<String, dynamic>? get arguments {
+    final value = _arguments;
+    if (value == null) return null;
+    if (_arguments is EqualUnmodifiableMapView) return _arguments;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableMapView(value);
+  }
+
+  @override
+  String toString() {
+    return 'ToolCall(id: $id, name: $name, arguments: $arguments)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$ToolCallImpl &&
+            (identical(other.id, id) || other.id == id) &&
+            (identical(other.name, name) || other.name == name) &&
+            const DeepCollectionEquality().equals(
+              other._arguments,
+              _arguments,
+            ));
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode => Object.hash(
+    runtimeType,
+    id,
+    name,
+    const DeepCollectionEquality().hash(_arguments),
+  );
+
+  /// Create a copy of ToolCall
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$ToolCallImplCopyWith<_$ToolCallImpl> get copyWith =>
+      __$$ToolCallImplCopyWithImpl<_$ToolCallImpl>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$ToolCallImplToJson(this);
+  }
+}
+
+abstract class _ToolCall extends ToolCall {
+  const factory _ToolCall({
+    required final String id,
+    required final String name,
+    final Map<String, dynamic>? arguments,
+  }) = _$ToolCallImpl;
+  const _ToolCall._() : super._();
+
+  factory _ToolCall.fromJson(Map<String, dynamic> json) =
+      _$ToolCallImpl.fromJson;
+
+  @override
+  String get id;
+  @override
+  String get name;
+  @override
+  Map<String, dynamic>? get arguments;
+
+  /// Create a copy of ToolCall
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$ToolCallImplCopyWith<_$ToolCallImpl> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+ToolResult _$ToolResultFromJson(Map<String, dynamic> json) {
+  return _ToolResult.fromJson(json);
+}
+
+/// @nodoc
+mixin _$ToolResult {
+  String get toolCallId => throw _privateConstructorUsedError;
+  String get toolName => throw _privateConstructorUsedError;
+  dynamic get result => throw _privateConstructorUsedError;
+
+  /// Serializes this ToolResult to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
+
+  /// Create a copy of ToolResult
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  $ToolResultCopyWith<ToolResult> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class $ToolResultCopyWith<$Res> {
+  factory $ToolResultCopyWith(
+    ToolResult value,
+    $Res Function(ToolResult) then,
+  ) = _$ToolResultCopyWithImpl<$Res, ToolResult>;
+  @useResult
+  $Res call({String toolCallId, String toolName, dynamic result});
+}
+
+/// @nodoc
+class _$ToolResultCopyWithImpl<$Res, $Val extends ToolResult>
+    implements $ToolResultCopyWith<$Res> {
+  _$ToolResultCopyWithImpl(this._value, this._then);
+
+  // ignore: unused_field
+  final $Val _value;
+  // ignore: unused_field
+  final $Res Function($Val) _then;
+
+  /// Create a copy of ToolResult
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? toolCallId = null,
+    Object? toolName = null,
+    Object? result = freezed,
+  }) {
+    return _then(
+      _value.copyWith(
+            toolCallId: null == toolCallId
+                ? _value.toolCallId
+                : toolCallId // ignore: cast_nullable_to_non_nullable
+                      as String,
+            toolName: null == toolName
+                ? _value.toolName
+                : toolName // ignore: cast_nullable_to_non_nullable
+                      as String,
+            result: freezed == result
+                ? _value.result
+                : result // ignore: cast_nullable_to_non_nullable
+                      as dynamic,
+          )
+          as $Val,
+    );
+  }
+}
+
+/// @nodoc
+abstract class _$$ToolResultImplCopyWith<$Res>
+    implements $ToolResultCopyWith<$Res> {
+  factory _$$ToolResultImplCopyWith(
+    _$ToolResultImpl value,
+    $Res Function(_$ToolResultImpl) then,
+  ) = __$$ToolResultImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call({String toolCallId, String toolName, dynamic result});
+}
+
+/// @nodoc
+class __$$ToolResultImplCopyWithImpl<$Res>
+    extends _$ToolResultCopyWithImpl<$Res, _$ToolResultImpl>
+    implements _$$ToolResultImplCopyWith<$Res> {
+  __$$ToolResultImplCopyWithImpl(
+    _$ToolResultImpl _value,
+    $Res Function(_$ToolResultImpl) _then,
+  ) : super(_value, _then);
+
+  /// Create a copy of ToolResult
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? toolCallId = null,
+    Object? toolName = null,
+    Object? result = freezed,
+  }) {
+    return _then(
+      _$ToolResultImpl(
+        toolCallId: null == toolCallId
+            ? _value.toolCallId
+            : toolCallId // ignore: cast_nullable_to_non_nullable
+                  as String,
+        toolName: null == toolName
+            ? _value.toolName
+            : toolName // ignore: cast_nullable_to_non_nullable
+                  as String,
+        result: freezed == result
+            ? _value.result
+            : result // ignore: cast_nullable_to_non_nullable
+                  as dynamic,
+      ),
+    );
+  }
+}
+
+/// @nodoc
+@JsonSerializable()
+class _$ToolResultImpl extends _ToolResult {
+  const _$ToolResultImpl({
+    required this.toolCallId,
+    required this.toolName,
+    this.result,
+  }) : super._();
+
+  factory _$ToolResultImpl.fromJson(Map<String, dynamic> json) =>
+      _$$ToolResultImplFromJson(json);
+
+  @override
+  final String toolCallId;
+  @override
+  final String toolName;
+  @override
+  final dynamic result;
+
+  @override
+  String toString() {
+    return 'ToolResult(toolCallId: $toolCallId, toolName: $toolName, result: $result)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$ToolResultImpl &&
+            (identical(other.toolCallId, toolCallId) ||
+                other.toolCallId == toolCallId) &&
+            (identical(other.toolName, toolName) ||
+                other.toolName == toolName) &&
+            const DeepCollectionEquality().equals(other.result, result));
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode => Object.hash(
+    runtimeType,
+    toolCallId,
+    toolName,
+    const DeepCollectionEquality().hash(result),
+  );
+
+  /// Create a copy of ToolResult
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$ToolResultImplCopyWith<_$ToolResultImpl> get copyWith =>
+      __$$ToolResultImplCopyWithImpl<_$ToolResultImpl>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$ToolResultImplToJson(this);
+  }
+}
+
+abstract class _ToolResult extends ToolResult {
+  const factory _ToolResult({
+    required final String toolCallId,
+    required final String toolName,
+    final dynamic result,
+  }) = _$ToolResultImpl;
+  const _ToolResult._() : super._();
+
+  factory _ToolResult.fromJson(Map<String, dynamic> json) =
+      _$ToolResultImpl.fromJson;
+
+  @override
+  String get toolCallId;
+  @override
+  String get toolName;
+  @override
+  dynamic get result;
+
+  /// Create a copy of ToolResult
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$ToolResultImplCopyWith<_$ToolResultImpl> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
 ChatResponseChunk _$ChatResponseChunkFromJson(Map<String, dynamic> json) {
   return _ChatResponseChunk.fromJson(json);
 }
@@ -326,6 +739,8 @@ mixin _$ChatResponseChunk {
   String? get content => throw _privateConstructorUsedError;
   String? get error => throw _privateConstructorUsedError;
   Map<String, dynamic>? get metadata => throw _privateConstructorUsedError;
+  List<ToolCall>? get toolCalls => throw _privateConstructorUsedError;
+  ToolResult? get toolResult => throw _privateConstructorUsedError;
 
   /// Serializes this ChatResponseChunk to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -349,7 +764,11 @@ abstract class $ChatResponseChunkCopyWith<$Res> {
     String? content,
     String? error,
     Map<String, dynamic>? metadata,
+    List<ToolCall>? toolCalls,
+    ToolResult? toolResult,
   });
+
+  $ToolResultCopyWith<$Res>? get toolResult;
 }
 
 /// @nodoc
@@ -371,6 +790,8 @@ class _$ChatResponseChunkCopyWithImpl<$Res, $Val extends ChatResponseChunk>
     Object? content = freezed,
     Object? error = freezed,
     Object? metadata = freezed,
+    Object? toolCalls = freezed,
+    Object? toolResult = freezed,
   }) {
     return _then(
       _value.copyWith(
@@ -390,9 +811,31 @@ class _$ChatResponseChunkCopyWithImpl<$Res, $Val extends ChatResponseChunk>
                 ? _value.metadata
                 : metadata // ignore: cast_nullable_to_non_nullable
                       as Map<String, dynamic>?,
+            toolCalls: freezed == toolCalls
+                ? _value.toolCalls
+                : toolCalls // ignore: cast_nullable_to_non_nullable
+                      as List<ToolCall>?,
+            toolResult: freezed == toolResult
+                ? _value.toolResult
+                : toolResult // ignore: cast_nullable_to_non_nullable
+                      as ToolResult?,
           )
           as $Val,
     );
+  }
+
+  /// Create a copy of ChatResponseChunk
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $ToolResultCopyWith<$Res>? get toolResult {
+    if (_value.toolResult == null) {
+      return null;
+    }
+
+    return $ToolResultCopyWith<$Res>(_value.toolResult!, (value) {
+      return _then(_value.copyWith(toolResult: value) as $Val);
+    });
   }
 }
 
@@ -410,7 +853,12 @@ abstract class _$$ChatResponseChunkImplCopyWith<$Res>
     String? content,
     String? error,
     Map<String, dynamic>? metadata,
+    List<ToolCall>? toolCalls,
+    ToolResult? toolResult,
   });
+
+  @override
+  $ToolResultCopyWith<$Res>? get toolResult;
 }
 
 /// @nodoc
@@ -431,6 +879,8 @@ class __$$ChatResponseChunkImplCopyWithImpl<$Res>
     Object? content = freezed,
     Object? error = freezed,
     Object? metadata = freezed,
+    Object? toolCalls = freezed,
+    Object? toolResult = freezed,
   }) {
     return _then(
       _$ChatResponseChunkImpl(
@@ -450,6 +900,14 @@ class __$$ChatResponseChunkImplCopyWithImpl<$Res>
             ? _value._metadata
             : metadata // ignore: cast_nullable_to_non_nullable
                   as Map<String, dynamic>?,
+        toolCalls: freezed == toolCalls
+            ? _value._toolCalls
+            : toolCalls // ignore: cast_nullable_to_non_nullable
+                  as List<ToolCall>?,
+        toolResult: freezed == toolResult
+            ? _value.toolResult
+            : toolResult // ignore: cast_nullable_to_non_nullable
+                  as ToolResult?,
       ),
     );
   }
@@ -463,7 +921,10 @@ class _$ChatResponseChunkImpl extends _ChatResponseChunk {
     this.content,
     this.error,
     final Map<String, dynamic>? metadata,
+    final List<ToolCall>? toolCalls,
+    this.toolResult,
   }) : _metadata = metadata,
+       _toolCalls = toolCalls,
        super._();
 
   factory _$ChatResponseChunkImpl.fromJson(Map<String, dynamic> json) =>
@@ -485,9 +946,22 @@ class _$ChatResponseChunkImpl extends _ChatResponseChunk {
     return EqualUnmodifiableMapView(value);
   }
 
+  final List<ToolCall>? _toolCalls;
+  @override
+  List<ToolCall>? get toolCalls {
+    final value = _toolCalls;
+    if (value == null) return null;
+    if (_toolCalls is EqualUnmodifiableListView) return _toolCalls;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(value);
+  }
+
+  @override
+  final ToolResult? toolResult;
+
   @override
   String toString() {
-    return 'ChatResponseChunk(type: $type, content: $content, error: $error, metadata: $metadata)';
+    return 'ChatResponseChunk(type: $type, content: $content, error: $error, metadata: $metadata, toolCalls: $toolCalls, toolResult: $toolResult)';
   }
 
   @override
@@ -498,7 +972,13 @@ class _$ChatResponseChunkImpl extends _ChatResponseChunk {
             (identical(other.type, type) || other.type == type) &&
             (identical(other.content, content) || other.content == content) &&
             (identical(other.error, error) || other.error == error) &&
-            const DeepCollectionEquality().equals(other._metadata, _metadata));
+            const DeepCollectionEquality().equals(other._metadata, _metadata) &&
+            const DeepCollectionEquality().equals(
+              other._toolCalls,
+              _toolCalls,
+            ) &&
+            (identical(other.toolResult, toolResult) ||
+                other.toolResult == toolResult));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -509,6 +989,8 @@ class _$ChatResponseChunkImpl extends _ChatResponseChunk {
     content,
     error,
     const DeepCollectionEquality().hash(_metadata),
+    const DeepCollectionEquality().hash(_toolCalls),
+    toolResult,
   );
 
   /// Create a copy of ChatResponseChunk
@@ -534,6 +1016,8 @@ abstract class _ChatResponseChunk extends ChatResponseChunk {
     final String? content,
     final String? error,
     final Map<String, dynamic>? metadata,
+    final List<ToolCall>? toolCalls,
+    final ToolResult? toolResult,
   }) = _$ChatResponseChunkImpl;
   const _ChatResponseChunk._() : super._();
 
@@ -548,6 +1032,10 @@ abstract class _ChatResponseChunk extends ChatResponseChunk {
   String? get error;
   @override
   Map<String, dynamic>? get metadata;
+  @override
+  List<ToolCall>? get toolCalls;
+  @override
+  ToolResult? get toolResult;
 
   /// Create a copy of ChatResponseChunk
   /// with the given fields replaced by the non-null parameter values.

@@ -72,3 +72,28 @@ async def get_current_user(
         raise credentials_exception
 
     return {"email": email, "token_payload": payload}
+
+
+async def get_current_admin_user(
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Require the current user to be an admin.
+
+    Performs a DB lookup to check the ``is_admin`` flag. Raises 403 if the
+    user is missing or not an admin. Returns the same dict as
+    ``get_current_user`` with ``is_admin=True`` added.
+    """
+    from app.db.session import async_session_maker
+    from app.services.user_service import UserService
+
+    async with async_session_maker() as db:
+        svc = UserService(db)
+        user = await svc.get_by_email(current_user["email"])
+
+    if user is None or not getattr(user, "is_admin", False):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin privileges required",
+        )
+
+    return {**current_user, "is_admin": True}

@@ -1,5 +1,7 @@
 """Service for conversation CRUD operations."""
 
+from __future__ import annotations
+
 import logging
 import uuid
 
@@ -113,6 +115,9 @@ class ConversationService:
         use_memory: bool | None = None,
         system_prompt: str | None = None,
         clear_system_prompt: bool = False,
+        enabled_tools: list[str] | None = None,
+        set_enabled_tools: bool = False,
+        clear_enabled_tools: bool = False,
     ) -> Conversation | None:
         conversation = await self.get(conversation_id, user_id, include_messages=False)
         if not conversation:
@@ -128,6 +133,15 @@ class ConversationService:
             conversation.system_prompt = None
         elif system_prompt is not None:
             conversation.system_prompt = system_prompt or None
+
+        # enabled_tools has three-way semantics:
+        #   clear_enabled_tools=True → set column to NULL ("all tools")
+        #   set_enabled_tools=True   → use ``enabled_tools`` verbatim ([] means no tools)
+        #   neither                   → leave unchanged
+        if clear_enabled_tools:
+            conversation.enabled_tools = None
+        elif set_enabled_tools:
+            conversation.enabled_tools = enabled_tools
 
         await self.db.commit()
         await self.db.refresh(conversation)

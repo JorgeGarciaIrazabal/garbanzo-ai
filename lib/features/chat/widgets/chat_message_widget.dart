@@ -10,6 +10,7 @@ import 'message/message_metadata.dart';
 import 'message/speak_button.dart';
 import 'message/thinking_content.dart';
 import 'remember_this_button.dart';
+import 'tool_bubble_widget.dart';
 
 /// Widget for displaying a single chat message.
 class ChatMessageWidget extends StatefulWidget {
@@ -36,6 +37,14 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final settings = context.watch<SettingsProvider>();
+
+    // Tool invocations and results render as their own collapsible bubbles.
+    if (widget.message.isToolCall || widget.message.isToolResult) {
+      return ToolBubbleWidget(
+        message: widget.message,
+        isStreaming: widget.isStreaming,
+      );
+    }
 
     final isUser = widget.message.isUser;
     final thinkingContent = _extractThinkingContent();

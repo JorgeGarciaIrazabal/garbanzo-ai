@@ -96,7 +96,7 @@ class ChatRequest(BaseModel):
 class ChatResponseChunk(BaseModel):
     """A chunk of a streaming chat response."""
 
-    type: Literal["chunk", "thinking", "done", "error"] = Field(
+    type: Literal["chunk", "thinking", "done", "error", "tool_call", "tool_result"] = Field(
         ...,
         description="The type of response chunk",
     )
@@ -111,6 +111,20 @@ class ChatResponseChunk(BaseModel):
     metadata: dict[str, Any] | None = Field(
         None,
         description="Final metadata (for type='done')",
+    )
+    tool_calls: list[dict[str, Any]] | None = Field(
+        None,
+        description=(
+            "Tool calls requested by the model (for type='tool_call'). "
+            "Each call has {id, name, arguments}."
+        ),
+    )
+    tool_result: dict[str, Any] | None = Field(
+        None,
+        description=(
+            "The result of a single tool invocation (for type='tool_result'). "
+            "Shape: {tool_call_id, tool_name, result}."
+        ),
     )
 
 
@@ -166,6 +180,14 @@ class ConversationUpdate(BaseModel):
             "and fall back to the user default."
         ),
     )
+    enabled_tools: list[str] | None = Field(
+        None,
+        description=(
+            "Allowed tool keys for this conversation. None = all enabled tools, "
+            "[] = no tools, [\"srv:tool\"] = specific subset. "
+            "Each key is \"{server_id}:{tool_name}\"."
+        ),
+    )
 
 
 class ConversationOut(BaseModel):
@@ -184,6 +206,13 @@ class ConversationOut(BaseModel):
     system_prompt: str | None = Field(
         None,
         description="Per-conversation system prompt, if set",
+    )
+    enabled_tools: list[str] | None = Field(
+        None,
+        description=(
+            "Allowed tool keys. None = all enabled tools, "
+            "[] = none, [\"srv:tool\"] = subset."
+        ),
     )
 
     model_config = {"from_attributes": True}
@@ -211,6 +240,7 @@ class ConversationOut(BaseModel):
             message_count=message_count,
             use_memory=getattr(conv, "use_memory", True),
             system_prompt=getattr(conv, "system_prompt", None),
+            enabled_tools=getattr(conv, "enabled_tools", None),
         )
 
 
@@ -249,6 +279,7 @@ class ConversationDetailOut(ConversationOut):
             use_memory=getattr(conv, "use_memory", True),
             context_summary=getattr(conv, "context_summary", None),
             system_prompt=getattr(conv, "system_prompt", None),
+            enabled_tools=getattr(conv, "enabled_tools", None),
         )
 
 

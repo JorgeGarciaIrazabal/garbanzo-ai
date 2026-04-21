@@ -55,13 +55,13 @@ TTS model research (2025):
 - [x] **System prompt visibility** — Option to show/collapse system prompt in the message thread
 
 ## MCP / Tools / Skills (Admin Portal)
-- [ ] **Admin portal foundation** — `/admin` route, restricted to `is_admin=True` users; user table migration
-- [ ] **MCP server configuration UI** — Add/remove/toggle MCP server connections (URL, auth, description)
-- [ ] **Tool execution backend** — Tool call loop: LLM requests tool → backend invokes MCP server → result fed back into context
-- [ ] **Tool results display in chat** — Collapsible "Tool Used" block showing name, input, output
-- [ ] **Skills library UI** — Browse available skills/tools from connected MCP servers
-- [ ] **Per-conversation tool selection** — Toggle which tools are enabled for a conversation
-- [ ] **Admin: User management** — List, promote, disable users from admin portal
+- [x] **Admin portal foundation** — `/admin` route, restricted to `is_admin=True` users; user table migration
+- [x] **MCP server configuration UI** — Add/remove/toggle MCP server connections (URL, auth, description)
+- [x] **Tool execution backend** — Tool call loop: LLM requests tool → backend invokes MCP server → result fed back into context
+- [x] **Tool results display in chat** — Collapsible "Tool Used" block showing name, input, output
+- [x] **Skills library UI** — Browse available skills/tools from connected MCP servers
+- [x] **Per-conversation tool selection** — Toggle which tools are enabled for a conversation
+- [x] **Admin: User management** — List, promote, disable users from admin portal
 
 ## Notifications (Android-oriented)
 > Also used to notify participants in multi-user, multi-agent chat rooms (e.g., new messages from other users or agent responses while away).

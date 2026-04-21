@@ -85,6 +85,8 @@ class ChatService {
     bool? useMemory,
     String? systemPrompt,
     bool clearSystemPrompt = false,
+    List<String>? enabledTools,
+    bool clearEnabledTools = false,
   }) async {
     // clearSystemPrompt=true sends "" to the backend to reset to user default.
     final effectivePrompt = clearSystemPrompt ? '' : systemPrompt;
@@ -96,6 +98,9 @@ class ChatService {
         'use_memory': ?useMemory,
         if (clearSystemPrompt || effectivePrompt != null)
           'system_prompt': effectivePrompt,
+        if (clearEnabledTools) 'enabled_tools': null,
+        if (!clearEnabledTools && enabledTools != null)
+          'enabled_tools': enabledTools,
       },
     );
 

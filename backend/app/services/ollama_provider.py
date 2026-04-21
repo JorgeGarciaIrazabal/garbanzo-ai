@@ -45,8 +45,11 @@ class OllamaProvider(LLMProvider):
         model: str,
         options: ChatOptions | None = None,
         cancel_event: asyncio.Event | None = None,
+        tools: list[dict[str, Any]] | None = None,
     ) -> AsyncIterator[ChatChunk]:
         """Stream chat completion from Ollama using the SDK."""
+        import uuid
+
         client = self._get_client()
         opts = options or ChatOptions()
 
@@ -68,14 +71,18 @@ class OllamaProvider(LLMProvider):
             request_options["top_p"] = opts.top_p
 
         accumulated_thinking = ""
+        accumulated_tool_calls: list[dict[str, Any]] = []
 
         try:
-            stream = await client.chat(
-                model=model,
-                messages=ollama_messages,
-                stream=True,
-                options=request_options,
-            )
+            chat_kwargs: dict[str, Any] = {
+                "model": model,
+                "messages": ollama_messages,
+                "stream": True,
+                "options": request_options,
+            }
+            if tools:
+                chat_kwargs["tools"] = tools
+            stream = await client.chat(**chat_kwargs)
 
             async for chunk in stream:
                 # Check for cancellation
@@ -83,8 +90,56 @@ class OllamaProvider(LLMProvider):
                     yield ChatChunk(content="", is_finished=True, metadata={"cancelled": True})
                     return
 
+                # Extract the message payload from intermediate chunks.
+                message = chunk.get("message")
+                if message is not None:
+                    content = message.get("content", "") or ""
+                    thinking = message.get("thinking", "") or ""
+                    tool_calls = message.get("tool_calls") or []
+
+                    if thinking:
+                        accumulated_thinking += thinking
+                        yield ChatChunk(content=thinking, is_finished=False, is_thinking=True)
+
+                    if content:
+                        yield ChatChunk(content=content, is_finished=False)
+
+                    if tool_calls:
+                        normalized: list[dict[str, Any]] = []
+                        for tc in tool_calls:
+                            func = (
+                                tc.get("function")
+                                if isinstance(tc, dict)
+                                else getattr(tc, "function", None)
+                            )
+                            name = ""
+                            arguments: Any = {}
+                            if func is not None:
+                                if isinstance(func, dict):
+                                    name = func.get("name", "") or ""
+                                    arguments = func.get("arguments") or {}
+                                else:
+                                    name = getattr(func, "name", "") or ""
+                                    arguments = getattr(func, "arguments", None) or {}
+                            normalized.append(
+                                {
+                                    "id": str(uuid.uuid4()),
+                                    "name": name,
+                                    "arguments": arguments,
+                                }
+                            )
+                        accumulated_tool_calls.extend(normalized)
+
                 # Final chunk with metadata
                 if chunk.get("done", False):
+                    # Emit a tool_call chunk BEFORE the done chunk.
+                    if accumulated_tool_calls:
+                        yield ChatChunk(
+                            content="",
+                            is_finished=False,
+                            tool_calls=accumulated_tool_calls,
+                        )
+
                     metadata: dict[str, Any] = {}
                     if chunk.eval_count is not None:
                         metadata["tokens_generated"] = chunk.eval_count
@@ -94,24 +149,11 @@ class OllamaProvider(LLMProvider):
                         metadata["total_duration_ns"] = chunk.total_duration
                     if accumulated_thinking:
                         metadata["thinking"] = accumulated_thinking
+                    if accumulated_tool_calls:
+                        metadata["has_tool_calls"] = True
 
                     yield ChatChunk(content="", is_finished=True, metadata=metadata)
                     break
-
-                # Extract content and thinking from the message
-                message = chunk.get("message")
-                if message is None:
-                    continue
-
-                content = message.get("content", "") or ""
-                thinking = message.get("thinking", "") or ""
-
-                if thinking:
-                    accumulated_thinking += thinking
-                    yield ChatChunk(content=thinking, is_finished=False, is_thinking=True)
-
-                if content:
-                    yield ChatChunk(content=content, is_finished=False)
 
         except ResponseError as e:
             logger.error("Ollama response error: %s", e)
@@ -209,6 +251,7 @@ class OllamaProvider(LLMProvider):
         messages: list[Message],
         model: str,
         options: ChatOptions | None = None,
+        tools: list[dict[str, Any]] | None = None,
     ) -> str:
         """Non-streaming chat completion from Ollama."""
         client = self._get_client()
@@ -232,12 +275,15 @@ class OllamaProvider(LLMProvider):
             request_options["top_p"] = opts.top_p
 
         try:
-            response = await client.chat(
-                model=model,
-                messages=ollama_messages,
-                stream=False,
-                options=request_options,
-            )
+            chat_kwargs: dict[str, Any] = {
+                "model": model,
+                "messages": ollama_messages,
+                "stream": False,
+                "options": request_options,
+            }
+            if tools:
+                chat_kwargs["tools"] = tools
+            response = await client.chat(**chat_kwargs)
             return response.message.content or ""
         except (ResponseError, RequestError) as e:
             logger.error("Ollama chat error: %s", e)

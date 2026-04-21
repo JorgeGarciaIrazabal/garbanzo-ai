@@ -30,6 +30,7 @@ mixin _$Conversation {
   bool get useMemory => throw _privateConstructorUsedError;
   String? get contextSummary => throw _privateConstructorUsedError;
   String? get systemPrompt => throw _privateConstructorUsedError;
+  List<String>? get enabledTools => throw _privateConstructorUsedError;
   List<ChatMessage>? get messages => throw _privateConstructorUsedError;
 
   /// Serializes this Conversation to a JSON map.
@@ -59,6 +60,7 @@ abstract class $ConversationCopyWith<$Res> {
     bool useMemory,
     String? contextSummary,
     String? systemPrompt,
+    List<String>? enabledTools,
     List<ChatMessage>? messages,
   });
 }
@@ -87,6 +89,7 @@ class _$ConversationCopyWithImpl<$Res, $Val extends Conversation>
     Object? useMemory = null,
     Object? contextSummary = freezed,
     Object? systemPrompt = freezed,
+    Object? enabledTools = freezed,
     Object? messages = freezed,
   }) {
     return _then(
@@ -127,6 +130,10 @@ class _$ConversationCopyWithImpl<$Res, $Val extends Conversation>
                 ? _value.systemPrompt
                 : systemPrompt // ignore: cast_nullable_to_non_nullable
                       as String?,
+            enabledTools: freezed == enabledTools
+                ? _value.enabledTools
+                : enabledTools // ignore: cast_nullable_to_non_nullable
+                      as List<String>?,
             messages: freezed == messages
                 ? _value.messages
                 : messages // ignore: cast_nullable_to_non_nullable
@@ -156,6 +163,7 @@ abstract class _$$ConversationImplCopyWith<$Res>
     bool useMemory,
     String? contextSummary,
     String? systemPrompt,
+    List<String>? enabledTools,
     List<ChatMessage>? messages,
   });
 }
@@ -183,6 +191,7 @@ class __$$ConversationImplCopyWithImpl<$Res>
     Object? useMemory = null,
     Object? contextSummary = freezed,
     Object? systemPrompt = freezed,
+    Object? enabledTools = freezed,
     Object? messages = freezed,
   }) {
     return _then(
@@ -223,6 +232,10 @@ class __$$ConversationImplCopyWithImpl<$Res>
             ? _value.systemPrompt
             : systemPrompt // ignore: cast_nullable_to_non_nullable
                   as String?,
+        enabledTools: freezed == enabledTools
+            ? _value._enabledTools
+            : enabledTools // ignore: cast_nullable_to_non_nullable
+                  as List<String>?,
         messages: freezed == messages
             ? _value._messages
             : messages // ignore: cast_nullable_to_non_nullable
@@ -245,8 +258,10 @@ class _$ConversationImpl extends _Conversation {
     this.useMemory = true,
     this.contextSummary,
     this.systemPrompt,
+    final List<String>? enabledTools,
     final List<ChatMessage>? messages,
-  }) : _messages = messages,
+  }) : _enabledTools = enabledTools,
+       _messages = messages,
        super._();
 
   factory _$ConversationImpl.fromJson(Map<String, dynamic> json) =>
@@ -272,6 +287,16 @@ class _$ConversationImpl extends _Conversation {
   final String? contextSummary;
   @override
   final String? systemPrompt;
+  final List<String>? _enabledTools;
+  @override
+  List<String>? get enabledTools {
+    final value = _enabledTools;
+    if (value == null) return null;
+    if (_enabledTools is EqualUnmodifiableListView) return _enabledTools;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(value);
+  }
+
   final List<ChatMessage>? _messages;
   @override
   List<ChatMessage>? get messages {
@@ -284,7 +309,7 @@ class _$ConversationImpl extends _Conversation {
 
   @override
   String toString() {
-    return 'Conversation(id: $id, title: $title, model: $model, createdAt: $createdAt, updatedAt: $updatedAt, messageCount: $messageCount, useMemory: $useMemory, contextSummary: $contextSummary, systemPrompt: $systemPrompt, messages: $messages)';
+    return 'Conversation(id: $id, title: $title, model: $model, createdAt: $createdAt, updatedAt: $updatedAt, messageCount: $messageCount, useMemory: $useMemory, contextSummary: $contextSummary, systemPrompt: $systemPrompt, enabledTools: $enabledTools, messages: $messages)';
   }
 
   @override
@@ -307,6 +332,10 @@ class _$ConversationImpl extends _Conversation {
                 other.contextSummary == contextSummary) &&
             (identical(other.systemPrompt, systemPrompt) ||
                 other.systemPrompt == systemPrompt) &&
+            const DeepCollectionEquality().equals(
+              other._enabledTools,
+              _enabledTools,
+            ) &&
             const DeepCollectionEquality().equals(other._messages, _messages));
   }
 
@@ -323,6 +352,7 @@ class _$ConversationImpl extends _Conversation {
     useMemory,
     contextSummary,
     systemPrompt,
+    const DeepCollectionEquality().hash(_enabledTools),
     const DeepCollectionEquality().hash(_messages),
   );
 
@@ -351,6 +381,7 @@ abstract class _Conversation extends Conversation {
     final bool useMemory,
     final String? contextSummary,
     final String? systemPrompt,
+    final List<String>? enabledTools,
     final List<ChatMessage>? messages,
   }) = _$ConversationImpl;
   const _Conversation._() : super._();
@@ -376,6 +407,8 @@ abstract class _Conversation extends Conversation {
   String? get contextSummary;
   @override
   String? get systemPrompt;
+  @override
+  List<String>? get enabledTools;
   @override
   List<ChatMessage>? get messages;
 

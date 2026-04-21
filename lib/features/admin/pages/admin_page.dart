@@ -1,0 +1,50 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../providers/admin_provider.dart';
+import '../widgets/mcp_servers_tab.dart';
+import '../widgets/users_tab.dart';
+
+/// Admin portal with tabs for user management + MCP server configuration.
+///
+/// Requires the current user to be an admin — if not, the endpoints will
+/// return 403 and the underlying tabs will render an error state.
+class AdminPage extends StatelessWidget {
+  const AdminPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ChangeNotifierProvider(
+      create: (_) => AdminProvider(),
+      child: const _AdminPageContent(),
+    );
+  }
+}
+
+class _AdminPageContent extends StatelessWidget {
+  const _AdminPageContent();
+
+  @override
+  Widget build(BuildContext context) {
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Admin'),
+          bottom: const TabBar(
+            tabs: [
+              Tab(icon: Icon(Icons.people_outline), text: 'Users'),
+              Tab(icon: Icon(Icons.extension_outlined), text: 'MCP Servers'),
+            ],
+          ),
+        ),
+        body: const TabBarView(
+          children: [
+            UsersTab(),
+            MCPServersTab(),
+          ],
+        ),
+      ),
+    );
+  }
+}

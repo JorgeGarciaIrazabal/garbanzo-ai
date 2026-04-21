@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, ForeignKey, Select, String, Text, func, select
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -39,6 +40,14 @@ class Conversation(Base):
     context_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     context_summary_until_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
     system_prompt: Mapped[str | None] = mapped_column(Text, nullable=True)
+    enabled_tools: Mapped[list[str] | None] = mapped_column(
+        JSONB,
+        nullable=True,
+        comment=(
+            "Per-conversation MCP tool selection. NULL = all enabled tools, "
+            "[] = no tools, [\"srv:tool\"] = subset."
+        ),
+    )
 
     # Relationships
     user: Mapped["User"] = relationship(back_populates="conversations")

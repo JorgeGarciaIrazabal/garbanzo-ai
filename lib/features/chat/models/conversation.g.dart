@@ -17,6 +17,9 @@ _$ConversationImpl _$$ConversationImplFromJson(Map<String, dynamic> json) =>
       useMemory: json['use_memory'] as bool? ?? true,
       contextSummary: json['context_summary'] as String?,
       systemPrompt: json['system_prompt'] as String?,
+      enabledTools: (json['enabled_tools'] as List<dynamic>?)
+          ?.map((e) => e as String)
+          .toList(),
       messages: (json['messages'] as List<dynamic>?)
           ?.map((e) => ChatMessage.fromJson(e as Map<String, dynamic>))
           .toList(),
@@ -33,6 +36,7 @@ Map<String, dynamic> _$$ConversationImplToJson(_$ConversationImpl instance) =>
       'use_memory': instance.useMemory,
       'context_summary': instance.contextSummary,
       'system_prompt': instance.systemPrompt,
+      'enabled_tools': instance.enabledTools,
       'messages': instance.messages,
     };
 

@@ -32,6 +32,38 @@ class ChatMessage with _$ChatMessage {
   bool get isUser => role == 'user';
   bool get isAssistant => role == 'assistant';
   bool get isSystem => role == 'system';
+  bool get isToolCall => role == 'tool_call';
+  bool get isToolResult => role == 'tool_result';
+}
+
+/// A single tool invocation requested by the assistant.
+@freezed
+class ToolCall with _$ToolCall {
+  const ToolCall._();
+
+  const factory ToolCall({
+    required String id,
+    required String name,
+    Map<String, dynamic>? arguments,
+  }) = _ToolCall;
+
+  factory ToolCall.fromJson(Map<String, dynamic> json) =>
+      _$ToolCallFromJson(json);
+}
+
+/// The result of a single tool invocation.
+@freezed
+class ToolResult with _$ToolResult {
+  const ToolResult._();
+
+  const factory ToolResult({
+    required String toolCallId,
+    required String toolName,
+    dynamic result,
+  }) = _ToolResult;
+
+  factory ToolResult.fromJson(Map<String, dynamic> json) =>
+      _$ToolResultFromJson(json);
 }
 
 /// A chunk of a streaming chat response.
@@ -44,6 +76,8 @@ class ChatResponseChunk with _$ChatResponseChunk {
     String? content,
     String? error,
     Map<String, dynamic>? metadata,
+    List<ToolCall>? toolCalls,
+    ToolResult? toolResult,
   }) = _ChatResponseChunk;
 
   factory ChatResponseChunk.fromJson(Map<String, dynamic> json) =>
@@ -53,4 +87,6 @@ class ChatResponseChunk with _$ChatResponseChunk {
   bool get isThinking => type == 'thinking';
   bool get isDone => type == 'done';
   bool get isError => type == 'error';
+  bool get isToolCall => type == 'tool_call';
+  bool get isToolResult => type == 'tool_result';
 }

@@ -81,10 +81,36 @@ async def _ensure_test_user() -> None:
         logger.info("Created test user: %s", settings.test_user_email)
 
 
+async def _promote_admin_emails() -> None:
+    """Promote users matching settings.admin_emails_list to is_admin=True."""
+    emails = settings.admin_emails_list
+    if not emails:
+        return
+
+    from app.db.session import async_session_maker
+    from app.services.user_service import UserService
+
+    try:
+        async with async_session_maker() as db:
+            svc = UserService(db)
+            for email in emails:
+                user = await svc.get_by_email(email)
+                if user is None:
+                    logger.info("Admin email %s has no matching user yet", email)
+                    continue
+                if not user.is_admin:
+                    user.is_admin = True
+                    logger.info("Promoted %s to admin", email)
+            await db.commit()
+    except Exception:
+        logger.warning("Failed to promote admin emails", exc_info=True)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
     await _ensure_test_user()
+    await _promote_admin_emails()
     from app.services.system_prompt_service import seed_builtin_templates_task
 
     await seed_builtin_templates_task()

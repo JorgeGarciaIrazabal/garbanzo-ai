@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from app.core.config import Settings
 from app.db.base import Base
 from app.models.conversation import Conversation  # noqa: F401 — register model
+from app.models.mcp_server import MCPServer  # noqa: F401 — register model
 from app.models.memory import UserMemory  # noqa: F401 — register model
 from app.models.message import Message  # noqa: F401 — register model
 from app.models.user import User  # noqa: F401 — register model

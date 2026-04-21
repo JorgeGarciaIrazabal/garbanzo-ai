@@ -42,7 +42,13 @@ async def register(
         full_name=user_data.full_name,
     )
 
-    return UserOut(email=email, full_name=user_data.full_name, created_at=user.created_at)
+    return UserOut(
+        email=email,
+        full_name=user_data.full_name,
+        created_at=user.created_at,
+        is_admin=getattr(user, "is_admin", False),
+        is_disabled=getattr(user, "is_disabled", False),
+    )
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -58,6 +64,13 @@ async def login(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Already-issued tokens remain valid — disabled-user check is only applied at login.
+    if getattr(user, "is_disabled", False):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account disabled",
         )
 
     access_token = create_access_token(data={"sub": email}, settings=settings)
@@ -76,4 +89,10 @@ async def get_me(
             detail="User not found",
         )
 
-    return UserOut(email=user.email, full_name=user.full_name, created_at=user.created_at)
+    return UserOut(
+        email=user.email,
+        full_name=user.full_name,
+        created_at=user.created_at,
+        is_admin=getattr(user, "is_admin", False),
+        is_disabled=getattr(user, "is_disabled", False),
+    )

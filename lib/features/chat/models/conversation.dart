@@ -20,6 +20,7 @@ class Conversation with _$Conversation {
     @Default(true) bool useMemory,
     String? contextSummary,
     String? systemPrompt,
+    List<String>? enabledTools,
     List<ChatMessage>? messages,
   }) = _Conversation;
 

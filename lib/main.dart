@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:marionette_flutter/marionette_flutter.dart';
@@ -120,10 +122,14 @@ class _AuthGateState extends State<AuthGate> {
 
   void _onLoginSuccess() {
     setState(() => _loggedIn = true);
+    // Fire-and-forget: populate cached user (including is_admin) without
+    // blocking the UI transition.
+    unawaited(AuthService.instance.getCurrentUser());
   }
 
   void _onRegisterSuccess() {
     setState(() => _loggedIn = true);
+    unawaited(AuthService.instance.getCurrentUser());
   }
 
   void _onLogout() {

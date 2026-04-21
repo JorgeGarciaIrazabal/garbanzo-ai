@@ -120,6 +120,13 @@ async def update_conversation(
 ) -> ConversationOut:
     # Detect explicit clear: caller sent system_prompt="" (empty) → reset to None
     clear_prompt = data.system_prompt == ""
+    # enabled_tools three-way semantics at the service layer:
+    #   not provided in payload → don't change
+    #   provided as null         → clear (all tools)
+    #   provided as list (incl. []) → set verbatim
+    payload_set = data.model_fields_set
+    set_enabled = "enabled_tools" in payload_set and data.enabled_tools is not None
+    clear_enabled = "enabled_tools" in payload_set and data.enabled_tools is None
     conversation = await service.conversations.update(
         conversation_id=conversation_id,
         user_id=current_user["email"],
@@ -128,6 +135,9 @@ async def update_conversation(
         use_memory=data.use_memory,
         system_prompt=None if clear_prompt else data.system_prompt,
         clear_system_prompt=clear_prompt,
+        enabled_tools=data.enabled_tools if set_enabled else None,
+        set_enabled_tools=set_enabled,
+        clear_enabled_tools=clear_enabled,
     )
 
     if not conversation:
@@ -191,6 +201,16 @@ async def chat_stream(
             ):
                 if chunk.is_finished:
                     response = ChatResponseChunk(type="done", metadata=chunk.metadata)
+                elif chunk.tool_calls:
+                    response = ChatResponseChunk(
+                        type="tool_call",
+                        tool_calls=chunk.tool_calls,
+                    )
+                elif chunk.metadata and chunk.metadata.get("tool_result"):
+                    response = ChatResponseChunk(
+                        type="tool_result",
+                        tool_result=chunk.metadata["tool_result"],
+                    )
                 elif chunk.metadata and chunk.metadata.get("error"):
                     response = ChatResponseChunk(
                         type="error",

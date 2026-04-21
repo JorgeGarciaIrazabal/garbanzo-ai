@@ -9,6 +9,7 @@ import '../../../core/responsive.dart';
 import '../../memory/providers/memory_provider.dart';
 import '../../settings/providers/settings_provider.dart';
 import '../../settings/widgets/settings_drawer.dart';
+import '../../tools/providers/tool_provider.dart';
 import '../models/chat_attachment.dart';
 import '../providers/chat_provider.dart';
 import '../providers/model_provider.dart';
@@ -48,6 +49,7 @@ class ChatPage extends StatelessWidget {
               ),
               ChangeNotifierProvider(create: (_) => MemoryProvider()),
               ChangeNotifierProvider(create: (_) => SystemPromptProvider()),
+              ChangeNotifierProvider(create: (_) => ToolProvider()),
             ],
             child: _ChatPageContent(onLogout: onLogout),
           );
