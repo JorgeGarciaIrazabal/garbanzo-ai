@@ -85,6 +85,9 @@ async def _ensure_test_user() -> None:
 async def lifespan(app: FastAPI):
     await init_db()
     await _ensure_test_user()
+    from app.services.system_prompt_service import seed_builtin_templates_task
+
+    await seed_builtin_templates_task()
     # Start loading the Kokoro TTS model in the background (non-blocking).
     from app.services.tts_service import TTSService
 

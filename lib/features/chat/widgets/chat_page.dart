@@ -12,6 +12,7 @@ import '../../settings/widgets/settings_drawer.dart';
 import '../models/chat_attachment.dart';
 import '../providers/chat_provider.dart';
 import '../providers/model_provider.dart';
+import '../providers/system_prompt_provider.dart';
 import 'chat_input_widget.dart';
 import 'chat_message_widget.dart';
 import 'context_summary_widget.dart';
@@ -20,6 +21,7 @@ import 'conversation_list_widget.dart';
 import 'empty_chat_state.dart';
 import 'mobile_drawer.dart';
 import 'model_selector_widget.dart';
+import 'system_prompt_banner.dart';
 
 /// Main chat page with conversation sidebar and message area.
 ///
@@ -45,7 +47,7 @@ class ChatPage extends StatelessWidget {
                 ),
               ),
               ChangeNotifierProvider(create: (_) => MemoryProvider()),
-              ChangeNotifierProvider(create: (_) => SettingsProvider()),
+              ChangeNotifierProvider(create: (_) => SystemPromptProvider()),
             ],
             child: _ChatPageContent(onLogout: onLogout),
           );
@@ -430,17 +432,31 @@ class _ChatPageContentState extends State<_ChatPageContent> {
       return const Center(child: CircularProgressIndicator());
     }
 
+    final showSystemPrompt =
+        context.watch<SettingsProvider>().showSystemPrompt;
     final summary = chatProvider.currentConversation?.contextSummary;
     final hasSummary = summary != null && summary.isNotEmpty;
-    final itemOffset = hasSummary ? 1 : 0;
+    final hasBanner =
+        showSystemPrompt && chatProvider.currentConversation != null;
+
+    var itemOffset = 0;
+    if (hasBanner) itemOffset++;
+    if (hasSummary) itemOffset++;
 
     return ListView.builder(
       controller: _scrollController,
       padding: const EdgeInsets.symmetric(vertical: 16),
       itemCount: chatProvider.messages.length + itemOffset,
       itemBuilder: (context, index) {
-        if (hasSummary && index == 0) {
-          return ContextSummaryWidget(summary: summary);
+        var leadingIdx = 0;
+        if (hasBanner) {
+          if (index == leadingIdx) return const SystemPromptBanner();
+          leadingIdx++;
+        }
+        if (hasSummary) {
+          if (index == leadingIdx) {
+            return ContextSummaryWidget(summary: summary);
+          }
         }
         final msgIndex = index - itemOffset;
         final message = chatProvider.messages[msgIndex];

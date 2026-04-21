@@ -91,6 +91,7 @@ class ChatProvider extends ChangeNotifier {
     String? title,
     String? model,
     String? initialMessage,
+    String? systemPrompt,
     List<ChatAttachment> initialAttachments = const [],
   }) async {
     _error = null;
@@ -106,6 +107,7 @@ class ChatProvider extends ChangeNotifier {
       final conversation = await _chatService.createConversation(
         title: derivedTitle,
         model: selectedModel,
+        systemPrompt: systemPrompt,
       );
 
       _currentConversation = conversation;
@@ -133,7 +135,13 @@ class ChatProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> updateConversation({String? title, String? model, bool? useMemory}) async {
+  Future<void> updateConversation({
+    String? title,
+    String? model,
+    bool? useMemory,
+    String? systemPrompt,
+    bool clearSystemPrompt = false,
+  }) async {
     if (_currentConversation == null) return;
 
     _error = null;
@@ -145,6 +153,8 @@ class ChatProvider extends ChangeNotifier {
         title: title,
         model: model,
         useMemory: useMemory,
+        systemPrompt: systemPrompt,
+        clearSystemPrompt: clearSystemPrompt,
       );
       _currentConversation = updated;
       await _loadConversations();

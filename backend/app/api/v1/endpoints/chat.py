@@ -52,6 +52,7 @@ async def create_conversation(
         title=data.title,
         model=data.model,
         initial_message=data.initial_message,
+        system_prompt=data.system_prompt,
     )
     return ConversationOut.from_model(conversation)
 
@@ -117,12 +118,16 @@ async def update_conversation(
     current_user: Annotated[dict[str, Any], Depends(get_current_user)],
     service: Annotated[ChatService, Depends(get_chat_service)],
 ) -> ConversationOut:
+    # Detect explicit clear: caller sent system_prompt="" (empty) → reset to None
+    clear_prompt = data.system_prompt == ""
     conversation = await service.conversations.update(
         conversation_id=conversation_id,
         user_id=current_user["email"],
         title=data.title,
         model=data.model,
         use_memory=data.use_memory,
+        system_prompt=None if clear_prompt else data.system_prompt,
+        clear_system_prompt=clear_prompt,
     )
 
     if not conversation:

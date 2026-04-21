@@ -79,8 +79,14 @@ class AuthService {
   Future<bool> isLoggedIn() async {
     final token = await _client.getToken();
     if (token == null) return false;
-    final res = await _client.get('/api/v1/auth/me');
-    return res.statusCode == 200;
+    try {
+      final res = await _client.get('/api/v1/auth/me');
+      return res.statusCode == 200;
+    } on DioException {
+      // Backend unreachable — treat as not-logged-in so the UI falls through
+      // to the login screen instead of hanging on the splash spinner.
+      return false;
+    }
   }
 
   Future<Map<String, dynamic>?> getCurrentUser() async {

@@ -29,6 +29,7 @@ mixin _$Conversation {
   int get messageCount => throw _privateConstructorUsedError;
   bool get useMemory => throw _privateConstructorUsedError;
   String? get contextSummary => throw _privateConstructorUsedError;
+  String? get systemPrompt => throw _privateConstructorUsedError;
   List<ChatMessage>? get messages => throw _privateConstructorUsedError;
 
   /// Serializes this Conversation to a JSON map.
@@ -57,6 +58,7 @@ abstract class $ConversationCopyWith<$Res> {
     int messageCount,
     bool useMemory,
     String? contextSummary,
+    String? systemPrompt,
     List<ChatMessage>? messages,
   });
 }
@@ -84,6 +86,7 @@ class _$ConversationCopyWithImpl<$Res, $Val extends Conversation>
     Object? messageCount = null,
     Object? useMemory = null,
     Object? contextSummary = freezed,
+    Object? systemPrompt = freezed,
     Object? messages = freezed,
   }) {
     return _then(
@@ -120,6 +123,10 @@ class _$ConversationCopyWithImpl<$Res, $Val extends Conversation>
                 ? _value.contextSummary
                 : contextSummary // ignore: cast_nullable_to_non_nullable
                       as String?,
+            systemPrompt: freezed == systemPrompt
+                ? _value.systemPrompt
+                : systemPrompt // ignore: cast_nullable_to_non_nullable
+                      as String?,
             messages: freezed == messages
                 ? _value.messages
                 : messages // ignore: cast_nullable_to_non_nullable
@@ -148,6 +155,7 @@ abstract class _$$ConversationImplCopyWith<$Res>
     int messageCount,
     bool useMemory,
     String? contextSummary,
+    String? systemPrompt,
     List<ChatMessage>? messages,
   });
 }
@@ -174,6 +182,7 @@ class __$$ConversationImplCopyWithImpl<$Res>
     Object? messageCount = null,
     Object? useMemory = null,
     Object? contextSummary = freezed,
+    Object? systemPrompt = freezed,
     Object? messages = freezed,
   }) {
     return _then(
@@ -210,6 +219,10 @@ class __$$ConversationImplCopyWithImpl<$Res>
             ? _value.contextSummary
             : contextSummary // ignore: cast_nullable_to_non_nullable
                   as String?,
+        systemPrompt: freezed == systemPrompt
+            ? _value.systemPrompt
+            : systemPrompt // ignore: cast_nullable_to_non_nullable
+                  as String?,
         messages: freezed == messages
             ? _value._messages
             : messages // ignore: cast_nullable_to_non_nullable
@@ -231,6 +244,7 @@ class _$ConversationImpl extends _Conversation {
     this.messageCount = 0,
     this.useMemory = true,
     this.contextSummary,
+    this.systemPrompt,
     final List<ChatMessage>? messages,
   }) : _messages = messages,
        super._();
@@ -256,6 +270,8 @@ class _$ConversationImpl extends _Conversation {
   final bool useMemory;
   @override
   final String? contextSummary;
+  @override
+  final String? systemPrompt;
   final List<ChatMessage>? _messages;
   @override
   List<ChatMessage>? get messages {
@@ -268,7 +284,7 @@ class _$ConversationImpl extends _Conversation {
 
   @override
   String toString() {
-    return 'Conversation(id: $id, title: $title, model: $model, createdAt: $createdAt, updatedAt: $updatedAt, messageCount: $messageCount, useMemory: $useMemory, contextSummary: $contextSummary, messages: $messages)';
+    return 'Conversation(id: $id, title: $title, model: $model, createdAt: $createdAt, updatedAt: $updatedAt, messageCount: $messageCount, useMemory: $useMemory, contextSummary: $contextSummary, systemPrompt: $systemPrompt, messages: $messages)';
   }
 
   @override
@@ -289,6 +305,8 @@ class _$ConversationImpl extends _Conversation {
                 other.useMemory == useMemory) &&
             (identical(other.contextSummary, contextSummary) ||
                 other.contextSummary == contextSummary) &&
+            (identical(other.systemPrompt, systemPrompt) ||
+                other.systemPrompt == systemPrompt) &&
             const DeepCollectionEquality().equals(other._messages, _messages));
   }
 
@@ -304,6 +322,7 @@ class _$ConversationImpl extends _Conversation {
     messageCount,
     useMemory,
     contextSummary,
+    systemPrompt,
     const DeepCollectionEquality().hash(_messages),
   );
 
@@ -331,6 +350,7 @@ abstract class _Conversation extends Conversation {
     final int messageCount,
     final bool useMemory,
     final String? contextSummary,
+    final String? systemPrompt,
     final List<ChatMessage>? messages,
   }) = _$ConversationImpl;
   const _Conversation._() : super._();
@@ -354,6 +374,8 @@ abstract class _Conversation extends Conversation {
   bool get useMemory;
   @override
   String? get contextSummary;
+  @override
+  String? get systemPrompt;
   @override
   List<ChatMessage>? get messages;
 

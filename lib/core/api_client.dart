@@ -117,6 +117,13 @@ class ApiClient {
     return _dio.patch(path, data: data);
   }
 
+  Future<Response> put(
+    String path, {
+    Object? data,
+  }) {
+    return _dio.put(path, data: data);
+  }
+
   Future<Response> delete(String path) {
     return _dio.delete(path);
   }

@@ -24,6 +24,7 @@ class SettingsProvider extends ChangeNotifier {
   static const _keyAutoSubmitStt = 'settings_auto_submit_stt';
   static const _keyThemeMode = 'settings_theme_mode';
   static const _keyShowMessageMetadata = 'settings_show_message_metadata';
+  static const _keyShowSystemPrompt = 'settings_show_system_prompt';
 
   // Defaults
   static const defaultVoice = 'af_heart';
@@ -36,6 +37,7 @@ class SettingsProvider extends ChangeNotifier {
   bool _autoSubmitStt = false;
   AppThemeMode _themeMode = defaultThemeMode;
   bool _showMessageMetadata = false;
+  bool _showSystemPrompt = false;
   bool _loaded = false;
 
   String get ttsVoice => _ttsVoice;
@@ -44,6 +46,7 @@ class SettingsProvider extends ChangeNotifier {
   bool get autoSubmitStt => _autoSubmitStt;
   AppThemeMode get themeMode => _themeMode;
   bool get showMessageMetadata => _showMessageMetadata;
+  bool get showSystemPrompt => _showSystemPrompt;
   bool get loaded => _loaded;
 
   /// Converts AppThemeMode to Flutter's ThemeMode.
@@ -66,6 +69,7 @@ class SettingsProvider extends ChangeNotifier {
     _autoSubmitStt = prefs.getBool(_keyAutoSubmitStt) ?? false;
     _themeMode = _parseThemeMode(prefs.getString(_keyThemeMode));
     _showMessageMetadata = prefs.getBool(_keyShowMessageMetadata) ?? false;
+    _showSystemPrompt = prefs.getBool(_keyShowSystemPrompt) ?? false;
     _loaded = true;
     notifyListeners();
   }
@@ -129,5 +133,13 @@ class SettingsProvider extends ChangeNotifier {
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_keyShowMessageMetadata, value);
+  }
+
+  Future<void> setShowSystemPrompt(bool value) async {
+    if (_showSystemPrompt == value) return;
+    _showSystemPrompt = value;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyShowSystemPrompt, value);
   }
 }

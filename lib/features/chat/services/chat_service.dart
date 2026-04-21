@@ -28,6 +28,7 @@ class ChatService {
     String? title,
     String model = 'llama3.2',
     String? initialMessage,
+    String? systemPrompt,
   }) async {
     final response = await _api.post(
       '/api/v1/chat/conversations',
@@ -35,6 +36,7 @@ class ChatService {
         'title': ?title,
         'model': model,
         'initial_message': ?initialMessage,
+        'system_prompt': ?systemPrompt,
       },
     );
 
@@ -81,13 +83,19 @@ class ChatService {
     String? title,
     String? model,
     bool? useMemory,
+    String? systemPrompt,
+    bool clearSystemPrompt = false,
   }) async {
+    // clearSystemPrompt=true sends "" to the backend to reset to user default.
+    final effectivePrompt = clearSystemPrompt ? '' : systemPrompt;
     final response = await _api.patch(
       '/api/v1/chat/conversations/$conversationId',
       data: {
         'title': ?title,
         'model': ?model,
         'use_memory': ?useMemory,
+        if (clearSystemPrompt || effectivePrompt != null)
+          'system_prompt': effectivePrompt,
       },
     );
 

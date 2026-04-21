@@ -19,6 +19,7 @@ class Conversation with _$Conversation {
     @Default(0) int messageCount,
     @Default(true) bool useMemory,
     String? contextSummary,
+    String? systemPrompt,
     List<ChatMessage>? messages,
   }) = _Conversation;
 

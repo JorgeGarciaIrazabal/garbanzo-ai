@@ -29,6 +29,7 @@ class ConversationService:
         title: str | None = None,
         model: str = "llama3.2",
         initial_message: str | None = None,
+        system_prompt: str | None = None,
     ) -> Conversation:
         conversation_id = str(uuid.uuid4())
 
@@ -40,6 +41,7 @@ class ConversationService:
             user_id=user_id,
             title=title,
             model=model,
+            system_prompt=system_prompt,
         )
 
         self.db.add(conversation)
@@ -109,6 +111,8 @@ class ConversationService:
         title: str | None = None,
         model: str | None = None,
         use_memory: bool | None = None,
+        system_prompt: str | None = None,
+        clear_system_prompt: bool = False,
     ) -> Conversation | None:
         conversation = await self.get(conversation_id, user_id, include_messages=False)
         if not conversation:
@@ -120,6 +124,10 @@ class ConversationService:
             conversation.model = model
         if use_memory is not None:
             conversation.use_memory = use_memory
+        if clear_system_prompt:
+            conversation.system_prompt = None
+        elif system_prompt is not None:
+            conversation.system_prompt = system_prompt or None
 
         await self.db.commit()
         await self.db.refresh(conversation)

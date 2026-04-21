@@ -136,6 +136,10 @@ class ConversationCreate(BaseModel):
         None,
         description="Optional first message to start the conversation",
     )
+    system_prompt: str | None = Field(
+        None,
+        description="Per-conversation system prompt (overrides the user default)",
+    )
 
 
 class ConversationUpdate(BaseModel):
@@ -155,6 +159,13 @@ class ConversationUpdate(BaseModel):
         None,
         description="Enable/disable memory injection for this conversation",
     )
+    system_prompt: str | None = Field(
+        None,
+        description=(
+            "Per-conversation system prompt. Send an empty string to clear it "
+            "and fall back to the user default."
+        ),
+    )
 
 
 class ConversationOut(BaseModel):
@@ -170,6 +181,10 @@ class ConversationOut(BaseModel):
         description="Number of messages in the conversation",
     )
     use_memory: bool = Field(default=True, description="Whether memory injection is enabled")
+    system_prompt: str | None = Field(
+        None,
+        description="Per-conversation system prompt, if set",
+    )
 
     model_config = {"from_attributes": True}
 
@@ -195,6 +210,7 @@ class ConversationOut(BaseModel):
             updated_at=conv.updated_at,
             message_count=message_count,
             use_memory=getattr(conv, "use_memory", True),
+            system_prompt=getattr(conv, "system_prompt", None),
         )
 
 
@@ -232,6 +248,7 @@ class ConversationDetailOut(ConversationOut):
             messages=messages,
             use_memory=getattr(conv, "use_memory", True),
             context_summary=getattr(conv, "context_summary", None),
+            system_prompt=getattr(conv, "system_prompt", None),
         )
 
 

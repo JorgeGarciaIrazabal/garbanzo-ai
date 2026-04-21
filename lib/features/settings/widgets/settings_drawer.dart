@@ -3,7 +3,9 @@ import 'package:provider/provider.dart';
 
 import '../../chat/providers/chat_provider.dart';
 import '../../chat/providers/model_provider.dart';
+import '../../chat/providers/system_prompt_provider.dart';
 import '../../chat/services/audio_service.dart';
+import '../../chat/widgets/system_prompt_editor_dialog.dart';
 import '../../memory/pages/memory_page.dart';
 import '../providers/settings_provider.dart';
 
@@ -82,6 +84,9 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
                   const Divider(height: 24),
                   // -- Model section --
                   _buildModelSection(context, settings, colorScheme, theme),
+                  const Divider(height: 24),
+                  // -- System prompt section --
+                  _buildSystemPromptSection(context, colorScheme, theme),
                   const Divider(height: 24),
                   // -- Memory section --
                   _buildMemorySection(context, settings, colorScheme, theme),
@@ -336,6 +341,116 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
     );
   }
 
+  Widget _buildSystemPromptSection(
+    BuildContext context,
+    ColorScheme colorScheme,
+    ThemeData theme,
+  ) {
+    final chatProvider = context.watch<ChatProvider>();
+    final promptProvider = context.watch<SystemPromptProvider>();
+    final conversation = chatProvider.currentConversation;
+    final convPrompt = conversation?.systemPrompt;
+    final userDefault = promptProvider.userDefault;
+
+    final effectivePrompt = (convPrompt?.isNotEmpty ?? false)
+        ? convPrompt!
+        : (userDefault ?? '');
+    final effectiveSource = (convPrompt?.isNotEmpty ?? false)
+        ? 'Conversation'
+        : (userDefault != null && userDefault.isNotEmpty
+            ? 'Global default'
+            : 'None');
+
+    Future<void> editConversationPrompt() async {
+      if (conversation == null) return;
+      final result = await SystemPromptEditorDialog.show(
+        context,
+        initialContent: convPrompt,
+        title: 'Conversation system prompt',
+        subtitle:
+            'Overrides your global default for this conversation only.',
+      );
+      if (result == null || result.isCancelled) return;
+      if (result.isClear) {
+        await chatProvider.updateConversation(clearSystemPrompt: true);
+      } else {
+        await chatProvider.updateConversation(systemPrompt: result.content);
+      }
+    }
+
+    Future<void> editUserDefault() async {
+      final result = await SystemPromptEditorDialog.show(
+        context,
+        initialContent: userDefault,
+        title: 'Global default system prompt',
+        subtitle:
+            'Applied to every new conversation unless overridden per-chat.',
+      );
+      if (result == null || result.isCancelled) return;
+      if (result.isClear) {
+        await promptProvider.setUserDefault(null);
+      } else {
+        await promptProvider.setUserDefault(result.content);
+      }
+    }
+
+    String truncate(String s) =>
+        s.length <= 80 ? s : '${s.substring(0, 80)}…';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _SectionHeader(
+          icon: Icons.assignment_outlined,
+          title: 'System Prompt',
+        ),
+        // Per-conversation
+        ListTile(
+          leading: const Icon(Icons.chat_bubble_outline),
+          title: const Text('This conversation'),
+          subtitle: conversation == null
+              ? const Text('Start a conversation to set a prompt')
+              : Text(
+                  convPrompt == null || convPrompt.isEmpty
+                      ? 'Using: $effectiveSource'
+                      : truncate(convPrompt),
+                  style: theme.textTheme.bodySmall,
+                ),
+          trailing: conversation == null
+              ? null
+              : Icon(Icons.edit, size: 18, color: colorScheme.primary),
+          enabled: conversation != null,
+          dense: true,
+          onTap: conversation == null ? null : editConversationPrompt,
+        ),
+        // Global default
+        ListTile(
+          leading: const Icon(Icons.public),
+          title: const Text('Global default'),
+          subtitle: Text(
+            (userDefault == null || userDefault.isEmpty)
+                ? 'Not set — using built-in defaults'
+                : truncate(userDefault),
+            style: theme.textTheme.bodySmall,
+          ),
+          trailing: Icon(Icons.edit, size: 18, color: colorScheme.primary),
+          dense: true,
+          onTap: editUserDefault,
+        ),
+        if (effectivePrompt.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: Text(
+              'No system prompt active.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
   Widget _buildChatSection(
     BuildContext context,
     SettingsProvider settings,
@@ -351,6 +466,15 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
           subtitle: const Text('Display token counts and response time'),
           value: settings.showMessageMetadata,
           onChanged: (value) => settings.setShowMessageMetadata(value),
+          dense: true,
+        ),
+        SwitchListTile(
+          title: const Text('Show system prompt in thread'),
+          subtitle: const Text(
+            'Display the active system prompt above the conversation',
+          ),
+          value: settings.showSystemPrompt,
+          onChanged: (value) => settings.setShowSystemPrompt(value),
           dense: true,
         ),
       ],

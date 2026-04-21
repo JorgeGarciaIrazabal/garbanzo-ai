@@ -18,6 +18,7 @@ from app.services.llm_provider import ChatChunk, LLMProvider, ProviderRegistry
 from app.services.llm_provider import Message as LLMMessage
 from app.services.memory_service import MemoryService
 from app.services.ollama_provider import OllamaProvider
+from app.services.system_prompt_service import SystemPromptService
 
 logger = logging.getLogger(__name__)
 
@@ -101,6 +102,7 @@ class ChatService:
         self._provider_name = provider_name
         self._conversations = ConversationService(db)
         self._memories = MemoryService(db)
+        self._system_prompts = SystemPromptService(db)
         self._ensure_default_provider()
 
     @classmethod
@@ -300,6 +302,7 @@ class ChatService:
             use_memory=conversation.use_memory,
             context_summary=conversation.context_summary,
             context_summary_until_id=conversation.context_summary_until_id,
+            conversation_system_prompt=conversation.system_prompt,
         )
 
         provider = self._get_provider()
@@ -372,6 +375,7 @@ class ChatService:
         use_memory: bool = True,
         context_summary: str | None = None,
         context_summary_until_id: str | None = None,
+        conversation_system_prompt: str | None = None,
     ) -> list[LLMMessage]:
         """Build message history with an optional system prompt prepended.
 
@@ -399,10 +403,11 @@ class ChatService:
                     filtered_messages = filtered_messages[i + 1 :]
                     break
 
-        # Build system prompt with memories if enabled
+        # Build system prompt from (conversation || global default) + memories
         system_prompt = await self._build_system_prompt(
             user_id=user_id,
             use_memory=use_memory,
+            conversation_system_prompt=conversation_system_prompt,
         )
 
         if system_prompt:
@@ -428,42 +433,50 @@ class ChatService:
         self,
         user_id: str | None = None,
         use_memory: bool = True,
+        conversation_system_prompt: str | None = None,
     ) -> str:
-        """Build the system prompt, optionally with injected memories.
+        """Build the system prompt from (conversation || user default) + memories.
 
-        Args:
-            user_id: The user ID to fetch memories for
-            use_memory: Whether to inject memories into the system prompt
+        Preference order for the base prompt:
+          1. ``conversation_system_prompt`` if set
+          2. The user's ``default_system_prompt`` if set
+          3. A generic fallback only if memories will be injected.
 
-        Returns:
-            System prompt string, empty if no memories or user_id is None
+        Memories (when enabled and present) are appended after the base prompt.
         """
-        if not user_id or not use_memory:
+        base_prompt = (conversation_system_prompt or "").strip()
+
+        if not base_prompt and user_id:
+            try:
+                user_default = await self._system_prompts.get_user_default_prompt(user_id)
+                if user_default:
+                    base_prompt = user_default.strip()
+            except Exception as e:
+                logger.warning("Failed to load user default system prompt: %s", e)
+
+        memory_block = ""
+        if user_id and use_memory:
+            try:
+                memories = await self._memories.get_relevant_memories(user_id=user_id)
+                if memories:
+                    lines = ["Relevant memories about the user:"]
+                    for memory in memories:
+                        lines.append(f"- {memory.content}")
+                    lines.append("")
+                    lines.append("Use these memories to personalize your responses.")
+                    memory_block = "\n".join(lines)
+            except Exception as e:
+                logger.warning("Failed to load memories for system prompt: %s", e)
+
+        if not base_prompt and not memory_block:
             return ""
 
-        try:
-            memories = await self._memories.get_relevant_memories(user_id=user_id)
+        if not base_prompt and memory_block:
+            base_prompt = "You are a helpful AI assistant."
 
-            if not memories:
-                return ""
-
-            # Build memory injection text
-            memory_lines = ["You are a helpful AI assistant."]
-            memory_lines.append("")
-            memory_lines.append("Relevant memories about the user:")
-
-            for memory in memories:
-                memory_lines.append(f"- {memory.content}")
-
-            memory_lines.append("")
-            memory_lines.append("Use these memories to personalize your responses.")
-
-            return "\n".join(memory_lines)
-
-        except Exception as e:
-            logger.warning("Failed to build system prompt with memories: %s", e)
-            # Graceful fallback: return empty system prompt
-            return ""
+        if memory_block:
+            return f"{base_prompt}\n\n{memory_block}"
+        return base_prompt
 
     async def list_available_models(self) -> list[ModelInfo]:
         provider = self._get_provider()

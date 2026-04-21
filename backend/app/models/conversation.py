@@ -38,6 +38,7 @@ class Conversation(Base):
     use_memory: Mapped[bool] = mapped_column(default=True, nullable=False)
     context_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     context_summary_until_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    system_prompt: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Relationships
     user: Mapped["User"] = relationship(back_populates="conversations")

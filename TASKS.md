@@ -48,11 +48,11 @@ TTS model research (2025):
 - [x] **Memory toggle per conversation** — Option to disable memory for a specific conversation
 
 ## System Prompt (The first iterations of agents)
-- [ ] **Per-conversation system prompt** — Editable in conversation settings panel
-- [ ] **Global default system prompt** — Set in user settings, applied to all new conversations
-- [ ] **System prompt templates** — Pre-built personas (Coding assistant, Writing coach, Funny Friend, Emotional Expert,etc.)
-- [ ] **System prompt library** — Save and reuse custom prompts
-- [ ] **System prompt visibility** — Option to show/collapse system prompt in the message thread
+- [x] **Per-conversation system prompt** — Editable in conversation settings panel
+- [x] **Global default system prompt** — Set in user settings, applied to all new conversations
+- [x] **System prompt templates** — Pre-built personas (Coding assistant, Writing coach, Funny Friend, Emotional Expert,etc.)
+- [x] **System prompt library** — Save and reuse custom prompts
+- [x] **System prompt visibility** — Option to show/collapse system prompt in the message thread
 
 ## MCP / Tools / Skills (Admin Portal)
 - [ ] **Admin portal foundation** — `/admin` route, restricted to `is_admin=True` users; user table migration
