@@ -1,7 +1,7 @@
 """Integration tests for the /api/v1/usage endpoints."""
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -57,7 +57,7 @@ async def _seed(db_session):
     db_session.add_all([conv_a, conv_b])
     await db_session.flush()
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     db_session.add_all([
         Message(
             id=str(uuid.uuid4()),

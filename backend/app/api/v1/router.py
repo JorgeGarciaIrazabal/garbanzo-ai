@@ -10,6 +10,8 @@ from app.api.v1.endpoints import (
     mcp,
     memories,
     notifications,
+    rooms,
+    rooms_ws,
     scheduled_actions,
     stt,
     system_prompts,
@@ -41,3 +43,5 @@ api_router.include_router(
 )
 api_router.include_router(tts.router, prefix="/tts", tags=["tts"])
 api_router.include_router(usage.router, prefix="/usage", tags=["usage"])
+api_router.include_router(rooms.router, prefix="/rooms", tags=["rooms"])
+api_router.include_router(rooms_ws.router, tags=["rooms-ws"])

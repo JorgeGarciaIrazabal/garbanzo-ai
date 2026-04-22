@@ -22,6 +22,12 @@ from app.models.notification import (  # noqa: F401 — register models
     Notification,
     NotificationPreferences,
 )
+from app.models.room import (  # noqa: F401 — register models
+    Room,
+    RoomAgent,
+    RoomMember,
+    RoomMessage,
+)
 from app.models.scheduled_action import ScheduledAction  # noqa: F401 — register model
 from app.models.system_prompt import SystemPromptTemplate  # noqa: F401 — register model
 from app.models.user import User  # noqa: F401 — register model

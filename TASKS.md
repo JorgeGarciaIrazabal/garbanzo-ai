@@ -119,21 +119,21 @@ TTS model research (2025):
 - [x] **Conversation summary view** — Collapsible "Summary of earlier messages" block in thread
 
 ## Multi-Person & Multi-Agent Chat Rooms
-- [ ] **Room DB model** — `Room` table: id, name, description, owner_id, created_at; `RoomMember` table: room_id, user_id, role (owner/member), joined_at
-- [ ] **Room agent slots** — `RoomAgent` table: room_id, agent_name, system_prompt, model, provider, turn_order, is_active
-- [ ] **WebSocket support** — Replace or extend SSE with WebSocket connections so multiple users receive messages in real time
-- [ ] **Room creation UI** — Create a named room, set description, invite members by email
-- [ ] **Room member management** — Add/remove members, assign roles, transfer ownership
-- [ ] **Agent configuration UI** — Add AI agents to a room: pick name, avatar, model, system prompt, and when they respond (always, when @mentioned, round-robin)
-- [ ] **@mention routing** — `@AgentName` in a message triggers only that agent to respond; `@all` triggers all agents
-- [ ] **Round-robin agent turns** — Configurable mode where agents respond in sequence automatically
-- [ ] **Agent-to-agent conversations** — Agents can see and respond to each other's messages; configurable max turn depth to prevent infinite loops
-- [ ] **Moderator agent** — Special agent role that summarizes discussion, breaks deadlocks, or routes questions to the right agent
-- [ ] **Room message history** — Shared scrollback visible to all members with author avatars (human vs agent)
-- [ ] **Presence indicators** — Show which users are currently online in the room
-- [ ] **Room notifications** — Notify members when they are @mentioned or when a new message arrives
-- [ ] **Room search & discovery** — Browse and join public rooms; private rooms require invite
-- [ ] **Room export** — Export full room transcript as Markdown or JSON
+- [x] **Room DB model** — `Room` table: id, name, description, owner_id, created_at; `RoomMember` table: room_id, user_id, role (owner/member), joined_at
+- [x] **Room agent slots** — `RoomAgent` table: room_id, agent_name, system_prompt, model, provider, turn_order, is_active
+- [x] **WebSocket support** — Replace or extend SSE with WebSocket connections so multiple users receive messages in real time
+- [x] **Room creation UI** — Create a named room, set description, invite members by email
+- [x] **Room member management** — Add/remove members, assign roles, transfer ownership
+- [x] **Agent configuration UI** — Add AI agents to a room: pick name, avatar, model, system prompt, and when they respond (always, when @mentioned, round-robin)
+- [x] **@mention routing** — `@AgentName` in a message triggers only that agent to respond; `@all` triggers all agents
+- [x] **Round-robin agent turns** — Configurable mode where agents respond in sequence automatically
+- [x] **Agent-to-agent conversations** — Agents can see and respond to each other's messages; configurable max turn depth to prevent infinite loops
+- [x] **Moderator agent** — Special agent role that summarizes discussion, breaks deadlocks, or routes questions to the right agent
+- [x] **Room message history** — Shared scrollback visible to all members with author avatars (human vs agent)
+- [x] **Presence indicators** — Show which users are currently online in the room
+- [x] **Room notifications** — Notify members when they are @mentioned or when a new message arrives
+- [x] **Room search & discovery** — Browse and join public rooms; private rooms require invite
+- [x] **Room export** — Export full room transcript as Markdown or JSON
 - [ ] **Debate / critique mode** — Structured mode where two agents argue opposing sides of a topic and a judge agent scores them
 
 ## Infrastructure & DevOps

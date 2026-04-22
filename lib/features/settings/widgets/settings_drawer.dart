@@ -11,6 +11,7 @@ import '../../chat/widgets/system_prompt_editor_dialog.dart';
 import '../../knowledge_base/pages/knowledge_base_page.dart';
 import '../../memory/pages/memory_page.dart';
 import '../../notifications/providers/notification_provider.dart';
+import '../../rooms/pages/rooms_page.dart';
 import '../../scheduled_actions/pages/scheduled_actions_page.dart';
 import '../../tools/pages/skills_library_page.dart';
 import '../../tools/providers/tool_provider.dart';
@@ -584,6 +585,18 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
         const _SectionHeader(
           icon: Icons.widgets_outlined,
           title: 'More',
+        ),
+        ListTile(
+          leading: const Icon(Icons.group_outlined),
+          title: const Text('Rooms'),
+          subtitle: const Text('Multi-person, multi-agent chat rooms'),
+          dense: true,
+          onTap: () {
+            Navigator.of(context).pop();
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const RoomsPage()),
+            );
+          },
         ),
         ListTile(
           leading: const Icon(Icons.auto_awesome),

@@ -50,6 +50,26 @@ class ApiClient {
 
   String get baseUrl => _dio.options.baseUrl;
 
+  /// Compute a WebSocket URL for the given API path.
+  /// Converts http(s) base → ws(s), preserving host and path.
+  /// Falls back to a local default if base URL is empty (e.g. web release on
+  /// origin itself).
+  Uri wsUri(String path, {Map<String, String>? queryParameters}) {
+    var base = baseUrl;
+    if (base.isEmpty) {
+      base = Uri.base.toString();
+    }
+    final uri = Uri.parse(base);
+    final scheme = uri.scheme == 'https' ? 'wss' : 'ws';
+    return Uri(
+      scheme: scheme,
+      host: uri.host,
+      port: uri.hasPort ? uri.port : null,
+      path: path,
+      queryParameters: queryParameters,
+    );
+  }
+
   /// Callback invoked when a 401 is received on an authenticated request.
   /// Set this from your app to trigger navigation to the login screen.
   VoidCallback? onUnauthorized;
