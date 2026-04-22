@@ -318,10 +318,7 @@ def _make_push_callback(
             return
         try:
             from app.db.session import async_session_maker
-            from app.services.fcm_service import is_enabled, send_to_user
-
-            if not is_enabled():
-                return
+            from app.services.fcm_service import send_to_user
 
             body = accumulated.strip()
             if len(body) > 160:
@@ -333,6 +330,7 @@ def _make_push_callback(
                     user_id,
                     title="Response ready",
                     body=body,
+                    channel="chat_responses",
                     data={"conversation_id": conversation_id},
                 )
         except Exception:

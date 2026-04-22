@@ -11,10 +11,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.models.device_token import DeviceToken
+from app.services.notification_service import NotificationService
 
 logger = logging.getLogger(__name__)
 
 _app: firebase_admin.App | None = None
+
+VALID_CHANNELS = {"chat_responses", "reminders", "system_alerts"}
 
 
 def init_firebase() -> None:
@@ -63,12 +66,36 @@ async def send_to_user(
     title: str,
     body: str,
     data: dict[str, str] | None = None,
+    channel: str = "chat_responses",
+    persist: bool = True,
 ) -> int:
     """Send a push notification to every device registered to ``user_id``.
 
-    Returns the number of successful deliveries. Invalid/expired tokens are
-    removed from the DB. No-op (returns 0) if FCM is not configured.
+    Also persists a row in ``notifications`` for the in-app notification center
+    (when ``persist=True``). Respects the user's NotificationPreferences: if the
+    ``channel`` is disabled for this user, nothing is sent or persisted.
+
+    Returns the number of successful FCM deliveries. Invalid/expired tokens are
+    removed from the DB. Returns 0 if FCM is disabled — the in-app notification
+    is still persisted in that case.
     """
+    if channel not in VALID_CHANNELS:
+        logger.warning("Unknown notification channel %r; falling back to chat_responses", channel)
+        channel = "chat_responses"
+
+    notif_svc = NotificationService(db)
+    if not await notif_svc.is_channel_enabled(user_id, channel):
+        return 0
+
+    if persist:
+        await notif_svc.create(
+            user_id=user_id,
+            title=title,
+            body=body,
+            channel=channel,
+            data=dict(data) if data else None,
+        )
+
     if _app is None:
         return 0
 
@@ -90,7 +117,7 @@ async def send_to_user(
                 android=messaging.AndroidConfig(
                     priority="high",
                     notification=messaging.AndroidNotification(
-                        channel_id="chat_responses",
+                        channel_id=channel,
                     ),
                 ),
             )

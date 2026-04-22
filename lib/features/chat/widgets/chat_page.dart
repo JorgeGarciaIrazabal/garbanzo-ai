@@ -7,6 +7,8 @@ import 'package:provider/provider.dart';
 import '../../../core/auth_service.dart';
 import '../../../core/responsive.dart';
 import '../../memory/providers/memory_provider.dart';
+import '../../notifications/providers/notification_provider.dart';
+import '../../notifications/widgets/notification_bell.dart';
 import '../../settings/providers/settings_provider.dart';
 import '../../settings/widgets/settings_drawer.dart';
 import '../../tools/providers/tool_provider.dart';
@@ -52,6 +54,7 @@ class ChatPage extends StatelessWidget {
               ChangeNotifierProvider(create: (_) => SystemPromptProvider()),
               ChangeNotifierProvider(create: (_) => ToolProvider()),
               ChangeNotifierProvider(create: (_) => SearchProvider()),
+              ChangeNotifierProvider(create: (_) => NotificationProvider()),
             ],
             child: _ChatPageContent(onLogout: onLogout),
           );
@@ -392,6 +395,7 @@ class _ChatPageContentState extends State<_ChatPageContent> {
               isEnabled: !chatProvider.isSending,
             ),
           ),
+        const NotificationBell(),
         IconButton(
           icon: const Icon(Icons.settings),
           tooltip: 'Settings',

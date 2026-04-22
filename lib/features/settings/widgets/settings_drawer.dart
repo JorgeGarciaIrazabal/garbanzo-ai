@@ -9,6 +9,7 @@ import '../../chat/providers/system_prompt_provider.dart';
 import '../../chat/services/audio_service.dart';
 import '../../chat/widgets/system_prompt_editor_dialog.dart';
 import '../../memory/pages/memory_page.dart';
+import '../../notifications/providers/notification_provider.dart';
 import '../../tools/pages/skills_library_page.dart';
 import '../../tools/providers/tool_provider.dart';
 import '../providers/settings_provider.dart';
@@ -100,6 +101,9 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
                   const Divider(height: 24),
                   // -- Memory section --
                   _buildMemorySection(context, settings, colorScheme, theme),
+                  const Divider(height: 24),
+                  // -- Notifications section --
+                  _buildNotificationsSection(context, colorScheme, theme),
                   const Divider(height: 24),
                   // -- Voice / TTS section --
                   _buildVoiceSection(context, settings, colorScheme, theme),
@@ -711,6 +715,81 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
                   }).toList(),
                 );
               }),
+            ],
+          ],
+        );
+      },
+    );
+  }
+
+  /// Per-user notification channel toggles. Lazy-loads preferences on first
+  /// render and applies changes optimistically.
+  Widget _buildNotificationsSection(
+    BuildContext context,
+    ColorScheme colorScheme,
+    ThemeData theme,
+  ) {
+    return Consumer<NotificationProvider>(
+      builder: (context, provider, _) {
+        final prefs = provider.preferences;
+        if (prefs == null && !provider.loadingPreferences) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            provider.loadPreferences();
+          });
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const _SectionHeader(
+              icon: Icons.notifications_outlined,
+              title: 'Notifications',
+            ),
+            if (prefs == null)
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    SizedBox(width: 8),
+                    Text('Loading preferences…'),
+                  ],
+                ),
+              )
+            else ...[
+              SwitchListTile(
+                title: const Text('Chat responses'),
+                subtitle: const Text(
+                  'Notify when assistant replies while app is in background',
+                ),
+                value: prefs.chatResponsesEnabled,
+                onChanged: (value) => provider.updatePreferences(
+                  chatResponsesEnabled: value,
+                ),
+                dense: true,
+              ),
+              SwitchListTile(
+                title: const Text('Reminders'),
+                subtitle: const Text('Scheduled reminders and check-ins'),
+                value: prefs.remindersEnabled,
+                onChanged: (value) => provider.updatePreferences(
+                  remindersEnabled: value,
+                ),
+                dense: true,
+              ),
+              SwitchListTile(
+                title: const Text('System alerts'),
+                subtitle: const Text('Account and system notifications'),
+                value: prefs.systemAlertsEnabled,
+                onChanged: (value) => provider.updatePreferences(
+                  systemAlertsEnabled: value,
+                ),
+                dense: true,
+              ),
             ],
           ],
         );

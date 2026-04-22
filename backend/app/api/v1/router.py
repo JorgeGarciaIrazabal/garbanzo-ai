@@ -8,6 +8,7 @@ from app.api.v1.endpoints import (
     health,
     mcp,
     memories,
+    notifications,
     stt,
     system_prompts,
     tts,
@@ -22,6 +23,9 @@ api_router.include_router(devices.router, prefix="/devices", tags=["devices"])
 api_router.include_router(health.router, prefix="", tags=["health"])
 api_router.include_router(mcp.router, prefix="/mcp", tags=["mcp"])
 api_router.include_router(memories.router, prefix="/memories", tags=["memories"])
+api_router.include_router(
+    notifications.router, prefix="/notifications", tags=["notifications"]
+)
 api_router.include_router(stt.router, prefix="/stt", tags=["stt"])
 api_router.include_router(
     system_prompts.router, prefix="/system-prompts", tags=["system-prompts"]
