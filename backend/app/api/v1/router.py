@@ -9,6 +9,7 @@ from app.api.v1.endpoints import (
     mcp,
     memories,
     notifications,
+    scheduled_actions,
     stt,
     system_prompts,
     tts,
@@ -25,6 +26,11 @@ api_router.include_router(mcp.router, prefix="/mcp", tags=["mcp"])
 api_router.include_router(memories.router, prefix="/memories", tags=["memories"])
 api_router.include_router(
     notifications.router, prefix="/notifications", tags=["notifications"]
+)
+api_router.include_router(
+    scheduled_actions.router,
+    prefix="/scheduled-actions",
+    tags=["scheduled-actions"],
 )
 api_router.include_router(stt.router, prefix="/stt", tags=["stt"])
 api_router.include_router(

@@ -73,11 +73,11 @@ TTS model research (2025):
 - [x] **Notification preferences** — Per-user settings for which events trigger notifications, synced with Android channel settings
 
 ## Scheduled Actions
-- [ ] **Scheduled messages** — "Remind me to do X at 3pm" parsed and stored as a cron job
-- [ ] **Recurring prompts** — Daily/weekly AI check-ins (e.g., "Summarize my tasks every Monday")
-- [ ] **Scheduled action DB model** — `ScheduledAction` table: id, user_id, cron_expr, prompt, next_run, is_active
-- [ ] **APScheduler integration** — Backend scheduler to execute due actions and create conversations
-- [ ] **Scheduled actions management UI** — List, pause, delete scheduled actions
+- [x] **Scheduled messages** — "Remind me to do X at 3pm" parsed and stored as a cron job
+- [x] **Recurring prompts** — Daily/weekly AI check-ins (e.g., "Summarize my tasks every Monday")
+- [x] **Scheduled action DB model** — `ScheduledAction` table: id, user_id, cron_expr, prompt, next_run, is_active
+- [x] **APScheduler integration** — Backend scheduler to execute due actions and create conversations
+- [x] **Scheduled actions management UI** — List, pause, delete scheduled actions
 
 ## Conversation UX
 - [x] **Message editing** — Edit a sent user message and re-run from that point

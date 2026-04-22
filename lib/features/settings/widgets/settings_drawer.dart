@@ -10,6 +10,7 @@ import '../../chat/services/audio_service.dart';
 import '../../chat/widgets/system_prompt_editor_dialog.dart';
 import '../../memory/pages/memory_page.dart';
 import '../../notifications/providers/notification_provider.dart';
+import '../../scheduled_actions/pages/scheduled_actions_page.dart';
 import '../../tools/pages/skills_library_page.dart';
 import '../../tools/providers/tool_provider.dart';
 import '../providers/settings_provider.dart';
@@ -518,6 +519,18 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
             Navigator.of(context).pop();
             Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const SkillsLibraryPage()),
+            );
+          },
+        ),
+        ListTile(
+          leading: const Icon(Icons.schedule),
+          title: const Text('Scheduled actions'),
+          subtitle: const Text('Reminders and recurring prompts'),
+          dense: true,
+          onTap: () {
+            Navigator.of(context).pop();
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const ScheduledActionsPage()),
             );
           },
         ),

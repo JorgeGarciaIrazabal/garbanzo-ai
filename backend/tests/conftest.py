@@ -9,9 +9,16 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from app.core.config import Settings
 from app.db.base import Base
 from app.models.conversation import Conversation  # noqa: F401 — register model
+from app.models.device_token import DeviceToken  # noqa: F401 — register model
 from app.models.mcp_server import MCPServer  # noqa: F401 — register model
 from app.models.memory import UserMemory  # noqa: F401 — register model
 from app.models.message import Message  # noqa: F401 — register model
+from app.models.notification import (  # noqa: F401 — register models
+    Notification,
+    NotificationPreferences,
+)
+from app.models.scheduled_action import ScheduledAction  # noqa: F401 — register model
+from app.models.system_prompt import SystemPromptTemplate  # noqa: F401 — register model
 from app.models.user import User  # noqa: F401 — register model
 
 # Use in-memory SQLite for tests (no PostgreSQL required).
