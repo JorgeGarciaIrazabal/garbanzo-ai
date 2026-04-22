@@ -63,6 +63,9 @@ class Settings(BaseSettings):
     kb_chunk_overlap: int = 150  # characters
     kb_top_k: int = 5  # top-K chunks injected per message
     kb_max_file_size_mb: int = 25
+    # When False, ``create_document`` skips the background embedding task.
+    # Useful for tests that don't want to exercise the embedder.
+    kb_background_embedding: bool = True
 
     @property
     def cors_origins_list(self) -> list[str]:

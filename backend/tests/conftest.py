@@ -2,6 +2,7 @@
 
 import pytest
 import pytest_asyncio
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import JSON
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -10,6 +11,10 @@ from app.core.config import Settings
 from app.db.base import Base
 from app.models.conversation import Conversation  # noqa: F401 — register model
 from app.models.device_token import DeviceToken  # noqa: F401 — register model
+from app.models.knowledge_base import (  # noqa: F401 — register models
+    KnowledgeChunk,
+    KnowledgeDocument,
+)
 from app.models.mcp_server import MCPServer  # noqa: F401 — register model
 from app.models.memory import UserMemory  # noqa: F401 — register model
 from app.models.message import Message  # noqa: F401 — register model
@@ -111,17 +116,17 @@ _original_types: dict[str, type] = {}
 
 
 def _patch_jsonb_columns():
-    """Replace JSONB column types with JSON across all mapped tables."""
+    """Replace PG-specific column types with SQLite-compatible ones."""
     for table in Base.metadata.tables.values():
         for col in table.columns:
-            if isinstance(col.type, JSONB):
+            if isinstance(col.type, (JSONB, Vector)):
                 key = f"{table.name}.{col.name}"
                 _original_types[key] = col.type
                 col.type = JSON()
 
 
 def _unpatch_jsonb_columns():
-    """Restore original JSONB types."""
+    """Restore original column types."""
     for table in Base.metadata.tables.values():
         for col in table.columns:
             key = f"{table.name}.{col.name}"

@@ -141,10 +141,11 @@ class KnowledgeBaseService:
         self,
         db: AsyncSession,
         embedding_provider: EmbeddingProvider | None = None,
+        settings=None,
     ):
         self.db = db
         self._embedding_provider = embedding_provider or get_embedding_provider()
-        self._settings = get_settings()
+        self._settings = settings or get_settings()
 
     # ----- CRUD -----
 
@@ -195,13 +196,14 @@ class KnowledgeBaseService:
         await self.db.commit()
         await self.db.refresh(doc)
 
-        asyncio.create_task(self._embed_document_task(doc.id))
-        logger.info(
-            "KB: queued embedding for doc %s (%d chunks) user=%s",
-            doc.id,
-            len(pieces),
-            user_id,
-        )
+        if self._settings.kb_background_embedding:
+            asyncio.create_task(self._embed_document_task(doc.id))
+            logger.info(
+                "KB: queued embedding for doc %s (%d chunks) user=%s",
+                doc.id,
+                len(pieces),
+                user_id,
+            )
         return doc
 
     async def list_documents(self, user_id: str) -> list[KnowledgeDocument]:
@@ -226,6 +228,11 @@ class KnowledgeBaseService:
         doc = await self.get_document(document_id, user_id)
         if not doc:
             return False
+        # Delete chunks explicitly so we don't depend on DB-level cascade
+        # (SQLite in tests doesn't enforce FKs by default).
+        await self.db.execute(
+            delete(KnowledgeChunk).where(KnowledgeChunk.document_id == document_id)
+        )
         await self.db.delete(doc)
         await self.db.commit()
         logger.info("KB: deleted doc %s for user %s", document_id, user_id)

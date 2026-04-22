@@ -5,7 +5,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import get_settings
+from app.core.config import Settings, get_settings
 from app.core.security import get_current_user
 from app.db.session import get_db
 from app.schemas.knowledge_base import (
@@ -32,9 +32,9 @@ def get_kb_service(db: Annotated[AsyncSession, Depends(get_db)]) -> KnowledgeBas
 async def upload_document(
     current_user: Annotated[dict[str, Any], Depends(get_current_user)],
     service: Annotated[KnowledgeBaseService, Depends(get_kb_service)],
+    settings: Annotated[Settings, Depends(get_settings)],
     file: Annotated[UploadFile, File(...)],
 ) -> KnowledgeDocumentOut:
-    settings = get_settings()
     max_bytes = settings.kb_max_file_size_mb * 1024 * 1024
 
     payload = await file.read()
