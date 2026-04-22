@@ -83,6 +83,7 @@ class ChatService {
     String? title,
     String? model,
     bool? useMemory,
+    bool? useKnowledgeBase,
     String? systemPrompt,
     bool clearSystemPrompt = false,
     List<String>? enabledTools,
@@ -97,6 +98,7 @@ class ChatService {
         'title': ?title,
         'model': ?model,
         'use_memory': ?useMemory,
+        'use_knowledge_base': ?useKnowledgeBase,
         'is_pinned': ?isPinned,
         if (clearSystemPrompt || effectivePrompt != null)
           'system_prompt': effectivePrompt,

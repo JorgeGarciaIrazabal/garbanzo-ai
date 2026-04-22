@@ -28,6 +28,7 @@ mixin _$Conversation {
   DateTime get updatedAt => throw _privateConstructorUsedError;
   int get messageCount => throw _privateConstructorUsedError;
   bool get useMemory => throw _privateConstructorUsedError;
+  bool get useKnowledgeBase => throw _privateConstructorUsedError;
   bool get isPinned => throw _privateConstructorUsedError;
   String? get contextSummary => throw _privateConstructorUsedError;
   String? get systemPrompt => throw _privateConstructorUsedError;
@@ -59,6 +60,7 @@ abstract class $ConversationCopyWith<$Res> {
     DateTime updatedAt,
     int messageCount,
     bool useMemory,
+    bool useKnowledgeBase,
     bool isPinned,
     String? contextSummary,
     String? systemPrompt,
@@ -89,6 +91,7 @@ class _$ConversationCopyWithImpl<$Res, $Val extends Conversation>
     Object? updatedAt = null,
     Object? messageCount = null,
     Object? useMemory = null,
+    Object? useKnowledgeBase = null,
     Object? isPinned = null,
     Object? contextSummary = freezed,
     Object? systemPrompt = freezed,
@@ -124,6 +127,10 @@ class _$ConversationCopyWithImpl<$Res, $Val extends Conversation>
             useMemory: null == useMemory
                 ? _value.useMemory
                 : useMemory // ignore: cast_nullable_to_non_nullable
+                      as bool,
+            useKnowledgeBase: null == useKnowledgeBase
+                ? _value.useKnowledgeBase
+                : useKnowledgeBase // ignore: cast_nullable_to_non_nullable
                       as bool,
             isPinned: null == isPinned
                 ? _value.isPinned
@@ -168,6 +175,7 @@ abstract class _$$ConversationImplCopyWith<$Res>
     DateTime updatedAt,
     int messageCount,
     bool useMemory,
+    bool useKnowledgeBase,
     bool isPinned,
     String? contextSummary,
     String? systemPrompt,
@@ -197,6 +205,7 @@ class __$$ConversationImplCopyWithImpl<$Res>
     Object? updatedAt = null,
     Object? messageCount = null,
     Object? useMemory = null,
+    Object? useKnowledgeBase = null,
     Object? isPinned = null,
     Object? contextSummary = freezed,
     Object? systemPrompt = freezed,
@@ -232,6 +241,10 @@ class __$$ConversationImplCopyWithImpl<$Res>
         useMemory: null == useMemory
             ? _value.useMemory
             : useMemory // ignore: cast_nullable_to_non_nullable
+                  as bool,
+        useKnowledgeBase: null == useKnowledgeBase
+            ? _value.useKnowledgeBase
+            : useKnowledgeBase // ignore: cast_nullable_to_non_nullable
                   as bool,
         isPinned: null == isPinned
             ? _value.isPinned
@@ -269,6 +282,7 @@ class _$ConversationImpl extends _Conversation {
     required this.updatedAt,
     this.messageCount = 0,
     this.useMemory = true,
+    this.useKnowledgeBase = true,
     this.isPinned = false,
     this.contextSummary,
     this.systemPrompt,
@@ -299,6 +313,9 @@ class _$ConversationImpl extends _Conversation {
   final bool useMemory;
   @override
   @JsonKey()
+  final bool useKnowledgeBase;
+  @override
+  @JsonKey()
   final bool isPinned;
   @override
   final String? contextSummary;
@@ -326,7 +343,7 @@ class _$ConversationImpl extends _Conversation {
 
   @override
   String toString() {
-    return 'Conversation(id: $id, title: $title, model: $model, createdAt: $createdAt, updatedAt: $updatedAt, messageCount: $messageCount, useMemory: $useMemory, isPinned: $isPinned, contextSummary: $contextSummary, systemPrompt: $systemPrompt, enabledTools: $enabledTools, messages: $messages)';
+    return 'Conversation(id: $id, title: $title, model: $model, createdAt: $createdAt, updatedAt: $updatedAt, messageCount: $messageCount, useMemory: $useMemory, useKnowledgeBase: $useKnowledgeBase, isPinned: $isPinned, contextSummary: $contextSummary, systemPrompt: $systemPrompt, enabledTools: $enabledTools, messages: $messages)';
   }
 
   @override
@@ -345,6 +362,8 @@ class _$ConversationImpl extends _Conversation {
                 other.messageCount == messageCount) &&
             (identical(other.useMemory, useMemory) ||
                 other.useMemory == useMemory) &&
+            (identical(other.useKnowledgeBase, useKnowledgeBase) ||
+                other.useKnowledgeBase == useKnowledgeBase) &&
             (identical(other.isPinned, isPinned) ||
                 other.isPinned == isPinned) &&
             (identical(other.contextSummary, contextSummary) ||
@@ -369,6 +388,7 @@ class _$ConversationImpl extends _Conversation {
     updatedAt,
     messageCount,
     useMemory,
+    useKnowledgeBase,
     isPinned,
     contextSummary,
     systemPrompt,
@@ -399,6 +419,7 @@ abstract class _Conversation extends Conversation {
     required final DateTime updatedAt,
     final int messageCount,
     final bool useMemory,
+    final bool useKnowledgeBase,
     final bool isPinned,
     final String? contextSummary,
     final String? systemPrompt,
@@ -424,6 +445,8 @@ abstract class _Conversation extends Conversation {
   int get messageCount;
   @override
   bool get useMemory;
+  @override
+  bool get useKnowledgeBase;
   @override
   bool get isPinned;
   @override

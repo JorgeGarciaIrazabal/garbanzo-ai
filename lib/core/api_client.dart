@@ -17,6 +17,12 @@ const _tokenKey = 'auth_token';
 
 /// Centralized HTTP client that handles base URL resolution, auth headers,
 /// and JSON encoding for all API calls using Dio.
+///
+/// Token lifecycle: the auth token is read from SharedPreferences exactly
+/// once at startup (via [_tokenReady]). After that, [_token] is the sole
+/// source of truth. [setToken] updates both in-memory and prefs. This avoids
+/// a race where a stale token could be re-read from prefs between a
+/// [setToken] clear and its pending prefs.remove() flushing to disk.
 class ApiClient {
   ApiClient._() {
     _dio = Dio(BaseOptions(
@@ -32,12 +38,15 @@ class ApiClient {
       onRequest: _onRequest,
       onResponse: _onResponse,
     ));
+
+    _tokenReady = _hydrateTokenFromPrefs();
   }
 
   static final ApiClient instance = ApiClient._();
 
   late final Dio _dio;
   String? _token;
+  late final Future<void> _tokenReady;
 
   String get baseUrl => _dio.options.baseUrl;
 
@@ -45,10 +54,19 @@ class ApiClient {
   /// Set this from your app to trigger navigation to the login screen.
   VoidCallback? onUnauthorized;
 
+  Future<void> _hydrateTokenFromPrefs() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _token = prefs.getString(_tokenKey);
+    } catch (_) {
+      // If prefs fails, start with no token — user will log in.
+    }
+  }
+
+  /// Returns the current auth token, waiting for the initial prefs load on
+  /// first call. After that, returns the in-memory value synchronously.
   Future<String?> getToken() async {
-    if (_token != null) return _token;
-    final prefs = await SharedPreferences.getInstance();
-    _token = prefs.getString(_tokenKey);
+    await _tokenReady;
     return _token;
   }
 
@@ -62,9 +80,10 @@ class ApiClient {
     }
   }
 
-  Future<void> loadToken() async {
-    _token ??= await getToken();
-  }
+  /// Ensures the startup token-load has completed. Prefer callers to await
+  /// this during app bootstrap so the first request's interceptor doesn't
+  /// have to block on prefs I/O.
+  Future<void> loadToken() => _tokenReady;
 
   // ---------------------------------------------------------------------------
   // Interceptors
@@ -86,6 +105,9 @@ class ApiClient {
 
   void _onResponse(Response response, ResponseInterceptorHandler handler) {
     if (response.statusCode == 401 && _token != null) {
+      // Fire-and-forget is fine here: in-memory _token is cleared
+      // synchronously inside setToken, which is what matters for
+      // subsequent interceptor reads. The prefs write flushes later.
       setToken(null);
       onUnauthorized?.call();
     }

@@ -266,6 +266,7 @@ class ConversationService:
         title: str | None = None,
         model: str | None = None,
         use_memory: bool | None = None,
+        use_knowledge_base: bool | None = None,
         system_prompt: str | None = None,
         clear_system_prompt: bool = False,
         enabled_tools: list[str] | None = None,
@@ -283,6 +284,8 @@ class ConversationService:
             conversation.model = model
         if use_memory is not None:
             conversation.use_memory = use_memory
+        if use_knowledge_base is not None:
+            conversation.use_knowledge_base = use_knowledge_base
         if is_pinned is not None:
             conversation.is_pinned = is_pinned
         if clear_system_prompt:
@@ -349,6 +352,7 @@ class ConversationService:
             model=source.model,
             system_prompt=source.system_prompt,
             use_memory=source.use_memory,
+            use_knowledge_base=source.use_knowledge_base,
             enabled_tools=source.enabled_tools,
         )
         self.db.add(new_conv)

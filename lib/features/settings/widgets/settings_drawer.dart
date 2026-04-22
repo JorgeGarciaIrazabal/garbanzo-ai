@@ -8,6 +8,7 @@ import '../../chat/providers/model_provider.dart';
 import '../../chat/providers/system_prompt_provider.dart';
 import '../../chat/services/audio_service.dart';
 import '../../chat/widgets/system_prompt_editor_dialog.dart';
+import '../../knowledge_base/pages/knowledge_base_page.dart';
 import '../../memory/pages/memory_page.dart';
 import '../../notifications/providers/notification_provider.dart';
 import '../../scheduled_actions/pages/scheduled_actions_page.dart';
@@ -127,6 +128,9 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
                   // -- Memory section --
                   _buildMemorySection(context, settings, colorScheme, theme),
                   const Divider(height: 24),
+                  // -- Knowledge base section --
+                  _buildKnowledgeBaseSection(context, colorScheme, theme),
+                  const Divider(height: 24),
                   // -- Notifications section --
                   _buildNotificationsSection(context, colorScheme, theme),
                   const Divider(height: 24),
@@ -223,6 +227,53 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
           const ListTile(
             title: Text('Use memory'),
             subtitle: Text('Start a conversation to toggle memory'),
+            dense: true,
+            enabled: false,
+          ),
+      ],
+    );
+  }
+
+  Widget _buildKnowledgeBaseSection(
+    BuildContext context,
+    ColorScheme colorScheme,
+    ThemeData theme,
+  ) {
+    final chatProvider = context.watch<ChatProvider>();
+    final conversation = chatProvider.currentConversation;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _SectionHeader(icon: Icons.menu_book, title: 'Knowledge Base'),
+        ListTile(
+          leading: const Icon(Icons.folder_special_outlined),
+          title: const Text('Manage documents'),
+          subtitle: const Text('Upload files for retrieval across chats'),
+          dense: true,
+          onTap: () {
+            Navigator.of(context).pop();
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const KnowledgeBasePage()),
+            );
+          },
+        ),
+        if (conversation != null)
+          SwitchListTile(
+            title: const Text('Use knowledge base'),
+            subtitle: const Text(
+              'Inject relevant document excerpts into this conversation',
+            ),
+            value: conversation.useKnowledgeBase,
+            onChanged: (value) {
+              chatProvider.updateConversation(useKnowledgeBase: value);
+            },
+            dense: true,
+          )
+        else
+          const ListTile(
+            title: Text('Use knowledge base'),
+            subtitle: Text('Start a conversation to toggle retrieval'),
             dense: true,
             enabled: false,
           ),

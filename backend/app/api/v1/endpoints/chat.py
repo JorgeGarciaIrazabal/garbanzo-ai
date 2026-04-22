@@ -202,6 +202,7 @@ async def update_conversation(
         title=data.title,
         model=data.model,
         use_memory=data.use_memory,
+        use_knowledge_base=data.use_knowledge_base,
         system_prompt=None if clear_prompt else data.system_prompt,
         clear_system_prompt=clear_prompt,
         enabled_tools=data.enabled_tools if set_enabled else None,

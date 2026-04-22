@@ -56,6 +56,14 @@ class Settings(BaseSettings):
     # Leave empty to disable push notifications.
     firebase_credentials_path: str = "firebase-service-account.json"
 
+    # Knowledge Base / RAG
+    embedding_model: str = "nomic-embed-text"
+    embedding_dim: int = 768
+    kb_chunk_size: int = 1000  # characters
+    kb_chunk_overlap: int = 150  # characters
+    kb_top_k: int = 5  # top-K chunks injected per message
+    kb_max_file_size_mb: int = 25
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",")]

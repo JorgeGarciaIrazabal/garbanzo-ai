@@ -192,6 +192,10 @@ class ConversationUpdate(BaseModel):
         None,
         description="Enable/disable memory injection for this conversation",
     )
+    use_knowledge_base: bool | None = Field(
+        None,
+        description="Enable/disable knowledge-base retrieval for this conversation",
+    )
     system_prompt: str | None = Field(
         None,
         description=(
@@ -226,6 +230,9 @@ class ConversationOut(BaseModel):
         description="Number of messages in the conversation",
     )
     use_memory: bool = Field(default=True, description="Whether memory injection is enabled")
+    use_knowledge_base: bool = Field(
+        default=True, description="Whether knowledge-base retrieval is enabled"
+    )
     system_prompt: str | None = Field(
         None,
         description="Per-conversation system prompt, if set",
@@ -263,6 +270,7 @@ class ConversationOut(BaseModel):
             updated_at=conv.updated_at,
             message_count=message_count,
             use_memory=getattr(conv, "use_memory", True),
+            use_knowledge_base=getattr(conv, "use_knowledge_base", True),
             system_prompt=getattr(conv, "system_prompt", None),
             enabled_tools=getattr(conv, "enabled_tools", None),
             is_pinned=getattr(conv, "is_pinned", False),
@@ -302,6 +310,7 @@ class ConversationDetailOut(ConversationOut):
             message_count=len(messages),
             messages=messages,
             use_memory=getattr(conv, "use_memory", True),
+            use_knowledge_base=getattr(conv, "use_knowledge_base", True),
             context_summary=getattr(conv, "context_summary", None),
             system_prompt=getattr(conv, "system_prompt", None),
             enabled_tools=getattr(conv, "enabled_tools", None),

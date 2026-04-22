@@ -25,7 +25,11 @@ async_session_maker = async_sessionmaker(
 
 
 async def init_db() -> None:
+    from sqlalchemy import text
+
     async with engine.begin() as conn:
+        # Enable pgvector before create_all so tables with vector columns can be created.
+        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
         await conn.run_sync(Base.metadata.create_all)
 
 

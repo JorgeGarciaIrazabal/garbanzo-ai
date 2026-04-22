@@ -107,11 +107,11 @@ TTS model research (2025):
 - [x] **Token usage dashboard** — Charts showing token consumption by model, conversation, and time period
 
 ## Knowledge Base / RAG
-- [ ] **Knowledge base uploads** — Upload documents that persist across all conversations
-- [ ] **pgvector integration** — Vector embeddings for semantic retrieval
-- [ ] **Embedding generation** — Background job to chunk and embed uploaded documents
-- [ ] **RAG injection** — Retrieve relevant chunks and inject into context before each request
-- [ ] **Knowledge base management UI** — Upload, view, delete documents in the knowledge base
+- [x] **Knowledge base uploads** — Upload documents that persist across all conversations
+- [x] **pgvector integration** — Vector embeddings for semantic retrieval
+- [x] **Embedding generation** — Background job to chunk and embed uploaded documents
+- [x] **RAG injection** — Retrieve relevant chunks and inject into context before each request
+- [x] **Knowledge base management UI** — Upload, view, delete documents in the knowledge base
 
 ## Context Management
 - [x] **Context window indicator** — Visual token count showing how full the context window is

@@ -16,9 +16,15 @@ from app.core.config import get_settings
 from app.models.message import Message
 from app.schemas.chat import AttachmentIn, ChatOptions, ModelInfo
 from app.services.conversation_service import ConversationService
+from app.services.knowledge_base_service import KnowledgeBaseService
 from app.services.llm_provider import ChatChunk, LLMProvider, ProviderRegistry
 from app.services.llm_provider import Message as LLMMessage
-from app.services.mcp_service import MCPService, split_tool_key, to_ollama_tools, tool_key
+from app.services.mcp_service import (
+    MCPService,
+    split_tool_key,
+    to_ollama_tools,
+    tool_key,
+)
 from app.services.memory_service import MemoryService
 from app.services.ollama_provider import OllamaProvider
 from app.services.system_prompt_service import SystemPromptService
@@ -117,6 +123,7 @@ class ChatService:
         self._memories = MemoryService(db)
         self._system_prompts = SystemPromptService(db)
         self._mcp = MCPService(db)
+        self._kb = KnowledgeBaseService(db)
         self._ensure_default_provider()
 
     @classmethod
@@ -473,6 +480,7 @@ class ChatService:
             pending_images,
             conversation.user_id,
             use_memory=conversation.use_memory,
+            use_knowledge_base=conversation.use_knowledge_base,
             context_summary=conversation.context_summary,
             context_summary_until_id=conversation.context_summary_until_id,
             conversation_system_prompt=conversation.system_prompt,
@@ -661,6 +669,7 @@ class ChatService:
         pending_images: list[str] | None = None,
         user_id: str | None = None,
         use_memory: bool = True,
+        use_knowledge_base: bool = True,
         context_summary: str | None = None,
         context_summary_until_id: str | None = None,
         conversation_system_prompt: str | None = None,
@@ -691,10 +700,19 @@ class ChatService:
                     filtered_messages = filtered_messages[i + 1 :]
                     break
 
-        # Build system prompt from (conversation || global default) + memories
+        # Latest user message drives knowledge-base retrieval.
+        last_user_query: str | None = None
+        for m in reversed(filtered_messages):
+            if m.role == "user" and m.content:
+                last_user_query = m.content
+                break
+
+        # Build system prompt from (conversation || global default) + memories + KB
         system_prompt = await self._build_system_prompt(
             user_id=user_id,
             use_memory=use_memory,
+            use_knowledge_base=use_knowledge_base,
+            rag_query=last_user_query,
             conversation_system_prompt=conversation_system_prompt,
         )
 
@@ -729,6 +747,8 @@ class ChatService:
         self,
         user_id: str | None = None,
         use_memory: bool = True,
+        use_knowledge_base: bool = True,
+        rag_query: str | None = None,
         conversation_system_prompt: str | None = None,
     ) -> str:
         """Build the system prompt from (conversation || user default) + memories.
@@ -764,15 +784,40 @@ class ChatService:
             except Exception as e:
                 logger.warning("Failed to load memories for system prompt: %s", e)
 
-        if not base_prompt and not memory_block:
+        kb_block = ""
+        if user_id and use_knowledge_base and rag_query:
+            try:
+                matches = await self._kb.search(user_id=user_id, query=rag_query)
+                if matches:
+                    lines = [
+                        "Relevant excerpts from the user's knowledge base. "
+                        "Cite the source filename when you use them; if none "
+                        "are relevant, ignore this section.",
+                        "",
+                    ]
+                    for m in matches:
+                        lines.append(
+                            f"--- Source: {m.document_filename} "
+                            f"(relevance: {m.score:.2f}) ---"
+                        )
+                        lines.append(m.content)
+                        lines.append("")
+                    kb_block = "\n".join(lines).rstrip()
+            except Exception as e:
+                logger.warning("Failed to load KB context for system prompt: %s", e)
+
+        if not base_prompt and not memory_block and not kb_block:
             return ""
 
-        if not base_prompt and memory_block:
+        if not base_prompt and (memory_block or kb_block):
             base_prompt = "You are a helpful AI assistant."
 
+        sections = [base_prompt]
         if memory_block:
-            return f"{base_prompt}\n\n{memory_block}"
-        return base_prompt
+            sections.append(memory_block)
+        if kb_block:
+            sections.append(kb_block)
+        return "\n\n".join(sections)
 
     async def list_available_models(self) -> list[ModelInfo]:
         provider = self._get_provider()

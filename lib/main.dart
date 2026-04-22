@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:marionette_flutter/marionette_flutter.dart';
 import 'package:provider/provider.dart';
 
+import 'core/api_client.dart';
 import 'core/auth_service.dart';
 import 'features/chat/widgets/chat_page.dart';
 import 'features/notifications/services/push_service.dart';
@@ -18,6 +19,9 @@ void main() {
   } else {
     WidgetsFlutterBinding.ensureInitialized();
   }
+  // Kick off the initial token load before the first widget builds so
+  // auth-bearing requests from providers see an in-memory token immediately.
+  unawaited(ApiClient.instance.loadToken());
   unawaited(PushService.instance.init());
   runApp(const GarbanzoApp());
 }
