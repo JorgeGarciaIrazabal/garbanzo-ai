@@ -13,11 +13,18 @@ import '../../notifications/providers/notification_provider.dart';
 import '../../scheduled_actions/pages/scheduled_actions_page.dart';
 import '../../tools/pages/skills_library_page.dart';
 import '../../tools/providers/tool_provider.dart';
+import '../../usage/pages/usage_page.dart';
+import '../pages/settings_page.dart';
 import '../providers/settings_provider.dart';
 
 /// Right-side drawer with extensible settings sections.
 class SettingsDrawer extends StatefulWidget {
-  const SettingsDrawer({super.key});
+  const SettingsDrawer({super.key, this.onLogout});
+
+  /// Forwarded to the dedicated settings page so its Profile section can
+  /// sign out. Optional: callers that don't pass it get an in-place logout
+  /// via [AuthService] but no navigation callback.
+  final VoidCallback? onLogout;
 
   @override
   State<SettingsDrawer> createState() => _SettingsDrawerState();
@@ -76,6 +83,23 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
                   ),
                 ],
               ),
+            ),
+            const Divider(height: 1),
+            ListTile(
+              leading: const Icon(Icons.open_in_new),
+              title: const Text('Open full settings'),
+              subtitle: const Text('Profile, appearance, models, and more'),
+              dense: true,
+              onTap: () {
+                Navigator.of(context).pop();
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => SettingsPage(
+                      onLogout: widget.onLogout ?? () {},
+                    ),
+                  ),
+                );
+              },
             ),
             const Divider(height: 1),
             Expanded(
@@ -531,6 +555,18 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
             Navigator.of(context).pop();
             Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const ScheduledActionsPage()),
+            );
+          },
+        ),
+        ListTile(
+          leading: const Icon(Icons.bar_chart),
+          title: const Text('Token usage'),
+          subtitle: const Text('Charts by model, conversation, day'),
+          dense: true,
+          onTap: () {
+            Navigator.of(context).pop();
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const UsagePage()),
             );
           },
         ),

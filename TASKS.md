@@ -101,10 +101,10 @@ TTS model research (2025):
 - [x] **Message metadata** — Toggle to show/hide message metadata (tokens, time for response, etc.)
 
 ## Settings & Profile
-- [ ] **User settings page** — Dedicated `/settings` route with sections: Profile, Appearance, Models, Voice, Memory, Notifications
-- [ ] **Profile editing** — Update name and email; change password
-- [ ] **Default model preference** — Persisted per-user default model (DB, not just local state)
-- [ ] **Token usage dashboard** — Charts showing token consumption by model, conversation, and time period
+- [x] **User settings page** — Dedicated `/settings` route with sections: Profile, Appearance, Models, Voice, Memory, Notifications
+- [x] **Profile editing** — Update name and email; change password
+- [x] **Default model preference** — Persisted per-user default model (DB, not just local state)
+- [x] **Token usage dashboard** — Charts showing token consumption by model, conversation, and time period
 
 ## Knowledge Base / RAG
 - [ ] **Knowledge base uploads** — Upload documents that persist across all conversations

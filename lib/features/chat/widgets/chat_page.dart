@@ -223,7 +223,7 @@ class _ChatPageContentState extends State<_ChatPageContent> {
 
     return Scaffold(
       key: _scaffoldKey,
-      endDrawer: const SettingsDrawer(),
+      endDrawer: SettingsDrawer(onLogout: widget.onLogout),
       body: DragTarget<List<dynamic>>(
       onWillAccept: (data) {
         if (data == null || data.isEmpty) return false;

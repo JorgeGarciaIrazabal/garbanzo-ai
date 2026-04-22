@@ -2,6 +2,9 @@ import 'package:dio/dio.dart';
 
 import 'api_client.dart';
 
+/// Sentinel marking "argument not provided" in optional-null contexts.
+const Object _unset = Object();
+
 class AuthService {
   AuthService._();
   static final AuthService instance = AuthService._();
@@ -13,6 +16,66 @@ class AuthService {
   /// The most recently fetched [UserInfo], or null if none has been fetched yet.
   /// Cleared on [logout]. Refreshed by calling [getCurrentUser].
   UserInfo? get cachedUser => _cachedUser;
+
+  /// Update the authenticated user's profile. Any omitted parameter is
+  /// left unchanged. Pass an explicit `null` to [defaultModel] to clear it.
+  Future<AuthResult> updateProfile({
+    String? fullName,
+    String? email,
+    Object? defaultModel = _unset,
+  }) async {
+    try {
+      final body = <String, dynamic>{};
+      if (fullName != null) body['full_name'] = fullName.trim();
+      if (email != null) body['email'] = email.trim();
+      if (!identical(defaultModel, _unset)) {
+        body['default_model'] = defaultModel;
+      }
+      if (body.isEmpty) return AuthResult.success();
+
+      final res = await _client.patch('/api/v1/auth/me', data: body);
+      if (res.statusCode == 200 && res.data is Map<String, dynamic>) {
+        _cachedUser = UserInfo.fromJson(res.data as Map<String, dynamic>);
+        return AuthResult.success();
+      }
+      final data = res.data;
+      final detail =
+          data is Map<String, dynamic> ? data['detail'] as String? : null;
+      return AuthResult.failure(detail ?? 'Failed to update profile');
+    } on DioException catch (e) {
+      return AuthResult.failure(_dioErrorMessage(e));
+    } catch (_) {
+      return AuthResult.failure('Failed to update profile');
+    }
+  }
+
+  /// Change the authenticated user's password.
+  Future<AuthResult> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    try {
+      final res = await _client.post(
+        '/api/v1/auth/me/password',
+        data: {
+          'current_password': currentPassword,
+          'new_password': newPassword,
+        },
+      );
+      if (res.statusCode == 204) return AuthResult.success();
+      if (res.statusCode == 401) {
+        return AuthResult.failure('Current password is incorrect');
+      }
+      final data = res.data;
+      final detail =
+          data is Map<String, dynamic> ? data['detail'] as String? : null;
+      return AuthResult.failure(detail ?? 'Failed to change password');
+    } on DioException catch (e) {
+      return AuthResult.failure(_dioErrorMessage(e));
+    } catch (_) {
+      return AuthResult.failure('Failed to change password');
+    }
+  }
 
   Future<AuthResult> register(
     String email,
@@ -150,6 +213,7 @@ class UserInfo {
   final DateTime? createdAt;
   final bool isAdmin;
   final bool isDisabled;
+  final String? defaultModel;
 
   const UserInfo({
     required this.email,
@@ -157,6 +221,7 @@ class UserInfo {
     this.createdAt,
     this.isAdmin = false,
     this.isDisabled = false,
+    this.defaultModel,
   });
 
   factory UserInfo.fromJson(Map<String, dynamic> json) {
@@ -171,6 +236,7 @@ class UserInfo {
       createdAt: parsedCreatedAt,
       isAdmin: json['is_admin'] as bool? ?? false,
       isDisabled: json['is_disabled'] as bool? ?? false,
+      defaultModel: json['default_model'] as String?,
     );
   }
 
@@ -180,5 +246,6 @@ class UserInfo {
         'created_at': createdAt?.toIso8601String(),
         'is_admin': isAdmin,
         'is_disabled': isDisabled,
+        'default_model': defaultModel,
       };
 }

@@ -13,6 +13,7 @@ from app.api.v1.endpoints import (
     stt,
     system_prompts,
     tts,
+    usage,
 )
 
 api_router = APIRouter()
@@ -37,3 +38,4 @@ api_router.include_router(
     system_prompts.router, prefix="/system-prompts", tags=["system-prompts"]
 )
 api_router.include_router(tts.router, prefix="/tts", tags=["tts"])
+api_router.include_router(usage.router, prefix="/usage", tags=["usage"])

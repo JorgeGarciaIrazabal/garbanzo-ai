@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../../../core/auth_service.dart';
 import '../models/model_info.dart';
 import '../services/chat_service.dart';
 
@@ -7,6 +8,7 @@ import '../services/chat_service.dart';
 ///
 /// Separated from [ChatProvider] so that model state can be loaded once
 /// and shared across the app without tying it to a single conversation.
+/// The user's default model is persisted on the backend via `/auth/me`.
 class ModelProvider extends ChangeNotifier {
   ModelProvider() {
     _loadModels();
@@ -26,11 +28,23 @@ class ModelProvider extends ChangeNotifier {
       _availableModels = modelList.models;
 
       if (_selectedModelId == null && _availableModels.isNotEmpty) {
-        final preferred = _availableModels.firstWhere(
-          (m) => m.id.contains('llama3.2'),
-          orElse: () => _availableModels.first,
-        );
-        _selectedModelId = preferred.id;
+        final serverDefault = AuthService.instance.cachedUser?.defaultModel;
+        ModelInfo? match;
+        if (serverDefault != null && serverDefault.isNotEmpty) {
+          match = _availableModels.firstWhere(
+            (m) => m.id == serverDefault,
+            orElse: () => _availableModels.firstWhere(
+              (m) => m.id.contains('llama3.2'),
+              orElse: () => _availableModels.first,
+            ),
+          );
+        } else {
+          match = _availableModels.firstWhere(
+            (m) => m.id.contains('llama3.2'),
+            orElse: () => _availableModels.first,
+          );
+        }
+        _selectedModelId = match.id;
       }
 
       notifyListeners();
@@ -46,6 +60,14 @@ class ModelProvider extends ChangeNotifier {
       _selectedModelId = modelId;
       notifyListeners();
     }
+  }
+
+  /// Persist [modelId] as the user's default. Use `null` to clear.
+  Future<bool> setDefaultModel(String? modelId) async {
+    final result = await AuthService.instance.updateProfile(
+      defaultModel: modelId,
+    );
+    return result.success;
   }
 
   ModelInfo? get selectedModel {

@@ -175,3 +175,147 @@ class TestMe:
             assert resp.status_code in (401, 403)
         finally:
             _clear_overrides()
+
+
+class TestUpdateProfile:
+    """PATCH /auth/me — partial updates including email cascade."""
+
+    async def _setup(self, db_session):
+        from app.core.security import get_current_user
+
+        _install_overrides(db_session)
+
+        async def _override_user():
+            return {"email": "test@example.com", "token_payload": {}}
+
+        app.dependency_overrides[get_current_user] = _override_user
+
+    def _teardown(self):
+        from app.core.security import get_current_user
+
+        app.dependency_overrides.pop(get_current_user, None)
+        _clear_overrides()
+
+    async def test_update_full_name(self, db_session):
+        await self._setup(db_session)
+        try:
+            async with await _client() as c:
+                resp = await c.patch(
+                    "/api/v1/auth/me",
+                    json={"full_name": "New Name"},
+                    headers={"Authorization": "Bearer x"},
+                )
+            assert resp.status_code == 200, resp.text
+            assert resp.json()["full_name"] == "New Name"
+        finally:
+            self._teardown()
+
+    async def test_update_default_model(self, db_session):
+        await self._setup(db_session)
+        try:
+            async with await _client() as c:
+                resp = await c.patch(
+                    "/api/v1/auth/me",
+                    json={"default_model": "gpt-4o"},
+                    headers={"Authorization": "Bearer x"},
+                )
+            assert resp.status_code == 200
+            assert resp.json()["default_model"] == "gpt-4o"
+        finally:
+            self._teardown()
+
+    async def test_clear_default_model(self, db_session):
+        """Passing null explicitly clears the stored default."""
+        user = (
+            await db_session.execute(
+                __import__("sqlalchemy").select(User).where(
+                    User.email == "test@example.com"
+                )
+            )
+        ).scalar_one()
+        user.default_model = "llama3.2"
+        await db_session.commit()
+
+        await self._setup(db_session)
+        try:
+            async with await _client() as c:
+                resp = await c.patch(
+                    "/api/v1/auth/me",
+                    json={"default_model": None},
+                    headers={"Authorization": "Bearer x"},
+                )
+            assert resp.status_code == 200
+            assert resp.json()["default_model"] is None
+        finally:
+            self._teardown()
+
+    async def test_update_email_rejects_duplicate(self, db_session):
+        db_session.add(
+            User(
+                email="taken@example.com",
+                hashed_password=hash_password("pw"),
+            )
+        )
+        await db_session.commit()
+
+        await self._setup(db_session)
+        try:
+            async with await _client() as c:
+                resp = await c.patch(
+                    "/api/v1/auth/me",
+                    json={"email": "taken@example.com"},
+                    headers={"Authorization": "Bearer x"},
+                )
+            assert resp.status_code == 400
+        finally:
+            self._teardown()
+
+
+class TestChangePassword:
+    async def _setup(self, db_session):
+        from app.core.security import get_current_user
+
+        _install_overrides(db_session)
+
+        async def _override_user():
+            return {"email": "test@example.com", "token_payload": {}}
+
+        app.dependency_overrides[get_current_user] = _override_user
+
+    def _teardown(self):
+        from app.core.security import get_current_user
+
+        app.dependency_overrides.pop(get_current_user, None)
+        _clear_overrides()
+
+    async def test_change_password_success(self, db_session):
+        await self._setup(db_session)
+        try:
+            async with await _client() as c:
+                resp = await c.post(
+                    "/api/v1/auth/me/password",
+                    json={
+                        "current_password": "password123",
+                        "new_password": "newpassword123",
+                    },
+                    headers={"Authorization": "Bearer x"},
+                )
+            assert resp.status_code == 204
+        finally:
+            self._teardown()
+
+    async def test_change_password_wrong_current(self, db_session):
+        await self._setup(db_session)
+        try:
+            async with await _client() as c:
+                resp = await c.post(
+                    "/api/v1/auth/me/password",
+                    json={
+                        "current_password": "wrong",
+                        "new_password": "newpassword123",
+                    },
+                    headers={"Authorization": "Bearer x"},
+                )
+            assert resp.status_code == 401
+        finally:
+            self._teardown()
