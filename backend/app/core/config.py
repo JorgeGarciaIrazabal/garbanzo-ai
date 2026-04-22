@@ -51,6 +51,11 @@ class Settings(BaseSettings):
     # Admin — comma-separated list of emails auto-promoted to is_admin=True on startup
     admin_emails: str = ""
 
+    # Firebase Cloud Messaging (push notifications)
+    # Path to the service-account JSON, relative to backend/ or absolute.
+    # Leave empty to disable push notifications.
+    firebase_credentials_path: str = "firebase-service-account.json"
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",")]

@@ -1,4 +1,5 @@
 from app.models.conversation import Conversation
+from app.models.device_token import DeviceToken
 from app.models.mcp_server import MCPServer
 from app.models.memory import UserMemory
 from app.models.message import Message
@@ -12,4 +13,5 @@ __all__ = [
     "UserMemory",
     "SystemPromptTemplate",
     "MCPServer",
+    "DeviceToken",
 ]

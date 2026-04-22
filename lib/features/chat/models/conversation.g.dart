@@ -15,6 +15,7 @@ _$ConversationImpl _$$ConversationImplFromJson(Map<String, dynamic> json) =>
       updatedAt: DateTime.parse(json['updated_at'] as String),
       messageCount: (json['message_count'] as num?)?.toInt() ?? 0,
       useMemory: json['use_memory'] as bool? ?? true,
+      isPinned: json['is_pinned'] as bool? ?? false,
       contextSummary: json['context_summary'] as String?,
       systemPrompt: json['system_prompt'] as String?,
       enabledTools: (json['enabled_tools'] as List<dynamic>?)
@@ -34,6 +35,7 @@ Map<String, dynamic> _$$ConversationImplToJson(_$ConversationImpl instance) =>
       'updated_at': instance.updatedAt.toIso8601String(),
       'message_count': instance.messageCount,
       'use_memory': instance.useMemory,
+      'is_pinned': instance.isPinned,
       'context_summary': instance.contextSummary,
       'system_prompt': instance.systemPrompt,
       'enabled_tools': instance.enabledTools,

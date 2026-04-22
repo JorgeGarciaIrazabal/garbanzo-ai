@@ -127,6 +127,11 @@ async def lifespan(app: FastAPI):
     from app.scheduler import start_scheduler
 
     start_scheduler()
+
+    # Initialize Firebase Admin SDK for push notifications (no-op if creds missing).
+    from app.services.fcm_service import init_firebase
+
+    init_firebase()
     yield
     # Shutdown scheduler on app exit
     from app.scheduler import stop_scheduler

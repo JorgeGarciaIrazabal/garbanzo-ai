@@ -1,5 +1,8 @@
 """Chat API endpoints for conversations and messaging."""
 
+import asyncio
+import logging
+from collections.abc import AsyncIterator, Awaitable, Callable
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -16,10 +19,18 @@ from app.schemas.chat import (
     ConversationDetailOut,
     ConversationList,
     ConversationOut,
+    ConversationSearchResponse,
+    ConversationSearchResult,
     ConversationUpdate,
+    EditMessageRequest,
+    MatchedMessage,
     ModelList,
+    RegenerateRequest,
 )
 from app.services.chat_service import ChatService
+from app.services.conversation_service import _build_snippet
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -83,6 +94,64 @@ async def list_conversations(
 
 
 @router.get(
+    "/conversations/search",
+    response_model=ConversationSearchResponse,
+    summary="Search conversations by title or message content",
+)
+async def search_conversations(
+    current_user: Annotated[dict[str, Any], Depends(get_current_user)],
+    service: Annotated[ChatService, Depends(get_chat_service)],
+    q: str = Query(..., min_length=1, description="Search query (case-insensitive)"),
+    page: int = Query(1, ge=1, description="Page number"),
+    page_size: int = Query(20, ge=1, le=100, description="Items per page"),
+) -> ConversationSearchResponse:
+    """Return conversations whose title or any message content matches ``q``.
+
+    Results are restricted to the authenticated user's own, non-deleted
+    conversations. Each result includes a snippet of every matched message
+    for quick in-UI preview.
+    """
+    query = q.strip()
+    if not query:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Query must not be empty",
+        )
+
+    hits, total = await service.conversations.search(
+        user_id=current_user["email"],
+        query=query,
+        page=page,
+        page_size=page_size,
+    )
+
+    items = [
+        ConversationSearchResult(
+            conversation=ConversationOut.from_model(hit.conversation),
+            matched_messages=[
+                MatchedMessage(
+                    id=m.id,
+                    role=m.role,  # type: ignore[arg-type]
+                    content=m.content,
+                    snippet=_build_snippet(m.content, query),
+                    created_at=m.created_at,
+                )
+                for m in hit.matched_messages
+            ],
+        )
+        for hit in hits
+    ]
+
+    return ConversationSearchResponse(
+        items=items,
+        total=total,
+        page=page,
+        page_size=page_size,
+        query=query,
+    )
+
+
+@router.get(
     "/conversations/{conversation_id}",
     response_model=ConversationDetailOut,
     summary="Get conversation details",
@@ -138,6 +207,7 @@ async def update_conversation(
         enabled_tools=data.enabled_tools if set_enabled else None,
         set_enabled_tools=set_enabled,
         clear_enabled_tools=clear_enabled,
+        is_pinned=data.is_pinned,
     )
 
     if not conversation:
@@ -177,6 +247,107 @@ async def delete_conversation(
 # =============================================================================
 
 
+async def _sse_stream(
+    chunks: AsyncIterator[Any],
+    *,
+    on_client_disconnect: Callable[[str], Awaitable[None]] | None = None,
+) -> AsyncIterator[str]:
+    """Serialize provider chunks into SSE `data: ...\\n\\n` frames.
+
+    If the client disconnects mid-stream (yield raises CancelledError),
+    ``on_client_disconnect`` is invoked with the assistant content accumulated
+    so far. Used to trigger a push notification when the user backgrounds the
+    app during generation.
+    """
+    accumulated = ""
+    try:
+        async for chunk in chunks:
+            if (
+                chunk.content
+                and not chunk.is_finished
+                and not chunk.is_thinking
+                and not chunk.tool_calls
+                and not (chunk.metadata and chunk.metadata.get("error"))
+            ):
+                accumulated += chunk.content
+
+            if chunk.is_finished:
+                response = ChatResponseChunk(type="done", metadata=chunk.metadata)
+            elif chunk.tool_calls:
+                response = ChatResponseChunk(
+                    type="tool_call",
+                    tool_calls=chunk.tool_calls,
+                )
+            elif chunk.metadata and chunk.metadata.get("tool_result"):
+                response = ChatResponseChunk(
+                    type="tool_result",
+                    tool_result=chunk.metadata["tool_result"],
+                )
+            elif chunk.metadata and chunk.metadata.get("error"):
+                response = ChatResponseChunk(
+                    type="error",
+                    error=chunk.content,
+                    metadata=chunk.metadata,
+                )
+            elif chunk.is_thinking:
+                response = ChatResponseChunk(type="thinking", content=chunk.content)
+            else:
+                response = ChatResponseChunk(type="chunk", content=chunk.content)
+
+            yield f"data: {response.model_dump_json()}\n\n"
+    except asyncio.CancelledError:
+        if on_client_disconnect is not None:
+            asyncio.create_task(on_client_disconnect(accumulated))
+        raise
+    except Exception as e:
+        error_response = ChatResponseChunk(
+            type="error",
+            error=str(e),
+            metadata={"error": True},
+        )
+        yield f"data: {error_response.model_dump_json()}\n\n"
+
+
+def _make_push_callback(
+    user_id: str, conversation_id: str
+) -> Callable[[str], Awaitable[None]]:
+    """Build a callback that sends an FCM push with the accumulated response."""
+
+    async def _push(accumulated: str) -> None:
+        if not accumulated.strip():
+            return
+        try:
+            from app.db.session import async_session_maker
+            from app.services.fcm_service import is_enabled, send_to_user
+
+            if not is_enabled():
+                return
+
+            body = accumulated.strip()
+            if len(body) > 160:
+                body = body[:157] + "..."
+
+            async with async_session_maker() as session:
+                await send_to_user(
+                    session,
+                    user_id,
+                    title="Response ready",
+                    body=body,
+                    data={"conversation_id": conversation_id},
+                )
+        except Exception:
+            logger.exception("Failed to send push notification on disconnect")
+
+    return _push
+
+
+_SSE_HEADERS = {
+    "Cache-Control": "no-cache",
+    "Connection": "keep-alive",
+    "X-Accel-Buffering": "no",
+}
+
+
 @router.post(
     "/conversations/{conversation_id}/chat",
     summary="Send a message and stream response",
@@ -190,57 +361,102 @@ async def chat_stream(
 ) -> StreamingResponse:
     """Stream AI response as Server-Sent Events."""
 
-    async def event_generator():
-        try:
-            async for chunk in service.send_message(
+    return StreamingResponse(
+        _sse_stream(
+            service.send_message(
                 conversation_id=conversation_id,
                 user_id=current_user["email"],
                 content=data.message,
                 options=data.options,
                 attachments=data.attachments or None,
-            ):
-                if chunk.is_finished:
-                    response = ChatResponseChunk(type="done", metadata=chunk.metadata)
-                elif chunk.tool_calls:
-                    response = ChatResponseChunk(
-                        type="tool_call",
-                        tool_calls=chunk.tool_calls,
-                    )
-                elif chunk.metadata and chunk.metadata.get("tool_result"):
-                    response = ChatResponseChunk(
-                        type="tool_result",
-                        tool_result=chunk.metadata["tool_result"],
-                    )
-                elif chunk.metadata and chunk.metadata.get("error"):
-                    response = ChatResponseChunk(
-                        type="error",
-                        error=chunk.content,
-                        metadata=chunk.metadata,
-                    )
-                elif chunk.is_thinking:
-                    response = ChatResponseChunk(type="thinking", content=chunk.content)
-                else:
-                    response = ChatResponseChunk(type="chunk", content=chunk.content)
+            ),
+            on_client_disconnect=_make_push_callback(current_user["email"], conversation_id),
+        ),
+        media_type="text/event-stream",
+        headers=_SSE_HEADERS,
+    )
 
-                yield f"data: {response.model_dump_json()}\n\n"
 
-        except Exception as e:
-            error_response = ChatResponseChunk(
-                type="error",
-                error=str(e),
-                metadata={"error": True},
-            )
-            yield f"data: {error_response.model_dump_json()}\n\n"
+@router.post(
+    "/conversations/{conversation_id}/messages/{message_id}/regenerate",
+    summary="Regenerate an assistant message",
+    response_class=StreamingResponse,
+)
+async def regenerate_message(
+    conversation_id: str,
+    message_id: str,
+    data: RegenerateRequest,
+    current_user: Annotated[dict[str, Any], Depends(get_current_user)],
+    service: Annotated[ChatService, Depends(get_chat_service)],
+) -> StreamingResponse:
+    """Delete the given assistant message and re-stream a new response."""
 
     return StreamingResponse(
-        event_generator(),
+        _sse_stream(
+            service.regenerate_message(
+                conversation_id=conversation_id,
+                user_id=current_user["email"],
+                message_id=message_id,
+                options=data.options,
+            ),
+            on_client_disconnect=_make_push_callback(current_user["email"], conversation_id),
+        ),
         media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "X-Accel-Buffering": "no",
-        },
+        headers=_SSE_HEADERS,
     )
+
+
+@router.post(
+    "/conversations/{conversation_id}/messages/{message_id}/edit",
+    summary="Edit a user message and re-run the conversation",
+    response_class=StreamingResponse,
+)
+async def edit_message(
+    conversation_id: str,
+    message_id: str,
+    data: EditMessageRequest,
+    current_user: Annotated[dict[str, Any], Depends(get_current_user)],
+    service: Annotated[ChatService, Depends(get_chat_service)],
+) -> StreamingResponse:
+    """Update a user message's content, drop every later message, and re-stream."""
+
+    return StreamingResponse(
+        _sse_stream(
+            service.edit_and_resend(
+                conversation_id=conversation_id,
+                user_id=current_user["email"],
+                message_id=message_id,
+                new_content=data.content,
+                options=data.options,
+            ),
+            on_client_disconnect=_make_push_callback(current_user["email"], conversation_id),
+        ),
+        media_type="text/event-stream",
+        headers=_SSE_HEADERS,
+    )
+
+
+@router.post(
+    "/conversations/{conversation_id}/messages/{message_id}/branch",
+    response_model=ConversationOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Branch conversation from a message",
+)
+async def branch_conversation(
+    conversation_id: str,
+    message_id: str,
+    current_user: Annotated[dict[str, Any], Depends(get_current_user)],
+    service: Annotated[ChatService, Depends(get_chat_service)],
+) -> ConversationOut:
+    result = await service.conversations.branch_from_message(
+        conversation_id, message_id, current_user["email"]
+    )
+    if result is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="not_found",
+        )
+    return ConversationOut.from_model(result)
 
 
 @router.delete(

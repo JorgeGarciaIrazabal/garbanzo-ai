@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 
 import 'core/auth_service.dart';
 import 'features/chat/widgets/chat_page.dart';
+import 'features/notifications/services/push_service.dart';
 import 'features/settings/providers/settings_provider.dart';
 import 'pages/login_page.dart';
 import 'pages/register_page.dart';
@@ -14,7 +15,10 @@ import 'pages/register_page.dart';
 void main() {
   if (kDebugMode) {
     MarionetteBinding.ensureInitialized();
+  } else {
+    WidgetsFlutterBinding.ensureInitialized();
   }
+  unawaited(PushService.instance.init());
   runApp(const GarbanzoApp());
 }
 
@@ -118,6 +122,9 @@ class _AuthGateState extends State<AuthGate> {
         _checking = false;
       });
     }
+    if (isLoggedIn) {
+      unawaited(PushService.instance.registerDevice());
+    }
   }
 
   void _onLoginSuccess() {
@@ -125,15 +132,18 @@ class _AuthGateState extends State<AuthGate> {
     // Fire-and-forget: populate cached user (including is_admin) without
     // blocking the UI transition.
     unawaited(AuthService.instance.getCurrentUser());
+    unawaited(PushService.instance.registerDevice());
   }
 
   void _onRegisterSuccess() {
     setState(() => _loggedIn = true);
     unawaited(AuthService.instance.getCurrentUser());
+    unawaited(PushService.instance.registerDevice());
   }
 
   void _onLogout() {
     setState(() => _loggedIn = false);
+    unawaited(PushService.instance.unregisterDevice());
   }
 
   void _showRegisterPage() {

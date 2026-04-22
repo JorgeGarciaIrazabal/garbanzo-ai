@@ -87,6 +87,7 @@ class ChatService {
     bool clearSystemPrompt = false,
     List<String>? enabledTools,
     bool clearEnabledTools = false,
+    bool? isPinned,
   }) async {
     // clearSystemPrompt=true sends "" to the backend to reset to user default.
     final effectivePrompt = clearSystemPrompt ? '' : systemPrompt;
@@ -96,6 +97,7 @@ class ChatService {
         'title': ?title,
         'model': ?model,
         'use_memory': ?useMemory,
+        'is_pinned': ?isPinned,
         if (clearSystemPrompt || effectivePrompt != null)
           'system_prompt': effectivePrompt,
         if (clearEnabledTools) 'enabled_tools': null,
@@ -137,21 +139,68 @@ class ChatService {
     double temperature = 0.7,
     int? maxTokens,
     double? topP,
-  }) async* {
-    final response = await _api.streamPost(
+  }) {
+    return _sseStream(
       '/api/v1/chat/conversations/$conversationId/chat',
-      data: {
+      {
         'message': message,
         if (attachments.isNotEmpty)
           'attachments': attachments.map((a) => a.toJson()).toList(),
-        'options': {
-          'temperature': temperature,
-          'max_tokens': ?maxTokens,
-          'top_p': ?topP,
-          'stream': true,
-        },
+        'options': _buildOptions(temperature, maxTokens, topP),
       },
     );
+  }
+
+  /// Regenerate an assistant message; the prior one is deleted server-side.
+  Stream<ChatResponseChunk> regenerateMessage(
+    String conversationId,
+    String messageId, {
+    double temperature = 0.7,
+    int? maxTokens,
+    double? topP,
+  }) {
+    return _sseStream(
+      '/api/v1/chat/conversations/$conversationId/messages/$messageId/regenerate',
+      {'options': _buildOptions(temperature, maxTokens, topP)},
+    );
+  }
+
+  /// Edit a user message and re-run the conversation from that point.
+  Stream<ChatResponseChunk> editMessage(
+    String conversationId,
+    String messageId,
+    String newContent, {
+    double temperature = 0.7,
+    int? maxTokens,
+    double? topP,
+  }) {
+    return _sseStream(
+      '/api/v1/chat/conversations/$conversationId/messages/$messageId/edit',
+      {
+        'content': newContent,
+        'options': _buildOptions(temperature, maxTokens, topP),
+      },
+    );
+  }
+
+  Map<String, dynamic> _buildOptions(
+    double temperature,
+    int? maxTokens,
+    double? topP,
+  ) {
+    return {
+      'temperature': temperature,
+      'max_tokens': ?maxTokens,
+      'top_p': ?topP,
+      'stream': true,
+    };
+  }
+
+  Stream<ChatResponseChunk> _sseStream(
+    String path,
+    Map<String, dynamic> data,
+  ) async* {
+    final response = await _api.streamPost(path, data: data);
 
     final byteStream = (response.data as ResponseBody).stream;
 
@@ -170,8 +219,8 @@ class ChatService {
           final jsonStr = trimmed.substring(6);
           if (jsonStr.isNotEmpty && jsonStr != '[DONE]') {
             try {
-              final data = jsonDecode(jsonStr) as Map<String, dynamic>;
-              yield ChatResponseChunk.fromJson(data);
+              final decoded = jsonDecode(jsonStr) as Map<String, dynamic>;
+              yield ChatResponseChunk.fromJson(decoded);
             } catch (e) {
               if (kDebugMode) {
                 print('Failed to parse SSE chunk: $jsonStr');
@@ -181,6 +230,25 @@ class ChatService {
         }
       }
     }
+  }
+
+  // ==========================================================================
+  // Models
+  // ==========================================================================
+
+  Future<Conversation> branchConversation(
+    String conversationId,
+    String messageId,
+  ) async {
+    final response = await _api.post(
+      '/api/v1/chat/conversations/$conversationId/messages/$messageId/branch',
+    );
+
+    if (response.statusCode == 201) {
+      return Conversation.fromJson(response.data as Map<String, dynamic>);
+    }
+
+    throw _handleError(response);
   }
 
   // ==========================================================================

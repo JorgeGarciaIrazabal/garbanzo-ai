@@ -52,5 +52,9 @@ app.*.map.json
 #backend data
 backend/data/*
 
+# Firebase secrets (FCM)
+android/app/google-services.json
+backend/firebase-service-account.json
+
 # Vendored dependencies (installed locally, not checked in)
 vendor/

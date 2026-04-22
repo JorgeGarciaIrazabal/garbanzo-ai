@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../models/conversation.dart';
+import '../providers/search_provider.dart';
+import 'search_results_widget.dart';
+import 'search_widget.dart';
 
 /// Widget displaying a list of conversations.
 class ConversationListWidget extends StatelessWidget {
@@ -11,6 +15,7 @@ class ConversationListWidget extends StatelessWidget {
     required this.onSelect,
     required this.onDelete,
     required this.onNewChat,
+    this.onTogglePin,
     this.isLoading = false,
   });
 
@@ -19,6 +24,7 @@ class ConversationListWidget extends StatelessWidget {
   final ValueChanged<String> onSelect;
   final ValueChanged<String> onDelete;
   final VoidCallback onNewChat;
+  final ValueChanged<String>? onTogglePin;
   final bool isLoading;
 
   @override
@@ -63,32 +69,45 @@ class ConversationListWidget extends StatelessWidget {
               ],
             ),
           ),
-          // Conversation list
+          const SearchWidget(),
+          // Conversation list or search results
           Expanded(
-            child: isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : conversations.isEmpty
-                    ? _EmptyState(colorScheme: colorScheme)
-                    : ListView.builder(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        itemCount: conversations.length,
-                        itemBuilder: (context, index) {
-                          final conversation = conversations[index];
-                          final isSelected = conversation.id == selectedId;
+            child: Consumer<SearchProvider>(
+              builder: (context, searchProvider, _) {
+                if (searchProvider.searchQuery.isNotEmpty) {
+                  return const SearchResultsWidget();
+                }
+                if (isLoading) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (conversations.isEmpty) {
+                  return _EmptyState(colorScheme: colorScheme);
+                }
+                return ListView.builder(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  itemCount: conversations.length,
+                  itemBuilder: (context, index) {
+                    final conversation = conversations[index];
+                    final isSelected = conversation.id == selectedId;
 
-                          return _ConversationListItem(
-                            conversation: conversation,
-                            isSelected: isSelected,
-                            onTap: () => onSelect(conversation.id),
-                            onDelete: () => _confirmDelete(
-                              context,
-                              conversation,
-                            ),
-                            colorScheme: colorScheme,
-                            textTheme: theme.textTheme,
-                          );
-                        },
+                    return _ConversationListItem(
+                      conversation: conversation,
+                      isSelected: isSelected,
+                      onTap: () => onSelect(conversation.id),
+                      onDelete: () => _confirmDelete(
+                        context,
+                        conversation,
                       ),
+                      onTogglePin: onTogglePin == null
+                          ? null
+                          : () => onTogglePin!(conversation.id),
+                      colorScheme: colorScheme,
+                      textTheme: theme.textTheme,
+                    );
+                  },
+                );
+              },
+            ),
           ),
         ],
       ),
@@ -164,17 +183,23 @@ class _ConversationListItem extends StatelessWidget {
     required this.onDelete,
     required this.colorScheme,
     required this.textTheme,
+    this.onTogglePin,
   });
 
   final Conversation conversation;
   final bool isSelected;
   final VoidCallback onTap;
   final VoidCallback onDelete;
+  final VoidCallback? onTogglePin;
   final ColorScheme colorScheme;
   final TextTheme textTheme;
 
   @override
   Widget build(BuildContext context) {
+    final unselectedIcon = isSelected
+        ? colorScheme.onPrimaryContainer.withOpacity(0.7)
+        : colorScheme.onSurfaceVariant.withOpacity(0.5);
+
     return Material(
       color: isSelected
           ? colorScheme.primaryContainer
@@ -192,9 +217,9 @@ class _ConversationListItem extends StatelessWidget {
           ),
           child: Row(
             children: [
-              // Icon
+              // Icon (pinned → push-pin, else chat)
               Icon(
-                Icons.chat,
+                conversation.isPinned ? Icons.push_pin : Icons.chat,
                 size: 20,
                 color: isSelected
                     ? colorScheme.onPrimaryContainer
@@ -229,13 +254,24 @@ class _ConversationListItem extends StatelessWidget {
                   ],
                 ),
               ),
+              if (onTogglePin != null)
+                IconButton(
+                  onPressed: onTogglePin,
+                  icon: Icon(
+                    conversation.isPinned
+                        ? Icons.push_pin
+                        : Icons.push_pin_outlined,
+                    size: 18,
+                  ),
+                  tooltip: conversation.isPinned ? 'Unpin' : 'Pin',
+                  color: unselectedIcon,
+                  visualDensity: VisualDensity.compact,
+                ),
               // Delete button
               IconButton(
                 onPressed: onDelete,
                 icon: const Icon(Icons.delete_outline, size: 18),
-                color: isSelected
-                    ? colorScheme.onPrimaryContainer.withOpacity(0.7)
-                    : colorScheme.onSurfaceVariant.withOpacity(0.5),
+                color: unselectedIcon,
                 visualDensity: VisualDensity.compact,
               ),
             ],

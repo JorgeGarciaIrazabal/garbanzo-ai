@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import uuid
+from dataclasses import dataclass
 
 from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,6 +14,53 @@ from app.models.conversation import Conversation
 from app.models.message import Message
 
 logger = logging.getLogger(__name__)
+
+
+# Number of characters of context to include on each side of a match
+# when building a search-result snippet.
+SNIPPET_CONTEXT_CHARS = 100
+
+
+def _build_snippet(content: str, query: str, context: int = SNIPPET_CONTEXT_CHARS) -> str:
+    """Return a short excerpt of ``content`` around the first occurrence of ``query``.
+
+    Search is case-insensitive. If ``query`` is not found (e.g. because this
+    message was matched via an FTS-style search on another field), the first
+    ``context * 2`` chars of the content are returned instead.
+
+    The returned string is prefixed / suffixed with ``"..."`` when truncation
+    occurred at that end.
+    """
+    if not content:
+        return ""
+
+    lower_content = content.lower()
+    lower_query = (query or "").lower().strip()
+    idx = lower_content.find(lower_query) if lower_query else -1
+
+    if idx == -1:
+        # Fallback: return the head of the message.
+        head = content[: context * 2]
+        return head + ("..." if len(content) > context * 2 else "")
+
+    start = max(0, idx - context)
+    end = min(len(content), idx + len(lower_query) + context)
+    prefix = "..." if start > 0 else ""
+    suffix = "..." if end < len(content) else ""
+    return f"{prefix}{content[start:end]}{suffix}"
+
+
+@dataclass
+class ConversationSearchHit:
+    """Internal search result: a conversation plus the messages that matched.
+
+    The service layer returns these instead of Pydantic models so the
+    API layer can shape the response. ``matched_messages`` is empty when
+    the match came solely from the conversation's title.
+    """
+
+    conversation: Conversation
+    matched_messages: list[Message]
 
 
 class ConversationService:
@@ -96,7 +144,7 @@ class ConversationService:
 
         query = (
             base.options(selectinload(Conversation.messages))
-            .order_by(desc(Conversation.updated_at))
+            .order_by(desc(Conversation.is_pinned), desc(Conversation.updated_at))
             .offset((page - 1) * page_size)
             .limit(page_size)
         )
@@ -105,6 +153,111 @@ class ConversationService:
         conversations = list(result.scalars().all())
 
         return conversations, total
+
+    async def search(
+        self,
+        user_id: str,
+        query: str,
+        page: int = 1,
+        page_size: int = 20,
+    ) -> tuple[list[ConversationSearchHit], int]:
+        """Search the user's conversations by title or message content.
+
+        Case-insensitive substring search (``ILIKE``) is performed against:
+          * ``Conversation.title``
+          * ``Message.content`` for every message in any non-deleted
+            conversation owned by ``user_id``.
+
+        Only conversations belonging to ``user_id`` (and not soft-deleted)
+        can appear in the results — user isolation is enforced at every
+        stage of the query.
+
+        Returns a tuple ``(hits, total)`` where ``hits`` is a paginated list
+        of :class:`ConversationSearchHit` ordered by the conversation's
+        ``updated_at`` (newest first), and ``total`` is the unpaginated
+        count of matching conversations.
+        """
+        normalized = (query or "").strip()
+        if not normalized:
+            return [], 0
+
+        # Escape LIKE wildcards in the user-supplied query so characters
+        # like '%' and '_' match literally.
+        escaped = normalized.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        pattern = f"%{escaped}%"
+
+        # Sub-query: distinct conversation IDs that match either by title
+        # or by having at least one message whose content matches.
+        title_match = (
+            select(Conversation.id)
+            .where(
+                Conversation.is_deleted == False,  # noqa: E712
+                Conversation.user_id == user_id,
+                Conversation.title.ilike(pattern, escape="\\"),
+            )
+        )
+        message_match = (
+            select(Conversation.id)
+            .join(Message, Message.conversation_id == Conversation.id)
+            .where(
+                Conversation.is_deleted == False,  # noqa: E712
+                Conversation.user_id == user_id,
+                Message.content.ilike(pattern, escape="\\"),
+            )
+        )
+        matching_ids_subq = title_match.union(message_match).subquery()
+
+        # Total number of matching conversations.
+        count_query = select(func.count()).select_from(matching_ids_subq)
+        total = (await self.db.execute(count_query)).scalar() or 0
+
+        if total == 0:
+            return [], 0
+
+        # Paginated conversations, newest updates first.
+        convs_query = (
+            select(Conversation)
+            .where(
+                Conversation.is_deleted == False,  # noqa: E712
+                Conversation.user_id == user_id,
+                Conversation.id.in_(select(matching_ids_subq.c.id)),
+            )
+            .options(selectinload(Conversation.messages))
+            .order_by(desc(Conversation.updated_at))
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+        conversations = list((await self.db.execute(convs_query)).scalars().all())
+
+        if not conversations:
+            return [], total
+
+        # Pull every message whose content matched the query and belongs to
+        # one of the conversations on this page, so we can attach snippets.
+        conv_ids = [c.id for c in conversations]
+        matched_msgs_query = (
+            select(Message)
+            .where(
+                Message.conversation_id.in_(conv_ids),
+                Message.content.ilike(pattern, escape="\\"),
+            )
+            .order_by(Message.created_at)
+        )
+        matched_messages = list(
+            (await self.db.execute(matched_msgs_query)).scalars().all()
+        )
+        msgs_by_conv: dict[str, list[Message]] = {cid: [] for cid in conv_ids}
+        for msg in matched_messages:
+            msgs_by_conv.setdefault(msg.conversation_id, []).append(msg)
+
+        hits = [
+            ConversationSearchHit(
+                conversation=conv,
+                matched_messages=msgs_by_conv.get(conv.id, []),
+            )
+            for conv in conversations
+        ]
+        return hits, total
 
     async def update(
         self,
@@ -118,6 +271,7 @@ class ConversationService:
         enabled_tools: list[str] | None = None,
         set_enabled_tools: bool = False,
         clear_enabled_tools: bool = False,
+        is_pinned: bool | None = None,
     ) -> Conversation | None:
         conversation = await self.get(conversation_id, user_id, include_messages=False)
         if not conversation:
@@ -129,6 +283,8 @@ class ConversationService:
             conversation.model = model
         if use_memory is not None:
             conversation.use_memory = use_memory
+        if is_pinned is not None:
+            conversation.is_pinned = is_pinned
         if clear_system_prompt:
             conversation.system_prompt = None
         elif system_prompt is not None:
@@ -167,3 +323,59 @@ class ConversationService:
 
         logger.info("Deleted conversation %s for user %s", conversation_id, user_id)
         return True
+
+    async def branch_from_message(
+        self,
+        conversation_id: str,
+        message_id: str,
+        user_id: str,
+    ) -> Conversation | None:
+        """Create a new conversation with messages up to (and including) the branch point."""
+        source = await self.get(conversation_id, user_id, include_messages=True)
+        if source is None:
+            return None
+
+        messages = source.messages or []
+        branch_idx = next((i for i, m in enumerate(messages) if m.id == message_id), None)
+        if branch_idx is None:
+            return None
+        messages_to_copy = messages[: branch_idx + 1]
+
+        new_id = str(uuid.uuid4())
+        new_conv = Conversation(
+            id=new_id,
+            user_id=user_id,
+            title=source.title,
+            model=source.model,
+            system_prompt=source.system_prompt,
+            use_memory=source.use_memory,
+            enabled_tools=source.enabled_tools,
+        )
+        self.db.add(new_conv)
+
+        for msg in messages_to_copy:
+            self.db.add(
+                Message(
+                    id=str(uuid.uuid4()),
+                    conversation_id=new_id,
+                    role=msg.role,
+                    content=msg.content,
+                    meta=msg.meta,
+                    created_at=msg.created_at,
+                )
+            )
+
+        await self.db.commit()
+
+        result = await self.db.scalar(
+            select(Conversation)
+            .where(Conversation.id == new_id)
+            .options(selectinload(Conversation.messages))
+        )
+        logger.info(
+            "Branched conversation %s at message %s for user %s",
+            conversation_id,
+            message_id,
+            user_id,
+        )
+        return result

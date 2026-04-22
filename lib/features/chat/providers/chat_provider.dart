@@ -143,6 +143,7 @@ class ChatProvider extends ChangeNotifier {
     bool clearSystemPrompt = false,
     List<String>? enabledTools,
     bool clearEnabledTools = false,
+    bool? isPinned,
   }) async {
     if (_currentConversation == null) return;
 
@@ -159,11 +160,33 @@ class ChatProvider extends ChangeNotifier {
         clearSystemPrompt: clearSystemPrompt,
         enabledTools: enabledTools,
         clearEnabledTools: clearEnabledTools,
+        isPinned: isPinned,
       );
       _currentConversation = updated;
       await _loadConversations();
     } catch (e) {
       _error = 'Failed to update conversation: $e';
+      if (kDebugMode) print(_error);
+      notifyListeners();
+    }
+  }
+
+  Future<void> togglePin(String conversationId) async {
+    _error = null;
+    try {
+      final idx = _conversations.indexWhere((c) => c.id == conversationId);
+      if (idx < 0) return;
+      final conv = _conversations[idx];
+      final updated = await _chatService.updateConversation(
+        conversationId,
+        isPinned: !conv.isPinned,
+      );
+      if (_currentConversation?.id == conversationId) {
+        _currentConversation = updated;
+      }
+      await _loadConversations();
+    } catch (e) {
+      _error = 'Failed to pin conversation: $e';
       if (kDebugMode) print(_error);
       notifyListeners();
     }
@@ -281,86 +304,174 @@ class ChatProvider extends ChangeNotifier {
     }
     notifyListeners();
 
-    final assistantMessageId = 'temp-${_uuid.v4()}';
-    String accumulatedContent = '';
-    String accumulatedThinking = '';
-
     try {
       final stream = _chatService.streamChatResponse(
         _currentConversation!.id,
         content,
         attachments: attachments,
       );
-
-      _streamSubscription = stream.listen(
-        (chunk) {
-          if (chunk.isThinking && chunk.content != null) {
-            accumulatedThinking += chunk.content!;
-            _upsertAssistantMessage(
-              assistantMessageId,
-              accumulatedContent,
-              accumulatedThinking,
-              null,
-            );
-            notifyListeners();
-          } else if (chunk.isChunk && chunk.content != null) {
-            accumulatedContent += chunk.content!;
-            _upsertAssistantMessage(
-              assistantMessageId,
-              accumulatedContent,
-              accumulatedThinking,
-              null,
-            );
-            notifyListeners();
-          } else if (chunk.isToolCall) {
-            _appendToolCallMessages(chunk.toolCalls ?? const []);
-            notifyListeners();
-          } else if (chunk.isToolResult) {
-            _appendToolResultMessage(chunk.toolResult);
-            notifyListeners();
-          } else if (chunk.isDone) {
-            // Apply final metadata (tokens, timing, etc.) to the message
-            _upsertAssistantMessage(
-              assistantMessageId,
-              accumulatedContent,
-              accumulatedThinking,
-              chunk.metadata,
-            );
-            _isSending = false;
-
-            if (_currentConversation != null) {
-              _currentConversation = _currentConversation!.copyWith(
-                messageCount: _messages.length,
-              );
-              _updateConversationInList();
-            }
-
-            notifyListeners();
-            _reloadCurrentConversation();
-          } else if (chunk.isError) {
-            _error = chunk.error ?? 'An error occurred';
-            _isSending = false;
-            notifyListeners();
-          }
-        },
-        onError: (e) {
-          _error = 'Streaming error: $e';
-          _isSending = false;
-          if (kDebugMode) print('Stream error: $e');
-          notifyListeners();
-        },
-        onDone: () {
-          _isSending = false;
-          _streamSubscription = null;
-          notifyListeners();
-        },
-      );
+      _consumeAssistantStream(stream);
     } catch (e) {
       _error = 'Failed to send message: $e';
       _isSending = false;
       if (kDebugMode) print(_error);
       notifyListeners();
     }
+  }
+
+  /// Regenerate the last assistant reply in the current conversation.
+  Future<void> regenerateLastAssistant() async {
+    if (_currentConversation == null || _isSending) return;
+
+    final lastAssistantIdx =
+        _messages.lastIndexWhere((m) => m.isAssistant && !m.id.startsWith('temp-'));
+    if (lastAssistantIdx < 0) return;
+    final messageId = _messages[lastAssistantIdx].id;
+
+    _error = null;
+    _isSending = true;
+    // Trim the old assistant reply and any trailing tool turns we've already
+    // rendered locally; the backend does the same deletion for us.
+    _messages = _messages.sublist(0, lastAssistantIdx);
+    notifyListeners();
+
+    try {
+      final stream = _chatService.regenerateMessage(
+        _currentConversation!.id,
+        messageId,
+      );
+      _consumeAssistantStream(stream);
+    } catch (e) {
+      _error = 'Failed to regenerate: $e';
+      _isSending = false;
+      if (kDebugMode) print(_error);
+      notifyListeners();
+    }
+  }
+
+  /// Edit a user message's text and re-run the conversation from that point.
+  Future<void> editUserMessage(String messageId, String newContent) async {
+    if (_currentConversation == null || _isSending) return;
+    if (newContent.trim().isEmpty) return;
+
+    final idx = _messages.indexWhere((m) => m.id == messageId);
+    if (idx < 0) return;
+    final target = _messages[idx];
+    if (!target.isUser) return;
+
+    _error = null;
+    _isSending = true;
+
+    // Optimistically update the message text and drop everything after it.
+    final edited = target.copyWith(content: newContent);
+    _messages = [..._messages.sublist(0, idx), edited];
+    notifyListeners();
+
+    try {
+      final stream = _chatService.editMessage(
+        _currentConversation!.id,
+        messageId,
+        newContent,
+      );
+      _consumeAssistantStream(stream);
+    } catch (e) {
+      _error = 'Failed to edit message: $e';
+      _isSending = false;
+      if (kDebugMode) print(_error);
+      notifyListeners();
+    }
+  }
+
+  /// Fork the conversation from a specific message into a new branch.
+  Future<void> branchFromMessage(String messageId) async {
+    if (_currentConversation == null) return;
+
+    _error = null;
+    notifyListeners();
+
+    try {
+      final newConv = await _chatService.branchConversation(
+        _currentConversation!.id,
+        messageId,
+      );
+      // Prepend to sidebar list
+      _conversations = [newConv, ..._conversations];
+      // Navigate to new branch
+      await loadConversation(newConv.id);
+    } catch (e) {
+      _error = 'Failed to branch conversation: $e';
+      if (kDebugMode) print(_error);
+      notifyListeners();
+    }
+  }
+
+  void _consumeAssistantStream(Stream<ChatResponseChunk> stream) {
+    final assistantMessageId = 'temp-${_uuid.v4()}';
+    String accumulatedContent = '';
+    String accumulatedThinking = '';
+
+    _streamSubscription = stream.listen(
+      (chunk) {
+        if (chunk.isThinking && chunk.content != null) {
+          accumulatedThinking += chunk.content!;
+          _upsertAssistantMessage(
+            assistantMessageId,
+            accumulatedContent,
+            accumulatedThinking,
+            null,
+          );
+          notifyListeners();
+        } else if (chunk.isChunk && chunk.content != null) {
+          accumulatedContent += chunk.content!;
+          _upsertAssistantMessage(
+            assistantMessageId,
+            accumulatedContent,
+            accumulatedThinking,
+            null,
+          );
+          notifyListeners();
+        } else if (chunk.isToolCall) {
+          _appendToolCallMessages(chunk.toolCalls ?? const []);
+          notifyListeners();
+        } else if (chunk.isToolResult) {
+          _appendToolResultMessage(chunk.toolResult);
+          notifyListeners();
+        } else if (chunk.isDone) {
+          _upsertAssistantMessage(
+            assistantMessageId,
+            accumulatedContent,
+            accumulatedThinking,
+            chunk.metadata,
+          );
+          _isSending = false;
+
+          if (_currentConversation != null) {
+            _currentConversation = _currentConversation!.copyWith(
+              messageCount: _messages.length,
+            );
+            _updateConversationInList();
+          }
+
+          notifyListeners();
+          _reloadCurrentConversation();
+        } else if (chunk.isError) {
+          _error = chunk.error ?? 'An error occurred';
+          _isSending = false;
+          notifyListeners();
+        }
+      },
+      onError: (e) {
+        _error = 'Streaming error: $e';
+        _isSending = false;
+        if (kDebugMode) print('Stream error: $e');
+        notifyListeners();
+      },
+      onDone: () {
+        _isSending = false;
+        _streamSubscription = null;
+        notifyListeners();
+      },
+    );
   }
 
   Future<void> stopStreaming() async {

@@ -8,6 +8,7 @@ from app.db.base import Base
 
 if TYPE_CHECKING:
     from app.models.conversation import Conversation
+    from app.models.device_token import DeviceToken
     from app.models.memory import UserMemory
     from app.models.system_prompt import SystemPromptTemplate
 
@@ -46,6 +47,10 @@ class User(Base):
         cascade="all, delete-orphan",
     )
     system_prompt_templates: Mapped[list["SystemPromptTemplate"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    device_tokens: Mapped[list["DeviceToken"]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
     )

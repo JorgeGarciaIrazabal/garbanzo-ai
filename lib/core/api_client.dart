@@ -124,8 +124,8 @@ class ApiClient {
     return _dio.put(path, data: data);
   }
 
-  Future<Response> delete(String path) {
-    return _dio.delete(path);
+  Future<Response> delete(String path, {Object? data}) {
+    return _dio.delete(path, data: data);
   }
 
   /// Send a POST request expecting an SSE stream response.

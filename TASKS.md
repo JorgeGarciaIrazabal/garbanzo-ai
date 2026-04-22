@@ -80,14 +80,14 @@ TTS model research (2025):
 - [ ] **Scheduled actions management UI** — List, pause, delete scheduled actions
 
 ## Conversation UX
-- [ ] **Message editing** — Edit a sent user message and re-run from that point
-- [ ] **Message regeneration** — "Regenerate" button to re-run the last assistant response
-- [ ] **Message branching** — Fork conversation from any message into a new branch
-- [ ] **Conversation search** — Full-text search across all conversations and messages
+- [x] **Message editing** — Edit a sent user message and re-run from that point
+- [x] **Message regeneration** — "Regenerate" button to re-run the last assistant response
+- [x] **Message branching** — Fork conversation from any message into a new branch
+- [x] **Conversation search** — Full-text search across all conversations and messages
 - [ ] **Conversation export** — Download as Markdown, JSON, or PDF
 - [ ] **Conversation sharing** — Generate a read-only shareable link
 - [ ] **Conversation folders / tags** — Organize conversations into named groups
-- [ ] **Pinned conversations** — Pin important conversations to the top of the sidebar
+- [x] **Pinned conversations** — Pin important conversations to the top of the sidebar
 - [ ] **Conversation templates** — Start a new chat from a saved template (prompt + system prompt + model)
 - [ ] **Message reactions / starring** — Star or bookmark individual messages
 

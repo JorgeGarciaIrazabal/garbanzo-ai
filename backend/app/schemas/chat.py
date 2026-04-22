@@ -93,6 +93,25 @@ class ChatRequest(BaseModel):
     )
 
 
+class RegenerateRequest(BaseModel):
+    """Request to regenerate an assistant response."""
+
+    options: ChatOptions = Field(
+        default_factory=ChatOptions,
+        description="Generation options",
+    )
+
+
+class EditMessageRequest(BaseModel):
+    """Request to edit a user message and re-run the conversation from it."""
+
+    content: str = Field(..., min_length=1, description="The new message content")
+    options: ChatOptions = Field(
+        default_factory=ChatOptions,
+        description="Generation options",
+    )
+
+
 class ChatResponseChunk(BaseModel):
     """A chunk of a streaming chat response."""
 
@@ -188,6 +207,10 @@ class ConversationUpdate(BaseModel):
             "Each key is \"{server_id}:{tool_name}\"."
         ),
     )
+    is_pinned: bool | None = Field(
+        None,
+        description="Pin/unpin this conversation in the sidebar",
+    )
 
 
 class ConversationOut(BaseModel):
@@ -214,6 +237,7 @@ class ConversationOut(BaseModel):
             "[] = none, [\"srv:tool\"] = subset."
         ),
     )
+    is_pinned: bool = Field(default=False, description="Whether this conversation is pinned")
 
     model_config = {"from_attributes": True}
 
@@ -241,6 +265,7 @@ class ConversationOut(BaseModel):
             use_memory=getattr(conv, "use_memory", True),
             system_prompt=getattr(conv, "system_prompt", None),
             enabled_tools=getattr(conv, "enabled_tools", None),
+            is_pinned=getattr(conv, "is_pinned", False),
         )
 
 
@@ -280,6 +305,7 @@ class ConversationDetailOut(ConversationOut):
             context_summary=getattr(conv, "context_summary", None),
             system_prompt=getattr(conv, "system_prompt", None),
             enabled_tools=getattr(conv, "enabled_tools", None),
+            is_pinned=getattr(conv, "is_pinned", False),
         )
 
 
@@ -290,6 +316,57 @@ class ConversationList(BaseModel):
     total: int = Field(..., description="Total number of conversations")
     page: int = Field(default=1, description="Current page number")
     page_size: int = Field(default=20, description="Items per page")
+
+
+# ============================================================================
+# Conversation Search Schemas
+# ============================================================================
+
+
+class MatchedMessage(BaseModel):
+    """A single message whose content matched a search query."""
+
+    id: str = Field(..., description="Unique message ID")
+    role: Literal["user", "assistant", "system", "tool_call", "tool_result"] = Field(
+        ...,
+        description="The role of the message sender",
+    )
+    content: str = Field(..., description="The full message content")
+    snippet: str = Field(
+        ...,
+        description=(
+            "A short excerpt around the first match location — up to ~100 chars "
+            "before and after the matched substring, with ellipses when truncated."
+        ),
+    )
+    created_at: datetime = Field(..., description="When the message was created")
+
+    model_config = {"from_attributes": True}
+
+
+class ConversationSearchResult(BaseModel):
+    """A single conversation search hit.
+
+    Contains the conversation metadata plus any messages within that
+    conversation that matched the query. ``matched_messages`` is empty
+    when the match was on the title only.
+    """
+
+    conversation: ConversationOut = Field(..., description="The matched conversation")
+    matched_messages: list[MatchedMessage] = Field(
+        default_factory=list,
+        description="Messages whose content matched the query (may be empty).",
+    )
+
+
+class ConversationSearchResponse(BaseModel):
+    """Paginated list of search results."""
+
+    items: list[ConversationSearchResult] = Field(..., description="Search hits")
+    total: int = Field(..., description="Total number of matching conversations")
+    page: int = Field(default=1, description="Current page number")
+    page_size: int = Field(default=20, description="Items per page")
+    query: str = Field(..., description="The original search query")
 
 
 # ============================================================================

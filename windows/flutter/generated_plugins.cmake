@@ -4,6 +4,7 @@
 
 list(APPEND FLUTTER_PLUGIN_LIST
   audioplayers_windows
+  firebase_core
   irondash_engine_context
   record_windows
   super_native_extensions

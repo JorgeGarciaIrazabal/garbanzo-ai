@@ -13,6 +13,7 @@ import '../../tools/providers/tool_provider.dart';
 import '../models/chat_attachment.dart';
 import '../providers/chat_provider.dart';
 import '../providers/model_provider.dart';
+import '../providers/search_provider.dart';
 import '../providers/system_prompt_provider.dart';
 import 'chat_input_widget.dart';
 import 'chat_message_widget.dart';
@@ -50,6 +51,7 @@ class ChatPage extends StatelessWidget {
               ChangeNotifierProvider(create: (_) => MemoryProvider()),
               ChangeNotifierProvider(create: (_) => SystemPromptProvider()),
               ChangeNotifierProvider(create: (_) => ToolProvider()),
+              ChangeNotifierProvider(create: (_) => SearchProvider()),
             ],
             child: _ChatPageContent(onLogout: onLogout),
           );
@@ -241,6 +243,7 @@ class _ChatPageContentState extends State<_ChatPageContent> {
                     onSelect: (id) => chatProvider.loadConversation(id),
                     onDelete: (id) => chatProvider.deleteConversation(id),
                     onNewChat: () => chatProvider.clearCurrentConversation(),
+                    onTogglePin: (id) => chatProvider.togglePin(id),
                     isLoading: chatProvider.isLoadingConversations,
                   ),
                 Expanded(
@@ -370,6 +373,7 @@ class _ChatPageContentState extends State<_ChatPageContent> {
                 onSelect: (id) => chatProvider.loadConversation(id),
                 onDelete: (id) => chatProvider.deleteConversation(id),
                 onNewChat: () => chatProvider.clearCurrentConversation(),
+                onTogglePin: (id) => chatProvider.togglePin(id),
               ),
             ),
       actions: [
@@ -463,12 +467,16 @@ class _ChatPageContentState extends State<_ChatPageContent> {
         final msgIndex = index - itemOffset;
         final message = chatProvider.messages[msgIndex];
         final isLastMessage = msgIndex == chatProvider.messages.length - 1;
+        final lastAssistantIdx = chatProvider.messages
+            .lastIndexWhere((m) => m.isAssistant);
 
         return ChatMessageWidget(
           message: message,
           isStreaming:
               isLastMessage && chatProvider.isSending && message.isAssistant,
           conversationId: chatProvider.currentConversation?.id,
+          isLastAssistant:
+              message.isAssistant && msgIndex == lastAssistantIdx,
         );
       },
     );

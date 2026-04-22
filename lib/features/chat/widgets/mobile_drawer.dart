@@ -10,6 +10,7 @@ void showMobileConversationDrawer({
   required ValueChanged<String> onSelect,
   required ValueChanged<String> onDelete,
   required VoidCallback onNewChat,
+  ValueChanged<String>? onTogglePin,
 }) {
   showModalBottomSheet(
     context: context,
@@ -51,7 +52,7 @@ void showMobileConversationDrawer({
 
                     return ListTile(
                       leading: Icon(
-                        Icons.chat,
+                        conversation.isPinned ? Icons.push_pin : Icons.chat,
                         color: isSelected
                             ? Theme.of(context).colorScheme.primary
                             : null,
@@ -70,9 +71,25 @@ void showMobileConversationDrawer({
                         onSelect(conversation.id);
                         Navigator.pop(context);
                       },
-                      trailing: IconButton(
-                        icon: const Icon(Icons.delete_outline),
-                        onPressed: () => onDelete(conversation.id),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (onTogglePin != null)
+                            IconButton(
+                              icon: Icon(
+                                conversation.isPinned
+                                    ? Icons.push_pin
+                                    : Icons.push_pin_outlined,
+                              ),
+                              tooltip:
+                                  conversation.isPinned ? 'Unpin' : 'Pin',
+                              onPressed: () => onTogglePin(conversation.id),
+                            ),
+                          IconButton(
+                            icon: const Icon(Icons.delete_outline),
+                            onPressed: () => onDelete(conversation.id),
+                          ),
+                        ],
                       ),
                     );
                   },

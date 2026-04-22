@@ -3,10 +3,14 @@ import 'package:provider/provider.dart';
 
 import '../../settings/providers/settings_provider.dart';
 import '../models/chat_message.dart';
+import '../providers/chat_provider.dart';
 import 'message/attachment_display.dart';
+import 'message/branch_button.dart';
 import 'message/copy_button.dart';
+import 'message/edit_button.dart';
 import 'message/message_content.dart';
 import 'message/message_metadata.dart';
+import 'message/regenerate_button.dart';
 import 'message/speak_button.dart';
 import 'message/thinking_content.dart';
 import 'remember_this_button.dart';
@@ -19,11 +23,16 @@ class ChatMessageWidget extends StatefulWidget {
     required this.message,
     this.isStreaming = false,
     this.conversationId,
+    this.isLastAssistant = false,
   });
 
   final ChatMessage message;
   final bool isStreaming;
   final String? conversationId;
+
+  /// Whether this is the most recent assistant message in the thread.
+  /// Used to show the "Regenerate" button only on the latest reply.
+  final bool isLastAssistant;
 
   @override
   State<ChatMessageWidget> createState() => _ChatMessageWidgetState();
@@ -171,6 +180,28 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
                           content: widget.message.content,
                           isStreaming: widget.isStreaming,
                         ),
+                        if (widget.isLastAssistant &&
+                            !widget.isStreaming &&
+                            !widget.message.id.startsWith('temp-')) ...[
+                          const SizedBox(width: 8),
+                          Builder(builder: (ctx) {
+                            final chat = ctx.watch<ChatProvider>();
+                            return RegenerateButton(
+                              enabled: !chat.isSending,
+                              onPressed: () => chat.regenerateLastAssistant(),
+                            );
+                          }),
+                        ],
+                        if (!widget.isStreaming && !widget.message.id.startsWith('temp-')) ...[
+                          const SizedBox(width: 8),
+                          Builder(builder: (ctx) {
+                            final chat = ctx.watch<ChatProvider>();
+                            return BranchButton(
+                              enabled: !chat.isSending,
+                              onPressed: () => chat.branchFromMessage(widget.message.id),
+                            );
+                          }),
+                        ],
                       ],
                     ),
                   ),
@@ -191,10 +222,33 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
                       children: [
                         CopyButton(content: widget.message.content),
                         const SizedBox(width: 8),
+                        if (!widget.message.id.startsWith('temp-'))
+                          Builder(builder: (ctx) {
+                            final chat = ctx.watch<ChatProvider>();
+                            return EditMessageButton(
+                              content: widget.message.content,
+                              enabled: !chat.isSending,
+                              onSubmit: (newContent) => chat.editUserMessage(
+                                widget.message.id,
+                                newContent,
+                              ),
+                            );
+                          }),
+                        const SizedBox(width: 8),
                         RememberThisButton(
                           content: widget.message.content,
                           sourceConversationId: widget.conversationId,
                         ),
+                        if (!widget.message.id.startsWith('temp-')) ...[
+                          const SizedBox(width: 8),
+                          Builder(builder: (ctx) {
+                            final chat = ctx.watch<ChatProvider>();
+                            return BranchButton(
+                              enabled: !chat.isSending,
+                              onPressed: () => chat.branchFromMessage(widget.message.id),
+                            );
+                          }),
+                        ],
                       ],
                     ),
                   ),

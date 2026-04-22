@@ -9,7 +9,7 @@ import uuid
 from collections.abc import AsyncIterator
 from typing import Any
 
-from sqlalchemy import func
+from sqlalchemy import delete, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
@@ -307,11 +307,170 @@ class ChatService:
         conversation.updated_at = func.now()  # type: ignore[assignment]
         await self.db.flush()
 
+        async for chunk in self._stream_assistant_turn(
+            conversation=conversation,
+            options=options,
+            pending_images=image_b64_list,
+        ):
+            yield chunk
+
+    async def regenerate_message(
+        self,
+        conversation_id: str,
+        user_id: str,
+        message_id: str,
+        options: ChatOptions | None = None,
+    ) -> AsyncIterator[ChatChunk]:
+        """Re-run the LLM from the user message preceding ``message_id``.
+
+        ``message_id`` should identify an assistant message. All messages from
+        that message onward (assistant + any trailing tool_call/tool_result)
+        are deleted, and the response is re-streamed based on the remaining
+        history.
+        """
+        conversation = await self._conversations.get(
+            conversation_id, user_id, include_messages=True
+        )
+        if not conversation:
+            yield ChatChunk(
+                content="Conversation not found",
+                is_finished=True,
+                metadata={"error": True, "error_type": "not_found"},
+            )
+            return
+
+        messages = list(conversation.messages) if conversation.messages else []
+        target = next((m for m in messages if m.id == message_id), None)
+        if not target:
+            yield ChatChunk(
+                content="Message not found",
+                is_finished=True,
+                metadata={"error": True, "error_type": "not_found"},
+            )
+            return
+        if target.role != "assistant":
+            yield ChatChunk(
+                content="Can only regenerate assistant messages",
+                is_finished=True,
+                metadata={"error": True, "error_type": "invalid_role"},
+            )
+            return
+
+        # Delete the target message and everything after it.
+        target_index = next(i for i, m in enumerate(messages) if m.id == message_id)
+        ids_to_delete = [m.id for m in messages[target_index:]]
+        await self._delete_messages_by_ids(ids_to_delete)
+        await self.db.flush()
+        await self.db.refresh(conversation, attribute_names=["messages"])
+
+        conversation.updated_at = func.now()  # type: ignore[assignment]
+        await self.db.flush()
+
+        async for chunk in self._stream_assistant_turn(
+            conversation=conversation,
+            options=options,
+        ):
+            yield chunk
+
+    async def edit_and_resend(
+        self,
+        conversation_id: str,
+        user_id: str,
+        message_id: str,
+        new_content: str,
+        options: ChatOptions | None = None,
+    ) -> AsyncIterator[ChatChunk]:
+        """Edit a user message and re-run the conversation from that point.
+
+        Updates the message's text (attachments are preserved) and deletes
+        every message that came after it, then streams a fresh assistant
+        response.
+        """
+        conversation = await self._conversations.get(
+            conversation_id, user_id, include_messages=True
+        )
+        if not conversation:
+            yield ChatChunk(
+                content="Conversation not found",
+                is_finished=True,
+                metadata={"error": True, "error_type": "not_found"},
+            )
+            return
+
+        messages = list(conversation.messages) if conversation.messages else []
+        target = next((m for m in messages if m.id == message_id), None)
+        if not target:
+            yield ChatChunk(
+                content="Message not found",
+                is_finished=True,
+                metadata={"error": True, "error_type": "not_found"},
+            )
+            return
+        if target.role != "user":
+            yield ChatChunk(
+                content="Can only edit user messages",
+                is_finished=True,
+                metadata={"error": True, "error_type": "invalid_role"},
+            )
+            return
+
+        # Preserve the original attachment text block (everything after the
+        # first [Attached file: ...] marker) so re-sending keeps the docs.
+        appended_block = ""
+        marker = "\n\n[Attached file: "
+        idx = target.content.find(marker)
+        if idx >= 0:
+            appended_block = target.content[idx:]
+        target.content = new_content + appended_block
+
+        # Remove everything after this message.
+        target_index = next(i for i, m in enumerate(messages) if m.id == message_id)
+        ids_to_delete = [m.id for m in messages[target_index + 1 :]]
+        await self._delete_messages_by_ids(ids_to_delete)
+        await self.db.flush()
+        await self.db.refresh(conversation, attribute_names=["messages"])
+
+        conversation.updated_at = func.now()  # type: ignore[assignment]
+        await self.db.flush()
+
+        # Rehydrate images from the message metadata so the LLM still sees them.
+        image_b64_list: list[str] = []
+        raw_attachments = (target.meta or {}).get("attachments") or []
+        for att in raw_attachments:
+            if isinstance(att, dict) and att.get("type") == "image" and att.get("data"):
+                image_b64_list.append(att["data"])
+
+        async for chunk in self._stream_assistant_turn(
+            conversation=conversation,
+            options=options,
+            pending_images=image_b64_list or None,
+        ):
+            yield chunk
+
+    async def _delete_messages_by_ids(self, message_ids: list[str]) -> None:
+        """Delete messages matching any of the provided IDs."""
+        if not message_ids:
+            return
+        await self.db.execute(delete(Message).where(Message.id.in_(message_ids)))
+
+    async def _stream_assistant_turn(
+        self,
+        conversation,
+        options: ChatOptions | None = None,
+        pending_images: list[str] | None = None,
+    ) -> AsyncIterator[ChatChunk]:
+        """Stream an LLM response for the current state of ``conversation``.
+
+        Assumes the conversation's messages list already reflects the desired
+        history (e.g. user turn appended, or trailing assistant trimmed).
+        Handles summarization, tool-call iterations, and persistence.
+        """
+        conversation_id = conversation.id
         await self._maybe_summarize_context(conversation, list(conversation.messages))
 
         llm_messages = await self._build_message_history_with_system_prompt(
             conversation.messages,
-            image_b64_list,
+            pending_images,
             conversation.user_id,
             use_memory=conversation.use_memory,
             context_summary=conversation.context_summary,
@@ -326,10 +485,9 @@ class ChatService:
         ChatService._active_streams[conversation_id] = cancel_event
 
         try:
-            # Resolve the tool list (enabled_tools semantics).
             ollama_tools = await self._resolve_tools_for_conversation(conversation)
 
-            for iteration in range(MAX_TOOL_ITERATIONS):
+            for _ in range(MAX_TOOL_ITERATIONS):
                 full_response = ""
                 thinking_content = ""
                 metadata: dict | None = None
@@ -354,7 +512,6 @@ class ChatService:
                         metadata = chunk.metadata
                     yield chunk
 
-                # Persist any assistant text produced during this iteration.
                 if full_response:
                     msg_meta = dict(metadata) if metadata else {}
                     if thinking_content:
@@ -368,17 +525,14 @@ class ChatService:
                     )
                     self.db.add(assistant_message)
                     await self.db.flush()
-                    # Append to history in case we loop again.
                     llm_messages.append(
                         LLMMessage(role="assistant", content=full_response)
                     )
 
-                # No tool calls → we're done. Commit & exit the loop.
                 if not tool_calls_this_iter:
                     await self.db.commit()
                     return
 
-                # Persist the tool_call message and run each tool.
                 tool_call_payload = json.dumps(tool_calls_this_iter)
                 tool_call_msg = Message(
                     id=str(uuid.uuid4()),
@@ -390,7 +544,6 @@ class ChatService:
                 self.db.add(tool_call_msg)
                 await self.db.flush()
 
-                # Surface the assistant's tool-call request to the LLM context.
                 llm_messages.append(
                     LLMMessage(role="assistant", content=tool_call_payload)
                 )
@@ -419,12 +572,10 @@ class ChatService:
                         metadata={"tool_result": result_meta},
                     )
 
-                    # Feed the result back into the LLM context.
                     llm_messages.append(LLMMessage(role="tool", content=result_text))
 
                 await self.db.commit()
 
-            # Iteration cap hit — emit a soft error so the client knows.
             yield ChatChunk(
                 content="",
                 is_finished=True,
