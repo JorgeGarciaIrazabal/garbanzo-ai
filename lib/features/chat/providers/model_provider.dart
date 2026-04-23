@@ -33,16 +33,10 @@ class ModelProvider extends ChangeNotifier {
         if (serverDefault != null && serverDefault.isNotEmpty) {
           match = _availableModels.firstWhere(
             (m) => m.id == serverDefault,
-            orElse: () => _availableModels.firstWhere(
-              (m) => m.id.contains('llama3.2'),
-              orElse: () => _availableModels.first,
-            ),
+            orElse: () => _pickFallback(_availableModels),
           );
         } else {
-          match = _availableModels.firstWhere(
-            (m) => m.id.contains('llama3.2'),
-            orElse: () => _availableModels.first,
-          );
+          match = _pickFallback(_availableModels);
         }
         _selectedModelId = match.id;
       }
@@ -68,6 +62,17 @@ class ModelProvider extends ChangeNotifier {
       defaultModel: modelId,
     );
     return result.success;
+  }
+
+  /// Pick a sensible default when no server-side preference exists. Prefer
+  /// the latest qwen3.6 reasoning model, falling back to the older qwen3
+  /// family, then llama3.2, then whatever's first.
+  static ModelInfo _pickFallback(List<ModelInfo> models) {
+    for (final pattern in <String>['qwen3.6', 'qwen3:', 'llama3.2']) {
+      final hit = models.where((m) => m.id.contains(pattern)).firstOrNull;
+      if (hit != null) return hit;
+    }
+    return models.first;
   }
 
   ModelInfo? get selectedModel {

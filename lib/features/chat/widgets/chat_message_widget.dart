@@ -144,12 +144,18 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
                     colorScheme: colorScheme,
                     textTheme: theme.textTheme,
                   ),
-                // Thinking content (expandable)
+                // Thinking content (expandable). Auto-expanded while the
+                // model is still mid-stream so the user sees reasoning
+                // tokens scroll by in real time, then collapses once the
+                // final answer starts arriving.
                 if (thinkingContent != null && !isUser)
                   ThinkingContent(
                     thinkingContent: thinkingContent,
                     colorScheme: colorScheme,
                     textTheme: theme.textTheme,
+                    isLive: widget.isStreaming &&
+                        widget.message.content.isEmpty,
+                    hasContent: widget.message.content.isNotEmpty,
                   ),
                 // Message content
                 if (widget.message.content.isNotEmpty)

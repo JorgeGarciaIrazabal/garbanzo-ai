@@ -212,26 +212,9 @@ class ChatService {
       throw Exception('Chat failed: ${response.statusCode} - $errorBody');
     }
 
-    await for (final chunk
-        in byteStream.cast<List<int>>().transform(utf8.decoder)) {
-      final lines = chunk.split('\n');
-      for (final line in lines) {
-        final trimmed = line.trim();
-        if (trimmed.startsWith('data: ')) {
-          final jsonStr = trimmed.substring(6);
-          if (jsonStr.isNotEmpty && jsonStr != '[DONE]') {
-            try {
-              final decoded = jsonDecode(jsonStr) as Map<String, dynamic>;
-              yield ChatResponseChunk.fromJson(decoded);
-            } catch (e) {
-              if (kDebugMode) {
-                print('Failed to parse SSE chunk: $jsonStr');
-              }
-            }
-          }
-        }
-      }
-    }
+    yield* parseSseChunks(
+      byteStream.cast<List<int>>().transform(utf8.decoder),
+    );
   }
 
   // ==========================================================================
@@ -278,5 +261,50 @@ class ChatService {
       return Exception('API Error (${response.statusCode}): $detail');
     }
     return Exception('API Error (${response.statusCode}): $body');
+  }
+}
+
+/// Parse a stream of decoded UTF-8 text chunks (as delivered by the HTTP
+/// client) into discrete [ChatResponseChunk]s.
+///
+/// SSE events are delimited by a blank line (`\n\n`). TCP may split a single
+/// event across multiple byte chunks, so we buffer until we find a delimiter
+/// before parsing — otherwise partial JSON frames silently fail to decode and
+/// the UI looks "frozen" until the very end of the stream.
+Stream<ChatResponseChunk> parseSseChunks(Stream<String> chunks) async* {
+  var buffer = '';
+  await for (final chunk in chunks) {
+    buffer += chunk;
+    while (true) {
+      final delim = buffer.indexOf('\n\n');
+      if (delim < 0) break;
+      final event = buffer.substring(0, delim);
+      buffer = buffer.substring(delim + 2);
+      for (final line in event.split('\n')) {
+        if (!line.startsWith('data: ')) continue;
+        final jsonStr = line.substring(6);
+        if (jsonStr.isEmpty || jsonStr == '[DONE]') continue;
+        try {
+          final decoded = jsonDecode(jsonStr) as Map<String, dynamic>;
+          yield ChatResponseChunk.fromJson(decoded);
+        } catch (e) {
+          if (kDebugMode) {
+            // ignore: avoid_print
+            print('Failed to parse SSE chunk: $jsonStr');
+          }
+        }
+      }
+    }
+  }
+  if (buffer.isNotEmpty) {
+    for (final line in buffer.split('\n')) {
+      if (!line.startsWith('data: ')) continue;
+      final jsonStr = line.substring(6);
+      if (jsonStr.isEmpty || jsonStr == '[DONE]') continue;
+      try {
+        final decoded = jsonDecode(jsonStr) as Map<String, dynamic>;
+        yield ChatResponseChunk.fromJson(decoded);
+      } catch (_) {/* drop */}
+    }
   }
 }

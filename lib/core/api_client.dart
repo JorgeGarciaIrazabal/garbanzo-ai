@@ -181,6 +181,10 @@ class ApiClient {
       options: Options(
         headers: {'Accept': 'text/event-stream'},
         responseType: ResponseType.stream,
+        // In Dio 5, receiveTimeout caps the gap between successive bytes.
+        // Slow local models can pause for >30s while loading or thinking,
+        // so we lift the cap (Duration.zero disables it).
+        receiveTimeout: Duration.zero,
       ),
     );
   }

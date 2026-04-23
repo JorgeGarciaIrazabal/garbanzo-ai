@@ -13,9 +13,14 @@ from app.schemas.chat import ChatOptions
 class Message:
     """A message for the LLM."""
 
-    role: str  # "user", "assistant", "system"
+    role: str  # "user", "assistant", "system", "tool"
     content: str
     images: list[str] | None = None  # base64-encoded images for multimodal models
+    # Structured tool calls on an assistant turn. When present the provider
+    # MUST send these via the API's native tool_calls field — never stuffed
+    # into ``content`` as raw JSON, or the model will mimic the format and
+    # emit tool calls as text on subsequent turns.
+    tool_calls: list[dict[str, Any]] | None = None
 
 
 @dataclass

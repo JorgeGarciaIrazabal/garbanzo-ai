@@ -42,6 +42,32 @@ def _stringify_tool_result(result: Any) -> str:
         return str(result)
 
 
+def _maybe_parse_inline_tool_calls(content: str) -> list[dict[str, Any]] | None:
+    """If ``content`` is a JSON list of tool-call objects, return them.
+
+    Defensive cleanup for legacy assistant messages that contain raw
+    tool-call JSON in their content (an artifact of an earlier bug where
+    the call list was stringified into ``content``). Returning the parsed
+    calls lets the history-replay path send them via the proper
+    ``tool_calls`` field instead of as imitable text.
+    """
+    stripped = content.strip()
+    if not stripped or stripped[0] != "[":
+        return None
+    try:
+        parsed = json.loads(stripped)
+    except (ValueError, TypeError):
+        return None
+    if not isinstance(parsed, list) or not parsed:
+        return None
+    for item in parsed:
+        if not isinstance(item, dict):
+            return None
+        if "name" not in item or "arguments" not in item:
+            return None
+    return parsed
+
+
 async def _extract_pdf_text(data: str) -> str:
     """Extract text from a base64-encoded PDF."""
     try:
@@ -497,6 +523,14 @@ class ChatService:
                 conversation
             )
 
+            # Thinking from tool-calling iterations (which produce no
+            # `content` and so don't get persisted on their own) is carried
+            # forward and attached to the next assistant message that does
+            # have content. This way the persisted state is one tidy
+            # assistant message per turn with cumulative reasoning, instead
+            # of orphaned thinking + a separate answer message.
+            pending_thinking: list[str] = []
+
             for _ in range(MAX_TOOL_ITERATIONS):
                 full_response = ""
                 thinking_content = ""
@@ -522,10 +556,15 @@ class ChatService:
                         metadata = chunk.metadata
                     yield chunk
 
+                if thinking_content:
+                    pending_thinking.append(thinking_content)
+
                 if full_response:
                     msg_meta = dict(metadata) if metadata else {}
-                    if thinking_content:
-                        msg_meta["thinking"] = thinking_content
+                    combined_thinking = "\n\n".join(pending_thinking)
+                    if combined_thinking:
+                        msg_meta["thinking"] = combined_thinking
+                    pending_thinking = []
                     assistant_message = Message(
                         id=str(uuid.uuid4()),
                         conversation_id=conversation_id,
@@ -554,8 +593,15 @@ class ChatService:
                 self.db.add(tool_call_msg)
                 await self.db.flush()
 
+                # Send tool calls via the API's native field — never as raw
+                # JSON in content, or the model mimics the format and emits
+                # the call as text on subsequent turns.
                 llm_messages.append(
-                    LLMMessage(role="assistant", content=tool_call_payload)
+                    LLMMessage(
+                        role="assistant",
+                        content="",
+                        tool_calls=tool_calls_this_iter,
+                    )
                 )
 
                 for call in tool_calls_this_iter:
@@ -748,11 +794,33 @@ class ChatService:
             images = pending_images if (is_last and pending_images) else None
             # Normalize tool-related roles for the LLM: Ollama expects "tool"
             # for a tool result; tool_call messages from the assistant collapse
-            # back to an assistant turn whose content is the JSON tool request.
+            # back to an assistant turn carrying structured tool_calls. We
+            # MUST NOT inline the tool-call JSON into content — the model
+            # would imitate that format and emit raw JSON on the next turn.
             if msg.role == "tool_result":
                 result.append(LLMMessage(role="tool", content=msg.content))
             elif msg.role == "tool_call":
-                result.append(LLMMessage(role="assistant", content=msg.content))
+                tool_calls = (msg.meta or {}).get("tool_calls") or []
+                result.append(
+                    LLMMessage(
+                        role="assistant",
+                        content="",
+                        tool_calls=tool_calls or None,
+                    )
+                )
+            elif msg.role == "assistant":
+                # Legacy hygiene: if a past assistant turn was persisted with
+                # raw tool-call JSON in content, recover it as structured
+                # tool_calls so the model doesn't see (and imitate) the JSON.
+                inline = _maybe_parse_inline_tool_calls(msg.content)
+                if inline is not None:
+                    result.append(
+                        LLMMessage(role="assistant", content="", tool_calls=inline)
+                    )
+                else:
+                    result.append(
+                        LLMMessage(role=msg.role, content=msg.content, images=images)
+                    )
             else:
                 result.append(LLMMessage(role=msg.role, content=msg.content, images=images))
 

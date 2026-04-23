@@ -13,6 +13,7 @@ import '../../settings/providers/settings_provider.dart';
 import '../../settings/widgets/settings_drawer.dart';
 import '../../tools/providers/tool_provider.dart';
 import '../models/chat_attachment.dart';
+import '../models/chat_message.dart';
 import '../providers/chat_provider.dart';
 import '../providers/model_provider.dart';
 import '../providers/search_provider.dart';
@@ -26,6 +27,7 @@ import 'empty_chat_state.dart';
 import 'mobile_drawer.dart';
 import 'model_selector_widget.dart';
 import 'system_prompt_banner.dart';
+import 'tool_activity_group.dart';
 
 /// Main chat page with conversation sidebar and message area.
 ///
@@ -456,10 +458,34 @@ class _ChatPageContentState extends State<_ChatPageContent> {
     if (hasBanner) itemOffset++;
     if (hasSummary) itemOffset++;
 
+    // Group consecutive tool_call/tool_result messages so they render as a
+    // single collapsible "tool activity" section instead of N stacked cards.
+    final items = <_ListItem>[];
+    final messages = chatProvider.messages;
+    var i = 0;
+    var lastAssistantIdx = -1;
+    for (var j = 0; j < messages.length; j++) {
+      if (messages[j].isAssistant) lastAssistantIdx = j;
+    }
+    while (i < messages.length) {
+      final m = messages[i];
+      if (m.isToolCall || m.isToolResult) {
+        final start = i;
+        while (i < messages.length &&
+            (messages[i].isToolCall || messages[i].isToolResult)) {
+          i++;
+        }
+        items.add(_ToolGroupItem(messages.sublist(start, i), endIdx: i - 1));
+      } else {
+        items.add(_MessageItem(m, idx: i));
+        i++;
+      }
+    }
+
     return ListView.builder(
       controller: _scrollController,
       padding: const EdgeInsets.symmetric(vertical: 16),
-      itemCount: chatProvider.messages.length + itemOffset,
+      itemCount: items.length + itemOffset,
       itemBuilder: (context, index) {
         var leadingIdx = 0;
         if (hasBanner) {
@@ -471,11 +497,20 @@ class _ChatPageContentState extends State<_ChatPageContent> {
             return ContextSummaryWidget(summary: summary);
           }
         }
-        final msgIndex = index - itemOffset;
-        final message = chatProvider.messages[msgIndex];
-        final isLastMessage = msgIndex == chatProvider.messages.length - 1;
-        final lastAssistantIdx = chatProvider.messages
-            .lastIndexWhere((m) => m.isAssistant);
+        final item = items[index - itemOffset];
+        if (item is _ToolGroupItem) {
+          // Streaming when this group is the trailing item AND a stream
+          // is in flight (means the model is still working on the loop).
+          final isTrailing = item.endIdx == messages.length - 1;
+          return ToolActivityGroup(
+            messages: item.messages,
+            isStreaming: isTrailing && chatProvider.isSending,
+          );
+        }
+        final messageItem = item as _MessageItem;
+        final message = messageItem.message;
+        final msgIdx = messageItem.idx;
+        final isLastMessage = msgIdx == messages.length - 1;
 
         return ChatMessageWidget(
           message: message,
@@ -483,11 +518,27 @@ class _ChatPageContentState extends State<_ChatPageContent> {
               isLastMessage && chatProvider.isSending && message.isAssistant,
           conversationId: chatProvider.currentConversation?.id,
           isLastAssistant:
-              message.isAssistant && msgIndex == lastAssistantIdx,
+              message.isAssistant && msgIdx == lastAssistantIdx,
         );
       },
     );
   }
+}
+
+sealed class _ListItem {
+  const _ListItem();
+}
+
+class _MessageItem extends _ListItem {
+  const _MessageItem(this.message, {required this.idx});
+  final ChatMessage message;
+  final int idx;
+}
+
+class _ToolGroupItem extends _ListItem {
+  const _ToolGroupItem(this.messages, {required this.endIdx});
+  final List<ChatMessage> messages;
+  final int endIdx;
 }
 
 /// Dismissible error banner displayed at the top of the chat area.

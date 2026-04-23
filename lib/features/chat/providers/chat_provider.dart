@@ -205,7 +205,9 @@ class ChatProvider extends ChangeNotifier {
         _messages = [];
       }
 
-      _conversations.removeWhere((c) => c.id == conversationId);
+      // Replace with a fresh list — `list.items` from the API is unmodifiable.
+      _conversations =
+          _conversations.where((c) => c.id != conversationId).toList();
       notifyListeners();
     } catch (e) {
       _error = 'Failed to delete conversation: $e';
@@ -409,8 +411,23 @@ class ChatProvider extends ChangeNotifier {
 
   void _consumeAssistantStream(Stream<ChatResponseChunk> stream) {
     final assistantMessageId = 'temp-${_uuid.v4()}';
-    String accumulatedContent = '';
-    String accumulatedThinking = '';
+    var accumulatedContent = '';
+    var accumulatedThinking = '';
+
+    // Single assistant placeholder, anchored at the END of the message list
+    // throughout the stream. Tool calls / tool results get inserted BEFORE
+    // it as they arrive, mirroring the canonical layout the server sends
+    // back on reload — so there's no jarring "two placeholders merge into
+    // one" jolt when the stream finishes. Thinking from tool-calling
+    // iterations accumulates onto the same placeholder; the backend
+    // persists it the same way.
+    _upsertAssistantMessage(
+      assistantMessageId,
+      accumulatedContent,
+      accumulatedThinking,
+      null,
+    );
+    notifyListeners();
 
     _streamSubscription = stream.listen(
       (chunk) {
@@ -433,29 +450,36 @@ class ChatProvider extends ChangeNotifier {
           );
           notifyListeners();
         } else if (chunk.isToolCall) {
-          _appendToolCallMessages(chunk.toolCalls ?? const []);
+          _insertToolCallMessagesBefore(
+            assistantMessageId,
+            chunk.toolCalls ?? const [],
+          );
           notifyListeners();
         } else if (chunk.isToolResult) {
-          _appendToolResultMessage(chunk.toolResult);
+          _insertToolResultMessageBefore(
+            assistantMessageId,
+            chunk.toolResult,
+          );
           notifyListeners();
         } else if (chunk.isDone) {
-          _upsertAssistantMessage(
-            assistantMessageId,
-            accumulatedContent,
-            accumulatedThinking,
-            chunk.metadata,
-          );
-          _isSending = false;
-
-          if (_currentConversation != null) {
-            _currentConversation = _currentConversation!.copyWith(
-              messageCount: _messages.length,
+          // The backend emits a `done` chunk PER LLM ITERATION (one for the
+          // tool-call iteration, one for the final-answer iteration). It is
+          // NOT the end-of-stream marker — that's the SSE stream's own
+          // onDone callback. So here we only commit metadata to whatever
+          // assistant message has been accumulating; we do NOT flip
+          // _isSending or reload (a reload mid-stream would replace
+          // _messages with the partial server state and erase everything we
+          // just streamed).
+          if (accumulatedContent.isNotEmpty ||
+              accumulatedThinking.isNotEmpty) {
+            _upsertAssistantMessage(
+              assistantMessageId,
+              accumulatedContent,
+              accumulatedThinking,
+              chunk.metadata,
             );
-            _updateConversationInList();
+            notifyListeners();
           }
-
-          notifyListeners();
-          _reloadCurrentConversation();
         } else if (chunk.isError) {
           _error = chunk.error ?? 'An error occurred';
           _isSending = false;
@@ -469,11 +493,31 @@ class ChatProvider extends ChangeNotifier {
         notifyListeners();
       },
       onDone: () {
+        // Real end of the SSE stream — finalize and reconcile with server.
         _isSending = false;
         _streamSubscription = null;
+        if (accumulatedContent.isEmpty && accumulatedThinking.isEmpty) {
+          // Drop the trailing empty placeholder if iteration N+1 never
+          // produced anything (e.g., turn ended right after a tool call).
+          _removeMessage(assistantMessageId);
+        }
+        if (_currentConversation != null) {
+          _currentConversation = _currentConversation!.copyWith(
+            messageCount: _messages.length,
+          );
+          _updateConversationInList();
+        }
         notifyListeners();
+        _reloadCurrentConversation();
       },
     );
+  }
+
+  void _removeMessage(String id) {
+    final filtered = _messages.where((m) => m.id != id).toList();
+    if (filtered.length != _messages.length) {
+      _messages = filtered;
+    }
   }
 
   Future<void> stopStreaming() async {
@@ -520,10 +564,11 @@ class ChatProvider extends ChangeNotifier {
     }
   }
 
-  /// Inserts a display-only `tool_call` message for each call streamed.
-  /// The backend will persist canonical tool_call messages that replace these
-  /// once the stream finishes and the conversation is reloaded.
-  void _appendToolCallMessages(List<ToolCall> calls) {
+  /// Inserts display-only `tool_call` messages for each call streamed,
+  /// placed immediately BEFORE the assistant placeholder so the placeholder
+  /// stays anchored at the end of the conversation.
+  void _insertToolCallMessagesBefore(
+      String anchorId, List<ToolCall> calls) {
     if (calls.isEmpty) return;
     final additions = <ChatMessage>[];
     for (final call in calls) {
@@ -545,28 +590,46 @@ class ChatProvider extends ChangeNotifier {
         ),
       );
     }
-    _messages = [..._messages, ...additions];
+    final idx = _messages.indexWhere((m) => m.id == anchorId);
+    if (idx < 0) {
+      _messages = [..._messages, ...additions];
+      return;
+    }
+    _messages = [
+      ..._messages.sublist(0, idx),
+      ...additions,
+      ..._messages.sublist(idx),
+    ];
   }
 
-  /// Inserts a display-only `tool_result` message for the streamed result.
-  void _appendToolResultMessage(ToolResult? result) {
+  /// Inserts a display-only `tool_result` message immediately BEFORE the
+  /// assistant placeholder, mirroring the canonical layout the server
+  /// returns on reload.
+  void _insertToolResultMessageBefore(
+      String anchorId, ToolResult? result) {
     if (result == null) return;
-    final summary = result.toolName;
-    _messages = [
-      ..._messages,
-      ChatMessage(
-        id: 'temp-tool-result-${result.toolCallId}',
-        role: 'tool_result',
-        content: summary,
-        createdAt: DateTime.now(),
-        metadata: {
-          'tool_result': {
-            'tool_call_id': result.toolCallId,
-            'tool_name': result.toolName,
-            'result': result.result,
-          },
+    final newMsg = ChatMessage(
+      id: 'temp-tool-result-${result.toolCallId}',
+      role: 'tool_result',
+      content: result.toolName,
+      createdAt: DateTime.now(),
+      metadata: {
+        'tool_result': {
+          'tool_call_id': result.toolCallId,
+          'tool_name': result.toolName,
+          'result': result.result,
         },
-      ),
+      },
+    );
+    final idx = _messages.indexWhere((m) => m.id == anchorId);
+    if (idx < 0) {
+      _messages = [..._messages, newMsg];
+      return;
+    }
+    _messages = [
+      ..._messages.sublist(0, idx),
+      newMsg,
+      ..._messages.sublist(idx),
     ];
   }
 

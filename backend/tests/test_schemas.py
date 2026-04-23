@@ -152,6 +152,30 @@ class TestChatMessageOut:
         )
         assert msg.id == "msg-1"
 
+    @pytest.mark.parametrize("role", ["tool_call", "tool_result"])
+    def test_accepts_tool_roles(self, role):
+        """Regression: tool_call/tool_result rows must validate when serialized
+        out via ChatMessageOut. Otherwise loading a conversation with tool
+        activity 500s with a Pydantic literal_error."""
+        msg = ChatMessageOut(
+            id="msg-1",
+            role=role,
+            content="payload",
+            created_at=datetime.now(),
+            meta=None,
+        )
+        assert msg.role == role
+
+    def test_rejects_unknown_role(self):
+        with pytest.raises(ValidationError):
+            ChatMessageOut(
+                id="msg-1",
+                role="admin",
+                content="x",
+                created_at=datetime.now(),
+                meta=None,
+            )
+
 
 class TestChatRequest:
     def test_valid(self):

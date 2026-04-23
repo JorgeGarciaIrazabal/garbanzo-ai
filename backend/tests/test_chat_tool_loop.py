@@ -251,3 +251,187 @@ async def test_clean_function_name_resolves_via_lookup(
         "tool_name": "get_current_time",
         "args": {"timezone": "UTC"},
     }
+
+
+async def test_each_iteration_yields_a_done_chunk(
+    db_session, test_user_email
+):
+    """Regression: the backend yields ONE ``done`` chunk per iteration of
+    the tool-calling loop (one before tool execution, one after the final
+    answer). Frontends must therefore treat ``done`` as iteration-scoped
+    metadata and only finalize on the SSE stream's own end — otherwise a
+    mid-stream reload races against in-flight chunks and erases them.
+    This test pins the contract."""
+    tool_calls = [
+        {"id": "call-x", "name": "echo", "arguments": {"q": "hi"}}
+    ]
+    provider = _ScriptedProvider(
+        [
+            [
+                ChatChunk(content="", is_finished=False, tool_calls=tool_calls),
+                ChatChunk(
+                    content="",
+                    is_finished=True,
+                    metadata={"has_tool_calls": True},
+                ),
+            ],
+            [
+                ChatChunk(content="all done", is_finished=False),
+                ChatChunk(content="", is_finished=True, metadata={}),
+            ],
+        ]
+    )
+    service = await _make_service(db_session, provider)
+    conv_id = await _new_conversation(db_session, test_user_email)
+
+    async def _fake_call_tool(server_id, tool_name, args):
+        return {"ok": True, "content": "echo!"}
+
+    with patch(
+        "app.services.chat_service.MCPService.call_tool",
+        new=AsyncMock(side_effect=_fake_call_tool),
+    ):
+        chunks = []
+        async for c in service.send_message(
+            conversation_id=conv_id,
+            user_id=test_user_email,
+            content="please",
+        ):
+            chunks.append(c)
+
+    done_chunks = [c for c in chunks if c.is_finished]
+    # Exactly one done per iteration (2 total here).
+    assert len(done_chunks) == 2
+    # The last one is the real end-of-turn — its metadata has no
+    # has_tool_calls flag because no tool calls were emitted in iter 2.
+    assert "has_tool_calls" not in (done_chunks[-1].metadata or {})
+
+
+async def test_thinking_carries_across_iterations_to_final_assistant(
+    db_session, test_user_email
+):
+    """The model often emits reasoning during the tool-calling iteration
+    (which produces no `content` and so was historically dropped) and then
+    just an answer in the next iteration. We accumulate that prior thinking
+    onto the next assistant message that does have content, so the persisted
+    state has one assistant message per turn with cumulative reasoning —
+    not an orphaned thinking block + a separate answer message."""
+    tool_calls = [{"id": "c1", "name": "srv:t", "arguments": {}}]
+    provider = _ScriptedProvider(
+        [
+            # Iteration 1: pure thinking + tool call, no content.
+            [
+                ChatChunk(
+                    content="reasoning step one ",
+                    is_finished=False,
+                    is_thinking=True,
+                ),
+                ChatChunk(
+                    content="", is_finished=False, tool_calls=tool_calls
+                ),
+                ChatChunk(content="", is_finished=True, metadata={}),
+            ],
+            # Iteration 2: more thinking + final content.
+            [
+                ChatChunk(
+                    content="reasoning step two",
+                    is_finished=False,
+                    is_thinking=True,
+                ),
+                ChatChunk(content="the answer", is_finished=False),
+                ChatChunk(content="", is_finished=True, metadata={}),
+            ],
+        ]
+    )
+    service = await _make_service(db_session, provider)
+    conv_id = await _new_conversation(db_session, test_user_email)
+
+    async def _fake_call_tool(server_id, tool_name, args):
+        return {"ok": True, "content": "tool-output"}
+
+    with patch(
+        "app.services.chat_service.MCPService.call_tool",
+        new=AsyncMock(side_effect=_fake_call_tool),
+    ):
+        async for _ in service.send_message(
+            conversation_id=conv_id,
+            user_id=test_user_email,
+            content="ask",
+        ):
+            pass
+
+    from sqlalchemy import select
+
+    from app.models.message import Message
+
+    result = await db_session.execute(
+        select(Message)
+        .where(Message.conversation_id == conv_id)
+        .order_by(Message.created_at)
+    )
+    rows = list(result.scalars().all())
+    assistants = [m for m in rows if m.role == "assistant"]
+    # Exactly one assistant message — the iter-1 placeholder is folded in.
+    assert len(assistants) == 1
+    final = assistants[0]
+    assert final.content == "the answer"
+    thinking = (final.meta or {}).get("thinking", "")
+    assert "reasoning step one" in thinking
+    assert "reasoning step two" in thinking
+
+
+async def test_tool_calls_sent_as_structured_field_not_content_json(
+    db_session, test_user_email
+):
+    """Regression: when replaying tool calls back to the LLM in the next
+    iteration, send them via the API's native ``tool_calls`` field — never
+    as raw JSON in ``content``. If the model sees its own tool-call JSON
+    inlined in assistant content, it learns to mimic that format and emits
+    raw JSON as a text response on subsequent turns. This pins the contract
+    by inspecting what the provider received."""
+    tool_calls = [{"id": "c1", "name": "srv:do_thing", "arguments": {"x": 1}}]
+    provider = _ScriptedProvider(
+        [
+            [
+                ChatChunk(content="", is_finished=False, tool_calls=tool_calls),
+                ChatChunk(content="", is_finished=True, metadata={}),
+            ],
+            [
+                ChatChunk(content="all done", is_finished=False),
+                ChatChunk(content="", is_finished=True, metadata={}),
+            ],
+        ]
+    )
+    service = await _make_service(db_session, provider)
+    conv_id = await _new_conversation(db_session, test_user_email)
+
+    async def _fake_call_tool(server_id, tool_name, args):
+        return {"ok": True, "content": "result"}
+
+    with patch(
+        "app.services.chat_service.MCPService.call_tool",
+        new=AsyncMock(side_effect=_fake_call_tool),
+    ):
+        async for _ in service.send_message(
+            conversation_id=conv_id,
+            user_id=test_user_email,
+            content="please",
+        ):
+            pass
+
+    # Iteration 2's call to the provider must contain the assistant's
+    # tool_calls as a structured field — NOT as JSON in content.
+    iter2_messages = provider.calls[1]["messages"]
+    assistant_with_calls = next(
+        (m for m in iter2_messages if m.role == "assistant" and m.tool_calls),
+        None,
+    )
+    assert assistant_with_calls is not None, "tool_calls must be on the message"
+    assert assistant_with_calls.content == ""
+    assert assistant_with_calls.tool_calls == tool_calls
+    # Defensively verify no other assistant message smuggled the JSON in.
+    for m in iter2_messages:
+        if m.role == "assistant" and m.content:
+            assert not m.content.lstrip().startswith("[{"), (
+                "tool calls leaked into content as raw JSON"
+            )

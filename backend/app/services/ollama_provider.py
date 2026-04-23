@@ -59,6 +59,17 @@ class OllamaProvider(LLMProvider):
             entry: dict[str, Any] = {"role": msg.role, "content": msg.content}
             if msg.images:
                 entry["images"] = msg.images
+            if msg.tool_calls:
+                # Ollama expects {function: {name, arguments}} structure.
+                entry["tool_calls"] = [
+                    {
+                        "function": {
+                            "name": tc.get("name", ""),
+                            "arguments": tc.get("arguments") or {},
+                        }
+                    }
+                    for tc in msg.tool_calls
+                ]
             ollama_messages.append(entry)
 
         # Build options dict
@@ -78,6 +89,14 @@ class OllamaProvider(LLMProvider):
                 "model": model,
                 "messages": ollama_messages,
                 "stream": True,
+                # Ask Ollama to surface the model's reasoning as a separate
+                # `thinking` field rather than burying it inside the final
+                # output. For reasoning models (qwen3, deepseek-r1, …) this
+                # is what lets the UI render thinking tokens incrementally
+                # during the otherwise-silent gap before the answer or tool
+                # call. Models that don't support a thinking mode just
+                # ignore the flag.
+                "think": True,
                 "options": request_options,
             }
             if tools:
@@ -263,6 +282,16 @@ class OllamaProvider(LLMProvider):
             entry: dict[str, Any] = {"role": msg.role, "content": msg.content}
             if msg.images:
                 entry["images"] = msg.images
+            if msg.tool_calls:
+                entry["tool_calls"] = [
+                    {
+                        "function": {
+                            "name": tc.get("name", ""),
+                            "arguments": tc.get("arguments") or {},
+                        }
+                    }
+                    for tc in msg.tool_calls
+                ]
             ollama_messages.append(entry)
 
         # Build options dict
