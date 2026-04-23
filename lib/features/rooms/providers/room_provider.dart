@@ -161,6 +161,23 @@ class RoomProvider extends ChangeNotifier {
           notifyListeners();
         }
         break;
+      case 'thinking_chunk':
+        final id = event['message_id'] as String?;
+        final chunk = event['content'] as String? ?? '';
+        if (id == null) return;
+        final stream = _streaming[id];
+        if (stream == null) return;
+        stream.thinking += chunk;
+        final idx = _messages.indexWhere((m) => m.id == id);
+        if (idx >= 0) {
+          final existing = _messages[idx];
+          final newMeta = Map<String, dynamic>.from(existing.meta ?? const {});
+          newMeta['thinking'] = stream.thinking;
+          _messages = List.of(_messages)
+            ..[idx] = existing.copyWith(meta: newMeta);
+          notifyListeners();
+        }
+        break;
       case 'done':
         // The final 'message' event updates with canonical content; nothing
         // special to do here.
@@ -240,5 +257,6 @@ class RoomProvider extends ChangeNotifier {
 class _StreamingMessage {
   final String? agentId;
   String content = '';
+  String thinking = '';
   _StreamingMessage({this.agentId});
 }

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import 'package:garbanzo_ai/features/chat/widgets/markdown_widget.dart';
+import 'package:garbanzo_ai/features/chat/widgets/message/message_metadata.dart';
+import 'package:garbanzo_ai/features/chat/widgets/message/thinking_content.dart';
 import 'package:garbanzo_ai/features/rooms/models/room_models.dart';
 
 /// Bubble rendering for a single room message.
@@ -9,7 +11,7 @@ import 'package:garbanzo_ai/features/rooms/models/room_models.dart';
 ///   • Self  — right-aligned, primary container.
 ///   • Other person — left-aligned, secondary container, person icon.
 ///   • Agent — left-aligned, surfaceContainerHighest, smart_toy icon, model.
-class RoomMessageBubble extends StatelessWidget {
+class RoomMessageBubble extends StatefulWidget {
   const RoomMessageBubble({
     super.key,
     required this.message,
@@ -23,19 +25,45 @@ class RoomMessageBubble extends StatelessWidget {
   final String? currentUserEmail;
   final bool isStreaming;
 
-  bool get _isAgent => message.senderAgentId != null;
+  @override
+  State<RoomMessageBubble> createState() => _RoomMessageBubbleState();
+}
+
+class _RoomMessageBubbleState extends State<RoomMessageBubble> {
+  bool _metadataExpanded = false;
+
+  bool get _isAgent => widget.message.senderAgentId != null;
   bool get _isSelf =>
-      message.senderUserId != null &&
-      currentUserEmail != null &&
-      message.senderUserId == currentUserEmail;
+      widget.message.senderUserId != null &&
+      widget.currentUserEmail != null &&
+      widget.message.senderUserId == widget.currentUserEmail;
 
   RoomAgent? _agent() {
-    final id = message.senderAgentId;
-    if (id == null || room == null) return null;
-    for (final a in room!.agents) {
+    final id = widget.message.senderAgentId;
+    if (id == null || widget.room == null) return null;
+    for (final a in widget.room!.agents) {
       if (a.id == id) return a;
     }
     return null;
+  }
+
+  String? _thinkingContent() {
+    final meta = widget.message.meta;
+    if (meta == null) return null;
+    final thinking = meta['thinking'];
+    if (thinking is String && thinking.isNotEmpty) return thinking;
+    return null;
+  }
+
+  bool _hasMetadata() {
+    final meta = widget.message.meta;
+    if (meta == null) return false;
+    return meta.containsKey('tokens_prompt') ||
+        meta.containsKey('input_tokens') ||
+        meta.containsKey('tokens_generated') ||
+        meta.containsKey('output_tokens') ||
+        meta.containsKey('total_duration_ns') ||
+        meta.containsKey('response_time_ms');
   }
 
   @override
@@ -45,6 +73,8 @@ class RoomMessageBubble extends StatelessWidget {
     final mediaWidth = MediaQuery.of(context).size.width;
 
     final variant = _resolveVariant(colorScheme);
+    final thinking = _isAgent ? _thinkingContent() : null;
+    final hasMeta = _isAgent && _hasMetadata();
 
     return Align(
       alignment: _isSelf ? Alignment.centerRight : Alignment.centerLeft,
@@ -88,24 +118,51 @@ class RoomMessageBubble extends StatelessWidget {
                       children: [
                         _Header(
                           variant: variant,
-                          isStreaming: isStreaming,
+                          isStreaming: widget.isStreaming,
                           theme: theme,
-                          createdAt: message.createdAt,
+                          createdAt: widget.message.createdAt,
                         ),
                         const SizedBox(height: 6),
-                        if (message.content.isEmpty && isStreaming)
+                        if (thinking != null)
+                          ThinkingContent(
+                            thinkingContent: thinking,
+                            colorScheme: colorScheme,
+                            textTheme: theme.textTheme,
+                          ),
+                        if (widget.message.content.isEmpty && widget.isStreaming)
                           _TypingDots(color: variant.fgColor.withOpacity(0.6))
-                        else if (_isAgent && message.content.isNotEmpty)
+                        else if (_isAgent && widget.message.content.isNotEmpty)
                           MarkdownWidget(
-                            content: message.content,
+                            content: widget.message.content,
                             colorScheme: colorScheme,
                             textTheme: theme.textTheme,
                           )
                         else
                           SelectableText(
-                            message.content.isEmpty ? '…' : message.content,
+                            widget.message.content.isEmpty
+                                ? '…'
+                                : widget.message.content,
                             style: TextStyle(color: variant.fgColor),
                           ),
+                        if (hasMeta) ...[
+                          const SizedBox(height: 4),
+                          Align(
+                            alignment: Alignment.bottomRight,
+                            child: MetadataIconToggle(
+                              isExpanded: _metadataExpanded,
+                              onToggle: () => setState(
+                                () => _metadataExpanded = !_metadataExpanded,
+                              ),
+                              colorScheme: colorScheme,
+                            ),
+                          ),
+                          if (_metadataExpanded)
+                            MetadataDetails(
+                              metadata: widget.message.meta!,
+                              colorScheme: colorScheme,
+                              textTheme: theme.textTheme,
+                            ),
+                        ],
                       ],
                     ),
                   ),
@@ -137,7 +194,8 @@ class RoomMessageBubble extends StatelessWidget {
     }
     if (_isAgent) {
       final a = _agent();
-      final name = a?.name ?? (message.meta?['agent_name'] as String?) ?? 'Agent';
+      final name =
+          a?.name ?? (widget.message.meta?['agent_name'] as String?) ?? 'Agent';
       final modelLabel = a?.model;
       return _BubbleVariant(
         kind: _BubbleKind.agent,
@@ -152,7 +210,7 @@ class RoomMessageBubble extends StatelessWidget {
         outlineColor: cs.outlineVariant.withOpacity(0.4),
       );
     }
-    final email = message.senderUserId ?? 'user';
+    final email = widget.message.senderUserId ?? 'user';
     final localPart = email.contains('@') ? email.split('@').first : email;
     return _BubbleVariant(
       kind: _BubbleKind.other,

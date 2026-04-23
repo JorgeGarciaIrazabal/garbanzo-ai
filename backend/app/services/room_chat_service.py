@@ -519,7 +519,17 @@ class RoomChatService:
                 options=ChatOptions(temperature=0.7),
             ):
                 if chunk.is_thinking:
-                    thinking += chunk.content
+                    if chunk.content:
+                        thinking += chunk.content
+                        await room_manager.broadcast(
+                            ctx.room.id,
+                            {
+                                "type": "thinking_chunk",
+                                "message_id": message_id,
+                                "agent_id": agent.id,
+                                "content": chunk.content,
+                            },
+                        )
                 elif chunk.content:
                     accumulated += chunk.content
                     await room_manager.broadcast(
