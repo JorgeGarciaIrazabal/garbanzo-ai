@@ -19,9 +19,9 @@ import '../providers/search_provider.dart';
 import '../providers/system_prompt_provider.dart';
 import 'chat_input_widget.dart';
 import 'chat_message_widget.dart';
+import 'chat_sidebar.dart';
 import 'context_summary_widget.dart';
 import 'context_window_indicator.dart';
-import 'conversation_list_widget.dart';
 import 'empty_chat_state.dart';
 import 'mobile_drawer.dart';
 import 'model_selector_widget.dart';
@@ -240,14 +240,17 @@ class _ChatPageContentState extends State<_ChatPageContent> {
             Row(
               children: [
                 if (_showSidebar(context))
-                  ConversationListWidget(
+                  ChatSidebar(
                     conversations: chatProvider.conversations,
-                    selectedId: chatProvider.currentConversation?.id,
-                    onSelect: (id) => chatProvider.loadConversation(id),
-                    onDelete: (id) => chatProvider.deleteConversation(id),
+                    selectedConversationId: chatProvider.currentConversation?.id,
+                    onSelectConversation: (id) =>
+                        chatProvider.loadConversation(id),
+                    onDeleteConversation: (id) =>
+                        chatProvider.deleteConversation(id),
                     onNewChat: () => chatProvider.clearCurrentConversation(),
                     onTogglePin: (id) => chatProvider.togglePin(id),
-                    isLoading: chatProvider.isLoadingConversations,
+                    isLoadingConversations:
+                        chatProvider.isLoadingConversations,
                   ),
                 Expanded(
                   child: Column(

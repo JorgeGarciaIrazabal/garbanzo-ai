@@ -31,6 +31,7 @@ from app.services.room_service import (
     RoomNotFoundError,
     RoomPermissionError,
     RoomService,
+    UnknownUserError,
 )
 
 logger = logging.getLogger(__name__)
@@ -73,15 +74,21 @@ async def create_room(
     current_user: Annotated[dict[str, Any], Depends(get_current_user)],
     service: Annotated[RoomService, Depends(_service)],
 ) -> RoomDetailOut:
-    room = await service.create(
-        owner_id=current_user["email"],
-        name=data.name,
-        description=data.description,
-        is_public=data.is_public,
-        max_agent_turn_depth=data.max_agent_turn_depth,
-        mode=data.mode,
-        member_emails=data.member_emails,
-    )
+    try:
+        room = await service.create(
+            owner_id=current_user["email"],
+            name=data.name,
+            description=data.description,
+            is_public=data.is_public,
+            max_agent_turn_depth=data.max_agent_turn_depth,
+            mode=data.mode,
+            member_emails=data.member_emails,
+        )
+    except UnknownUserError as e:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            detail=f"Unknown user email(s): {', '.join(e.emails)}",
+        )
     return RoomDetailOut.from_model(room)
 
 

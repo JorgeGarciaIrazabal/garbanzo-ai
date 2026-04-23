@@ -77,6 +77,14 @@ class ChatOptions(BaseModel):
         default=True,
         description="Whether to stream the response",
     )
+    response_format: dict | str | None = Field(
+        default=None,
+        description=(
+            "Optional structured-output spec passed straight through to the "
+            "provider. For Ollama this maps to the `format` parameter — "
+            "either the literal string 'json' or a JSON Schema dict."
+        ),
+    )
 
 
 class ChatRequest(BaseModel):

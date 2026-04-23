@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 # ============================================================================
 
 
-ResponseMode = Literal["mention", "always", "round_robin"]
+ResponseMode = Literal["mention", "always", "round_robin", "auto"]
 
 
 class RoomAgentCreate(BaseModel):

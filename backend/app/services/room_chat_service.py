@@ -16,6 +16,7 @@ Agent-to-agent recursion:
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import re
 import uuid
@@ -176,12 +177,13 @@ class RoomChatService:
 
     # -------------------------------------------------------------- selection
 
-    def _select_agents(
+    async def _select_agents(
         self,
         room: Room,
         triggering_content: str,
         triggering_agent_id: str | None,
         round_robin_history: list[str],
+        history: list[RoomMessage],
     ) -> list[RoomAgent]:
         """Pick the agents that should respond to ``triggering_content``.
 
@@ -189,8 +191,13 @@ class RoomChatService:
           1. If explicit @mentions exist → only those agents (if active).
           2. Else → every agent with ``response_mode='always'``.
           3. Else → the next ``round_robin`` agent in ``turn_order``.
-          4. An agent never responds to its own message (prevents a
-             self-mentioning loop).
+          4. ``auto`` agents are also given a chance to jump in: a small LLM
+             judgment is invoked per auto-agent to decide whether the agent's
+             persona is relevant to the current discussion. Auto agents are
+             added on top of (1)/(2)/(3), but skipped entirely when the
+             triggering message contains explicit @mentions (the user is
+             targeting specific agents).
+          5. An agent never responds to its own message.
         """
         active = [a for a in room.agents if a.is_active]
         if not active:
@@ -199,31 +206,237 @@ class RoomChatService:
         mentions = self.parse_mentions(triggering_content, [a.name for a in active])
         if mentions:
             mentioned = [a for a in active if a.name in mentions]
-            # Deterministic order by turn_order
             mentioned.sort(key=lambda a: (a.turn_order, a.created_at))
             return [a for a in mentioned if a.id != triggering_agent_id]
 
-        # Fallback: always-respond agents
-        always = sorted(
-            [a for a in active if a.response_mode == "always" and a.id != triggering_agent_id],
-            key=lambda a: (a.turn_order, a.created_at),
-        )
-        if always:
-            return always
+        selected: list[RoomAgent] = []
+        selected_ids: set[str] = set()
 
-        # Fallback: round robin — pick the agent who hasn't spoken most recently.
-        rr = sorted(
-            [a for a in active if a.response_mode == "round_robin" and a.id != triggering_agent_id],
+        # (2) Always-respond agents
+        always = sorted(
+            [
+                a
+                for a in active
+                if a.response_mode == "always" and a.id != triggering_agent_id
+            ],
             key=lambda a: (a.turn_order, a.created_at),
         )
-        if not rr:
-            return []
-        # Find the next one not in recent history
-        recent = list(reversed(round_robin_history))
-        for agent in rr:
-            if agent.id not in recent[: len(rr) - 1]:
-                return [agent]
-        return [rr[0]]
+        for a in always:
+            selected.append(a)
+            selected_ids.add(a.id)
+
+        # (3) Round robin — only when no 'always' agent already covered it
+        if not selected:
+            rr = sorted(
+                [
+                    a
+                    for a in active
+                    if a.response_mode == "round_robin"
+                    and a.id != triggering_agent_id
+                ],
+                key=lambda a: (a.turn_order, a.created_at),
+            )
+            if rr:
+                recent = list(reversed(round_robin_history))
+                picked = None
+                for agent in rr:
+                    if agent.id not in recent[: len(rr) - 1]:
+                        picked = agent
+                        break
+                picked = picked or rr[0]
+                selected.append(picked)
+                selected_ids.add(picked.id)
+
+        # (4) Auto agents — ask the LLM whether each should jump in
+        auto = [
+            a
+            for a in active
+            if a.response_mode == "auto"
+            and a.id != triggering_agent_id
+            and a.id not in selected_ids
+        ]
+        if auto:
+            judge_model = get_settings().room_auto_judge_model
+            logger.info(
+                "[AUTO-JUDGE] room=%s evaluating %d auto-agent(s) with judge=%s: %s",
+                room.id,
+                len(auto),
+                judge_model,
+                ", ".join(a.name for a in auto),
+            )
+        for agent in auto:
+            try:
+                if await self._auto_should_respond(room, agent, history):
+                    selected.append(agent)
+                    selected_ids.add(agent.id)
+            except Exception:
+                logger.exception(
+                    "[AUTO-JUDGE] crashed for agent=%s in room=%s",
+                    agent.name,
+                    room.id,
+                )
+
+        # Stable ordering for consistent multi-agent turns
+        selected.sort(key=lambda a: (a.turn_order, a.created_at))
+        return selected
+
+    # JSON Schema for the auto-jump-in judge. Ollama's `format` parameter
+    # constrains the model to emit a string that matches this schema.
+    _AUTO_JUDGE_SCHEMA = {
+        "type": "object",
+        "properties": {
+            "should_respond": {
+                "type": "boolean",
+                "description": (
+                    "True only if the agent should reply to the most recent "
+                    "message right now."
+                ),
+            },
+            "reason": {
+                "type": "string",
+                "description": "Short justification (one sentence).",
+            },
+        },
+        "required": ["should_respond", "reason"],
+    }
+
+    async def _auto_should_respond(
+        self, room: Room, agent: RoomAgent, history: list[RoomMessage]
+    ) -> bool:
+        """Ask a small judge model whether ``agent`` should jump in.
+
+        Uses the cheap shared model from
+        ``settings.room_auto_judge_model`` (default ``llama3.2:1b``) with
+        Ollama's structured-output ``format`` parameter so the response is
+        always parseable JSON matching ``_AUTO_JUDGE_SCHEMA``. The agent's
+        own (potentially heavyweight) model is reserved for the actual
+        reply. Fail-quiet: any error / parse failure returns False.
+        """
+        if not history:
+            return False
+
+        provider = self._get_provider(agent.provider or "ollama")
+        judge_model = get_settings().room_auto_judge_model
+
+        # Most recent ~8 messages, labeled by speaker
+        recent = history[-8:]
+        agent_id_to_name = {a.id: a.name for a in room.agents}
+        transcript_lines: list[str] = []
+        for m in recent:
+            if m.sender_agent_id:
+                who = agent_id_to_name.get(m.sender_agent_id, "agent")
+                transcript_lines.append(f"[{who}]: {m.content}")
+            elif m.sender_user_id:
+                who = m.sender_user_id.split("@")[0]
+                transcript_lines.append(f"[{who}]: {m.content}")
+            else:
+                transcript_lines.append(m.content)
+        transcript = "\n".join(transcript_lines)
+
+        last_msg = recent[-1] if recent else None
+        last_preview = (last_msg.content[:140].replace("\n", " ") + ("…" if last_msg and len(last_msg.content) > 140 else "")) if last_msg else ""
+        logger.info(
+            "[AUTO-JUDGE] ▶ asking judge=%s — agent=%s room=%s last_msg=%r",
+            judge_model,
+            agent.name,
+            room.id,
+            last_preview,
+        )
+
+        persona = (agent.system_prompt or "").strip()
+        persona_line = (
+            f'Persona/instructions: "{persona[:400]}"'
+            if persona
+            else "No specific persona — general-purpose assistant."
+        )
+        other_active = [
+            a.name for a in room.agents if a.is_active and a.id != agent.id
+        ]
+        peer_line = (
+            f"Other agents present: {', '.join(other_active)}."
+            if other_active
+            else "Only agent in the room."
+        )
+
+        # Prompt copy validated by ``scripts/benchmark_auto_judge.py``
+        # (variant ``v1_strict`` — 100% accuracy on the 28-scenario labeled
+        # set when paired with phi4-mini).
+        judge_system = (
+            "You are a routing classifier for a multi-participant chat room. "
+            "Decide whether one specific AI agent should reply to the most "
+            "recent message. Respond as JSON matching the provided schema.\n\n"
+            f"Agent name: {agent.name}\n"
+            f"{persona_line}\n"
+            f"{peer_line}\n\n"
+            "Set should_respond=true ONLY IF replying would clearly add value: "
+            "the most recent message asks a question this agent can answer, "
+            "explicitly invites this agent, or directly relates to its "
+            "expertise. Set should_respond=false for small-talk between "
+            "humans, off-topic chatter, anything already handled by another "
+            "agent, or messages that simply don't need a reply."
+        )
+        judge_user = (
+            f"Recent conversation:\n{transcript}\n\n"
+            f"Should '{agent.name}' reply to the most recent message?"
+        )
+
+        t0 = asyncio.get_event_loop().time()
+        try:
+            answer = await provider.chat(
+                messages=[
+                    LLMMessage(role="system", content=judge_system),
+                    LLMMessage(role="user", content=judge_user),
+                ],
+                model=judge_model,
+                options=ChatOptions(
+                    temperature=0.0,
+                    max_tokens=80,
+                    response_format=self._AUTO_JUDGE_SCHEMA,
+                ),
+            )
+        except Exception:
+            elapsed_ms = int((asyncio.get_event_loop().time() - t0) * 1000)
+            logger.exception(
+                "[AUTO-JUDGE] ✖ LLM call failed in %dms — agent=%s judge=%s",
+                elapsed_ms,
+                agent.name,
+                judge_model,
+            )
+            return False
+
+        elapsed_ms = int((asyncio.get_event_loop().time() - t0) * 1000)
+        decision, reason = self._parse_judge_answer(answer)
+        logger.info(
+            "[AUTO-JUDGE] %s decision=%s — agent=%s judge=%s (%dms) reason=%r raw=%r",
+            "✅ JUMP IN" if decision else "💤 stay quiet",
+            decision,
+            agent.name,
+            judge_model,
+            elapsed_ms,
+            (reason[:160] if reason else ""),
+            (answer or "")[:200],
+        )
+        return decision
+
+    @staticmethod
+    def _parse_judge_answer(raw: str | None) -> tuple[bool, str]:
+        """Parse the structured JSON answer from the judge call.
+
+        Returns ``(should_respond, reason)``. On any parse error or missing
+        field, defaults to ``(False, "<parse error>")`` so the agent stays
+        quiet rather than spamming.
+        """
+        if not raw:
+            return False, "<empty response>"
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError:
+            return False, f"<unparseable: {raw[:60]}>"
+        if not isinstance(data, dict):
+            return False, f"<not object: {type(data).__name__}>"
+        decision = bool(data.get("should_respond", False))
+        reason = str(data.get("reason", "")) if data.get("reason") else ""
+        return decision, reason
 
     # --------------------------------------------------------------- turn run
 
@@ -246,8 +459,12 @@ class RoomChatService:
         history = await self._load_history(ctx.room.id, limit=50)
         rr_history = [m.sender_agent_id for m in history if m.sender_agent_id]
 
-        agents = self._select_agents(
-            ctx.room, triggering_content, triggering_agent_id, rr_history
+        agents = await self._select_agents(
+            ctx.room,
+            triggering_content,
+            triggering_agent_id,
+            rr_history,
+            history,
         )
         if not agents:
             return

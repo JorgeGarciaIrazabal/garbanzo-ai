@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import 'package:garbanzo_ai/features/rooms/models/room_models.dart';
 import 'package:garbanzo_ai/features/rooms/pages/room_chat_page.dart';
 import 'package:garbanzo_ai/features/rooms/providers/room_provider.dart';
+import 'package:garbanzo_ai/features/rooms/widgets/create_room_dialog.dart';
+import 'package:garbanzo_ai/features/rooms/widgets/rooms_list_view.dart';
 
+/// Stand-alone Rooms page. Used when navigating to rooms from outside the
+/// chat sidebar (e.g. from the settings drawer entry).
 class RoomsPage extends StatelessWidget {
   const RoomsPage({super.key});
 
@@ -28,167 +31,36 @@ class _RoomsPageBody extends StatelessWidget {
         title: const Text('Rooms'),
         actions: [
           IconButton(
+            tooltip: 'Refresh',
             icon: const Icon(Icons.refresh),
             onPressed: provider.loading ? null : () => provider.loadRooms(),
           ),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showCreateDialog(context, provider),
-        icon: const Icon(Icons.add),
+        onPressed: () => _createRoom(context, provider),
+        icon: const Icon(Icons.group_add),
         label: const Text('New room'),
       ),
-      body: provider.loading
-          ? const Center(child: CircularProgressIndicator())
-          : provider.error != null
-              ? Center(child: Text('Error: ${provider.error}'))
-              : provider.rooms.isEmpty
-                  ? const Center(
-                      child: Text('No rooms yet. Create one to get started.'),
-                    )
-                  : ListView.separated(
-                      itemCount: provider.rooms.length,
-                      separatorBuilder: (_, _) => const Divider(height: 1),
-                      itemBuilder: (_, i) {
-                        final r = provider.rooms[i];
-                        return _RoomTile(
-                          room: r,
-                          onOpen: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => RoomChatPage(roomId: r.id),
-                              ),
-                            );
-                          },
-                          onDelete: () => provider.deleteRoom(r.id),
-                        );
-                      },
-                    ),
+      body: RoomsListView(
+        rooms: provider.rooms,
+        loading: provider.loading,
+        error: provider.error,
+        onSelect: (room) => _openRoom(context, room.id),
+        onDelete: (room) => provider.deleteRoom(room.id),
+        onCreate: () => _createRoom(context, provider),
+      ),
     );
   }
 
-  Future<void> _showCreateDialog(
-      BuildContext context, RoomProvider provider) async {
-    final nameCtrl = TextEditingController();
-    final descCtrl = TextEditingController();
-    final emailsCtrl = TextEditingController();
-    final created = await showDialog<Room>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Create room'),
-        content: SizedBox(
-          width: 400,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameCtrl,
-                decoration: const InputDecoration(labelText: 'Name'),
-                autofocus: true,
-              ),
-              TextField(
-                controller: descCtrl,
-                decoration:
-                    const InputDecoration(labelText: 'Description (optional)'),
-              ),
-              TextField(
-                controller: emailsCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Invite emails (comma-separated)',
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () async {
-              if (nameCtrl.text.trim().isEmpty) return;
-              final emails = emailsCtrl.text
-                  .split(',')
-                  .map((e) => e.trim())
-                  .where((e) => e.isNotEmpty)
-                  .toList();
-              try {
-                final room = await provider.createRoom(
-                  name: nameCtrl.text.trim(),
-                  description: descCtrl.text.trim().isEmpty
-                      ? null
-                      : descCtrl.text.trim(),
-                  memberEmails: emails,
-                );
-                if (ctx.mounted) Navigator.of(ctx).pop(room);
-              } catch (e) {
-                if (ctx.mounted) {
-                  ScaffoldMessenger.of(ctx).showSnackBar(
-                    SnackBar(content: Text('Failed: $e')),
-                  );
-                }
-              }
-            },
-            child: const Text('Create'),
-          ),
-        ],
-      ),
+  void _openRoom(BuildContext context, String roomId) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => RoomChatPage(roomId: roomId)),
     );
-    if (created != null && context.mounted) {
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => RoomChatPage(roomId: created.id)),
-      );
-    }
   }
-}
 
-class _RoomTile extends StatelessWidget {
-  const _RoomTile({
-    required this.room,
-    required this.onOpen,
-    required this.onDelete,
-  });
-
-  final Room room;
-  final VoidCallback onOpen;
-  final VoidCallback onDelete;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      leading: const CircleAvatar(child: Icon(Icons.group)),
-      title: Text(room.name),
-      subtitle: Text(
-        room.description ??
-            '${room.memberCount} member(s) · ${room.agentCount} agent(s)',
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
-      trailing: IconButton(
-        icon: const Icon(Icons.delete_outline),
-        onPressed: () async {
-          final ok = await showDialog<bool>(
-            context: context,
-            builder: (ctx) => AlertDialog(
-              title: const Text('Delete room?'),
-              content: Text('Delete "${room.name}"? This cannot be undone.'),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(ctx).pop(false),
-                  child: const Text('Cancel'),
-                ),
-                FilledButton(
-                  onPressed: () => Navigator.of(ctx).pop(true),
-                  child: const Text('Delete'),
-                ),
-              ],
-            ),
-          );
-          if (ok == true) onDelete();
-        },
-      ),
-      onTap: onOpen,
-    );
+  Future<void> _createRoom(BuildContext context, RoomProvider provider) async {
+    final created = await showCreateRoomDialog(context, provider);
+    if (created != null && context.mounted) _openRoom(context, created.id);
   }
 }

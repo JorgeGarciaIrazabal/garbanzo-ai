@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.room import Room, RoomAgent, RoomMember, RoomMessage
+from app.models.user import User
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +22,14 @@ class RoomPermissionError(Exception):
 
 class RoomNotFoundError(Exception):
     """Raised when a room does not exist or the user can't see it."""
+
+
+class UnknownUserError(Exception):
+    """Raised when a referenced user email does not exist."""
+
+    def __init__(self, emails: list[str]):
+        self.emails = emails
+        super().__init__(f"Unknown user(s): {', '.join(emails)}")
 
 
 @dataclass
@@ -55,15 +64,31 @@ class RoomService:
             max_agent_turn_depth=max_agent_turn_depth,
             mode=mode,
         )
-        self.db.add(room)
-        self.db.add(RoomMember(room_id=room_id, user_id=owner_id, role="owner"))
-
-        # Additional invitees (deduped, skip owner)
+        # Dedup invitees, excluding owner
+        invitees: list[str] = []
         seen = {owner_id}
         for email in member_emails or []:
             if email in seen:
                 continue
             seen.add(email)
+            invitees.append(email)
+
+        # Validate invitee emails exist in users table before inserting
+        if invitees:
+            existing = set(
+                (
+                    await self.db.execute(
+                        select(User.email).where(User.email.in_(invitees))
+                    )
+                ).scalars().all()
+            )
+            missing = [e for e in invitees if e not in existing]
+            if missing:
+                raise UnknownUserError(missing)
+
+        self.db.add(room)
+        self.db.add(RoomMember(room_id=room_id, user_id=owner_id, role="owner"))
+        for email in invitees:
             self.db.add(RoomMember(room_id=room_id, user_id=email, role="member"))
 
         await self.db.commit()

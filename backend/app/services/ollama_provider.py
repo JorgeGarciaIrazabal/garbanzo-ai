@@ -283,6 +283,10 @@ class OllamaProvider(LLMProvider):
             }
             if tools:
                 chat_kwargs["tools"] = tools
+            if opts.response_format is not None:
+                # Ollama accepts either the string "json" or a JSON Schema
+                # dict; both pass through unchanged.
+                chat_kwargs["format"] = opts.response_format
             response = await client.chat(**chat_kwargs)
             return response.message.content or ""
         except (ResponseError, RequestError) as e:

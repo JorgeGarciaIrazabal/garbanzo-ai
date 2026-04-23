@@ -17,6 +17,7 @@ class ConversationListWidget extends StatelessWidget {
     required this.onNewChat,
     this.onTogglePin,
     this.isLoading = false,
+    this.embedded = false,
   });
 
   final List<Conversation> conversations;
@@ -27,10 +28,86 @@ class ConversationListWidget extends StatelessWidget {
   final ValueChanged<String>? onTogglePin;
   final bool isLoading;
 
+  /// When true, drop the outer width / border chrome — caller is responsible
+  /// for those. Used when this widget is hosted inside a tabbed sidebar.
+  final bool embedded;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+
+    final body = Column(
+      children: [
+        // Header with new chat button
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(
+                color: colorScheme.outlineVariant.withOpacity(0.5),
+              ),
+            ),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: onNewChat,
+                  icon: const Icon(Icons.add, size: 18),
+                  label: const Text('New Chat'),
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SearchWidget(),
+        // Conversation list or search results
+        Expanded(
+          child: Consumer<SearchProvider>(
+            builder: (context, searchProvider, _) {
+              if (searchProvider.searchQuery.isNotEmpty) {
+                return const SearchResultsWidget();
+              }
+              if (isLoading) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (conversations.isEmpty) {
+                return _EmptyState(colorScheme: colorScheme);
+              }
+              return ListView.builder(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                itemCount: conversations.length,
+                itemBuilder: (context, index) {
+                  final conversation = conversations[index];
+                  final isSelected = conversation.id == selectedId;
+
+                  return _ConversationListItem(
+                    conversation: conversation,
+                    isSelected: isSelected,
+                    onTap: () => onSelect(conversation.id),
+                    onDelete: () => _confirmDelete(
+                      context,
+                      conversation,
+                    ),
+                    onTogglePin: onTogglePin == null
+                        ? null
+                        : () => onTogglePin!(conversation.id),
+                    colorScheme: colorScheme,
+                    textTheme: theme.textTheme,
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      ],
+    );
+
+    if (embedded) return body;
 
     return Container(
       width: 280,
@@ -42,75 +119,7 @@ class ConversationListWidget extends StatelessWidget {
           ),
         ),
       ),
-      child: Column(
-        children: [
-          // Header with new chat button
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              border: Border(
-                bottom: BorderSide(
-                  color: colorScheme.outlineVariant.withOpacity(0.5),
-                ),
-              ),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: FilledButton.icon(
-                    onPressed: onNewChat,
-                    icon: const Icon(Icons.add, size: 18),
-                    label: const Text('New Chat'),
-                    style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SearchWidget(),
-          // Conversation list or search results
-          Expanded(
-            child: Consumer<SearchProvider>(
-              builder: (context, searchProvider, _) {
-                if (searchProvider.searchQuery.isNotEmpty) {
-                  return const SearchResultsWidget();
-                }
-                if (isLoading) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (conversations.isEmpty) {
-                  return _EmptyState(colorScheme: colorScheme);
-                }
-                return ListView.builder(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  itemCount: conversations.length,
-                  itemBuilder: (context, index) {
-                    final conversation = conversations[index];
-                    final isSelected = conversation.id == selectedId;
-
-                    return _ConversationListItem(
-                      conversation: conversation,
-                      isSelected: isSelected,
-                      onTap: () => onSelect(conversation.id),
-                      onDelete: () => _confirmDelete(
-                        context,
-                        conversation,
-                      ),
-                      onTogglePin: onTogglePin == null
-                          ? null
-                          : () => onTogglePin!(conversation.id),
-                      colorScheme: colorScheme,
-                      textTheme: theme.textTheme,
-                    );
-                  },
-                );
-              },
-            ),
-          ),
-        ],
-      ),
+      child: body,
     );
   }
 

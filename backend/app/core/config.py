@@ -27,6 +27,33 @@ class Settings(BaseSettings):
     llm_provider: str = "ollama"
     ollama_base_url: str = "http://host.docker.internal:11434"
 
+    # Model used for internal classification calls (e.g. the "should this
+    # auto-agent jump in?" judge in multi-agent rooms). Override via env var
+    # (ROOM_AUTO_JUDGE_MODEL) if a different model is preferred. Must be
+    # pulled in the local Ollama instance — pull with
+    # ``ollama pull granite4:micro``.
+    #
+    # Picked via ``backend/scripts/benchmark_auto_judge.py`` against 43
+    # labeled scenarios (easy + hard + creative-request edge cases):
+    #   granite4:micro  v1_strict  → 90.7% acc · 1.3s · 3 FP / 1 FN  ← chosen
+    #   phi4-mini       v1_strict  → 90.7% acc · 1.5s · 0 FP / 4 FN
+    #   granite4:micro  v2_balanced→ 88.4% acc · 1.5s · 5 FP / 0 FN
+    #   gemma3:4b       v1_strict  → 86.0% acc · 1.1s · 6 FP / 0 FN
+    #   llama3.2:3b     v2_balanced→ 83.7% acc · 1.0s · 0 FP / 7 FN
+    #   gemma4:e2b / qwen3:*       → broken with Ollama structured output
+    #   gemma3:1b                  → too small to follow rules
+    #
+    # Granite4 was picked over phi4-mini even at the same accuracy because
+    # phi4-mini consistently refuses creative-writing requests ("write a
+    # story", "tell a joke", roleplay) — the exact pattern users care about.
+    # Granite4's failure mode is mild over-eagerness on judgment-call
+    # scenarios (3 FP), which is far less frustrating than an agent
+    # ignoring an explicit request.
+    #
+    # The best prompt is model-dependent — see the corresponding prompt
+    # block in ``room_chat_service.py`` for the v1_strict copy.
+    room_auto_judge_model: str = "granite4:micro"
+
     # Dev test user — set both to auto-create a user on startup
     test_user_email: str = ""
     test_user_password: str = ""

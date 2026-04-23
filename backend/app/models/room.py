@@ -128,7 +128,7 @@ class RoomAgent(Base):
         nullable=False,
         default="mention",
         server_default="mention",
-        comment="'mention' | 'always' | 'round_robin'",
+        comment="'mention' | 'always' | 'round_robin' | 'auto'",
     )
     turn_order: Mapped[int] = mapped_column(
         Integer, nullable=False, default=0, server_default="0"

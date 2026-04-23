@@ -1,5 +1,6 @@
 """Tests for @mention parsing + agent selection."""
 
+import asyncio
 from types import SimpleNamespace
 
 from app.services.room_chat_service import RoomChatService
@@ -39,6 +40,18 @@ def _agent(id, name, mode="mention", turn=0, active=True):
     )
 
 
+def _select(svc, room, content, *, triggering_agent_id=None, rr_history=None):
+    return asyncio.run(
+        svc._select_agents(
+            room,
+            content,
+            triggering_agent_id,
+            rr_history or [],
+            history=[],
+        )
+    )
+
+
 def test_select_agents_by_mention():
     room = SimpleNamespace(
         agents=[_agent("a1", "Alice"), _agent("a2", "Bob")],
@@ -46,7 +59,7 @@ def test_select_agents_by_mention():
         max_agent_turn_depth=3,
     )
     svc = RoomChatService.__new__(RoomChatService)
-    picks = svc._select_agents(room, "@Bob help", triggering_agent_id=None, round_robin_history=[])
+    picks = _select(svc, room, "@Bob help")
     assert [a.name for a in picks] == ["Bob"]
 
 
@@ -61,7 +74,7 @@ def test_select_agents_falls_back_to_always():
         max_agent_turn_depth=3,
     )
     svc = RoomChatService.__new__(RoomChatService)
-    picks = svc._select_agents(room, "no mention here", triggering_agent_id=None, round_robin_history=[])
+    picks = _select(svc, room, "no mention here")
     assert [a.name for a in picks] == ["Alice", "Bob"]
 
 
@@ -75,9 +88,7 @@ def test_round_robin_picks_least_recent():
         max_agent_turn_depth=3,
     )
     svc = RoomChatService.__new__(RoomChatService)
-    picks = svc._select_agents(
-        room, "no mention", triggering_agent_id=None, round_robin_history=["a1"]
-    )
+    picks = _select(svc, room, "no mention", rr_history=["a1"])
     # a1 spoke most recently so a2 should go
     assert picks[0].id == "a2"
 
@@ -89,5 +100,71 @@ def test_agent_never_responds_to_itself():
         max_agent_turn_depth=3,
     )
     svc = RoomChatService.__new__(RoomChatService)
-    picks = svc._select_agents(room, "hi", triggering_agent_id="a1", round_robin_history=[])
+    picks = _select(svc, room, "hi", triggering_agent_id="a1")
     assert [a.name for a in picks] == ["Bob"]
+
+
+def test_explicit_mentions_skip_auto_agents():
+    """When user @-mentions someone, 'auto' agents should not LLM-judge."""
+    room = SimpleNamespace(
+        agents=[
+            _agent("a1", "Alice", mode="mention"),
+            _agent("a2", "Auto", mode="auto"),
+        ],
+        id="r",
+        max_agent_turn_depth=3,
+    )
+    svc = RoomChatService.__new__(RoomChatService)
+    # _auto_should_respond is not patched; if it were called, it would explode.
+    # Since the user mentions Alice, only Alice should be selected and the
+    # auto judge must not be invoked.
+    picks = _select(svc, room, "@Alice please respond")
+    assert [a.name for a in picks] == ["Alice"]
+
+
+def test_auto_agent_runs_when_judge_says_yes():
+    room = SimpleNamespace(
+        agents=[_agent("a1", "Auto", mode="auto", turn=0)],
+        id="r",
+        max_agent_turn_depth=3,
+    )
+    svc = RoomChatService.__new__(RoomChatService)
+
+    async def fake_judge(_room, _agent, _history):
+        return True
+
+    svc._auto_should_respond = fake_judge  # type: ignore[assignment]
+    picks = asyncio.run(
+        svc._select_agents(
+            room,
+            "what do you think?",
+            None,
+            [],
+            history=[SimpleNamespace(content="ping", sender_user_id="u@x", sender_agent_id=None)],
+        )
+    )
+    assert [a.name for a in picks] == ["Auto"]
+
+
+def test_auto_agent_skipped_when_judge_says_no():
+    room = SimpleNamespace(
+        agents=[_agent("a1", "Auto", mode="auto", turn=0)],
+        id="r",
+        max_agent_turn_depth=3,
+    )
+    svc = RoomChatService.__new__(RoomChatService)
+
+    async def fake_judge(_room, _agent, _history):
+        return False
+
+    svc._auto_should_respond = fake_judge  # type: ignore[assignment]
+    picks = asyncio.run(
+        svc._select_agents(
+            room,
+            "casual chat between humans",
+            None,
+            [],
+            history=[SimpleNamespace(content="ping", sender_user_id="u@x", sender_agent_id=None)],
+        )
+    )
+    assert picks == []
