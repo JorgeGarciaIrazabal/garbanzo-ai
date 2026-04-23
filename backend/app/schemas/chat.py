@@ -38,6 +38,9 @@ class ChatMessage(BaseModel):
 class ChatMessageOut(ChatMessage):
     """Message as returned by the API, with metadata."""
 
+    role: Literal[  # type: ignore[assignment]
+        "user", "assistant", "system", "tool_call", "tool_result"
+    ] = Field(..., description="The role of the message sender")
     id: str = Field(..., description="Unique message ID")
     created_at: datetime = Field(..., description="When the message was created")
     meta: dict[str, Any] | None = Field(

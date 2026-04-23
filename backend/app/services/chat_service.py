@@ -21,8 +21,8 @@ from app.services.llm_provider import ChatChunk, LLMProvider, ProviderRegistry
 from app.services.llm_provider import Message as LLMMessage
 from app.services.mcp_service import (
     MCPService,
+    build_tool_payload,
     split_tool_key,
-    to_ollama_tools,
     tool_key,
 )
 from app.services.memory_service import MemoryService
@@ -493,7 +493,9 @@ class ChatService:
         ChatService._active_streams[conversation_id] = cancel_event
 
         try:
-            ollama_tools = await self._resolve_tools_for_conversation(conversation)
+            ollama_tools, tool_lookup = await self._resolve_tools_for_conversation(
+                conversation
+            )
 
             for _ in range(MAX_TOOL_ITERATIONS):
                 full_response = ""
@@ -557,7 +559,7 @@ class ChatService:
                 )
 
                 for call in tool_calls_this_iter:
-                    result = await self._execute_tool_call(call)
+                    result = await self._execute_tool_call(call, tool_lookup)
                     result_meta = {
                         "tool_call_id": call.get("id"),
                         "tool_name": call.get("name"),
@@ -605,18 +607,24 @@ class ChatService:
         finally:
             ChatService._active_streams.pop(conversation_id, None)
 
-    async def _resolve_tools_for_conversation(self, conversation) -> list[dict]:
-        """Return Ollama-shaped tool schemas for this conversation."""
+    async def _resolve_tools_for_conversation(
+        self, conversation
+    ) -> tuple[list[dict], dict[str, tuple[str, str]]]:
+        """Return ``(ollama_tools, lookup)`` for this conversation.
+
+        ``lookup`` maps the function name advertised to the LLM back to
+        ``(server_id, tool_name)`` so the executor can resolve calls.
+        """
         enabled = getattr(conversation, "enabled_tools", None)
         if enabled is not None and not enabled:
             # [] → opt out of all tools
-            return []
+            return [], {}
 
         try:
             all_tools = await self._mcp.list_all_tools(enabled_only=True)
         except Exception as exc:
             logger.warning("Failed to list MCP tools: %s", exc)
-            return []
+            return [], {}
 
         if enabled is None:
             filtered = all_tools
@@ -625,13 +633,17 @@ class ChatService:
             filtered = [
                 t for t in all_tools if tool_key(t["server_id"], t["name"]) in allowed
             ]
-        return to_ollama_tools(filtered)
+        return build_tool_payload(filtered)
 
-    async def _execute_tool_call(self, call: dict) -> dict:
+    async def _execute_tool_call(
+        self, call: dict, lookup: dict[str, tuple[str, str]]
+    ) -> dict:
         """Run a single tool call through ``MCPService``.
 
-        ``call["name"]`` is expected to be the Ollama-shaped function name,
-        which we set to ``"{server_id}:{tool_name}"``.
+        ``call["name"]`` is the function name we advertised to the LLM. We
+        resolve it back to ``(server_id, tool_name)`` via ``lookup``. As a
+        legacy fallback we also accept the raw ``"server_id:tool_name"``
+        form some older flows produced.
         """
         name = call.get("name") or ""
         args = call.get("arguments") or {}
@@ -641,10 +653,13 @@ class ChatService:
             except Exception:
                 args = {}
 
-        if ":" not in name:
-            return {"ok": False, "error": f"Tool name missing server prefix: {name}"}
+        target = lookup.get(name)
+        if target is None and ":" in name:
+            target = split_tool_key(name)
+        if target is None:
+            return {"ok": False, "error": f"Unknown tool: {name}"}
 
-        server_id, tool_name = split_tool_key(name)
+        server_id, tool_name = target
         try:
             return await self._mcp.call_tool(server_id, tool_name, args)
         except Exception as exc:

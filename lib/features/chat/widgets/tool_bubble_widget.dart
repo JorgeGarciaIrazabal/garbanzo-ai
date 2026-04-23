@@ -76,19 +76,69 @@ class ToolBubbleWidget extends StatelessWidget {
     }
   }
 
+  /// Render args/result as a compact one-line preview shown next to the title.
+  String _summary(Object? value, {int max = 80}) {
+    if (value == null) return '';
+    String s;
+    if (value is String) {
+      s = value;
+    } else if (value is Map) {
+      if (value.isEmpty) return '';
+      final parts = value.entries.map((e) {
+        final v = e.value;
+        final vs = (v is String) ? '"$v"' : v.toString();
+        return '${e.key}: $vs';
+      });
+      s = parts.join(', ');
+    } else if (value is List) {
+      s = value.map((e) => e.toString()).join(', ');
+    } else {
+      s = value.toString();
+    }
+    s = s.replaceAll(RegExp(r'\s+'), ' ').trim();
+    if (s.length > max) s = '${s.substring(0, max - 1)}…';
+    return s;
+  }
+
+  bool _isErrorResult() {
+    final r = _resultData?['result'];
+    if (r is Map) {
+      if (r['ok'] == false) return true;
+      if (r['is_error'] == true) return true;
+    }
+    return false;
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    final title = _isCall ? 'Called $_toolName' : 'Result: $_toolName';
-    final icon = _isCall ? Icons.build_circle_outlined : Icons.done_all;
-
     final callData = _callData;
     final resultData = _resultData;
-
     final args = callData?['arguments'];
     final result = resultData?['result'];
+
+    final isError = _isResult && _isErrorResult();
+    final IconData icon;
+    if (_isCall) {
+      icon = Icons.build_circle_outlined;
+    } else if (isError) {
+      icon = Icons.error_outline;
+    } else {
+      icon = Icons.done_all;
+    }
+
+    final preview = _isCall
+        ? _summary(args)
+        : _summary(result is Map ? (result['content'] ?? result) : result);
+
+    final accent = isError
+        ? colorScheme.errorContainer
+        : colorScheme.tertiaryContainer;
+    final onAccent = isError
+        ? colorScheme.onErrorContainer
+        : colorScheme.onTertiaryContainer;
 
     return Align(
       alignment: Alignment.centerLeft,
@@ -99,89 +149,89 @@ class ToolBubbleWidget extends StatelessWidget {
         child: Card(
           elevation: 0,
           margin: EdgeInsets.only(
-            top: 4,
-            bottom: 4,
+            top: 2,
+            bottom: 2,
             left: MediaQuery.of(context).size.width * 0.01,
           ),
-          color: colorScheme.tertiaryContainer.withValues(alpha: 0.5),
+          color: accent.withValues(alpha: 0.45),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(10),
             side: BorderSide(
               color: colorScheme.outlineVariant,
               width: 1,
             ),
           ),
-          child: ExpansionTile(
-            tilePadding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-            childrenPadding:
-                const EdgeInsets.fromLTRB(12, 0, 12, 12),
-            leading: Icon(icon,
-                size: 18, color: colorScheme.onTertiaryContainer),
-            title: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    title,
-                    style: theme.textTheme.bodyMedium?.copyWith(
+          child: Theme(
+            data: theme.copyWith(dividerColor: Colors.transparent),
+            child: ExpansionTile(
+              dense: true,
+              minTileHeight: 32,
+              visualDensity: VisualDensity.compact,
+              tilePadding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+              childrenPadding:
+                  const EdgeInsets.fromLTRB(10, 0, 10, 8),
+              leading: Icon(icon, size: 16, color: onAccent),
+              title: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Text(
+                    _isCall ? 'call' : (isError ? 'error' : 'result'),
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: onAccent.withValues(alpha: 0.7),
                       fontWeight: FontWeight.w600,
-                      color: colorScheme.onTertiaryContainer,
+                      letterSpacing: 0.4,
                     ),
                   ),
-                ),
-                if (_isCall && isStreaming)
-                  SizedBox(
-                    width: 12,
-                    height: 12,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: colorScheme.onTertiaryContainer,
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      _toolName,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        fontFamily: 'monospace',
+                        fontWeight: FontWeight.w600,
+                        color: onAccent,
+                      ),
                     ),
                   ),
+                  if (preview.isNotEmpty) ...[
+                    const SizedBox(width: 6),
+                    Flexible(
+                      flex: 3,
+                      child: Text(
+                        preview,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: onAccent.withValues(alpha: 0.75),
+                          fontFamily: 'monospace',
+                        ),
+                      ),
+                    ),
+                  ],
+                  if (_isCall && isStreaming) ...[
+                    const SizedBox(width: 6),
+                    SizedBox(
+                      width: 10,
+                      height: 10,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: onAccent,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              children: [
+                if (_isCall && args != null)
+                  _JsonBlock(text: _pretty(args)),
+                if (_isResult && result != null)
+                  _JsonBlock(text: _pretty(result)),
+                if (!_isCall && !_isResult)
+                  _JsonBlock(text: _pretty(message.metadata)),
               ],
             ),
-            children: [
-              if (_isCall && args != null) ...[
-                _SectionLabel(
-                  label: 'Input',
-                  color: colorScheme.onTertiaryContainer,
-                ),
-                _JsonBlock(text: _pretty(args)),
-              ],
-              if (_isResult && result != null) ...[
-                _SectionLabel(
-                  label: 'Output',
-                  color: colorScheme.onTertiaryContainer,
-                ),
-                _JsonBlock(text: _pretty(result)),
-              ],
-              if (!_isCall && !_isResult)
-                _JsonBlock(text: _pretty(message.metadata)),
-            ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel({required this.label, required this.color});
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(4, 4, 4, 4),
-        child: Text(
-          label,
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: color,
-                fontWeight: FontWeight.w600,
-              ),
         ),
       ),
     );

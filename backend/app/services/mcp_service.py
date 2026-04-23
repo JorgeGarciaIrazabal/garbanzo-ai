@@ -6,6 +6,7 @@ import asyncio
 import contextlib
 import json
 import logging
+import re
 import time
 import uuid
 from typing import Any
@@ -294,30 +295,64 @@ def split_tool_key(key: str) -> tuple[str, str]:
     return server_id, tool_name
 
 
-def to_ollama_tools(tools: list[dict[str, Any]]) -> list[dict[str, Any]]:
+_NAME_SAFE_RE = re.compile(r"[^a-zA-Z0-9_-]")
+_MAX_FUNCTION_NAME_LEN = 64
+
+
+def _sanitize_name(value: str) -> str:
+    """Coerce ``value`` to the OpenAI/Ollama function-name charset."""
+    cleaned = _NAME_SAFE_RE.sub("_", value).strip("_")
+    return cleaned or "tool"
+
+
+def build_tool_payload(
+    tools: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], dict[str, tuple[str, str]]]:
     """Convert internal tool dicts to Ollama/OpenAI tool schema.
 
-    Tool names are prefixed with the server id to keep them unique across
-    servers.  The original ``(server_id, tool_name)`` pair is recoverable via
-    :func:`split_tool_key`.
+    Returns ``(ollama_tools, lookup)`` where ``lookup`` maps the function
+    name advertised to the LLM back to ``(server_id, tool_name)``.
+
+    Function names are sanitized to the OpenAI tool-name charset
+    ``[a-zA-Z0-9_-]`` and capped at 64 chars. Collisions across servers are
+    disambiguated by prefixing with a sanitized server name.
     """
-    result: list[dict[str, Any]] = []
+    lookup: dict[str, tuple[str, str]] = {}
+    ollama_tools: list[dict[str, Any]] = []
+
     for t in tools:
-        key = tool_key(t["server_id"], t["name"])
+        owner = (t["server_id"], t["name"])
+        base = _sanitize_name(t["name"])[:_MAX_FUNCTION_NAME_LEN]
+        name = base
+        if name in lookup and lookup[name] != owner:
+            srv = _sanitize_name(t.get("server_name") or t["server_id"])[:20]
+            name = f"{srv}__{base}"[:_MAX_FUNCTION_NAME_LEN]
+            counter = 2
+            while name in lookup and lookup[name] != owner:
+                suffix = f"__{counter}"
+                name = base[: _MAX_FUNCTION_NAME_LEN - len(suffix)] + suffix
+                counter += 1
+        lookup[name] = owner
+
         parameters = t.get("input_schema") or {"type": "object", "properties": {}}
         if not isinstance(parameters, dict):
             try:
                 parameters = json.loads(parameters)
             except Exception:
                 parameters = {"type": "object", "properties": {}}
-        result.append(
+        ollama_tools.append(
             {
                 "type": "function",
                 "function": {
-                    "name": key,
+                    "name": name,
                     "description": t.get("description") or "",
                     "parameters": parameters,
                 },
             }
         )
-    return result
+    return ollama_tools, lookup
+
+
+def to_ollama_tools(tools: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Backwards-compatible wrapper returning only the Ollama tool list."""
+    return build_tool_payload(tools)[0]

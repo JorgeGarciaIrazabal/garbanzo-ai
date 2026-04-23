@@ -8,6 +8,7 @@ import pytest
 from app.models.mcp_server import MCPServer
 from app.services.mcp_service import (
     MCPService,
+    build_tool_payload,
     invalidate_tools_cache,
     split_tool_key,
     to_ollama_tools,
@@ -186,7 +187,7 @@ async def test_to_ollama_tools_shape():
         {
             "type": "function",
             "function": {
-                "name": "srv:list_files",
+                "name": "list_files",
                 "description": "list",
                 "parameters": {
                     "type": "object",
@@ -195,3 +196,92 @@ async def test_to_ollama_tools_shape():
             },
         }
     ]
+
+
+async def test_build_tool_payload_returns_lookup():
+    """The payload builder must return a lookup that round-trips back to
+    the original (server_id, tool_name) pair so the chat service can resolve
+    the call."""
+    server_id = "abc-123"
+    tools = [
+        {
+            "server_id": server_id,
+            "server_name": "time",
+            "name": "get_current_time",
+            "description": "",
+            "input_schema": {"type": "object", "properties": {}},
+        }
+    ]
+    payload, lookup = build_tool_payload(tools)
+    fn_name = payload[0]["function"]["name"]
+    assert fn_name == "get_current_time"
+    assert lookup[fn_name] == (server_id, "get_current_time")
+
+
+async def test_build_tool_payload_names_match_openai_charset():
+    """Function names must comply with ``^[a-zA-Z0-9_-]{1,64}$`` — colons,
+    spaces, dots etc. are stripped. Otherwise the model silently drops
+    the suffix and we end up calling a non-existent tool."""
+    import re
+
+    tools = [
+        {
+            "server_id": "uuid-with-hyphens-and:colons",
+            "server_name": "weird name!",
+            "name": "do.thing/now",
+            "description": "",
+            "input_schema": {},
+        }
+    ]
+    payload, lookup = build_tool_payload(tools)
+    fn_name = payload[0]["function"]["name"]
+    assert re.fullmatch(r"[a-zA-Z0-9_-]{1,64}", fn_name)
+    assert lookup[fn_name] == (
+        "uuid-with-hyphens-and:colons",
+        "do.thing/now",
+    )
+
+
+async def test_build_tool_payload_disambiguates_collisions():
+    """Two servers exposing the same tool name get distinct function names
+    and the lookup remains consistent."""
+    tools = [
+        {
+            "server_id": "srv-a",
+            "server_name": "alpha",
+            "name": "search",
+            "description": "",
+            "input_schema": {},
+        },
+        {
+            "server_id": "srv-b",
+            "server_name": "beta",
+            "name": "search",
+            "description": "",
+            "input_schema": {},
+        },
+    ]
+    payload, lookup = build_tool_payload(tools)
+    names = [t["function"]["name"] for t in payload]
+    assert names[0] != names[1]
+    assert len(lookup) == 2
+    assert lookup[names[0]] == ("srv-a", "search")
+    assert lookup[names[1]] == ("srv-b", "search")
+
+
+async def test_build_tool_payload_caps_long_names():
+    """Names longer than 64 chars are truncated."""
+    long_name = "a" * 200
+    tools = [
+        {
+            "server_id": "srv",
+            "server_name": "s",
+            "name": long_name,
+            "description": "",
+            "input_schema": {},
+        }
+    ]
+    payload, lookup = build_tool_payload(tools)
+    fn_name = payload[0]["function"]["name"]
+    assert len(fn_name) <= 64
+    assert lookup[fn_name] == ("srv", long_name)

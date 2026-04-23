@@ -185,3 +185,69 @@ async def test_iteration_cap_enforced(db_session, test_user_email):
     assert any(
         (c.metadata or {}).get("error_type") == "tool_iteration_cap" for c in collected
     )
+
+
+async def test_clean_function_name_resolves_via_lookup(
+    db_session, test_user_email
+):
+    """When the model emits a clean (no-colon) function name, the chat
+    service must resolve it back to the right (server_id, tool_name) via
+    the per-request lookup built from the advertised tool list. Regression
+    against the bug where colon-prefixed names broke spec-compliant LLMs."""
+    server_id = "abc-123-server"
+    fake_tools = [
+        {
+            "server_id": server_id,
+            "server_name": "time",
+            "name": "get_current_time",
+            "description": "",
+            "input_schema": {"type": "object", "properties": {}},
+        }
+    ]
+
+    # Model emits a clean name ("get_current_time"), no server prefix.
+    tool_calls = [
+        {"id": "c1", "name": "get_current_time", "arguments": {"timezone": "UTC"}}
+    ]
+    provider = _ScriptedProvider(
+        [
+            [
+                ChatChunk(content="", is_finished=False, tool_calls=tool_calls),
+                ChatChunk(content="", is_finished=True, metadata={}),
+            ],
+            [
+                ChatChunk(content="done", is_finished=False),
+                ChatChunk(content="", is_finished=True, metadata={}),
+            ],
+        ]
+    )
+    service = await _make_service(db_session, provider)
+    conv_id = await _new_conversation(db_session, test_user_email)
+
+    captured: dict = {}
+
+    async def _fake_call_tool(srv, tool_name, args):
+        captured["server_id"] = srv
+        captured["tool_name"] = tool_name
+        captured["args"] = args
+        return {"ok": True, "content": "12:00"}
+
+    with patch(
+        "app.services.chat_service.MCPService.list_all_tools",
+        new=AsyncMock(return_value=fake_tools),
+    ), patch(
+        "app.services.chat_service.MCPService.call_tool",
+        new=AsyncMock(side_effect=_fake_call_tool),
+    ):
+        async for _ in service.send_message(
+            conversation_id=conv_id,
+            user_id=test_user_email,
+            content="what time is it",
+        ):
+            pass
+
+    assert captured == {
+        "server_id": server_id,
+        "tool_name": "get_current_time",
+        "args": {"timezone": "UTC"},
+    }
