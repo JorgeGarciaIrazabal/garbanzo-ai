@@ -5,7 +5,7 @@ import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/search_provider.dart';
 
 class SearchResultsWidget extends StatelessWidget {
-  const SearchResultsWidget({Key? key}) : super(key: key);
+  const SearchResultsWidget({super.key});
 
   @override
   Widget build(BuildContext context) {

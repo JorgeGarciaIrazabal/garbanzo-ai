@@ -76,6 +76,7 @@ class _RegisterPageState extends State<RegisterPage> {
       formKey: _formKey,
       children: [
         TextFormField(
+          key: const ValueKey('full_name_field'),
           controller: _fullNameController,
           textInputAction: TextInputAction.next,
           decoration: const InputDecoration(
@@ -87,6 +88,7 @@ class _RegisterPageState extends State<RegisterPage> {
         ),
         const SizedBox(height: 16),
         TextFormField(
+          key: const ValueKey('email_field'),
           controller: _emailController,
           keyboardType: TextInputType.emailAddress,
           textInputAction: TextInputAction.next,
@@ -103,32 +105,24 @@ class _RegisterPageState extends State<RegisterPage> {
           },
         ),
         const SizedBox(height: 16),
-        TextFormField(
+        PasswordField(
+          key: const ValueKey('password_field'),
           controller: _passwordController,
-          obscureText: true,
-          textInputAction: TextInputAction.done,
-          onFieldSubmitted: (_) => _submit(),
-          decoration: const InputDecoration(
-            labelText: 'Password',
-            hintText: 'At least 6 characters',
-            border: OutlineInputBorder(),
-            prefixIcon: Icon(Icons.lock_outlined),
-          ),
-          validator: (v) {
-            if (v == null || v.isEmpty) return 'Enter a password';
-            if (v.length < 6) return 'Password must be at least 6 characters';
-            return null;
-          },
+          onSubmit: _submit,
+          hintText: 'At least 6 characters',
+          minLength: 6,
         ),
         if (_error != null) AuthErrorBanner(message: _error!),
         const SizedBox(height: 24),
         AuthSubmitButton(
+          key: const ValueKey('register_button'),
           label: 'Create account',
           isLoading: _loading,
           onPressed: _submit,
         ),
         const SizedBox(height: 16),
         TextButton(
+          key: const ValueKey('go_to_login'),
           onPressed: _loading ? null : widget.onNavigateToLogin,
           child: const Text('Already have an account? Sign in'),
         ),

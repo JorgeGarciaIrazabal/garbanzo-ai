@@ -4,7 +4,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from app.core.config import Settings, get_settings
-from app.core.security import create_access_token, hash_password
+from app.core.security import create_access_token, create_refresh_token, hash_password
 from app.db.session import get_db
 from app.main import app
 from app.models.user import User
@@ -92,7 +92,9 @@ class TestLogin:
                     json={"email": "test@example.com", "password": "password123"},
                 )
             assert resp.status_code == 200
-            assert "access_token" in resp.json()
+            body = resp.json()
+            assert "access_token" in body
+            assert body.get("refresh_token")
         finally:
             _clear_overrides()
 
@@ -319,3 +321,110 @@ class TestChangePassword:
             assert resp.status_code == 401
         finally:
             self._teardown()
+
+
+class TestRefresh:
+    async def test_refresh_issues_new_tokens(self, db_session):
+        _install_overrides(db_session)
+        try:
+            refresh_token = create_refresh_token(
+                {"sub": "test@example.com"}, _TEST_SETTINGS
+            )
+            async with await _client() as c:
+                resp = await c.post(
+                    "/api/v1/auth/refresh",
+                    json={"refresh_token": refresh_token},
+                )
+            assert resp.status_code == 200, resp.text
+            body = resp.json()
+            assert body["access_token"]
+            assert body["refresh_token"]
+            # Rotation — new refresh token should differ from the one we sent.
+            assert body["refresh_token"] != refresh_token
+        finally:
+            _clear_overrides()
+
+    async def test_refresh_rejects_access_token(self, db_session):
+        """An access token is not a refresh token — /refresh must reject it."""
+        _install_overrides(db_session)
+        try:
+            access_token = create_access_token(
+                {"sub": "test@example.com"}, _TEST_SETTINGS
+            )
+            async with await _client() as c:
+                resp = await c.post(
+                    "/api/v1/auth/refresh",
+                    json={"refresh_token": access_token},
+                )
+            assert resp.status_code == 401
+        finally:
+            _clear_overrides()
+
+    async def test_refresh_rejects_garbage(self, db_session):
+        _install_overrides(db_session)
+        try:
+            async with await _client() as c:
+                resp = await c.post(
+                    "/api/v1/auth/refresh",
+                    json={"refresh_token": "not-a-real-token"},
+                )
+            assert resp.status_code == 401
+        finally:
+            _clear_overrides()
+
+    async def test_refresh_rejects_unknown_user(self, db_session):
+        _install_overrides(db_session)
+        try:
+            refresh_token = create_refresh_token(
+                {"sub": "ghost@example.com"}, _TEST_SETTINGS
+            )
+            async with await _client() as c:
+                resp = await c.post(
+                    "/api/v1/auth/refresh",
+                    json={"refresh_token": refresh_token},
+                )
+            assert resp.status_code == 401
+        finally:
+            _clear_overrides()
+
+    async def test_refresh_rejects_disabled_user(self, db_session):
+        db_session.add(
+            User(
+                email="banned@example.com",
+                hashed_password=hash_password("pw"),
+                is_disabled=True,
+            )
+        )
+        await db_session.commit()
+
+        _install_overrides(db_session)
+        try:
+            refresh_token = create_refresh_token(
+                {"sub": "banned@example.com"}, _TEST_SETTINGS
+            )
+            async with await _client() as c:
+                resp = await c.post(
+                    "/api/v1/auth/refresh",
+                    json={"refresh_token": refresh_token},
+                )
+            assert resp.status_code == 401
+        finally:
+            _clear_overrides()
+
+    async def test_access_token_cannot_impersonate_refresh_on_protected_route(
+        self, db_session
+    ):
+        """A refresh token must not authenticate protected API endpoints."""
+        _install_overrides(db_session)
+        try:
+            refresh_token = create_refresh_token(
+                {"sub": "test@example.com"}, _TEST_SETTINGS
+            )
+            async with await _client() as c:
+                resp = await c.get(
+                    "/api/v1/auth/me",
+                    headers={"Authorization": f"Bearer {refresh_token}"},
+                )
+            assert resp.status_code == 401
+        finally:
+            _clear_overrides()

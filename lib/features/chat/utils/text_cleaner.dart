@@ -6,13 +6,22 @@ String cleanTextForSpeech(String text) {
   cleaned = cleaned.replaceAll(RegExp(r'```[\s\S]*?```'), '');
 
   // Remove inline code backticks but keep the text inside
-  cleaned = cleaned.replaceAll(RegExp(r'`([^`]*)`'), r'$1');
+  cleaned = cleaned.replaceAllMapped(
+    RegExp(r'`([^`]*)`'),
+    (m) => m.group(1) ?? '',
+  );
 
   // Remove image syntax ![alt](url)
-  cleaned = cleaned.replaceAll(RegExp(r'!\[([^\]]*)\]\([^)]+\)'), r'$1');
+  cleaned = cleaned.replaceAllMapped(
+    RegExp(r'!\[([^\]]*)\]\([^)]+\)'),
+    (m) => m.group(1) ?? '',
+  );
 
   // Convert links [text](url) to just the text
-  cleaned = cleaned.replaceAll(RegExp(r'\[([^\]]+)\]\([^)]+\)'), r'$1');
+  cleaned = cleaned.replaceAllMapped(
+    RegExp(r'\[([^\]]+)\]\([^)]+\)'),
+    (m) => m.group(1) ?? '',
+  );
 
   // Remove markdown headings (# ... ######)
   cleaned = cleaned.replaceAll(RegExp(r'^#{1,6}\s+', multiLine: true), '');

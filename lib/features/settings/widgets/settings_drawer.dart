@@ -65,7 +65,7 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
     final settings = context.watch<SettingsProvider>();
 
     return Drawer(
-      width: 320,
+      width: 360,
       child: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

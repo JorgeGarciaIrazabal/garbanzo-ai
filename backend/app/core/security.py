@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -40,7 +41,25 @@ def create_access_token(
         expire = datetime.utcnow() + expires_delta
     else:
         expire = datetime.utcnow() + timedelta(minutes=settings.access_token_expire_minutes)
-    to_encode.update({"exp": expire})
+    to_encode.update({"exp": expire, "type": "access"})
+    encoded_jwt = jwt.encode(to_encode, settings.secret_key, algorithm="HS256")
+    return encoded_jwt
+
+
+def create_refresh_token(
+    data: dict[str, Any],
+    settings: Settings,
+    expires_delta: timedelta | None = None,
+) -> str:
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(days=settings.refresh_token_expire_days)
+    # jti ensures every rotated refresh token is byte-distinct even when
+    # issued within the same second, and gives us a handle for future
+    # server-side revocation.
+    to_encode.update({"exp": expire, "type": "refresh", "jti": uuid.uuid4().hex})
     encoded_jwt = jwt.encode(to_encode, settings.secret_key, algorithm="HS256")
     return encoded_jwt
 
@@ -65,6 +84,13 @@ async def get_current_user(
 
     payload = decode_token(credentials.credentials, settings)
     if payload is None:
+        raise credentials_exception
+
+    # Refresh tokens must never authenticate a normal API request.
+    # Tokens issued before the type claim existed are treated as access tokens
+    # for backwards compatibility with already-issued sessions.
+    token_type = payload.get("type", "access")
+    if token_type != "access":
         raise credentials_exception
 
     email: str = payload.get("sub")

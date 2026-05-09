@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     # Security
     secret_key: str = "change-this-in-production"
     access_token_expire_minutes: int = 30
+    refresh_token_expire_days: int = 30
 
     # Database
     database_url: str = "postgresql+asyncpg://garbanzo:garbanzo_dev@localhost:5432/garbanzo_ai"

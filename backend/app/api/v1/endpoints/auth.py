@@ -6,12 +6,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import Settings, get_settings
 from app.core.security import (
     create_access_token,
+    create_refresh_token,
+    decode_token,
     get_current_user,
     hash_password,
     verify_password,
 )
 from app.db.session import get_db
-from app.schemas.auth import LoginRequest, TokenResponse
+from app.schemas.auth import LoginRequest, RefreshRequest, TokenResponse
 from app.schemas.user import PasswordUpdate, UserCreate, UserOut, UserUpdate
 from app.services.user_service import UserService
 
@@ -79,7 +81,42 @@ async def login(
         )
 
     access_token = create_access_token(data={"sub": email}, settings=settings)
-    return TokenResponse(access_token=access_token)
+    refresh_token = create_refresh_token(data={"sub": email}, settings=settings)
+    return TokenResponse(access_token=access_token, refresh_token=refresh_token)
+
+
+@router.post("/refresh", response_model=TokenResponse)
+async def refresh(
+    payload: RefreshRequest,
+    users: Annotated[UserService, Depends(get_user_service)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> TokenResponse:
+    """Exchange a refresh token for a new access+refresh token pair.
+
+    Refresh tokens are rotated on every call so a leaked token is usable
+    only until the next legitimate refresh.
+    """
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid or expired refresh token",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+    decoded = decode_token(payload.refresh_token, settings)
+    if decoded is None or decoded.get("type") != "refresh":
+        raise credentials_exception
+
+    email = decoded.get("sub")
+    if not email:
+        raise credentials_exception
+
+    user = await users.get_by_email(email)
+    if user is None or getattr(user, "is_disabled", False):
+        raise credentials_exception
+
+    access_token = create_access_token(data={"sub": email}, settings=settings)
+    new_refresh_token = create_refresh_token(data={"sub": email}, settings=settings)
+    return TokenResponse(access_token=access_token, refresh_token=new_refresh_token)
 
 
 @router.get("/me", response_model=UserOut)

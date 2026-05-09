@@ -325,6 +325,7 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
                 Padding(
                   padding: EdgeInsets.only(right: isMobile ? 0 : 8),
                   child: IconButton(
+                    key: const ValueKey('attach_button'),
                     onPressed: widget.isLoading ? null : _pickFiles,
                     icon: const Icon(Icons.attach_file, size: 22),
                     tooltip: 'Attach file',
@@ -355,6 +356,7 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
                         child: ConstrainedBox(
                           constraints: BoxConstraints(maxHeight: isMobile ? 100 : 150),
                           child: TextField(
+                            key: const ValueKey('message_input'),
                             controller: _controller,
                             focusNode: _focusNode,
                             onChanged: _handleTextChange,
@@ -417,6 +419,7 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
                   curve: Curves.easeInOut,
                   child: widget.isLoading
                       ? IconButton.filled(
+                          key: const ValueKey('stop_button'),
                           onPressed: widget.onStop,
                           icon: const Icon(Icons.stop_rounded, size: 20),
                           tooltip: 'Stop generation',
@@ -442,8 +445,10 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
                             )
                           : _canSend
                               ? IconButton.filled(
+                                  key: const ValueKey('send_button'),
                                   onPressed: _handleSubmitted,
                                   icon: Icon(Icons.send, size: isMobile ? 18 : 20),
+                                  tooltip: 'Send message',
                                   style: IconButton.styleFrom(
                                     backgroundColor: colorScheme.primary,
                                     foregroundColor: colorScheme.onPrimary,
@@ -456,6 +461,7 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
                                   ),
                                 )
                               : IconButton(
+                                  key: const ValueKey('voice_button'),
                                   onPressed: _toggleRecording,
                                   icon: Icon(
                                     _isRecording ? Icons.stop : Icons.mic,

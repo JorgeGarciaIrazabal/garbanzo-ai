@@ -123,8 +123,12 @@ class AuthService {
       if (res.statusCode == 200) {
         final data = res.data as Map<String, dynamic>;
         final token = data['access_token'] as String?;
+        final refreshToken = data['refresh_token'] as String?;
         if (token != null) {
-          await _client.setToken(token);
+          await _client.setTokens(
+            accessToken: token,
+            refreshToken: refreshToken,
+          );
           return AuthResult.success();
         }
       }
@@ -143,7 +147,7 @@ class AuthService {
 
   Future<void> logout() async {
     _cachedUser = null;
-    await _client.setToken(null);
+    await _client.setTokens(accessToken: null, refreshToken: null);
   }
 
   Future<bool> isLoggedIn() async {

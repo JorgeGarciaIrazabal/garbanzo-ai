@@ -104,6 +104,7 @@ class _LoginPageState extends State<LoginPage> {
         ),
         const SizedBox(height: 20),
         TextFormField(
+          key: const ValueKey('email_field'),
           controller: _emailController,
           keyboardType: TextInputType.emailAddress,
           textInputAction: TextInputAction.next,
@@ -120,24 +121,15 @@ class _LoginPageState extends State<LoginPage> {
           },
         ),
         const SizedBox(height: 16),
-        TextFormField(
+        PasswordField(
+          key: const ValueKey('password_field'),
           controller: _passwordController,
-          obscureText: true,
-          textInputAction: TextInputAction.done,
-          onFieldSubmitted: (_) => _submit(),
-          decoration: const InputDecoration(
-            labelText: 'Password',
-            border: OutlineInputBorder(),
-            prefixIcon: Icon(Icons.lock_outlined),
-          ),
-          validator: (v) {
-            if (v == null || v.isEmpty) return 'Enter your password';
-            return null;
-          },
+          onSubmit: _submit,
         ),
         if (_error != null) AuthErrorBanner(message: _error!),
         const SizedBox(height: 24),
         AuthSubmitButton(
+          key: const ValueKey('login_button'),
           label: 'Sign in',
           isLoading: _loading,
           onPressed: _submit,
@@ -145,6 +137,7 @@ class _LoginPageState extends State<LoginPage> {
         if (widget.onNavigateToRegister != null) ...[
           const SizedBox(height: 16),
           TextButton(
+            key: const ValueKey('go_to_register'),
             onPressed: _loading ? null : widget.onNavigateToRegister,
             child: const Text('Create an account'),
           ),

@@ -132,3 +132,59 @@ class AuthSubmitButton extends StatelessWidget {
     );
   }
 }
+
+/// Password field with a show/hide visibility toggle and min-length validation.
+class PasswordField extends StatefulWidget {
+  const PasswordField({
+    super.key,
+    required this.controller,
+    this.onSubmit,
+    this.labelText = 'Password',
+    this.hintText,
+    this.minLength,
+  });
+
+  final TextEditingController controller;
+  final VoidCallback? onSubmit;
+  final String labelText;
+  final String? hintText;
+
+  /// If non-null, validates the password is at least this many characters.
+  final int? minLength;
+
+  @override
+  State<PasswordField> createState() => _PasswordFieldState();
+}
+
+class _PasswordFieldState extends State<PasswordField> {
+  bool _obscure = true;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextFormField(
+      controller: widget.controller,
+      obscureText: _obscure,
+      textInputAction: TextInputAction.done,
+      onFieldSubmitted: (_) => widget.onSubmit?.call(),
+      decoration: InputDecoration(
+        labelText: widget.labelText,
+        hintText: widget.hintText,
+        border: const OutlineInputBorder(),
+        prefixIcon: const Icon(Icons.lock_outlined),
+        suffixIcon: IconButton(
+          key: const ValueKey('password_visibility_toggle'),
+          tooltip: _obscure ? 'Show password' : 'Hide password',
+          icon: Icon(_obscure ? Icons.visibility_off : Icons.visibility),
+          onPressed: () => setState(() => _obscure = !_obscure),
+        ),
+      ),
+      validator: (v) {
+        if (v == null || v.isEmpty) return 'Enter your password';
+        if (widget.minLength != null && v.length < widget.minLength!) {
+          return 'Password must be at least ${widget.minLength} characters';
+        }
+        return null;
+      },
+    );
+  }
+}
