@@ -191,12 +191,65 @@ fe-run-test-server:
     flutter run -d linux --dart-define=API_BASE_URL=http://localhost:8000
 
 # ============================================================================
-# Full Build & Deploy
-# ============================================================================
+# Build frozen backend image, restart deploy stack, and build Android APK (ngrok static domain)
+publish:
+	#!/usr/bin/env bash
+	set -euo pipefail
 
-# Build everything (backend deps + Flutter web build)
-build: be-install fe-build
-    @Write-Host "Build complete! The web app is in backend/web/"
+	# Load NGROK_DOMAIN from backend/.env
+	if [ -f "{{ justfile_directory() }}/backend/.env" ]; then
+		export $(grep -E '^NGROK_DOMAIN=' "{{ justfile_directory() }}/backend/.env" | xargs)
+	fi
+
+	if [ -z "${NGROK_DOMAIN:-}" ]; then
+		echo "Error: NGROK_DOMAIN not set in backend/.env"; exit 1
+	fi
+
+	API_URL="https://${NGROK_DOMAIN}"
+
+	# 1. Generate temporary .env.deploy (Bake into image, not committed)
+	echo "Generating temporary .env.deploy..."
+	cp "{{ justfile_directory() }}/backend/.env" "{{ justfile_directory() }}/backend/.env.deploy"
+	# Override for production
+	sed -i "s/^DEBUG=.*/DEBUG=false/" "{{ justfile_directory() }}/backend/.env.deploy"
+	sed -i "s/^TEST_USER_EMAIL=.*/TEST_USER_EMAIL=/" "{{ justfile_directory() }}/backend/.env.deploy"
+	sed -i "s/^TEST_USER_PASSWORD=.*/TEST_USER_PASSWORD=/" "{{ justfile_directory() }}/backend/.env.deploy"
+
+	# Ensure ngrok tunnel to backend port 8001 is running
+	if ! curl -s http://localhost:4040/api/tunnels > /dev/null 2>&1; then
+		echo "Starting ngrok tunnel → ${NGROK_DOMAIN}..."
+		nohup ngrok http --domain "${NGROK_DOMAIN}" 8001 > /dev/null 2>&1 &
+		for i in $(seq 1 15); do
+			sleep 1
+			curl -s http://localhost:4040/api/tunnels > /dev/null 2>&1 && break
+			[ $i -eq 15 ] && { echo "Error: ngrok did not start"; exit 1; }
+		done
+	fi
+
+	# 2. Build Flutter web app and copy into backend/web/ (baked into image)
+	echo "Building Flutter web app..."
+	flutter build web --output "{{ justfile_directory() }}/backend/web"
+
+	# 3. Build backend image from frozen code (no mounted volumes)
+	echo "Building backend Docker image..."
+	docker compose -f docker-compose.deploy.yml build backend
+
+	# 3. Restart deployment stack ( backend will be recreated with the new image)
+	echo "Restarting deployment services..."
+	docker compose -f docker-compose.deploy.yml up -d
+
+	# Remove temporary deploy env file
+	rm "{{ justfile_directory() }}/backend/.env.deploy"
+
+	# 4. Build Android APK with the public URL baked in
+	echo "Building Android APK → API_BASE_URL=$API_URL"
+	flutter build apk --release --dart-define=API_BASE_URL="$API_URL"
+
+	echo ""
+	echo "Deploy complete!"
+	echo "  APK:  build/app/outputs/flutter-apk/app-release.apk"
+	echo "  Backend: $API_URL (Docker-managed, code frozen until next publish)"
+
 
 # Clean everything
 clean: fe-clean
