@@ -265,17 +265,26 @@ class RoomChatService:
                 judge_model,
                 ", ".join(a.name for a in auto),
             )
-        for agent in auto:
-            try:
-                if await self._auto_should_respond(room, agent, history):
+        # Judges run concurrently — same benchmark-validated per-agent
+        # prompt, but wall-clock is the slowest single call instead of the
+        # sum. (A single batched judge call was benchmarked and rejected:
+        # 72.1% vs 90.7% accuracy — see scripts/benchmark_auto_judge.py.)
+        if auto:
+            judge_results = await asyncio.gather(
+                *(self._auto_should_respond(room, agent, history) for agent in auto),
+                return_exceptions=True,
+            )
+            for agent, result in zip(auto, judge_results):
+                if isinstance(result, BaseException):
+                    logger.error(
+                        "[AUTO-JUDGE] crashed for agent=%s in room=%s",
+                        agent.name,
+                        room.id,
+                        exc_info=result,
+                    )
+                elif result:
                     selected.append(agent)
                     selected_ids.add(agent.id)
-            except Exception:
-                logger.exception(
-                    "[AUTO-JUDGE] crashed for agent=%s in room=%s",
-                    agent.name,
-                    room.id,
-                )
 
         # Stable ordering for consistent multi-agent turns
         selected.sort(key=lambda a: (a.turn_order, a.created_at))

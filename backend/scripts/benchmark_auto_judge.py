@@ -793,7 +793,19 @@ async def main() -> None:
 
     # Allow filtering models / prompts via CLI args:
     #   uv run python scripts/benchmark_auto_judge.py model1 model2 ...
+    #   uv run python scripts/benchmark_auto_judge.py --batched granite4:micro
+    #   uv run python scripts/benchmark_auto_judge.py --prompts v1_strict granite4:micro
     args = sys.argv[1:]
+    if "--batched" in args:
+        args.remove("--batched")
+        await benchmark_batched(args or ["granite4:micro"])
+        return
+    if "--prompts" in args:
+        idx = args.index("--prompts")
+        wanted = args[idx + 1].split(",")
+        del args[idx : idx + 2]
+        global PROMPT_VARIANTS
+        PROMPT_VARIANTS = {k: v for k, v in PROMPT_VARIANTS.items() if k in wanted}
     if args:
         models = args
     else:
@@ -815,6 +827,257 @@ async def main() -> None:
     with open(out_path, "w") as f:
         json.dump([r.__dict__ for r in results], f, indent=2)
     print(f"\nDetailed results written to {out_path}")
+
+
+
+# ----------------------------------------------------------------- batched mode
+#
+# One judge call covering ALL auto agents in a room instead of one call per
+# agent. Run with:
+#
+#     uv run python scripts/benchmark_auto_judge.py --batched granite4:micro
+#
+# Evaluates the batched prompt on (a) the 43 single-agent scenarios above
+# (decision = "is the agent in the respond list", directly comparable to
+# single-call accuracy) and (b) handcrafted multi-agent scenarios scored by
+# exact set match.
+#
+# RESULT (2026-06-12, granite4:micro): batching REJECTED.
+#   single v1_strict:        90.7% acc · 1279ms · 3 FP / 1 FN  (n=43)
+#   batched, same scenarios: 72.1% acc · 1509ms · 12 FP / 0 FN (n=43)
+#   batched, multi-agent:    71.4% exact-match (n=7)
+# The respond-array schema makes the small judge far too trigger-happy.
+# ``room_chat_service`` therefore keeps the validated per-agent prompt and
+# parallelizes the calls with asyncio.gather instead.
+
+
+def batched_schema(agent_names: list[str]) -> dict:
+    return {
+        "type": "object",
+        "properties": {
+            "respond": {
+                "type": "array",
+                "items": {"type": "string", "enum": agent_names},
+                "description": (
+                    "Names of the agents that should reply to the most recent "
+                    "message. Empty if none should."
+                ),
+            },
+            "reason": {
+                "type": "string",
+                "description": "Short justification (one sentence).",
+            },
+        },
+        "required": ["respond", "reason"],
+    }
+
+
+def prompt_batched(
+    agents: list[Agent], history: list[tuple[str, str]], peer_names: list[str]
+) -> tuple[str, str]:
+    """Batched analogue of v1_strict: same decision rules, N agents listed."""
+    agent_lines = []
+    for a in agents:
+        persona = (
+            f'persona: "{(a.persona or "")[:400]}"'
+            if a.persona
+            else "no specific persona — general-purpose assistant"
+        )
+        agent_lines.append(f"- {a.name} ({persona})")
+    extra_peers = [p for p in peer_names if p not in {a.name for a in agents}]
+    peers = (
+        f"Also present (not being evaluated): {', '.join(extra_peers)}.\n"
+        if extra_peers
+        else ""
+    )
+    sys = (
+        "You are a routing classifier for a multi-participant chat room. "
+        "Several AI agents are present; decide which of them (possibly none) "
+        "should reply to the most recent message. Respond as JSON matching "
+        "the provided schema.\n\n"
+        "Agents to evaluate:\n" + "\n".join(agent_lines) + "\n" + peers + "\n"
+        "Include an agent in respond ONLY IF its reply would clearly add "
+        "value: the most recent message asks a question that agent can "
+        "answer, explicitly invites that agent, or directly relates to its "
+        "expertise. Do NOT include agents for small-talk between humans, "
+        "off-topic chatter, anything another listed agent fits clearly "
+        "better, or messages that simply don't need a reply. Usually zero or "
+        "one agent should respond; include several only when each adds "
+        "distinct value."
+    )
+    usr = (
+        f"Recent conversation:\n{_transcript(history)}\n\n"
+        "Which agents should reply to the most recent message?"
+    )
+    return sys, usr
+
+
+@dataclass
+class MultiScenario:
+    name: str
+    agents: list[Agent]
+    history: list[tuple[str, str]]
+    expected: set[str] = field(default_factory=set)
+    notes: str = ""
+
+
+_CHEF = Agent("Chef", "You are an expert cook. Help with recipes and cooking.")
+_MECH = Agent("Mechanic", "You are a car mechanic. Help diagnose car problems.")
+_CODER = Agent("Coder", "You are a senior software engineer. Help with code.")
+
+MULTI_SCENARIOS: list[MultiScenario] = [
+    MultiScenario(
+        name="multi: car question → mechanic only",
+        agents=[_CHEF, _MECH],
+        history=[("jorge", "My car makes a clicking noise when I turn left. Any idea?")],
+        expected={"Mechanic"},
+    ),
+    MultiScenario(
+        name="multi: recipe question → chef only",
+        agents=[_CHEF, _MECH, _CODER],
+        history=[("jorge", "What's a good marinade for flank steak?")],
+        expected={"Chef"},
+    ),
+    MultiScenario(
+        name="multi: human small talk → nobody",
+        agents=[_CHEF, _MECH],
+        history=[
+            ("jorge", "hey ana, how was your weekend?"),
+            ("ana", "pretty good! went hiking."),
+        ],
+        expected=set(),
+    ),
+    MultiScenario(
+        name="multi: both explicitly invited",
+        agents=[_CHEF, _MECH],
+        history=[("jorge", "Chef and Mechanic, please both introduce yourselves.")],
+        expected={"Chef", "Mechanic"},
+    ),
+    MultiScenario(
+        name="multi: @-mention picks one",
+        agents=[_CHEF, _CODER],
+        history=[("jorge", "@Coder can you review this function for me?")],
+        expected={"Coder"},
+    ),
+    MultiScenario(
+        name="multi: thanks → nobody",
+        agents=[_CHEF, _MECH, _CODER],
+        history=[
+            ("jorge", "How do I sharpen a knife?"),
+            ("Chef", "Use a whetstone at a 20-degree angle..."),
+            ("jorge", "thanks!"),
+        ],
+        expected=set(),
+    ),
+    MultiScenario(
+        name="multi: general question, generalist room → one answers",
+        agents=[Agent("Helper"), _CODER],
+        history=[("jorge", "What's the capital of Australia?")],
+        expected={"Helper"},
+        notes="Either alone would be fine; exact-match expects the generalist.",
+    ),
+]
+
+
+def parse_batched(raw: str, valid_names: set[str]) -> tuple[set[str], str]:
+    if not raw:
+        return set(), "<empty>"
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        return set(), f"<unparseable: {raw[:80]!r}>"
+    if not isinstance(data, dict):
+        return set(), "<not object>"
+    names = data.get("respond") or []
+    if not isinstance(names, list):
+        return set(), "<respond not a list>"
+    picked = {str(n) for n in names if str(n) in valid_names}
+    return picked, str(data.get("reason", "") or "")
+
+
+async def benchmark_batched(models: list[str]) -> None:
+    settings = get_settings()
+    provider = OllamaProvider(base_url=settings.ollama_base_url)
+
+    for model in models:
+        # --- (a) single-agent scenarios via the batched prompt -------------
+        print(f"\n=== {model} | batched prompt on the {len(SCENARIOS)} single-agent scenarios ===")
+        hits = fp = fn = 0
+        total_ms = 0
+        for sc in SCENARIOS:
+            sys_p, usr_p = prompt_batched([sc.agent], sc.history, sc.other_agents)
+            try:
+                raw, ms = await run_judge_with_schema(
+                    provider, model, sys_p, usr_p, batched_schema([sc.agent.name])
+                )
+                picked, reason = parse_batched(raw, {sc.agent.name})
+            except Exception as e:
+                raw, ms, picked, reason = "", 0, set(), repr(e)
+            decision = sc.agent.name in picked
+            total_ms += ms
+            ok = decision == sc.expected
+            hits += ok
+            fp += decision and not sc.expected
+            fn += (not decision) and sc.expected
+            mark = "✅" if ok else "❌"
+            print(f"  {mark} want={'YES' if sc.expected else 'NO '} got={'YES' if decision else 'NO '}  ({ms:>4}ms)  {sc.name:<48} {reason[:70]}")
+        n = len(SCENARIOS)
+        print(
+            f"\n  single-scenario accuracy via batched prompt: "
+            f"{hits}/{n} = {hits / n * 100:.1f}%  avg {total_ms / n:.0f}ms  FP={fp} FN={fn}"
+        )
+
+        # --- (b) true multi-agent scenarios --------------------------------
+        print(f"\n=== {model} | batched prompt on {len(MULTI_SCENARIOS)} multi-agent scenarios ===")
+        mhits = 0
+        mtotal_ms = 0
+        for ms_sc in MULTI_SCENARIOS:
+            names = [a.name for a in ms_sc.agents]
+            sys_p, usr_p = prompt_batched(ms_sc.agents, ms_sc.history, names)
+            try:
+                raw, ms = await run_judge_with_schema(
+                    provider, model, sys_p, usr_p, batched_schema(names)
+                )
+                picked, reason = parse_batched(raw, set(names))
+            except Exception as e:
+                raw, ms, picked, reason = "", 0, set(), repr(e)
+            mtotal_ms += ms
+            ok = picked == ms_sc.expected
+            mhits += ok
+            mark = "✅" if ok else "❌"
+            print(
+                f"  {mark} want={sorted(ms_sc.expected) or '[]'} got={sorted(picked) or '[]'}  "
+                f"({ms:>4}ms)  {ms_sc.name:<46} {reason[:60]}"
+            )
+        mn = len(MULTI_SCENARIOS)
+        print(
+            f"\n  multi-scenario exact-match: {mhits}/{mn} = {mhits / mn * 100:.1f}%  "
+            f"avg {mtotal_ms / mn:.0f}ms (one call judges ALL agents)"
+        )
+
+
+async def run_judge_with_schema(
+    provider: OllamaProvider,
+    model: str,
+    sys_prompt: str,
+    user_prompt: str,
+    schema: dict,
+) -> tuple[str, int]:
+    t0 = time.perf_counter()
+    answer = await provider.chat(
+        messages=[
+            LLMMessage(role="system", content=sys_prompt),
+            LLMMessage(role="user", content=user_prompt),
+        ],
+        model=model,
+        options=ChatOptions(
+            temperature=0.0,
+            max_tokens=120,
+            response_format=schema,
+        ),
+    )
+    elapsed = int((time.perf_counter() - t0) * 1000)
+    return answer or "", elapsed
 
 
 if __name__ == "__main__":
