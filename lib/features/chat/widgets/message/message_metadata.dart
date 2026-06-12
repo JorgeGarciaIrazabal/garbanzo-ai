@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'message_action_button.dart';
+
 /// Compact icon button to toggle metadata visibility.
 class MetadataIconToggle extends StatelessWidget {
   const MetadataIconToggle({
@@ -15,34 +17,12 @@ class MetadataIconToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    return MessageActionButton(
+      icon: isExpanded ? Icons.info : Icons.info_outline,
+      label: isExpanded ? 'Hide' : 'Info',
+      tooltip: 'Show tokens used, timing, and generation details',
+      highlighted: isExpanded,
       onTap: onToggle,
-      borderRadius: BorderRadius.circular(4),
-      child: Padding(
-        padding: const EdgeInsets.all(4),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              isExpanded ? Icons.info : Icons.info_outline,
-              size: 14,
-              color: isExpanded
-                  ? colorScheme.primary
-                  : colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
-            ),
-            const SizedBox(width: 4),
-            Text(
-              isExpanded ? 'Hide' : 'Info',
-              style: TextStyle(
-                fontSize: 12,
-                color: isExpanded
-                    ? colorScheme.primary
-                    : colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
@@ -72,6 +52,8 @@ class MetadataDetails extends StatelessWidget {
         ((inputTokens != null && outputTokens != null)
             ? (inputTokens as num) + (outputTokens as num)
             : null);
+    final memoriesUsed = metadata['memories_used'];
+    final kbChunksUsed = metadata['kb_chunks_used'];
 
     return Container(
       margin: const EdgeInsets.only(top: 8),
@@ -117,6 +99,20 @@ class MetadataDetails extends StatelessWidget {
               icon: Icons.timer_outlined,
               label: 'Time',
               value: _formatNanoseconds(totalDurationNs),
+              colorScheme: colorScheme,
+            ),
+          if (memoriesUsed != null)
+            MetadataItem(
+              icon: Icons.psychology_outlined,
+              label: 'Memories',
+              value: _formatNumber(memoriesUsed),
+              colorScheme: colorScheme,
+            ),
+          if (kbChunksUsed != null)
+            MetadataItem(
+              icon: Icons.menu_book_outlined,
+              label: 'KB excerpts',
+              value: _formatNumber(kbChunksUsed),
               colorScheme: colorScheme,
             ),
         ],

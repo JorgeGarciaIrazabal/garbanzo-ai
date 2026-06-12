@@ -48,6 +48,11 @@ async def room_websocket(
     if payload is None or not payload.get("sub"):
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return
+    # Same rule as the HTTP auth path: refresh tokens must not grant access;
+    # tokens issued before the type claim existed count as access tokens.
+    if payload.get("type", "access") != "access":
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        return
     user_id = payload["sub"]
 
     # Verify membership before accepting

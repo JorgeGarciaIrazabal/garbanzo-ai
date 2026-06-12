@@ -21,7 +21,7 @@ import 'package:markdown/markdown.dart' as md;
 /// - Headings
 /// - Inline math ($...$)
 /// - Block math ($$...$$)
-class MarkdownWidget extends StatelessWidget {
+class MarkdownWidget extends StatefulWidget {
   const MarkdownWidget({
     super.key,
     required this.content,
@@ -36,23 +36,59 @@ class MarkdownWidget extends StatelessWidget {
   final bool isSelectable;
 
   @override
+  State<MarkdownWidget> createState() => _MarkdownWidgetState();
+}
+
+class _MarkdownWidgetState extends State<MarkdownWidget> {
+  // MarkdownBody re-parses whenever its `data` or `styleSheet` differ from
+  // the previous build. Caching both per content/theme keeps parent
+  // rebuilds (streaming chunks, isSending toggles, scrolling) from
+  // re-parsing every visible message's markdown on each frame.
+  MarkdownStyleSheet? _styleSheet;
+  Map<String, MarkdownElementBuilder>? _builders;
+  bool? _cachedIsDark;
+  ColorScheme? _cachedColorScheme;
+  TextTheme? _cachedTextTheme;
+  String? _cachedContent;
+  String _processedContent = '';
+
+  ColorScheme get colorScheme => widget.colorScheme;
+  TextTheme get textTheme => widget.textTheme;
+
+  @override
   Widget build(BuildContext context) {
-    if (content.isEmpty) {
+    if (widget.content.isEmpty) {
       return const SizedBox.shrink();
     }
 
-    // Pre-process content to convert multi-line block math to single-line format
-    final processedContent = _preprocessBlockMath(content);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    if (_styleSheet == null ||
+        _cachedIsDark != isDark ||
+        !identical(_cachedColorScheme, widget.colorScheme) ||
+        !identical(_cachedTextTheme, widget.textTheme)) {
+      _cachedIsDark = isDark;
+      _cachedColorScheme = widget.colorScheme;
+      _cachedTextTheme = widget.textTheme;
+      _styleSheet = _buildStyleSheet(isDark);
+      _builders = _buildBuilders(isDark);
+    }
+
+    if (_cachedContent != widget.content) {
+      _cachedContent = widget.content;
+      // Pre-process content to convert multi-line block math to
+      // single-line format.
+      _processedContent = _preprocessBlockMath(widget.content);
+    }
 
     return MarkdownBody(
-      data: processedContent,
-      selectable: isSelectable,
+      data: _processedContent,
+      selectable: widget.isSelectable,
       onTapLink: _handleLinkTap,
       extensionSet: md.ExtensionSet.gitHubWeb,
-      styleSheet: _buildStyleSheet(context),
-      inlineSyntaxes: _buildInlineSyntaxes(),
-      blockSyntaxes: _buildBlockSyntaxes(),
-      builders: _buildBuilders(context),
+      styleSheet: _styleSheet,
+      inlineSyntaxes: _inlineSyntaxes,
+      blockSyntaxes: _blockSyntaxes,
+      builders: _builders!,
     );
   }
 
@@ -79,9 +115,7 @@ class MarkdownWidget extends StatelessWidget {
     debugPrint('Link tapped: $href');
   }
 
-  MarkdownStyleSheet _buildStyleSheet(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
+  MarkdownStyleSheet _buildStyleSheet(bool isDark) {
     return MarkdownStyleSheet(
       // Text styles
       p: textTheme.bodyMedium?.copyWith(
@@ -193,8 +227,7 @@ class MarkdownWidget extends StatelessWidget {
     );
   }
 
-  Map<String, MarkdownElementBuilder> _buildBuilders(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+  Map<String, MarkdownElementBuilder> _buildBuilders(bool isDark) {
     return {
       'pre': _CodeBlockBuilder(
         colorScheme: colorScheme,
@@ -214,27 +247,25 @@ class MarkdownWidget extends StatelessWidget {
     };
   }
 
-  List<md.InlineSyntax> _buildInlineSyntaxes() {
-    return [
-      // Strikethrough support (~~text~~)
-      md.StrikethroughSyntax(),
-      // Block math support ($$...$$) - must come before inline math
-      BlockMathInlineSyntax(),
-      // Inline math support ($...$)
-      InlineMathSyntax(),
-    ];
-  }
+  // Syntax instances are stateless pattern holders (the parser carries the
+  // parse state), so they're safe to share across all instances and parses.
+  static final List<md.InlineSyntax> _inlineSyntaxes = [
+    // Strikethrough support (~~text~~)
+    md.StrikethroughSyntax(),
+    // Block math support ($$...$$) - must come before inline math
+    BlockMathInlineSyntax(),
+    // Inline math support ($...$)
+    InlineMathSyntax(),
+  ];
 
-  List<md.BlockSyntax> _buildBlockSyntaxes() {
-    return [
-      // Table support
-      md.TableSyntax(),
-      // Task list support (unordered with checkboxes)
-      md.UnorderedListWithCheckboxSyntax(),
-      // Task list support (ordered with checkboxes)
-      md.OrderedListWithCheckboxSyntax(),
-    ];
-  }
+  static final List<md.BlockSyntax> _blockSyntaxes = [
+    // Table support
+    md.TableSyntax(),
+    // Task list support (unordered with checkboxes)
+    md.UnorderedListWithCheckboxSyntax(),
+    // Task list support (ordered with checkboxes)
+    md.OrderedListWithCheckboxSyntax(),
+  ];
 }
 
 /// Custom builder for code blocks that applies syntax highlighting

@@ -2,7 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:garbanzo_ai/features/chat/widgets/message/thinking_content.dart';
 
-Widget _wrap({required bool isLive, String text = 'reasoning…'}) {
+Widget _wrap({
+  required bool isLive,
+  bool hasContent = false,
+  String text = 'reasoning…',
+}) {
   return MaterialApp(
     home: Builder(
       builder: (ctx) {
@@ -13,6 +17,7 @@ Widget _wrap({required bool isLive, String text = 'reasoning…'}) {
             colorScheme: theme.colorScheme,
             textTheme: theme.textTheme,
             isLive: isLive,
+            hasContent: hasContent,
           ),
         );
       },
@@ -38,16 +43,29 @@ void main() {
     });
 
     testWidgets(
-        'auto-collapses when isLive flips false (final answer arrived)',
+        'auto-collapses when the final answer arrives (hasContent flips true)',
         (tester) async {
       await tester.pumpWidget(_wrap(isLive: true, text: 'r'));
       expect(find.text('Hide thinking'), findsOneWidget);
 
-      // Simulate the stream completing — isLive flips to false and the
+      // Simulate the stream completing — answer content arrives and the
       // section should auto-collapse so the final answer takes the focus.
-      await tester.pumpWidget(_wrap(isLive: false, text: 'r'));
+      await tester.pumpWidget(_wrap(isLive: false, hasContent: true, text: 'r'));
       await tester.pumpAndSettle();
       expect(find.text('Show thinking'), findsOneWidget);
+    });
+
+    testWidgets(
+        'stays open when isLive flips false without an answer (tool call)',
+        (tester) async {
+      await tester.pumpWidget(_wrap(isLive: true, text: 'r'));
+      expect(find.text('Hide thinking'), findsOneWidget);
+
+      // A tool call elsewhere makes this message stop being the trailing
+      // one — no answer yet, so the reasoning stays visible.
+      await tester.pumpWidget(_wrap(isLive: false, text: 'r'));
+      await tester.pumpAndSettle();
+      expect(find.text('Hide thinking'), findsOneWidget);
     });
 
     testWidgets(

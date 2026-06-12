@@ -13,6 +13,9 @@ _$ModelInfoImpl _$$ModelInfoImplFromJson(Map<String, dynamic> json) =>
       description: json['description'] as String?,
       contextLength: (json['context_length'] as num?)?.toInt(),
       provider: json['provider'] as String,
+      supportsTools: json['supports_tools'] as bool?,
+      supportsVision: json['supports_vision'] as bool?,
+      supportsThinking: json['supports_thinking'] as bool?,
     );
 
 Map<String, dynamic> _$$ModelInfoImplToJson(_$ModelInfoImpl instance) =>
@@ -22,6 +25,9 @@ Map<String, dynamic> _$$ModelInfoImplToJson(_$ModelInfoImpl instance) =>
       'description': instance.description,
       'context_length': instance.contextLength,
       'provider': instance.provider,
+      'supports_tools': instance.supportsTools,
+      'supports_vision': instance.supportsVision,
+      'supports_thinking': instance.supportsThinking,
     };
 
 _$ModelListImpl _$$ModelListImplFromJson(Map<String, dynamic> json) =>

@@ -1,10 +1,14 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
 
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import DateTime, ForeignKey, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.core.config import get_settings
 from app.db.base import Base
+
+_EMBEDDING_DIM = get_settings().embedding_dim
 
 if TYPE_CHECKING:
     from app.models.conversation import Conversation
@@ -32,6 +36,13 @@ class UserMemory(Base):
         server_default=func.now(),
     )
     is_active: Mapped[bool] = mapped_column(default=True, nullable=False)
+    # Semantic embedding of `content` for relevance ranking. Nullable:
+    # memories created while the embedder is unavailable are backfilled by
+    # the daily extraction job.
+    embedding: Mapped[list[float] | None] = mapped_column(
+        Vector(_EMBEDDING_DIM),
+        nullable=True,
+    )
 
     # Relationships
     user: Mapped["User"] = relationship(back_populates="memories")

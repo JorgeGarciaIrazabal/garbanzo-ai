@@ -5,6 +5,7 @@ import base64
 import io
 import json
 import logging
+import re
 import uuid
 from collections.abc import AsyncIterator
 from typing import Any
@@ -17,7 +18,12 @@ from app.models.message import Message
 from app.schemas.chat import AttachmentIn, ChatOptions, ModelInfo
 from app.services.conversation_service import ConversationService
 from app.services.knowledge_base_service import KnowledgeBaseService
-from app.services.llm_provider import ChatChunk, LLMProvider, ProviderRegistry
+from app.services.llm_provider import (
+    ChatChunk,
+    LLMProvider,
+    ProviderRegistry,
+    resolve_context_length,
+)
 from app.services.llm_provider import Message as LLMMessage
 from app.services.mcp_service import (
     MCPService,
@@ -28,6 +34,7 @@ from app.services.mcp_service import (
 from app.services.memory_service import MemoryService
 from app.services.ollama_provider import OllamaProvider
 from app.services.system_prompt_service import SystemPromptService
+from app.services.token_counter import get_token_counter
 
 MAX_TOOL_ITERATIONS = 5
 
@@ -66,6 +73,61 @@ def _maybe_parse_inline_tool_calls(content: str) -> list[dict[str, Any]] | None:
         if "name" not in item or "arguments" not in item:
             return None
     return parsed
+
+
+_TITLE_PROMPT = (
+    "Write a short title (3-5 words) for this conversation. "
+    "Reply with ONLY the title — no quotes, no trailing punctuation, "
+    "no explanation.\n\nUser: {user}\nAssistant: {assistant}"
+)
+
+
+def _clean_generated_title(raw: str) -> str:
+    """Normalize an LLM-generated title to a single clean line."""
+    text = raw.strip()
+    # Defensive: some models inline reasoning despite the prompt.
+    text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
+    first_line = next((ln.strip() for ln in text.splitlines() if ln.strip()), "")
+    return first_line.strip("\"'`#* ").rstrip(".!,:;")[:60]
+
+
+async def generate_conversation_title(
+    provider: LLMProvider, model: str, user_text: str, assistant_text: str
+) -> str:
+    """Generate a 3-5 word conversation title; returns "" on empty output."""
+    prompt = _TITLE_PROMPT.format(
+        user=user_text[:500], assistant=assistant_text[:500]
+    )
+    raw = await provider.chat(
+        messages=[LLMMessage(role="user", content=prompt)],
+        model=model,
+        options=ChatOptions(temperature=0.3, max_tokens=30),
+    )
+    return _clean_generated_title(raw)
+
+
+async def _generate_title_task(
+    provider: LLMProvider, conversation_id: str, model: str,
+    user_text: str, assistant_text: str,
+) -> None:
+    """Background task: generate and persist a title with its own session."""
+    try:
+        title = await generate_conversation_title(
+            provider, model, user_text, assistant_text
+        )
+        if not title:
+            return
+        from app.db.session import async_session_maker
+        from app.models.conversation import Conversation
+
+        async with async_session_maker() as db:
+            conversation = await db.get(Conversation, conversation_id)
+            if conversation is not None:
+                conversation.title = title
+                await db.commit()
+        logger.info("Auto-titled conversation %s: %r", conversation_id, title)
+    except Exception as e:
+        logger.warning("Title generation failed for %s: %s", conversation_id, e)
 
 
 async def _extract_pdf_text(data: str) -> str:
@@ -176,23 +238,9 @@ class ChatService:
             raise ValueError(f"Unknown provider: {self._provider_name}")
         return provider
 
-    @staticmethod
-    def _estimate_context_length(model_name: str) -> int:
-        """Estimate context length from model name parameter size."""
-        import re
-
-        match = re.search(r"(\d+(?:\.\d+)?)b", model_name.lower())
-        if match:
-            size = float(match.group(1))
-            if size <= 3:
-                return 4096
-            elif size <= 8:
-                return 8192
-            elif size <= 20:
-                return 32768
-            else:
-                return 131072
-        return 8192
+    async def _get_context_length(self, model: str) -> int:
+        """Effective context window for ``model`` — see resolve_context_length."""
+        return await resolve_context_length(self._get_provider(), model)
 
     async def _maybe_summarize_context(
         self,
@@ -203,18 +251,22 @@ class ChatService:
         if not messages:
             return
 
+        # Prefer the provider-reported prompt size from the last turn (exact);
+        # fall back to a TokenCounter estimate so conversations without one
+        # (first turns, imported history) still get summarized in time.
         last_assistant = next(
             (m for m in reversed(messages) if m.role == "assistant" and m.meta),
             None,
         )
-        if not last_assistant or not last_assistant.meta:
-            return
-
-        tokens_prompt = last_assistant.meta.get("tokens_prompt")
+        tokens_prompt = None
+        if last_assistant and last_assistant.meta:
+            tokens_prompt = last_assistant.meta.get("tokens_prompt")
         if not tokens_prompt:
-            return
+            tokens_prompt = get_token_counter().count_messages(
+                [m.content or "" for m in messages]
+            )
 
-        context_length = self._estimate_context_length(conversation.model)
+        context_length = await self._get_context_length(conversation.model)
         if tokens_prompt < int(context_length * 0.8):
             return
 
@@ -235,22 +287,42 @@ class ChatService:
 
         text_parts = []
         for msg in messages_to_summarize:
-            text_parts.append(f"{msg.role.upper()}: {msg.content[:800]}")
+            if msg.role == "tool_call":
+                # The content is raw JSON; a name list reads better and
+                # won't teach the summarizer to emit tool-call syntax.
+                calls = (msg.meta or {}).get("tool_calls") or []
+                names = ", ".join(c.get("name", "?") for c in calls) or "unknown"
+                text_parts.append(f"[Called tools: {names}]")
+            elif msg.role == "tool_result":
+                name = (msg.meta or {}).get("tool_name", "tool")
+                text_parts.append(f"[Result from {name}]: {msg.content[:300]}")
+            else:
+                text_parts.append(f"{msg.role.upper()}: {msg.content[:800]}")
         summary_input = "\n\n".join(text_parts)
 
         prompt = (
-            "Summarize the following conversation excerpt in 3-5 concise sentences. "
-            "Focus on key topics, decisions, and context useful for continuing the conversation:\n\n"
+            "Condense the following conversation excerpt into rolling context "
+            "notes (at most 8 sentences, plain prose). You MUST preserve:\n"
+            "- the user's goals, preferences, and constraints\n"
+            "- key facts, names, numbers, and decisions made\n"
+            "- important results returned by tools\n"
+            "- any open questions or unfinished work\n"
+            "Omit pleasantries and repetition. Do not address the user; "
+            "write neutral notes.\n\n"
             + summary_input
         )
 
         try:
             provider = self._get_provider()
             summary_parts: list[str] = []
+            # The summarize input is by definition ~80% of the window —
+            # without num_ctx the request would run at the runtime default
+            # (typically 4096) and silently truncate exactly what we're
+            # trying to preserve.
             async for chunk in provider.stream_chat(
                 messages=[LLMMessage(role="user", content=prompt)],
                 model=conversation.model,
-                options=ChatOptions(temperature=0.3),
+                options=ChatOptions(temperature=0.3, num_ctx=context_length),
             ):
                 if not chunk.is_thinking and chunk.content:
                     summary_parts.append(chunk.content)
@@ -499,9 +571,18 @@ class ChatService:
         Handles summarization, tool-call iterations, and persistence.
         """
         conversation_id = conversation.id
-        await self._maybe_summarize_context(conversation, list(conversation.messages))
+        # Captured before streaming: a turn with no prior assistant message
+        # is the conversation's first exchange and gets an auto-title.
+        existing_messages = list(conversation.messages)
+        is_first_exchange = not any(m.role == "assistant" for m in existing_messages)
+        last_user_text = next(
+            (m.content for m in reversed(existing_messages) if m.role == "user"),
+            "",
+        )
 
-        llm_messages = await self._build_message_history_with_system_prompt(
+        await self._maybe_summarize_context(conversation, existing_messages)
+
+        llm_messages, context_stats = await self._build_message_history_with_system_prompt(
             conversation.messages,
             pending_images,
             conversation.user_id,
@@ -514,6 +595,15 @@ class ChatService:
 
         provider = self._get_provider()
         opts = options or ChatOptions()
+
+        # Allocate the effective window explicitly — without num_ctx, Ollama
+        # runs at its own default (typically 4096) no matter what the model
+        # supports, silently truncating long conversations. The server-side
+        # value is also a ceiling: a client-supplied num_ctx may shrink the
+        # window but never grow it (an oversized request would make the
+        # runtime allocate an arbitrarily large KV cache).
+        context_length = await self._get_context_length(conversation.model)
+        opts.num_ctx = min(opts.num_ctx or context_length, context_length)
 
         cancel_event = asyncio.Event()
         ChatService._active_streams[conversation_id] = cancel_event
@@ -553,6 +643,21 @@ class ChatService:
                     elif chunk.content:
                         full_response += chunk.content
                     if chunk.is_finished:
+                        # Stamp the window we allocated so the persisted
+                        # message meta and the live stream both carry the
+                        # real denominator for context-usage display, plus
+                        # what personal context informed this reply.
+                        if chunk.metadata is None:
+                            chunk.metadata = {}
+                        chunk.metadata.setdefault("context_length", opts.num_ctx)
+                        if context_stats.get("memories_used"):
+                            chunk.metadata.setdefault(
+                                "memories_used", context_stats["memories_used"]
+                            )
+                        if context_stats.get("kb_chunks_used"):
+                            chunk.metadata.setdefault(
+                                "kb_chunks_used", context_stats["kb_chunks_used"]
+                            )
                         metadata = chunk.metadata
                     yield chunk
 
@@ -571,6 +676,10 @@ class ChatService:
                         role="assistant",
                         content=full_response,
                         meta=msg_meta or None,
+                        # Keep the in-session relationship collection in sync
+                        # (raw FK writes don't update conversation.messages),
+                        # so a later turn on the same session sees this one.
+                        conversation=conversation,
                     )
                     self.db.add(assistant_message)
                     await self.db.flush()
@@ -580,6 +689,13 @@ class ChatService:
 
                 if not tool_calls_this_iter:
                     await self.db.commit()
+                    if is_first_exchange and full_response and last_user_text:
+                        self._spawn_title_generation(
+                            conversation_id,
+                            conversation.model,
+                            last_user_text,
+                            full_response,
+                        )
                     return
 
                 tool_call_payload = json.dumps(tool_calls_this_iter)
@@ -652,6 +768,28 @@ class ChatService:
             await self.db.rollback()
         finally:
             ChatService._active_streams.pop(conversation_id, None)
+
+    def _spawn_title_generation(
+        self,
+        conversation_id: str,
+        model: str,
+        user_text: str,
+        assistant_text: str,
+    ) -> None:
+        """Fire-and-forget title generation on the conversation's model.
+
+        Uses the already-loaded conversation model rather than a separate
+        small model so low-RAM deployments don't pay a second model load.
+        """
+        asyncio.create_task(
+            _generate_title_task(
+                self._get_provider(),
+                conversation_id,
+                model,
+                user_text,
+                assistant_text,
+            )
+        )
 
     async def _resolve_tools_for_conversation(
         self, conversation
@@ -734,7 +872,7 @@ class ChatService:
         context_summary: str | None = None,
         context_summary_until_id: str | None = None,
         conversation_system_prompt: str | None = None,
-    ) -> list[LLMMessage]:
+    ) -> tuple[list[LLMMessage], dict[str, int]]:
         """Build message history with an optional system prompt prepended.
 
         If use_memory is True and user_id is provided, fetches relevant memories
@@ -769,7 +907,7 @@ class ChatService:
                 break
 
         # Build system prompt from (conversation || global default) + memories + KB
-        system_prompt = await self._build_system_prompt(
+        system_prompt, context_stats = await self._build_system_prompt(
             user_id=user_id,
             use_memory=use_memory,
             use_knowledge_base=use_knowledge_base,
@@ -824,7 +962,7 @@ class ChatService:
             else:
                 result.append(LLMMessage(role=msg.role, content=msg.content, images=images))
 
-        return result
+        return result, context_stats
 
     async def _build_system_prompt(
         self,
@@ -833,7 +971,7 @@ class ChatService:
         use_knowledge_base: bool = True,
         rag_query: str | None = None,
         conversation_system_prompt: str | None = None,
-    ) -> str:
+    ) -> tuple[str, dict[str, int]]:
         """Build the system prompt from (conversation || user default) + memories.
 
         Preference order for the base prompt:
@@ -842,7 +980,12 @@ class ChatService:
           3. A generic fallback only if memories will be injected.
 
         Memories (when enabled and present) are appended after the base prompt.
+
+        Returns ``(prompt, stats)`` where stats counts the context actually
+        injected ({"memories_used": n, "kb_chunks_used": n}) so the client
+        can show the user what informed the reply.
         """
+        stats = {"memories_used": 0, "kb_chunks_used": 0}
         base_prompt = (conversation_system_prompt or "").strip()
 
         if not base_prompt and user_id:
@@ -853,17 +996,45 @@ class ChatService:
             except Exception as e:
                 logger.warning("Failed to load user default system prompt: %s", e)
 
+        settings = get_settings()
+        counter = get_token_counter()
+
         memory_block = ""
         if user_id and use_memory:
             try:
-                memories = await self._memories.get_relevant_memories(user_id=user_id)
+                # Ranked by semantic relevance to the current message (with
+                # recency fallback), capped at top-K — not the whole store.
+                memories = await self._memories.get_relevant_memories(
+                    user_id=user_id,
+                    query=rag_query,
+                    limit=settings.memory_top_k,
+                )
                 if memories:
-                    lines = ["Relevant memories about the user:"]
+                    # Keep memories in list order until the budget runs out, so
+                    # a large memory store can't crowd out the conversation.
+                    budget = settings.memory_token_budget
+                    used = 0
+                    kept = []
                     for memory in memories:
+                        cost = counter.count_text(memory.content) + 2
+                        if kept and used + cost > budget:
+                            break
+                        used += cost
+                        kept.append(memory)
+                    if len(kept) < len(memories):
+                        logger.info(
+                            "Memory block over %d-token budget: injecting %d of %d memories",
+                            budget,
+                            len(kept),
+                            len(memories),
+                        )
+                    lines = ["Relevant memories about the user:"]
+                    for memory in kept:
                         lines.append(f"- {memory.content}")
                     lines.append("")
                     lines.append("Use these memories to personalize your responses.")
                     memory_block = "\n".join(lines)
+                    stats["memories_used"] = len(kept)
             except Exception as e:
                 logger.warning("Failed to load memories for system prompt: %s", e)
 
@@ -872,13 +1043,27 @@ class ChatService:
             try:
                 matches = await self._kb.search(user_id=user_id, query=rag_query)
                 if matches:
+                    budget = settings.kb_token_budget
+                    used = 0
                     lines = [
                         "Relevant excerpts from the user's knowledge base. "
                         "Cite the source filename when you use them; if none "
                         "are relevant, ignore this section.",
                         "",
                     ]
+                    injected = 0
                     for m in matches:
+                        cost = counter.count_text(m.content) + 10
+                        if injected and used + cost > budget:
+                            logger.info(
+                                "KB block over %d-token budget: injecting %d of %d chunks",
+                                budget,
+                                injected,
+                                len(matches),
+                            )
+                            break
+                        used += cost
+                        injected += 1
                         lines.append(
                             f"--- Source: {m.document_filename} "
                             f"(relevance: {m.score:.2f}) ---"
@@ -886,11 +1071,12 @@ class ChatService:
                         lines.append(m.content)
                         lines.append("")
                     kb_block = "\n".join(lines).rstrip()
+                    stats["kb_chunks_used"] = injected
             except Exception as e:
                 logger.warning("Failed to load KB context for system prompt: %s", e)
 
         if not base_prompt and not memory_block and not kb_block:
-            return ""
+            return "", stats
 
         if not base_prompt and (memory_block or kb_block):
             base_prompt = "You are a helpful AI assistant."
@@ -900,7 +1086,7 @@ class ChatService:
             sections.append(memory_block)
         if kb_block:
             sections.append(kb_block)
-        return "\n\n".join(sections)
+        return "\n\n".join(sections), stats
 
     async def list_available_models(self) -> list[ModelInfo]:
         provider = self._get_provider()
@@ -913,6 +1099,9 @@ class ChatService:
                 description=m.description,
                 context_length=m.context_length,
                 provider=self._provider_name,
+                supports_tools=m.supports_tools,
+                supports_vision=m.supports_vision,
+                supports_thinking=m.supports_thinking,
             )
             for m in models
         ]

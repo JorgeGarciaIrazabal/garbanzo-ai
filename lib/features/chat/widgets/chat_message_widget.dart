@@ -134,6 +134,60 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
                         ),
                       ),
                     ],
+                    // Personal context transparency: show when stored
+                    // memories informed this reply, so the user can tell
+                    // what the AI knew without digging into the Info panel.
+                    if (!isUser &&
+                        (widget.message.metadata?['memories_used'] ?? 0) >
+                            0) ...[
+                      const SizedBox(width: 8),
+                      Tooltip(
+                        message:
+                            '${widget.message.metadata!['memories_used']} '
+                            'saved memories about you informed this reply',
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.psychology_outlined,
+                              size: 12,
+                              color: colorScheme.primary
+                                  .withValues(alpha: 0.7),
+                            ),
+                            const SizedBox(width: 2),
+                            Text(
+                              '${widget.message.metadata!['memories_used']}',
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: colorScheme.primary
+                                    .withValues(alpha: 0.7),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    // The user stopped this response mid-generation; mark it
+                    // so an interrupted answer isn't mistaken for a complete
+                    // one.
+                    if (!widget.isStreaming &&
+                        widget.message.metadata?['stopped'] == true) ...[
+                      const SizedBox(width: 8),
+                      Icon(
+                        Icons.stop_circle_outlined,
+                        size: 12,
+                        color: colorScheme.onSurfaceVariant
+                            .withValues(alpha: 0.7),
+                      ),
+                      const SizedBox(width: 3),
+                      Text(
+                        'Stopped',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant
+                              .withValues(alpha: 0.7),
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
                 const SizedBox(height: 8),

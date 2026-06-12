@@ -125,7 +125,13 @@ def _patch_jsonb_columns():
     """Replace PG-specific column types with SQLite-compatible ones."""
     for table in Base.metadata.tables.values():
         for col in table.columns:
-            if isinstance(col.type, (JSONB, Vector)):
+            if isinstance(col.type, Vector):
+                key = f"{table.name}.{col.name}"
+                _original_types[key] = col.type
+                # none_as_null mirrors pgvector semantics: a Python None must
+                # become SQL NULL (so `IS NULL` matches), not JSON 'null'.
+                col.type = JSON(none_as_null=True)
+            elif isinstance(col.type, JSONB):
                 key = f"{table.name}.{col.name}"
                 _original_types[key] = col.type
                 col.type = JSON()

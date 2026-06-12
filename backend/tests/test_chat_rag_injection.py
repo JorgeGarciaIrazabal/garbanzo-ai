@@ -44,7 +44,7 @@ async def test_rag_chunks_are_injected_when_enabled(db_session, monkeypatch):
     service = await _make_service(db_session)
     monkeypatch.setattr(service._kb, "search", _fake_matches)
 
-    prompt = await service._build_system_prompt(
+    prompt, _stats = await service._build_system_prompt(
         user_id="test@example.com",
         use_memory=False,
         use_knowledge_base=True,
@@ -63,7 +63,7 @@ async def test_rag_is_skipped_when_disabled(db_session, monkeypatch):
     service = await _make_service(db_session)
     monkeypatch.setattr(service._kb, "search", _fake_matches)
 
-    prompt = await service._build_system_prompt(
+    prompt, _stats = await service._build_system_prompt(
         user_id="test@example.com",
         use_memory=False,
         use_knowledge_base=False,
@@ -85,7 +85,7 @@ async def test_rag_skipped_when_query_is_empty(db_session, monkeypatch):
 
     monkeypatch.setattr(service._kb, "search", _search)
 
-    prompt = await service._build_system_prompt(
+    prompt, _stats = await service._build_system_prompt(
         user_id="test@example.com",
         use_memory=False,
         use_knowledge_base=True,
@@ -100,7 +100,7 @@ async def test_rag_block_omitted_when_no_matches(db_session, monkeypatch):
     service = await _make_service(db_session)
     monkeypatch.setattr(service._kb, "search", _no_matches)
 
-    prompt = await service._build_system_prompt(
+    prompt, _stats = await service._build_system_prompt(
         user_id="test@example.com",
         use_memory=False,
         use_knowledge_base=True,
@@ -114,7 +114,7 @@ async def test_rag_uses_default_prompt_when_base_is_empty(db_session, monkeypatc
     service = await _make_service(db_session)
     monkeypatch.setattr(service._kb, "search", _fake_matches)
 
-    prompt = await service._build_system_prompt(
+    prompt, _stats = await service._build_system_prompt(
         user_id="test@example.com",
         use_memory=False,
         use_knowledge_base=True,
@@ -133,7 +133,7 @@ async def test_rag_error_swallowed_and_returns_base_prompt(db_session, monkeypat
 
     monkeypatch.setattr(service._kb, "search", _boom)
 
-    prompt = await service._build_system_prompt(
+    prompt, _stats = await service._build_system_prompt(
         user_id="test@example.com",
         use_memory=False,
         use_knowledge_base=True,

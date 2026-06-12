@@ -88,6 +88,15 @@ class ChatOptions(BaseModel):
             "either the literal string 'json' or a JSON Schema dict."
         ),
     )
+    num_ctx: int | None = Field(
+        default=None,
+        ge=512,
+        description=(
+            "Context window to allocate, in tokens. Normally set by the "
+            "server (min of the model's maximum and the configured cap), "
+            "not by clients. For Ollama this maps to options.num_ctx."
+        ),
+    )
 
 
 class ChatRequest(BaseModel):
@@ -405,6 +414,15 @@ class ModelInfo(BaseModel):
         description="Maximum context length in tokens",
     )
     provider: str = Field(default="ollama", description="Provider name (e.g., 'ollama')")
+    supports_tools: bool | None = Field(
+        None, description="Whether the model supports tool calling (None = unknown)"
+    )
+    supports_vision: bool | None = Field(
+        None, description="Whether the model accepts image input (None = unknown)"
+    )
+    supports_thinking: bool | None = Field(
+        None, description="Whether the model emits thinking tokens (None = unknown)"
+    )
 
 
 class ModelList(BaseModel):

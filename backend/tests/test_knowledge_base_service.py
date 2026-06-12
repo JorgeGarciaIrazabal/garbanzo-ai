@@ -219,3 +219,38 @@ async def test_search_uses_mocked_similarity(db_session, monkeypatch):
 
     result = await service.search(user_id="test@example.com", query="hello")
     assert result == canned
+
+
+class TestBinaryContentRejection:
+    """Binary uploads must not pollute the KB via the plain-text fallback."""
+
+    def test_looks_like_text_accepts_prose(self):
+        from app.services.knowledge_base_service import _looks_like_text
+
+        assert _looks_like_text("A perfectly normal paragraph of text.\nMore.")
+
+    def test_looks_like_text_rejects_binary_mojibake(self):
+        from app.services.knowledge_base_service import (
+            _extract_plain,
+            _looks_like_text,
+        )
+
+        binary = bytes(range(256)) * 16  # e.g. an executable renamed .txt
+        assert not _looks_like_text(_extract_plain(binary))
+
+    @pytest.mark.asyncio
+    async def test_create_document_rejects_binary(self, db_session):
+        from app.services.knowledge_base_service import KnowledgeBaseService
+
+        service = KnowledgeBaseService(
+            db_session,
+            embedding_provider=_FakeEmbeddingProvider(),
+            settings=Settings(kb_background_embedding=False),
+        )
+        with pytest.raises(ValueError, match="readable text"):
+            await service.create_document(
+                user_id="test@example.com",
+                filename="evil.txt",
+                mime_type="text/plain",
+                file_bytes=bytes(range(256)) * 16,
+            )

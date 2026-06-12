@@ -12,6 +12,10 @@ class ModelInfo with _$ModelInfo {
     String? description,
     int? contextLength,
     required String provider,
+    // Capability flags reported by the provider; null = unknown.
+    bool? supportsTools,
+    bool? supportsVision,
+    bool? supportsThinking,
   }) = _ModelInfo;
 
   factory ModelInfo.fromJson(Map<String, dynamic> json) =>

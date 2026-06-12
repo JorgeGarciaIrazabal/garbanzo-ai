@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'message_action_button.dart';
+
 /// Compact "Edit" button for user messages.
 ///
 /// Opens a dialog that lets the user rewrite the message; on save it calls
@@ -55,23 +57,11 @@ class EditMessageButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final color = colorScheme.onSurfaceVariant.withValues(alpha: 0.6);
-
-    return InkWell(
+    return MessageActionButton(
+      icon: Icons.edit_outlined,
+      label: 'Edit',
+      tooltip: 'Edit this message and rerun the conversation from here',
       onTap: enabled ? () => _openDialog(context) : null,
-      borderRadius: BorderRadius.circular(4),
-      child: Padding(
-        padding: const EdgeInsets.all(4),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.edit_outlined, size: 14, color: color),
-            const SizedBox(width: 4),
-            Text('Edit', style: TextStyle(fontSize: 12, color: color)),
-          ],
-        ),
-      ),
     );
   }
 }

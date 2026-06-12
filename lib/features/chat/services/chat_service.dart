@@ -18,6 +18,10 @@ class ChatService {
   ChatService._();
   static final ChatService instance = ChatService._();
 
+  /// For tests only: lets a fake subclass exist outside this library.
+  @visibleForTesting
+  ChatService.forTesting();
+
   final ApiClient _api = ApiClient.instance;
 
   // ==========================================================================

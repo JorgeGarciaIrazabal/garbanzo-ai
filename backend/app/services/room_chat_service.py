@@ -32,6 +32,7 @@ from app.schemas.chat import ChatOptions
 from app.services.llm_provider import (
     LLMProvider,
     ProviderRegistry,
+    resolve_context_length,
 )
 from app.services.llm_provider import (
     Message as LLMMessage,
@@ -512,11 +513,15 @@ class RoomChatService:
             },
         )
 
+        # Allocate the effective context window explicitly; rooms carry up
+        # to 100 messages of history, well past the runtime's default.
+        num_ctx = await resolve_context_length(provider, agent.model)
+
         try:
             async for chunk in provider.stream_chat(
                 messages=llm_messages,
                 model=agent.model,
-                options=ChatOptions(temperature=0.7),
+                options=ChatOptions(temperature=0.7, num_ctx=num_ctx),
             ):
                 if chunk.is_thinking:
                     if chunk.content:

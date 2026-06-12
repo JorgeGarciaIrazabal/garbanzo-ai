@@ -28,7 +28,8 @@ class ContextWindowIndicator extends StatelessWidget {
     }
 
     final pct = (ratio * 100).toStringAsFixed(0);
-    final label = '$tokensUsed / $contextLength tokens ($pct%)';
+    final label = 'Context window: $tokensUsed of $contextLength tokens used '
+        '($pct%).\nAbove 80%, older messages are summarized to free up space.';
 
     return Tooltip(
       message: label,

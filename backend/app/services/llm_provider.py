@@ -1,12 +1,17 @@
 """Abstract base class for LLM providers."""
 
 import asyncio
+import logging
+import re
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from typing import Any, Optional
 
+from app.core.config import get_settings
 from app.schemas.chat import ChatOptions
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -25,12 +30,19 @@ class Message:
 
 @dataclass
 class ModelInfo:
-    """Information about an available model."""
+    """Information about an available model.
+
+    Capability flags are tri-state: True/False when the provider reports
+    them, None when unknown (callers should treat None as "try and see").
+    """
 
     id: str
     name: str
     description: str | None = None
     context_length: int | None = None
+    supports_tools: bool | None = None
+    supports_vision: bool | None = None
+    supports_thinking: bool | None = None
 
 
 @dataclass
@@ -102,6 +114,14 @@ class LLMProvider(ABC):
         """
         ...
 
+    async def get_model_context_length(self, model: str) -> int | None:
+        """Return the model's maximum context length in tokens, if known.
+
+        Providers that can query model metadata should override this;
+        the default reports "unknown" and callers fall back to estimates.
+        """
+        return None
+
     @abstractmethod
     async def list_models(self) -> list[ModelInfo]:
         """List available models from this provider.
@@ -119,6 +139,43 @@ class LLMProvider(ABC):
             True if the provider is accessible, False otherwise
         """
         ...
+
+
+def estimate_context_length(model_name: str) -> int:
+    """Estimate context length from the parameter size in the model name.
+
+    Last-resort fallback for when the provider can't report the model's
+    real maximum (e.g. provider unreachable or remote/cloud models).
+    """
+    match = re.search(r"(\d+(?:\.\d+)?)b", model_name.lower())
+    if match:
+        size = float(match.group(1))
+        if size <= 3:
+            return 4096
+        elif size <= 8:
+            return 8192
+        elif size <= 20:
+            return 32768
+        else:
+            return 131072
+    return 8192
+
+
+async def resolve_context_length(provider: LLMProvider, model: str) -> int:
+    """Effective context window for ``model``, in tokens.
+
+    min(model's real maximum, configured cap). This is the window callers
+    should ask the provider to allocate (num_ctx) and the denominator for
+    summarization triggers and usage display — one number everywhere.
+    """
+    model_max: int | None = None
+    try:
+        model_max = await provider.get_model_context_length(model)
+    except Exception as e:
+        logger.warning("Context-length lookup failed for %s: %s", model, e)
+    if model_max is None:
+        model_max = estimate_context_length(model)
+    return max(512, min(model_max, get_settings().llm_context_window))
 
 
 class ProviderRegistry:

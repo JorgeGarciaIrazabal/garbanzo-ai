@@ -25,7 +25,11 @@ mixin _$ModelInfo {
   String get name => throw _privateConstructorUsedError;
   String? get description => throw _privateConstructorUsedError;
   int? get contextLength => throw _privateConstructorUsedError;
-  String get provider => throw _privateConstructorUsedError;
+  String get provider =>
+      throw _privateConstructorUsedError; // Capability flags reported by the provider; null = unknown.
+  bool? get supportsTools => throw _privateConstructorUsedError;
+  bool? get supportsVision => throw _privateConstructorUsedError;
+  bool? get supportsThinking => throw _privateConstructorUsedError;
 
   /// Serializes this ModelInfo to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -48,6 +52,9 @@ abstract class $ModelInfoCopyWith<$Res> {
     String? description,
     int? contextLength,
     String provider,
+    bool? supportsTools,
+    bool? supportsVision,
+    bool? supportsThinking,
   });
 }
 
@@ -71,6 +78,9 @@ class _$ModelInfoCopyWithImpl<$Res, $Val extends ModelInfo>
     Object? description = freezed,
     Object? contextLength = freezed,
     Object? provider = null,
+    Object? supportsTools = freezed,
+    Object? supportsVision = freezed,
+    Object? supportsThinking = freezed,
   }) {
     return _then(
       _value.copyWith(
@@ -94,6 +104,18 @@ class _$ModelInfoCopyWithImpl<$Res, $Val extends ModelInfo>
                 ? _value.provider
                 : provider // ignore: cast_nullable_to_non_nullable
                       as String,
+            supportsTools: freezed == supportsTools
+                ? _value.supportsTools
+                : supportsTools // ignore: cast_nullable_to_non_nullable
+                      as bool?,
+            supportsVision: freezed == supportsVision
+                ? _value.supportsVision
+                : supportsVision // ignore: cast_nullable_to_non_nullable
+                      as bool?,
+            supportsThinking: freezed == supportsThinking
+                ? _value.supportsThinking
+                : supportsThinking // ignore: cast_nullable_to_non_nullable
+                      as bool?,
           )
           as $Val,
     );
@@ -115,6 +137,9 @@ abstract class _$$ModelInfoImplCopyWith<$Res>
     String? description,
     int? contextLength,
     String provider,
+    bool? supportsTools,
+    bool? supportsVision,
+    bool? supportsThinking,
   });
 }
 
@@ -137,6 +162,9 @@ class __$$ModelInfoImplCopyWithImpl<$Res>
     Object? description = freezed,
     Object? contextLength = freezed,
     Object? provider = null,
+    Object? supportsTools = freezed,
+    Object? supportsVision = freezed,
+    Object? supportsThinking = freezed,
   }) {
     return _then(
       _$ModelInfoImpl(
@@ -160,6 +188,18 @@ class __$$ModelInfoImplCopyWithImpl<$Res>
             ? _value.provider
             : provider // ignore: cast_nullable_to_non_nullable
                   as String,
+        supportsTools: freezed == supportsTools
+            ? _value.supportsTools
+            : supportsTools // ignore: cast_nullable_to_non_nullable
+                  as bool?,
+        supportsVision: freezed == supportsVision
+            ? _value.supportsVision
+            : supportsVision // ignore: cast_nullable_to_non_nullable
+                  as bool?,
+        supportsThinking: freezed == supportsThinking
+            ? _value.supportsThinking
+            : supportsThinking // ignore: cast_nullable_to_non_nullable
+                  as bool?,
       ),
     );
   }
@@ -174,6 +214,9 @@ class _$ModelInfoImpl implements _ModelInfo {
     this.description,
     this.contextLength,
     required this.provider,
+    this.supportsTools,
+    this.supportsVision,
+    this.supportsThinking,
   });
 
   factory _$ModelInfoImpl.fromJson(Map<String, dynamic> json) =>
@@ -189,10 +232,17 @@ class _$ModelInfoImpl implements _ModelInfo {
   final int? contextLength;
   @override
   final String provider;
+  // Capability flags reported by the provider; null = unknown.
+  @override
+  final bool? supportsTools;
+  @override
+  final bool? supportsVision;
+  @override
+  final bool? supportsThinking;
 
   @override
   String toString() {
-    return 'ModelInfo(id: $id, name: $name, description: $description, contextLength: $contextLength, provider: $provider)';
+    return 'ModelInfo(id: $id, name: $name, description: $description, contextLength: $contextLength, provider: $provider, supportsTools: $supportsTools, supportsVision: $supportsVision, supportsThinking: $supportsThinking)';
   }
 
   @override
@@ -207,13 +257,28 @@ class _$ModelInfoImpl implements _ModelInfo {
             (identical(other.contextLength, contextLength) ||
                 other.contextLength == contextLength) &&
             (identical(other.provider, provider) ||
-                other.provider == provider));
+                other.provider == provider) &&
+            (identical(other.supportsTools, supportsTools) ||
+                other.supportsTools == supportsTools) &&
+            (identical(other.supportsVision, supportsVision) ||
+                other.supportsVision == supportsVision) &&
+            (identical(other.supportsThinking, supportsThinking) ||
+                other.supportsThinking == supportsThinking));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode =>
-      Object.hash(runtimeType, id, name, description, contextLength, provider);
+  int get hashCode => Object.hash(
+    runtimeType,
+    id,
+    name,
+    description,
+    contextLength,
+    provider,
+    supportsTools,
+    supportsVision,
+    supportsThinking,
+  );
 
   /// Create a copy of ModelInfo
   /// with the given fields replaced by the non-null parameter values.
@@ -236,6 +301,9 @@ abstract class _ModelInfo implements ModelInfo {
     final String? description,
     final int? contextLength,
     required final String provider,
+    final bool? supportsTools,
+    final bool? supportsVision,
+    final bool? supportsThinking,
   }) = _$ModelInfoImpl;
 
   factory _ModelInfo.fromJson(Map<String, dynamic> json) =
@@ -250,7 +318,13 @@ abstract class _ModelInfo implements ModelInfo {
   @override
   int? get contextLength;
   @override
-  String get provider;
+  String get provider; // Capability flags reported by the provider; null = unknown.
+  @override
+  bool? get supportsTools;
+  @override
+  bool? get supportsVision;
+  @override
+  bool? get supportsThinking;
 
   /// Create a copy of ModelInfo
   /// with the given fields replaced by the non-null parameter values.

@@ -10,7 +10,11 @@ from app.models.conversation import Conversation
 from app.models.memory import UserMemory
 from app.models.message import Message
 from app.schemas.chat import ChatOptions
-from app.services.llm_provider import LLMProvider, ProviderRegistry
+from app.services.llm_provider import (
+    LLMProvider,
+    ProviderRegistry,
+    resolve_context_length,
+)
 from app.services.llm_provider import Message as LLMMessage
 from app.services.memory_service import MemoryService
 
@@ -142,13 +146,15 @@ class MemoryExtractionService:
         # Create LLM message
         llm_message = LLMMessage(role="user", content=prompt)
 
-        # Call LLM
+        # Call LLM. The prompt bundles a full day of conversation text, so
+        # allocate the effective window rather than the runtime default.
         provider = self._get_provider()
         try:
+            num_ctx = await resolve_context_length(provider, model)
             response = await provider.chat(
                 messages=[llm_message],
                 model=model,
-                options=ChatOptions(temperature=0.3, max_tokens=1000),
+                options=ChatOptions(temperature=0.3, max_tokens=1000, num_ctx=num_ctx),
             )
         except Exception as e:
             logger.error("Failed to extract memories: %s", e)
@@ -209,15 +215,27 @@ class MemoryExtractionService:
             logger.info("No memories extracted for user %s", user_id)
             return []
 
+        # Drop near-duplicates of what we already know — daily extraction
+        # would otherwise re-learn "user works at Acme" forever.
+        memory_contents, embeddings = (
+            await self._memory_service.filter_duplicate_candidates(
+                user_id, memory_contents
+            )
+        )
+        if not memory_contents:
+            logger.info("All extracted memories were duplicates for %s", user_id)
+            return []
+
         # Store memories (link to the most recent conversation)
         source_conv_id = conversations[0].id if conversations else None
         created_memories = []
 
-        for content in memory_contents:
+        for content, embedding in zip(memory_contents, embeddings):
             memory = await self._memory_service.create_memory(
                 user_id=user_id,
                 content=content,
                 source_conversation_id=source_conv_id,
+                embedding=embedding,
             )
             created_memories.append(memory)
 

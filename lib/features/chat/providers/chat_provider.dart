@@ -16,12 +16,15 @@ const _uuid = Uuid();
 /// currently-selected model from its [selectedModelId] callback so the two
 /// stay decoupled.
 class ChatProvider extends ChangeNotifier {
-  ChatProvider({required String? Function() selectedModelId})
-      : _selectedModelId = selectedModelId {
+  ChatProvider({
+    required String? Function() selectedModelId,
+    ChatService? chatService,
+  })  : _selectedModelId = selectedModelId,
+        _chatService = chatService ?? ChatService.instance {
     _loadConversations();
   }
 
-  final ChatService _chatService = ChatService.instance;
+  final ChatService _chatService;
   final String? Function() _selectedModelId;
 
   // ==========================================================================
@@ -49,6 +52,69 @@ class ChatProvider extends ChangeNotifier {
   StreamSubscription<ChatResponseChunk>? _streamSubscription;
 
   // ==========================================================================
+  // Streaming message channel
+  // ==========================================================================
+  //
+  // Per-chunk content updates go through this ValueNotifier instead of
+  // notifyListeners(), so only the streaming bubble rebuilds — not the whole
+  // message list (which would also re-parse every visible message's
+  // markdown). The list itself only changes on structural events: stream
+  // start, tool calls/results, per-iteration done, and end of stream.
+
+  /// Live view of the assistant message currently being streamed.
+  final ValueNotifier<ChatMessage?> streamingMessage = ValueNotifier(null);
+
+  /// ID of the in-flight assistant placeholder, if a stream is active.
+  String? get streamingMessageId => _streamingMessageId;
+  String? _streamingMessageId;
+
+  // Notifier pushes are throttled: token chunks can arrive 50–100×/s and
+  // each push re-parses the growing message's markdown. ~12 updates/s is
+  // visually indistinguishable for streaming text at a fraction of the cost.
+  static const _streamPushInterval = Duration(milliseconds: 80);
+  DateTime _lastStreamPush = DateTime.fromMillisecondsSinceEpoch(0);
+  Timer? _streamFlushTimer;
+  ChatMessage? _pendingStreamMessage;
+
+  void _pushStreamingUpdate(ChatMessage message, {bool force = false}) {
+    _pendingStreamMessage = message;
+    final now = DateTime.now();
+    if (force || now.difference(_lastStreamPush) >= _streamPushInterval) {
+      _streamFlushTimer?.cancel();
+      _streamFlushTimer = null;
+      _lastStreamPush = now;
+      streamingMessage.value = message;
+    } else {
+      _streamFlushTimer ??= Timer(_streamPushInterval, () {
+        _streamFlushTimer = null;
+        _lastStreamPush = DateTime.now();
+        final pending = _pendingStreamMessage;
+        if (pending != null && pending.id == _streamingMessageId) {
+          streamingMessage.value = pending;
+        }
+      });
+    }
+  }
+
+  /// Commit the latest streamed content into [_messages] before a structural
+  /// change (tool insert, stop, end of stream), so list state never lags
+  /// behind what the user already saw in the live bubble.
+  void _syncStreamingIntoList() {
+    final pending = _pendingStreamMessage ?? streamingMessage.value;
+    if (pending != null && pending.id == _streamingMessageId) {
+      _upsertIntoList(pending);
+    }
+  }
+
+  void _clearStreamingState() {
+    _streamFlushTimer?.cancel();
+    _streamFlushTimer = null;
+    _pendingStreamMessage = null;
+    _streamingMessageId = null;
+    streamingMessage.value = null;
+  }
+
+  // ==========================================================================
   // Conversations
   // ==========================================================================
 
@@ -72,7 +138,15 @@ class ChatProvider extends ChangeNotifier {
   Future<void> refreshConversations() async => _loadConversations();
 
   Future<void> loadConversation(String conversationId) async {
+    // Switching away mid-stream: stop the old stream so its chunks can't
+    // bleed into the newly loaded conversation's message list.
+    if (_streamSubscription != null &&
+        _currentConversation?.id != conversationId) {
+      await stopStreaming();
+    }
+
     _error = null;
+    _actionEpoch++;
     notifyListeners();
 
     try {
@@ -194,32 +268,73 @@ class ChatProvider extends ChangeNotifier {
     }
   }
 
+  // Deletion is optimistic with an undo window: the conversation leaves the
+  // UI immediately, but the API call fires only after the window expires.
+  // Undo within the window cancels the deletion entirely.
+  static const _undoWindow = Duration(seconds: 6);
+  final Map<String, ({Conversation conversation, int index, Timer timer})>
+      _pendingDeletes = {};
+
   Future<void> deleteConversation(String conversationId) async {
     _error = null;
+    _actionEpoch++;
 
+    final index = _conversations.indexWhere((c) => c.id == conversationId);
+    if (index < 0) return;
+    final conversation = _conversations[index];
+
+    if (_currentConversation?.id == conversationId) {
+      _currentConversation = null;
+      _messages = [];
+    }
+    _conversations =
+        _conversations.where((c) => c.id != conversationId).toList();
+    notifyListeners();
+
+    _pendingDeletes.remove(conversationId)?.timer.cancel();
+    _pendingDeletes[conversationId] = (
+      conversation: conversation,
+      index: index,
+      timer: Timer(_undoWindow, () => _commitDelete(conversationId)),
+    );
+  }
+
+  /// Restore a conversation deleted within the undo window.
+  void undoDeleteConversation(String conversationId) {
+    final pending = _pendingDeletes.remove(conversationId);
+    if (pending == null) return;
+    pending.timer.cancel();
+    _restoreConversation(pending.conversation, pending.index);
+  }
+
+  Future<void> _commitDelete(String conversationId) async {
+    final pending = _pendingDeletes.remove(conversationId);
+    if (pending == null) return;
     try {
       await _chatService.deleteConversation(conversationId);
-
-      if (_currentConversation?.id == conversationId) {
-        _currentConversation = null;
-        _messages = [];
-      }
-
-      // Replace with a fresh list — `list.items` from the API is unmodifiable.
-      _conversations =
-          _conversations.where((c) => c.id != conversationId).toList();
-      notifyListeners();
     } catch (e) {
+      // Server-side deletion failed — bring the conversation back.
+      _restoreConversation(pending.conversation, pending.index);
       _error = 'Failed to delete conversation: $e';
       if (kDebugMode) print(_error);
-      notifyListeners();
     }
   }
 
+  void _restoreConversation(Conversation conversation, int index) {
+    final list = List<Conversation>.from(_conversations);
+    list.insert(index.clamp(0, list.length), conversation);
+    _conversations = list;
+    notifyListeners();
+  }
+
   void clearCurrentConversation() {
+    if (_streamSubscription != null) {
+      unawaited(stopStreaming());
+    }
     _currentConversation = null;
     _messages = [];
     _error = null;
+    _actionEpoch++;
     notifyListeners();
   }
 
@@ -278,6 +393,7 @@ class ChatProvider extends ChangeNotifier {
     if (_isSending) return;
 
     _error = null;
+    _actionEpoch++;
 
     if (_currentConversation == null) {
       await createConversation(
@@ -333,6 +449,7 @@ class ChatProvider extends ChangeNotifier {
     final messageId = _messages[lastAssistantIdx].id;
 
     _error = null;
+    _actionEpoch++;
     _isSending = true;
     // Trim the old assistant reply and any trailing tool turns we've already
     // rendered locally; the backend does the same deletion for us.
@@ -364,6 +481,7 @@ class ChatProvider extends ChangeNotifier {
     if (!target.isUser) return;
 
     _error = null;
+    _actionEpoch++;
     _isSending = true;
 
     // Optimistically update the message text and drop everything after it.
@@ -414,6 +532,14 @@ class ChatProvider extends ChangeNotifier {
     var accumulatedContent = '';
     var accumulatedThinking = '';
 
+    ChatMessage current([Map<String, dynamic>? doneMetadata]) =>
+        _buildAssistantMessage(
+          assistantMessageId,
+          accumulatedContent,
+          accumulatedThinking,
+          doneMetadata,
+        );
+
     // Single assistant placeholder, anchored at the END of the message list
     // throughout the stream. Tool calls / tool results get inserted BEFORE
     // it as they arrive, mirroring the canonical layout the server sends
@@ -421,41 +547,31 @@ class ChatProvider extends ChangeNotifier {
     // one" jolt when the stream finishes. Thinking from tool-calling
     // iterations accumulates onto the same placeholder; the backend
     // persists it the same way.
-    _upsertAssistantMessage(
-      assistantMessageId,
-      accumulatedContent,
-      accumulatedThinking,
-      null,
-    );
+    //
+    // Per-chunk content flows through [streamingMessage] only; the list
+    // (and notifyListeners) is reserved for structural changes.
+    _upsertIntoList(current());
+    _streamingMessageId = assistantMessageId;
+    _pushStreamingUpdate(current(), force: true);
     notifyListeners();
 
     _streamSubscription = stream.listen(
       (chunk) {
         if (chunk.isThinking && chunk.content != null) {
           accumulatedThinking += chunk.content!;
-          _upsertAssistantMessage(
-            assistantMessageId,
-            accumulatedContent,
-            accumulatedThinking,
-            null,
-          );
-          notifyListeners();
+          _pushStreamingUpdate(current());
         } else if (chunk.isChunk && chunk.content != null) {
           accumulatedContent += chunk.content!;
-          _upsertAssistantMessage(
-            assistantMessageId,
-            accumulatedContent,
-            accumulatedThinking,
-            null,
-          );
-          notifyListeners();
+          _pushStreamingUpdate(current());
         } else if (chunk.isToolCall) {
+          _syncStreamingIntoList();
           _insertToolCallMessagesBefore(
             assistantMessageId,
             chunk.toolCalls ?? const [],
           );
           notifyListeners();
         } else if (chunk.isToolResult) {
+          _syncStreamingIntoList();
           _insertToolResultMessageBefore(
             assistantMessageId,
             chunk.toolResult,
@@ -472,30 +588,32 @@ class ChatProvider extends ChangeNotifier {
           // just streamed).
           if (accumulatedContent.isNotEmpty ||
               accumulatedThinking.isNotEmpty) {
-            _upsertAssistantMessage(
-              assistantMessageId,
-              accumulatedContent,
-              accumulatedThinking,
-              chunk.metadata,
-            );
+            final committed = current(chunk.metadata);
+            _upsertIntoList(committed);
+            _pushStreamingUpdate(committed, force: true);
             notifyListeners();
           }
         } else if (chunk.isError) {
+          _syncStreamingIntoList();
           _error = chunk.error ?? 'An error occurred';
           _isSending = false;
           notifyListeners();
         }
       },
       onError: (e) {
+        _syncStreamingIntoList();
         _error = 'Streaming error: $e';
         _isSending = false;
         if (kDebugMode) print('Stream error: $e');
+        _clearStreamingState();
         notifyListeners();
       },
       onDone: () {
         // Real end of the SSE stream — finalize and reconcile with server.
         _isSending = false;
         _streamSubscription = null;
+        _syncStreamingIntoList();
+        _clearStreamingState();
         if (accumulatedContent.isEmpty && accumulatedThinking.isEmpty) {
           // Drop the trailing empty placeholder if iteration N+1 never
           // produced anything (e.g., turn ended right after a tool call).
@@ -509,6 +627,7 @@ class ChatProvider extends ChangeNotifier {
         }
         notifyListeners();
         _reloadCurrentConversation();
+        _scheduleTitleRefresh();
       },
     );
   }
@@ -524,6 +643,16 @@ class ChatProvider extends ChangeNotifier {
     _streamSubscription?.cancel();
     _streamSubscription = null;
     _isSending = false;
+    _actionEpoch++;
+    // Keep what was already streamed, marked as interrupted so the partial
+    // answer isn't mistaken for a complete one.
+    final pending = _pendingStreamMessage ?? streamingMessage.value;
+    if (pending != null && pending.id == _streamingMessageId) {
+      _upsertIntoList(pending.copyWith(
+        metadata: {...?pending.metadata, 'stopped': true},
+      ));
+    }
+    _clearStreamingState();
     notifyListeners();
 
     if (_currentConversation != null) {
@@ -535,7 +664,7 @@ class ChatProvider extends ChangeNotifier {
     }
   }
 
-  void _upsertAssistantMessage(
+  ChatMessage _buildAssistantMessage(
     String id,
     String content,
     String thinking,
@@ -546,21 +675,23 @@ class ChatProvider extends ChangeNotifier {
       if (doneMetadata != null) ...doneMetadata,
     };
 
-    final assistantMessage = ChatMessage(
+    return ChatMessage(
       id: id,
       role: 'assistant',
       content: content,
       createdAt: DateTime.now(),
       metadata: meta.isEmpty ? null : meta,
     );
+  }
 
-    final existingIndex = _messages.indexWhere((m) => m.id == id);
+  void _upsertIntoList(ChatMessage message) {
+    final existingIndex = _messages.indexWhere((m) => m.id == message.id);
     if (existingIndex >= 0) {
       final newMessages = List<ChatMessage>.from(_messages);
-      newMessages[existingIndex] = assistantMessage;
+      newMessages[existingIndex] = message;
       _messages = newMessages;
     } else {
-      _messages = [..._messages, assistantMessage];
+      _messages = [..._messages, message];
     }
   }
 
@@ -633,13 +764,51 @@ class ChatProvider extends ChangeNotifier {
     ];
   }
 
+  /// Bumped on every user action that changes message state (send, edit,
+  /// regenerate, stop, switch). In-flight reloads compare epochs and drop
+  /// their result if a newer action happened — otherwise the post-stream
+  /// server reload could clobber an optimistic edit made while it was
+  /// in flight.
+  int _actionEpoch = 0;
+
   Future<void> _reloadCurrentConversation() async {
-    if (_currentConversation == null) return;
+    final id = _currentConversation?.id;
+    if (id == null) return;
+    final epoch = _actionEpoch;
     try {
-      await loadConversation(_currentConversation!.id);
+      final conversation = await _chatService.getConversation(id);
+      if (epoch != _actionEpoch || _currentConversation?.id != id) {
+        return; // stale — a newer action owns the state now
+      }
+      _currentConversation = conversation;
+      _messages = _hydrateAttachments(conversation.messages ?? []);
+      notifyListeners();
     } catch (e) {
       if (kDebugMode) print('Failed to reload conversation: $e');
     }
+  }
+
+  // The backend auto-titles a conversation in the background after its
+  // first exchange; refresh shortly after the stream ends so the generated
+  // title replaces the raw-first-message placeholder in the sidebar.
+  Timer? _titleRefreshTimer;
+
+  void _scheduleTitleRefresh() {
+    _titleRefreshTimer?.cancel();
+    _titleRefreshTimer = Timer(const Duration(seconds: 4), () async {
+      if (_isSending) return;
+      await _loadConversations();
+      final id = _currentConversation?.id;
+      if (id == null) return;
+      final idx = _conversations.indexWhere((c) => c.id == id);
+      if (idx >= 0 &&
+          _conversations[idx].title != _currentConversation!.title) {
+        _currentConversation = _currentConversation!.copyWith(
+          title: _conversations[idx].title,
+        );
+        notifyListeners();
+      }
+    });
   }
 
   // ==========================================================================
@@ -677,6 +846,16 @@ class ChatProvider extends ChangeNotifier {
   @override
   void dispose() {
     _streamSubscription?.cancel();
+    _streamFlushTimer?.cancel();
+    _titleRefreshTimer?.cancel();
+    // Flush pending deletions so an undo-window deletion isn't silently
+    // dropped when the provider goes away (e.g. logout).
+    for (final entry in _pendingDeletes.entries) {
+      entry.value.timer.cancel();
+      unawaited(_chatService.deleteConversation(entry.key));
+    }
+    _pendingDeletes.clear();
+    streamingMessage.dispose();
     super.dispose();
   }
 }

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'message_action_button.dart';
+
 /// Compact "Regenerate" button for the last assistant message.
 class RegenerateButton extends StatelessWidget {
   const RegenerateButton({
@@ -13,26 +15,11 @@ class RegenerateButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final color = colorScheme.onSurfaceVariant.withValues(alpha: 0.6);
-
-    return InkWell(
+    return MessageActionButton(
+      icon: Icons.refresh,
+      label: 'Regenerate',
+      tooltip: 'Delete this response and generate a new one',
       onTap: enabled ? onPressed : null,
-      borderRadius: BorderRadius.circular(4),
-      child: Padding(
-        padding: const EdgeInsets.all(4),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.refresh, size: 14, color: color),
-            const SizedBox(width: 4),
-            Text(
-              'Regenerate',
-              style: TextStyle(fontSize: 12, color: color),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

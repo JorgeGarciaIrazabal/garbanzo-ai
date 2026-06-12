@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../../../settings/providers/settings_provider.dart';
 import '../../services/audio_service.dart';
 import '../../utils/text_cleaner.dart';
+import 'message_action_button.dart';
 
 /// Speak button for TTS playback of assistant messages.
 ///
@@ -146,8 +147,6 @@ class _SpeakButtonState extends State<SpeakButton> {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
     if (_isLoading) {
       return const Padding(
         padding: EdgeInsets.all(4),
@@ -159,35 +158,14 @@ class _SpeakButtonState extends State<SpeakButton> {
       );
     }
 
-    return InkWell(
+    return MessageActionButton(
       key: const ValueKey('speak_button'),
+      icon: _isPlaying ? Icons.stop : Icons.volume_up,
+      label: _isPlaying ? 'Stop' : 'Listen',
+      tooltip:
+          _isPlaying ? 'Stop playback' : 'Read this message aloud',
+      highlighted: _isPlaying,
       onTap: _isPlaying ? _stop : _speak,
-      borderRadius: BorderRadius.circular(4),
-      child: Padding(
-        padding: const EdgeInsets.all(4),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              _isPlaying ? Icons.stop : Icons.volume_up,
-              size: 14,
-              color: _isPlaying
-                  ? colorScheme.primary
-                  : colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
-            ),
-            const SizedBox(width: 4),
-            Text(
-              _isPlaying ? 'Stop' : 'Listen',
-              style: TextStyle(
-                fontSize: 12,
-                color: _isPlaying
-                    ? colorScheme.primary
-                    : colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

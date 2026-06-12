@@ -41,6 +41,19 @@ async def run_memory_extraction_job(
                 model=model,
             )
 
+            # Backfill embeddings for memories created while the embedder
+            # was unavailable, so semantic ranking covers the whole store.
+            from app.services.memory_service import MemoryService
+
+            memory_service = MemoryService(db)
+            for user_id in results:
+                try:
+                    await memory_service.backfill_missing_embeddings(user_id)
+                except Exception as e:
+                    logger.warning(
+                        "Embedding backfill failed for %s: %s", user_id, e
+                    )
+
             total_memories = sum(len(memories) for memories in results.values())
             users_with_memories = sum(1 for memories in results.values() if memories)
 

@@ -66,6 +66,23 @@ def _extract_plain(data: bytes) -> str:
     return data.decode("utf-8", errors="replace")
 
 
+def _looks_like_text(text: str, sample_size: int = 4000) -> bool:
+    """Heuristic check that extracted content is human-readable text.
+
+    Binary input decoded with errors="replace" is dominated by U+FFFD
+    replacement characters and control bytes; readable text is not.
+    """
+    sample = text[:sample_size]
+    if not sample:
+        return False
+    bad = sum(
+        1
+        for ch in sample
+        if ch == "�" or (ord(ch) < 32 and ch not in "\n\r\t")
+    )
+    return bad / len(sample) < 0.10
+
+
 def extract_text(data: bytes, filename: str, mime_type: str) -> str:
     """Dispatch to the right extractor for ``mime_type`` / filename."""
     mime = (mime_type or "").lower()
@@ -164,6 +181,15 @@ class KnowledgeBaseService:
         text = extract_text(file_bytes, filename, mime_type).strip()
         if not text:
             raise ValueError("Could not extract any text from this file.")
+        if not _looks_like_text(text):
+            # MIME types are client-controlled, so binary files (executables,
+            # images renamed .txt, …) can reach the plain-text fallback. The
+            # mojibake they extract would pollute search results — validate
+            # the content itself instead of trusting the declared type.
+            raise ValueError(
+                "File does not appear to contain readable text. "
+                "Supported: PDF, CSV, spreadsheets, and plain-text files."
+            )
 
         pieces = chunk_text(
             text,

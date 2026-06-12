@@ -161,3 +161,93 @@ class TestMemoryService:
         )
 
         assert result is False
+
+
+class _FakeEmbedder:
+    """Deterministic embedder: maps known texts to fixed unit vectors."""
+
+    def __init__(self, mapping=None, fail=False):
+        self.mapping = mapping or {}
+        self.fail = fail
+
+    @property
+    def dim(self):
+        return 3
+
+    async def embed(self, texts):
+        if self.fail:
+            raise RuntimeError("embedder down")
+        return [self.mapping.get(t, [1.0, 0.0, 0.0]) for t in texts]
+
+
+class TestMemoryDedup:
+    @pytest.mark.asyncio
+    async def test_exact_text_duplicates_dropped(self, db_session, test_user_email):
+        service = MemoryService(db_session, embedding_provider=_FakeEmbedder(fail=True))
+        await service.create_memory(
+            user_id=test_user_email, content="User works at Acme"
+        )
+
+        kept, embeddings = await service.filter_duplicate_candidates(
+            test_user_email,
+            ["user works at acme", "User prefers dark mode", "User prefers dark mode"],
+        )
+        # Existing memory and the in-batch repeat are both dropped; with the
+        # embedder down, the survivor has no embedding.
+        assert kept == ["User prefers dark mode"]
+        assert embeddings == [None]
+
+    @pytest.mark.asyncio
+    async def test_semantic_near_duplicates_dropped(self, db_session, test_user_email):
+        existing_vec = [1.0, 0.0, 0.0]
+        near_vec = [0.99, 0.14, 0.0]  # cosine ≈ 0.99 → duplicate
+        far_vec = [0.0, 1.0, 0.0]  # orthogonal → kept
+        embedder = _FakeEmbedder(
+            mapping={
+                "User works at Acme": existing_vec,
+                "User is employed by Acme": near_vec,
+                "User has two cats": far_vec,
+            }
+        )
+        service = MemoryService(db_session, embedding_provider=embedder)
+        await service.create_memory(
+            user_id=test_user_email, content="User works at Acme"
+        )
+
+        kept, embeddings = await service.filter_duplicate_candidates(
+            test_user_email,
+            ["User is employed by Acme", "User has two cats"],
+        )
+        assert kept == ["User has two cats"]
+        assert embeddings == [far_vec]
+
+    @pytest.mark.asyncio
+    async def test_backfill_embeds_missing(self, db_session, test_user_email):
+        # Created while the embedder was down → no embedding stored.
+        broken = MemoryService(db_session, embedding_provider=_FakeEmbedder(fail=True))
+        memory = await broken.create_memory(
+            user_id=test_user_email, content="User likes hiking"
+        )
+        assert memory.embedding is None
+
+        healthy = MemoryService(db_session, embedding_provider=_FakeEmbedder())
+        count = await healthy.backfill_missing_embeddings(test_user_email)
+        assert count == 1
+        refreshed = await healthy.get_memory(memory.id, test_user_email)
+        assert refreshed.embedding is not None
+
+    @pytest.mark.asyncio
+    async def test_relevant_memories_fall_back_to_recency(
+        self, db_session, test_user_email
+    ):
+        # SQLite has no cosine operator, so the semantic path raises and the
+        # recency fallback must kick in — memories stay reachable.
+        service = MemoryService(db_session, embedding_provider=_FakeEmbedder())
+        await service.create_memory(user_id=test_user_email, content="fact one")
+        await service.create_memory(user_id=test_user_email, content="fact two")
+
+        results = await service.get_relevant_memories(
+            test_user_email, query="anything", limit=5
+        )
+        contents = {m.content for m in results}
+        assert contents == {"fact one", "fact two"}

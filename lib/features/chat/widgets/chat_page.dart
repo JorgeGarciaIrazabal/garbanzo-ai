@@ -80,10 +80,61 @@ class _ChatPageContentState extends State<_ChatPageContent> {
   final ScrollController _scrollController = ScrollController();
   bool _isDragOver = false;
 
+  // Smart auto-scroll: follow new content only when the user is already
+  // reading the latest messages; never yank them away from scrollback.
+  static const _nearBottomThreshold = 150.0;
+  bool _showJumpToBottom = false;
+  int _lastMessageCount = 0;
+  String? _lastConversationId;
+  ChatProvider? _chatProviderRef;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Follow the live streaming bubble as it grows. Content updates flow
+    // through the ValueNotifier (not notifyListeners), so the scroll
+    // follow needs its own listener.
+    final provider = context.read<ChatProvider>();
+    if (!identical(provider, _chatProviderRef)) {
+      _chatProviderRef?.streamingMessage.removeListener(_onStreamingUpdate);
+      _chatProviderRef = provider;
+      provider.streamingMessage.addListener(_onStreamingUpdate);
+    }
+  }
+
   @override
   void dispose() {
+    _chatProviderRef?.streamingMessage.removeListener(_onStreamingUpdate);
+    _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     super.dispose();
+  }
+
+  bool get _isNearBottom {
+    if (!_scrollController.hasClients) return true;
+    final position = _scrollController.position;
+    return position.maxScrollExtent - position.pixels <= _nearBottomThreshold;
+  }
+
+  void _onScroll() {
+    final show = !_isNearBottom;
+    if (show != _showJumpToBottom) {
+      setState(() => _showJumpToBottom = show);
+    }
+  }
+
+  void _onStreamingUpdate() {
+    if (_isNearBottom) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _scrollToBottom(animate: false);
+      });
+    }
   }
 
   int? _getLastTokensPrompt(ChatProvider chatProvider) {
@@ -98,17 +149,85 @@ class _ChatPageContentState extends State<_ChatPageContent> {
     return null;
   }
 
-  void _scrollToBottom() {
-    if (_scrollController.hasClients) {
+  /// Context window the backend actually allocated for the last turn.
+  ///
+  /// Preferred over the model's maximum from the model list: the server caps
+  /// the allocated window (num_ctx), so the model max would understate usage.
+  int? _getLastContextLength(ChatProvider chatProvider) {
+    final msgs = chatProvider.messages;
+    for (var i = msgs.length - 1; i >= 0; i--) {
+      final meta = msgs[i].metadata;
+      if (meta != null) {
+        final c = meta['context_length'];
+        if (c != null) return (c as num).toInt();
+      }
+    }
+    return null;
+  }
+
+  void _scrollToBottom({bool animate = true}) {
+    if (!_scrollController.hasClients) return;
+    final target = _scrollController.position.maxScrollExtent;
+    if (animate) {
       _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
+        target,
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeOut,
       );
+    } else {
+      // Streaming follow: jump instead of animating — at ~12 content
+      // updates per second, overlapping animations would thrash.
+      _scrollController.jumpTo(target);
+    }
+  }
+
+  /// Scroll on structural changes only: jump on conversation switch, follow
+  /// new messages when the user sent one or is already near the bottom.
+  void _handleAutoScroll(ChatProvider chatProvider) {
+    final messageCount = chatProvider.messages.length;
+    final conversationId = chatProvider.currentConversation?.id;
+
+    if (conversationId != _lastConversationId) {
+      _lastConversationId = conversationId;
+      _lastMessageCount = messageCount;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _scrollToBottom(animate: false);
+      });
+      return;
+    }
+
+    if (messageCount != _lastMessageCount) {
+      final lastIsUser = chatProvider.messages.isNotEmpty &&
+          chatProvider.messages.last.isUser;
+      final shouldScroll = lastIsUser || _isNearBottom;
+      _lastMessageCount = messageCount;
+      if (shouldScroll) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _scrollToBottom();
+        });
+      }
     }
   }
 
   bool _showSidebar(BuildContext context) => context.isWide;
+
+  /// Delete with an undo window: the provider defers the API call, and the
+  /// snackbar's Undo restores the conversation before it fires.
+  void _deleteWithUndo(ChatProvider chatProvider, String id) {
+    chatProvider.deleteConversation(id);
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: const Text('Conversation deleted'),
+          duration: const Duration(seconds: 5),
+          action: SnackBarAction(
+            label: 'Undo',
+            onPressed: () => chatProvider.undoDeleteConversation(id),
+          ),
+        ),
+      );
+  }
 
   /// Handle dropped files and add them as attachments.
   Future<void> _handleDroppedFiles(List<dynamic> files) async {
@@ -221,7 +340,7 @@ class _ChatPageContentState extends State<_ChatPageContent> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+    _handleAutoScroll(chatProvider);
 
     return Scaffold(
       key: _scaffoldKey,
@@ -248,7 +367,7 @@ class _ChatPageContentState extends State<_ChatPageContent> {
                     onSelectConversation: (id) =>
                         chatProvider.loadConversation(id),
                     onDeleteConversation: (id) =>
-                        chatProvider.deleteConversation(id),
+                        _deleteWithUndo(chatProvider, id),
                     onNewChat: () => chatProvider.clearCurrentConversation(),
                     onTogglePin: (id) => chatProvider.togglePin(id),
                     isLoadingConversations:
@@ -268,7 +387,8 @@ class _ChatPageContentState extends State<_ChatPageContent> {
                           final tokensUsed =
                               _getLastTokensPrompt(chatProvider);
                           final contextLength =
-                              modelProvider.selectedModel?.contextLength;
+                              _getLastContextLength(chatProvider) ??
+                                  modelProvider.selectedModel?.contextLength;
                           if (tokensUsed != null &&
                               contextLength != null &&
                               contextLength > 0) {
@@ -280,7 +400,25 @@ class _ChatPageContentState extends State<_ChatPageContent> {
                           return const SizedBox.shrink();
                         },
                       ),
-                      Expanded(child: _buildMessageList(chatProvider, theme)),
+                      Expanded(
+                        child: Stack(
+                          children: [
+                            _buildMessageList(chatProvider, theme),
+                            if (_showJumpToBottom)
+                              Positioned(
+                                right: 16,
+                                bottom: 12,
+                                child: FloatingActionButton.small(
+                                  heroTag: 'jump_to_bottom',
+                                  tooltip: 'Jump to latest message',
+                                  onPressed: () => _scrollToBottom(),
+                                  child:
+                                      const Icon(Icons.keyboard_arrow_down),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
                       Consumer<ChatProvider>(
                         builder: (context, provider, _) {
                           return ChatInputWidget(
@@ -379,7 +517,7 @@ class _ChatPageContentState extends State<_ChatPageContent> {
                 conversations: chatProvider.conversations,
                 selectedId: chatProvider.currentConversation?.id,
                 onSelect: (id) => chatProvider.loadConversation(id),
-                onDelete: (id) => chatProvider.deleteConversation(id),
+                onDelete: (id) => _deleteWithUndo(chatProvider, id),
                 onNewChat: () => chatProvider.clearCurrentConversation(),
                 onTogglePin: (id) => chatProvider.togglePin(id),
               ),
@@ -512,14 +650,28 @@ class _ChatPageContentState extends State<_ChatPageContent> {
         final msgIdx = messageItem.idx;
         final isLastMessage = msgIdx == messages.length - 1;
 
-        return ChatMessageWidget(
-          message: message,
-          isStreaming:
-              isLastMessage && chatProvider.isSending && message.isAssistant,
-          conversationId: chatProvider.currentConversation?.id,
-          isLastAssistant:
-              message.isAssistant && msgIdx == lastAssistantIdx,
-        );
+        Widget buildBubble(ChatMessage m) => ChatMessageWidget(
+              message: m,
+              isStreaming: isLastMessage &&
+                  chatProvider.isSending &&
+                  m.isAssistant,
+              conversationId: chatProvider.currentConversation?.id,
+              isLastAssistant:
+                  m.isAssistant && msgIdx == lastAssistantIdx,
+            );
+
+        // The in-flight assistant bubble subscribes to the streaming
+        // channel directly, so per-chunk updates repaint only this one
+        // widget instead of the whole list.
+        if (message.id == chatProvider.streamingMessageId) {
+          return ValueListenableBuilder<ChatMessage?>(
+            valueListenable: chatProvider.streamingMessage,
+            builder: (context, live, _) => buildBubble(
+              live != null && live.id == message.id ? live : message,
+            ),
+          );
+        }
+        return buildBubble(message);
       },
     );
   }

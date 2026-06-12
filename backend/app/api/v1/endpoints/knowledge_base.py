@@ -2,7 +2,16 @@
 
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    HTTPException,
+    Query,
+    Request,
+    UploadFile,
+    status,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings, get_settings
@@ -30,12 +39,23 @@ def get_kb_service(db: Annotated[AsyncSession, Depends(get_db)]) -> KnowledgeBas
     summary="Upload a document to the knowledge base",
 )
 async def upload_document(
+    request: Request,
     current_user: Annotated[dict[str, Any], Depends(get_current_user)],
     service: Annotated[KnowledgeBaseService, Depends(get_kb_service)],
     settings: Annotated[Settings, Depends(get_settings)],
     file: Annotated[UploadFile, File(...)],
 ) -> KnowledgeDocumentOut:
     max_bytes = settings.kb_max_file_size_mb * 1024 * 1024
+
+    # Reject obviously-oversized requests from the Content-Length header
+    # before reading the body into memory. The header covers the whole
+    # multipart payload, so allow a little envelope slack.
+    declared = request.headers.get("content-length")
+    if declared and declared.isdigit() and int(declared) > max_bytes + 64 * 1024:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File too large (max {settings.kb_max_file_size_mb} MB)",
+        )
 
     payload = await file.read()
     if len(payload) == 0:

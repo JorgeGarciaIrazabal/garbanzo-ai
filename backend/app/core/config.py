@@ -28,6 +28,23 @@ class Settings(BaseSettings):
     llm_provider: str = "ollama"
     ollama_base_url: str = "http://host.docker.internal:11434"
 
+    # Context window cap in tokens. The effective window for a conversation
+    # is min(model's maximum, this value); it is passed to the provider as
+    # num_ctx so the runtime actually allocates that window (Ollama otherwise
+    # silently runs at its own default, typically 4096, regardless of the
+    # model's maximum). Raising this increases RAM/VRAM use per request.
+    llm_context_window: int = 8192
+
+    # Token budgets for context injected into the system prompt. Memory /
+    # KB entries beyond the budget are dropped (in list order) so a large
+    # memory store or document base can't crowd out the conversation itself.
+    memory_token_budget: int = 1000
+    kb_token_budget: int = 2000
+
+    # Maximum memories injected per message (most relevant first). The token
+    # budget above still applies on top of this count cap.
+    memory_top_k: int = 8
+
     # Model used for internal classification calls (e.g. the "should this
     # auto-agent jump in?" judge in multi-agent rooms). Override via env var
     # (ROOM_AUTO_JUDGE_MODEL) if a different model is preferred. Must be
