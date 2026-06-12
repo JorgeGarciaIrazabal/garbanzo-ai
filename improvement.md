@@ -6,7 +6,7 @@ This task list contains proposed improvements for the Garbanzo AI repository. It
 
 ## 🛠️ Code Simplification & Refactoring
 
-- [ ] **[Backend] Refactor `RoomConnectionManager` WebSocket Broker to Prevent Recursion**
+- [x] **[Backend] Refactor `RoomConnectionManager` WebSocket Broker to Prevent Recursion** *(done 2026-06-12)*
   * *Current Issue*: When a websocket connection fails to send text, it calls `disconnect()`. `disconnect()` removes the socket and calls `broadcast_presence()`, which attempts to send the updated presence list to all remaining sockets. If another socket fails there, it calls `disconnect()` recursively.
   * *Improvement*: Avoid recursive calls by returning failed/dead connections from the broadcast loop, and performing a single cleanup and presence broadcast pass outside the loop.
 - [ ] **[Backend] Move Pluggable LLM Provider Registration to Application Lifespan**

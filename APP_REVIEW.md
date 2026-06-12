@@ -234,7 +234,8 @@ The app quietly does sophisticated things — memory injection, RAG, summarizati
 *Done 2026-06-11 (round 5): `UserMemory.embedding` (pgvector, migration 011, applied to dev DB); memories embedded on create/update with graceful degradation when the embedder is down; `get_relevant_memories` ranks by cosine similarity to the current message with gentle recency decay (0.001 distance/day) and recency fallback, capped at `memory_top_k` (8); extraction drops exact + semantic (≥0.90) duplicates and reuses candidate embeddings for storage; daily job backfills missing embeddings; `memories_used`/`kb_chunks_used` stamped into message metadata, shown as a header badge with tooltip + Info-panel rows.*
 
 **Phase 4 — Reach & structure (ongoing)**
-Cloud provider · god-file splits (backend + frontend) · settings IA redesign · onboarding card · room judge batching · accessibility audit · feedback buttons → eval loop.
+Cloud provider · god-file splits (backend + frontend) · settings IA redesign · ~~onboarding card~~ ✅ · room judge batching · accessibility audit · feedback buttons → eval loop.
+*Done 2026-06-12 (round 6, while the Phase 3 cloud routine runs): RoomConnectionManager dead-socket cleanup no longer recurses (single presence update per broadcast, regression-tested); room WS re-validates membership on every post; dismissible "Getting started" card on the empty state (persisted); transcription failures mapped to actionable messages. (Recording timer + recording-error mapping from the UX review were already implemented.)*
 
 ---
 

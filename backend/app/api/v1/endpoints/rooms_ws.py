@@ -87,6 +87,21 @@ async def room_websocket(
                 if not content:
                     continue
                 async with async_session_maker() as db:
+                    # Membership was checked at connect time, but a user can
+                    # be removed (or the room deleted/privatized) while the
+                    # socket stays open — re-validate before every post.
+                    svc = RoomService(db)
+                    room = await svc.get(room_id, viewer_id=user_id)
+                    still_member = room is not None and (
+                        room.is_public
+                        or any(m.user_id == user_id for m in room.members)
+                    )
+                    if not still_member:
+                        await websocket.close(
+                            code=status.WS_1008_POLICY_VIOLATION
+                        )
+                        return
+
                     chat = RoomChatService(db)
                     try:
                         await chat.handle_user_post(

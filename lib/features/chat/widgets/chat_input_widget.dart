@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -227,9 +228,26 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
         );
       }
     } catch (e) {
+      if (kDebugMode) print('Transcription failed: $e');
       if (mounted) {
+        // Map raw failures to actionable messages instead of dumping the
+        // exception at the user.
+        final raw = e.toString();
+        final String message;
+        if (raw.contains('SocketException') ||
+            raw.contains('Connection') ||
+            raw.contains('timed out')) {
+          message =
+              'Could not reach the server — check your connection and try again.';
+        } else if (raw.contains('500') ||
+            raw.contains('503') ||
+            raw.contains('unavailable')) {
+          message = 'Speech-to-text is currently unavailable on the server.';
+        } else {
+          message = 'Transcription failed — please try again.';
+        }
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Transcription failed: $e')),
+          SnackBar(content: Text(message)),
         );
       }
     } finally {

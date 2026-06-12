@@ -37,7 +37,8 @@ class RoomConnectionManager:
         logger.debug("WS connect room=%s user=%s", room_id, user_id)
         await self.broadcast_presence(room_id)
 
-    async def disconnect(self, room_id: str, user_id: str, ws: WebSocket) -> None:
+    async def _remove(self, room_id: str, user_id: str, ws: WebSocket) -> None:
+        """Drop a socket from the registry without any broadcasting."""
         async with self._lock:
             sockets = self._rooms.get(room_id, {}).get(user_id)
             if sockets and ws in sockets:
@@ -47,6 +48,9 @@ class RoomConnectionManager:
                 self._rooms[room_id].pop(user_id, None)
             if room_id in self._rooms and not self._rooms[room_id]:
                 self._rooms.pop(room_id, None)
+
+    async def disconnect(self, room_id: str, user_id: str, ws: WebSocket) -> None:
+        await self._remove(room_id, user_id, ws)
         logger.debug("WS disconnect room=%s user=%s", room_id, user_id)
         await self.broadcast_presence(room_id)
 
@@ -56,10 +60,14 @@ class RoomConnectionManager:
     def is_user_online(self, room_id: str, user_id: str) -> bool:
         return bool(self._rooms.get(room_id, {}).get(user_id))
 
-    async def broadcast(self, room_id: str, event: dict[str, Any]) -> None:
-        """Send ``event`` as JSON to every socket currently in ``room_id``."""
-        payload = json.dumps(event, default=str)
-        dead: list[tuple[str, WebSocket]] = []
+    async def _send_to_room(self, room_id: str, payload: str) -> int:
+        """Send ``payload`` to every socket in the room.
+
+        Failed sockets are removed from the registry (without broadcasting),
+        so a single cleanup pass happens outside the send loop instead of
+        recursing disconnect → broadcast_presence → disconnect. Returns the
+        number of dead sockets removed.
+        """
         async with self._lock:
             sockets = [
                 (user_id, ws)
@@ -67,6 +75,7 @@ class RoomConnectionManager:
                 for ws in ws_list
             ]
 
+        dead: list[tuple[str, WebSocket]] = []
         for user_id, ws in sockets:
             try:
                 await ws.send_text(payload)
@@ -74,25 +83,23 @@ class RoomConnectionManager:
                 dead.append((user_id, ws))
 
         for user_id, ws in dead:
-            await self.disconnect(room_id, user_id, ws)
+            logger.debug("WS dropped dead socket room=%s user=%s", room_id, user_id)
+            await self._remove(room_id, user_id, ws)
+        return len(dead)
+
+    async def broadcast(self, room_id: str, event: dict[str, Any]) -> None:
+        """Send ``event`` as JSON to every socket currently in ``room_id``."""
+        dropped = await self._send_to_room(room_id, json.dumps(event, default=str))
+        if dropped:
+            # One presence update reflecting the cleanup — never per-socket.
+            await self.broadcast_presence(room_id)
 
     async def broadcast_presence(self, room_id: str) -> None:
         event = {"type": "presence", "online": self.online_users(room_id)}
-        payload = json.dumps(event)
-        async with self._lock:
-            sockets = [
-                (user_id, ws)
-                for user_id, ws_list in self._rooms.get(room_id, {}).items()
-                for ws in ws_list
-            ]
-        dead: list[tuple[str, WebSocket]] = []
-        for user_id, ws in sockets:
-            try:
-                await ws.send_text(payload)
-            except Exception:
-                dead.append((user_id, ws))
-        for user_id, ws in dead:
-            await self.disconnect(room_id, user_id, ws)
+        # Sockets that die here are removed but deliberately do NOT trigger
+        # another presence broadcast — the next presence-changing event
+        # carries the corrected list. (This was the recursion source.)
+        await self._send_to_room(room_id, json.dumps(event))
 
 
 # Module-level singleton

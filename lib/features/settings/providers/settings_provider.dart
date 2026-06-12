@@ -25,6 +25,7 @@ class SettingsProvider extends ChangeNotifier {
   static const _keyThemeMode = 'settings_theme_mode';
   static const _keyShowMessageMetadata = 'settings_show_message_metadata';
   static const _keyShowSystemPrompt = 'settings_show_system_prompt';
+  static const _keyOnboardingDismissed = 'settings_onboarding_dismissed';
 
   // Defaults
   static const defaultVoice = 'af_heart';
@@ -38,6 +39,7 @@ class SettingsProvider extends ChangeNotifier {
   AppThemeMode _themeMode = defaultThemeMode;
   bool _showMessageMetadata = false;
   bool _showSystemPrompt = false;
+  bool _onboardingDismissed = false;
   bool _loaded = false;
 
   String get ttsVoice => _ttsVoice;
@@ -47,6 +49,7 @@ class SettingsProvider extends ChangeNotifier {
   AppThemeMode get themeMode => _themeMode;
   bool get showMessageMetadata => _showMessageMetadata;
   bool get showSystemPrompt => _showSystemPrompt;
+  bool get onboardingDismissed => _onboardingDismissed;
   bool get loaded => _loaded;
 
   /// Converts AppThemeMode to Flutter's ThemeMode.
@@ -70,8 +73,17 @@ class SettingsProvider extends ChangeNotifier {
     _themeMode = _parseThemeMode(prefs.getString(_keyThemeMode));
     _showMessageMetadata = prefs.getBool(_keyShowMessageMetadata) ?? false;
     _showSystemPrompt = prefs.getBool(_keyShowSystemPrompt) ?? false;
+    _onboardingDismissed = prefs.getBool(_keyOnboardingDismissed) ?? false;
     _loaded = true;
     notifyListeners();
+  }
+
+  Future<void> dismissOnboarding() async {
+    if (_onboardingDismissed) return;
+    _onboardingDismissed = true;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyOnboardingDismissed, true);
   }
 
   AppThemeMode _parseThemeMode(String? value) {
