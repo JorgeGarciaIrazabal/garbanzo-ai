@@ -254,3 +254,56 @@ class TestBinaryContentRejection:
                 mime_type="text/plain",
                 file_bytes=bytes(range(256)) * 16,
             )
+
+
+class TestHybridSearchAndThreshold:
+    @pytest.mark.asyncio
+    async def test_low_score_chunks_are_dropped(self, db_session, monkeypatch):
+        from app.services.knowledge_base_service import (
+            KnowledgeBaseService,
+            RetrievedChunk,
+        )
+
+        service = KnowledgeBaseService(
+            db_session,
+            embedding_provider=_FakeEmbeddingProvider(),
+            settings=Settings(kb_min_score=0.5, kb_background_embedding=False),
+        )
+
+        async def fake_hybrid(*args, **kwargs):
+            return [
+                RetrievedChunk("d1", "good.pdf", "relevant", score=0.82),
+                RetrievedChunk("d2", "meh.pdf", "barely related", score=0.31),
+            ]
+
+        monkeypatch.setattr(service, "_hybrid_search", fake_hybrid)
+
+        results = await service.search(user_id="u@example.com", query="anything")
+        assert [r.document_filename for r in results] == ["good.pdf"]
+
+    @pytest.mark.asyncio
+    async def test_hybrid_failure_returns_none_without_breaking_session(
+        self, db_session, test_user_email
+    ):
+        """On databases without pgvector/FTS the hybrid path must signal
+        fallback (None) and leave the session usable — a session-level
+        rollback here once silently discarded in-flight chat messages."""
+        from app.services.knowledge_base_service import KnowledgeBaseService
+
+        service = KnowledgeBaseService(
+            db_session,
+            embedding_provider=_FakeEmbeddingProvider(),
+            settings=Settings(kb_background_embedding=False),
+        )
+        result = await service._hybrid_search(
+            "u@example.com", "query", [0.0] * 768, limit=5
+        )
+        assert result is None
+
+        # Session still works: an unrelated query succeeds afterwards.
+        from sqlalchemy import select
+
+        from app.models.user import User
+
+        users = (await db_session.execute(select(User))).scalars().all()
+        assert users  # conftest seeds one

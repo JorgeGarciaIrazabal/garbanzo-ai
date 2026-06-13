@@ -141,3 +141,21 @@ async def test_rag_error_swallowed_and_returns_base_prompt(db_session, monkeypat
         conversation_system_prompt="Base prompt.",
     )
     assert prompt == "Base prompt."
+
+
+async def test_kb_sources_collected_into_stats(db_session, monkeypatch):
+    """Distinct source filenames of injected chunks are reported in stats so
+    the client can render citation chips."""
+    service = await _make_service(db_session)
+    monkeypatch.setattr(service._kb, "search", _fake_matches)
+
+    _prompt, stats = await service._build_system_prompt(
+        user_id="test@example.com",
+        use_memory=False,
+        use_knowledge_base=True,
+        rag_query="Tell me about Q2",
+        conversation_system_prompt="You are a helpful assistant.",
+    )
+
+    assert stats["kb_chunks_used"] == 2
+    assert stats["kb_sources"] == ["report.pdf", "notes.txt"]

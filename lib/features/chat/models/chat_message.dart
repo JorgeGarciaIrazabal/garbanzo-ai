@@ -89,4 +89,16 @@ class ChatResponseChunk with _$ChatResponseChunk {
   bool get isError => type == 'error';
   bool get isToolCall => type == 'tool_call';
   bool get isToolResult => type == 'tool_result';
+  bool get isToolExecution => type == 'tool_execution';
+
+  /// Live tool-progress payload ({tool_call_id, tool_name, status,
+  /// duration_ms?}) carried by `tool_execution` chunks.
+  Map<String, dynamic>? get toolExecution {
+    final raw = metadata?['tool_execution'];
+    if (raw is Map<String, dynamic>) return raw;
+    if (raw is Map) {
+      return raw.map((k, v) => MapEntry(k.toString(), v));
+    }
+    return null;
+  }
 }

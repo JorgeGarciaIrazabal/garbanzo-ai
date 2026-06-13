@@ -577,6 +577,10 @@ class ChatProvider extends ChangeNotifier {
             chunk.toolResult,
           );
           notifyListeners();
+        } else if (chunk.isToolExecution) {
+          // Live tool status (started / finished + duration): merge it into
+          // the matching tool_call message so its bubble re-renders.
+          _applyToolExecution(chunk.toolExecution);
         } else if (chunk.isDone) {
           // The backend emits a `done` chunk PER LLM ITERATION (one for the
           // tool-call iteration, one for the final-answer iteration). It is
@@ -731,6 +735,21 @@ class ChatProvider extends ChangeNotifier {
       ...additions,
       ..._messages.sublist(idx),
     ];
+  }
+
+  /// Merge a live tool-execution status update into the matching temp
+  /// tool_call message's metadata, so its bubble can show "running…" /
+  /// "done in X.Xs" while the rest of the list stays untouched.
+  void _applyToolExecution(Map<String, dynamic>? execution) {
+    final callId = execution?['tool_call_id'];
+    if (execution == null || callId == null) return;
+    final idx = _messages.indexWhere((m) => m.id == 'temp-tool-call-$callId');
+    if (idx < 0) return;
+    final message = _messages[idx];
+    _upsertIntoList(message.copyWith(
+      metadata: {...?message.metadata, 'tool_execution': execution},
+    ));
+    notifyListeners();
   }
 
   /// Inserts a display-only `tool_result` message immediately BEFORE the

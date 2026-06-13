@@ -49,6 +49,17 @@ class ToolBubbleWidget extends StatelessWidget {
     return null;
   }
 
+  /// Live execution status streamed by the backend
+  /// ({status: started|finished, duration_ms?}).
+  Map<String, dynamic>? get _execution {
+    final raw = message.metadata?['tool_execution'];
+    if (raw is Map<String, dynamic>) return raw;
+    if (raw is Map) {
+      return raw.map((k, v) => MapEntry(k.toString(), v));
+    }
+    return null;
+  }
+
   String get _toolName {
     if (_isCall) {
       final data = _callData;
@@ -107,6 +118,52 @@ class ToolBubbleWidget extends StatelessWidget {
       if (r['is_error'] == true) return true;
     }
     return false;
+  }
+
+  /// Live status trailer for tool calls: spinner + "running…" while the
+  /// backend executes, "done in X.Xs" once the finished marker arrives.
+  List<Widget> _buildStatus(ThemeData theme, Color onAccent) {
+    if (!_isCall) return const [];
+    final execution = _execution;
+    final status = execution?['status'];
+
+    if (status == 'finished') {
+      final ms = execution?['duration_ms'];
+      final label =
+          ms is num ? 'done in ${(ms / 1000).toStringAsFixed(1)}s' : 'done';
+      return [
+        const SizedBox(width: 6),
+        Icon(Icons.check, size: 12, color: onAccent.withValues(alpha: 0.8)),
+        const SizedBox(width: 2),
+        Text(
+          label,
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: onAccent.withValues(alpha: 0.8),
+          ),
+        ),
+      ];
+    }
+
+    if (status == 'started' || isStreaming) {
+      return [
+        const SizedBox(width: 6),
+        SizedBox(
+          width: 10,
+          height: 10,
+          child: CircularProgressIndicator(strokeWidth: 2, color: onAccent),
+        ),
+        if (status == 'started') ...[
+          const SizedBox(width: 4),
+          Text(
+            'running…',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: onAccent.withValues(alpha: 0.8),
+            ),
+          ),
+        ],
+      ];
+    }
+    return const [];
   }
 
   @override
@@ -209,17 +266,7 @@ class ToolBubbleWidget extends StatelessWidget {
                       ),
                     ),
                   ],
-                  if (_isCall && isStreaming) ...[
-                    const SizedBox(width: 6),
-                    SizedBox(
-                      width: 10,
-                      height: 10,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: onAccent,
-                      ),
-                    ),
-                  ],
+                  ..._buildStatus(theme, onAccent),
                 ],
               ),
               children: [

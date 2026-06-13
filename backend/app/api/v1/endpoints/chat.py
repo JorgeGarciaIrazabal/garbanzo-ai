@@ -284,6 +284,12 @@ async def _sse_stream(
                     type="tool_result",
                     tool_result=chunk.metadata["tool_result"],
                 )
+            elif chunk.metadata and chunk.metadata.get("tool_execution"):
+                # Live tool-progress marker (started / finished + duration).
+                response = ChatResponseChunk(
+                    type="tool_execution",
+                    metadata=chunk.metadata,
+                )
             elif chunk.metadata and chunk.metadata.get("error"):
                 response = ChatResponseChunk(
                     type="error",

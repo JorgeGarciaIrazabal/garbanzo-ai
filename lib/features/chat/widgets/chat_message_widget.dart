@@ -41,6 +41,14 @@ class ChatMessageWidget extends StatefulWidget {
 class _ChatMessageWidgetState extends State<ChatMessageWidget> {
   bool _metadataExpanded = false;
 
+  /// Distinct knowledge-base filenames that informed this reply, stamped by
+  /// the backend into the message metadata.
+  List<String> get _kbSources {
+    final raw = widget.message.metadata?['kb_sources'];
+    if (raw is! List) return const [];
+    return raw.map((e) => e.toString()).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -218,6 +226,40 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
                     isUser: isUser,
                     colorScheme: colorScheme,
                     textTheme: theme.textTheme,
+                  ),
+                // Knowledge-base citations: which documents informed this
+                // reply.
+                if (!isUser && _kbSources.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      children: [
+                        for (final source in _kbSources)
+                          Tooltip(
+                            message: 'From your knowledge base',
+                            child: Chip(
+                              avatar: Icon(
+                                Icons.menu_book_outlined,
+                                size: 14,
+                                color: colorScheme.primary,
+                              ),
+                              label: Text(source),
+                              labelStyle: theme.textTheme.labelSmall,
+                              visualDensity: VisualDensity.compact,
+                              materialTapTargetSize:
+                                  MaterialTapTargetSize.shrinkWrap,
+                              side: BorderSide(
+                                color: colorScheme.outlineVariant
+                                    .withValues(alpha: 0.5),
+                              ),
+                              backgroundColor:
+                                  colorScheme.surfaceContainerLow,
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                 // Action buttons for assistant messages
                 if (!isUser && widget.message.content.isNotEmpty) ...[

@@ -169,6 +169,59 @@ void main() {
       expect(service.deletedIds, ['conv-1']);
     });
 
+    test('tool_execution updates land on the matching tool_call message',
+        () async {
+      final service = _FakeChatService();
+      final provider = await _providerWithOpenConversation(service);
+      await provider.sendMessage('hi');
+
+      service.controller.add(ChatResponseChunk(
+        type: 'tool_call',
+        toolCalls: [
+          const ToolCall(id: 'call-7', name: 'search', arguments: {}),
+        ],
+      ));
+      await Future<void>.delayed(Duration.zero);
+
+      service.controller.add(const ChatResponseChunk(
+        type: 'tool_execution',
+        metadata: {
+          'tool_execution': {
+            'tool_call_id': 'call-7',
+            'tool_name': 'search',
+            'status': 'started',
+          },
+        },
+      ));
+      await Future<void>.delayed(Duration.zero);
+
+      var toolMsg = provider.messages
+          .firstWhere((m) => m.id == 'temp-tool-call-call-7');
+      expect(toolMsg.metadata?['tool_execution']?['status'], 'started');
+      // The original call payload is preserved alongside the status.
+      expect(toolMsg.metadata?['tool_calls'], isNotNull);
+
+      service.controller.add(const ChatResponseChunk(
+        type: 'tool_execution',
+        metadata: {
+          'tool_execution': {
+            'tool_call_id': 'call-7',
+            'tool_name': 'search',
+            'status': 'finished',
+            'duration_ms': 2300,
+          },
+        },
+      ));
+      await Future<void>.delayed(Duration.zero);
+
+      toolMsg = provider.messages
+          .firstWhere((m) => m.id == 'temp-tool-call-call-7');
+      expect(toolMsg.metadata?['tool_execution']?['status'], 'finished');
+      expect(toolMsg.metadata?['tool_execution']?['duration_ms'], 2300);
+
+      await service.controller.close();
+    });
+
     test('throttle coalesces rapid chunks but flushes the trailing state',
         () async {
       final service = _FakeChatService();

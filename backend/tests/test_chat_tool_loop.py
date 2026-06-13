@@ -435,3 +435,113 @@ async def test_tool_calls_sent_as_structured_field_not_content_json(
             assert not m.content.lstrip().startswith("[{"), (
                 "tool calls leaked into content as raw JSON"
             )
+
+
+async def test_tool_execution_progress_chunks_emitted(db_session, test_user_email):
+    """Each tool call must be bracketed by started/finished progress chunks
+    so the UI can show live status (with a duration on finish)."""
+    tool_calls = [{"id": "call-9", "name": "srv:echo", "arguments": {}}]
+    provider = _ScriptedProvider(
+        [
+            [
+                ChatChunk(content="", is_finished=False, tool_calls=tool_calls),
+                ChatChunk(content="", is_finished=True, metadata={}),
+            ],
+            [
+                ChatChunk(content="done", is_finished=False),
+                ChatChunk(content="", is_finished=True, metadata={}),
+            ],
+        ]
+    )
+    service = await _make_service(db_session, provider)
+    conv_id = await _new_conversation(db_session, test_user_email, enabled_tools=[])
+
+    async def _fake_call_tool(server_id, tool_name, args):
+        return {"ok": True, "content": "result"}
+
+    chunks = []
+    with patch(
+        "app.services.chat_service.MCPService.call_tool",
+        new=AsyncMock(side_effect=_fake_call_tool),
+    ):
+        async for c in service.send_message(conv_id, test_user_email, "hi"):
+            chunks.append(c)
+
+    executions = [
+        c.metadata["tool_execution"]
+        for c in chunks
+        if c.metadata and "tool_execution" in c.metadata
+    ]
+    assert [e["status"] for e in executions] == ["started", "finished"]
+    assert all(e["tool_call_id"] == "call-9" for e in executions)
+    assert all(e["tool_name"] == "srv:echo" for e in executions)
+    assert executions[1]["duration_ms"] >= 0
+
+    # The started marker must arrive BEFORE the tool_result chunk.
+    kinds = [
+        ("execution", c.metadata["tool_execution"]["status"])
+        if c.metadata and "tool_execution" in c.metadata
+        else ("result", "")
+        for c in chunks
+        if c.metadata and ("tool_execution" in c.metadata or "tool_result" in c.metadata)
+    ]
+    assert kinds == [("execution", "started"), ("execution", "finished"), ("result", "")]
+
+
+async def test_tool_result_truncated_to_cap(db_session, test_user_email, monkeypatch):
+    """Oversized tool results are truncated with an explicit marker before
+    persistence and before being fed back to the model."""
+    from app.core.config import Settings
+
+    monkeypatch.setattr(
+        "app.services.chat_service.get_settings",
+        lambda: Settings(tool_result_max_chars=100),
+    )
+
+    tool_calls = [{"id": "call-big", "name": "srv:dump", "arguments": {}}]
+    provider = _ScriptedProvider(
+        [
+            [
+                ChatChunk(content="", is_finished=False, tool_calls=tool_calls),
+                ChatChunk(content="", is_finished=True, metadata={}),
+            ],
+            [
+                ChatChunk(content="ok", is_finished=False),
+                ChatChunk(content="", is_finished=True, metadata={}),
+            ],
+        ]
+    )
+    service = await _make_service(db_session, provider)
+    conv_id = await _new_conversation(db_session, test_user_email, enabled_tools=[])
+
+    async def _fake_call_tool(server_id, tool_name, args):
+        return {"ok": True, "content": "x" * 5000}
+
+    with patch(
+        "app.services.chat_service.MCPService.call_tool",
+        new=AsyncMock(side_effect=_fake_call_tool),
+    ):
+        async for c in service.send_message(conv_id, test_user_email, "hi"):
+            pass
+
+    from sqlalchemy import select
+
+    from app.models.message import Message as MessageModel
+
+    rows = (
+        await db_session.execute(
+            select(MessageModel).where(MessageModel.role == "tool_result")
+        )
+    ).scalars().all()
+    assert len(rows) == 1
+    content = rows[0].content
+    assert "[truncated" in content
+    assert len(content) < 200  # 100 chars + marker
+    assert rows[0].meta.get("truncated") is True
+
+    # The model also received the truncated text, not the full dump.
+    tool_msgs = [
+        m for m in provider.calls[1]["messages"] if m.role == "tool"
+    ]
+    assert len(tool_msgs) == 1
+    assert "[truncated" in tool_msgs[0].content

@@ -49,6 +49,18 @@ def _stringify_tool_result(result: Any) -> str:
         return str(result)
 
 
+def _truncate_tool_result(text: str, max_chars: int) -> str:
+    """Cap a stringified tool result with an explicit truncation marker.
+
+    Applied before persisting and before feeding the result back to the
+    model — a tool returning megabytes must not blow the context window.
+    """
+    if max_chars <= 0 or len(text) <= max_chars:
+        return text
+    dropped = len(text) - max_chars
+    return f"{text[:max_chars]}... [truncated {dropped} chars]"
+
+
 def _maybe_parse_inline_tool_calls(content: str) -> list[dict[str, Any]] | None:
     """If ``content`` is a JSON list of tool-call objects, return them.
 
@@ -658,6 +670,10 @@ class ChatService:
                             chunk.metadata.setdefault(
                                 "kb_chunks_used", context_stats["kb_chunks_used"]
                             )
+                        if context_stats.get("kb_sources"):
+                            chunk.metadata.setdefault(
+                                "kb_sources", context_stats["kb_sources"]
+                            )
                         metadata = chunk.metadata
                     yield chunk
 
@@ -721,13 +737,52 @@ class ChatService:
                 )
 
                 for call in tool_calls_this_iter:
+                    execution = {
+                        "tool_call_id": call.get("id"),
+                        "tool_name": call.get("name"),
+                    }
+                    # Live progress markers so the UI can show "running…"
+                    # instead of going silent for the duration of the call.
+                    yield ChatChunk(
+                        content="",
+                        is_finished=False,
+                        metadata={
+                            "tool_execution": {**execution, "status": "started"}
+                        },
+                    )
+                    started_at = asyncio.get_event_loop().time()
                     result = await self._execute_tool_call(call, tool_lookup)
+                    duration_ms = int(
+                        (asyncio.get_event_loop().time() - started_at) * 1000
+                    )
+                    yield ChatChunk(
+                        content="",
+                        is_finished=False,
+                        metadata={
+                            "tool_execution": {
+                                **execution,
+                                "status": "finished",
+                                "duration_ms": duration_ms,
+                            }
+                        },
+                    )
+
+                    raw_text = _stringify_tool_result(result)
+                    result_text = _truncate_tool_result(
+                        raw_text, get_settings().tool_result_max_chars
+                    )
                     result_meta = {
                         "tool_call_id": call.get("id"),
                         "tool_name": call.get("name"),
-                        "result": result,
+                        # Oversized results are stored truncated too — the
+                        # meta JSONB otherwise carries the full payload.
+                        "result": result
+                        if len(raw_text) == len(result_text)
+                        else result_text,
+                        "duration_ms": duration_ms,
                     }
-                    result_text = _stringify_tool_result(result)
+                    if len(raw_text) != len(result_text):
+                        result_meta["truncated"] = True
                     tool_result_msg = Message(
                         id=str(uuid.uuid4()),
                         conversation_id=conversation_id,
@@ -985,7 +1040,11 @@ class ChatService:
         injected ({"memories_used": n, "kb_chunks_used": n}) so the client
         can show the user what informed the reply.
         """
-        stats = {"memories_used": 0, "kb_chunks_used": 0}
+        stats: dict[str, Any] = {
+            "memories_used": 0,
+            "kb_chunks_used": 0,
+            "kb_sources": [],
+        }
         base_prompt = (conversation_system_prompt or "").strip()
 
         if not base_prompt and user_id:
@@ -1072,6 +1131,13 @@ class ChatService:
                         lines.append("")
                     kb_block = "\n".join(lines).rstrip()
                     stats["kb_chunks_used"] = injected
+                    # Distinct source filenames, in injection order, for the
+                    # client to render as citation chips.
+                    stats["kb_sources"] = list(
+                        dict.fromkeys(
+                            m.document_filename for m in matches[:injected]
+                        )
+                    )
             except Exception as e:
                 logger.warning("Failed to load KB context for system prompt: %s", e)
 

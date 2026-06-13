@@ -45,6 +45,11 @@ class Settings(BaseSettings):
     # budget above still applies on top of this count cap.
     memory_top_k: int = 8
 
+    # Tool results larger than this are truncated (with an explicit marker)
+    # before being persisted and fed back to the model, so a tool returning
+    # megabytes can't blow the context window or the message table.
+    tool_result_max_chars: int = 8000
+
     # Model used for internal classification calls (e.g. the "should this
     # auto-agent jump in?" judge in multi-agent rooms). Override via env var
     # (ROOM_AUTO_JUDGE_MODEL) if a different model is preferred. Must be
@@ -108,6 +113,13 @@ class Settings(BaseSettings):
     kb_chunk_overlap: int = 150  # characters
     kb_top_k: int = 5  # top-K chunks injected per message
     kb_max_file_size_mb: int = 25
+    # Minimum fused score for a chunk to be injected — keeps barely-related
+    # chunks from polluting the context. With kb_semantic_weight=0.7, 0.35
+    # corresponds to ~0.5 cosine similarity when there is no lexical match.
+    kb_min_score: float = 0.35
+    # Hybrid retrieval fusion: score = w*semantic + (1-w)*lexical, where
+    # lexical is Postgres ts_rank_cd normalized to [0,1).
+    kb_semantic_weight: float = 0.7
     # When False, ``create_document`` skips the background embedding task.
     # Useful for tests that don't want to exercise the embedder.
     kb_background_embedding: bool = True

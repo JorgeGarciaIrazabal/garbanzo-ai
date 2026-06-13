@@ -274,8 +274,12 @@ class KnowledgeBaseService:
     ) -> list[RetrievedChunk]:
         """Return the top-K chunks for ``query`` across the user's knowledge base.
 
-        Uses pgvector cosine distance; chunks without an embedding yet are
-        skipped.
+        Hybrid retrieval: pgvector cosine similarity fused with Postgres
+        full-text rank (``score = w*semantic + (1-w)*lexical``), so exact
+        keyword queries can't be missed by embeddings alone. Falls back to
+        semantic-only when full-text search is unavailable, and chunks below
+        ``kb_min_score`` are dropped rather than injected as noise. Chunks
+        without an embedding yet are skipped.
         """
         query = (query or "").strip()
         if not query:
@@ -291,12 +295,25 @@ class KnowledgeBaseService:
             return []
         query_vector = embeddings[0]
 
-        distance = KnowledgeChunk.embedding.cosine_distance(query_vector)
-        stmt = (
+        chunks = await self._hybrid_search(user_id, query, query_vector, limit)
+        if chunks is None:
+            chunks = await self._semantic_search(user_id, query_vector, limit)
+
+        kept = [c for c in chunks if c.score >= self._settings.kb_min_score]
+        if len(kept) < len(chunks):
+            logger.info(
+                "KB: dropped %d of %d chunks below min score %.2f",
+                len(chunks) - len(kept),
+                len(chunks),
+                self._settings.kb_min_score,
+            )
+        return kept
+
+    def _base_chunk_query(self, user_id: str):
+        return (
             select(
                 KnowledgeChunk.document_id,
                 KnowledgeChunk.content,
-                distance.label("distance"),
                 KnowledgeDocument.filename,
             )
             .join(KnowledgeDocument, KnowledgeDocument.id == KnowledgeChunk.document_id)
@@ -305,11 +322,71 @@ class KnowledgeBaseService:
                 KnowledgeChunk.embedding.isnot(None),
                 KnowledgeDocument.status == "ready",
             )
+        )
+
+    async def _hybrid_search(
+        self, user_id: str, query: str, query_vector: list[float], limit: int
+    ) -> list[RetrievedChunk] | None:
+        """Fused semantic + lexical retrieval. Returns None when the database
+        can't run it (no pgvector / no full-text support), so the caller can
+        fall back."""
+        from sqlalchemy import Float, cast, func
+
+        weight = self._settings.kb_semantic_weight
+        try:
+            semantic = 1.0 - KnowledgeChunk.embedding.cosine_distance(query_vector)
+            # Normalization flag 32 maps ts_rank_cd into [0, 1) so it's
+            # commensurable with cosine similarity.
+            lexical = func.coalesce(
+                func.ts_rank_cd(
+                    func.to_tsvector("english", KnowledgeChunk.content),
+                    func.websearch_to_tsquery("english", query),
+                    32,
+                ),
+                0.0,
+            )
+            fused = (
+                cast(semantic, Float) * weight
+                + cast(lexical, Float) * (1.0 - weight)
+            ).label("score")
+
+            stmt = (
+                self._base_chunk_query(user_id)
+                .add_columns(fused)
+                .order_by(fused.desc())
+                .limit(limit)
+            )
+            # SAVEPOINT: a failed statement must not abort the caller's
+            # transaction — chat streaming shares this session and has
+            # un-committed work in flight (a session-level rollback here
+            # would silently discard the user's message).
+            async with self.db.begin_nested():
+                rows = (await self.db.execute(stmt)).all()
+        except Exception as e:
+            logger.warning("KB: hybrid search unavailable (%s); semantic only", e)
+            return None
+        return [
+            RetrievedChunk(
+                document_id=row.document_id,
+                document_filename=row.filename,
+                content=row.content,
+                score=float(row.score),
+            )
+            for row in rows
+        ]
+
+    async def _semantic_search(
+        self, user_id: str, query_vector: list[float], limit: int
+    ) -> list[RetrievedChunk]:
+        """Cosine-only retrieval — the pre-hybrid behavior."""
+        distance = KnowledgeChunk.embedding.cosine_distance(query_vector)
+        stmt = (
+            self._base_chunk_query(user_id)
+            .add_columns(distance.label("distance"))
             .order_by(distance.asc())
             .limit(limit)
         )
-        result = await self.db.execute(stmt)
-        rows = result.all()
+        rows = (await self.db.execute(stmt)).all()
         return [
             RetrievedChunk(
                 document_id=row.document_id,
