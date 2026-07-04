@@ -494,7 +494,7 @@ async def test_tool_result_truncated_to_cap(db_session, test_user_email, monkeyp
     from app.core.config import Settings
 
     monkeypatch.setattr(
-        "app.services.chat_service.get_settings",
+        "app.services.agent_turn.get_settings",
         lambda: Settings(tool_result_max_chars=100),
     )
 

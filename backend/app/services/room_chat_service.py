@@ -29,10 +29,10 @@ from sqlalchemy.orm import selectinload
 from app.core.config import get_settings
 from app.models.room import Room, RoomAgent, RoomMessage
 from app.schemas.chat import ChatOptions
+from app.services.agent_turn import run_agent_turn
 from app.services.llm_provider import (
     LLMProvider,
     ProviderRegistry,
-    resolve_context_length,
 )
 from app.services.llm_provider import (
     Message as LLMMessage,
@@ -50,6 +50,56 @@ _MENTION_PATTERN = re.compile(r"@([A-Za-z0-9_\-]+|all)", re.IGNORECASE)
 class _TurnContext:
     room: Room
     depth: int  # current recursion depth
+
+
+class _RoomTurnSink:
+    """``TurnSink`` writing an agent's reply to a ``RoomMessage`` row.
+
+    The message ID is generated before streaming starts because the
+    ``stream_start`` broadcast (and every chunk) carries it so clients can
+    address the open bubble.
+    """
+
+    def __init__(
+        self, db: AsyncSession, room_id: str, agent: RoomAgent, message_id: str
+    ):
+        self.db = db
+        self.room_id = room_id
+        self.agent = agent
+        self.message_id = message_id
+        self.message: RoomMessage | None = None
+
+    async def persist_assistant(self, content: str, meta: dict | None) -> None:
+        # A whitespace-only reply is dropped — no message, no recursion.
+        if not content.strip():
+            return
+        msg_meta = dict(meta) if meta else {}
+        msg_meta["agent_name"] = self.agent.name
+        msg = RoomMessage(
+            id=self.message_id,
+            room_id=self.room_id,
+            role="assistant",
+            content=content,
+            sender_agent_id=self.agent.id,
+            meta=msg_meta or None,
+        )
+        self.db.add(msg)
+        await self.db.flush()
+        self.message = msg
+
+    async def persist_tool_call(self, tool_calls: list[dict]) -> None:
+        # Room agents don't advertise tools yet; enabling them means
+        # persisting tool traffic as RoomMessage rows here.
+        pass
+
+    async def persist_tool_result(self, content: str, meta: dict) -> None:
+        pass
+
+    async def commit(self) -> None:
+        await self.db.commit()
+
+    async def rollback(self) -> None:
+        await self.db.rollback()
 
 
 class RoomChatService:
@@ -506,10 +556,6 @@ class RoomChatService:
         provider = self._get_provider(agent.provider or "ollama")
         llm_messages = self._build_llm_history(ctx.room, agent, history)
 
-        accumulated = ""
-        metadata: dict | None = None
-        thinking = ""
-
         message_id = str(uuid.uuid4())
         # Announce the incoming streaming message so the UI can open a bubble.
         await room_manager.broadcast(
@@ -522,66 +568,46 @@ class RoomChatService:
             },
         )
 
-        # Allocate the effective context window explicitly; rooms carry up
-        # to 100 messages of history, well past the runtime's default.
-        num_ctx = await resolve_context_length(provider, agent.model)
-
-        try:
-            async for chunk in provider.stream_chat(
-                messages=llm_messages,
-                model=agent.model,
-                options=ChatOptions(temperature=0.7, num_ctx=num_ctx),
-            ):
-                if chunk.is_thinking:
-                    if chunk.content:
-                        thinking += chunk.content
-                        await room_manager.broadcast(
-                            ctx.room.id,
-                            {
-                                "type": "thinking_chunk",
-                                "message_id": message_id,
-                                "agent_id": agent.id,
-                                "content": chunk.content,
-                            },
-                        )
-                elif chunk.content:
-                    accumulated += chunk.content
+        sink = _RoomTurnSink(self.db, ctx.room.id, agent, message_id)
+        # persist_partial_on_error: other participants already saw the
+        # partial reply stream in, so it must survive as a message.
+        async for chunk in run_agent_turn(
+            provider=provider,
+            model=agent.model,
+            llm_messages=llm_messages,
+            sink=sink,
+            options=ChatOptions(temperature=0.7),
+            persist_partial_on_error=True,
+        ):
+            if chunk.metadata and chunk.metadata.get("error"):
+                # The sink already persisted the partial/fallback content;
+                # the final "message" broadcast below carries it.
+                continue
+            if chunk.is_thinking:
+                if chunk.content:
                     await room_manager.broadcast(
                         ctx.room.id,
                         {
-                            "type": "chunk",
+                            "type": "thinking",
                             "message_id": message_id,
                             "agent_id": agent.id,
                             "content": chunk.content,
                         },
                     )
-                if chunk.is_finished:
-                    metadata = chunk.metadata
-        except asyncio.CancelledError:
-            raise
-        except Exception as e:
-            logger.exception("Provider streaming failed for agent %s", agent.name)
-            accumulated = accumulated or f"[agent error: {e}]"
-            metadata = {"error": True, "error_type": "streaming_error"}
+            elif chunk.content:
+                await room_manager.broadcast(
+                    ctx.room.id,
+                    {
+                        "type": "chunk",
+                        "message_id": message_id,
+                        "agent_id": agent.id,
+                        "content": chunk.content,
+                    },
+                )
 
-        if not accumulated.strip():
+        msg = sink.message
+        if msg is None:
             return None
-
-        msg_meta = dict(metadata) if metadata else {}
-        if thinking:
-            msg_meta["thinking"] = thinking
-        msg_meta["agent_name"] = agent.name
-
-        msg = RoomMessage(
-            id=message_id,
-            room_id=ctx.room.id,
-            role="assistant",
-            content=accumulated,
-            sender_agent_id=agent.id,
-            meta=msg_meta or None,
-        )
-        self.db.add(msg)
-        await self.db.commit()
         await self.db.refresh(msg)
 
         await room_manager.broadcast(
@@ -597,7 +623,7 @@ class RoomChatService:
         )
 
         # Notify offline members about @mentions directed at them.
-        await self._notify_mentioned_offline_members(ctx.room, agent, accumulated)
+        await self._notify_mentioned_offline_members(ctx.room, agent, msg.content)
 
         return msg
 

@@ -12,6 +12,7 @@ Events the server sends:
     {"type":"message","message":{...}}       — new message persisted
     {"type":"stream_start","message_id":"...","agent_id":"...","agent_name":"..."}
     {"type":"chunk","message_id":"...","agent_id":"...","content":"..."}
+    {"type":"thinking","message_id":"...","agent_id":"...","content":"..."}
     {"type":"done","message_id":"...","agent_id":"..."}
     {"type":"presence","online":[...]}       — online user list
     {"type":"typing","user_id":"...","typing":bool}

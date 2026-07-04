@@ -37,6 +37,7 @@ just fe-clean            # Clean Flutter build files
 ### Infrastructure & Combined
 ```bash
 just dev             # Start Docker + backend + frontend on Android (real device or emulator)
+just dev-web         # Start Docker + backend + frontend in Chrome for web development
 just dev-deps        # Install Linux audio deps (GStreamer — run once)
 just docker-up       # Start all Docker services (PostgreSQL + Faster Whisper STT)
 just docker-up-db    # Start only PostgreSQL

@@ -161,7 +161,8 @@ class RoomProvider extends ChangeNotifier {
           notifyListeners();
         }
         break;
-      case 'thinking_chunk':
+      case 'thinking':
+      case 'thinking_chunk': // legacy name, pre event-schema unification
         final id = event['message_id'] as String?;
         final chunk = event['content'] as String? ?? '';
         if (id == null) return;

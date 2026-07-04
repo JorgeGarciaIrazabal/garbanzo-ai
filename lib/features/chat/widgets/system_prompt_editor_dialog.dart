@@ -40,13 +40,19 @@ class SystemPromptEditorDialog extends StatefulWidget {
     String? subtitle,
     bool allowClear = true,
   }) {
+    // The dialog lives on its own route, above the route-scoped
+    // SystemPromptProvider — re-expose the caller's instance to it.
+    final promptProvider = context.read<SystemPromptProvider>();
     return showDialog<SystemPromptEditorResult>(
       context: context,
-      builder: (_) => SystemPromptEditorDialog(
-        initialContent: initialContent,
-        title: title,
-        subtitle: subtitle,
-        allowClear: allowClear,
+      builder: (_) => ChangeNotifierProvider.value(
+        value: promptProvider,
+        child: SystemPromptEditorDialog(
+          initialContent: initialContent,
+          title: title,
+          subtitle: subtitle,
+          allowClear: allowClear,
+        ),
       ),
     );
   }

@@ -53,6 +53,39 @@ void main() {
     });
   });
 
+  group('SystemPromptEditorDialog.show', () {
+    testWidgets('reaches a route-scoped provider from the dialog route',
+        (tester) async {
+      // Mirrors the real app: the provider lives inside a route (ChatPage /
+      // SettingsPage subtree), below the Navigator. The dialog opens on its
+      // own route, so it can only see the provider if show() re-exposes it.
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ChangeNotifierProvider<SystemPromptProvider>.value(
+            value: _FakeSystemPromptProvider(null, const []),
+            child: Scaffold(
+              body: Builder(
+                builder: (context) => ElevatedButton(
+                  onPressed: () => SystemPromptEditorDialog.show(context),
+                  child: const Text('open'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('open'));
+      // Fixed pumps instead of pumpAndSettle: the template list may show a
+      // perpetual loading spinner while the fake provider's refresh hangs.
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('Edit system prompt'), findsOneWidget);
+    });
+  });
+
   group('SystemPromptBanner', () {
     Widget wrap({
       Conversation? conversation,

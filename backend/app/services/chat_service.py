@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import get_settings
 from app.models.message import Message
 from app.schemas.chat import AttachmentIn, ChatOptions, ModelInfo
+from app.services.agent_turn import TurnResult, run_agent_turn
 from app.services.conversation_service import ConversationService
 from app.services.knowledge_base_service import KnowledgeBaseService
 from app.services.llm_provider import (
@@ -39,26 +40,6 @@ from app.services.token_counter import get_token_counter
 MAX_TOOL_ITERATIONS = 5
 
 logger = logging.getLogger(__name__)
-
-
-def _stringify_tool_result(result: Any) -> str:
-    """Coerce a tool-call result dict into a string suitable for ``Message.content``."""
-    try:
-        return json.dumps(result, default=str)
-    except Exception:
-        return str(result)
-
-
-def _truncate_tool_result(text: str, max_chars: int) -> str:
-    """Cap a stringified tool result with an explicit truncation marker.
-
-    Applied before persisting and before feeding the result back to the
-    model — a tool returning megabytes must not blow the context window.
-    """
-    if max_chars <= 0 or len(text) <= max_chars:
-        return text
-    dropped = len(text) - max_chars
-    return f"{text[:max_chars]}... [truncated {dropped} chars]"
 
 
 def _maybe_parse_inline_tool_calls(content: str) -> list[dict[str, Any]] | None:
@@ -206,6 +187,59 @@ async def _extract_spreadsheet_text(data: str, filename: str) -> str:
     except Exception as e:
         logger.warning("Spreadsheet extraction failed: %s", e)
         return f"[Spreadsheet extraction error: {e}]"
+
+
+class _ConversationTurnSink:
+    """``TurnSink`` writing a turn's output to a conversation's ``Message`` rows."""
+
+    def __init__(self, db: AsyncSession, conversation):
+        self.db = db
+        self.conversation = conversation
+
+    async def persist_assistant(self, content: str, meta: dict | None) -> None:
+        message = Message(
+            id=str(uuid.uuid4()),
+            conversation_id=self.conversation.id,
+            role="assistant",
+            content=content,
+            meta=meta,
+            # Keep the in-session relationship collection in sync
+            # (raw FK writes don't update conversation.messages),
+            # so a later turn on the same session sees this one.
+            conversation=self.conversation,
+        )
+        self.db.add(message)
+        await self.db.flush()
+
+    async def persist_tool_call(self, tool_calls: list[dict]) -> None:
+        self.db.add(
+            Message(
+                id=str(uuid.uuid4()),
+                conversation_id=self.conversation.id,
+                role="tool_call",
+                content=json.dumps(tool_calls),
+                meta={"tool_calls": tool_calls},
+            )
+        )
+        await self.db.flush()
+
+    async def persist_tool_result(self, content: str, meta: dict) -> None:
+        self.db.add(
+            Message(
+                id=str(uuid.uuid4()),
+                conversation_id=self.conversation.id,
+                role="tool_result",
+                content=content,
+                meta=meta,
+            )
+        )
+        await self.db.flush()
+
+    async def commit(self) -> None:
+        await self.db.commit()
+
+    async def rollback(self) -> None:
+        await self.db.rollback()
 
 
 class ChatService:
@@ -580,7 +614,8 @@ class ChatService:
 
         Assumes the conversation's messages list already reflects the desired
         history (e.g. user turn appended, or trailing assistant trimmed).
-        Handles summarization, tool-call iterations, and persistence.
+        Builds context (summary, memories, KB, tools) and delegates the
+        streaming/tool loop to ``run_agent_turn``.
         """
         conversation_id = conversation.id
         # Captured before streaming: a turn with no prior assistant message
@@ -608,15 +643,6 @@ class ChatService:
         provider = self._get_provider()
         opts = options or ChatOptions()
 
-        # Allocate the effective window explicitly — without num_ctx, Ollama
-        # runs at its own default (typically 4096) no matter what the model
-        # supports, silently truncating long conversations. The server-side
-        # value is also a ceiling: a client-supplied num_ctx may shrink the
-        # window but never grow it (an oversized request would make the
-        # runtime allocate an arbitrarily large KV cache).
-        context_length = await self._get_context_length(conversation.model)
-        opts.num_ctx = min(opts.num_ctx or context_length, context_length)
-
         cancel_event = asyncio.Event()
         ChatService._active_streams[conversation_id] = cancel_event
 
@@ -625,202 +651,42 @@ class ChatService:
                 conversation
             )
 
-            # Thinking from tool-calling iterations (which produce no
-            # `content` and so don't get persisted on their own) is carried
-            # forward and attached to the next assistant message that does
-            # have content. This way the persisted state is one tidy
-            # assistant message per turn with cumulative reasoning, instead
-            # of orphaned thinking + a separate answer message.
-            pending_thinking: list[str] = []
+            # What personal context informed this reply — stamped onto the
+            # finish chunk (and thus the persisted message meta) alongside
+            # the context_length the engine allocates.
+            extra_meta: dict = {}
+            for key in ("memories_used", "kb_chunks_used", "kb_sources"):
+                if context_stats.get(key):
+                    extra_meta[key] = context_stats[key]
 
-            for _ in range(MAX_TOOL_ITERATIONS):
-                full_response = ""
-                thinking_content = ""
-                metadata: dict | None = None
-                tool_calls_this_iter: list[dict] | None = None
+            result = TurnResult()
+            async for chunk in run_agent_turn(
+                provider=provider,
+                model=conversation.model,
+                llm_messages=llm_messages,
+                sink=_ConversationTurnSink(self.db, conversation),
+                options=opts,
+                tools=ollama_tools or None,
+                execute_tool=lambda call: self._execute_tool_call(call, tool_lookup),
+                cancel_event=cancel_event,
+                max_tool_iterations=MAX_TOOL_ITERATIONS,
+                extra_finish_metadata=extra_meta or None,
+                result=result,
+            ):
+                yield chunk
 
-                async for chunk in provider.stream_chat(
-                    messages=llm_messages,
-                    model=conversation.model,
-                    options=opts,
-                    cancel_event=cancel_event,
-                    tools=ollama_tools or None,
-                ):
-                    if chunk.tool_calls:
-                        tool_calls_this_iter = chunk.tool_calls
-                        yield chunk
-                        continue
-                    if chunk.is_thinking:
-                        thinking_content += chunk.content
-                    elif chunk.content:
-                        full_response += chunk.content
-                    if chunk.is_finished:
-                        # Stamp the window we allocated so the persisted
-                        # message meta and the live stream both carry the
-                        # real denominator for context-usage display, plus
-                        # what personal context informed this reply.
-                        if chunk.metadata is None:
-                            chunk.metadata = {}
-                        chunk.metadata.setdefault("context_length", opts.num_ctx)
-                        if context_stats.get("memories_used"):
-                            chunk.metadata.setdefault(
-                                "memories_used", context_stats["memories_used"]
-                            )
-                        if context_stats.get("kb_chunks_used"):
-                            chunk.metadata.setdefault(
-                                "kb_chunks_used", context_stats["kb_chunks_used"]
-                            )
-                        if context_stats.get("kb_sources"):
-                            chunk.metadata.setdefault(
-                                "kb_sources", context_stats["kb_sources"]
-                            )
-                        metadata = chunk.metadata
-                    yield chunk
-
-                if thinking_content:
-                    pending_thinking.append(thinking_content)
-
-                if full_response:
-                    msg_meta = dict(metadata) if metadata else {}
-                    combined_thinking = "\n\n".join(pending_thinking)
-                    if combined_thinking:
-                        msg_meta["thinking"] = combined_thinking
-                    pending_thinking = []
-                    assistant_message = Message(
-                        id=str(uuid.uuid4()),
-                        conversation_id=conversation_id,
-                        role="assistant",
-                        content=full_response,
-                        meta=msg_meta or None,
-                        # Keep the in-session relationship collection in sync
-                        # (raw FK writes don't update conversation.messages),
-                        # so a later turn on the same session sees this one.
-                        conversation=conversation,
-                    )
-                    self.db.add(assistant_message)
-                    await self.db.flush()
-                    llm_messages.append(
-                        LLMMessage(role="assistant", content=full_response)
-                    )
-
-                if not tool_calls_this_iter:
-                    await self.db.commit()
-                    if is_first_exchange and full_response and last_user_text:
-                        self._spawn_title_generation(
-                            conversation_id,
-                            conversation.model,
-                            last_user_text,
-                            full_response,
-                        )
-                    return
-
-                tool_call_payload = json.dumps(tool_calls_this_iter)
-                tool_call_msg = Message(
-                    id=str(uuid.uuid4()),
-                    conversation_id=conversation_id,
-                    role="tool_call",
-                    content=tool_call_payload,
-                    meta={"tool_calls": tool_calls_this_iter},
+            if (
+                result.completed
+                and is_first_exchange
+                and result.content
+                and last_user_text
+            ):
+                self._spawn_title_generation(
+                    conversation_id,
+                    conversation.model,
+                    last_user_text,
+                    result.content,
                 )
-                self.db.add(tool_call_msg)
-                await self.db.flush()
-
-                # Send tool calls via the API's native field — never as raw
-                # JSON in content, or the model mimics the format and emits
-                # the call as text on subsequent turns.
-                llm_messages.append(
-                    LLMMessage(
-                        role="assistant",
-                        content="",
-                        tool_calls=tool_calls_this_iter,
-                    )
-                )
-
-                for call in tool_calls_this_iter:
-                    execution = {
-                        "tool_call_id": call.get("id"),
-                        "tool_name": call.get("name"),
-                    }
-                    # Live progress markers so the UI can show "running…"
-                    # instead of going silent for the duration of the call.
-                    yield ChatChunk(
-                        content="",
-                        is_finished=False,
-                        metadata={
-                            "tool_execution": {**execution, "status": "started"}
-                        },
-                    )
-                    started_at = asyncio.get_event_loop().time()
-                    result = await self._execute_tool_call(call, tool_lookup)
-                    duration_ms = int(
-                        (asyncio.get_event_loop().time() - started_at) * 1000
-                    )
-                    yield ChatChunk(
-                        content="",
-                        is_finished=False,
-                        metadata={
-                            "tool_execution": {
-                                **execution,
-                                "status": "finished",
-                                "duration_ms": duration_ms,
-                            }
-                        },
-                    )
-
-                    raw_text = _stringify_tool_result(result)
-                    result_text = _truncate_tool_result(
-                        raw_text, get_settings().tool_result_max_chars
-                    )
-                    result_meta = {
-                        "tool_call_id": call.get("id"),
-                        "tool_name": call.get("name"),
-                        # Oversized results are stored truncated too — the
-                        # meta JSONB otherwise carries the full payload.
-                        "result": result
-                        if len(raw_text) == len(result_text)
-                        else result_text,
-                        "duration_ms": duration_ms,
-                    }
-                    if len(raw_text) != len(result_text):
-                        result_meta["truncated"] = True
-                    tool_result_msg = Message(
-                        id=str(uuid.uuid4()),
-                        conversation_id=conversation_id,
-                        role="tool_result",
-                        content=result_text,
-                        meta=result_meta,
-                    )
-                    self.db.add(tool_result_msg)
-                    await self.db.flush()
-
-                    yield ChatChunk(
-                        content="",
-                        is_finished=False,
-                        metadata={"tool_result": result_meta},
-                    )
-
-                    llm_messages.append(LLMMessage(role="tool", content=result_text))
-
-                await self.db.commit()
-
-            yield ChatChunk(
-                content="",
-                is_finished=True,
-                metadata={
-                    "error": True,
-                    "error_type": "tool_iteration_cap",
-                    "max_iterations": MAX_TOOL_ITERATIONS,
-                },
-            )
-
-        except Exception as e:
-            logger.exception("Error in chat streaming")
-            yield ChatChunk(
-                content=f"Error: {e}",
-                is_finished=True,
-                metadata={"error": True, "error_type": "streaming_error"},
-            )
-            await self.db.rollback()
         finally:
             ChatService._active_streams.pop(conversation_id, None)
 

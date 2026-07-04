@@ -85,6 +85,31 @@ dev:
     echo "Starting frontend..."
     flutter run -d "$DEVICE_ID" --dart-define=API_BASE_URL="$API_URL"
 
+# Start Docker, backend, and frontend in Chrome for web development — kills port 8000 if busy
+dev-web:
+    #!/usr/bin/env bash
+    set -e
+    export PATH="$HOME/.local/bin:$PATH"
+    if lsof -ti:8000 > /dev/null 2>&1; then
+        PIDS=$(lsof -ti:8000 | tr '\n' ' ')
+        printf "Port 8000 is in use by PID(s) %s. Kill? [y/N] " "$PIDS"
+        read -r answer
+        if [[ "$answer" =~ ^[Yy]$ ]]; then
+            lsof -ti:8000 | xargs kill
+            echo "Killed."
+        else
+            echo "Aborting."
+            exit 1
+        fi
+    fi
+    docker compose up -d
+    echo "Starting backend on :8000 (includes in-process Kokoro TTS)..."
+    (cd backend && uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000) &
+    BACKEND_PID=$!
+    trap "kill $BACKEND_PID 2>/dev/null; echo 'Stopped.'" EXIT INT TERM
+    echo "Starting frontend on Chrome..."
+    flutter run -d chrome
+
 # Start all services (PostgreSQL, STT, TTS)
 docker-up:
     docker compose up -d
