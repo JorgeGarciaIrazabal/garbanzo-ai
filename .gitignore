@@ -58,3 +58,5 @@ backend/firebase-service-account.json
 
 # Vendored dependencies (installed locally, not checked in)
 vendor/
+
+.env

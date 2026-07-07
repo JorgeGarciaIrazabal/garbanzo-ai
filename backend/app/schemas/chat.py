@@ -135,7 +135,20 @@ class EditMessageRequest(BaseModel):
 class ChatResponseChunk(BaseModel):
     """A chunk of a streaming chat response."""
 
-    type: Literal["chunk", "thinking", "done", "error", "tool_call", "tool_result"] = Field(
+    type: Literal[
+        "chunk",
+        "thinking",
+        "done",
+        "error",
+        "tool_call",
+        "tool_result",
+        # Live tool-progress marker (started / finished + duration). Already
+        # emitted by the chat streamer; declared here so validation passes.
+        "tool_execution",
+        # Session handshake emitted by the micro-apps agent relay so the
+        # client learns the opencode session id early enough to abort it.
+        "session",
+    ] = Field(
         ...,
         description="The type of response chunk",
     )

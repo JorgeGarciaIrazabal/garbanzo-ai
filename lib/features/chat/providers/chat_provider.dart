@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../microapps/providers/microapp_panel_controller.dart';
 import '../models/chat_attachment.dart';
 import '../models/chat_message.dart';
 import '../models/conversation.dart';
@@ -21,11 +22,18 @@ class ChatProvider extends ChangeNotifier {
     ChatService? chatService,
   })  : _selectedModelId = selectedModelId,
         _chatService = chatService ?? ChatService.instance {
+    // Rebuild chat widgets when the micro-app panel opens/closes/reloads.
+    panel.addListener(notifyListeners);
     _loadConversations();
   }
 
   final ChatService _chatService;
   final String? Function() _selectedModelId;
+
+  /// Drives the live micro-app panel beside the chat. Opened when the model
+  /// calls the `house_designer` tool (see the tool_result branch below) or by
+  /// the manual 🏠 composer button.
+  final MicroappPanelController panel = MicroappPanelController();
 
   // ==========================================================================
   // State
@@ -576,6 +584,12 @@ class ChatProvider extends ChangeNotifier {
             assistantMessageId,
             chunk.toolResult,
           );
+          // A house_designer result carries a panel signal — reveal/refresh
+          // the live micro-app view next to the chat.
+          final tr = chunk.toolResult;
+          if (tr != null) {
+            panel.openFromToolResult(tr.toolName, tr.result);
+          }
           notifyListeners();
         } else if (chunk.isToolExecution) {
           // Live tool status (started / finished + duration): merge it into
@@ -676,7 +690,7 @@ class ChatProvider extends ChangeNotifier {
   ) {
     final meta = <String, dynamic>{
       if (thinking.isNotEmpty) 'thinking': thinking,
-      if (doneMetadata != null) ...doneMetadata,
+      ...?doneMetadata,
     };
 
     return ChatMessage(
@@ -875,6 +889,7 @@ class ChatProvider extends ChangeNotifier {
     }
     _pendingDeletes.clear();
     streamingMessage.dispose();
+    panel.dispose();
     super.dispose();
   }
 }

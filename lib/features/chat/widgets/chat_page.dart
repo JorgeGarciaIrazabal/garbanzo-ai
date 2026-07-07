@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../../../core/auth_service.dart';
 import '../../../core/responsive.dart';
 import '../../memory/providers/memory_provider.dart';
+import '../../microapps/widgets/micro_app_panel.dart';
 import '../../notifications/providers/notification_provider.dart';
 import '../../notifications/widgets/notification_bell.dart';
 import '../../settings/providers/settings_provider.dart';
@@ -79,6 +80,12 @@ class _ChatPageContentState extends State<_ChatPageContent> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final ScrollController _scrollController = ScrollController();
   bool _isDragOver = false;
+
+  /// User-chosen width of the micro-app side panel (null = default). Adjusted
+  /// by dragging the divider between the chat and the panel.
+  double? _panelWidth;
+  static const double _minPanelWidth = 320;
+  static const double _minChatWidth = 360;
 
   // Smart auto-scroll: follow new content only when the user is already
   // reading the latest messages; never yank them away from scrollback.
@@ -440,8 +447,47 @@ class _ChatPageContentState extends State<_ChatPageContent> {
                     ],
                   ),
                 ),
+                // Wide layout: the live micro-app sits beside the chat in a
+                // panel the user can widen/narrow by dragging the divider.
+                if (chatProvider.panel.isOpen && context.isWide)
+                  Builder(builder: (context) {
+                    final screenW = MediaQuery.of(context).size.width;
+                    final maxW =
+                        (screenW - _minChatWidth).clamp(_minPanelWidth, screenW);
+                    // Default to a big portion of the screen (Claude-canvas
+                    // style): the panel is the dominant pane, chat sits beside.
+                    final defaultW =
+                        (screenW * 0.6).clamp(_minPanelWidth, maxW);
+                    final width =
+                        (_panelWidth ?? defaultW).clamp(_minPanelWidth, maxW);
+                    return SizedBox(
+                      width: width,
+                      child: Row(
+                        children: [
+                          _PanelResizeHandle(
+                            onDrag: (dx) => setState(
+                              () => _panelWidth =
+                                  (width - dx).clamp(_minPanelWidth, maxW),
+                            ),
+                            onReset: () => setState(() => _panelWidth = null),
+                          ),
+                          Expanded(
+                            child: MicroAppPanel(panel: chatProvider.panel),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
               ],
             ),
+            // Narrow layout: the micro-app takes over as a full-screen overlay.
+            if (chatProvider.panel.isOpen && context.isNarrow)
+              Positioned.fill(
+                child: MicroAppPanel(
+                  panel: chatProvider.panel,
+                  showCloseAsBack: true,
+                ),
+              ),
             if (_isDragOver)
               Positioned.fill(
                 child: IgnorePointer(
@@ -729,6 +775,48 @@ class _ErrorBanner extends StatelessWidget {
             visualDensity: VisualDensity.compact,
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Draggable divider that resizes the micro-app side panel. Drag left/right to
+/// widen/narrow; double-click to reset to the default width.
+class _PanelResizeHandle extends StatelessWidget {
+  const _PanelResizeHandle({required this.onDrag, required this.onReset});
+
+  /// Called with the horizontal drag delta (dx) on each move.
+  final ValueChanged<double> onDrag;
+  final VoidCallback onReset;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return MouseRegion(
+      cursor: SystemMouseCursors.resizeLeftRight,
+      child: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onHorizontalDragUpdate: (d) => onDrag(d.delta.dx),
+        onDoubleTap: onReset,
+        child: SizedBox(
+          width: 10,
+          child: Center(
+            child: Container(
+              width: 1,
+              color: theme.dividerColor,
+              child: Center(
+                child: Container(
+                  width: 4,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.outlineVariant,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

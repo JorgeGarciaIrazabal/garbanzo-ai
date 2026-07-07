@@ -9,6 +9,7 @@ from app.api.v1.endpoints import (
     knowledge_base,
     mcp,
     memories,
+    microapps,
     notifications,
     rooms,
     rooms_ws,
@@ -29,6 +30,7 @@ api_router.include_router(health.router, prefix="", tags=["health"])
 api_router.include_router(knowledge_base.router, prefix="/kb", tags=["knowledge-base"])
 api_router.include_router(mcp.router, prefix="/mcp", tags=["mcp"])
 api_router.include_router(memories.router, prefix="/memories", tags=["memories"])
+api_router.include_router(microapps.router, prefix="/microapps", tags=["microapps"])
 api_router.include_router(
     notifications.router, prefix="/notifications", tags=["notifications"]
 )

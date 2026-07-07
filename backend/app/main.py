@@ -138,6 +138,11 @@ async def lifespan(app: FastAPI):
 
     stop_scheduler()
 
+    # Stop any running micro-apps workspaces (dev server + opencode subprocesses).
+    from app.services.microapp_workspace import manager as microapp_manager
+
+    microapp_manager.stop_all()
+
 
 # Create FastAPI app
 app = FastAPI(

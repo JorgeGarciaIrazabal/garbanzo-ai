@@ -33,6 +33,14 @@ from app.services.mcp_service import (
     tool_key,
 )
 from app.services.memory_service import MemoryService
+from app.services.microapp_chat_tool import (
+    MICRO_APP_TOOL,
+    NATIVE_SERVER_ID,
+    list_registry_apps,
+    micro_app_descriptor,
+    run_micro_app,
+)
+from app.services.microapp_workspace import manager as microapp_manager
 from app.services.ollama_provider import OllamaProvider
 from app.services.system_prompt_service import SystemPromptService
 from app.services.token_counter import get_token_counter
@@ -667,7 +675,9 @@ class ChatService:
                 sink=_ConversationTurnSink(self.db, conversation),
                 options=opts,
                 tools=ollama_tools or None,
-                execute_tool=lambda call: self._execute_tool_call(call, tool_lookup),
+                execute_tool=lambda call: self._execute_tool_call(
+                    call, tool_lookup, conversation
+                ),
                 cancel_event=cancel_event,
                 max_tool_iterations=MAX_TOOL_ITERATIONS,
                 extra_finish_metadata=extra_meta or None,
@@ -722,14 +732,14 @@ class ChatService:
         """
         enabled = getattr(conversation, "enabled_tools", None)
         if enabled is not None and not enabled:
-            # [] → opt out of all tools
+            # [] → opt out of all tools (including the native house_designer)
             return [], {}
 
         try:
             all_tools = await self._mcp.list_all_tools(enabled_only=True)
         except Exception as exc:
             logger.warning("Failed to list MCP tools: %s", exc)
-            return [], {}
+            all_tools = []
 
         if enabled is None:
             filtered = all_tools
@@ -738,12 +748,22 @@ class ChatService:
             filtered = [
                 t for t in all_tools if tool_key(t["server_id"], t["name"]) in allowed
             ]
-        return build_tool_payload(filtered)
+        ollama_tools, lookup = build_tool_payload(filtered)
+
+        # The micro_app capability is always offered when the micro-apps feature
+        # is configured — it's how the model "detects" a request to view or edit
+        # any of the user's micro-apps.
+        if microapp_manager.enabled:
+            descriptor = micro_app_descriptor(list_registry_apps())
+            if descriptor is not None:
+                ollama_tools.append(descriptor)
+                lookup[MICRO_APP_TOOL] = (NATIVE_SERVER_ID, "micro-app")
+        return ollama_tools, lookup
 
     async def _execute_tool_call(
-        self, call: dict, lookup: dict[str, tuple[str, str]]
+        self, call: dict, lookup: dict[str, tuple[str, str]], conversation=None
     ) -> dict:
-        """Run a single tool call through ``MCPService``.
+        """Run a single tool call through ``MCPService`` (or a native tool).
 
         ``call["name"]`` is the function name we advertised to the LLM. We
         resolve it back to ``(server_id, tool_name)`` via ``lookup``. As a
@@ -765,11 +785,43 @@ class ChatService:
             return {"ok": False, "error": f"Unknown tool: {name}"}
 
         server_id, tool_name = target
+        if server_id == NATIVE_SERVER_ID:
+            return await self._execute_native_tool(name, args, conversation)
         try:
             return await self._mcp.call_tool(server_id, tool_name, args)
         except Exception as exc:
             logger.exception("Tool execution failed: %s", name)
             return {"ok": False, "error": str(exc)}
+
+    # Conversation-scoped "(app, file) the user is currently working on", so
+    # follow-up edits without an explicit app/file keep targeting the same one.
+    # Ephemeral by design (in-process); the files themselves are durable state.
+    _active_target: dict[str, tuple[str | None, str | None]] = {}
+
+    async def _execute_native_tool(
+        self, name: str, args: dict, conversation
+    ) -> dict:
+        """Dispatch a first-class (non-MCP) tool such as ``micro_app``."""
+        if name != MICRO_APP_TOOL:
+            return {"ok": False, "error": f"Unknown native tool: {name}"}
+
+        conv_id = getattr(conversation, "id", None)
+        user_email = getattr(conversation, "user_id", None)
+        if not user_email:
+            return {"ok": False, "error": "No user for micro_app tool."}
+
+        prior_app, prior_file = (
+            self._active_target.get(conv_id, (None, None)) if conv_id else (None, None)
+        )
+        result = await run_micro_app(
+            user_email=user_email,
+            args=args,
+            prior_app=prior_app,
+            prior_file=prior_file,
+        )
+        if conv_id and result.get("app"):
+            self._active_target[conv_id] = (result.get("app"), result.get("file"))
+        return result
 
     def _build_message_history(
         self,

@@ -106,6 +106,25 @@ class Settings(BaseSettings):
     # Leave empty to disable push notifications.
     firebase_credentials_path: str = "firebase-service-account.json"
 
+    # Micro-Apps Agentic Workspace
+    # Absolute path to the user's micro-apps monorepo (Vite+React, deployed to
+    # GitHub Pages). Empty ⇒ the whole feature is disabled and every
+    # /microapps endpoint returns a clear "feature disabled" error.
+    microapps_repo_path: str = ""
+    # Base TCP port for per-user dev servers. Each user's worktree gets a
+    # stable port derived from base + a hash of their slug.
+    microapps_dev_port_base: int = 8100
+    # Executable used to spawn the headless opencode agent (`opencode serve`).
+    microapps_opencode_bin: str = "opencode"
+    # Git remote that publish/revert operate against.
+    microapps_publish_remote: str = "origin"
+    # Directory (relative to the repo root) that holds per-user worktrees.
+    microapps_worktrees_dir: str = ".worktrees"
+    # Model id passed to opencode's session request, in "provider/name" form.
+    # The bare name is also written into the seeded opencode.json under the
+    # "ollama" provider.
+    microapps_opencode_model: str = "ollama/kimi-k2.7-code:cloud"
+
     # Knowledge Base / RAG
     embedding_model: str = "nomic-embed-text"
     embedding_dim: int = 768
