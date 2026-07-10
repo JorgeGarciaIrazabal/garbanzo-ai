@@ -14,6 +14,8 @@ class WorkspaceStatus {
   final String? branch;
   final bool opencodeReady;
   final String? setupProgress;
+  final bool proxied; // load via the backend's /micro-apps proxy (deployments)
+  final String? panelToken; // ?mp_token= for the first proxied request
 
   const WorkspaceStatus({
     required this.state,
@@ -22,6 +24,8 @@ class WorkspaceStatus {
     this.branch,
     this.opencodeReady = false,
     this.setupProgress,
+    this.proxied = false,
+    this.panelToken,
   });
 
   bool get isReady => state == 'ready' && opencodeReady;
@@ -35,6 +39,8 @@ class WorkspaceStatus {
         branch: json['branch'] as String?,
         opencodeReady: json['opencode_ready'] as bool? ?? false,
         setupProgress: json['setup_progress'] as String?,
+        proxied: json['proxied'] as bool? ?? false,
+        panelToken: json['panel_token'] as String?,
       );
 }
 

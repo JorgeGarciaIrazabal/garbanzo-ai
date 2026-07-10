@@ -27,6 +27,10 @@ dependencies = [
     "firebase-admin>=6.5.0",
     "pgvector>=0.3.0",
     "tiktoken>=0.8.0",
+    "websockets>=13.0",
+    # Declared explicitly (kokoro pulls it anyway) so [tool.uv.sources] can pin
+    # it to CPU wheels — see the pytorch-cpu index below.
+    "torch>=2.0.0",
 ]
 
 [project.optional-dependencies]
@@ -40,6 +44,16 @@ dev = [
 
 [tool.hatch.build.targets.wheel]
 packages = ["app"]
+
+# torch is a transitive dep (kokoro). Pin it to CPU wheels: no machine in this
+# project has an NVIDIA GPU, and the CUDA build adds ~10 GB to the Docker image.
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
 
 [tool.ruff]
 target-version = "py312"

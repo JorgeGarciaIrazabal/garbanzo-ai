@@ -1,3 +1,9 @@
+# Development services only. The production stack lives in deploy/ and is a
+# separate compose project (garbanzo-prod) with its own database and volumes.
+#
+# The project name is pinned so existing dev volumes keep resolving.
+name: garbanzo-ai
+
 services:
   postgres:
     image: pgvector/pgvector:pg16
@@ -12,6 +18,8 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  # Kept for STT_MODE=remote testing; the default (local) runs Whisper
+  # in-process inside the backend.
   faster-whisper:
     image: fedirz/faster-whisper-server:latest-cpu
     container_name: garbanzo_ai_whisper
@@ -23,50 +31,6 @@ services:
     volumes:
       - whisper_models:/root/.cache/huggingface
 
-  postgres-prod:
-    image: pgvector/pgvector:pg16
-    container_name: garbanzo_ai_postgres_prod
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: garbanzo
-      POSTGRES_PASSWORD: garbanzo_prod
-      POSTGRES_DB: garbanzo_ai_prod
-    volumes:
-      - postgres_prod_data:/var/lib/postgresql/data
-
-  backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: garbanzo_ai_backend
-    restart: unless-stopped
-    ports:
-      - "8001:8000"
-    env_file:
-      - ./backend/.env
-    environment:
-      # Override localhost refs so they resolve inside Docker networking
-      DATABASE_URL: postgresql+asyncpg://garbanzo:garbanzo_prod@postgres-prod:5432/garbanzo_ai_prod
-      FASTER_WHISPER_URL: http://faster-whisper:8000
-      OLLAMA_BASE_URL: http://host.docker.internal:11434
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    depends_on:
-      - postgres-prod
-      - faster-whisper
-
-  # kokoro-tts: Replaced by native execution — use `just tts-dev` instead.
-  # Kept here for reference if Docker is preferred:
-  # kokoro-tts:
-  #   image: ghcr.io/remsky/kokoro-fastapi-cpu:latest
-  #   container_name: garbanzo_ai_kokoro
-  #   restart: unless-stopped
-  #   ports:
-  #     - "8020:8880"
-  #   volumes:
-  #     - kokoro_models:/app/api/src/voices/
-
 volumes:
   postgres_data:
-  postgres_prod_data:
   whisper_models:

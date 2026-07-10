@@ -19,12 +19,30 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
+from app.core.config import get_settings
+from app.core.security import create_microapps_panel_token
 from app.schemas.microapp import MicroAppInfo
 from app.services.microapp_agent import agent
 from app.services.microapp_registry import read_registry
-from app.services.microapp_workspace import manager
+from app.services.microapp_workspace import Workspace, manager
 
 logger = logging.getLogger(__name__)
+
+
+def _panel_signal(ws: Workspace) -> dict:
+    """Fields the frontend needs to open the app panel for this workspace.
+
+    In proxy mode (deployments) the panel loads through the backend's
+    /micro-apps proxy, which needs a panel token; otherwise it connects to the
+    dev port directly.
+    """
+    settings = get_settings()
+    signal: dict = {"dev_port": ws.dev_port, "proxied": settings.microapps_proxy_mode}
+    if settings.microapps_proxy_mode:
+        signal["panel_token"] = create_microapps_panel_token(
+            ws.user_email, ws.slug, settings
+        )
+    return signal
 
 # Sentinel "server id" in the tool lookup so the chat executor can recognise a
 # native (non-MCP) tool call and route it here.
@@ -237,7 +255,7 @@ async def run_micro_app(
             "summary": "The micro-app agent did not start. Try again shortly.",
             "app": app.id,
             "app_path": app.path,
-            "dev_port": ws.dev_port,
+            **_panel_signal(ws),
         }
 
     worktree = manager.worktree_path(ws.slug)
@@ -254,7 +272,7 @@ async def run_micro_app(
             "app_path": app.path,
             "file": data_file,
             "file_name": Path(data_file).name if data_file else None,
-            "dev_port": ws.dev_port,
+            **_panel_signal(ws),
         }
 
     # Data-driven apps (house-designer) edit a specific file; source-only apps
@@ -304,5 +322,5 @@ async def run_micro_app(
         "app_path": app.path,
         "file": data_file,
         "file_name": Path(data_file).name if data_file else None,
-        "dev_port": ws.dev_port,
+        **_panel_signal(ws),
     }

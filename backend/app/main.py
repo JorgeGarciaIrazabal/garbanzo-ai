@@ -174,6 +174,12 @@ app.add_middleware(
 # Include API router
 app.include_router(api_router, prefix="/api/v1")
 
+# Micro-apps dev-server reverse proxy (no-op 404s unless MICROAPPS_PROXY_MODE
+# is on). Must be registered before the SPA catch-all so /micro-apps/* wins.
+from app.api import microapps_proxy  # noqa: E402
+
+app.include_router(microapps_proxy.router)
+
 # Determine web directory path
 web_dir = Path(__file__).parent.parent / "web"
 

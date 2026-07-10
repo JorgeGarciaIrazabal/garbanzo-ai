@@ -5,9 +5,12 @@ from datetime import UTC
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.interval import IntervalTrigger
 
+from app.core.config import get_settings
 from app.db.session import async_session_maker
 from app.jobs.extract_memories_job import run_memory_extraction_job
+from app.jobs.microapps_sync_job import run_microapps_sync_job
 from app.jobs.scheduled_action_job import run_scheduled_action
 from app.models.scheduled_action import ScheduledAction
 from app.services.scheduled_action_service import (
@@ -54,10 +57,28 @@ def start_scheduler() -> None:
         next_run_time=None,
     )
 
+    # Micro-apps repo sync (deployments only): clone on first run, then
+    # periodically fetch + rebase clean worktrees. See microapps_sync_job.
+    settings = get_settings()
+    if settings.microapps_git_url and settings.microapps_pull_interval_minutes > 0:
+        scheduler.add_job(
+            run_microapps_sync_job,
+            IntervalTrigger(minutes=settings.microapps_pull_interval_minutes),
+            id="microapps-repo-sync",
+            name="Micro-apps Repo Sync",
+            replace_existing=True,
+            coalesce=True,
+            misfire_grace_time=60,
+        )
+
     scheduler.start()
     # Trigger the bootstrap job right after startup so actions persisted from
     # a previous run are registered against this scheduler instance.
     scheduler.modify_job("bootstrap-scheduled-actions", next_run_time=_now())
+    # Kick the repo sync immediately so a fresh deployment clones at startup
+    # instead of waiting a full interval.
+    if scheduler.get_job("microapps-repo-sync") is not None:
+        scheduler.modify_job("microapps-repo-sync", next_run_time=_now())
     logger.info("Scheduler started with %d jobs", len(scheduler.get_jobs()))
 
 

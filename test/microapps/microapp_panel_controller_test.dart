@@ -67,6 +67,37 @@ void main() {
       expect(c.isOpen, isFalse);
     });
 
+    test('proxied result composes a same-origin proxy URL with the token', () {
+      final c = MicroappPanelController();
+      final handled = c.openFromToolResult('micro_app', {
+        'app': 'house-designer',
+        'app_path': 'house-designer/',
+        'file': 'houses/tiny-cabin.house.json',
+        'dev_port': 8123,
+        'proxied': true,
+        'panel_token': 'tok123',
+      });
+      expect(handled, isTrue);
+      final url = c.url!;
+      expect(url, isNot(contains(':8123')));
+      expect(url, contains('/micro-apps/house-designer/'));
+      expect(url, contains('embed=1'));
+      expect(url, contains('project=/micro-apps/houses/tiny-cabin.house.json'));
+      expect(url, contains('mp_token=tok123'));
+    });
+
+    test('proxied result opens even without a dev_port', () {
+      final c = MicroappPanelController();
+      final handled = c.openFromToolResult('micro_app', {
+        'app': 'house-designer',
+        'app_path': 'house-designer/',
+        'proxied': true,
+        'panel_token': 'tok123',
+      });
+      expect(handled, isTrue);
+      expect(c.url, contains('/micro-apps/house-designer/?embed=1&mp_token=tok123'));
+    });
+
     test('reload bumps the counter; close hides the panel', () {
       final c = MicroappPanelController();
       c.openFromToolResult('micro_app', {

@@ -166,12 +166,13 @@ class MicroappService implements MicroappApi {
 
   /// Build the URL to display an app, reachable from THIS device.
   ///
-  /// Prefers composing `<api-host>:<devPort>` (works from a phone) and falls
-  /// back to the backend's loopback `devUrl` (same-host web/desktop).
+  /// Proxied workspaces (deployments) load through the backend's /micro-apps
+  /// reverse proxy on the API origin, authenticated by a panel token.
+  /// Otherwise prefers composing `<api-host>:<devPort>` (works from a phone)
+  /// and falls back to the backend's loopback `devUrl` (same-host
+  /// web/desktop).
   @override
   String? appUrl(WorkspaceStatus ws, MicroAppInfo app, {HouseFile? house}) {
-    final origin = _devOrigin(ws);
-    if (origin == null) return null;
     final query = <String>[];
     if (app.isAiEnabled && house != null) {
       query
@@ -179,8 +180,23 @@ class MicroappService implements MicroappApi {
         ..add('project=/micro-apps/${house.path}')
         ..add('save=1');
     }
+    if (ws.proxied) {
+      if (ws.panelToken != null) query.add('mp_token=${ws.panelToken}');
+      final qs = query.isEmpty ? '' : '?${query.join('&')}';
+      return '${proxyOrigin()}/micro-apps/${app.path}$qs';
+    }
+    final origin = _devOrigin(ws);
+    if (origin == null) return null;
     final qs = query.isEmpty ? '' : '?${query.join('&')}';
     return '$origin/micro-apps/${app.path}$qs';
+  }
+
+  /// The backend origin the /micro-apps proxy lives on. Empty API base (web
+  /// release served by the backend itself) → relative URL on the page origin.
+  static String proxyOrigin() {
+    final base = ApiClient.instance.baseUrl;
+    if (base.isEmpty) return '';
+    return base.endsWith('/') ? base.substring(0, base.length - 1) : base;
   }
 
   /// The dev-server origin reachable from this device.

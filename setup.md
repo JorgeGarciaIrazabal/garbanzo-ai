@@ -113,7 +113,7 @@ ollama pull qwen3:8b
 
 ---
 
-## 5. Android (for `just android`)
+## 5. Android (for `just dev` on a device and `just deploy`)
 
 Only needed if building the Android APK.
 
@@ -151,19 +151,20 @@ flutter doctor --android-licenses
 
 ---
 
-## 6. ngrok (for `just android` with remote backend)
+## 6. ngrok (for `just deploy` — production tunnel)
 
-```bash
-# Install:
-curl -sSL https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null
-echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | sudo tee /etc/apt/sources.list.d/ngrok.list
-sudo apt-get update && sudo apt-get install -y ngrok
+No host ngrok agent is needed: production runs ngrok as a Docker service.
+Create an account at [ngrok.com](https://ngrok.com), reserve a free static
+domain (dashboard → Domains), and put both values in `deploy/.env`:
 
-# Authenticate (get token from ngrok.com):
-ngrok config add-authtoken <YOUR_TOKEN>
+```
+NGROK_AUTHTOKEN=<your authtoken>
+NGROK_DOMAIN=your-domain.ngrok-free.app
 ```
 
-Set `NGROK_DOMAIN=your-domain.ngrok-free.app` in `backend/.env`.
+See `deploy/README.md` for the rest of the production setup. If you have a
+host ngrok agent from an older setup, stop it (`pkill -x ngrok`) — the free
+plan allows only one agent session.
 
 ---
 
@@ -192,10 +193,8 @@ just docker-up-db   # PostgreSQL only
 just docker-up      # PostgreSQL + Faster Whisper STT
 ```
 
-### Apply migrations (if any)
-```bash
-just db-migrate
-```
+> SQL migrations in `backend/migrations/` are applied automatically when the
+> backend starts (tracked in the `schema_migrations` table) — no manual step.
 
 ### Start everything
 ```bash

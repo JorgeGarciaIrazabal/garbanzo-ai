@@ -1,0 +1,97 @@
+# Production stack — fully isolated from the dev compose project.
+#
+# Run through `just deploy` / `just deploy-*` (they pass --env-file deploy/.env).
+# The backend image is built by scripts/deploy.sh from a pristine snapshot of
+# the main branch; this file only runs it. Secrets live in deploy/.env and are
+# injected at runtime — never baked into the image.
+
+name: garbanzo-prod
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: garbanzo
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: garbanzo_ai_prod
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U garbanzo -d garbanzo_ai_prod"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # No host port: reachable only inside the prod network.
+
+  backend:
+    image: garbanzo-backend:latest
+    restart: unless-stopped
+    init: true # reap zombies from micro-apps dev-server/opencode subprocesses
+    environment:
+      # ---- prod invariants (not overridable from deploy/.env) ----
+      DEBUG: "false"
+      DATABASE_URL: postgresql+asyncpg://garbanzo:${POSTGRES_PASSWORD}@postgres:5432/garbanzo_ai_prod
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+      STT_MODE: local
+      TEST_USER_EMAIL: ""
+      TEST_USER_PASSWORD: ""
+      CORS_ORIGINS: https://${NGROK_DOMAIN}
+      # Micro-apps: repo cloned into the volume below, synced periodically,
+      # served through the backend's authenticated /micro-apps proxy.
+      MICROAPPS_REPO_PATH: /data/micro-apps
+      MICROAPPS_PROXY_MODE: "true"
+      # Git identity + SSH key for micro-apps publish (same GitHub user as the host).
+      GIT_SSH_COMMAND: ssh -i /root/.ssh/id_deploy -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new
+      GIT_AUTHOR_NAME: ${GIT_USER_NAME}
+      GIT_AUTHOR_EMAIL: ${GIT_USER_EMAIL}
+      GIT_COMMITTER_NAME: ${GIT_USER_NAME}
+      GIT_COMMITTER_EMAIL: ${GIT_USER_EMAIL}
+      # ---- user-provided (deploy/.env) ----
+      SECRET_KEY: ${SECRET_KEY}
+      ADMIN_EMAILS: ${ADMIN_EMAILS:-}
+      MICROAPPS_GIT_URL: ${MICROAPPS_GIT_URL:-}
+      MICROAPPS_OPENCODE_MODEL: ${MICROAPPS_OPENCODE_MODEL:-ollama/kimi-k2.7-code:cloud}
+      TZ: ${TZ:-UTC}
+    volumes:
+      # Kokoro TTS + Whisper STT models persist across deploys (~2 GB, one-time).
+      - hf_cache:/root/.cache/huggingface
+      # Micro-apps repo clone + per-user worktrees + node_modules.
+      - microapps_repo:/data/micro-apps
+      # Host credentials, mounted read-only. deploy.sh checks these exist.
+      - ${GIT_SSH_KEY_PATH}:/root/.ssh/id_deploy:ro
+      - ../backend/firebase-service-account.json:/app/firebase-service-account.json:ro
+    ports:
+      - "127.0.0.1:8001:8000" # local smoke tests only; public access is via ngrok
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=5)",
+        ]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  ngrok:
+    image: ngrok/ngrok:latest
+    restart: unless-stopped
+    command: ["http", "--url=https://${NGROK_DOMAIN}", "--log=stdout", "backend:8000"]
+    environment:
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN}
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  hf_cache:
+  microapps_repo:

@@ -46,6 +46,7 @@ app.*.map.json
 
 
 .cursor/mcp.json
+.cursor/_mcp.json
 .mcp.json
 .claude/settings*
 
@@ -60,3 +61,6 @@ backend/firebase-service-account.json
 vendor/
 
 .env
+
+# Deploy artifacts (APKs)
+/dist/

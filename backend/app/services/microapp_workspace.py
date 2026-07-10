@@ -257,7 +257,9 @@ class MicroappWorkspaceManager:
                 "ollama": {
                     "npm": "@ai-sdk/openai-compatible",
                     "name": "Ollama (local)",
-                    "options": {"baseURL": "http://localhost:11434/v1"},
+                    "options": {
+                        "baseURL": f"{self._settings.ollama_base_url.rstrip('/')}/v1"
+                    },
                     "models": {bare_model: {"name": bare_model}},
                 }
             },
@@ -404,6 +406,72 @@ class MicroappWorkspaceManager:
                 ws.state = "stopped"
             except Exception:  # noqa: BLE001
                 pass
+
+    # -- repo provisioning + periodic sync (deployments) ---------------------
+
+    def sync_repo_sync(self) -> None:
+        """Clone the repo if missing, then pull remote changes into it.
+
+        Blocking; run via ``asyncio.to_thread`` (see microapps_sync_job).
+        Fetches once at the repo level (worktrees share refs), fast-forwards
+        the primary checkout when it sits on main, and rebases every *clean*
+        user worktree onto the updated remote. Dirty or conflicting worktrees
+        are left alone — publish handles those interactively.
+        """
+        self._require_enabled()
+        repo = self.repo_path
+        remote = self._settings.microapps_publish_remote
+
+        if not (repo / ".git").exists():
+            url = self._settings.microapps_git_url
+            if not url:
+                raise WorkspaceError(
+                    f"{repo} is not a git repository and MICROAPPS_GIT_URL is unset"
+                )
+            logger.info("microapps: cloning %s into %s", url, repo)
+            repo.parent.mkdir(parents=True, exist_ok=True)
+            result = subprocess.run(  # noqa: S603
+                ["git", "clone", url, str(repo)],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if result.returncode != 0:
+                raise WorkspaceError(f"git clone failed: {result.stderr.strip()}")
+            return  # fresh clone is already current
+
+        self._git(repo, "fetch", remote)
+        head = self._git(repo, "rev-parse", "--abbrev-ref", "HEAD", check=False)
+        if head.stdout.strip() == "main":
+            merge = self._git(repo, "merge", "--ff-only", f"{remote}/main", check=False)
+            if merge.returncode != 0:
+                logger.warning(
+                    "microapps: main checkout not fast-forwardable: %s",
+                    merge.stderr.strip(),
+                )
+
+        worktrees_dir = repo / self._settings.microapps_worktrees_dir
+        if not worktrees_dir.is_dir():
+            return
+        for wt in sorted(p for p in worktrees_dir.iterdir() if p.is_dir()):
+            if not (wt / ".git").exists():
+                continue
+            if self._git(wt, "status", "--porcelain", check=False).stdout.strip():
+                logger.info("microapps: skipping sync of dirty worktree %s", wt.name)
+                continue
+            rebase = self._git(wt, "rebase", f"{remote}/main", check=False)
+            if rebase.returncode != 0:
+                self._git(wt, "rebase", "--abort", check=False)
+                logger.warning(
+                    "microapps: rebase of %s onto %s/main failed: %s",
+                    wt.name, remote, rebase.stderr.strip(),
+                )
+                continue
+            # Running workspaces may need new deps after the rebase; others
+            # get theirs on the next ensure().
+            ws = self._workspaces.get(wt.name)
+            if ws is not None:
+                self._install_deps(ws)
 
     # -- git: changes / publish / revert -----------------------------------
 

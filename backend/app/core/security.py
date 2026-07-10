@@ -64,6 +64,26 @@ def create_refresh_token(
     return encoded_jwt
 
 
+def create_microapps_panel_token(email: str, slug: str, settings: Settings) -> str:
+    """Short-lived token for the micro-apps panel reverse proxy.
+
+    Uses a dedicated ``type`` claim so it can never authenticate a normal API
+    request (``get_current_user`` only accepts type=access), and vice versa —
+    an access token pasted into the proxy is rejected there.
+    """
+    expire = datetime.utcnow() + timedelta(hours=12)
+    payload = {"sub": email, "slug": slug, "type": "microapps-panel", "exp": expire}
+    return jwt.encode(payload, settings.secret_key, algorithm="HS256")
+
+
+def verify_microapps_panel_token(token: str, settings: Settings) -> str | None:
+    """Return the workspace slug for a valid panel token, else None."""
+    payload = decode_token(token, settings)
+    if payload is None or payload.get("type") != "microapps-panel":
+        return None
+    return payload.get("slug")
+
+
 def decode_token(token: str, settings: Settings) -> dict[str, Any] | None:
     try:
         payload = jwt.decode(token, settings.secret_key, algorithms=["HS256"])

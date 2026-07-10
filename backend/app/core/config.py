@@ -124,6 +124,19 @@ class Settings(BaseSettings):
     # The bare name is also written into the seeded opencode.json under the
     # "ollama" provider.
     microapps_opencode_model: str = "ollama/kimi-k2.7-code:cloud"
+    # Git URL used by deployments to clone the repo into MICROAPPS_REPO_PATH on
+    # first boot. Setting it also enables the periodic sync job (fetch +
+    # fast-forward + rebase of clean worktrees). Leave empty in dev, where the
+    # developer manages the repo themselves.
+    microapps_git_url: str = ""
+    # Minutes between periodic syncs of the deployed repo clone. Only active
+    # when microapps_git_url is set; 0 disables the job.
+    microapps_pull_interval_minutes: int = 10
+    # Serve micro-app dev servers through the backend's authenticated
+    # /micro-apps reverse proxy instead of having the client hit the per-user
+    # dev port directly. Required behind a single public tunnel (prod); off in
+    # dev where the LAN port is reachable.
+    microapps_proxy_mode: bool = False
 
     # Knowledge Base / RAG
     embedding_model: str = "nomic-embed-text"

@@ -50,6 +50,22 @@ class WorkspaceStatus(BaseModel):
         default=False,
         description="Whether the opencode agent HTTP API is reachable.",
     )
+    proxied: bool = Field(
+        default=False,
+        description=(
+            "When true, load the app through the backend's /micro-apps reverse "
+            "proxy (same origin as the API) instead of connecting to dev_port "
+            "directly. Set in deployments where only the backend is public."
+        ),
+    )
+    panel_token: str | None = Field(
+        None,
+        description=(
+            "Short-lived token to append as ?mp_token= on the first proxied "
+            "panel request; the proxy exchanges it for an HttpOnly cookie. "
+            "Only set when proxied is true."
+        ),
+    )
     setup_progress: str | None = Field(
         None,
         description=(

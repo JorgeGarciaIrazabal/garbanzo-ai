@@ -5,3 +5,8 @@ __pycache__
 .pytest_cache
 .ruff_cache
 tests/
+.env*
+firebase-service-account.json
+data/
+docs/
+scripts/

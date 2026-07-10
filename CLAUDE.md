@@ -43,52 +43,44 @@ just docker-up       # Start all Docker services (PostgreSQL + Faster Whisper ST
 just docker-up-db    # Start only PostgreSQL
 just install         # Install all deps (backend + frontend)
 just test            # Run backend + frontend unit tests
-just db-migrate      # Apply all pending SQL migrations to the dev database
+```
+
+### Deployment
+```bash
+just deploy          # Deploy local main: web build → backend image → prod stack → APK
+just deploy-status   # Prod compose ps + local & public health checks
+just deploy-logs     # Tail prod logs (optionally: backend | postgres | ngrok)
+just deploy-restart  # Restart prod services (keeps data)
+just deploy-down     # Stop the prod stack (keeps volumes/data)
 ```
 
 > **IMPORTANT:** PostgreSQL must always be started via Docker (`just docker-up` or `just docker-up-db`). Never attempt to start or connect to a host-installed PostgreSQL instance. If `just docker-up` fails because Docker isn't running, start Docker first (`sudo service docker start` in WSL2).
 
 ### Database Migrations
 
-This project does **not** use Alembic. Schema is bootstrapped by `Base.metadata.create_all()` on startup (creates missing tables only — never alters existing ones).
+This project does **not** use Alembic. Schema comes from two automatic steps at backend startup (`init_db()`):
 
-When a SQLAlchemy model gains a new column, you must manually migrate existing databases:
+1. `Base.metadata.create_all()` — creates missing tables (never alters existing ones).
+2. `run_migrations()` (`backend/app/db/migrations.py`) — applies `backend/migrations/*.sql` in filename order, once each, tracked in a `schema_migrations` table.
 
-1. Add an idempotent SQL file to `backend/migrations/` following the naming pattern `NNN_description.sql` (e.g. `002_add_title.sql`). Always use `ADD COLUMN IF NOT EXISTS`.
-2. Run `just db-migrate` — applies every file in order against the dev database.
-3. The production database (Docker `postgres-prod`) will be up-to-date automatically the next time `just android` rebuilds the backend image, because `create_all()` creates the table fresh. If the prod DB already exists, run the migration manually:
-   ```bash
-   docker exec -i garbanzo_ai_postgres_prod psql -U garbanzo -d garbanzo_ai_prod < backend/migrations/NNN_description.sql
-   ```
+When a SQLAlchemy model gains a new column, add an idempotent SQL file to `backend/migrations/` following the naming pattern `NNN_description.sql` (e.g. `012_add_title.sql`). Always use `ADD COLUMN IF NOT EXISTS`. That's it — every database (dev and prod) picks it up on the next backend start. A failing migration intentionally crashes the backend at startup so it never serves a half-migrated schema.
 
-> **IMPORTANT:** Always run `just db-migrate` after pulling changes that modify a SQLAlchemy model. The symptom of a missing migration is an `UndefinedColumnError` from asyncpg.
+## Deployment
 
-## Deploy & Publish
+One command ships web + backend + Android simultaneously — see `deploy/README.md` for first-time setup (ngrok authtoken/domain, credentials, SSH key) and operations (rollback, psql, data recovery).
 
-The project is deployable as a Docker-managed backend + Flutter web app + Android APK.
+### `just deploy` (`scripts/deploy.sh`)
+1. Snapshots the **local `main` branch** into a temp git worktree (works from any branch with a dirty tree).
+2. Builds Flutter web into the worktree → `docker build garbanzo-backend:latest` + `:<short-sha>` (web baked in; no secrets in the image).
+3. `docker compose up -d` on `deploy/docker-compose.yml` (project `garbanzo-prod`, env from gitignored `deploy/.env`).
+4. Waits for local health (`127.0.0.1:8001`) and public health (`https://$NGROK_DOMAIN`).
+5. Builds the APK with the ngrok URL baked in and versionCode = `git rev-list --count main` → `dist/garbanzo-ai-<sha>.apk`.
 
-### `just android [URL]` — Build Android + Docker Snapshot
-- Starts an ngrok tunnel (reads `NGROK_DOMAIN` from `backend/.env` or uses the passed URL).
-- Builds the backend Docker image as a frozen snapshot (no mounted volumes).
-- Launches all services via `docker compose up -d`.
-- Builds the Android APK with `API_BASE_URL` baked in.
-
-### `just publish` — Full Deploy Pipeline
-1. Reads `NGROK_DOMAIN` from `backend/.env`.
-2. Generates a temporary `.env.deploy` with production overrides (sets `DEBUG=false`, clears test user).
-3. Builds Flutter web → `backend/web/` (baked into Docker image).
-4. Builds and restarts the backend Docker container.
-5. Builds the Android APK with the public ngrok URL.
-
-> Both `just android` and `just publish` require `NGROK_DOMAIN` in `backend/.env`:
-> ```
-> NGROK_DOMAIN=your-domain.ngrok-free.app
-> ```
-
-### Deployment Docker Services (`docker-compose.deploy.yml`)
-- Uses the same `backend` image but with production overrides.
-- Serves the Flutter web build from `backend/web/`.
-- Backend listens on port `8001`. Ngrok tunnels `8001` to the public domain.
+### Prod stack (`deploy/docker-compose.yml`, project `garbanzo-prod`)
+- **postgres** (pgvector, own volume, no host port) + **backend** (image `garbanzo-backend`, 127.0.0.1:8001 for smoke tests) + **ngrok** (`ngrok/ngrok` container tunneling the static domain to `backend:8000`, auto-restarting).
+- Fully isolated from dev: separate compose project, database, network, volumes.
+- Models (Kokoro/Whisper) persist in the `hf_cache` volume; Firebase creds are mounted read-only.
+- Micro-apps in prod: repo cloned into the `microapps_repo` volume (`MICROAPPS_GIT_URL`), synced periodically by an APScheduler job, served through the backend's authenticated `/micro-apps` reverse proxy (`MICROAPPS_PROXY_MODE=true`), publishing over a read-only-mounted host SSH key.
 
 ## Architecture
 
@@ -328,14 +320,18 @@ Flutter stores the JWT in `SharedPreferences` under key `auth_token`. `ApiClient
 
 For `just dev` on Android: automatically resolves to host LAN IP for real devices or `10.0.2.2:8000` for emulators.
 
-### Docker Services (`docker-compose.yml`)
+### Docker Services
 
+Dev (`docker-compose.yml`, project `garbanzo-ai`):
 - **PostgreSQL** (`garbanzo_ai_postgres`) — port 5432, image `pgvector/pgvector:pg16`, credentials `garbanzo:garbanzo_dev`, database `garbanzo_ai`
-- **Faster Whisper Server** (`garbanzo_ai_whisper`) — port 8010, CPU-based STT via `fedirz/faster-whisper-server:latest-cpu`, model `Systran/faster-distil-whisper-large-v3`
-- **PostgreSQL Prod** (`garbanzo_ai_postgres_prod`) — credentials `garbanzo:garbanzo_prod`, database `garbanzo_ai_prod` (no exposed port)
-- **Backend** (`garbanzo_ai_backend`) — built from `backend/Dockerfile`, port 8001, connects to `postgres-prod` and `faster-whisper` internally
+- **Faster Whisper Server** (`garbanzo_ai_whisper`) — port 8010, CPU-based STT via `fedirz/faster-whisper-server:latest-cpu` (only used when `STT_MODE=remote`)
 
-> Kokoro TTS runs **in-process** in the backend (not a Docker service). STT can also run in-process (`stt_mode=local`) bypassing the Docker container entirely.
+Prod (`deploy/docker-compose.yml`, project `garbanzo-prod` — fully separate DB/volumes/network):
+- **postgres** — `pgvector/pgvector:pg16`, database `garbanzo_ai_prod`, no host port
+- **backend** — image `garbanzo-backend:latest` built by `just deploy`, 127.0.0.1:8001
+- **ngrok** — tunnels the static domain to `backend:8000`, auto-restarting
+
+> Kokoro TTS runs **in-process** in the backend (not a Docker service). STT can also run in-process (`stt_mode=local`, the default) bypassing the Docker container entirely.
 
 ### Environment Variables (backend `.env`)
 
@@ -383,9 +379,16 @@ FIREBASE_CREDENTIALS_PATH=firebase-service-account.json
 # Multi-agent room auto-judge model (must be pulled in local Ollama)
 ROOM_AUTO_JUDGE_MODEL=granite4:micro
 
-# Ngrok domain for Android deploy
-NGROK_DOMAIN=your-domain.ngrok-free.app
+# Micro-apps agentic workspace (dev points at a locally-managed repo)
+MICROAPPS_REPO_PATH=/abs/path/to/micro-apps
+MICROAPPS_OPENCODE_MODEL=ollama/kimi-k2.7-code:cloud
+# Deployment-only (set via deploy/docker-compose.yml, not backend/.env):
+#   MICROAPPS_GIT_URL      — clone URL; also enables the periodic sync job
+#   MICROAPPS_PROXY_MODE   — serve the panel via the backend /micro-apps proxy
 ```
+
+> Prod secrets (ngrok authtoken/domain, prod DB password, SECRET_KEY, git/SSH
+> settings) live in `deploy/.env` — see `deploy/.env.example`.
 
 ## E2E Testing
 

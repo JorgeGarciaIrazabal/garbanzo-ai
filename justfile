@@ -1,6 +1,8 @@
 # Garbanzo AI - Just commands
 # https://github.com/casey/just
 
+prod_compose := "docker compose -f " + justfile_directory() + "/deploy/docker-compose.yml --env-file " + justfile_directory() + "/deploy/.env"
+
 # Default recipe - show help
 _default:
     @just --list
@@ -19,7 +21,7 @@ completions-install:
 
 # Install all dependencies (backend + frontend)
 install: be-install fe-install
-    @Write-Host "All dependencies installed!"
+    @echo "All dependencies installed!"
 
 # Install Linux system dependencies required for audio (GStreamer for audioplayers + record)
 dev-deps:
@@ -118,15 +120,8 @@ docker-up:
 docker-up-db:
     docker compose up -d postgres
 
-# Run all SQL migration files in backend/migrations/ against the dev database (idempotent)
-db-migrate:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    for f in "{{ justfile_directory() }}/backend/migrations/"*.sql; do
-        echo "Applying $(basename $f)..."
-        docker exec -i garbanzo_ai_postgres psql -U garbanzo -d garbanzo_ai < "$f"
-    done
-    echo "Done."
+# NOTE: SQL migrations in backend/migrations/ are applied automatically at
+# backend startup (tracked in the schema_migrations table) — no manual step.
 
 # ============================================================================
 # Backend Commands (FastAPI)
@@ -216,115 +211,43 @@ fe-run-test-server:
     flutter run -d linux --dart-define=API_BASE_URL=http://localhost:8000
 
 # ============================================================================
-# Build frozen backend image, restart deploy stack, and build Android APK (ngrok static domain)
-publish:
-	#!/usr/bin/env bash
-	set -euo pipefail
+# Deployment (prod stack under deploy/ — see deploy/README.md)
+# ============================================================================
 
-	# Load NGROK_DOMAIN from backend/.env
-	if [ -f "{{ justfile_directory() }}/backend/.env" ]; then
-		export $(grep -E '^NGROK_DOMAIN=' "{{ justfile_directory() }}/backend/.env" | xargs)
-	fi
+# Deploy the local main branch: web build → backend image → prod stack (postgres/backend/ngrok) → APK
+deploy:
+    "{{ justfile_directory() }}/scripts/deploy.sh"
 
-	if [ -z "${NGROK_DOMAIN:-}" ]; then
-		echo "Error: NGROK_DOMAIN not set in backend/.env"; exit 1
-	fi
+# Show prod stack status + local & public health
+deploy-status:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    {{ prod_compose }} ps
+    echo ""
+    curl -fsS http://127.0.0.1:8001/api/v1/health >/dev/null 2>&1 \
+        && echo "local  http://127.0.0.1:8001 — OK" \
+        || echo "local  http://127.0.0.1:8001 — DOWN"
+    DOMAIN=$(grep -E '^NGROK_DOMAIN=' "{{ justfile_directory() }}/deploy/.env" | cut -d= -f2)
+    curl -fsS -H "ngrok-skip-browser-warning: 1" "https://${DOMAIN}/api/v1/health" >/dev/null 2>&1 \
+        && echo "public https://${DOMAIN} — OK" \
+        || echo "public https://${DOMAIN} — DOWN"
 
-	API_URL="https://${NGROK_DOMAIN}"
+# Tail prod logs (optionally one service: backend | postgres | ngrok)
+deploy-logs service="":
+    {{ prod_compose }} logs -f --tail=200 {{ service }}
 
-	# 1. Generate temporary .env.deploy (Bake into image, not committed)
-	echo "Generating temporary .env.deploy..."
-	cp "{{ justfile_directory() }}/backend/.env" "{{ justfile_directory() }}/backend/.env.deploy"
-	# Override for production
-	sed -i "s/^DEBUG=.*/DEBUG=false/" "{{ justfile_directory() }}/backend/.env.deploy"
-	sed -i "s/^TEST_USER_EMAIL=.*/TEST_USER_EMAIL=/" "{{ justfile_directory() }}/backend/.env.deploy"
-	sed -i "s/^TEST_USER_PASSWORD=.*/TEST_USER_PASSWORD=/" "{{ justfile_directory() }}/backend/.env.deploy"
+# Restart prod services (keeps data)
+deploy-restart:
+    {{ prod_compose }} restart
 
-	# Ensure ngrok tunnel to backend port 8001 is running
-	if ! curl -s http://localhost:4040/api/tunnels > /dev/null 2>&1; then
-		echo "Starting ngrok tunnel → ${NGROK_DOMAIN}..."
-		nohup ngrok http --domain "${NGROK_DOMAIN}" 8001 > /dev/null 2>&1 &
-		for i in $(seq 1 15); do
-			sleep 1
-			curl -s http://localhost:4040/api/tunnels > /dev/null 2>&1 && break
-			[ $i -eq 15 ] && { echo "Error: ngrok did not start"; exit 1; }
-		done
-	fi
-
-	# 2. Build Flutter web app and copy into backend/web/ (baked into image)
-	echo "Building Flutter web app..."
-	flutter build web --output "{{ justfile_directory() }}/backend/web"
-
-	# 3. Build backend image from frozen code (no mounted volumes)
-	echo "Building backend Docker image..."
-	docker compose -f docker-compose.deploy.yml build backend
-
-	# 3. Restart deployment stack ( backend will be recreated with the new image)
-	echo "Restarting deployment services..."
-	docker compose -f docker-compose.deploy.yml up -d
-
-	# Remove temporary deploy env file
-	rm "{{ justfile_directory() }}/backend/.env.deploy"
-
-	# 4. Build Android APK with the public URL baked in
-	echo "Building Android APK → API_BASE_URL=$API_URL"
-	flutter build apk --release --dart-define=API_BASE_URL="$API_URL"
-
-	echo ""
-	echo "Deploy complete!"
-	echo "  APK:  build/app/outputs/flutter-apk/app-release.apk"
-	echo "  Backend: $API_URL (Docker-managed, code frozen until next publish)"
+# Stop the prod stack (keeps volumes/data)
+deploy-down:
+    {{ prod_compose }} down
 
 
 # Clean everything
 clean: fe-clean
-    @Write-Host "Cleaned Flutter build files"
-
-# Build backend Docker image + start all services + expose via ngrok + build Android APK
-# Usage:
-#   just android                              # use NGROK_DOMAIN from backend/.env
-#   just android https://xyz.ngrok-free.app  # override with a different URL
-android url="":
-    #!/usr/bin/env bash
-    set -euo pipefail
-
-    # Load NGROK_DOMAIN from backend/.env if present
-    if [ -f "{{ justfile_directory() }}/backend/.env" ]; then
-        export $(grep -E '^NGROK_DOMAIN=' "{{ justfile_directory() }}/backend/.env" | xargs)
-    fi
-
-    # 1. Start ngrok tunnel (static domain or auto-detect)
-    if [ -n "{{url}}" ]; then
-        API_URL="{{url}}"
-    elif [ -n "${NGROK_DOMAIN:-}" ]; then
-        API_URL="https://${NGROK_DOMAIN}"
-        if ! curl -s http://localhost:4040/api/tunnels > /dev/null 2>&1; then
-            echo "Starting ngrok tunnel → ${NGROK_DOMAIN}..."
-            ngrok http --domain "${NGROK_DOMAIN}" 8001 > /dev/null &
-            for i in $(seq 1 15); do
-                sleep 1
-                curl -s http://localhost:4040/api/tunnels > /dev/null 2>&1 && break
-                [ $i -eq 15 ] && { echo "Error: ngrok did not start"; exit 1; }
-            done
-        fi
-    else
-        echo "Error: set NGROK_DOMAIN in backend/.env or pass a URL"; exit 1
-    fi
-
-    # 2. Build frozen backend Docker image from current code
-    echo "Building backend Docker image (frozen snapshot)..."
-    docker compose build backend
-
-    # 3. Start all Docker services (postgres, whisper, backend)
-    echo "Starting services..."
-    docker compose up -d
-
-    # 4. Build Android APK with the ngrok URL baked in
-    echo "Building Android APK → API_BASE_URL=$API_URL"
-    cd "{{ justfile_directory() }}" && flutter build apk --release --dart-define=API_BASE_URL="$API_URL"
-    echo ""
-    echo "APK: build/app/outputs/flutter-apk/app-release.apk"
-    echo "Backend: $API_URL  (Docker-managed, edit code won't affect it until next build)"
+    @echo "Cleaned Flutter build files"
 
 
 # ============================================================================

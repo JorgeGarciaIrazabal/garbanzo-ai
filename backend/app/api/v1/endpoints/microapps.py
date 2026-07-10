@@ -16,7 +16,8 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 
-from app.core.security import get_current_user
+from app.core.config import get_settings
+from app.core.security import create_microapps_panel_token, get_current_user
 from app.schemas.chat import ChatResponseChunk
 from app.schemas.microapp import (
     AgentAbortRequest,
@@ -64,6 +65,8 @@ CurrentUser = Annotated[dict[str, Any], Depends(get_current_user)]
 
 
 def _to_status(ws: Workspace) -> WorkspaceStatus:
+    settings = get_settings()
+    proxied = settings.microapps_proxy_mode
     return WorkspaceStatus(
         state=ws.state,
         dev_url=ws.dev_url,
@@ -71,6 +74,12 @@ def _to_status(ws: Workspace) -> WorkspaceStatus:
         branch=ws.branch,
         opencode_ready=ws.opencode_ready,
         setup_progress=ws.setup_progress,
+        proxied=proxied,
+        panel_token=(
+            create_microapps_panel_token(ws.user_email, ws.slug, settings)
+            if proxied
+            else None
+        ),
     )
 
 
