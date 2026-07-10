@@ -32,9 +32,21 @@ Android hit the same backend simultaneously.
 4. **SSH key** — `GIT_SSH_KEY_PATH` must point to a private key with push
    access to the micro-apps repo, `chmod 600` (it is mounted read-only; the
    container publishes as that GitHub user).
-5. **Ollama** — runs on the host; the container reaches it via
-   `host.docker.internal`. Cloud models need the host daemon signed in
-   (`OLLAMA_API_KEY` on the daemon, not in this stack).
+5. **Ollama** — runs as its own container (`ollama`, `ollama_data` volume),
+   fully isolated from any host Ollama install. On first deploy, pull the
+   models the app needs:
+   ```
+   docker compose -f deploy/docker-compose.yml --env-file deploy/.env exec ollama ollama pull llama3.2
+   docker compose -f deploy/docker-compose.yml --env-file deploy/.env exec ollama ollama pull granite4:micro
+   docker compose -f deploy/docker-compose.yml --env-file deploy/.env exec ollama ollama pull nomic-embed-text
+   ```
+   Cloud models (e.g. `kimi-k2.7-code:cloud`, used by `MICROAPPS_OPENCODE_MODEL`)
+   require a **one-time** `ollama signin` inside the container: run
+   `docker compose -f deploy/docker-compose.yml --env-file deploy/.env exec ollama ollama signin`
+   and confirm the printed URL in a browser while logged into ollama.com. The
+   sign-in binds to the key in the `ollama_data` volume, so it survives
+   redeploys — only wiping the volume requires signing in again. Local-only
+   models work without it.
 6. Merge your work to `main`, then run `just deploy`.
 
 > The free ngrok plan allows **one agent session**. `just deploy` refuses to
@@ -45,6 +57,7 @@ Android hit the same backend simultaneously.
 | Service  | Image                    | Notes                                             |
 |----------|--------------------------|---------------------------------------------------|
 | postgres | pgvector/pgvector:pg16   | no host port, healthchecked, `postgres_data` vol  |
+| ollama   | ollama/ollama:latest     | no host port, healthchecked, `ollama_data` vol    |
 | backend  | garbanzo-backend:latest  | 127.0.0.1:8001 for smoke tests; serves web + API  |
 | ngrok    | ngrok/ngrok:latest       | `https://$NGROK_DOMAIN` → backend:8000            |
 

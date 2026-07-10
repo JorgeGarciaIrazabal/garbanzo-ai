@@ -77,8 +77,9 @@ One command ships web + backend + Android simultaneously — see `deploy/README.
 5. Builds the APK with the ngrok URL baked in and versionCode = `git rev-list --count main` → `dist/garbanzo-ai-<sha>.apk`.
 
 ### Prod stack (`deploy/docker-compose.yml`, project `garbanzo-prod`)
-- **postgres** (pgvector, own volume, no host port) + **backend** (image `garbanzo-backend`, 127.0.0.1:8001 for smoke tests) + **ngrok** (`ngrok/ngrok` container tunneling the static domain to `backend:8000`, auto-restarting).
+- **postgres** (pgvector, own volume, no host port) + **ollama** (`ollama/ollama`, own `ollama_data` volume, no host port — fully containerized, not the host Ollama install) + **backend** (image `garbanzo-backend`, 127.0.0.1:8001 for smoke tests) + **ngrok** (`ngrok/ngrok` container tunneling the static domain to `backend:8000`, auto-restarting).
 - Fully isolated from dev: separate compose project, database, network, volumes.
+- On first deploy, pull the models the app needs into the `ollama` container (see `deploy/README.md`) — the volume starts empty. Cloud models (`*:cloud`) need a one-time `ollama signin` inside the container; the credential persists in `ollama_data`.
 - Models (Kokoro/Whisper) persist in the `hf_cache` volume; Firebase creds are mounted read-only.
 - Micro-apps in prod: repo cloned into the `microapps_repo` volume (`MICROAPPS_GIT_URL`), synced periodically by an APScheduler job, served through the backend's authenticated `/micro-apps` reverse proxy (`MICROAPPS_PROXY_MODE=true`), publishing over a read-only-mounted host SSH key.
 

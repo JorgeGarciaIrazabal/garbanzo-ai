@@ -23,9 +23,15 @@ done
 [[ -f "$REPO/backend/firebase-service-account.json" ]] || die "backend/firebase-service-account.json missing (mounted into prod for push notifications)"
 [[ -f "$REPO/android/app/google-services.json" ]] || die "android/app/google-services.json missing (required for the APK build)"
 git -C "$REPO" rev-parse --verify --quiet main >/dev/null || die "no local main branch"
-if pgrep -x ngrok >/dev/null; then
-    die "a host ngrok agent is running and the free plan allows one session — stop it first: pkill -x ngrok"
-fi
+for pid in $(pgrep -x ngrok || true); do
+    # Containerized ngrok (e.g. our own garbanzo-prod-ngrok-1, about to be
+    # recreated by `compose up`) shows up in `pgrep` when the host doesn't
+    # isolate PID namespaces. Only a process outside any docker cgroup is a
+    # genuine competing host agent that would break the free-plan session limit.
+    if ! grep -q docker "/proc/$pid/cgroup" 2>/dev/null; then
+        die "a host ngrok agent (pid $pid) is running outside Docker and the free plan allows one session — stop it first: kill $pid"
+    fi
+done
 
 SHA=$(git -C "$REPO" rev-parse --short main)
 BUILD_NUMBER=$(git -C "$REPO" rev-list --count main)  # monotonic Android versionCode
