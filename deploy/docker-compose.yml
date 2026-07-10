@@ -50,6 +50,8 @@ services:
       # ---- user-provided (deploy/.env) ----
       SECRET_KEY: ${SECRET_KEY}
       ADMIN_EMAILS: ${ADMIN_EMAILS:-}
+      # Ollama hosted web_search/web_fetch API key (websearch MCP stdio server).
+      OLLAMA_API_KEY: ${OLLAMA_API_KEY:-}
       MICROAPPS_GIT_URL: ${MICROAPPS_GIT_URL:-}
       MICROAPPS_OPENCODE_MODEL: ${MICROAPPS_OPENCODE_MODEL:-ollama/kimi-k2.7-code:cloud}
       TZ: ${TZ:-UTC}
