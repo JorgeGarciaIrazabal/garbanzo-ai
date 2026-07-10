@@ -6,6 +6,7 @@ import asyncio
 import contextlib
 import json
 import logging
+import os
 import re
 import time
 import uuid
@@ -17,6 +18,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.mcp_server import MCPServer
 
 logger = logging.getLogger(__name__)
+
+
+# Env vars forwarded from the backend's own process environment into stdio MCP
+# subprocesses. The MCP SDK otherwise strips everything but a minimal safe set
+# (HOME/PATH/…), which would hide credentials that first-party stdio servers
+# need — notably the websearch server's OLLAMA_API_KEY, injected into the prod
+# container. Kept to a small allowlist so we don't leak SECRET_KEY/DB creds to
+# every registered server. A server row's own ``env`` still overrides these.
+_STDIO_ENV_PASSTHROUGH = ("OLLAMA_API_KEY", "OLLAMA_BASE_URL")
 
 
 # Simple in-process tool-list cache. {key: (expires_at, value)}
@@ -133,7 +143,7 @@ class MCPService:
         """Open a short-lived ``ClientSession`` over the right transport."""
         from mcp import ClientSession, StdioServerParameters
         from mcp.client.sse import sse_client
-        from mcp.client.stdio import stdio_client
+        from mcp.client.stdio import get_default_environment, stdio_client
 
         if server.transport in ("http", "sse"):
             if not server.url:
@@ -148,10 +158,18 @@ class MCPService:
         elif server.transport == "stdio":
             if not server.command:
                 raise ValueError(f"Server {server.id} has no command configured")
+            # Start from the SDK's safe default env, forward our allowlisted
+            # vars from this process, then let the server row's own env win.
+            child_env = get_default_environment()
+            for name in _STDIO_ENV_PASSTHROUGH:
+                value = os.environ.get(name)
+                if value:
+                    child_env[name] = value
+            child_env.update(server.env or {})
             params = StdioServerParameters(
                 command=server.command,
                 args=list(server.args or []),
-                env=dict(server.env or {}) or None,
+                env=child_env,
             )
             async with stdio_client(params) as (read, write):
                 async with ClientSession(read, write) as session:
