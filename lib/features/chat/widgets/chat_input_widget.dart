@@ -323,7 +323,12 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
       ),
       child: SafeArea(
         top: false,
-        child: Column(
+        // Match the message list's centered reading column (820px) so the
+        // composer lines up with the conversation above it.
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 820),
+            child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -502,6 +507,8 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
               ],
             ),
           ],
+            ),
+          ),
         ),
       ),
     );

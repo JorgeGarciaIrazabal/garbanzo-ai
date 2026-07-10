@@ -53,90 +53,82 @@ class _ThinkingContentState extends State<ThinkingContent> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = widget.colorScheme;
+    final headerColor = widget.isLive
+        ? colorScheme.primary
+        : colorScheme.onSurfaceVariant.withValues(alpha: 0.75);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        InkWell(
-          onTap: _toggle,
-          borderRadius: BorderRadius.circular(8),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: widget.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: widget.colorScheme.outlineVariant.withValues(alpha: 0.3),
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: _toggle,
+            borderRadius: BorderRadius.circular(8),
+            hoverColor: colorScheme.onSurface.withValues(alpha: 0.03),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.psychology_outlined,
+                    size: 14,
+                    color: headerColor,
+                  ),
+                  const SizedBox(width: 7),
+                  Text(
+                    _isExpanded ? 'Hide thinking' : 'Show thinking',
+                    style: widget.textTheme.labelMedium?.copyWith(
+                      color: headerColor,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(width: 3),
+                  AnimatedRotation(
+                    turns: _isExpanded ? 0.5 : 0,
+                    duration: const Duration(milliseconds: 200),
+                    child: Icon(
+                      Icons.keyboard_arrow_down,
+                      size: 16,
+                      color: headerColor.withValues(alpha: 0.7),
+                    ),
+                  ),
+                ],
               ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.psychology_outlined,
-                  size: 14,
-                  color: widget.colorScheme.primary,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  _isExpanded ? 'Hide thinking' : 'Show thinking',
-                  style: widget.textTheme.labelSmall?.copyWith(
-                    color: widget.colorScheme.primary,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(width: 4),
-                AnimatedRotation(
-                  turns: _isExpanded ? 0.5 : 0,
-                  duration: const Duration(milliseconds: 200),
-                  child: Icon(
-                    Icons.keyboard_arrow_down,
-                    size: 16,
-                    color: widget.colorScheme.primary,
-                  ),
-                ),
-              ],
             ),
           ),
         ),
         AnimatedCrossFade(
-          firstChild: const SizedBox.shrink(),
+          firstChild: const SizedBox(width: double.infinity),
           secondChild: Container(
             width: double.infinity,
-            margin: const EdgeInsets.only(top: 8),
-            padding: const EdgeInsets.all(12),
+            margin: const EdgeInsets.only(left: 12, top: 4),
+            padding: const EdgeInsets.only(left: 12, top: 2, bottom: 2),
             decoration: BoxDecoration(
-              color: widget.colorScheme.surfaceContainerLowest,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: widget.colorScheme.outlineVariant.withValues(alpha: 0.2),
+              border: Border(
+                left: BorderSide(
+                  color: colorScheme.outlineVariant.withValues(alpha: 0.6),
+                  width: 2,
+                ),
               ),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Thinking Process',
-                  style: widget.textTheme.labelSmall?.copyWith(
-                    color: widget.colorScheme.onSurfaceVariant,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                SelectableText(
-                  widget.thinkingContent,
-                  style: widget.textTheme.bodySmall?.copyWith(
-                    color: widget.colorScheme.onSurfaceVariant,
-                    height: 1.4,
-                    fontStyle: FontStyle.italic,
-                  ),
-                ),
-              ],
+            child: SelectableText(
+              widget.thinkingContent,
+              style: widget.textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.85),
+                height: 1.5,
+                fontStyle: FontStyle.italic,
+              ),
             ),
           ),
-          crossFadeState: _isExpanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+          crossFadeState: _isExpanded
+              ? CrossFadeState.showSecond
+              : CrossFadeState.showFirst,
           duration: const Duration(milliseconds: 200),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
       ],
     );
   }

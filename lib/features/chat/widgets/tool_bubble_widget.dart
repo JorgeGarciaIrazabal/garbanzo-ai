@@ -4,9 +4,13 @@ import 'package:flutter/material.dart';
 
 import '../models/chat_message.dart';
 
-/// Left-aligned bubble that displays an MCP tool invocation — either the call
-/// request (`role: tool_call`) or the server's response (`role: tool_result`).
-class ToolBubbleWidget extends StatelessWidget {
+/// A single entry on the tool-activity rail — either an MCP tool invocation
+/// (`role: tool_call`) or the server's response (`role: tool_result`).
+///
+/// Renders as a flat, quiet row: status glyph, kind badge, monospace tool
+/// name, and a dimmed one-line preview of the payload. Tapping the row
+/// expands a formatted JSON block with the full input or output.
+class ToolBubbleWidget extends StatefulWidget {
   const ToolBubbleWidget({
     super.key,
     required this.message,
@@ -18,6 +22,15 @@ class ToolBubbleWidget extends StatelessWidget {
   /// When true and the message is a `tool_call` without a matching result in
   /// this same bubble, shows a spinner indicating the call is running.
   final bool isStreaming;
+
+  @override
+  State<ToolBubbleWidget> createState() => _ToolBubbleWidgetState();
+}
+
+class _ToolBubbleWidgetState extends State<ToolBubbleWidget> {
+  bool _expanded = false;
+
+  ChatMessage get message => widget.message;
 
   bool get _isCall => message.isToolCall;
   bool get _isResult => message.isToolResult;
@@ -122,43 +135,40 @@ class ToolBubbleWidget extends StatelessWidget {
 
   /// Live status trailer for tool calls: spinner + "running…" while the
   /// backend executes, "done in X.Xs" once the finished marker arrives.
-  List<Widget> _buildStatus(ThemeData theme, Color onAccent) {
+  List<Widget> _buildStatus(ThemeData theme, ColorScheme colorScheme) {
     if (!_isCall) return const [];
     final execution = _execution;
     final status = execution?['status'];
+    final dim = colorScheme.onSurfaceVariant.withValues(alpha: 0.6);
 
     if (status == 'finished') {
       final ms = execution?['duration_ms'];
       final label =
           ms is num ? 'done in ${(ms / 1000).toStringAsFixed(1)}s' : 'done';
       return [
-        const SizedBox(width: 6),
-        Icon(Icons.check, size: 12, color: onAccent.withValues(alpha: 0.8)),
-        const SizedBox(width: 2),
-        Text(
-          label,
-          style: theme.textTheme.labelSmall?.copyWith(
-            color: onAccent.withValues(alpha: 0.8),
-          ),
-        ),
+        const SizedBox(width: 8),
+        Icon(Icons.check, size: 12, color: dim),
+        const SizedBox(width: 3),
+        Text(label, style: theme.textTheme.labelSmall?.copyWith(color: dim)),
       ];
     }
 
-    if (status == 'started' || isStreaming) {
+    if (status == 'started' || widget.isStreaming) {
       return [
-        const SizedBox(width: 6),
+        const SizedBox(width: 8),
         SizedBox(
           width: 10,
           height: 10,
-          child: CircularProgressIndicator(strokeWidth: 2, color: onAccent),
+          child: CircularProgressIndicator(
+            strokeWidth: 1.6,
+            color: colorScheme.primary,
+          ),
         ),
         if (status == 'started') ...[
-          const SizedBox(width: 4),
+          const SizedBox(width: 5),
           Text(
             'running…',
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: onAccent.withValues(alpha: 0.8),
-            ),
+            style: theme.textTheme.labelSmall?.copyWith(color: dim),
           ),
         ],
       ];
@@ -177,70 +187,47 @@ class ToolBubbleWidget extends StatelessWidget {
     final result = resultData?['result'];
 
     final isError = _isResult && _isErrorResult();
-    final IconData icon;
+    final accent = isError ? colorScheme.error : colorScheme.onSurfaceVariant;
+
+    final IconData glyph;
     if (_isCall) {
-      icon = Icons.build_circle_outlined;
+      glyph = Icons.arrow_outward;
     } else if (isError) {
-      icon = Icons.error_outline;
+      glyph = Icons.error_outline;
     } else {
-      icon = Icons.done_all;
+      glyph = Icons.subdirectory_arrow_right;
     }
 
     final preview = _isCall
         ? _summary(args)
         : _summary(result is Map ? (result['content'] ?? result) : result);
 
-    final accent = isError
-        ? colorScheme.errorContainer
-        : colorScheme.tertiaryContainer;
-    final onAccent = isError
-        ? colorScheme.onErrorContainer
-        : colorScheme.onTertiaryContainer;
-
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.92,
-        ),
-        child: Card(
-          elevation: 0,
-          margin: EdgeInsets.only(
-            top: 2,
-            bottom: 2,
-            left: MediaQuery.of(context).size.width * 0.01,
-          ),
-          color: accent.withValues(alpha: 0.45),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-            side: BorderSide(
-              color: colorScheme.outlineVariant,
-              width: 1,
-            ),
-          ),
-          child: Theme(
-            data: theme.copyWith(dividerColor: Colors.transparent),
-            child: ExpansionTile(
-              dense: true,
-              minTileHeight: 32,
-              visualDensity: VisualDensity.compact,
-              tilePadding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
-              childrenPadding:
-                  const EdgeInsets.fromLTRB(10, 0, 10, 8),
-              leading: Icon(icon, size: 16, color: onAccent),
-              title: Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () => setState(() => _expanded = !_expanded),
+            borderRadius: BorderRadius.circular(8),
+            hoverColor: colorScheme.onSurface.withValues(alpha: 0.03),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
+                  Icon(glyph, size: 13, color: accent.withValues(alpha: 0.8)),
+                  const SizedBox(width: 8),
                   Text(
                     _isCall ? 'call' : (isError ? 'error' : 'result'),
                     style: theme.textTheme.labelSmall?.copyWith(
-                      color: onAccent.withValues(alpha: 0.7),
+                      color: accent.withValues(alpha: 0.65),
                       fontWeight: FontWeight.w600,
-                      letterSpacing: 0.4,
+                      letterSpacing: 0.8,
+                      fontSize: 10,
                     ),
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 8),
                   Flexible(
                     child: Text(
                       _toolName,
@@ -248,61 +235,114 @@ class ToolBubbleWidget extends StatelessWidget {
                       style: theme.textTheme.bodySmall?.copyWith(
                         fontFamily: 'monospace',
                         fontWeight: FontWeight.w600,
-                        color: onAccent,
+                        color: isError ? colorScheme.error : colorScheme.onSurface,
                       ),
                     ),
                   ),
                   if (preview.isNotEmpty) ...[
-                    const SizedBox(width: 6),
+                    const SizedBox(width: 8),
                     Flexible(
                       flex: 3,
                       child: Text(
                         preview,
                         overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: onAccent.withValues(alpha: 0.75),
+                          color: colorScheme.onSurfaceVariant
+                              .withValues(alpha: 0.65),
                           fontFamily: 'monospace',
+                          fontSize: 11.5,
                         ),
                       ),
                     ),
                   ],
-                  ..._buildStatus(theme, onAccent),
+                  ..._buildStatus(theme, colorScheme),
+                  const SizedBox(width: 6),
+                  AnimatedRotation(
+                    turns: _expanded ? 0.5 : 0,
+                    duration: const Duration(milliseconds: 180),
+                    child: Icon(
+                      Icons.expand_more,
+                      size: 15,
+                      color: colorScheme.onSurfaceVariant
+                          .withValues(alpha: 0.5),
+                    ),
+                  ),
                 ],
               ),
-              children: [
-                if (_isCall && args != null)
-                  _JsonBlock(text: _pretty(args)),
-                if (_isResult && result != null)
-                  _JsonBlock(text: _pretty(result)),
-                if (!_isCall && !_isResult)
-                  _JsonBlock(text: _pretty(message.metadata)),
-              ],
             ),
           ),
         ),
-      ),
+        // Expanded payload is only mounted when open, so collapsed rows stay
+        // cheap even for very large tool outputs.
+        ClipRect(
+          child: AnimatedSize(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOutCubic,
+            alignment: Alignment.topCenter,
+            child: !_expanded
+                ? const SizedBox(width: double.infinity)
+                : Padding(
+                    padding: const EdgeInsets.fromLTRB(8, 2, 8, 8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (_isCall && args != null)
+                          _JsonBlock(label: 'Input', text: _pretty(args)),
+                        if (_isResult && result != null)
+                          _JsonBlock(label: 'Output', text: _pretty(result)),
+                        if (!_isCall && !_isResult)
+                          _JsonBlock(
+                            label: 'Details',
+                            text: _pretty(message.metadata),
+                          ),
+                      ],
+                    ),
+                  ),
+          ),
+        ),
+      ],
     );
   }
 }
 
 class _JsonBlock extends StatelessWidget {
-  const _JsonBlock({required this.text});
+  const _JsonBlock({required this.label, required this.text});
+
+  final String label;
   final String text;
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: colorScheme.outlineVariant),
+        color: colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.4),
+        ),
       ),
-      child: SelectableText(
-        text,
-        style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.8,
+              fontSize: 10,
+            ),
+          ),
+          const SizedBox(height: 6),
+          SelectableText(
+            text,
+            style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+          ),
+        ],
       ),
     );
   }

@@ -272,7 +272,17 @@ async def _sse_stream(
             ):
                 accumulated += chunk.content
 
-            if chunk.is_finished:
+            if chunk.metadata and chunk.metadata.get("error"):
+                # Checked BEFORE is_finished: error chunks also carry
+                # is_finished=True, and serializing them as a bare `done`
+                # would silently swallow the failure (the client ignores
+                # done chunks with no accumulated content).
+                response = ChatResponseChunk(
+                    type="error",
+                    error=chunk.content,
+                    metadata=chunk.metadata,
+                )
+            elif chunk.is_finished:
                 response = ChatResponseChunk(type="done", metadata=chunk.metadata)
             elif chunk.tool_calls:
                 response = ChatResponseChunk(
@@ -288,12 +298,6 @@ async def _sse_stream(
                 # Live tool-progress marker (started / finished + duration).
                 response = ChatResponseChunk(
                     type="tool_execution",
-                    metadata=chunk.metadata,
-                )
-            elif chunk.metadata and chunk.metadata.get("error"):
-                response = ChatResponseChunk(
-                    type="error",
-                    error=chunk.content,
                     metadata=chunk.metadata,
                 )
             elif chunk.is_thinking:

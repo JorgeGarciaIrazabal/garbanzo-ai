@@ -666,6 +666,18 @@ class _ChatPageContentState extends State<_ChatPageContent> {
       }
     }
 
+    // Every list item lives in a centered reading column so wide desktop
+    // windows don't stretch prose to unreadable line lengths.
+    Widget centered(Widget child) => Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 820),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: child,
+            ),
+          ),
+        );
+
     return ListView.builder(
       controller: _scrollController,
       padding: const EdgeInsets.symmetric(vertical: 16),
@@ -673,12 +685,12 @@ class _ChatPageContentState extends State<_ChatPageContent> {
       itemBuilder: (context, index) {
         var leadingIdx = 0;
         if (hasBanner) {
-          if (index == leadingIdx) return const SystemPromptBanner();
+          if (index == leadingIdx) return centered(const SystemPromptBanner());
           leadingIdx++;
         }
         if (hasSummary) {
           if (index == leadingIdx) {
-            return ContextSummaryWidget(summary: summary);
+            return centered(ContextSummaryWidget(summary: summary));
           }
         }
         final item = items[index - itemOffset];
@@ -686,17 +698,17 @@ class _ChatPageContentState extends State<_ChatPageContent> {
           // Streaming when this group is the trailing item AND a stream
           // is in flight (means the model is still working on the loop).
           final isTrailing = item.endIdx == messages.length - 1;
-          return ToolActivityGroup(
+          return centered(ToolActivityGroup(
             messages: item.messages,
             isStreaming: isTrailing && chatProvider.isSending,
-          );
+          ));
         }
         final messageItem = item as _MessageItem;
         final message = messageItem.message;
         final msgIdx = messageItem.idx;
         final isLastMessage = msgIdx == messages.length - 1;
 
-        Widget buildBubble(ChatMessage m) => ChatMessageWidget(
+        Widget buildBubble(ChatMessage m) => centered(ChatMessageWidget(
               message: m,
               isStreaming: isLastMessage &&
                   chatProvider.isSending &&
@@ -704,7 +716,7 @@ class _ChatPageContentState extends State<_ChatPageContent> {
               conversationId: chatProvider.currentConversation?.id,
               isLastAssistant:
                   m.isAssistant && msgIdx == lastAssistantIdx,
-            );
+            ));
 
         // The in-flight assistant bubble subscribes to the streaming
         // channel directly, so per-chunk updates repaint only this one

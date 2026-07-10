@@ -7,8 +7,9 @@ import 'tool_bubble_widget.dart';
 /// single collapsible section, mirroring the thinking-content UX.
 ///
 /// The header shows progress at a glance ("Calling X…" while streaming, or
-/// "Used N tools" once settled). Tapping expands to reveal the individual
-/// [ToolBubbleWidget]s for each call/result.
+/// "Used N tools" once settled). Tapping expands a thin vertical rail with
+/// one [ToolBubbleWidget] entry per call/result — a quiet timeline of the
+/// work the agent did before answering.
 class ToolActivityGroup extends StatefulWidget {
   const ToolActivityGroup({
     super.key,
@@ -90,71 +91,80 @@ class _ToolActivityGroupState extends State<ToolActivityGroup> {
     final pending = widget.isStreaming && _hasPendingCall();
     final waiting = _waitingForModel();
     final showSpinner = pending || waiting;
+    final live = showSpinner;
+
+    final headerColor = live
+        ? colorScheme.primary
+        : colorScheme.onSurfaceVariant.withValues(alpha: 0.75);
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      padding: const EdgeInsets.only(top: 10, bottom: 2),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          InkWell(
-            onTap: () => setState(() => _isExpanded = !_isExpanded),
-            borderRadius: BorderRadius.circular(8),
-            child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerHighest
-                    .withValues(alpha: 0.5),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color:
-                      colorScheme.outlineVariant.withValues(alpha: 0.3),
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (showSpinner)
-                    SizedBox(
-                      width: 12,
-                      height: 12,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: colorScheme.primary,
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => setState(() => _isExpanded = !_isExpanded),
+              borderRadius: BorderRadius.circular(8),
+              hoverColor: colorScheme.onSurface.withValues(alpha: 0.03),
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (showSpinner)
+                      SizedBox(
+                        width: 12,
+                        height: 12,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 1.6,
+                          color: colorScheme.primary,
+                        ),
+                      )
+                    else
+                      Icon(
+                        Icons.construction_outlined,
+                        size: 14,
+                        color: headerColor,
                       ),
-                    )
-                  else
-                    Icon(
-                      Icons.handyman_outlined,
-                      size: 14,
-                      color: colorScheme.primary,
+                    const SizedBox(width: 7),
+                    Text(
+                      _headerLabel(),
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        color: headerColor,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
-                  const SizedBox(width: 6),
-                  Text(
-                    _headerLabel(),
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: colorScheme.primary,
-                      fontWeight: FontWeight.w500,
+                    const SizedBox(width: 3),
+                    AnimatedRotation(
+                      turns: _isExpanded ? 0.5 : 0,
+                      duration: const Duration(milliseconds: 200),
+                      child: Icon(
+                        Icons.keyboard_arrow_down,
+                        size: 16,
+                        color: headerColor.withValues(alpha: 0.7),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 4),
-                  AnimatedRotation(
-                    turns: _isExpanded ? 0.5 : 0,
-                    duration: const Duration(milliseconds: 200),
-                    child: Icon(
-                      Icons.keyboard_arrow_down,
-                      size: 16,
-                      color: colorScheme.primary,
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
           AnimatedCrossFade(
-            firstChild: const SizedBox.shrink(),
-            secondChild: Padding(
-              padding: const EdgeInsets.only(top: 4),
+            firstChild: const SizedBox(width: double.infinity),
+            secondChild: Container(
+              margin: const EdgeInsets.only(left: 12, top: 4),
+              padding: const EdgeInsets.only(left: 10),
+              decoration: BoxDecoration(
+                border: Border(
+                  left: BorderSide(
+                    color: colorScheme.outlineVariant.withValues(alpha: 0.6),
+                    width: 2,
+                  ),
+                ),
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

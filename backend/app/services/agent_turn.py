@@ -135,7 +135,11 @@ async def run_agent_turn(
         context_length = await resolve_context_length(provider, model)
         opts.num_ctx = min(opts.num_ctx or context_length, context_length)
 
-        for _ in range(max_tool_iterations):
+        # One extra pass beyond the cap, run WITHOUT tools: when the model is
+        # still asking for tools after max_tool_iterations, it must answer
+        # from the results it already has instead of the turn dying silently.
+        for iteration in range(max_tool_iterations + 1):
+            capped = iteration >= max_tool_iterations
             full_response = ""
             thinking_content = ""
             metadata: dict | None = None
@@ -146,9 +150,13 @@ async def run_agent_turn(
                 model=model,
                 options=opts,
                 cancel_event=cancel_event,
-                tools=tools or None,
+                tools=None if capped else (tools or None),
             ):
                 if chunk.tool_calls:
+                    if capped:
+                        # No tools were offered on this pass; drop stray calls
+                        # instead of executing past the budget.
+                        continue
                     tool_calls_this_iter = chunk.tool_calls
                     yield chunk
                     continue
@@ -164,6 +172,13 @@ async def run_agent_turn(
                     if chunk.metadata is None:
                         chunk.metadata = {}
                     chunk.metadata.setdefault("context_length", opts.num_ctx)
+                    if capped:
+                        # Flag that the answer was forced by the iteration
+                        # budget, so clients/persisted meta can surface it.
+                        chunk.metadata.setdefault("tool_iteration_cap", True)
+                        chunk.metadata.setdefault(
+                            "max_iterations", max_tool_iterations
+                        )
                     for key, value in (extra_finish_metadata or {}).items():
                         chunk.metadata.setdefault(key, value)
                     metadata = chunk.metadata

@@ -154,14 +154,19 @@ async def test_tool_call_persists_messages_and_loops(db_session, test_user_email
     assert roles[-1] == "assistant"  # final answer
 
 
-async def test_iteration_cap_enforced(db_session, test_user_email):
+async def test_iteration_cap_forces_final_no_tools_answer(db_session, test_user_email):
     tool_calls = [{"id": "call", "name": "srv:loop", "arguments": {}}]
-    # Every iteration keeps emitting tool_calls → loop should cap out.
-    chunks_per_iter = [
+    # Every iteration keeps emitting tool_calls → after the cap the engine
+    # must run ONE extra pass without tools so the model produces an answer.
+    loop_iter = [
         ChatChunk(content="", is_finished=False, tool_calls=tool_calls),
         ChatChunk(content="", is_finished=True, metadata={"has_tool_calls": True}),
     ]
-    provider = _ScriptedProvider([chunks_per_iter])  # repeats indefinitely
+    answer_iter = [
+        ChatChunk(content="forced answer", is_finished=False),
+        ChatChunk(content="", is_finished=True, metadata={}),
+    ]
+    provider = _ScriptedProvider([loop_iter] * MAX_TOOL_ITERATIONS + [answer_iter])
     service = await _make_service(db_session, provider)
     conv_id = await _new_conversation(db_session, test_user_email, enabled_tools=[])
 
@@ -180,11 +185,65 @@ async def test_iteration_cap_enforced(db_session, test_user_email):
         ):
             collected.append(c)
 
-    assert provider.iteration == MAX_TOOL_ITERATIONS
-    # Last chunk should be the soft-error "tool_iteration_cap".
-    assert any(
-        (c.metadata or {}).get("error_type") == "tool_iteration_cap" for c in collected
+    # Capped iterations plus the final forced-answer pass.
+    assert provider.iteration == MAX_TOOL_ITERATIONS + 1
+    # The final pass must not be offered tools.
+    assert provider.calls[-1]["tools"] is None
+    # No error chunk — the turn ends cleanly with the forced answer.
+    assert not any((c.metadata or {}).get("error_type") for c in collected)
+    text = "".join(c.content for c in collected if c.content and not c.is_thinking)
+    assert "forced answer" in text
+    # The finish chunk of the forced pass is flagged so clients can surface it.
+    finish = [c for c in collected if c.is_finished]
+    assert (finish[-1].metadata or {}).get("tool_iteration_cap") is True
+
+    from sqlalchemy import select
+
+    from app.models.message import Message
+
+    result = await db_session.execute(
+        select(Message).where(Message.conversation_id == conv_id).order_by(Message.created_at)
     )
+    messages = list(result.scalars().all())
+    assert messages[-1].role == "assistant"
+    assert messages[-1].content == "forced answer"
+
+
+async def test_capped_pass_drops_stray_tool_calls(db_session, test_user_email):
+    tool_calls = [{"id": "call", "name": "srv:loop", "arguments": {}}]
+    # The model asks for tools on EVERY pass, including the final no-tools
+    # one — those stray calls must be dropped, not executed past the budget.
+    loop_iter = [
+        ChatChunk(content="", is_finished=False, tool_calls=tool_calls),
+        ChatChunk(content="", is_finished=True, metadata={"has_tool_calls": True}),
+    ]
+    provider = _ScriptedProvider([loop_iter])  # repeats indefinitely
+    service = await _make_service(db_session, provider)
+    conv_id = await _new_conversation(db_session, test_user_email, enabled_tools=[])
+
+    executions = []
+
+    async def _fake_call_tool(server_id, tool_name, args):
+        executions.append(tool_name)
+        return {"ok": True, "content": "ok"}
+
+    with patch(
+        "app.services.chat_service.MCPService.call_tool",
+        new=AsyncMock(side_effect=_fake_call_tool),
+    ):
+        collected = []
+        async for c in service.send_message(
+            conversation_id=conv_id,
+            user_id=test_user_email,
+            content="loop",
+        ):
+            collected.append(c)
+
+    assert provider.iteration == MAX_TOOL_ITERATIONS + 1
+    assert len(executions) == MAX_TOOL_ITERATIONS
+    # The stray tool_call chunk from the capped pass is not forwarded.
+    tool_call_chunks = [c for c in collected if c.tool_calls]
+    assert len(tool_call_chunks) == MAX_TOOL_ITERATIONS
 
 
 async def test_clean_function_name_resolves_via_lookup(

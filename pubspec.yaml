@@ -57,6 +57,8 @@ dependencies:
   fl_chart: ^1.2.0
   web_socket_channel: ^3.0.1
   google_fonts: ^6.2.1
+  fetch_client: ^1.2.1
+  dio_compatibility_layer: ^0.1.1
 
 dev_dependencies:
   flutter_test:

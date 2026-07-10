@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../settings/providers/settings_provider.dart';
 import '../models/chat_message.dart';
 import '../providers/chat_provider.dart';
+import 'input/pulsing_dot.dart';
 import 'message/attachment_display.dart';
 import 'message/branch_button.dart';
 import 'message/copy_button.dart';
@@ -17,6 +18,11 @@ import 'remember_this_button.dart';
 import 'tool_bubble_widget.dart';
 
 /// Widget for displaying a single chat message.
+///
+/// Assistant replies render as flat prose on the canvas — no card, no header —
+/// so markdown-heavy answers read like a document. User messages render as
+/// compact right-aligned bubbles. Action rows sit below the content and stay
+/// dim until hovered (the latest assistant reply keeps its actions visible).
 class ChatMessageWidget extends StatefulWidget {
   const ChatMessageWidget({
     super.key,
@@ -40,6 +46,7 @@ class ChatMessageWidget extends StatefulWidget {
 
 class _ChatMessageWidgetState extends State<ChatMessageWidget> {
   bool _metadataExpanded = false;
+  bool _hovered = false;
 
   /// Distinct knowledge-base filenames that informed this reply, stamped by
   /// the backend into the message metadata.
@@ -51,10 +58,6 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final settings = context.watch<SettingsProvider>();
-
     // Tool invocations and results render as their own collapsible bubbles.
     if (widget.message.isToolCall || widget.message.isToolResult) {
       return ToolBubbleWidget(
@@ -63,303 +66,318 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
       );
     }
 
-    final isUser = widget.message.isUser;
-    final thinkingContent = _extractThinkingContent();
-    final isThinking = widget.isStreaming && thinkingContent != null && widget.message.content.isEmpty;
-    final hasMetadata = _hasMetadata();
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: widget.message.isUser
+          ? _buildUserTurn(context)
+          : _buildAssistantTurn(context),
+    );
+  }
 
-    return Align(
-      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.92,
-        ),
-        child: Card(
-          elevation: 0,
-          margin: EdgeInsets.only(
-            top: 4,
-            bottom: 4,
-            left: isUser ? 0 : MediaQuery.of(context).size.width * 0.01,
-            right: isUser ? MediaQuery.of(context).size.width * 0.01 : 0,
-          ),
-          color: isUser
-              ? colorScheme.primaryContainer
-              : colorScheme.surfaceContainerHighest,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.only(
-              topLeft: const Radius.circular(16),
-              topRight: const Radius.circular(16),
-              bottomLeft: Radius.circular(isUser ? 16 : 4),
-              bottomRight: Radius.circular(isUser ? 4 : 16),
+  // -- User turn --------------------------------------------------------------
+
+  Widget _buildUserTurn(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+    final message = widget.message;
+
+    final bubbleColor = Color.alphaBlend(
+      colorScheme.primary.withValues(alpha: isDark ? 0.14 : 0.08),
+      colorScheme.surfaceContainerHigh,
+    );
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 16, bottom: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Align(
+            alignment: Alignment.centerRight,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 560),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: bubbleColor,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(20),
+                    topRight: Radius.circular(20),
+                    bottomLeft: Radius.circular(20),
+                    bottomRight: Radius.circular(6),
+                  ),
+                ),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (message.attachments.isNotEmpty)
+                      AttachmentDisplay(
+                        attachments: message.attachments,
+                        colorScheme: colorScheme,
+                        textTheme: theme.textTheme,
+                      ),
+                    if (message.content.isNotEmpty)
+                      MessageContent(
+                        content: message.content,
+                        isUser: true,
+                        colorScheme: colorScheme,
+                        textTheme: theme.textTheme,
+                      ),
+                  ],
+                ),
+              ),
             ),
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Message header with role indicator
-                Row(
+          if (message.content.isNotEmpty)
+            _RevealOnHover(
+              revealed: _hovered,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 4, right: 4),
+                child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
-                      isUser ? Icons.person : Icons.smart_toy,
-                      size: 16,
-                      color: isUser
-                          ? colorScheme.onPrimaryContainer
-                          : colorScheme.onSurfaceVariant,
+                    CopyButton(content: message.content),
+                    const SizedBox(width: 8),
+                    if (!message.id.startsWith('temp-'))
+                      Builder(builder: (ctx) {
+                        final chat = ctx.watch<ChatProvider>();
+                        return EditMessageButton(
+                          content: message.content,
+                          enabled: !chat.isSending,
+                          onSubmit: (newContent) => chat.editUserMessage(
+                            message.id,
+                            newContent,
+                          ),
+                        );
+                      }),
+                    const SizedBox(width: 8),
+                    RememberThisButton(
+                      content: message.content,
+                      sourceConversationId: widget.conversationId,
                     ),
-                    const SizedBox(width: 4),
-                    Text(
-                      isUser ? 'You' : 'Assistant',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: isUser
-                            ? colorScheme.onPrimaryContainer
-                            : colorScheme.onSurfaceVariant,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    if (widget.isStreaming || isThinking) ...[
+                    if (!message.id.startsWith('temp-')) ...[
                       const SizedBox(width: 8),
-                      SizedBox(
-                        width: 12,
-                        height: 12,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: isUser
-                              ? colorScheme.onPrimaryContainer
-                              : colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        isThinking ? 'Thinking...' : 'Generating...',
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: isUser
-                              ? colorScheme.onPrimaryContainer
-                              : colorScheme.onSurfaceVariant,
-                          fontStyle: FontStyle.italic,
-                        ),
-                      ),
+                      Builder(builder: (ctx) {
+                        final chat = ctx.watch<ChatProvider>();
+                        return BranchButton(
+                          enabled: !chat.isSending,
+                          onPressed: () => chat.branchFromMessage(message.id),
+                        );
+                      }),
                     ],
-                    // Personal context transparency: show when stored
-                    // memories informed this reply, so the user can tell
-                    // what the AI knew without digging into the Info panel.
-                    if (!isUser &&
-                        (widget.message.metadata?['memories_used'] ?? 0) >
-                            0) ...[
-                      const SizedBox(width: 8),
-                      Tooltip(
-                        message:
-                            '${widget.message.metadata!['memories_used']} '
-                            'saved memories about you informed this reply',
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  // -- Assistant turn ---------------------------------------------------------
+
+  Widget _buildAssistantTurn(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final settings = context.watch<SettingsProvider>();
+    final message = widget.message;
+
+    final thinkingContent = _extractThinkingContent();
+    final hasMetadata = _hasMetadata();
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 12, bottom: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Thinking content (expandable). Auto-expanded while the model is
+          // still mid-stream so the user sees reasoning tokens scroll by in
+          // real time, then collapses once the final answer starts arriving.
+          if (thinkingContent != null)
+            ThinkingContent(
+              thinkingContent: thinkingContent,
+              colorScheme: colorScheme,
+              textTheme: theme.textTheme,
+              isLive: widget.isStreaming && message.content.isEmpty,
+              hasContent: message.content.isNotEmpty,
+            ),
+          if (message.content.isNotEmpty)
+            MessageContent(
+              content: message.content,
+              isUser: false,
+              colorScheme: colorScheme,
+              textTheme: theme.textTheme,
+            ),
+          // Knowledge-base citations: which documents informed this reply.
+          if (_kbSources.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: Wrap(
+                spacing: 6,
+                runSpacing: 4,
+                children: [
+                  for (final source in _kbSources)
+                    Tooltip(
+                      message: 'From your knowledge base',
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: colorScheme.surfaceContainerHigh
+                              .withValues(alpha: 0.6),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: colorScheme.outlineVariant
+                                .withValues(alpha: 0.4),
+                          ),
+                        ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(
-                              Icons.psychology_outlined,
+                              Icons.menu_book_outlined,
                               size: 12,
-                              color: colorScheme.primary
-                                  .withValues(alpha: 0.7),
+                              color: colorScheme.primary,
                             ),
-                            const SizedBox(width: 2),
+                            const SizedBox(width: 4),
                             Text(
-                              '${widget.message.metadata!['memories_used']}',
+                              source,
                               style: theme.textTheme.labelSmall?.copyWith(
-                                color: colorScheme.primary
-                                    .withValues(alpha: 0.7),
+                                color: colorScheme.onSurfaceVariant,
                               ),
                             ),
                           ],
                         ),
                       ),
-                    ],
-                    // The user stopped this response mid-generation; mark it
-                    // so an interrupted answer isn't mistaken for a complete
-                    // one.
-                    if (!widget.isStreaming &&
-                        widget.message.metadata?['stopped'] == true) ...[
-                      const SizedBox(width: 8),
-                      Icon(
-                        Icons.stop_circle_outlined,
-                        size: 12,
-                        color: colorScheme.onSurfaceVariant
-                            .withValues(alpha: 0.7),
-                      ),
-                      const SizedBox(width: 3),
-                      Text(
-                        'Stopped',
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: colorScheme.onSurfaceVariant
-                              .withValues(alpha: 0.7),
-                          fontStyle: FontStyle.italic,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-                const SizedBox(height: 8),
-                // Attachments (images + document chips) for user messages
-                if (isUser && widget.message.attachments.isNotEmpty)
-                  AttachmentDisplay(
-                    attachments: widget.message.attachments,
-                    colorScheme: colorScheme,
-                    textTheme: theme.textTheme,
-                  ),
-                // Thinking content (expandable). Auto-expanded while the
-                // model is still mid-stream so the user sees reasoning
-                // tokens scroll by in real time, then collapses once the
-                // final answer starts arriving.
-                if (thinkingContent != null && !isUser)
-                  ThinkingContent(
-                    thinkingContent: thinkingContent,
-                    colorScheme: colorScheme,
-                    textTheme: theme.textTheme,
-                    isLive: widget.isStreaming &&
-                        widget.message.content.isEmpty,
-                    hasContent: widget.message.content.isNotEmpty,
-                  ),
-                // Message content
-                if (widget.message.content.isNotEmpty)
-                  MessageContent(
-                    content: widget.message.content,
-                    isUser: isUser,
-                    colorScheme: colorScheme,
-                    textTheme: theme.textTheme,
-                  ),
-                // Knowledge-base citations: which documents informed this
-                // reply.
-                if (!isUser && _kbSources.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Wrap(
-                      spacing: 6,
-                      runSpacing: 4,
-                      children: [
-                        for (final source in _kbSources)
-                          Tooltip(
-                            message: 'From your knowledge base',
-                            child: Chip(
-                              avatar: Icon(
-                                Icons.menu_book_outlined,
-                                size: 14,
-                                color: colorScheme.primary,
-                              ),
-                              label: Text(source),
-                              labelStyle: theme.textTheme.labelSmall,
-                              visualDensity: VisualDensity.compact,
-                              materialTapTargetSize:
-                                  MaterialTapTargetSize.shrinkWrap,
-                              side: BorderSide(
-                                color: colorScheme.outlineVariant
-                                    .withValues(alpha: 0.5),
-                              ),
-                              backgroundColor:
-                                  colorScheme.surfaceContainerLow,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                // Action buttons for assistant messages
-                if (!isUser && widget.message.content.isNotEmpty) ...[
-                  Align(
-                    alignment: Alignment.bottomRight,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (settings.showMessageMetadata && hasMetadata)
-                          MetadataIconToggle(
-                            isExpanded: _metadataExpanded,
-                            onToggle: () => setState(() => _metadataExpanded = !_metadataExpanded),
-                            colorScheme: colorScheme,
-                          ),
-                        if (settings.showMessageMetadata && hasMetadata)
-                          const SizedBox(width: 8),
-                        CopyButton(content: widget.message.content),
-                        const SizedBox(width: 8),
-                        SpeakButton(
-                          content: widget.message.content,
-                          isStreaming: widget.isStreaming,
-                        ),
-                        if (widget.isLastAssistant &&
-                            !widget.isStreaming &&
-                            !widget.message.id.startsWith('temp-')) ...[
-                          const SizedBox(width: 8),
-                          Builder(builder: (ctx) {
-                            final chat = ctx.watch<ChatProvider>();
-                            return RegenerateButton(
-                              enabled: !chat.isSending,
-                              onPressed: () => chat.regenerateLastAssistant(),
-                            );
-                          }),
-                        ],
-                        if (!widget.isStreaming && !widget.message.id.startsWith('temp-')) ...[
-                          const SizedBox(width: 8),
-                          Builder(builder: (ctx) {
-                            final chat = ctx.watch<ChatProvider>();
-                            return BranchButton(
-                              enabled: !chat.isSending,
-                              onPressed: () => chat.branchFromMessage(widget.message.id),
-                            );
-                          }),
-                        ],
-                      ],
-                    ),
-                  ),
-                  // Expanded metadata details (appears below the row when toggled)
-                  if (_metadataExpanded && hasMetadata)
-                    MetadataDetails(
-                      metadata: widget.message.metadata!,
-                      colorScheme: colorScheme,
-                      textTheme: theme.textTheme,
                     ),
                 ],
-                // Action buttons for user messages
-                if (isUser && widget.message.content.isNotEmpty)
-                  Align(
-                    alignment: Alignment.bottomRight,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        CopyButton(content: widget.message.content),
-                        const SizedBox(width: 8),
-                        if (!widget.message.id.startsWith('temp-'))
-                          Builder(builder: (ctx) {
-                            final chat = ctx.watch<ChatProvider>();
-                            return EditMessageButton(
-                              content: widget.message.content,
-                              enabled: !chat.isSending,
-                              onSubmit: (newContent) => chat.editUserMessage(
-                                widget.message.id,
-                                newContent,
-                              ),
-                            );
-                          }),
-                        const SizedBox(width: 8),
-                        RememberThisButton(
-                          content: widget.message.content,
-                          sourceConversationId: widget.conversationId,
-                        ),
-                        if (!widget.message.id.startsWith('temp-')) ...[
-                          const SizedBox(width: 8),
-                          Builder(builder: (ctx) {
-                            final chat = ctx.watch<ChatProvider>();
-                            return BranchButton(
-                              enabled: !chat.isSending,
-                              onPressed: () => chat.branchFromMessage(widget.message.id),
-                            );
-                          }),
-                        ],
-                      ],
-                    ),
-                  ),
-              ],
+              ),
             ),
-          ),
-        ),
+          // While streaming, a single pulsing dot occupies the slot the
+          // action row takes over once the reply settles — no layout jump.
+          if (widget.isStreaming)
+            Padding(
+              padding: EdgeInsets.only(
+                top: message.content.isEmpty ? 4 : 10,
+                left: 2,
+              ),
+              child: PulsingDot(color: colorScheme.primary),
+            )
+          else if (message.content.isNotEmpty) ...[
+            _RevealOnHover(
+              revealed: _hovered || widget.isLastAssistant,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CopyButton(content: message.content),
+                    const SizedBox(width: 8),
+                    SpeakButton(
+                      content: message.content,
+                      isStreaming: widget.isStreaming,
+                    ),
+                    if (widget.isLastAssistant &&
+                        !message.id.startsWith('temp-')) ...[
+                      const SizedBox(width: 8),
+                      Builder(builder: (ctx) {
+                        final chat = ctx.watch<ChatProvider>();
+                        return RegenerateButton(
+                          enabled: !chat.isSending,
+                          onPressed: () => chat.regenerateLastAssistant(),
+                        );
+                      }),
+                    ],
+                    if (!message.id.startsWith('temp-')) ...[
+                      const SizedBox(width: 8),
+                      Builder(builder: (ctx) {
+                        final chat = ctx.watch<ChatProvider>();
+                        return BranchButton(
+                          enabled: !chat.isSending,
+                          onPressed: () => chat.branchFromMessage(message.id),
+                        );
+                      }),
+                    ],
+                    if (settings.showMessageMetadata && hasMetadata) ...[
+                      const SizedBox(width: 8),
+                      MetadataIconToggle(
+                        isExpanded: _metadataExpanded,
+                        onToggle: () => setState(
+                            () => _metadataExpanded = !_metadataExpanded),
+                        colorScheme: colorScheme,
+                      ),
+                    ],
+                    ..._buildQuietIndicators(theme, colorScheme),
+                  ],
+                ),
+              ),
+            ),
+            if (_metadataExpanded && hasMetadata)
+              MetadataDetails(
+                metadata: message.metadata!,
+                colorScheme: colorScheme,
+                textTheme: theme.textTheme,
+              ),
+          ],
+        ],
       ),
     );
+  }
+
+  /// Small trailing indicators on the action row: memories that informed the
+  /// reply, and whether the user stopped generation early.
+  List<Widget> _buildQuietIndicators(ThemeData theme, ColorScheme colorScheme) {
+    final indicators = <Widget>[];
+    final memoriesUsed = widget.message.metadata?['memories_used'];
+    if (memoriesUsed is num && memoriesUsed > 0) {
+      indicators.addAll([
+        const SizedBox(width: 12),
+        Tooltip(
+          message:
+              '$memoriesUsed saved memories about you informed this reply',
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.psychology_outlined,
+                size: 13,
+                color: colorScheme.primary.withValues(alpha: 0.7),
+              ),
+              const SizedBox(width: 3),
+              Text(
+                '$memoriesUsed',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: colorScheme.primary.withValues(alpha: 0.7),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ]);
+    }
+    // The user stopped this response mid-generation; mark it so an
+    // interrupted answer isn't mistaken for a complete one.
+    if (widget.message.metadata?['stopped'] == true) {
+      indicators.addAll([
+        const SizedBox(width: 12),
+        Icon(
+          Icons.stop_circle_outlined,
+          size: 13,
+          color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+        ),
+        const SizedBox(width: 3),
+        Text(
+          'Stopped',
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+            fontStyle: FontStyle.italic,
+          ),
+        ),
+      ]);
+    }
+    return indicators;
   }
 
   String? _extractThinkingContent() {
@@ -381,5 +399,24 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
         metadata.containsKey('output_tokens') ||
         metadata.containsKey('total_duration_ns') ||
         metadata.containsKey('response_time_ms');
+  }
+}
+
+/// Keeps action rows quiet until pointed at. A non-zero resting opacity keeps
+/// the buttons discoverable and tappable on touch screens, where hover never
+/// fires.
+class _RevealOnHover extends StatelessWidget {
+  const _RevealOnHover({required this.revealed, required this.child});
+
+  final bool revealed;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedOpacity(
+      opacity: revealed ? 1.0 : 0.45,
+      duration: const Duration(milliseconds: 150),
+      child: child,
+    );
   }
 }
