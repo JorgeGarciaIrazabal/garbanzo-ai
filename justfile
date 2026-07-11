@@ -223,6 +223,24 @@ fe-run-test-server:
 deploy:
     "{{ justfile_directory() }}/scripts/deploy.sh"
 
+# Install the latest built APK from dist/ onto a connected Android device
+deploy-apk-install:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    export ANDROID_HOME="$HOME/Android/Sdk"
+    export PATH="$ANDROID_HOME/platform-tools:$PATH"
+    APK=$(ls -t {{ justfile_directory() }}/dist/garbanzo-ai-*.apk 2>/dev/null | head -1)
+    if [ -z "$APK" ]; then
+        echo "No APK found in dist/. Run 'just deploy' first."
+        exit 1
+    fi
+    echo "Installing: $APK"
+    if ! adb get-state >/dev/null 2>&1; then
+        echo "No Android device connected. Connect one (USB debugging enabled) or start an emulator."
+        exit 1
+    fi
+    adb install -r "$APK"
+
 # Show prod stack status + local & public health
 deploy-status:
     #!/usr/bin/env bash
