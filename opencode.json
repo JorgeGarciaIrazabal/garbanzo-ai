@@ -1,0 +1,10 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "websearch": {
+      "type": "local",
+      "command": ["uv", "run", "backend/app/mcp_stdio_servers/web_search.py"],
+      "enabled": true
+    }
+  }
+}
