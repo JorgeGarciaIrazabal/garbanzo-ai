@@ -237,10 +237,17 @@ class _RoomMessageBubbleState extends State<RoomMessageBubble> {
                         createdAt: message.createdAt,
                       ),
                       const SizedBox(height: 6),
-                      SelectableText(
-                        message.content.isEmpty ? '…' : message.content,
-                        style: TextStyle(color: variant.fgColor),
-                      ),
+                      // Same markdown path as the 1:1 chat user bubble, so
+                      // formatting behaves identically on both surfaces.
+                      if (message.content.isEmpty)
+                        Text('…', style: TextStyle(color: variant.fgColor))
+                      else
+                        MessageContent(
+                          content: message.content,
+                          isUser: true,
+                          colorScheme: colorScheme,
+                          textTheme: theme.textTheme,
+                        ),
                     ],
                   ),
                 ),
