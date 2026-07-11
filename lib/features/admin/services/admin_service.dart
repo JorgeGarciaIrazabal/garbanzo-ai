@@ -195,8 +195,8 @@ class AdminService {
     required bool enabled,
   }) async {
     final res = await _api.patch(
-      '/api/v1/admin/models/${Uri.encodeComponent(modelId)}',
-      data: {'is_enabled': enabled},
+      '/api/v1/admin/models',
+      data: {'model_id': modelId, 'is_enabled': enabled},
     );
     if (res.statusCode == 200 && res.data is Map<String, dynamic>) {
       return AdminModel.fromJson(res.data as Map<String, dynamic>);

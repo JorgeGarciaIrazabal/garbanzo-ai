@@ -309,9 +309,9 @@ async def test_admin_model_enable_disable(db_session):
 
             # Disable a model that doesn't exist yet — should create it
             resp = await client.patch(
-                "/api/v1/admin/models/llama3.2:latest",
+                "/api/v1/admin/models",
                 headers=headers,
-                json={"is_enabled": False},
+                json={"model_id": "llama3.2:latest", "is_enabled": False},
             )
             assert resp.status_code == 200, resp.text
             body = resp.json()
@@ -328,9 +328,9 @@ async def test_admin_model_enable_disable(db_session):
 
             # Re-enable
             resp = await client.patch(
-                "/api/v1/admin/models/llama3.2:latest",
+                "/api/v1/admin/models",
                 headers=headers,
-                json={"is_enabled": True},
+                json={"model_id": "llama3.2:latest", "is_enabled": True},
             )
             assert resp.status_code == 200
             assert resp.json()["is_enabled"] is True

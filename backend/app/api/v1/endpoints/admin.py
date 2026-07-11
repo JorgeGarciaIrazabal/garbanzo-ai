@@ -293,18 +293,17 @@ async def sync_models(
 
 
 @router.patch(
-    "/models/{model_id}",
+    "/models",
     response_model=AvailableModelOut,
     summary="Enable or disable a model for all users",
 )
 async def update_model(
-    model_id: str,
     data: AvailableModelUpdate,
     service: Annotated[ModelManagementService, Depends(get_model_management_service)],
     db: Annotated[AsyncSession, Depends(get_db)],
     _admin: Annotated[dict[str, Any], Depends(get_current_admin_user)],
 ) -> AvailableModelOut:
-    row = await service.set_enabled(model_id, data.is_enabled)
+    row = await service.set_enabled(data.model_id, data.is_enabled)
     await db.commit()
     await db.refresh(row)
     return AvailableModelOut(

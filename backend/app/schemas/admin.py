@@ -21,6 +21,7 @@ class AvailableModelOut(BaseModel):
 class AvailableModelUpdate(BaseModel):
     """Mutable admin-controlled model fields."""
 
+    model_id: str = Field(..., description="Model identifier to update")
     is_enabled: bool = Field(..., description="Enable or disable the model for all users")
 
 
