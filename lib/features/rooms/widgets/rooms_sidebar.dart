@@ -89,13 +89,12 @@ class _RoomsSidebarState extends State<RoomsSidebar> {
             ),
             child: Column(
               children: [
-                _Header(
-                  onBackToChats: () => _backToChats(context),
-                ),
+                _Header(onBackToChats: () => _backToChats(context)),
                 _NewRoomBar(
                   onCreate: () => _create(context),
-                  onRefresh:
-                      provider.loading ? null : () => provider.loadRooms(),
+                  onRefresh: provider.loading
+                      ? null
+                      : () => provider.loadRooms(),
                 ),
                 Expanded(
                   child: RoomsListView(
@@ -134,13 +133,18 @@ class _Header extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(12, 14, 12, 14),
           decoration: BoxDecoration(
             border: Border(
-              bottom: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.5)),
+              bottom: BorderSide(
+                color: cs.outlineVariant.withValues(alpha: 0.5),
+              ),
             ),
           ),
           child: Row(
             children: [
-              Icon(Icons.arrow_back_ios_new,
-                  size: 14, color: cs.onSurfaceVariant),
+              Icon(
+                Icons.arrow_back_ios_new,
+                size: 14,
+                color: cs.onSurfaceVariant,
+              ),
               const SizedBox(width: 6),
               Text(
                 'Back to chats',

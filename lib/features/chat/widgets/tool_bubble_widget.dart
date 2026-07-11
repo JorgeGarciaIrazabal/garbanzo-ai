@@ -143,8 +143,9 @@ class _ToolBubbleWidgetState extends State<ToolBubbleWidget> {
 
     if (status == 'finished') {
       final ms = execution?['duration_ms'];
-      final label =
-          ms is num ? 'done in ${(ms / 1000).toStringAsFixed(1)}s' : 'done';
+      final label = ms is num
+          ? 'done in ${(ms / 1000).toStringAsFixed(1)}s'
+          : 'done';
       return [
         const SizedBox(width: 8),
         Icon(Icons.check, size: 12, color: dim),
@@ -235,7 +236,9 @@ class _ToolBubbleWidgetState extends State<ToolBubbleWidget> {
                       style: theme.textTheme.bodySmall?.copyWith(
                         fontFamily: 'monospace',
                         fontWeight: FontWeight.w600,
-                        color: isError ? colorScheme.error : colorScheme.onSurface,
+                        color: isError
+                            ? colorScheme.error
+                            : colorScheme.onSurface,
                       ),
                     ),
                   ),
@@ -247,8 +250,9 @@ class _ToolBubbleWidgetState extends State<ToolBubbleWidget> {
                         preview,
                         overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: colorScheme.onSurfaceVariant
-                              .withValues(alpha: 0.65),
+                          color: colorScheme.onSurfaceVariant.withValues(
+                            alpha: 0.65,
+                          ),
                           fontFamily: 'monospace',
                           fontSize: 11.5,
                         ),
@@ -263,8 +267,9 @@ class _ToolBubbleWidgetState extends State<ToolBubbleWidget> {
                     child: Icon(
                       Icons.expand_more,
                       size: 15,
-                      color: colorScheme.onSurfaceVariant
-                          .withValues(alpha: 0.5),
+                      color: colorScheme.onSurfaceVariant.withValues(
+                        alpha: 0.5,
+                      ),
                     ),
                   ),
                 ],

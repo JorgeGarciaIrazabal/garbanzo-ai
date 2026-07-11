@@ -18,11 +18,9 @@ const _uuid = Uuid();
 /// model id is pushed in via [selectedModelId] (wired through a
 /// `ChangeNotifierProxyProvider` in the page) so the two stay decoupled.
 class ChatProvider extends ChangeNotifier {
-  ChatProvider({
-    String? selectedModelId,
-    ChatService? chatService,
-  })  : _selectedModelIdValue = selectedModelId,
-        _chatService = chatService ?? ChatService.instance {
+  ChatProvider({String? selectedModelId, ChatService? chatService})
+    : _selectedModelIdValue = selectedModelId,
+      _chatService = chatService ?? ChatService.instance {
     // Rebuild chat widgets when the micro-app panel opens/closes/reloads.
     panel.addListener(notifyListeners);
     _loadConversations();
@@ -189,10 +187,13 @@ class ChatProvider extends ChangeNotifier {
 
     try {
       final selectedModel = model ?? _selectedModelId() ?? 'llama3.2';
-      final derivedTitle = title ??
+      final derivedTitle =
+          title ??
           (initialMessage != null && initialMessage.isNotEmpty
               ? initialMessage.substring(
-                  0, initialMessage.length > 50 ? 50 : initialMessage.length)
+                  0,
+                  initialMessage.length > 50 ? 50 : initialMessage.length,
+                )
               : null);
       final conversation = await _chatService.createConversation(
         title: derivedTitle,
@@ -289,7 +290,7 @@ class ChatProvider extends ChangeNotifier {
   // Undo within the window cancels the deletion entirely.
   static const _undoWindow = Duration(seconds: 6);
   final Map<String, ({Conversation conversation, int index, Timer timer})>
-      _pendingDeletes = {};
+  _pendingDeletes = {};
 
   Future<void> deleteConversation(String conversationId) async {
     _error = null;
@@ -303,8 +304,9 @@ class ChatProvider extends ChangeNotifier {
       _currentConversation = null;
       _messages = [];
     }
-    _conversations =
-        _conversations.where((c) => c.id != conversationId).toList();
+    _conversations = _conversations
+        .where((c) => c.id != conversationId)
+        .toList();
     notifyListeners();
 
     _pendingDeletes.remove(conversationId)?.timer.cancel();
@@ -459,8 +461,9 @@ class ChatProvider extends ChangeNotifier {
   Future<void> regenerateLastAssistant() async {
     if (_currentConversation == null || _isSending) return;
 
-    final lastAssistantIdx =
-        _messages.lastIndexWhere((m) => m.isAssistant && !m.id.startsWith('temp-'));
+    final lastAssistantIdx = _messages.lastIndexWhere(
+      (m) => m.isAssistant && !m.id.startsWith('temp-'),
+    );
     if (lastAssistantIdx < 0) return;
     final messageId = _messages[lastAssistantIdx].id;
 
@@ -588,10 +591,7 @@ class ChatProvider extends ChangeNotifier {
           notifyListeners();
         } else if (chunk.isToolResult) {
           _syncStreamingIntoList();
-          _insertToolResultMessageBefore(
-            assistantMessageId,
-            chunk.toolResult,
-          );
+          _insertToolResultMessageBefore(assistantMessageId, chunk.toolResult);
           // A house_designer result carries a panel signal — reveal/refresh
           // the live micro-app view next to the chat.
           final tr = chunk.toolResult;
@@ -612,8 +612,7 @@ class ChatProvider extends ChangeNotifier {
           // _isSending or reload (a reload mid-stream would replace
           // _messages with the partial server state and erase everything we
           // just streamed).
-          if (accumulatedContent.isNotEmpty ||
-              accumulatedThinking.isNotEmpty) {
+          if (accumulatedContent.isNotEmpty || accumulatedThinking.isNotEmpty) {
             final committed = current(chunk.metadata);
             _upsertIntoList(committed);
             _pushStreamingUpdate(committed, force: true);
@@ -674,9 +673,9 @@ class ChatProvider extends ChangeNotifier {
     // answer isn't mistaken for a complete one.
     final pending = _pendingStreamMessage ?? streamingMessage.value;
     if (pending != null && pending.id == _streamingMessageId) {
-      _upsertIntoList(pending.copyWith(
-        metadata: {...?pending.metadata, 'stopped': true},
-      ));
+      _upsertIntoList(
+        pending.copyWith(metadata: {...?pending.metadata, 'stopped': true}),
+      );
     }
     _clearStreamingState();
     notifyListeners();
@@ -724,8 +723,7 @@ class ChatProvider extends ChangeNotifier {
   /// Inserts display-only `tool_call` messages for each call streamed,
   /// placed immediately BEFORE the assistant placeholder so the placeholder
   /// stays anchored at the end of the conversation.
-  void _insertToolCallMessagesBefore(
-      String anchorId, List<ToolCall> calls) {
+  void _insertToolCallMessagesBefore(String anchorId, List<ToolCall> calls) {
     if (calls.isEmpty) return;
     final additions = <ChatMessage>[];
     for (final call in calls) {
@@ -741,7 +739,7 @@ class ChatProvider extends ChangeNotifier {
                 'id': call.id,
                 'name': call.name,
                 'arguments': call.arguments ?? const {},
-              }
+              },
             ],
           },
         ),
@@ -768,17 +766,18 @@ class ChatProvider extends ChangeNotifier {
     final idx = _messages.indexWhere((m) => m.id == 'temp-tool-call-$callId');
     if (idx < 0) return;
     final message = _messages[idx];
-    _upsertIntoList(message.copyWith(
-      metadata: {...?message.metadata, 'tool_execution': execution},
-    ));
+    _upsertIntoList(
+      message.copyWith(
+        metadata: {...?message.metadata, 'tool_execution': execution},
+      ),
+    );
     notifyListeners();
   }
 
   /// Inserts a display-only `tool_result` message immediately BEFORE the
   /// assistant placeholder, mirroring the canonical layout the server
   /// returns on reload.
-  void _insertToolResultMessageBefore(
-      String anchorId, ToolResult? result) {
+  void _insertToolResultMessageBefore(String anchorId, ToolResult? result) {
     if (result == null) return;
     final newMsg = ChatMessage(
       id: 'temp-tool-result-${result.toolCallId}',

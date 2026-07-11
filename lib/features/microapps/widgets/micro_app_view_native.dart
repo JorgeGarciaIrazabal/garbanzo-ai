@@ -61,11 +61,16 @@ class _OpenInBrowserCard extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.open_in_browser,
-                size: 48, color: theme.colorScheme.primary),
+            Icon(
+              Icons.open_in_browser,
+              size: 48,
+              color: theme.colorScheme.primary,
+            ),
             const SizedBox(height: 12),
-            Text('Preview not embeddable on this platform',
-                style: theme.textTheme.titleMedium),
+            Text(
+              'Preview not embeddable on this platform',
+              style: theme.textTheme.titleMedium,
+            ),
             const SizedBox(height: 8),
             Text(
               'Open this URL in a browser to view the app. Agent edits still '
@@ -79,8 +84,7 @@ class _OpenInBrowserCard extends StatelessWidget {
             OutlinedButton.icon(
               icon: const Icon(Icons.copy, size: 18),
               label: const Text('Copy URL'),
-              onPressed: () =>
-                  Clipboard.setData(ClipboardData(text: url)),
+              onPressed: () => Clipboard.setData(ClipboardData(text: url)),
             ),
           ],
         ),

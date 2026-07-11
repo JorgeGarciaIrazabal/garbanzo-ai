@@ -25,12 +25,11 @@ abstract class Memory with _$Memory {
 abstract class MemoryList with _$MemoryList {
   const MemoryList._();
 
-  const factory MemoryList({
-    required List<Memory> items,
-  }) = _MemoryList;
+  const factory MemoryList({required List<Memory> items}) = _MemoryList;
 
   factory MemoryList.fromJson(Map<String, dynamic> json) {
-    final items = (json['items'] as List?)
+    final items =
+        (json['items'] as List?)
             ?.map((e) => Memory.fromJson(e as Map<String, dynamic>))
             .toList() ??
         [];

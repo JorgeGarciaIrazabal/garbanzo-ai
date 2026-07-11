@@ -79,9 +79,9 @@ Future<Room?> showCreateRoomDialog(
               if (ctx.mounted) Navigator.of(ctx).pop(room);
             } catch (e) {
               if (ctx.mounted) {
-                ScaffoldMessenger.of(ctx).showSnackBar(
-                  SnackBar(content: Text('Failed: $e')),
-                );
+                ScaffoldMessenger.of(
+                  ctx,
+                ).showSnackBar(SnackBar(content: Text('Failed: $e')));
               }
             }
           },

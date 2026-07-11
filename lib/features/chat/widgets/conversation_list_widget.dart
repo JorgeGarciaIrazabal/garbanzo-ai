@@ -89,10 +89,7 @@ class ConversationListWidget extends StatelessWidget {
                     conversation: conversation,
                     isSelected: isSelected,
                     onTap: () => onSelect(conversation.id),
-                    onDelete: () => _confirmDelete(
-                      context,
-                      conversation,
-                    ),
+                    onDelete: () => _confirmDelete(context, conversation),
                     onTogglePin: onTogglePin == null
                         ? null
                         : () => onTogglePin!(conversation.id),
@@ -123,7 +120,10 @@ class ConversationListWidget extends StatelessWidget {
     );
   }
 
-  Future<void> _confirmDelete(BuildContext context, Conversation conversation) async {
+  Future<void> _confirmDelete(
+    BuildContext context,
+    Conversation conversation,
+  ) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -210,9 +210,7 @@ class _ConversationListItem extends StatelessWidget {
         : colorScheme.onSurfaceVariant.withValues(alpha: 0.5);
 
     return Material(
-      color: isSelected
-          ? colorScheme.primaryContainer
-          : Colors.transparent,
+      color: isSelected ? colorScheme.primaryContainer : Colors.transparent,
       child: InkWell(
         onTap: onTap,
         child: Container(
@@ -243,7 +241,9 @@ class _ConversationListItem extends StatelessWidget {
                     Text(
                       conversation.displayTitle,
                       style: textTheme.bodyMedium?.copyWith(
-                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                        fontWeight: isSelected
+                            ? FontWeight.w600
+                            : FontWeight.normal,
                         color: isSelected
                             ? colorScheme.onPrimaryContainer
                             : colorScheme.onSurface,
@@ -256,8 +256,12 @@ class _ConversationListItem extends StatelessWidget {
                       '${conversation.messageCount} message${conversation.messageCount == 1 ? '' : 's'}',
                       style: textTheme.labelSmall?.copyWith(
                         color: isSelected
-                            ? colorScheme.onPrimaryContainer.withValues(alpha: 0.7)
-                            : colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                            ? colorScheme.onPrimaryContainer.withValues(
+                                alpha: 0.7,
+                              )
+                            : colorScheme.onSurfaceVariant.withValues(
+                                alpha: 0.7,
+                              ),
                       ),
                     ),
                   ],

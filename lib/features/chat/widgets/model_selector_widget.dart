@@ -31,10 +31,7 @@ class ModelSelectorWidget extends StatelessWidget {
         value: selectedId,
         isDense: true,
         isExpanded: false,
-        icon: Icon(
-          Icons.arrow_drop_down,
-          color: colorScheme.onSurfaceVariant,
-        ),
+        icon: Icon(Icons.arrow_drop_down, color: colorScheme.onSurfaceVariant),
         style: theme.textTheme.labelMedium?.copyWith(
           color: colorScheme.onSurfaceVariant,
         ),
@@ -65,7 +62,9 @@ class ModelSelectorWidget extends StatelessWidget {
                     Text(
                       model.description!,
                       style: theme.textTheme.labelSmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                        color: colorScheme.onSurfaceVariant.withValues(
+                          alpha: 0.7,
+                        ),
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -91,7 +90,9 @@ class ModelSelectorWidget extends StatelessWidget {
                 Text(
                   model.name,
                   style: theme.textTheme.labelMedium?.copyWith(
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                    fontWeight: isSelected
+                        ? FontWeight.w600
+                        : FontWeight.normal,
                     color: isSelected
                         ? colorScheme.primary
                         : colorScheme.onSurfaceVariant,

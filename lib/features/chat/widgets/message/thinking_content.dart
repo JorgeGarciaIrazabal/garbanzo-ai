@@ -72,11 +72,7 @@ class _ThinkingContentState extends State<ThinkingContent> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
-                    Icons.psychology_outlined,
-                    size: 14,
-                    color: headerColor,
-                  ),
+                  Icon(Icons.psychology_outlined, size: 14, color: headerColor),
                   const SizedBox(width: 7),
                   Text(
                     _isExpanded ? 'Hide thinking' : 'Show thinking',

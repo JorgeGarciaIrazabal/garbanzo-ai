@@ -30,9 +30,7 @@ class KnowledgeBaseService {
       'file': MultipartFile.fromBytes(
         bytes,
         filename: filename,
-        contentType: mimeType == null
-            ? null
-            : DioMediaType.parse(mimeType),
+        contentType: mimeType == null ? null : DioMediaType.parse(mimeType),
       ),
     });
     final response = await _api.postMultipart(

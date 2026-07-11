@@ -178,8 +178,7 @@ class _SystemPromptEditorDialogState extends State<SystemPromptEditorDialog> {
             Row(
               children: [
                 Expanded(
-                  child: Text('Templates',
-                      style: theme.textTheme.titleSmall),
+                  child: Text('Templates', style: theme.textTheme.titleSmall),
                 ),
                 if (promptProvider.isLoading)
                   const SizedBox(
@@ -220,8 +219,7 @@ class _SystemPromptEditorDialogState extends State<SystemPromptEditorDialog> {
                             title: Text('Delete "${tpl.name}"?'),
                             actions: [
                               TextButton(
-                                onPressed: () =>
-                                    Navigator.of(ctx).pop(false),
+                                onPressed: () => Navigator.of(ctx).pop(false),
                                 child: const Text('Cancel'),
                               ),
                               FilledButton(
@@ -270,21 +268,20 @@ class _SystemPromptEditorDialogState extends State<SystemPromptEditorDialog> {
       actions: [
         if (widget.allowClear && (widget.initialContent ?? '').isNotEmpty)
           TextButton(
-            onPressed: () => Navigator.of(context).pop(
-              const SystemPromptEditorResult(content: ''),
-            ),
+            onPressed: () => Navigator.of(
+              context,
+            ).pop(const SystemPromptEditorResult(content: '')),
             child: const Text('Clear'),
           ),
         TextButton(
-          onPressed: () => Navigator.of(context).pop(
-            const SystemPromptEditorResult(),
-          ),
+          onPressed: () =>
+              Navigator.of(context).pop(const SystemPromptEditorResult()),
           child: const Text('Cancel'),
         ),
         FilledButton(
-          onPressed: () => Navigator.of(context).pop(
-            SystemPromptEditorResult(content: _controller.text.trim()),
-          ),
+          onPressed: () => Navigator.of(
+            context,
+          ).pop(SystemPromptEditorResult(content: _controller.text.trim())),
           child: const Text('Apply'),
         ),
       ],
@@ -318,9 +315,7 @@ class _TemplateChip extends StatelessWidget {
         ),
         onPressed: onSelected,
         onDeleted: onDelete,
-        deleteIcon: onDelete == null
-            ? null
-            : const Icon(Icons.close, size: 16),
+        deleteIcon: onDelete == null ? null : const Icon(Icons.close, size: 16),
         tooltip: template.description,
       ),
     );

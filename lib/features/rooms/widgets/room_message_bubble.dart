@@ -223,8 +223,10 @@ class _RoomMessageBubbleState extends State<RoomMessageBubble> {
                       bottomRight: Radius.circular(_isSelf ? 6 : 20),
                     ),
                   ),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 11,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -291,8 +293,9 @@ class _RoomMessageBubbleState extends State<RoomMessageBubble> {
       kind: _BubbleKind.other,
       title: localPart,
       subtitle: email,
-      avatarLetter:
-          localPart.isEmpty ? '?' : localPart.characters.first.toUpperCase(),
+      avatarLetter: localPart.isEmpty
+          ? '?'
+          : localPart.characters.first.toUpperCase(),
       avatarIcon: Icons.person,
       bubbleColor: cs.secondaryContainer,
       fgColor: cs.onSecondaryContainer,
@@ -341,7 +344,8 @@ class _Avatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hasGlyph = variant.avatarText != null && variant.avatarText!.isNotEmpty;
+    final hasGlyph =
+        variant.avatarText != null && variant.avatarText!.isNotEmpty;
     final hasLetter = variant.avatarLetter != null;
     return CircleAvatar(
       radius: radius,
@@ -350,14 +354,14 @@ class _Avatar extends StatelessWidget {
       child: hasGlyph
           ? Text(variant.avatarText!, style: TextStyle(fontSize: radius))
           : hasLetter
-              ? Text(
-                  variant.avatarLetter!,
-                  style: TextStyle(
-                    fontSize: radius - 3,
-                    fontWeight: FontWeight.w600,
-                  ),
-                )
-              : Icon(variant.avatarIcon, size: radius + 2),
+          ? Text(
+              variant.avatarLetter!,
+              style: TextStyle(
+                fontSize: radius - 3,
+                fontWeight: FontWeight.w600,
+              ),
+            )
+          : Icon(variant.avatarIcon, size: radius + 2),
     );
   }
 }
@@ -467,7 +471,8 @@ class _TypingDotsState extends State<_TypingDots>
           mainAxisSize: MainAxisSize.min,
           children: List.generate(3, (i) {
             final phase = (t + i * 0.2) % 1.0;
-            final scale = 0.7 + 0.6 * (phase < 0.5 ? phase * 2 : (1 - phase) * 2);
+            final scale =
+                0.7 + 0.6 * (phase < 0.5 ? phase * 2 : (1 - phase) * 2);
             return Padding(
               padding: const EdgeInsets.symmetric(horizontal: 2),
               child: Transform.scale(

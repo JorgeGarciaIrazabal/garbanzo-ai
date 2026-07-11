@@ -1,0 +1,24 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.12.7
+    hooks:
+      - id: ruff-format
+        args: [--check]
+        files: ^backend/app/
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+        files: ^backend/app/
+  - repo: local
+    hooks:
+      - id: dart-format
+        name: dart format (check)
+        entry: dart format --set-exit-if-changed lib/
+        language: system
+        files: ^lib/.*\.dart$
+        pass_filenames: false
+      - id: flutter-analyze
+        name: flutter analyze
+        entry: flutter analyze lib/
+        language: system
+        files: ^lib/.*\.dart$
+        pass_filenames: false

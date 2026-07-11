@@ -32,9 +32,7 @@ class EditMessageButton extends StatelessWidget {
               autofocus: true,
               maxLines: null,
               minLines: 3,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-              ),
+              decoration: const InputDecoration(border: OutlineInputBorder()),
             ),
           ),
           actions: [

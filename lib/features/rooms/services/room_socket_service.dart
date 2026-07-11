@@ -90,14 +90,16 @@ class RoomSocketService {
     Future<String?> Function()? tokenProvider,
     Uri Function(String token)? uriBuilder,
     this.maxReconnectAttempts = 6,
-  })  : _channelFactory = channelFactory ??
-            ((uri) => _WsRoomChannel(WebSocketChannel.connect(uri))),
-        _tokenProvider = tokenProvider ?? (() => ApiClient.instance.getToken()),
-        _uriBuilder = uriBuilder ??
-            ((token) => ApiClient.instance.wsUri(
-                  '/api/v1/ws/rooms/$roomId',
-                  queryParameters: {'token': token},
-                ));
+  }) : _channelFactory =
+           channelFactory ??
+           ((uri) => _WsRoomChannel(WebSocketChannel.connect(uri))),
+       _tokenProvider = tokenProvider ?? (() => ApiClient.instance.getToken()),
+       _uriBuilder =
+           uriBuilder ??
+           ((token) => ApiClient.instance.wsUri(
+             '/api/v1/ws/rooms/$roomId',
+             queryParameters: {'token': token},
+           ));
 
   final String roomId;
   final int maxReconnectAttempts;
@@ -121,8 +123,9 @@ class RoomSocketService {
   bool _hadConnection = false;
 
   /// The current transport phase. UI listens to this for banners.
-  final ValueNotifier<RoomConnectionState> connectionState =
-      ValueNotifier(RoomConnectionState.connecting);
+  final ValueNotifier<RoomConnectionState> connectionState = ValueNotifier(
+    RoomConnectionState.connecting,
+  );
 
   Stream<Map<String, dynamic>> get events => _controller.stream;
 
@@ -166,14 +169,18 @@ class RoomSocketService {
 
     // Await the handshake so we distinguish "connected" from "immediately
     // refused" before treating the socket as live.
-    unawaited(channel.ready.then((_) {
-      if (_closed || !identical(_channel, channel)) return;
-      _onConnected();
-    }).catchError((Object e) {
-      if (_closed || !identical(_channel, channel)) return;
-      logDebug('Room socket handshake failed: $e');
-      _scheduleReconnect();
-    }));
+    unawaited(
+      channel.ready
+          .then((_) {
+            if (_closed || !identical(_channel, channel)) return;
+            _onConnected();
+          })
+          .catchError((Object e) {
+            if (_closed || !identical(_channel, channel)) return;
+            logDebug('Room socket handshake failed: $e');
+            _scheduleReconnect();
+          }),
+    );
 
     _channelSub = channel.stream.listen(
       (raw) {
@@ -240,8 +247,9 @@ class RoomSocketService {
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
     if (closed) _closed = true;
-    connectionState.value =
-        closed ? RoomConnectionState.closed : RoomConnectionState.failed;
+    connectionState.value = closed
+        ? RoomConnectionState.closed
+        : RoomConnectionState.failed;
   }
 
   /// Manual retry from the "failed" state (user tapped "Try again").

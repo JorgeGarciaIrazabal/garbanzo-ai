@@ -51,7 +51,8 @@ class FilePickerHelper {
       final mime = inferMime(file.name, bytes);
       final isImage = mime.startsWith('image/');
       final isPdf = mime == 'application/pdf';
-      final isSpreadsheet = mime.endsWith('spreadsheetml.sheet') ||
+      final isSpreadsheet =
+          mime.endsWith('spreadsheetml.sheet') ||
           mime == 'application/vnd.ms-excel' ||
           mime == 'application/vnd.oasis.opendocument.spreadsheet' ||
           file.name.toLowerCase().endsWith('.csv') ||
@@ -62,10 +63,10 @@ class FilePickerHelper {
       final maxBytes = isImage
           ? 5 * 1024 * 1024
           : isPdf
-              ? 20 * 1024 * 1024
-              : isSpreadsheet
-                  ? 10 * 1024 * 1024
-                  : 10 * 1024 * 1024;
+          ? 20 * 1024 * 1024
+          : isSpreadsheet
+          ? 10 * 1024 * 1024
+          : 10 * 1024 * 1024;
 
       if (bytes.length > maxBytes) {
         rejected.add(
@@ -79,11 +80,13 @@ class FilePickerHelper {
         continue;
       }
 
-      added.add(ChatAttachment.fromPicked(
-        name: file.name,
-        mimeType: mime,
-        bytes: bytes,
-      ));
+      added.add(
+        ChatAttachment.fromPicked(
+          name: file.name,
+          mimeType: mime,
+          bytes: bytes,
+        ),
+      );
     }
 
     return FilePickResult(

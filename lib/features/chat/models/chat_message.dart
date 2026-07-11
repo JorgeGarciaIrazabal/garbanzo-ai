@@ -7,8 +7,7 @@ part 'chat_message.g.dart';
 
 /// Reads the metadata field from either 'meta' (backend canonical) or
 /// 'metadata' (legacy / local) key.
-Object? _readMetadata(Map json, String key) =>
-    json['meta'] ?? json['metadata'];
+Object? _readMetadata(Map json, String key) => json['meta'] ?? json['metadata'];
 
 /// A single message in a chat conversation.
 @freezed

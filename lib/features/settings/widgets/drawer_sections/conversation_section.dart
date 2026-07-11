@@ -65,13 +65,12 @@ class _ModelTile extends StatelessWidget {
             underline: const SizedBox.shrink(),
             isDense: true,
             items: models
-                .map((m) => DropdownMenuItem(
-                      value: m.id,
-                      child: Text(
-                        m.name,
-                        style: theme.textTheme.bodySmall,
-                      ),
-                    ))
+                .map(
+                  (m) => DropdownMenuItem(
+                    value: m.id,
+                    child: Text(m.name, style: theme.textTheme.bodySmall),
+                  ),
+                )
                 .toList(),
             onChanged: (value) {
               if (value != null) {
@@ -107,8 +106,8 @@ class _SystemPromptTiles extends StatelessWidget {
     final effectiveSource = (convPrompt?.isNotEmpty ?? false)
         ? 'Conversation'
         : (userDefault != null && userDefault.isNotEmpty
-            ? 'Global default'
-            : 'None');
+              ? 'Global default'
+              : 'None');
 
     Future<void> editConversationPrompt() async {
       if (conversation == null) return;
@@ -116,8 +115,7 @@ class _SystemPromptTiles extends StatelessWidget {
         context,
         initialContent: convPrompt,
         title: 'Conversation system prompt',
-        subtitle:
-            'Overrides your global default for this conversation only.',
+        subtitle: 'Overrides your global default for this conversation only.',
       );
       if (result == null || result.isCancelled) return;
       if (result.isClear) {
@@ -143,8 +141,7 @@ class _SystemPromptTiles extends StatelessWidget {
       }
     }
 
-    String truncate(String s) =>
-        s.length <= 80 ? s : '${s.substring(0, 80)}…';
+    String truncate(String s) => s.length <= 80 ? s : '${s.substring(0, 80)}…';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -213,15 +210,13 @@ class _ContextToggles extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SectionHeader(
-          icon: Icons.tune,
-          title: 'Personal context',
-        ),
+        const SectionHeader(icon: Icons.tune, title: 'Personal context'),
         if (conversation != null) ...[
           SwitchListTile(
             title: const Text('Use memory'),
-            subtitle:
-                const Text('Inject saved memories into this conversation'),
+            subtitle: const Text(
+              'Inject saved memories into this conversation',
+            ),
             value: conversation.useMemory,
             onChanged: (value) {
               chatProvider.updateConversation(useMemory: value);

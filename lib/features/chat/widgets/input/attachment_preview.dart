@@ -91,11 +91,7 @@ class AttachmentChip extends StatelessWidget {
                 color: colorScheme.error,
                 shape: BoxShape.circle,
               ),
-              child: Icon(
-                Icons.close,
-                size: 12,
-                color: colorScheme.onError,
-              ),
+              child: Icon(Icons.close, size: 12, color: colorScheme.onError),
             ),
           ),
         ),

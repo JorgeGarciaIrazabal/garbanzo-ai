@@ -5,10 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:garbanzo_ai/core/http_adapter/http_adapter_stub.dart'
     if (dart.library.js_interop) 'package:garbanzo_ai/core/http_adapter/http_adapter_web.dart';
 
-const _apiBaseUrl = String.fromEnvironment(
-  'API_BASE_URL',
-  defaultValue: '',
-);
+const _apiBaseUrl = String.fromEnvironment('API_BASE_URL', defaultValue: '');
 
 String _resolveBaseUrl() {
   if (_apiBaseUrl.isNotEmpty) return _apiBaseUrl;
@@ -30,14 +27,16 @@ const _refreshTokenKey = 'auth_refresh_token';
 /// flushing to disk.
 class ApiClient {
   ApiClient._() {
-    _dio = Dio(BaseOptions(
-      baseUrl: _resolveBaseUrl(),
-      connectTimeout: const Duration(seconds: 30),
-      receiveTimeout: const Duration(seconds: 30),
-      contentType: 'application/json',
-      // Don't throw on non-2xx so callers can inspect status codes directly.
-      validateStatus: (status) => true,
-    ));
+    _dio = Dio(
+      BaseOptions(
+        baseUrl: _resolveBaseUrl(),
+        connectTimeout: const Duration(seconds: 30),
+        receiveTimeout: const Duration(seconds: 30),
+        contentType: 'application/json',
+        // Don't throw on non-2xx so callers can inspect status codes directly.
+        validateStatus: (status) => true,
+      ),
+    );
 
     // On web, replace the default XHR adapter with a Fetch-based one so
     // streamed responses (SSE chat, streaming TTS) arrive incrementally.
@@ -49,10 +48,9 @@ class ApiClient {
       _dio.httpClientAdapter = platformAdapter;
     }
 
-    _dio.interceptors.add(InterceptorsWrapper(
-      onRequest: _onRequest,
-      onResponse: _onResponse,
-    ));
+    _dio.interceptors.add(
+      InterceptorsWrapper(onRequest: _onRequest, onResponse: _onResponse),
+    );
 
     _tokenReady = _hydrateTokenFromPrefs();
   }
@@ -224,13 +222,15 @@ class ApiClient {
     try {
       // Bypass interceptors: hit the endpoint via a bare Dio instance so a
       // 401 here doesn't re-enter _onResponse and start another refresh.
-      final bare = Dio(BaseOptions(
-        baseUrl: _dio.options.baseUrl,
-        connectTimeout: const Duration(seconds: 15),
-        receiveTimeout: const Duration(seconds: 15),
-        contentType: 'application/json',
-        validateStatus: (s) => true,
-      ));
+      final bare = Dio(
+        BaseOptions(
+          baseUrl: _dio.options.baseUrl,
+          connectTimeout: const Duration(seconds: 15),
+          receiveTimeout: const Duration(seconds: 15),
+          contentType: 'application/json',
+          validateStatus: (s) => true,
+        ),
+      );
       final res = await bare.post(
         '/api/v1/auth/refresh',
         data: {'refresh_token': refreshToken},
@@ -261,31 +261,19 @@ class ApiClient {
   // Convenience HTTP methods
   // ---------------------------------------------------------------------------
 
-  Future<Response> get(
-    String path, {
-    Map<String, dynamic>? queryParameters,
-  }) {
+  Future<Response> get(String path, {Map<String, dynamic>? queryParameters}) {
     return _dio.get(path, queryParameters: queryParameters);
   }
 
-  Future<Response> post(
-    String path, {
-    Object? data,
-  }) {
+  Future<Response> post(String path, {Object? data}) {
     return _dio.post(path, data: data);
   }
 
-  Future<Response> patch(
-    String path, {
-    Object? data,
-  }) {
+  Future<Response> patch(String path, {Object? data}) {
     return _dio.patch(path, data: data);
   }
 
-  Future<Response> put(
-    String path, {
-    Object? data,
-  }) {
+  Future<Response> put(String path, {Object? data}) {
     return _dio.put(path, data: data);
   }
 
@@ -294,10 +282,7 @@ class ApiClient {
   }
 
   /// Send a POST request expecting an SSE stream response.
-  Future<Response> streamPost(
-    String path, {
-    Object? data,
-  }) {
+  Future<Response> streamPost(String path, {Object? data}) {
     return _dio.post(
       path,
       data: data,
@@ -313,10 +298,7 @@ class ApiClient {
   }
 
   /// Send a POST request with multipart form data.
-  Future<Response> postMultipart(
-    String path, {
-    required FormData data,
-  }) {
+  Future<Response> postMultipart(String path, {required FormData data}) {
     return _dio.post(path, data: data);
   }
 
@@ -337,10 +319,7 @@ class ApiClient {
   }
 
   /// Send a POST request expecting a streaming binary response.
-  Future<Response<ResponseBody>> postStreamBytes(
-    String path, {
-    Object? data,
-  }) {
+  Future<Response<ResponseBody>> postStreamBytes(String path, {Object? data}) {
     return _dio.post<ResponseBody>(
       path,
       data: data,

@@ -102,8 +102,9 @@ int? _statusCodeOf(Object error) {
 /// Pulls a short human-readable reason out of a service exception of the form
 /// `"API Error (400): <detail>"`, if present and reasonably concise.
 String? _serverDetail(Object error) {
-  final match =
-      RegExp(r'API Error \(\d{3}\):\s*(.+)$').firstMatch(error.toString());
+  final match = RegExp(
+    r'API Error \(\d{3}\):\s*(.+)$',
+  ).firstMatch(error.toString());
   if (match == null) return null;
   final detail = match.group(1)!.trim();
   if (detail.isEmpty || detail.length > 200) return null;

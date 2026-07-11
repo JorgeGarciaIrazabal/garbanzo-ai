@@ -212,9 +212,7 @@ class _MarkdownWidgetState extends State<MarkdownWidget> {
         decoration: TextDecoration.underline,
       ),
       // Checkbox styling (for task lists)
-      checkbox: textTheme.bodyMedium?.copyWith(
-        color: colorScheme.primary,
-      ),
+      checkbox: textTheme.bodyMedium?.copyWith(color: colorScheme.primary),
       // Horizontal rule
       horizontalRuleDecoration: BoxDecoration(
         border: Border(
@@ -456,7 +454,8 @@ class _HighlightedCodeBlockState extends State<_HighlightedCodeBlock> {
       'docker': 'docker',
     };
 
-    final normalized = languageMap[language.toLowerCase()] ?? language.toLowerCase();
+    final normalized =
+        languageMap[language.toLowerCase()] ?? language.toLowerCase();
 
     // Check if the language is supported by the highlight package
     if (allLanguages.containsKey(normalized)) {
@@ -473,13 +472,19 @@ class _HighlightedCodeBlockState extends State<_HighlightedCodeBlock> {
       color: const Color(0xFFE0E0E0),
       backgroundColor: Colors.transparent,
     ),
-    'keyword': TextStyle(color: const Color(0xFFCF9DFF), fontWeight: FontWeight.w500),
+    'keyword': TextStyle(
+      color: const Color(0xFFCF9DFF),
+      fontWeight: FontWeight.w500,
+    ),
     'built_in': TextStyle(color: const Color(0xFFCF9DFF)),
     'type': TextStyle(color: const Color(0xFF82AAFF)),
     'function': TextStyle(color: const Color(0xFF82AAFF)),
     'string': TextStyle(color: const Color(0xFFC3E88D)),
     'number': TextStyle(color: const Color(0xFFF78C6C)),
-    'comment': TextStyle(color: const Color(0xFF546E7A), fontStyle: FontStyle.italic),
+    'comment': TextStyle(
+      color: const Color(0xFF546E7A),
+      fontStyle: FontStyle.italic,
+    ),
     'class': TextStyle(color: const Color(0xFFFFCB6B)),
     'constant': TextStyle(color: const Color(0xFFF78C6C)),
     'variable': TextStyle(color: const Color(0xFFE0E0E0)),
@@ -522,13 +527,19 @@ class _HighlightedCodeBlockState extends State<_HighlightedCodeBlock> {
       color: const Color(0xFF37474F),
       backgroundColor: Colors.transparent,
     ),
-    'keyword': TextStyle(color: const Color(0xFF7B1FA2), fontWeight: FontWeight.w500),
+    'keyword': TextStyle(
+      color: const Color(0xFF7B1FA2),
+      fontWeight: FontWeight.w500,
+    ),
     'built_in': TextStyle(color: const Color(0xFF7B1FA2)),
     'type': TextStyle(color: const Color(0xFF1565C0)),
     'function': TextStyle(color: const Color(0xFF1565C0)),
     'string': TextStyle(color: const Color(0xFF2E7D32)),
     'number': TextStyle(color: const Color(0xFFE65100)),
-    'comment': TextStyle(color: const Color(0xFF9E9E9E), fontStyle: FontStyle.italic),
+    'comment': TextStyle(
+      color: const Color(0xFF9E9E9E),
+      fontStyle: FontStyle.italic,
+    ),
     'class': TextStyle(color: const Color(0xFFBF360C)),
     'constant': TextStyle(color: const Color(0xFFE65100)),
     'variable': TextStyle(color: const Color(0xFF37474F)),
@@ -626,10 +637,7 @@ class _MermaidCodeBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MermaidDiagram(
-      mermaidCode: mermaidCode,
-      colorScheme: colorScheme,
-    );
+    return MermaidDiagram(mermaidCode: mermaidCode, colorScheme: colorScheme);
   }
 }
 
@@ -727,9 +735,7 @@ class _MathWidget extends StatelessWidget {
     try {
       mathWidget = Math.tex(
         mathContent,
-        textStyle: textTheme.bodyMedium?.copyWith(
-          color: textColor,
-        ),
+        textStyle: textTheme.bodyMedium?.copyWith(color: textColor),
         onErrorFallback: (error) {
           // Fallback to showing raw text on parse error
           return Text(
@@ -756,9 +762,7 @@ class _MathWidget extends StatelessWidget {
       return Container(
         margin: const EdgeInsets.symmetric(vertical: 8),
         padding: const EdgeInsets.symmetric(vertical: 12),
-        child: Center(
-          child: mathWidget,
-        ),
+        child: Center(child: mathWidget),
       );
     }
 

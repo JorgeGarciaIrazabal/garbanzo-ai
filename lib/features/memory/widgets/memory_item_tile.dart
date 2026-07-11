@@ -81,13 +81,10 @@ class MemoryItemTile extends StatelessWidget {
                       Text(
                         memory.content,
                         style: theme.textTheme.bodyLarge?.copyWith(
-                          decoration:
-                              memory.isActive
-                                  ? TextDecoration.none
-                                  : TextDecoration.lineThrough,
-                          color: memory.isActive
-                              ? null
-                              : Colors.grey.shade600,
+                          decoration: memory.isActive
+                              ? TextDecoration.none
+                              : TextDecoration.lineThrough,
+                          color: memory.isActive ? null : Colors.grey.shade600,
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -128,15 +125,11 @@ class MemoryItemTile extends StatelessWidget {
                         memory.isActive ? Icons.toggle_on : Icons.toggle_off,
                       ),
                       onPressed: onToggleActive,
-                      tooltip:
-                          memory.isActive ? 'Deactivate' : 'Activate',
+                      tooltip: memory.isActive ? 'Deactivate' : 'Activate',
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
                       iconSize: 24,
-                      color:
-                          memory.isActive
-                              ? Colors.orange
-                              : Colors.green,
+                      color: memory.isActive ? Colors.orange : Colors.green,
                     ),
                     const SizedBox(height: 8),
                     IconButton(

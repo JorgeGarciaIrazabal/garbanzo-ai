@@ -39,7 +39,9 @@ class GarbanzoApp extends StatelessWidget {
             title: 'Garbanzo AI',
             theme: buildTheme(Brightness.light),
             darkTheme: buildTheme(Brightness.dark),
-            themeMode: settings.loaded ? settings.flutterThemeMode : ThemeMode.system,
+            themeMode: settings.loaded
+                ? settings.flutterThemeMode
+                : ThemeMode.system,
             home: const AuthGate(),
           );
         },
@@ -94,17 +96,13 @@ class _AuthGateState extends State<AuthGate> {
   @override
   Widget build(BuildContext context) {
     if (_checking) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     if (_loggedIn) {
       return ChatPage(onLogout: _onLogout);
     }
 
-    return LoginPage(
-      onLoginSuccess: _onLoginSuccess,
-    );
+    return LoginPage(onLoginSuccess: _onLoginSuccess);
   }
 }

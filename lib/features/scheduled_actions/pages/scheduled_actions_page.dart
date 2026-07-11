@@ -52,9 +52,8 @@ class _ScheduledActionsView extends StatelessWidget {
                 padding: const EdgeInsets.all(8),
                 itemCount: provider.actions.length,
                 separatorBuilder: (_, _) => const SizedBox(height: 4),
-                itemBuilder: (context, i) => _ActionTile(
-                  action: provider.actions[i],
-                ),
+                itemBuilder: (context, i) =>
+                    _ActionTile(action: provider.actions[i]),
               ),
             ),
           if (provider.error != null)
@@ -70,14 +69,17 @@ class _ScheduledActionsView extends StatelessWidget {
                   padding: const EdgeInsets.all(12),
                   child: Row(
                     children: [
-                      Icon(Icons.error_outline,
-                          color: theme.colorScheme.onErrorContainer),
+                      Icon(
+                        Icons.error_outline,
+                        color: theme.colorScheme.onErrorContainer,
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           provider.error!,
                           style: TextStyle(
-                              color: theme.colorScheme.onErrorContainer),
+                            color: theme.colorScheme.onErrorContainer,
+                          ),
                         ),
                       ),
                       IconButton(
@@ -98,8 +100,7 @@ class _ScheduledActionsView extends StatelessWidget {
     return ListView(
       children: [
         const SizedBox(height: 96),
-        Icon(Icons.schedule,
-            size: 64, color: theme.colorScheme.outlineVariant),
+        Icon(Icons.schedule, size: 64, color: theme.colorScheme.outlineVariant),
         const SizedBox(height: 16),
         Center(
           child: Text(
@@ -124,22 +125,23 @@ void _showCreateDialog(BuildContext context) {
   showDialog<void>(
     context: context,
     builder: (_) => _ScheduledActionEditor(
-      onSubmit: ({
-        required String prompt,
-        String? title,
-        String? cronExpr,
-        DateTime? runAt,
-        String? systemPrompt,
-      }) async {
-        final created = await provider.create(
-          prompt: prompt,
-          title: title,
-          cronExpr: cronExpr,
-          runAt: runAt,
-          systemPrompt: systemPrompt,
-        );
-        return created != null;
-      },
+      onSubmit:
+          ({
+            required String prompt,
+            String? title,
+            String? cronExpr,
+            DateTime? runAt,
+            String? systemPrompt,
+          }) async {
+            final created = await provider.create(
+              prompt: prompt,
+              title: title,
+              cronExpr: cronExpr,
+              runAt: runAt,
+              systemPrompt: systemPrompt,
+            );
+            return created != null;
+          },
     ),
   );
 }
@@ -254,13 +256,14 @@ class _ActionTile extends StatelessWidget {
   }
 }
 
-typedef _SubmitFn = Future<bool> Function({
-  required String prompt,
-  String? title,
-  String? cronExpr,
-  DateTime? runAt,
-  String? systemPrompt,
-});
+typedef _SubmitFn =
+    Future<bool> Function({
+      required String prompt,
+      String? title,
+      String? cronExpr,
+      DateTime? runAt,
+      String? systemPrompt,
+    });
 
 class _ScheduledActionEditor extends StatefulWidget {
   const _ScheduledActionEditor({required this.onSubmit});
@@ -304,7 +307,13 @@ class _ScheduledActionEditorState extends State<_ScheduledActionEditor> {
     );
     if (time == null) return;
     setState(() {
-      _runAt = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+      _runAt = DateTime(
+        date.year,
+        date.month,
+        date.day,
+        time.hour,
+        time.minute,
+      );
     });
   }
 
@@ -378,8 +387,7 @@ class _ScheduledActionEditorState extends State<_ScheduledActionEditor> {
                   ),
                 ],
                 selected: {_mode},
-                onSelectionChanged: (s) =>
-                    setState(() => _mode = s.first),
+                onSelectionChanged: (s) => setState(() => _mode = s.first),
               ),
               const SizedBox(height: 12),
               if (_mode == _Mode.recurring)

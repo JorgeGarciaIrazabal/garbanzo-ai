@@ -32,7 +32,8 @@ class WorkspaceStatus {
   bool get isBusy => state == 'starting';
   bool get isStopped => state == 'stopped';
 
-  factory WorkspaceStatus.fromJson(Map<String, dynamic> json) => WorkspaceStatus(
+  factory WorkspaceStatus.fromJson(Map<String, dynamic> json) =>
+      WorkspaceStatus(
         state: json['state'] as String? ?? 'stopped',
         devUrl: json['dev_url'] as String?,
         devPort: (json['dev_port'] as num?)?.toInt(),
@@ -72,18 +73,18 @@ class MicroAppInfo {
   bool get isAiEnabled => projectParam && dataDir != null;
 
   factory MicroAppInfo.fromJson(Map<String, dynamic> json) => MicroAppInfo(
-        id: json['id'] as String? ?? '',
-        name: json['name'] as String? ?? (json['id'] as String? ?? 'App'),
-        path: json['path'] as String? ?? '',
-        icon: json['icon'] as String?,
-        description: json['description'] as String?,
-        projectParam: json['projectParam'] as bool? ?? false,
-        dataDir: json['dataDir'] as String?,
-        dataExt: json['dataExt'] as String?,
-        suggestions: (json['suggestions'] as List<dynamic>? ?? [])
-            .whereType<String>()
-            .toList(),
-      );
+    id: json['id'] as String? ?? '',
+    name: json['name'] as String? ?? (json['id'] as String? ?? 'App'),
+    path: json['path'] as String? ?? '',
+    icon: json['icon'] as String?,
+    description: json['description'] as String?,
+    projectParam: json['projectParam'] as bool? ?? false,
+    dataDir: json['dataDir'] as String?,
+    dataExt: json['dataExt'] as String?,
+    suggestions: (json['suggestions'] as List<dynamic>? ?? [])
+        .whereType<String>()
+        .toList(),
+  );
 }
 
 /// A data file in the app's data dir (e.g. a `houses/*.house.json`).
@@ -101,11 +102,11 @@ class HouseFile {
   });
 
   factory HouseFile.fromJson(Map<String, dynamic> json) => HouseFile(
-        path: json['path'] as String? ?? '',
-        name: json['name'] as String? ?? '',
-        modifiedAt: (json['modified_at'] as num?)?.toDouble() ?? 0,
-        size: (json['size'] as num?)?.toInt() ?? 0,
-      );
+    path: json['path'] as String? ?? '',
+    name: json['name'] as String? ?? '',
+    modifiedAt: (json['modified_at'] as num?)?.toDouble() ?? 0,
+    size: (json['size'] as num?)?.toInt() ?? 0,
+  );
 }
 
 /// One changed file in the workspace vs the publish base.
@@ -123,11 +124,11 @@ class ChangeFile {
   });
 
   factory ChangeFile.fromJson(Map<String, dynamic> json) => ChangeFile(
-        path: json['path'] as String? ?? '',
-        status: json['status'] as String? ?? '?',
-        plus: (json['plus'] as num?)?.toInt() ?? 0,
-        minus: (json['minus'] as num?)?.toInt() ?? 0,
-      );
+    path: json['path'] as String? ?? '',
+    status: json['status'] as String? ?? '?',
+    plus: (json['plus'] as num?)?.toInt() ?? 0,
+    minus: (json['minus'] as num?)?.toInt() ?? 0,
+  );
 }
 
 /// Summary of uncommitted + committed changes vs origin/main.
@@ -145,13 +146,13 @@ class ChangesSummary {
   bool get hasChanges => files.isNotEmpty || ahead > 0;
 
   factory ChangesSummary.fromJson(Map<String, dynamic> json) => ChangesSummary(
-        files: (json['files'] as List<dynamic>? ?? [])
-            .whereType<Map<String, dynamic>>()
-            .map(ChangeFile.fromJson)
-            .toList(),
-        ahead: (json['ahead'] as num?)?.toInt() ?? 0,
-        behind: (json['behind'] as num?)?.toInt() ?? 0,
-      );
+    files: (json['files'] as List<dynamic>? ?? [])
+        .whereType<Map<String, dynamic>>()
+        .map(ChangeFile.fromJson)
+        .toList(),
+    ahead: (json['ahead'] as num?)?.toInt() ?? 0,
+    behind: (json['behind'] as num?)?.toInt() ?? 0,
+  );
 }
 
 /// Outcome of a publish operation.
@@ -169,11 +170,11 @@ class PublishResult {
   });
 
   factory PublishResult.fromJson(Map<String, dynamic> json) => PublishResult(
-        committed: json['committed'] as bool? ?? false,
-        commit: json['commit'] as String?,
-        pushed: json['pushed'] as bool? ?? false,
-        message: json['message'] as String? ?? '',
-      );
+    committed: json['committed'] as bool? ?? false,
+    commit: json['commit'] as String?,
+    pushed: json['pushed'] as bool? ?? false,
+    message: json['message'] as String? ?? '',
+  );
 }
 
 /// Status of a single natural-language instruction sent to the agent.

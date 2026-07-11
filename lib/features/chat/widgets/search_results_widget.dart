@@ -51,12 +51,15 @@ class SearchResultsWidget extends StatelessWidget {
         return Column(
           children: [
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 12.0,
+                vertical: 8.0,
+              ),
               child: Text(
                 'Found ${results.total} result${results.total == 1 ? '' : 's'}',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Colors.grey,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: Colors.grey),
               ),
             ),
             Expanded(
@@ -68,8 +71,8 @@ class SearchResultsWidget extends StatelessWidget {
                     result: result,
                     onTap: () {
                       context.read<ChatProvider>().loadConversation(
-                            result.conversation.id,
-                          );
+                        result.conversation.id,
+                      );
                       // Clear search when conversation is selected
                       searchProvider.clearSearch();
                     },
@@ -113,10 +116,7 @@ class _SearchResultItem extends StatelessWidget {
   final ConversationSearchResult result;
   final VoidCallback onTap;
 
-  const _SearchResultItem({
-    required this.result,
-    required this.onTap,
-  });
+  const _SearchResultItem({required this.result, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -131,9 +131,9 @@ class _SearchResultItem extends StatelessWidget {
             children: [
               Text(
                 result.conversation.displayTitle,
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -141,9 +141,9 @@ class _SearchResultItem extends StatelessWidget {
               if (result.matchedMessages.isNotEmpty)
                 Text(
                   'Matched messages:',
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: Colors.grey,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.labelSmall?.copyWith(color: Colors.grey),
                 ),
               const SizedBox(height: 4.0),
               ...result.matchedMessages.take(2).map((msg) {
@@ -157,9 +157,9 @@ class _SearchResultItem extends StatelessWidget {
                   child: Text(
                     displaySnippet,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.grey[700],
-                          fontStyle: FontStyle.italic,
-                        ),
+                      color: Colors.grey[700],
+                      fontStyle: FontStyle.italic,
+                    ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -170,9 +170,9 @@ class _SearchResultItem extends StatelessWidget {
                   padding: const EdgeInsets.only(top: 4.0),
                   child: Text(
                     '+${result.matchedMessages.length - 2} more match${result.matchedMessages.length - 2 == 1 ? '' : 'es'}',
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: Colors.grey,
-                        ),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.labelSmall?.copyWith(color: Colors.grey),
                   ),
                 ),
             ],

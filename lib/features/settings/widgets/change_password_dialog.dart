@@ -49,9 +49,9 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
     }
 
     Navigator.of(context).pop();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Password updated')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Password updated')));
   }
 
   @override
@@ -71,16 +71,13 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
                   labelText: 'Current password',
                   suffixIcon: IconButton(
                     icon: Icon(
-                      _obscureCurrent
-                          ? Icons.visibility
-                          : Icons.visibility_off,
+                      _obscureCurrent ? Icons.visibility : Icons.visibility_off,
                     ),
                     onPressed: () =>
                         setState(() => _obscureCurrent = !_obscureCurrent),
                   ),
                 ),
-                validator: (v) =>
-                    (v == null || v.isEmpty) ? 'Required' : null,
+                validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
               ),
               const SizedBox(height: 8),
               TextFormField(

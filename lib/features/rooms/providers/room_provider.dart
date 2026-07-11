@@ -14,10 +14,10 @@ class RoomProvider extends ChangeNotifier {
     RoomSocketService Function(String roomId)? socketFactory,
     Duration typingExpiry = const Duration(seconds: 5),
     Duration typingSendInterval = const Duration(seconds: 3),
-  })  : _service = service ?? RoomService.instance,
-        _socketFactory = socketFactory ?? ((id) => RoomSocketService(id)),
-        _typingExpiry = typingExpiry,
-        _typingSendInterval = typingSendInterval;
+  }) : _service = service ?? RoomService.instance,
+       _socketFactory = socketFactory ?? ((id) => RoomSocketService(id)),
+       _typingExpiry = typingExpiry,
+       _typingSendInterval = typingSendInterval;
 
   final RoomService _service;
   final RoomSocketService Function(String roomId) _socketFactory;

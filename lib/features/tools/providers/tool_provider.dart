@@ -7,7 +7,7 @@ import 'package:garbanzo_ai/features/tools/services/tool_service.dart';
 /// ChangeNotifier that fetches and caches the list of available MCP tools.
 class ToolProvider extends ChangeNotifier with GuardedStateMixin {
   ToolProvider({ToolService? service})
-      : _service = service ?? ToolService.instance;
+    : _service = service ?? ToolService.instance;
 
   final ToolService _service;
 

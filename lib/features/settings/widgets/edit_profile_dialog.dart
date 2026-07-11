@@ -69,8 +69,9 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
       Navigator.of(context).pop(true);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content:
-              Text('Email updated. Please sign in again with the new address.'),
+          content: Text(
+            'Email updated. Please sign in again with the new address.',
+          ),
         ),
       );
       return;

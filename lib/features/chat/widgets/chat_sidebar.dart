@@ -146,7 +146,9 @@ class _RoomsTab extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
           decoration: BoxDecoration(
             border: Border(
-              bottom: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.5)),
+              bottom: BorderSide(
+                color: cs.outlineVariant.withValues(alpha: 0.5),
+              ),
             ),
           ),
           child: Row(
@@ -178,8 +180,7 @@ class _RoomsTab extends StatelessWidget {
               const SizedBox(width: 8),
               IconButton(
                 tooltip: 'Refresh',
-                onPressed:
-                    provider.loading ? null : () => provider.loadRooms(),
+                onPressed: provider.loading ? null : () => provider.loadRooms(),
                 icon: const Icon(Icons.refresh, size: 20),
               ),
             ],

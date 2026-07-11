@@ -29,9 +29,9 @@ class _ModelsTabState extends State<ModelsTab> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
     if (provider.modelsError != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(provider.modelsError!)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(provider.modelsError!)));
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('${provider.models.length} models synced')),
@@ -57,10 +57,7 @@ class _ModelsTabState extends State<ModelsTab> {
             const SizedBox(height: 8),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Text(
-                provider.modelsError!,
-                textAlign: TextAlign.center,
-              ),
+              child: Text(provider.modelsError!, textAlign: TextAlign.center),
             ),
             const SizedBox(height: 8),
             FilledButton(
@@ -77,10 +74,7 @@ class _ModelsTabState extends State<ModelsTab> {
           children: [
             Icon(Icons.memory, color: colorScheme.outline, size: 48),
             const SizedBox(height: 8),
-            Text(
-              'No models synced yet',
-              style: theme.textTheme.titleMedium,
-            ),
+            Text('No models synced yet', style: theme.textTheme.titleMedium),
             const SizedBox(height: 4),
             Text(
               'Tap the sync button to discover models from the provider.',
@@ -116,7 +110,10 @@ class _ModelsTabState extends State<ModelsTab> {
                   Expanded(child: Text(displayName)),
                   if (model.isNew)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: colorScheme.tertiaryContainer,
                         borderRadius: BorderRadius.circular(6),
@@ -134,7 +131,8 @@ class _ModelsTabState extends State<ModelsTab> {
               subtitle: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (model.description != null && model.description!.isNotEmpty)
+                  if (model.description != null &&
+                      model.description!.isNotEmpty)
                     Text(model.description!),
                   Text(
                     model.modelId,

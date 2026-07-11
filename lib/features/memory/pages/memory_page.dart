@@ -124,9 +124,7 @@ class _MemoryPageState extends State<MemoryPage> {
             child: const Text('Cancel'),
           ),
           FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: Colors.red,
-            ),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () async {
               Navigator.of(context).pop();
               await _provider.deactivateMemory(memory.id);
@@ -168,9 +166,7 @@ class _MemoryPageState extends State<MemoryPage> {
             if (_provider.isLoading)
               Container(
                 color: Colors.black12,
-                child: const Center(
-                  child: CircularProgressIndicator(),
-                ),
+                child: const Center(child: CircularProgressIndicator()),
               ),
 
             // Error snackbar

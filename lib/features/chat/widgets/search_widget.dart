@@ -6,11 +6,7 @@ class SearchWidget extends StatefulWidget {
   final ValueChanged<String>? onChanged;
   final VoidCallback? onClear;
 
-  const SearchWidget({
-    super.key,
-    this.onChanged,
-    this.onClear,
-  });
+  const SearchWidget({super.key, this.onChanged, this.onClear});
 
   @override
   State<SearchWidget> createState() => _SearchWidgetState();

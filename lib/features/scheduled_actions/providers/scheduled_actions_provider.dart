@@ -7,7 +7,7 @@ import 'package:garbanzo_ai/features/scheduled_actions/services/scheduled_action
 /// State for the scheduled-actions page.
 class ScheduledActionsProvider extends ChangeNotifier with GuardedStateMixin {
   ScheduledActionsProvider({ScheduledActionsApiService? service})
-      : _api = service ?? ScheduledActionsApiService.instance;
+    : _api = service ?? ScheduledActionsApiService.instance;
 
   final ScheduledActionsApiService _api;
 

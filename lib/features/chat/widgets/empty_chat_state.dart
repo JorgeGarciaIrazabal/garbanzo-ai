@@ -19,61 +19,61 @@ class EmptyChatState extends StatelessWidget {
     return Center(
       child: SingleChildScrollView(
         child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.chat_bubble_outline,
-            size: 64,
-            color: colorScheme.primary.withValues(alpha: 0.5),
-          ),
-          const SizedBox(height: 24),
-          Text(
-            'Start a conversation',
-            style: theme.textTheme.titleLarge?.copyWith(
-              color: colorScheme.onSurface,
-              fontWeight: FontWeight.w500,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.chat_bubble_outline,
+              size: 64,
+              color: colorScheme.primary.withValues(alpha: 0.5),
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Type a message below to begin chatting',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-            ),
-          ),
-          if (showOnboarding) ...[
             const SizedBox(height: 24),
-            _GettingStartedCard(
-              onDismiss: () =>
-                  context.read<SettingsProvider>().dismissOnboarding(),
+            Text(
+              'Start a conversation',
+              style: theme.textTheme.titleLarge?.copyWith(
+                color: colorScheme.onSurface,
+                fontWeight: FontWeight.w500,
+              ),
             ),
-          ],
-          const SizedBox(height: 32),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            alignment: WrapAlignment.center,
-            children: [
-              _SuggestionChip(
-                text: 'Explain quantum computing',
-                onTap: () => onSendMessage(
-                  'Explain quantum computing in simple terms',
-                ),
+            const SizedBox(height: 8),
+            Text(
+              'Type a message below to begin chatting',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onSurfaceVariant,
               ),
-              _SuggestionChip(
-                text: 'Write a Python function',
-                onTap: () => onSendMessage(
-                  'Write a Python function to calculate factorial',
-                ),
-              ),
-              _SuggestionChip(
-                text: 'Help me debug code',
-                onTap: () => onSendMessage('I need help debugging some code'),
+            ),
+            if (showOnboarding) ...[
+              const SizedBox(height: 24),
+              _GettingStartedCard(
+                onDismiss: () =>
+                    context.read<SettingsProvider>().dismissOnboarding(),
               ),
             ],
-          ),
-        ],
-      ),
+            const SizedBox(height: 32),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              alignment: WrapAlignment.center,
+              children: [
+                _SuggestionChip(
+                  text: 'Explain quantum computing',
+                  onTap: () => onSendMessage(
+                    'Explain quantum computing in simple terms',
+                  ),
+                ),
+                _SuggestionChip(
+                  text: 'Write a Python function',
+                  onTap: () => onSendMessage(
+                    'Write a Python function to calculate factorial',
+                  ),
+                ),
+                _SuggestionChip(
+                  text: 'Help me debug code',
+                  onTap: () => onSendMessage('I need help debugging some code'),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

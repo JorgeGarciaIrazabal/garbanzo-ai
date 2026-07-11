@@ -94,9 +94,6 @@ class MemoryProvider extends ChangeNotifier with GuardedStateMixin {
 
   /// Toggle a memory's active status.
   Future<void> toggleMemoryActive(String memoryId, bool currentlyActive) async {
-    await updateMemory(
-      memoryId: memoryId,
-      isActive: !currentlyActive,
-    );
+    await updateMemory(memoryId: memoryId, isActive: !currentlyActive);
   }
 }

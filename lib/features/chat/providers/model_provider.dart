@@ -37,7 +37,9 @@ class ModelProvider extends ChangeNotifier with GuardedStateMixin {
         ModelInfo? match;
         for (final candidate in [userDefault, serverDefault]) {
           if (candidate != null && candidate.isNotEmpty) {
-            match = _availableModels.where((m) => m.id == candidate).firstOrNull;
+            match = _availableModels
+                .where((m) => m.id == candidate)
+                .firstOrNull;
             if (match != null) break;
           }
         }

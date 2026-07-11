@@ -43,16 +43,10 @@ String cleanTextForSpeech(String text) {
   cleaned = cleaned.replaceAll(RegExp(r'^>\s?', multiLine: true), '');
 
   // Remove bullet point markers
-  cleaned = cleaned.replaceAll(
-    RegExp(r'^\s*[-*+]\s+', multiLine: true),
-    '',
-  );
+  cleaned = cleaned.replaceAll(RegExp(r'^\s*[-*+]\s+', multiLine: true), '');
 
   // Remove numbered list prefixes but keep the text
-  cleaned = cleaned.replaceAll(
-    RegExp(r'^\s*\d+\.\s+', multiLine: true),
-    '',
-  );
+  cleaned = cleaned.replaceAll(RegExp(r'^\s*\d+\.\s+', multiLine: true), '');
 
   // Remove HTML tags
   cleaned = cleaned.replaceAll(RegExp(r'<[^>]+>'), '');

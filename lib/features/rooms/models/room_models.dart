@@ -36,19 +36,19 @@ class RoomAgent {
   });
 
   factory RoomAgent.fromJson(Map<String, dynamic> j) => RoomAgent(
-        id: j['id'] as String,
-        roomId: j['room_id'] as String,
-        name: j['name'] as String,
-        avatar: j['avatar'] as String?,
-        provider: j['provider'] as String,
-        model: j['model'] as String,
-        systemPrompt: j['system_prompt'] as String?,
-        responseMode: j['response_mode'] as String,
-        turnOrder: j['turn_order'] as int,
-        isActive: j['is_active'] as bool,
-        isModerator: j['is_moderator'] as bool,
-        createdAt: DateTime.parse(j['created_at'] as String),
-      );
+    id: j['id'] as String,
+    roomId: j['room_id'] as String,
+    name: j['name'] as String,
+    avatar: j['avatar'] as String?,
+    provider: j['provider'] as String,
+    model: j['model'] as String,
+    systemPrompt: j['system_prompt'] as String?,
+    responseMode: j['response_mode'] as String,
+    turnOrder: j['turn_order'] as int,
+    isActive: j['is_active'] as bool,
+    isModerator: j['is_moderator'] as bool,
+    createdAt: DateTime.parse(j['created_at'] as String),
+  );
 }
 
 @immutable
@@ -78,12 +78,12 @@ class RoomMember {
   }
 
   factory RoomMember.fromJson(Map<String, dynamic> j) => RoomMember(
-        roomId: j['room_id'] as String,
-        userId: j['user_id'] as String,
-        fullName: j['full_name'] as String?,
-        role: j['role'] as String,
-        joinedAt: DateTime.parse(j['joined_at'] as String),
-      );
+    roomId: j['room_id'] as String,
+    userId: j['user_id'] as String,
+    fullName: j['full_name'] as String?,
+    role: j['role'] as String,
+    joinedAt: DateTime.parse(j['joined_at'] as String),
+  );
 }
 
 @immutable
@@ -119,11 +119,13 @@ class Room {
   });
 
   factory Room.fromJson(Map<String, dynamic> j) {
-    final members = (j['members'] as List?)
+    final members =
+        (j['members'] as List?)
             ?.map((m) => RoomMember.fromJson(m as Map<String, dynamic>))
             .toList() ??
         const [];
-    final agents = (j['agents'] as List?)
+    final agents =
+        (j['agents'] as List?)
             ?.map((a) => RoomAgent.fromJson(a as Map<String, dynamic>))
             .toList() ??
         const [];
@@ -167,10 +169,7 @@ class RoomMessage {
     required this.createdAt,
   });
 
-  RoomMessage copyWith({
-    String? content,
-    Map<String, dynamic>? meta,
-  }) =>
+  RoomMessage copyWith({String? content, Map<String, dynamic>? meta}) =>
       RoomMessage(
         id: id,
         roomId: roomId,
@@ -183,13 +182,13 @@ class RoomMessage {
       );
 
   factory RoomMessage.fromJson(Map<String, dynamic> j) => RoomMessage(
-        id: j['id'] as String,
-        roomId: j['room_id'] as String,
-        role: j['role'] as String,
-        senderUserId: j['sender_user_id'] as String?,
-        senderAgentId: j['sender_agent_id'] as String?,
-        content: j['content'] as String,
-        meta: j['meta'] as Map<String, dynamic>?,
-        createdAt: DateTime.parse(j['created_at'] as String),
-      );
+    id: j['id'] as String,
+    roomId: j['room_id'] as String,
+    role: j['role'] as String,
+    senderUserId: j['sender_user_id'] as String?,
+    senderAgentId: j['sender_agent_id'] as String?,
+    content: j['content'] as String,
+    meta: j['meta'] as Map<String, dynamic>?,
+    createdAt: DateTime.parse(j['created_at'] as String),
+  );
 }

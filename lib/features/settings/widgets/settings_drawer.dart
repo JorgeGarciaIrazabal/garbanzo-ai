@@ -60,9 +60,7 @@ class SettingsDrawer extends StatelessWidget {
                 Navigator.of(context).pop();
                 Navigator.of(context).push(
                   MaterialPageRoute(
-                    builder: (_) => SettingsPage(
-                      onLogout: onLogout ?? () {},
-                    ),
+                    builder: (_) => SettingsPage(onLogout: onLogout ?? () {}),
                   ),
                 );
               },

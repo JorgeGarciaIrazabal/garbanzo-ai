@@ -39,8 +39,9 @@ class AuthService {
         return AuthResult.success();
       }
       final data = res.data;
-      final detail =
-          data is Map<String, dynamic> ? data['detail'] as String? : null;
+      final detail = data is Map<String, dynamic>
+          ? data['detail'] as String?
+          : null;
       return AuthResult.failure(detail ?? 'Failed to update profile');
     } on DioException catch (e) {
       return AuthResult.failure(_dioErrorMessage(e));
@@ -67,8 +68,9 @@ class AuthService {
         return AuthResult.failure('Current password is incorrect');
       }
       final data = res.data;
-      final detail =
-          data is Map<String, dynamic> ? data['detail'] as String? : null;
+      final detail = data is Map<String, dynamic>
+          ? data['detail'] as String?
+          : null;
       return AuthResult.failure(detail ?? 'Failed to change password');
     } on DioException catch (e) {
       return AuthResult.failure(_dioErrorMessage(e));
@@ -105,7 +107,8 @@ class AuthService {
       return AuthResult.failure(_dioErrorMessage(e));
     } catch (e) {
       return AuthResult.failure(
-          'An unexpected error occurred. Please try again.');
+        'An unexpected error occurred. Please try again.',
+      );
     }
   }
 
@@ -168,10 +171,8 @@ class AuthResult {
   AuthResult._({required this.success, this.error});
 
   factory AuthResult.success() => AuthResult._(success: true);
-  factory AuthResult.failure(String message) => AuthResult._(
-        success: false,
-        error: message,
-      );
+  factory AuthResult.failure(String message) =>
+      AuthResult._(success: false, error: message);
 }
 
 /// Information about the currently-authenticated user returned by `/auth/me`.
@@ -209,11 +210,11 @@ class UserInfo {
   }
 
   Map<String, dynamic> toJson() => {
-        'email': email,
-        'full_name': fullName,
-        'created_at': createdAt?.toIso8601String(),
-        'is_admin': isAdmin,
-        'is_disabled': isDisabled,
-        'default_model': defaultModel,
-      };
+    'email': email,
+    'full_name': fullName,
+    'created_at': createdAt?.toIso8601String(),
+    'is_admin': isAdmin,
+    'is_disabled': isDisabled,
+    'default_model': defaultModel,
+  };
 }

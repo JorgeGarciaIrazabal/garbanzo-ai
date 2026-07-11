@@ -109,8 +109,7 @@ class _ToolActivityGroupState extends State<ToolActivityGroup> {
               borderRadius: BorderRadius.circular(8),
               hoverColor: colorScheme.onSurface.withValues(alpha: 0.03),
               child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [

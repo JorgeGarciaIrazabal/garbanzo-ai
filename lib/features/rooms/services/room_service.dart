@@ -29,13 +29,16 @@ class RoomService {
     int maxAgentTurnDepth = 3,
     List<String> memberEmails = const [],
   }) async {
-    final resp = await _api.post('/api/v1/rooms', data: {
-      'name': name,
-      'description': ?description,
-      'is_public': isPublic,
-      'max_agent_turn_depth': maxAgentTurnDepth,
-      'member_emails': memberEmails,
-    });
+    final resp = await _api.post(
+      '/api/v1/rooms',
+      data: {
+        'name': name,
+        'description': ?description,
+        'is_public': isPublic,
+        'max_agent_turn_depth': maxAgentTurnDepth,
+        'member_emails': memberEmails,
+      },
+    );
     if (resp.statusCode != 201 && resp.statusCode != 200) {
       throw Exception('Failed to create room: ${resp.statusCode} ${resp.data}');
     }
@@ -62,7 +65,9 @@ class RoomService {
     if (name != null) payload['name'] = name;
     if (description != null) payload['description'] = description;
     if (isPublic != null) payload['is_public'] = isPublic;
-    if (maxAgentTurnDepth != null) payload['max_agent_turn_depth'] = maxAgentTurnDepth;
+    if (maxAgentTurnDepth != null) {
+      payload['max_agent_turn_depth'] = maxAgentTurnDepth;
+    }
     if (ownerId != null) payload['owner_id'] = ownerId;
     final resp = await _api.patch('/api/v1/rooms/$roomId', data: payload);
     if (resp.statusCode != 200) {
@@ -78,10 +83,15 @@ class RoomService {
     }
   }
 
-  Future<RoomMember> addMember(String roomId, String email,
-      {String role = 'member'}) async {
-    final resp = await _api.post('/api/v1/rooms/$roomId/members',
-        data: {'user_id': email, 'role': role});
+  Future<RoomMember> addMember(
+    String roomId,
+    String email, {
+    String role = 'member',
+  }) async {
+    final resp = await _api.post(
+      '/api/v1/rooms/$roomId/members',
+      data: {'user_id': email, 'role': role},
+    );
     if (resp.statusCode != 201) {
       throw Exception('Failed to add member: ${resp.statusCode} ${resp.data}');
     }
@@ -106,27 +116,35 @@ class RoomService {
     int turnOrder = 0,
     bool isModerator = false,
   }) async {
-    final resp = await _api.post('/api/v1/rooms/$roomId/agents', data: {
-      'name': name,
-      'model': model,
-      'provider': provider,
-      'avatar': ?avatar,
-      'system_prompt': ?systemPrompt,
-      'response_mode': responseMode,
-      'turn_order': turnOrder,
-      'is_active': true,
-      'is_moderator': isModerator,
-    });
+    final resp = await _api.post(
+      '/api/v1/rooms/$roomId/agents',
+      data: {
+        'name': name,
+        'model': model,
+        'provider': provider,
+        'avatar': ?avatar,
+        'system_prompt': ?systemPrompt,
+        'response_mode': responseMode,
+        'turn_order': turnOrder,
+        'is_active': true,
+        'is_moderator': isModerator,
+      },
+    );
     if (resp.statusCode != 201) {
       throw Exception('Failed to add agent: ${resp.statusCode} ${resp.data}');
     }
     return RoomAgent.fromJson(resp.data as Map<String, dynamic>);
   }
 
-  Future<RoomAgent> updateAgent(String roomId, String agentId,
-      Map<String, dynamic> patch) async {
-    final resp =
-        await _api.patch('/api/v1/rooms/$roomId/agents/$agentId', data: patch);
+  Future<RoomAgent> updateAgent(
+    String roomId,
+    String agentId,
+    Map<String, dynamic> patch,
+  ) async {
+    final resp = await _api.patch(
+      '/api/v1/rooms/$roomId/agents/$agentId',
+      data: patch,
+    );
     if (resp.statusCode != 200) {
       throw Exception('Failed to update agent: ${resp.statusCode}');
     }
@@ -158,22 +176,31 @@ class RoomService {
   }
 
   Future<String> exportMarkdown(String roomId) async {
-    final resp = await _api
-        .get('/api/v1/rooms/$roomId/export', queryParameters: {'format': 'markdown'});
+    final resp = await _api.get(
+      '/api/v1/rooms/$roomId/export',
+      queryParameters: {'format': 'markdown'},
+    );
     if (resp.statusCode != 200) {
       throw Exception('Failed to export: ${resp.statusCode}');
     }
     return resp.data.toString();
   }
 
-  Future<List<Room>> search(String query,
-      {String scope = 'all', int page = 1, int pageSize = 20}) async {
-    final resp = await _api.get('/api/v1/rooms/search', queryParameters: {
-      'q': query,
-      'scope': scope,
-      'page': page,
-      'page_size': pageSize,
-    });
+  Future<List<Room>> search(
+    String query, {
+    String scope = 'all',
+    int page = 1,
+    int pageSize = 20,
+  }) async {
+    final resp = await _api.get(
+      '/api/v1/rooms/search',
+      queryParameters: {
+        'q': query,
+        'scope': scope,
+        'page': page,
+        'page_size': pageSize,
+      },
+    );
     if (resp.statusCode != 200) {
       throw Exception('Search failed: ${resp.statusCode}');
     }

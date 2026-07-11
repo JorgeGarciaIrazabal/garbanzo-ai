@@ -198,8 +198,8 @@ class _ChatPageContentState extends State<_ChatPageContent> {
     }
 
     if (messageCount != _lastMessageCount) {
-      final lastIsUser = chatProvider.messages.isNotEmpty &&
-          chatProvider.messages.last.isUser;
+      final lastIsUser =
+          chatProvider.messages.isNotEmpty && chatProvider.messages.last.isUser;
       final shouldScroll = lastIsUser || _isNearBottom;
       _lastMessageCount = messageCount;
       if (shouldScroll) {
@@ -222,8 +222,10 @@ class _ChatPageContentState extends State<_ChatPageContent> {
     // while symmetric horizontal margins keep it from spanning the full width.
     final media = MediaQuery.of(context);
     final horizontalMargin = ((media.size.width - 420) / 2).clamp(16.0, 400.0);
-    final bottomMargin =
-        (media.size.height - media.padding.top - 88).clamp(80.0, 2000.0);
+    final bottomMargin = (media.size.height - media.padding.top - 88).clamp(
+      80.0,
+      2000.0,
+    );
 
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
@@ -270,7 +272,8 @@ class _ChatPageContentState extends State<_ChatPageContent> {
       final filename = file.path.split('/').last;
       final isImage = mime.startsWith('image/');
       final isPdf = mime == 'application/pdf';
-      final isSpreadsheet = mime.endsWith('spreadsheetml.sheet') ||
+      final isSpreadsheet =
+          mime.endsWith('spreadsheetml.sheet') ||
           mime == 'application/vnd.ms-excel' ||
           mime == 'application/vnd.oasis.opendocument.spreadsheet' ||
           filename.toLowerCase().endsWith('.csv') ||
@@ -279,37 +282,44 @@ class _ChatPageContentState extends State<_ChatPageContent> {
           filename.toLowerCase().endsWith('.ods');
 
       final maxBytes = isImage
-          ? 5 * 1024 * 1024 // 5 MB for images
+          ? 5 *
+                1024 *
+                1024 // 5 MB for images
           : isPdf
-              ? 20 * 1024 * 1024 // 20 MB for PDFs
-              : isSpreadsheet
-                  ? 10 * 1024 * 1024 // 10 MB for spreadsheets/CSV
-                  : 10 * 1024 * 1024; // 10 MB for other documents
+          ? 20 *
+                1024 *
+                1024 // 20 MB for PDFs
+          : isSpreadsheet
+          ? 10 *
+                1024 *
+                1024 // 10 MB for spreadsheets/CSV
+          : 10 * 1024 * 1024; // 10 MB for other documents
 
       if (bytes.length > maxBytes) {
-        rejected.add('$filename (${_formatFileSize(bytes.length)} - max ${_formatFileSize(maxBytes)})');
+        rejected.add(
+          '$filename (${_formatFileSize(bytes.length)} - max ${_formatFileSize(maxBytes)})',
+        );
         continue;
       }
 
       // Check for duplicate filenames
-      if (chatProvider.pendingAttachments?.any((a) => a.name == filename) == true) {
+      if (chatProvider.pendingAttachments?.any((a) => a.name == filename) ==
+          true) {
         validationErrors.add('Duplicate file: $filename');
         continue;
       }
 
-      added.add(ChatAttachment.fromPicked(
-        name: filename,
-        mimeType: mime,
-        bytes: bytes,
-      ));
+      added.add(
+        ChatAttachment.fromPicked(name: filename, mimeType: mime, bytes: bytes),
+      );
     }
 
     // Show validation errors
     if (validationErrors.isNotEmpty && mounted) {
       for (final error in validationErrors) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error)));
       }
     }
 
@@ -363,195 +373,212 @@ class _ChatPageContentState extends State<_ChatPageContent> {
       key: _scaffoldKey,
       endDrawer: SettingsDrawer(onLogout: widget.onLogout),
       body: DragTarget<List<dynamic>>(
-      onWillAcceptWithDetails: (details) {
-        final data = details.data;
-        if (data.isEmpty) return false;
-        setState(() => _isDragOver = true);
-        return true;
-      },
-      onLeave: (_) {
-        setState(() => _isDragOver = false);
-      },
-      onAcceptWithDetails: (details) => _handleDroppedFiles(details.data),
-      builder: (context, candidateData, rejectedData) {
-        return Stack(
-          children: [
-            Row(
-              children: [
-                if (_showSidebar(context))
-                  ChatSidebar(
-                    conversations: chatProvider.conversations,
-                    selectedConversationId: chatProvider.currentConversation?.id,
-                    onSelectConversation: (id) =>
-                        chatProvider.loadConversation(id),
-                    onDeleteConversation: (id) =>
-                        _deleteWithUndo(chatProvider, id),
-                    onNewChat: () => chatProvider.clearCurrentConversation(),
-                    onTogglePin: (id) => chatProvider.togglePin(id),
-                    isLoadingConversations:
-                        chatProvider.isLoadingConversations,
-                  ),
-                Expanded(
-                  child: Column(
-                    children: [
-                      _buildAppBar(chatProvider, modelProvider, colorScheme),
-                      if (chatProvider.error != null)
-                        _ErrorBanner(
-                          message: chatProvider.error!,
-                          onDismiss: chatProvider.clearError,
-                        ),
-                      Builder(
-                        builder: (ctx) {
-                          final tokensUsed =
-                              _getLastTokensPrompt(chatProvider);
-                          final contextLength =
-                              _getLastContextLength(chatProvider) ??
-                                  modelProvider.selectedModel?.contextLength;
-                          if (tokensUsed != null &&
-                              contextLength != null &&
-                              contextLength > 0) {
-                            return ContextWindowIndicator(
-                              tokensUsed: tokensUsed,
-                              contextLength: contextLength,
+        onWillAcceptWithDetails: (details) {
+          final data = details.data;
+          if (data.isEmpty) return false;
+          setState(() => _isDragOver = true);
+          return true;
+        },
+        onLeave: (_) {
+          setState(() => _isDragOver = false);
+        },
+        onAcceptWithDetails: (details) => _handleDroppedFiles(details.data),
+        builder: (context, candidateData, rejectedData) {
+          return Stack(
+            children: [
+              Row(
+                children: [
+                  if (_showSidebar(context))
+                    ChatSidebar(
+                      conversations: chatProvider.conversations,
+                      selectedConversationId:
+                          chatProvider.currentConversation?.id,
+                      onSelectConversation: (id) =>
+                          chatProvider.loadConversation(id),
+                      onDeleteConversation: (id) =>
+                          _deleteWithUndo(chatProvider, id),
+                      onNewChat: () => chatProvider.clearCurrentConversation(),
+                      onTogglePin: (id) => chatProvider.togglePin(id),
+                      isLoadingConversations:
+                          chatProvider.isLoadingConversations,
+                    ),
+                  Expanded(
+                    child: Column(
+                      children: [
+                        _buildAppBar(chatProvider, modelProvider, colorScheme),
+                        if (chatProvider.error != null)
+                          _ErrorBanner(
+                            message: chatProvider.error!,
+                            onDismiss: chatProvider.clearError,
+                          ),
+                        Builder(
+                          builder: (ctx) {
+                            final tokensUsed = _getLastTokensPrompt(
+                              chatProvider,
                             );
-                          }
-                          return const SizedBox.shrink();
-                        },
+                            final contextLength =
+                                _getLastContextLength(chatProvider) ??
+                                modelProvider.selectedModel?.contextLength;
+                            if (tokensUsed != null &&
+                                contextLength != null &&
+                                contextLength > 0) {
+                              return ContextWindowIndicator(
+                                tokensUsed: tokensUsed,
+                                contextLength: contextLength,
+                              );
+                            }
+                            return const SizedBox.shrink();
+                          },
+                        ),
+                        Expanded(
+                          child: Stack(
+                            children: [
+                              _buildMessageList(chatProvider, theme),
+                              if (_showJumpToBottom)
+                                Positioned(
+                                  right: 16,
+                                  bottom: 12,
+                                  child: FloatingActionButton.small(
+                                    heroTag: 'jump_to_bottom',
+                                    tooltip: 'Jump to latest message',
+                                    onPressed: () => _scrollToBottom(),
+                                    child: const Icon(
+                                      Icons.keyboard_arrow_down,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                        Consumer<ChatProvider>(
+                          builder: (context, provider, _) {
+                            return ChatInputWidget(
+                              onSend: (message, attachments) {
+                                // Merge any pending attachments from drag-drop
+                                final merged = [...attachments];
+                                if (provider.pendingAttachments != null) {
+                                  merged.addAll(provider.pendingAttachments!);
+                                  provider.clearPendingAttachments();
+                                }
+                                provider.sendMessage(
+                                  message,
+                                  attachments: merged,
+                                );
+                              },
+                              onStop: () => chatProvider.stopStreaming(),
+                              isLoading: chatProvider.isSending,
+                              initialAttachments: provider.pendingAttachments,
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Wide layout: the live micro-app sits beside the chat in a
+                  // panel the user can widen/narrow by dragging the divider.
+                  if (chatProvider.panel.isOpen && context.isWide)
+                    Builder(
+                      builder: (context) {
+                        final screenW = MediaQuery.of(context).size.width;
+                        final maxW = (screenW - _minChatWidth).clamp(
+                          _minPanelWidth,
+                          screenW,
+                        );
+                        // Default to a big portion of the screen (Claude-canvas
+                        // style): the panel is the dominant pane, chat sits beside.
+                        final defaultW = (screenW * 0.6).clamp(
+                          _minPanelWidth,
+                          maxW,
+                        );
+                        final width = (_panelWidth ?? defaultW).clamp(
+                          _minPanelWidth,
+                          maxW,
+                        );
+                        return SizedBox(
+                          width: width,
+                          child: Row(
+                            children: [
+                              _PanelResizeHandle(
+                                onDrag: (dx) => setState(
+                                  () => _panelWidth = (width - dx).clamp(
+                                    _minPanelWidth,
+                                    maxW,
+                                  ),
+                                ),
+                                onReset: () =>
+                                    setState(() => _panelWidth = null),
+                              ),
+                              Expanded(
+                                child: MicroAppPanel(panel: chatProvider.panel),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                ],
+              ),
+              // Narrow layout: the micro-app takes over as a full-screen overlay.
+              if (chatProvider.panel.isOpen && context.isNarrow)
+                Positioned.fill(
+                  child: MicroAppPanel(
+                    panel: chatProvider.panel,
+                    showCloseAsBack: true,
+                  ),
+                ),
+              if (_isDragOver)
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: colorScheme.primary.withValues(alpha: 0.1),
+                        border: Border.all(
+                          color: colorScheme.primary,
+                          width: 4,
+                          strokeAlign: BorderSide.strokeAlignInside,
+                        ),
                       ),
-                      Expanded(
-                        child: Stack(
-                          children: [
-                            _buildMessageList(chatProvider, theme),
-                            if (_showJumpToBottom)
-                              Positioned(
-                                right: 16,
-                                bottom: 12,
-                                child: FloatingActionButton.small(
-                                  heroTag: 'jump_to_bottom',
-                                  tooltip: 'Jump to latest message',
-                                  onPressed: () => _scrollToBottom(),
-                                  child:
-                                      const Icon(Icons.keyboard_arrow_down),
+                      child: Center(
+                        child: Container(
+                          padding: const EdgeInsets.all(24),
+                          decoration: BoxDecoration(
+                            color: colorScheme.surface,
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.cloud_upload,
+                                size: 64,
+                                color: colorScheme.primary,
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'Drop files to attach',
+                                style: theme.textTheme.headlineSmall?.copyWith(
+                                  color: colorScheme.primary,
+                                  fontWeight: FontWeight.bold,
                                 ),
                               ),
-                          ],
-                        ),
-                      ),
-                      Consumer<ChatProvider>(
-                        builder: (context, provider, _) {
-                          return ChatInputWidget(
-                            onSend: (message, attachments) {
-                              // Merge any pending attachments from drag-drop
-                              final merged = [...attachments];
-                              if (provider.pendingAttachments != null) {
-                                merged.addAll(provider.pendingAttachments!);
-                                provider.clearPendingAttachments();
-                              }
-                              provider.sendMessage(message, attachments: merged);
-                            },
-                            onStop: () => chatProvider.stopStreaming(),
-                            isLoading: chatProvider.isSending,
-                            initialAttachments: provider.pendingAttachments,
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-                // Wide layout: the live micro-app sits beside the chat in a
-                // panel the user can widen/narrow by dragging the divider.
-                if (chatProvider.panel.isOpen && context.isWide)
-                  Builder(builder: (context) {
-                    final screenW = MediaQuery.of(context).size.width;
-                    final maxW =
-                        (screenW - _minChatWidth).clamp(_minPanelWidth, screenW);
-                    // Default to a big portion of the screen (Claude-canvas
-                    // style): the panel is the dominant pane, chat sits beside.
-                    final defaultW =
-                        (screenW * 0.6).clamp(_minPanelWidth, maxW);
-                    final width =
-                        (_panelWidth ?? defaultW).clamp(_minPanelWidth, maxW);
-                    return SizedBox(
-                      width: width,
-                      child: Row(
-                        children: [
-                          _PanelResizeHandle(
-                            onDrag: (dx) => setState(
-                              () => _panelWidth =
-                                  (width - dx).clamp(_minPanelWidth, maxW),
-                            ),
-                            onReset: () => setState(() => _panelWidth = null),
-                          ),
-                          Expanded(
-                            child: MicroAppPanel(panel: chatProvider.panel),
-                          ),
-                        ],
-                      ),
-                    );
-                  }),
-              ],
-            ),
-            // Narrow layout: the micro-app takes over as a full-screen overlay.
-            if (chatProvider.panel.isOpen && context.isNarrow)
-              Positioned.fill(
-                child: MicroAppPanel(
-                  panel: chatProvider.panel,
-                  showCloseAsBack: true,
-                ),
-              ),
-            if (_isDragOver)
-              Positioned.fill(
-                child: IgnorePointer(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: colorScheme.primary.withValues(alpha: 0.1),
-                      border: Border.all(
-                        color: colorScheme.primary,
-                        width: 4,
-                        strokeAlign: BorderSide.strokeAlignInside,
-                      ),
-                    ),
-                    child: Center(
-                      child: Container(
-                        padding: const EdgeInsets.all(24),
-                        decoration: BoxDecoration(
-                          color: colorScheme.surface,
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.cloud_upload,
-                              size: 64,
-                              color: colorScheme.primary,
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'Drop files to attach',
-                              style: theme.textTheme.headlineSmall?.copyWith(
-                                color: colorScheme.primary,
-                                fontWeight: FontWeight.bold,
+                              const SizedBox(height: 8),
+                              Text(
+                                'Images, PDFs, CSVs, and text files',
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: colorScheme.onSurfaceVariant,
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Images, PDFs, CSVs, and text files',
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                color: colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ),
                   ),
                 ),
-              ),
-          ],
-        );
-      },
-    ),
+            ],
+          );
+        },
+      ),
     );
   }
 
@@ -642,8 +669,7 @@ class _ChatPageContentState extends State<_ChatPageContent> {
       return const Center(child: CircularProgressIndicator());
     }
 
-    final showSystemPrompt =
-        context.watch<SettingsProvider>().showSystemPrompt;
+    final showSystemPrompt = context.watch<SettingsProvider>().showSystemPrompt;
     final summary = chatProvider.currentConversation?.contextSummary;
     final hasSummary = summary != null && summary.isNotEmpty;
     final hasBanner =
@@ -701,25 +727,27 @@ class _ChatPageContentState extends State<_ChatPageContent> {
           // Streaming when this group is the trailing item AND a stream
           // is in flight (means the model is still working on the loop).
           final isTrailing = item.endIdx == messages.length - 1;
-          return centered(ToolActivityGroup(
-            messages: item.messages,
-            isStreaming: isTrailing && chatProvider.isSending,
-          ));
+          return centered(
+            ToolActivityGroup(
+              messages: item.messages,
+              isStreaming: isTrailing && chatProvider.isSending,
+            ),
+          );
         }
         final messageItem = item as _MessageItem;
         final message = messageItem.message;
         final msgIdx = messageItem.idx;
         final isLastMessage = msgIdx == messages.length - 1;
 
-        Widget buildBubble(ChatMessage m) => centered(ChatMessageWidget(
-              message: m,
-              isStreaming: isLastMessage &&
-                  chatProvider.isSending &&
-                  m.isAssistant,
-              conversationId: chatProvider.currentConversation?.id,
-              isLastAssistant:
-                  m.isAssistant && msgIdx == lastAssistantIdx,
-            ));
+        Widget buildBubble(ChatMessage m) => centered(
+          ChatMessageWidget(
+            message: m,
+            isStreaming:
+                isLastMessage && chatProvider.isSending && m.isAssistant,
+            conversationId: chatProvider.currentConversation?.id,
+            isLastAssistant: m.isAssistant && msgIdx == lastAssistantIdx,
+          ),
+        );
 
         // The in-flight assistant bubble subscribes to the streaming
         // channel directly, so per-chunk updates repaint only this one
@@ -772,8 +800,11 @@ class _ErrorBanner extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       child: Row(
         children: [
-          Icon(Icons.error_outline,
-              color: colorScheme.onErrorContainer, size: 20),
+          Icon(
+            Icons.error_outline,
+            color: colorScheme.onErrorContainer,
+            size: 20,
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -784,8 +815,11 @@ class _ErrorBanner extends StatelessWidget {
             ),
           ),
           IconButton(
-            icon: Icon(Icons.close,
-                color: colorScheme.onErrorContainer, size: 20),
+            icon: Icon(
+              Icons.close,
+              color: colorScheme.onErrorContainer,
+              size: 20,
+            ),
             onPressed: onDismiss,
             visualDensity: VisualDensity.compact,
           ),

@@ -39,10 +39,7 @@ class ProfileSection extends StatelessWidget {
                 style: TextStyle(color: colorScheme.onPrimary),
               ),
             ),
-            title: Text(
-              displayName,
-              style: theme.textTheme.titleMedium,
-            ),
+            title: Text(displayName, style: theme.textTheme.titleMedium),
             subtitle: Text(user?.email ?? ''),
             trailing: user?.isAdmin ?? false
                 ? Chip(
@@ -80,10 +77,7 @@ class ProfileSection extends StatelessWidget {
           const Divider(height: 1),
           ListTile(
             leading: Icon(Icons.logout, color: colorScheme.error),
-            title: Text(
-              'Sign out',
-              style: TextStyle(color: colorScheme.error),
-            ),
+            title: Text('Sign out', style: TextStyle(color: colorScheme.error)),
             onTap: () async {
               await AuthService.instance.logout();
               onLogout();

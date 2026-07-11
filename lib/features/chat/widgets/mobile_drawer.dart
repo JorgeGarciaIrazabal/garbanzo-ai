@@ -177,8 +177,7 @@ class _MobileDrawerBodyState extends State<_MobileDrawerBody> {
                               : Icons.push_pin_outlined,
                         ),
                         tooltip: conversation.isPinned ? 'Unpin' : 'Pin',
-                        onPressed: () =>
-                            widget.onTogglePin!(conversation.id),
+                        onPressed: () => widget.onTogglePin!(conversation.id),
                       ),
                     IconButton(
                       icon: const Icon(Icons.delete_outline),
@@ -218,8 +217,7 @@ class _MobileDrawerBodyState extends State<_MobileDrawerBody> {
                         unawaited(
                           Navigator.of(context).push(
                             MaterialPageRoute(
-                              builder: (_) =>
-                                  RoomChatPage(roomId: created.id),
+                              builder: (_) => RoomChatPage(roomId: created.id),
                             ),
                           ),
                         );

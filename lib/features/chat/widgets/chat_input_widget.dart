@@ -94,9 +94,9 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
       await _voiceHelper.startRecording();
     } on VoiceRecordingException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
       }
       return;
     }
@@ -138,8 +138,9 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
       // this controller directly, so its send-button state updates itself.
       final currentText = _controller.text;
       final selection = _controller.selection;
-      final insertPos =
-          selection.isValid ? selection.baseOffset : currentText.length;
+      final insertPos = selection.isValid
+          ? selection.baseOffset
+          : currentText.length;
       final prefix = insertPos > 0 && currentText[insertPos - 1] != ' '
           ? ' '
           : '';
@@ -161,9 +162,9 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
       }
     } on VoiceRecordingException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
       }
     } catch (e) {
       logDebug('Transcription failed: $e');
@@ -184,9 +185,9 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
         } else {
           message = 'Transcription failed — please try again.';
         }
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(message)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(message)));
       }
     } finally {
       if (mounted) {
@@ -205,9 +206,9 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
 
     if (result.validationErrors.isNotEmpty && mounted) {
       for (final error in result.validationErrors) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error)));
       }
     }
 

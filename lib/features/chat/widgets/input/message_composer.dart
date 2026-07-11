@@ -140,7 +140,8 @@ class MessageComposerState extends State<MessageComposer> {
       return KeyEventResult.handled;
     }
 
-    final isEnter = event.logicalKey == LogicalKeyboardKey.enter ||
+    final isEnter =
+        event.logicalKey == LogicalKeyboardKey.enter ||
         event.logicalKey == LogicalKeyboardKey.numpadEnter;
     if (!isEnter) return KeyEventResult.ignored;
 
@@ -222,16 +223,19 @@ class MessageComposerState extends State<MessageComposer> {
                         Container(
                           decoration: BoxDecoration(
                             color: colorScheme.surfaceContainerHighest,
-                            borderRadius:
-                                BorderRadius.circular(isMobile ? 16 : 20),
+                            borderRadius: BorderRadius.circular(
+                              isMobile ? 16 : 20,
+                            ),
                             border: Border.all(
-                              color: colorScheme.outlineVariant
-                                  .withValues(alpha: 0.5),
+                              color: colorScheme.outlineVariant.withValues(
+                                alpha: 0.5,
+                              ),
                             ),
                           ),
                           child: ConstrainedBox(
-                            constraints:
-                                BoxConstraints(maxHeight: isMobile ? 100 : 150),
+                            constraints: BoxConstraints(
+                              maxHeight: isMobile ? 100 : 150,
+                            ),
                             child: TextField(
                               key: const ValueKey('message_input'),
                               controller: _controller,

@@ -204,7 +204,9 @@ class _ImageViewerState extends State<ImageViewer>
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
-                _scale > 1.0 ? 'Drag to pan • Double tap to reset' : 'Pinch to zoom • Double tap to reset',
+                _scale > 1.0
+                    ? 'Drag to pan • Double tap to reset'
+                    : 'Pinch to zoom • Double tap to reset',
                 style: theme.textTheme.labelSmall?.copyWith(
                   color: Colors.white70,
                 ),

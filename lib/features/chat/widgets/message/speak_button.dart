@@ -87,8 +87,13 @@ class _SpeakButtonState extends State<SpeakButton> {
 
       // Fire ALL requests up-front so the backend queues them back-to-back.
       final futures = chunks
-          .map((c) => AudioService.instance
-              .speak(c, voice: settings.ttsVoice, speed: settings.ttsSpeed))
+          .map(
+            (c) => AudioService.instance.speak(
+              c,
+              voice: settings.ttsVoice,
+              speed: settings.ttsSpeed,
+            ),
+          )
           .toList();
 
       for (int i = 0; i < futures.length; i++) {
@@ -127,12 +132,13 @@ class _SpeakButtonState extends State<SpeakButton> {
           _isLoading = false;
           _isPlaying = false;
         });
-        final message = e.toString().contains('500') || e.toString().contains('unavailable')
+        final message =
+            e.toString().contains('500') || e.toString().contains('unavailable')
             ? 'Text-to-speech is currently unavailable'
             : 'Speech synthesis failed: $e';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(message)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(message)));
       }
     }
   }
@@ -162,8 +168,7 @@ class _SpeakButtonState extends State<SpeakButton> {
       key: const ValueKey('speak_button'),
       icon: _isPlaying ? Icons.stop : Icons.volume_up,
       label: _isPlaying ? 'Stop' : 'Listen',
-      tooltip:
-          _isPlaying ? 'Stop playback' : 'Read this message aloud',
+      tooltip: _isPlaying ? 'Stop playback' : 'Read this message aloud',
       highlighted: _isPlaying,
       onTap: _isPlaying ? _stop : _speak,
     );

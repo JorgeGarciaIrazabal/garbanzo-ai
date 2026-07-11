@@ -45,10 +45,12 @@ class MetadataDetails extends StatelessWidget {
     // Support both backend field names (tokens_prompt, tokens_generated, total_duration_ns)
     // and legacy field names (input_tokens, output_tokens, response_time_ms)
     final inputTokens = metadata['tokens_prompt'] ?? metadata['input_tokens'];
-    final outputTokens = metadata['tokens_generated'] ?? metadata['output_tokens'];
+    final outputTokens =
+        metadata['tokens_generated'] ?? metadata['output_tokens'];
     final totalDurationNs = metadata['total_duration_ns'];
     final responseTimeMs = metadata['response_time_ms'];
-    final totalTokens = metadata['total_tokens'] ??
+    final totalTokens =
+        metadata['total_tokens'] ??
         ((inputTokens != null && outputTokens != null)
             ? (inputTokens as num) + (outputTokens as num)
             : null);

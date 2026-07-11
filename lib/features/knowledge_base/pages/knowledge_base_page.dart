@@ -23,8 +23,10 @@ class _KnowledgeBasePageState extends State<KnowledgeBasePage> {
     super.initState();
     _provider = KnowledgeBaseProvider();
     WidgetsBinding.instance.addPostFrameCallback((_) => _provider.refresh());
-    _pollTimer =
-        Timer.periodic(const Duration(seconds: 4), (_) => _pollProcessing());
+    _pollTimer = Timer.periodic(
+      const Duration(seconds: 4),
+      (_) => _pollProcessing(),
+    );
   }
 
   Future<void> _pollProcessing() async {
@@ -46,9 +48,26 @@ class _KnowledgeBasePageState extends State<KnowledgeBasePage> {
       withData: true,
       type: FileType.custom,
       allowedExtensions: const [
-        'txt', 'md', 'csv', 'json', 'xml', 'yaml', 'yml',
-        'html', 'htm', 'pdf', 'xlsx', 'xls', 'ods',
-        'py', 'js', 'ts', 'dart', 'rs', 'go', 'java',
+        'txt',
+        'md',
+        'csv',
+        'json',
+        'xml',
+        'yaml',
+        'yml',
+        'html',
+        'htm',
+        'pdf',
+        'xlsx',
+        'xls',
+        'ods',
+        'py',
+        'js',
+        'ts',
+        'dart',
+        'rs',
+        'go',
+        'java',
       ],
     );
     if (picked == null) return;
@@ -177,10 +196,7 @@ class _EmptyState extends StatelessWidget {
               color: theme.colorScheme.primary.withAlpha(140),
             ),
             const SizedBox(height: 16),
-            Text(
-              'No documents yet',
-              style: theme.textTheme.titleLarge,
-            ),
+            Text('No documents yet', style: theme.textTheme.titleLarge),
             const SizedBox(height: 8),
             Text(
               'Upload PDFs, spreadsheets, or text files to make them available '

@@ -37,7 +37,9 @@ class AttachmentDisplay extends StatelessWidget {
             Wrap(
               spacing: 6,
               runSpacing: 6,
-              children: docs.map((doc) => DocumentChip(doc, colorScheme, textTheme)).toList(),
+              children: docs
+                  .map((doc) => DocumentChip(doc, colorScheme, textTheme))
+                  .toList(),
             ),
           ],
         ],
@@ -88,8 +90,11 @@ class _ImageThumbnailState extends State<ImageThumbnail> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.image_outlined, size: 32,
-                color: Theme.of(context).colorScheme.onSurfaceVariant),
+            Icon(
+              Icons.image_outlined,
+              size: 32,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
             const SizedBox(height: 4),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -113,7 +118,8 @@ class _ImageThumbnailState extends State<ImageThumbnail> {
           width: 160,
           height: 160,
           fit: BoxFit.cover,
-          errorBuilder: (ctx, err, stack) => const Icon(Icons.broken_image, size: 48),
+          errorBuilder: (ctx, err, stack) =>
+              const Icon(Icons.broken_image, size: 48),
         ),
       ),
     );
@@ -121,7 +127,12 @@ class _ImageThumbnailState extends State<ImageThumbnail> {
 }
 
 class DocumentChip extends StatelessWidget {
-  const DocumentChip(this.attachment, this.colorScheme, this.textTheme, {super.key});
+  const DocumentChip(
+    this.attachment,
+    this.colorScheme,
+    this.textTheme, {
+    super.key,
+  });
   final ChatAttachment attachment;
   final ColorScheme colorScheme;
   final TextTheme textTheme;
@@ -133,9 +144,7 @@ class DocumentChip extends StatelessWidget {
       decoration: BoxDecoration(
         color: colorScheme.primaryContainer.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: colorScheme.primary.withValues(alpha: 0.3),
-        ),
+        border: Border.all(color: colorScheme.primary.withValues(alpha: 0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

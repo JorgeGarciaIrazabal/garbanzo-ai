@@ -61,16 +61,22 @@ class VoiceRecordingHelper {
     final exists = await file.exists();
     final audioBytes = exists ? await file.readAsBytes() : Uint8List(0);
     final filename = path.split('/').last;
-    debugPrint('STT: path=$path exists=$exists size=${audioBytes.length} bytes');
+    debugPrint(
+      'STT: path=$path exists=$exists size=${audioBytes.length} bytes',
+    );
 
     if (audioBytes.isEmpty) {
       debugPrint('STT: audio file is empty, skipping transcription');
-      throw const VoiceRecordingException('Recording failed — audio file is empty');
+      throw const VoiceRecordingException(
+        'Recording failed — audio file is empty',
+      );
     }
 
     try {
-      final transcript =
-          await AudioService.instance.transcribeAudio(audioBytes, filename);
+      final transcript = await AudioService.instance.transcribeAudio(
+        audioBytes,
+        filename,
+      );
       debugPrint('STT: transcript="$transcript" (${transcript.length} chars)');
       return VoiceRecordingResult(transcript: transcript);
     } finally {
@@ -125,10 +131,14 @@ class VoiceRecordingHelper {
         final device = card != null ? 'plughw:$card,0' : 'default';
         _arecordPath = tempPath;
         _arecordProcess = await Process.start('arecord', [
-          '-D', device,
-          '-f', 'S16_LE',
-          '-r', '44100',
-          '-c', '1',
+          '-D',
+          device,
+          '-f',
+          'S16_LE',
+          '-r',
+          '44100',
+          '-c',
+          '1',
           tempPath,
         ]);
         return true;

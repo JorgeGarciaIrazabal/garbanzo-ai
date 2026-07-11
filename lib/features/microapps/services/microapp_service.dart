@@ -4,7 +4,8 @@ import 'package:dio/dio.dart';
 
 import 'package:garbanzo_ai/core/api_client.dart';
 import 'package:garbanzo_ai/features/chat/models/chat_message.dart';
-import 'package:garbanzo_ai/features/chat/services/chat_service.dart' show parseSseChunks;
+import 'package:garbanzo_ai/features/chat/services/chat_service.dart'
+    show parseSseChunks;
 import 'package:garbanzo_ai/features/microapps/models/micro_app.dart';
 
 /// The micro-apps backend surface the provider depends on. An interface so
@@ -135,15 +136,14 @@ class MicroappService implements MicroappApi {
   }) async* {
     final res = await _client.streamPost(
       '/api/v1/microapps/agent/chat',
-      data: {
-        'instruction': instruction,
-        'session_id': ?sessionId,
-      },
+      data: {'instruction': instruction, 'session_id': ?sessionId},
     );
     final body = res.data as ResponseBody;
     if (res.statusCode != 200) {
-      final err =
-          await body.stream.cast<List<int>>().transform(utf8.decoder).join();
+      final err = await body.stream
+          .cast<List<int>>()
+          .transform(utf8.decoder)
+          .join();
       throw Exception('Agent chat failed: ${res.statusCode} - $err');
     }
     yield* parseSseChunks(

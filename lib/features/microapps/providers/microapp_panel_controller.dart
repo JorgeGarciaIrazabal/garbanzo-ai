@@ -49,7 +49,8 @@ class MicroappPanelController extends ChangeNotifier {
     final base = Uri.parse(ApiClient.instance.baseUrl);
     final host = base.host;
     final scheme = base.scheme.isEmpty ? 'http' : base.scheme;
-    final origin = (host.isNotEmpty && host != '127.0.0.1' && host != 'localhost')
+    final origin =
+        (host.isNotEmpty && host != '127.0.0.1' && host != 'localhost')
         ? '$scheme://$host:$_devPort'
         : 'http://127.0.0.1:$_devPort';
     return '$origin/micro-apps/$_appPath?${qsParts.join('&')}';

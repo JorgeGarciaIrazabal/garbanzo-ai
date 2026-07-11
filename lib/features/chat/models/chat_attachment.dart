@@ -34,11 +34,11 @@ abstract class ChatAttachment with _$ChatAttachment {
 
   /// Serialise to the JSON shape the backend expects.
   Map<String, dynamic> toJson() => {
-        'name': name,
-        'mime_type': mimeType,
-        'type': type.name,
-        'data': isImage ? base64Data : textData,
-      };
+    'name': name,
+    'mime_type': mimeType,
+    'type': type.name,
+    'data': isImage ? base64Data : textData,
+  };
 
   static AttachmentType _typeFromMime(String mime) {
     if (mime.startsWith('image/')) return AttachmentType.image;

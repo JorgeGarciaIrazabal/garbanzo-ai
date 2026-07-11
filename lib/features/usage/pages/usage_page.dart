@@ -141,9 +141,9 @@ class _SectionTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
+      style: Theme.of(
+        context,
+      ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
     );
   }
 }
@@ -183,12 +183,14 @@ class _TotalsRow extends StatelessWidget {
           spacing: 12,
           runSpacing: 12,
           children: cards
-              .map((c) => SizedBox(
-                    width: narrow
-                        ? (constraints.maxWidth - 12) / 2
-                        : (constraints.maxWidth - 36) / 4,
-                    child: c,
-                  ))
+              .map(
+                (c) => SizedBox(
+                  width: narrow
+                      ? (constraints.maxWidth - 12) / 2
+                      : (constraints.maxWidth - 36) / 4,
+                  child: c,
+                ),
+              )
               .toList(),
         );
       },
@@ -357,8 +359,7 @@ class _DailyChart extends StatelessWidget {
               ),
               barTouchData: BarTouchData(
                 touchTooltipData: BarTouchTooltipData(
-                  getTooltipColor: (_) =>
-                      theme.colorScheme.inverseSurface,
+                  getTooltipColor: (_) => theme.colorScheme.inverseSurface,
                   tooltipPadding: const EdgeInsets.all(8),
                   getTooltipItem: (group, _, rod, idx) {
                     final point = points[group.x];
@@ -400,10 +401,7 @@ class _ByModelSection extends StatelessWidget {
       child: Column(
         children: [
           for (var i = 0; i < summary.byModel.length; i++) ...[
-            _ModelRow(
-              entry: summary.byModel[i],
-              maxValue: maxValue,
-            ),
+            _ModelRow(entry: summary.byModel[i], maxValue: maxValue),
             if (i < summary.byModel.length - 1)
               Divider(
                 height: 1,

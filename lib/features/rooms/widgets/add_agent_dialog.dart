@@ -5,10 +5,7 @@ import 'package:garbanzo_ai/features/chat/services/chat_service.dart';
 import 'package:garbanzo_ai/features/rooms/providers/room_provider.dart';
 
 /// Show the "Add agent" dialog. Returns when the dialog closes.
-Future<void> showAddAgentDialog(
-  BuildContext context,
-  RoomProvider provider,
-) {
+Future<void> showAddAgentDialog(BuildContext context, RoomProvider provider) {
   return showDialog<void>(
     context: context,
     builder: (_) => _AddAgentDialog(provider: provider),
@@ -66,8 +63,9 @@ class _AddAgentDialogState extends State<_AddAgentDialog> {
 
   String? _pickDefault(List<ModelInfo> models) {
     if (models.isEmpty) return null;
-    final llama =
-        models.where((m) => m.id.contains('llama3.2')).cast<ModelInfo?>();
+    final llama = models
+        .where((m) => m.id.contains('llama3.2'))
+        .cast<ModelInfo?>();
     return (llama.isNotEmpty ? llama.first : models.first)?.id;
   }
 
@@ -89,9 +87,9 @@ class _AddAgentDialogState extends State<_AddAgentDialog> {
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed: $e')));
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -127,13 +125,16 @@ class _AddAgentDialogState extends State<_AddAgentDialog> {
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 initialValue: _mode,
-                decoration:
-                    const InputDecoration(labelText: 'When to respond'),
+                decoration: const InputDecoration(labelText: 'When to respond'),
                 items: const [
                   DropdownMenuItem(
-                      value: 'mention', child: Text('On @mention only')),
+                    value: 'mention',
+                    child: Text('On @mention only'),
+                  ),
                   DropdownMenuItem(
-                      value: 'always', child: Text('Always respond')),
+                    value: 'always',
+                    child: Text('Always respond'),
+                  ),
                   DropdownMenuItem(
                     value: 'round_robin',
                     child: Text('Round-robin (take turns)'),
@@ -150,7 +151,8 @@ class _AddAgentDialogState extends State<_AddAgentDialog> {
                 contentPadding: EdgeInsets.zero,
                 title: const Text('Moderator'),
                 subtitle: const Text(
-                    'Helps summarize, break ties, keep things on track'),
+                  'Helps summarize, break ties, keep things on track',
+                ),
                 value: _moderator,
                 onChanged: (v) => setState(() => _moderator = v),
               ),
@@ -164,7 +166,8 @@ class _AddAgentDialogState extends State<_AddAgentDialog> {
           child: const Text('Cancel'),
         ),
         FilledButton(
-          onPressed: _saving ||
+          onPressed:
+              _saving ||
                   _selectedModelId == null ||
                   _nameCtrl.text.trim().isEmpty
               ? null
@@ -259,13 +262,12 @@ class _AddAgentDialogState extends State<_AddAgentDialog> {
         );
       }).toList(),
       selectedItemBuilder: (_) => _models!
-          .map((m) => Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  m.name,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ))
+          .map(
+            (m) => Align(
+              alignment: Alignment.centerLeft,
+              child: Text(m.name, overflow: TextOverflow.ellipsis),
+            ),
+          )
           .toList(),
       onChanged: (v) => setState(() => _selectedModelId = v),
     );

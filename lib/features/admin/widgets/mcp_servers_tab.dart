@@ -39,9 +39,9 @@ class _MCPServersTabState extends State<MCPServersTab> {
       enabled: result.enabled,
     );
     if (created == null && mounted && provider.serversError != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(provider.serversError!)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(provider.serversError!)));
     }
   }
 
@@ -69,9 +69,10 @@ class _MCPServersTabState extends State<MCPServersTab> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Delete MCP server?'),
-        content:
-            Text('Are you sure you want to delete "${server.name}"? This '
-                'cannot be undone.'),
+        content: Text(
+          'Are you sure you want to delete "${server.name}"? This '
+          'cannot be undone.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
@@ -94,9 +95,9 @@ class _MCPServersTabState extends State<MCPServersTab> {
 
   Future<void> _handleTest(MCPServer server) async {
     final provider = context.read<AdminProvider>();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Testing ${server.name}…')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('Testing ${server.name}…')));
     final result = await provider.testServer(server.id);
     if (!mounted || result == null) return;
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
@@ -131,10 +132,7 @@ class _MCPServersTabState extends State<MCPServersTab> {
             const SizedBox(height: 8),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Text(
-                provider.serversError!,
-                textAlign: TextAlign.center,
-              ),
+              child: Text(provider.serversError!, textAlign: TextAlign.center),
             ),
             const SizedBox(height: 8),
             FilledButton(
@@ -232,8 +230,7 @@ class _MCPServersTabState extends State<MCPServersTab> {
                   ),
                   IconButton(
                     tooltip: 'Delete (long-press)',
-                    icon: Icon(Icons.delete_outline,
-                        color: colorScheme.error),
+                    icon: Icon(Icons.delete_outline, color: colorScheme.error),
                     onPressed: () => _handleDelete(server),
                   ),
                 ],

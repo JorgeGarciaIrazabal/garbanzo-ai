@@ -108,8 +108,10 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
                     bottomRight: Radius.circular(6),
                   ),
                 ),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 11,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -142,17 +144,17 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
                     CopyButton(content: message.content),
                     const SizedBox(width: 8),
                     if (!message.id.startsWith('temp-'))
-                      Builder(builder: (ctx) {
-                        final chat = ctx.watch<ChatProvider>();
-                        return EditMessageButton(
-                          content: message.content,
-                          enabled: !chat.isSending,
-                          onSubmit: (newContent) => chat.editUserMessage(
-                            message.id,
-                            newContent,
-                          ),
-                        );
-                      }),
+                      Builder(
+                        builder: (ctx) {
+                          final chat = ctx.watch<ChatProvider>();
+                          return EditMessageButton(
+                            content: message.content,
+                            enabled: !chat.isSending,
+                            onSubmit: (newContent) =>
+                                chat.editUserMessage(message.id, newContent),
+                          );
+                        },
+                      ),
                     const SizedBox(width: 8),
                     RememberThisButton(
                       content: message.content,
@@ -160,13 +162,15 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
                     ),
                     if (!message.id.startsWith('temp-')) ...[
                       const SizedBox(width: 8),
-                      Builder(builder: (ctx) {
-                        final chat = ctx.watch<ChatProvider>();
-                        return BranchButton(
-                          enabled: !chat.isSending,
-                          onPressed: () => chat.branchFromMessage(message.id),
-                        );
-                      }),
+                      Builder(
+                        builder: (ctx) {
+                          final chat = ctx.watch<ChatProvider>();
+                          return BranchButton(
+                            enabled: !chat.isSending,
+                            onPressed: () => chat.branchFromMessage(message.id),
+                          );
+                        },
+                      ),
                     ],
                   ],
                 ),
@@ -224,14 +228,18 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
                       message: 'From your knowledge base',
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 3),
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
                         decoration: BoxDecoration(
-                          color: colorScheme.surfaceContainerHigh
-                              .withValues(alpha: 0.6),
+                          color: colorScheme.surfaceContainerHigh.withValues(
+                            alpha: 0.6,
+                          ),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: colorScheme.outlineVariant
-                                .withValues(alpha: 0.4),
+                            color: colorScheme.outlineVariant.withValues(
+                              alpha: 0.4,
+                            ),
                           ),
                         ),
                         child: Row(
@@ -283,30 +291,35 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
                     if (widget.isLastAssistant &&
                         !message.id.startsWith('temp-')) ...[
                       const SizedBox(width: 8),
-                      Builder(builder: (ctx) {
-                        final chat = ctx.watch<ChatProvider>();
-                        return RegenerateButton(
-                          enabled: !chat.isSending,
-                          onPressed: () => chat.regenerateLastAssistant(),
-                        );
-                      }),
+                      Builder(
+                        builder: (ctx) {
+                          final chat = ctx.watch<ChatProvider>();
+                          return RegenerateButton(
+                            enabled: !chat.isSending,
+                            onPressed: () => chat.regenerateLastAssistant(),
+                          );
+                        },
+                      ),
                     ],
                     if (!message.id.startsWith('temp-')) ...[
                       const SizedBox(width: 8),
-                      Builder(builder: (ctx) {
-                        final chat = ctx.watch<ChatProvider>();
-                        return BranchButton(
-                          enabled: !chat.isSending,
-                          onPressed: () => chat.branchFromMessage(message.id),
-                        );
-                      }),
+                      Builder(
+                        builder: (ctx) {
+                          final chat = ctx.watch<ChatProvider>();
+                          return BranchButton(
+                            enabled: !chat.isSending,
+                            onPressed: () => chat.branchFromMessage(message.id),
+                          );
+                        },
+                      ),
                     ],
                     if (settings.showMessageMetadata && hasMetadata) ...[
                       const SizedBox(width: 8),
                       MetadataIconToggle(
                         isExpanded: _metadataExpanded,
                         onToggle: () => setState(
-                            () => _metadataExpanded = !_metadataExpanded),
+                          () => _metadataExpanded = !_metadataExpanded,
+                        ),
                         colorScheme: colorScheme,
                       ),
                     ],
@@ -336,8 +349,7 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
       indicators.addAll([
         const SizedBox(width: 12),
         Tooltip(
-          message:
-              '$memoriesUsed saved memories about you informed this reply',
+          message: '$memoriesUsed saved memories about you informed this reply',
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [

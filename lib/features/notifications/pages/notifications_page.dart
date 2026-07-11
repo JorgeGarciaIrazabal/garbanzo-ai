@@ -47,10 +47,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
             return Center(
               child: Padding(
                 padding: const EdgeInsets.all(16),
-                child: Text(
-                  provider.error!,
-                  textAlign: TextAlign.center,
-                ),
+                child: Text(provider.error!, textAlign: TextAlign.center),
               ),
             );
           }
@@ -128,8 +125,7 @@ class _NotificationTile extends StatelessWidget {
         title: Text(
           notification.title,
           style: TextStyle(
-            fontWeight:
-                notification.isRead ? FontWeight.w400 : FontWeight.w600,
+            fontWeight: notification.isRead ? FontWeight.w400 : FontWeight.w600,
           ),
         ),
         subtitle: Column(

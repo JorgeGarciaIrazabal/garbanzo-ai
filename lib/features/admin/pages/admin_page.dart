@@ -42,11 +42,7 @@ class _AdminPageContent extends StatelessWidget {
           ),
         ),
         body: const TabBarView(
-          children: [
-            UsersTab(),
-            ModelsTab(),
-            MCPServersTab(),
-          ],
+          children: [UsersTab(), ModelsTab(), MCPServersTab()],
         ),
       ),
     );

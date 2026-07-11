@@ -26,11 +26,7 @@ class SystemPromptService {
   }) async {
     final response = await _api.post(
       '/api/v1/system-prompts/templates',
-      data: {
-        'name': name,
-        'content': content,
-        'description': ?description,
-      },
+      data: {'name': name, 'content': content, 'description': ?description},
     );
     if (response.statusCode == 201) {
       return SystemPromptTemplate.fromJson(
@@ -48,11 +44,7 @@ class SystemPromptService {
   }) async {
     final response = await _api.patch(
       '/api/v1/system-prompts/templates/$templateId',
-      data: {
-        'name': ?name,
-        'content': ?content,
-        'description': ?description,
-      },
+      data: {'name': ?name, 'content': ?content, 'description': ?description},
     );
     if (response.statusCode == 200) {
       return SystemPromptTemplate.fromJson(
@@ -63,8 +55,9 @@ class SystemPromptService {
   }
 
   Future<void> deleteTemplate(String templateId) async {
-    final response =
-        await _api.delete('/api/v1/system-prompts/templates/$templateId');
+    final response = await _api.delete(
+      '/api/v1/system-prompts/templates/$templateId',
+    );
     if (response.statusCode != 204) {
       throw Exception('Failed to delete template (${response.statusCode})');
     }

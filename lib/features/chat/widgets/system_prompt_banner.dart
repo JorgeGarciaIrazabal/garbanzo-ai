@@ -49,8 +49,7 @@ class _SystemPromptBannerState extends State<SystemPromptBanner> {
         context,
         initialContent: convPrompt,
         title: 'Conversation system prompt',
-        subtitle:
-            'Overrides your global default for this conversation only.',
+        subtitle: 'Overrides your global default for this conversation only.',
       );
       if (result == null || result.isCancelled) return;
       if (result.isClear) {
@@ -65,9 +64,7 @@ class _SystemPromptBannerState extends State<SystemPromptBanner> {
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: colorScheme.outlineVariant,
-        ),
+        border: Border.all(color: colorScheme.outlineVariant),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -77,10 +74,7 @@ class _SystemPromptBannerState extends State<SystemPromptBanner> {
             borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
             onTap: () => setState(() => _expanded = !_expanded),
             child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 8,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               child: Row(
                 children: [
                   Icon(

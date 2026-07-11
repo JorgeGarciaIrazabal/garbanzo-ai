@@ -46,14 +46,7 @@ class _SettingsPageContent extends StatefulWidget {
   State<_SettingsPageContent> createState() => _SettingsPageState();
 }
 
-enum _Section {
-  profile,
-  appearance,
-  models,
-  voice,
-  memory,
-  notifications,
-}
+enum _Section { profile, appearance, models, voice, memory, notifications }
 
 class _SettingsPageState extends State<_SettingsPageContent> {
   _Section _selected = _Section.profile;
@@ -100,9 +93,7 @@ class _SettingsPageState extends State<_SettingsPageContent> {
     final wide = MediaQuery.of(context).size.width >= 720;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Settings'),
-      ),
+      appBar: AppBar(title: const Text('Settings')),
       body: wide ? _buildWide(theme) : _buildNarrow(theme),
     );
   }
@@ -190,10 +181,7 @@ class _SettingsPageState extends State<_SettingsPageContent> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Theme',
-              style: Theme.of(context).textTheme.titleSmall,
-            ),
+            Text('Theme', style: Theme.of(context).textTheme.titleSmall),
             const SizedBox(height: 12),
             SegmentedButton<AppThemeMode>(
               segments: const [
@@ -329,9 +317,9 @@ class _SettingsPageState extends State<_SettingsPageContent> {
             subtitle: const Text('Charts by model, conversation, day'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const UsagePage()),
-              );
+              Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => const UsagePage()));
             },
           ),
         ],
@@ -397,7 +385,9 @@ class _SettingsPageState extends State<_SettingsPageContent> {
           const Divider(height: 1),
           SwitchListTile(
             title: const Text('Auto-send after transcription'),
-            subtitle: const Text('Automatically send when voice input finishes'),
+            subtitle: const Text(
+              'Automatically send when voice input finishes',
+            ),
             value: settings.autoSubmitStt,
             onChanged: settings.setAutoSubmitStt,
           ),
@@ -436,9 +426,7 @@ class _SettingsPageState extends State<_SettingsPageContent> {
           return const Card(
             child: Padding(
               padding: EdgeInsets.all(24),
-              child: Center(
-                child: CircularProgressIndicator(),
-              ),
+              child: Center(child: CircularProgressIndicator()),
             ),
           );
         }
@@ -451,9 +439,8 @@ class _SettingsPageState extends State<_SettingsPageContent> {
                   'Notify when assistant replies while app is in background',
                 ),
                 value: prefs.chatResponsesEnabled,
-                onChanged: (v) => provider.updatePreferences(
-                  chatResponsesEnabled: v,
-                ),
+                onChanged: (v) =>
+                    provider.updatePreferences(chatResponsesEnabled: v),
               ),
               const Divider(height: 1),
               SwitchListTile(
@@ -468,9 +455,8 @@ class _SettingsPageState extends State<_SettingsPageContent> {
                 title: const Text('System alerts'),
                 subtitle: const Text('Account and system notifications'),
                 value: prefs.systemAlertsEnabled,
-                onChanged: (v) => provider.updatePreferences(
-                  systemAlertsEnabled: v,
-                ),
+                onChanged: (v) =>
+                    provider.updatePreferences(systemAlertsEnabled: v),
               ),
             ],
           ),

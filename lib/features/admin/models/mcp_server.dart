@@ -124,11 +124,7 @@ class MCPTestResult {
   final int toolsCount;
   final String? error;
 
-  const MCPTestResult({
-    required this.ok,
-    this.toolsCount = 0,
-    this.error,
-  });
+  const MCPTestResult({required this.ok, this.toolsCount = 0, this.error});
 
   factory MCPTestResult.fromJson(Map<String, dynamic> json) {
     return MCPTestResult(

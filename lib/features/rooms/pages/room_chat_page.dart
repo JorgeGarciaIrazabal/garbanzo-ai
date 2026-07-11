@@ -122,7 +122,8 @@ class _RoomChatPageBodyState extends State<_RoomChatPageBody> {
                                         onPressed: () =>
                                             _scroll.scrollToBottom(),
                                         child: const Icon(
-                                            Icons.keyboard_arrow_down),
+                                          Icons.keyboard_arrow_down,
+                                        ),
                                       )
                                     : const SizedBox.shrink(),
                               ),
@@ -131,10 +132,7 @@ class _RoomChatPageBodyState extends State<_RoomChatPageBody> {
                         ],
                       ),
               ),
-              _TypingStrip(
-                typingUsers: provider.typingUsers,
-                room: room,
-              ),
+              _TypingStrip(typingUsers: provider.typingUsers, room: room),
               MessageComposer(
                 enabled: room != null,
                 hintText: 'Message the room… (use @AgentName or @all)',
@@ -190,11 +188,7 @@ class _RoomChatPageBodyState extends State<_RoomChatPageBody> {
     );
   }
 
-  Widget _buildMessageList(
-    RoomProvider provider,
-    Room? room,
-    String? me,
-  ) {
+  Widget _buildMessageList(RoomProvider provider, Room? room, String? me) {
     final messages = provider.messages;
     return ListView.builder(
       controller: _scroll.controller,
@@ -303,8 +297,10 @@ class _ConnectionBanner extends StatelessWidget {
               Expanded(
                 child: Text(
                   'Reconnecting…',
-                  style:
-                      TextStyle(color: cs.onSecondaryContainer, fontSize: 13),
+                  style: TextStyle(
+                    color: cs.onSecondaryContainer,
+                    fontSize: 13,
+                  ),
                 ),
               ),
             ],
@@ -411,8 +407,11 @@ class _EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.forum_outlined,
-                size: 64, color: cs.primary.withValues(alpha: 0.5)),
+            Icon(
+              Icons.forum_outlined,
+              size: 64,
+              color: cs.primary.withValues(alpha: 0.5),
+            ),
             const SizedBox(height: 16),
             Text(
               'Welcome to ${room?.name ?? 'this room'}',
@@ -597,9 +596,9 @@ class _MembersAgentsPanel extends StatelessWidget {
       await provider.removeMember(member.userId);
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to remove member: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to remove member: $e')));
       }
     }
   }
@@ -634,15 +633,17 @@ class _MembersAgentsPanel extends StatelessWidget {
       await provider.deleteAgent(agent.id);
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to delete agent: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to delete agent: $e')));
       }
     }
   }
 
   Future<void> _showInviteDialog(
-      BuildContext context, RoomProvider provider) async {
+    BuildContext context,
+    RoomProvider provider,
+  ) async {
     final emailCtrl = TextEditingController();
     await showDialog(
       context: context,
@@ -667,9 +668,9 @@ class _MembersAgentsPanel extends StatelessWidget {
                 if (ctx.mounted) Navigator.of(ctx).pop();
               } catch (e) {
                 if (ctx.mounted) {
-                  ScaffoldMessenger.of(ctx).showSnackBar(
-                    SnackBar(content: Text('Failed: $e')),
-                  );
+                  ScaffoldMessenger.of(
+                    ctx,
+                  ).showSnackBar(SnackBar(content: Text('Failed: $e')));
                 }
               }
             },

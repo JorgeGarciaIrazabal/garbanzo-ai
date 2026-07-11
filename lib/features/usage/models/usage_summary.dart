@@ -14,11 +14,11 @@ class UsageByModel {
   int get totalTokens => tokensPrompt + tokensGenerated;
 
   factory UsageByModel.fromJson(Map<String, dynamic> json) => UsageByModel(
-        model: json['model'] as String? ?? 'unknown',
-        tokensPrompt: (json['tokens_prompt'] as num?)?.toInt() ?? 0,
-        tokensGenerated: (json['tokens_generated'] as num?)?.toInt() ?? 0,
-        messageCount: (json['message_count'] as num?)?.toInt() ?? 0,
-      );
+    model: json['model'] as String? ?? 'unknown',
+    tokensPrompt: (json['tokens_prompt'] as num?)?.toInt() ?? 0,
+    tokensGenerated: (json['tokens_generated'] as num?)?.toInt() ?? 0,
+    messageCount: (json['message_count'] as num?)?.toInt() ?? 0,
+  );
 }
 
 class UsageByConversation {
@@ -94,23 +94,22 @@ class UsageSummary {
   int get totalTokens => totalTokensPrompt + totalTokensGenerated;
 
   factory UsageSummary.fromJson(Map<String, dynamic> json) => UsageSummary(
-        days: (json['days'] as num?)?.toInt() ?? 30,
-        totalTokensPrompt:
-            (json['total_tokens_prompt'] as num?)?.toInt() ?? 0,
-        totalTokensGenerated:
-            (json['total_tokens_generated'] as num?)?.toInt() ?? 0,
-        totalMessages: (json['total_messages'] as num?)?.toInt() ?? 0,
-        byModel: (json['by_model'] as List<dynamic>? ?? [])
-            .whereType<Map<String, dynamic>>()
-            .map(UsageByModel.fromJson)
-            .toList(),
-        byConversation: (json['by_conversation'] as List<dynamic>? ?? [])
-            .whereType<Map<String, dynamic>>()
-            .map(UsageByConversation.fromJson)
-            .toList(),
-        byDay: (json['by_day'] as List<dynamic>? ?? [])
-            .whereType<Map<String, dynamic>>()
-            .map(UsageByDay.fromJson)
-            .toList(),
-      );
+    days: (json['days'] as num?)?.toInt() ?? 30,
+    totalTokensPrompt: (json['total_tokens_prompt'] as num?)?.toInt() ?? 0,
+    totalTokensGenerated:
+        (json['total_tokens_generated'] as num?)?.toInt() ?? 0,
+    totalMessages: (json['total_messages'] as num?)?.toInt() ?? 0,
+    byModel: (json['by_model'] as List<dynamic>? ?? [])
+        .whereType<Map<String, dynamic>>()
+        .map(UsageByModel.fromJson)
+        .toList(),
+    byConversation: (json['by_conversation'] as List<dynamic>? ?? [])
+        .whereType<Map<String, dynamic>>()
+        .map(UsageByConversation.fromJson)
+        .toList(),
+    byDay: (json['by_day'] as List<dynamic>? ?? [])
+        .whereType<Map<String, dynamic>>()
+        .map(UsageByDay.fromJson)
+        .toList(),
+  );
 }

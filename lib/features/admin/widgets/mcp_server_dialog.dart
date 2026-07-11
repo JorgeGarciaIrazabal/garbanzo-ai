@@ -66,21 +66,22 @@ class _MCPServerDialogState extends State<MCPServerDialog> {
     super.initState();
     final existing = widget.existing;
     _nameController = TextEditingController(text: existing?.name ?? '');
-    _descriptionController =
-        TextEditingController(text: existing?.description ?? '');
+    _descriptionController = TextEditingController(
+      text: existing?.description ?? '',
+    );
     _urlController = TextEditingController(text: existing?.url ?? '');
     _commandController = TextEditingController(text: existing?.command ?? '');
     _argsController = TextEditingController(
       text: (existing?.args ?? const []).join('\n'),
     );
     _envController = TextEditingController(
-      text: (existing?.env ?? const <String, String>{})
-          .entries
+      text: (existing?.env ?? const <String, String>{}).entries
           .map((e) => '${e.key}=${e.value}')
           .join('\n'),
     );
-    _authHeaderController =
-        TextEditingController(text: existing?.authHeader ?? '');
+    _authHeaderController = TextEditingController(
+      text: existing?.authHeader ?? '',
+    );
     _transport = existing?.transport ?? McpTransport.http;
     _enabled = existing?.enabled ?? true;
   }
@@ -275,8 +276,9 @@ class _MCPServerDialogState extends State<MCPServerDialog> {
                 value: _enabled,
                 onChanged: (v) => setState(() => _enabled = v),
                 title: const Text('Enabled'),
-                subtitle:
-                    const Text('Disabled servers are ignored by the agent'),
+                subtitle: const Text(
+                  'Disabled servers are ignored by the agent',
+                ),
                 contentPadding: EdgeInsets.zero,
                 dense: true,
               ),

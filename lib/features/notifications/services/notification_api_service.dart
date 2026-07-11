@@ -2,7 +2,10 @@ import 'package:garbanzo_ai/core/api_client.dart';
 import 'package:garbanzo_ai/features/notifications/models/app_notification.dart';
 
 class NotificationListResult {
-  const NotificationListResult({required this.items, required this.unreadCount});
+  const NotificationListResult({
+    required this.items,
+    required this.unreadCount,
+  });
 
   final List<AppNotification> items;
   final int unreadCount;

@@ -75,11 +75,13 @@ class AudioService {
       final data = response.data as Map<String, dynamic>;
       final voices = data['voices'] as List;
       return voices
-          .map((v) => VoiceOption(
-                id: v['id'] as String,
-                name: v['name'] as String,
-                language: v['language'] as String,
-              ))
+          .map(
+            (v) => VoiceOption(
+              id: v['id'] as String,
+              name: v['name'] as String,
+              language: v['language'] as String,
+            ),
+          )
           .toList();
     }
 

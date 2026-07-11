@@ -71,10 +71,7 @@ class ToolsPicker extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SectionHeader(
-              icon: Icons.build_outlined,
-              title: 'Tools',
-            ),
+            const SectionHeader(icon: Icons.build_outlined, title: 'Tools'),
             if (toolProvider.isLoading && tools.isEmpty)
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -92,8 +89,10 @@ class ToolsPicker extends StatelessWidget {
               )
             else if (toolProvider.error != null && tools.isEmpty)
               Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 child: Text(
                   toolProvider.error!,
                   style: theme.textTheme.bodySmall?.copyWith(
@@ -103,8 +102,10 @@ class ToolsPicker extends StatelessWidget {
               )
             else if (tools.isEmpty)
               Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 child: Text(
                   'No MCP tools available. Configure a server from the '
                   'Admin panel.',
@@ -149,8 +150,7 @@ class ToolsPicker extends StatelessWidget {
                     '$serverEnabledCount of ${serverTools.length} enabled',
                     style: theme.textTheme.bodySmall,
                   ),
-                  childrenPadding:
-                      const EdgeInsets.symmetric(horizontal: 8),
+                  childrenPadding: const EdgeInsets.symmetric(horizontal: 8),
                   dense: true,
                   children: serverTools.map((tool) {
                     final key = tool.qualifiedKey;
@@ -170,8 +170,8 @@ class ToolsPicker extends StatelessWidget {
                         tool.name,
                         style: const TextStyle(fontFamily: 'monospace'),
                       ),
-                      subtitle: tool.description == null ||
-                              tool.description!.isEmpty
+                      subtitle:
+                          tool.description == null || tool.description!.isEmpty
                           ? null
                           : Text(
                               tool.description!,

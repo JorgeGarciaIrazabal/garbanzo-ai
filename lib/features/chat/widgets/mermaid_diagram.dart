@@ -2,7 +2,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_test/flutter_test.dart' show AutomatedTestWidgetsFlutterBinding;
+import 'package:flutter_test/flutter_test.dart'
+    show AutomatedTestWidgetsFlutterBinding;
 import 'package:webview_flutter/webview_flutter.dart';
 
 /// A widget that renders Mermaid diagrams using a WebView with mermaid.js.
@@ -296,7 +297,9 @@ class _MermaidDiagramState extends State<MermaidDiagram> {
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 8),
       decoration: BoxDecoration(
-        color: widget.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+        color: widget.colorScheme.surfaceContainerHighest.withValues(
+          alpha: 0.3,
+        ),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: widget.colorScheme.outline.withValues(alpha: 0.2),
@@ -317,7 +320,8 @@ class _MermaidDiagramState extends State<MermaidDiagram> {
                 if (_isLoading)
                   Positioned.fill(
                     child: Container(
-                      color: widget.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                      color: widget.colorScheme.surfaceContainerHighest
+                          .withValues(alpha: 0.3),
                       child: Center(
                         child: SizedBox(
                           width: 24,
@@ -343,7 +347,9 @@ class _MermaidDiagramState extends State<MermaidDiagram> {
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 8),
       decoration: BoxDecoration(
-        color: widget.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+        color: widget.colorScheme.surfaceContainerHighest.withValues(
+          alpha: 0.3,
+        ),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: widget.colorScheme.outline.withValues(alpha: 0.2),
@@ -410,7 +416,9 @@ class _MermaidDiagramState extends State<MermaidDiagram> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: widget.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        color: widget.colorScheme.surfaceContainerHighest.withValues(
+          alpha: 0.5,
+        ),
         borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(8),
           topRight: Radius.circular(8),
@@ -430,14 +438,18 @@ class _MermaidDiagramState extends State<MermaidDiagram> {
               Icon(
                 Icons.account_tree_outlined,
                 size: 14,
-                color: widget.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                color: widget.colorScheme.onSurfaceVariant.withValues(
+                  alpha: 0.7,
+                ),
               ),
               const SizedBox(width: 6),
               Text(
                 'mermaid',
                 style: TextStyle(
                   fontSize: 12,
-                  color: widget.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                  color: widget.colorScheme.onSurfaceVariant.withValues(
+                    alpha: 0.7,
+                  ),
                   fontFamily: 'monospace',
                 ),
               ),
@@ -456,7 +468,9 @@ class _MermaidDiagramState extends State<MermaidDiagram> {
                     size: 14,
                     color: _copied
                         ? widget.colorScheme.primary
-                        : widget.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                        : widget.colorScheme.onSurfaceVariant.withValues(
+                            alpha: 0.7,
+                          ),
                   ),
                   const SizedBox(width: 4),
                   Text(
@@ -465,7 +479,9 @@ class _MermaidDiagramState extends State<MermaidDiagram> {
                       fontSize: 12,
                       color: _copied
                           ? widget.colorScheme.primary
-                          : widget.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                          : widget.colorScheme.onSurfaceVariant.withValues(
+                              alpha: 0.7,
+                            ),
                     ),
                   ),
                 ],

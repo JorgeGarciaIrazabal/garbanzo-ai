@@ -6,10 +6,7 @@ import 'package:garbanzo_ai/core/guarded_state.dart';
 import 'package:garbanzo_ai/core/widgets/auth_form_layout.dart';
 
 class LoginPage extends StatefulWidget {
-  const LoginPage({
-    super.key,
-    required this.onLoginSuccess,
-  });
+  const LoginPage({super.key, required this.onLoginSuccess});
 
   final VoidCallback onLoginSuccess;
 
@@ -91,12 +88,18 @@ class _LoginPageState extends State<LoginPage> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.cloud_outlined, size: 13, color: colorScheme.outline),
+                Icon(
+                  Icons.cloud_outlined,
+                  size: 13,
+                  color: colorScheme.outline,
+                ),
                 const SizedBox(width: 5),
                 Flexible(
                   child: Text(
                     _backendLabel,
-                    style: textTheme.labelSmall?.copyWith(color: colorScheme.outline),
+                    style: textTheme.labelSmall?.copyWith(
+                      color: colorScheme.outline,
+                    ),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),

@@ -83,10 +83,7 @@ class PushService {
     try {
       await ApiClient.instance.delete(
         '/api/v1/devices/register',
-        data: {
-          'token': token,
-          'platform': _platformString(),
-        },
+        data: {'token': token, 'platform': _platformString()},
       );
     } catch (e) {
       debugPrint('[PushService] unregisterDevice failed: $e');
@@ -98,12 +95,10 @@ class PushService {
     try {
       final response = await ApiClient.instance.post(
         '/api/v1/devices/register',
-        data: {
-          'token': token,
-          'platform': _platformString(),
-        },
+        data: {'token': token, 'platform': _platformString()},
       );
-      final ok = response.statusCode != null &&
+      final ok =
+          response.statusCode != null &&
           response.statusCode! >= 200 &&
           response.statusCode! < 300;
       if (ok) {

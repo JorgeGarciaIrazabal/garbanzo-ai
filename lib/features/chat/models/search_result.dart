@@ -15,6 +15,7 @@ abstract class MatchedMessage with _$MatchedMessage {
     required String content,
     required String role,
     required DateTime createdAt,
+
     /// Context snippet showing match location (e.g., 50 chars before/after)
     String? snippet,
   }) = _MatchedMessage;
@@ -56,4 +57,3 @@ abstract class SearchResults with _$SearchResults {
   bool get hasMore => total > page * pageSize;
   int get totalPages => (total / pageSize).ceil();
 }
-

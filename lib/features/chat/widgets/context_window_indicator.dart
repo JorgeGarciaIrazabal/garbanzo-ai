@@ -28,15 +28,17 @@ class ContextWindowIndicator extends StatelessWidget {
     }
 
     final pct = (ratio * 100).toStringAsFixed(0);
-    final label = 'Context window: $tokensUsed of $contextLength tokens used '
+    final label =
+        'Context window: $tokensUsed of $contextLength tokens used '
         '($pct%).\nAbove 80%, older messages are summarized to free up space.';
 
     return Tooltip(
       message: label,
       child: LinearProgressIndicator(
         value: ratio,
-        backgroundColor:
-            colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+        backgroundColor: colorScheme.surfaceContainerHighest.withValues(
+          alpha: 0.4,
+        ),
         valueColor: AlwaysStoppedAnimation<Color>(barColor),
         minHeight: 3,
       ),

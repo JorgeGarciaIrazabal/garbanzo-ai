@@ -6,15 +6,14 @@ import 'package:garbanzo_ai/features/knowledge_base/services/knowledge_base_serv
 
 class KnowledgeBaseProvider extends ChangeNotifier with GuardedStateMixin {
   KnowledgeBaseProvider({KnowledgeBaseService? service})
-      : _service = service ?? KnowledgeBaseService.instance;
+    : _service = service ?? KnowledgeBaseService.instance;
 
   final KnowledgeBaseService _service;
 
   List<KnowledgeDocument> _documents = [];
 
   List<KnowledgeDocument> get documents => _documents;
-  bool get hasProcessingDocuments =>
-      _documents.any((d) => d.isProcessing);
+  bool get hasProcessingDocuments => _documents.any((d) => d.isProcessing);
 
   Future<void> refresh() async {
     await runGuarded('Failed to load documents', () async {

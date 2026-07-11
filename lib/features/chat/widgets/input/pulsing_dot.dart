@@ -38,7 +38,9 @@ class _PulsingDotState extends State<PulsingDot>
           width: 10,
           height: 10,
           decoration: BoxDecoration(
-            color: widget.color.withValues(alpha: 0.5 + _controller.value * 0.5),
+            color: widget.color.withValues(
+              alpha: 0.5 + _controller.value * 0.5,
+            ),
             shape: BoxShape.circle,
           ),
         );

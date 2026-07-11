@@ -35,13 +35,13 @@ class _UsersTabState extends State<UsersTab> {
     );
     if (!mounted) return;
     if (created == null && provider.usersError != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(provider.usersError!)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(provider.usersError!)));
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('User ${result.email} created')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('User ${result.email} created')));
     }
   }
 
@@ -199,10 +199,7 @@ class _LabeledSwitch extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(label, style: theme.textTheme.labelSmall),
-        Switch(
-          value: value,
-          onChanged: disabled ? null : onChanged,
-        ),
+        Switch(value: value, onChanged: disabled ? null : onChanged),
       ],
     );
   }

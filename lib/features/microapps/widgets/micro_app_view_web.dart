@@ -6,8 +6,10 @@ import 'dart:ui_web' as ui_web;
 import 'package:flutter/widgets.dart';
 import 'package:web/web.dart' as web;
 
-Widget microAppPlatformView({required String url, required int reloadCounter}) =>
-    _WebIframe(url: url, reloadCounter: reloadCounter);
+Widget microAppPlatformView({
+  required String url,
+  required int reloadCounter,
+}) => _WebIframe(url: url, reloadCounter: reloadCounter);
 
 class _WebIframe extends StatefulWidget {
   final String url;

@@ -80,8 +80,10 @@ class _Header extends StatelessWidget {
           ),
           IconButton(
             tooltip: showCloseAsBack ? 'Back to chat' : 'Close panel',
-            icon: Icon(showCloseAsBack ? Icons.arrow_forward : Icons.close,
-                size: 20),
+            icon: Icon(
+              showCloseAsBack ? Icons.arrow_forward : Icons.close,
+              size: 20,
+            ),
             onPressed: panel.close,
           ),
         ],
@@ -111,11 +113,13 @@ class _Header extends StatelessWidget {
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
           FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Publish')),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Publish'),
+          ),
         ],
       ),
     );
@@ -126,7 +130,9 @@ class _Header extends StatelessWidget {
       );
       messenger.showSnackBar(SnackBar(content: Text(res.message)));
     } on MicroappApiException catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('Publish failed: ${e.detail}')));
+      messenger.showSnackBar(
+        SnackBar(content: Text('Publish failed: ${e.detail}')),
+      );
     }
   }
 
@@ -137,14 +143,17 @@ class _Header extends StatelessWidget {
       builder: (ctx) => AlertDialog(
         title: const Text('Revert all changes?'),
         content: const Text(
-            'Discard every uncommitted change in your workspace. This cannot be undone.'),
+          'Discard every uncommitted change in your workspace. This cannot be undone.',
+        ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
           FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Revert')),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Revert'),
+          ),
         ],
       ),
     );
@@ -154,7 +163,9 @@ class _Header extends StatelessWidget {
       panel.reload();
       messenger.showSnackBar(const SnackBar(content: Text('Changes reverted')));
     } on MicroappApiException catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('Revert failed: ${e.detail}')));
+      messenger.showSnackBar(
+        SnackBar(content: Text('Revert failed: ${e.detail}')),
+      );
     }
   }
 }

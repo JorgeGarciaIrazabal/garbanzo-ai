@@ -119,9 +119,7 @@ class _RoomTile extends StatelessWidget {
     final subtitle = _subtitle();
 
     return Material(
-      color: isSelected
-          ? colorScheme.primaryContainer
-          : Colors.transparent,
+      color: isSelected ? colorScheme.primaryContainer : Colors.transparent,
       child: InkWell(
         onTap: onTap,
         child: Container(
@@ -182,8 +180,12 @@ class _RoomTile extends StatelessWidget {
                       subtitle,
                       style: textTheme.labelSmall?.copyWith(
                         color: isSelected
-                            ? colorScheme.onPrimaryContainer.withValues(alpha: 0.7)
-                            : colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                            ? colorScheme.onPrimaryContainer.withValues(
+                                alpha: 0.7,
+                              )
+                            : colorScheme.onSurfaceVariant.withValues(
+                                alpha: 0.7,
+                              ),
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -227,7 +229,9 @@ class _Avatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final initial = room.name.isEmpty ? '?' : room.name.characters.first.toUpperCase();
+    final initial = room.name.isEmpty
+        ? '?'
+        : room.name.characters.first.toUpperCase();
     return CircleAvatar(
       radius: 18,
       backgroundColor: isSelected

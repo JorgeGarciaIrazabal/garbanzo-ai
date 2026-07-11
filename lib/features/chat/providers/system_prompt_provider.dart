@@ -65,8 +65,9 @@ class SystemPromptProvider extends ChangeNotifier with GuardedStateMixin {
         content: content,
         description: description,
       );
-      _templates =
-          _templates.map((t) => t.id == updated.id ? updated : t).toList();
+      _templates = _templates
+          .map((t) => t.id == updated.id ? updated : t)
+          .toList();
       return updated;
     }, trackLoading: false);
   }

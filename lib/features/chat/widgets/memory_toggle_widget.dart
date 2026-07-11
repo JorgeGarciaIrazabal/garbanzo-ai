@@ -25,9 +25,7 @@ class _MemoryToggleWidgetState extends State<MemoryToggleWidget> {
     setState(() => _isUpdating = true);
 
     try {
-      await chatProvider.updateConversation(
-        useMemory: !conversation.useMemory,
-      );
+      await chatProvider.updateConversation(useMemory: !conversation.useMemory);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -60,22 +58,17 @@ class _MemoryToggleWidgetState extends State<MemoryToggleWidget> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(
-            Icons.bookmark_border,
-            size: 18,
-            color: Colors.grey,
-          ),
+          const Icon(Icons.bookmark_border, size: 18, color: Colors.grey),
           const SizedBox(width: 4),
-          Text(
-            'Memory',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
+          Text('Memory', style: Theme.of(context).textTheme.bodySmall),
           const SizedBox(width: 4),
           Switch(
             value: useMemory,
             onChanged: _isUpdating ? null : (_) => _toggleMemory(),
             activeThumbColor: Theme.of(context).colorScheme.primary,
-            activeTrackColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5),
+            activeTrackColor: Theme.of(
+              context,
+            ).colorScheme.primary.withValues(alpha: 0.5),
           ),
           if (_isUpdating) ...[
             const SizedBox(width: 8),

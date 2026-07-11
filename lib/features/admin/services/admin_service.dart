@@ -25,10 +25,7 @@ class AdminService {
     String? fullName,
     bool isAdmin = false,
   }) async {
-    final body = <String, dynamic>{
-      'email': email.trim(),
-      'password': password,
-    };
+    final body = <String, dynamic>{'email': email.trim(), 'password': password};
     if (fullName != null && fullName.trim().isNotEmpty) {
       body['full_name'] = fullName.trim();
     }
@@ -143,10 +140,7 @@ class AdminService {
     if (authHeader != null) body['auth_header'] = authHeader;
     if (enabled != null) body['enabled'] = enabled;
 
-    final res = await _api.patch(
-      '/api/v1/admin/mcp-servers/$id',
-      data: body,
-    );
+    final res = await _api.patch('/api/v1/admin/mcp-servers/$id', data: body);
     if (res.statusCode == 200 && res.data is Map<String, dynamic>) {
       return MCPServer.fromJson(res.data as Map<String, dynamic>);
     }
@@ -161,8 +155,9 @@ class AdminService {
   }
 
   Future<MCPTestResult> testMCPServer(String id) async {
-    final res =
-        await _api.post('/api/v1/admin/mcp-servers/$id/test-connection');
+    final res = await _api.post(
+      '/api/v1/admin/mcp-servers/$id/test-connection',
+    );
     if (res.statusCode == 200 && res.data is Map<String, dynamic>) {
       return MCPTestResult.fromJson(res.data as Map<String, dynamic>);
     }
@@ -195,7 +190,10 @@ class AdminService {
     throw _handleError(res);
   }
 
-  Future<AdminModel> updateModel(String modelId, {required bool enabled}) async {
+  Future<AdminModel> updateModel(
+    String modelId, {
+    required bool enabled,
+  }) async {
     final res = await _api.patch(
       '/api/v1/admin/models/${Uri.encodeComponent(modelId)}',
       data: {'is_enabled': enabled},

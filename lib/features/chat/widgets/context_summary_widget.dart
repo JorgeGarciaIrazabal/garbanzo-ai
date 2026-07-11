@@ -2,10 +2,7 @@ import 'package:flutter/material.dart';
 
 /// Collapsible banner showing the AI-generated summary of trimmed earlier messages.
 class ContextSummaryWidget extends StatefulWidget {
-  const ContextSummaryWidget({
-    super.key,
-    required this.summary,
-  });
+  const ContextSummaryWidget({super.key, required this.summary});
 
   final String summary;
 
@@ -91,8 +88,9 @@ class _ContextSummaryWidgetState extends State<ContextSummaryWidget> {
                 ),
               ),
             ),
-            crossFadeState:
-                _isExpanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+            crossFadeState: _isExpanded
+                ? CrossFadeState.showSecond
+                : CrossFadeState.showFirst,
             duration: const Duration(milliseconds: 200),
           ),
         ],

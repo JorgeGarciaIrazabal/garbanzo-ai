@@ -54,9 +54,9 @@ class _RoomsPageBody extends StatelessWidget {
   }
 
   void _openRoom(BuildContext context, String roomId) {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => RoomChatPage(roomId: roomId)),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => RoomChatPage(roomId: roomId)));
   }
 
   Future<void> _createRoom(BuildContext context, RoomProvider provider) async {

@@ -147,15 +147,12 @@ class ChatService {
     int? maxTokens,
     double? topP,
   }) {
-    return _sseStream(
-      '/api/v1/chat/conversations/$conversationId/chat',
-      {
-        'message': message,
-        if (attachments.isNotEmpty)
-          'attachments': attachments.map((a) => a.toJson()).toList(),
-        'options': _buildOptions(temperature, maxTokens, topP),
-      },
-    );
+    return _sseStream('/api/v1/chat/conversations/$conversationId/chat', {
+      'message': message,
+      if (attachments.isNotEmpty)
+        'attachments': attachments.map((a) => a.toJson()).toList(),
+      'options': _buildOptions(temperature, maxTokens, topP),
+    });
   }
 
   /// Regenerate an assistant message; the prior one is deleted server-side.
@@ -212,14 +209,14 @@ class ChatService {
     final byteStream = (response.data as ResponseBody).stream;
 
     if (response.statusCode != 200) {
-      final errorBody =
-          await byteStream.cast<List<int>>().transform(utf8.decoder).join();
+      final errorBody = await byteStream
+          .cast<List<int>>()
+          .transform(utf8.decoder)
+          .join();
       throw Exception('Chat failed: ${response.statusCode} - $errorBody');
     }
 
-    yield* parseSseChunks(
-      byteStream.cast<List<int>>().transform(utf8.decoder),
-    );
+    yield* parseSseChunks(byteStream.cast<List<int>>().transform(utf8.decoder));
   }
 
   // ==========================================================================
@@ -306,7 +303,9 @@ Stream<ChatResponseChunk> parseSseChunks(Stream<String> chunks) async* {
       try {
         final decoded = jsonDecode(jsonStr) as Map<String, dynamic>;
         yield ChatResponseChunk.fromJson(decoded);
-      } catch (_) {/* drop */}
+      } catch (_) {
+        /* drop */
+      }
     }
   }
 }

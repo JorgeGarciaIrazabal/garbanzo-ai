@@ -10,7 +10,7 @@ import 'package:garbanzo_ai/features/admin/services/admin_service.dart';
 /// ChangeNotifier managing admin state: users + MCP servers.
 class AdminProvider extends ChangeNotifier {
   AdminProvider({AdminService? service})
-      : _service = service ?? AdminService.instance;
+    : _service = service ?? AdminService.instance;
 
   final AdminService _service;
 

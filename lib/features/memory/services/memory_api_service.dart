@@ -21,9 +21,9 @@ class MemoryApiService {
 
     if (response.statusCode == 200) {
       final data = response.data as List;
-    return data
-        .map((e) => Memory.fromJson(e as Map<String, dynamic>))
-        .toList();
+      return data
+          .map((e) => Memory.fromJson(e as Map<String, dynamic>))
+          .toList();
     }
 
     throw _handleError(response);
@@ -68,10 +68,7 @@ class MemoryApiService {
   }) async {
     final response = await _api.patch(
       '/api/v1/memories/$memoryId',
-      data: {
-        'content': ?content,
-        'is_active': ?isActive,
-      },
+      data: {'content': ?content, 'is_active': ?isActive},
     );
 
     if (response.statusCode == 200) {

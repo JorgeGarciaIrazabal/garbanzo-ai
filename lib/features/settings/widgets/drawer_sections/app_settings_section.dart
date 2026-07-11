@@ -142,10 +142,7 @@ class _VoiceSettingsTilesState extends State<VoiceSettingsTiles> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SectionHeader(
-          icon: Icons.record_voice_over,
-          title: 'Voice',
-        ),
+        const SectionHeader(icon: Icons.record_voice_over, title: 'Voice'),
         // Voice selector
         ListTile(
           title: const Text('Voice'),
@@ -260,27 +257,24 @@ class _NotificationTiles extends StatelessWidget {
                   'Notify when assistant replies while app is in background',
                 ),
                 value: prefs.chatResponsesEnabled,
-                onChanged: (value) => provider.updatePreferences(
-                  chatResponsesEnabled: value,
-                ),
+                onChanged: (value) =>
+                    provider.updatePreferences(chatResponsesEnabled: value),
                 dense: true,
               ),
               SwitchListTile(
                 title: const Text('Reminders'),
                 subtitle: const Text('Scheduled reminders and check-ins'),
                 value: prefs.remindersEnabled,
-                onChanged: (value) => provider.updatePreferences(
-                  remindersEnabled: value,
-                ),
+                onChanged: (value) =>
+                    provider.updatePreferences(remindersEnabled: value),
                 dense: true,
               ),
               SwitchListTile(
                 title: const Text('System alerts'),
                 subtitle: const Text('Account and system notifications'),
                 value: prefs.systemAlertsEnabled,
-                onChanged: (value) => provider.updatePreferences(
-                  systemAlertsEnabled: value,
-                ),
+                onChanged: (value) =>
+                    provider.updatePreferences(systemAlertsEnabled: value),
                 dense: true,
               ),
             ],

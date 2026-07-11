@@ -26,11 +26,7 @@ class SearchService {
     try {
       final response = await _api.get(
         '/api/v1/chat/conversations/search',
-        queryParameters: {
-          'q': query,
-          'page': page,
-          'page_size': pageSize,
-        },
+        queryParameters: {'q': query, 'page': page, 'page_size': pageSize},
       );
 
       return SearchResults.fromJson(response.data);

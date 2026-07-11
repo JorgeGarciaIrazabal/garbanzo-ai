@@ -65,8 +65,7 @@ class _SkillsLibraryContentState extends State<_SkillsLibraryContent> {
             const SizedBox(height: 8),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
-              child:
-                  Text(provider.error!, textAlign: TextAlign.center),
+              child: Text(provider.error!, textAlign: TextAlign.center),
             ),
             const SizedBox(height: 8),
             FilledButton(
@@ -99,10 +98,7 @@ class _SkillsLibraryContentState extends State<_SkillsLibraryContent> {
         body = ListView(
           padding: const EdgeInsets.symmetric(vertical: 8),
           children: grouped.entries.map((entry) {
-            return _ServerSection(
-              serverName: entry.key,
-              tools: entry.value,
-            );
+            return _ServerSection(serverName: entry.key, tools: entry.value);
           }).toList(),
         );
       }
@@ -224,11 +220,9 @@ class _ToolTile extends StatelessWidget {
                         tooltip: 'Copy',
                         icon: const Icon(Icons.copy),
                         onPressed: () {
-                          Clipboard.setData(
-                              ClipboardData(text: prettyInput));
+                          Clipboard.setData(ClipboardData(text: prettyInput));
                           ScaffoldMessenger.of(ctx).showSnackBar(
-                            const SnackBar(
-                                content: Text('Schema copied')),
+                            const SnackBar(content: Text('Schema copied')),
                           );
                         },
                       ),
@@ -261,10 +255,7 @@ class _ToolTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return ListTile(
-      title: Text(
-        tool.name,
-        style: const TextStyle(fontFamily: 'monospace'),
-      ),
+      title: Text(tool.name, style: const TextStyle(fontFamily: 'monospace')),
       subtitle: tool.description == null || tool.description!.isEmpty
           ? null
           : Text(tool.description!),
