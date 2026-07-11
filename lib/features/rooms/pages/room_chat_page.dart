@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'package:garbanzo_ai/core/auth_service.dart';
+import 'package:garbanzo_ai/core/reading_column.dart';
 import 'package:garbanzo_ai/core/responsive.dart';
+import 'package:garbanzo_ai/features/chat/widgets/input/message_composer.dart';
 import 'package:garbanzo_ai/features/rooms/models/room_models.dart';
 import 'package:garbanzo_ai/features/rooms/providers/room_provider.dart';
 import 'package:garbanzo_ai/features/rooms/widgets/add_agent_dialog.dart';
-import 'package:garbanzo_ai/features/rooms/widgets/room_compose_bar.dart';
 import 'package:garbanzo_ai/features/rooms/widgets/room_message_bubble.dart';
 import 'package:garbanzo_ai/features/rooms/widgets/rooms_sidebar.dart';
 
@@ -82,30 +83,32 @@ class _RoomChatPageBodyState extends State<_RoomChatPageBody> {
                     ? _EmptyState(room: room)
                     : ListView.builder(
                         controller: _scrollCtrl,
-                        padding: const EdgeInsets.symmetric(
-                            vertical: 16, horizontal: 12),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
                         itemCount: messages.length,
                         itemBuilder: (_, i) {
                           final m = messages[i];
                           final isLast = i == messages.length - 1;
-                          return RoomMessageBubble(
-                            message: m,
-                            room: room,
-                            currentUserEmail: me,
-                            isStreaming: isLast &&
-                                lastIsStreamingAgent &&
-                                // Streaming placeholders have empty content
-                                // until done; we treat the last agent
-                                // message as streaming only if it's still
-                                // empty (the provider replaces with the
-                                // canonical message when done).
-                                m.content.isEmpty,
+                          return ReadingColumn(
+                            child: RoomMessageBubble(
+                              message: m,
+                              room: room,
+                              currentUserEmail: me,
+                              isStreaming: isLast &&
+                                  lastIsStreamingAgent &&
+                                  // Streaming placeholders have empty
+                                  // content until done; we treat the last
+                                  // agent message as streaming only if it's
+                                  // still empty (the provider replaces with
+                                  // the canonical message when done).
+                                  m.content.isEmpty,
+                            ),
                           );
                         },
                       ),
               ),
-              RoomComposeBar(
+              MessageComposer(
                 enabled: room != null,
+                hintText: 'Message the room… (use @AgentName or @all)',
                 onSend: (text) => provider.sendMessage(text),
               ),
             ],

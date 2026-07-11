@@ -12,6 +12,7 @@ import 'message/edit_button.dart';
 import 'message/message_content.dart';
 import 'message/message_metadata.dart';
 import 'message/regenerate_button.dart';
+import 'message/reveal_on_hover.dart';
 import 'message/speak_button.dart';
 import 'message/thinking_content.dart';
 import 'remember_this_button.dart';
@@ -131,7 +132,7 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
             ),
           ),
           if (message.content.isNotEmpty)
-            _RevealOnHover(
+            RevealOnHover(
               revealed: _hovered,
               child: Padding(
                 padding: const EdgeInsets.only(top: 4, right: 4),
@@ -266,7 +267,7 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
               child: PulsingDot(color: colorScheme.primary),
             )
           else if (message.content.isNotEmpty) ...[
-            _RevealOnHover(
+            RevealOnHover(
               revealed: _hovered || widget.isLastAssistant,
               child: Padding(
                 padding: const EdgeInsets.only(top: 6),
@@ -399,24 +400,5 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
         metadata.containsKey('output_tokens') ||
         metadata.containsKey('total_duration_ns') ||
         metadata.containsKey('response_time_ms');
-  }
-}
-
-/// Keeps action rows quiet until pointed at. A non-zero resting opacity keeps
-/// the buttons discoverable and tappable on touch screens, where hover never
-/// fires.
-class _RevealOnHover extends StatelessWidget {
-  const _RevealOnHover({required this.revealed, required this.child});
-
-  final bool revealed;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedOpacity(
-      opacity: revealed ? 1.0 : 0.45,
-      duration: const Duration(milliseconds: 150),
-      child: child,
-    );
   }
 }

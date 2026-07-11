@@ -1,16 +1,22 @@
 import 'package:flutter/material.dart';
 
-import 'package:garbanzo_ai/features/chat/widgets/markdown_widget.dart';
+import 'package:garbanzo_ai/features/chat/widgets/message/copy_button.dart';
+import 'package:garbanzo_ai/features/chat/widgets/message/message_content.dart';
 import 'package:garbanzo_ai/features/chat/widgets/message/message_metadata.dart';
+import 'package:garbanzo_ai/features/chat/widgets/message/reveal_on_hover.dart';
+import 'package:garbanzo_ai/features/chat/widgets/message/speak_button.dart';
 import 'package:garbanzo_ai/features/chat/widgets/message/thinking_content.dart';
 import 'package:garbanzo_ai/features/rooms/models/room_models.dart';
 
-/// Bubble rendering for a single room message.
+/// Rendering for a single room message.
 ///
-/// Three visual variants:
-///   • Self  — right-aligned, primary container.
-///   • Other person — left-aligned, secondary container, person icon.
-///   • Agent — left-aligned, surfaceContainerHighest, smart_toy icon, model.
+/// Two visual variants, matching the main chat's assistant-vs-user split:
+///   • Agent — flat markdown prose on the canvas (no card), a small
+///     avatar+name·model byline, and a hover-revealed action row. This
+///     mirrors how the main chat renders assistant replies.
+///   • Human (self or other person) — a `Card` bubble with an avatar and
+///     header, since a room can have multiple human participants and needs
+///     sender attribution that 1:1 chat doesn't.
 class RoomMessageBubble extends StatefulWidget {
   const RoomMessageBubble({
     super.key,
@@ -31,6 +37,7 @@ class RoomMessageBubble extends StatefulWidget {
 
 class _RoomMessageBubbleState extends State<RoomMessageBubble> {
   bool _metadataExpanded = false;
+  bool _hovered = false;
 
   bool get _isAgent => widget.message.senderAgentId != null;
   bool get _isSelf =>
@@ -68,18 +75,128 @@ class _RoomMessageBubbleState extends State<RoomMessageBubble> {
 
   @override
   Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: _isAgent ? _buildAgentTurn(context) : _buildHumanTurn(context),
+    );
+  }
+
+  // -- Agent turn: flat prose on the canvas, like the main chat's assistant --
+
+  Widget _buildAgentTurn(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final mediaWidth = MediaQuery.of(context).size.width;
-
     final variant = _resolveVariant(colorScheme);
-    final thinking = _isAgent ? _thinkingContent() : null;
-    final hasMeta = _isAgent && _hasMetadata();
+    final thinking = _thinkingContent();
+    final hasMeta = _hasMetadata();
+    final message = widget.message;
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 12, bottom: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              _Avatar(variant: variant, radius: 12),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _Header(
+                  variant: variant,
+                  isStreaming: widget.isStreaming,
+                  theme: theme,
+                  createdAt: message.createdAt,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          if (thinking != null)
+            ThinkingContent(
+              thinkingContent: thinking,
+              colorScheme: colorScheme,
+              textTheme: theme.textTheme,
+              isLive: widget.isStreaming && message.content.isEmpty,
+              hasContent: message.content.isNotEmpty,
+            ),
+          if (message.content.isEmpty && widget.isStreaming)
+            Padding(
+              padding: const EdgeInsets.only(top: 4, left: 2),
+              child: _TypingDots(color: colorScheme.onSurfaceVariant),
+            )
+          else if (message.content.isNotEmpty) ...[
+            MessageContent(
+              content: message.content,
+              isUser: false,
+              colorScheme: colorScheme,
+              textTheme: theme.textTheme,
+            ),
+            RevealOnHover(
+              revealed: _hovered,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CopyButton(content: message.content),
+                    const SizedBox(width: 8),
+                    SpeakButton(
+                      content: message.content,
+                      isStreaming: widget.isStreaming,
+                    ),
+                    if (hasMeta) ...[
+                      const SizedBox(width: 8),
+                      MetadataIconToggle(
+                        isExpanded: _metadataExpanded,
+                        onToggle: () => setState(
+                          () => _metadataExpanded = !_metadataExpanded,
+                        ),
+                        colorScheme: colorScheme,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            if (_metadataExpanded && hasMeta)
+              MetadataDetails(
+                metadata: message.meta!,
+                colorScheme: colorScheme,
+                textTheme: theme.textTheme,
+              ),
+          ] else
+            Text(
+              '…',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  // -- Human turn: card bubble with avatar + header, for sender attribution --
+
+  Widget _buildHumanTurn(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+    final variant = _resolveVariant(colorScheme);
+    final message = widget.message;
+
+    final bubbleColor = _isSelf
+        ? Color.alphaBlend(
+            colorScheme.primary.withValues(alpha: isDark ? 0.14 : 0.08),
+            colorScheme.surfaceContainerHigh,
+          )
+        : variant.bubbleColor;
 
     return Align(
       alignment: _isSelf ? Alignment.centerRight : Alignment.centerLeft,
       child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: mediaWidth * 0.92),
+        constraints: const BoxConstraints(maxWidth: 560),
         child: Padding(
           padding: EdgeInsets.only(
             top: 4,
@@ -96,75 +213,33 @@ class _RoomMessageBubbleState extends State<RoomMessageBubble> {
                 const SizedBox(width: 8),
               ],
               Flexible(
-                child: Card(
-                  elevation: 0,
-                  margin: EdgeInsets.zero,
-                  color: variant.bubbleColor,
-                  shape: RoundedRectangleBorder(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: bubbleColor,
                     borderRadius: BorderRadius.only(
-                      topLeft: const Radius.circular(16),
-                      topRight: const Radius.circular(16),
-                      bottomLeft: Radius.circular(_isSelf ? 16 : 4),
-                      bottomRight: Radius.circular(_isSelf ? 4 : 16),
+                      topLeft: const Radius.circular(20),
+                      topRight: const Radius.circular(20),
+                      bottomLeft: Radius.circular(_isSelf ? 20 : 6),
+                      bottomRight: Radius.circular(_isSelf ? 6 : 20),
                     ),
-                    side: variant.outlineColor == null
-                        ? BorderSide.none
-                        : BorderSide(color: variant.outlineColor!, width: 1),
                   ),
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _Header(
-                          variant: variant,
-                          isStreaming: widget.isStreaming,
-                          theme: theme,
-                          createdAt: widget.message.createdAt,
-                        ),
-                        const SizedBox(height: 6),
-                        if (thinking != null)
-                          ThinkingContent(
-                            thinkingContent: thinking,
-                            colorScheme: colorScheme,
-                            textTheme: theme.textTheme,
-                          ),
-                        if (widget.message.content.isEmpty && widget.isStreaming)
-                          _TypingDots(color: variant.fgColor.withOpacity(0.6))
-                        else if (_isAgent && widget.message.content.isNotEmpty)
-                          MarkdownWidget(
-                            content: widget.message.content,
-                            colorScheme: colorScheme,
-                            textTheme: theme.textTheme,
-                          )
-                        else
-                          SelectableText(
-                            widget.message.content.isEmpty
-                                ? '…'
-                                : widget.message.content,
-                            style: TextStyle(color: variant.fgColor),
-                          ),
-                        if (hasMeta) ...[
-                          const SizedBox(height: 4),
-                          Align(
-                            alignment: Alignment.bottomRight,
-                            child: MetadataIconToggle(
-                              isExpanded: _metadataExpanded,
-                              onToggle: () => setState(
-                                () => _metadataExpanded = !_metadataExpanded,
-                              ),
-                              colorScheme: colorScheme,
-                            ),
-                          ),
-                          if (_metadataExpanded)
-                            MetadataDetails(
-                              metadata: widget.message.meta!,
-                              colorScheme: colorScheme,
-                              textTheme: theme.textTheme,
-                            ),
-                        ],
-                      ],
-                    ),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _Header(
+                        variant: variant,
+                        isStreaming: widget.isStreaming,
+                        theme: theme,
+                        createdAt: message.createdAt,
+                      ),
+                      const SizedBox(height: 6),
+                      SelectableText(
+                        message.content.isEmpty ? '…' : message.content,
+                        style: TextStyle(color: variant.fgColor),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -259,29 +334,30 @@ class _BubbleVariant {
 }
 
 class _Avatar extends StatelessWidget {
-  const _Avatar({required this.variant});
+  const _Avatar({required this.variant, this.radius = 16});
 
   final _BubbleVariant variant;
+  final double radius;
 
   @override
   Widget build(BuildContext context) {
     final hasGlyph = variant.avatarText != null && variant.avatarText!.isNotEmpty;
     final hasLetter = variant.avatarLetter != null;
     return CircleAvatar(
-      radius: 16,
+      radius: radius,
       backgroundColor: variant.avatarBg,
       foregroundColor: variant.avatarFg,
       child: hasGlyph
-          ? Text(variant.avatarText!, style: const TextStyle(fontSize: 16))
+          ? Text(variant.avatarText!, style: TextStyle(fontSize: radius))
           : hasLetter
               ? Text(
                   variant.avatarLetter!,
-                  style: const TextStyle(
-                    fontSize: 13,
+                  style: TextStyle(
+                    fontSize: radius - 3,
                     fontWeight: FontWeight.w600,
                   ),
                 )
-              : Icon(variant.avatarIcon, size: 18),
+              : Icon(variant.avatarIcon, size: radius + 2),
     );
   }
 }

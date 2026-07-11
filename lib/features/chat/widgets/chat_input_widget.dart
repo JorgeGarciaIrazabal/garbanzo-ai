@@ -2,17 +2,20 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../settings/providers/settings_provider.dart';
 import '../models/chat_attachment.dart';
 import 'input/attachment_preview.dart';
 import 'input/file_picker_helper.dart';
+import 'input/message_composer.dart';
 import 'input/pulsing_dot.dart';
 import 'input/voice_recording_helper.dart';
 
 /// Widget for the chat text input field with optional file attachments.
+///
+/// Wraps the shared [MessageComposer] chrome with chat-specific extras: an
+/// attach-file button, an attachment preview bar, and voice recording.
 class ChatInputWidget extends StatefulWidget {
   const ChatInputWidget({
     super.key,
@@ -40,8 +43,8 @@ class ChatInputWidget extends StatefulWidget {
 
 class _ChatInputWidgetState extends State<ChatInputWidget> {
   final TextEditingController _controller = TextEditingController();
-  late final FocusNode _focusNode;
-  bool _isComposing = false;
+  final FocusNode _focusNode = FocusNode();
+  final GlobalKey<MessageComposerState> _composerKey = GlobalKey();
   final List<ChatAttachment> _attachments = [];
 
   // Voice recording
@@ -54,7 +57,6 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
   @override
   void initState() {
     super.initState();
-    _focusNode = FocusNode(onKeyEvent: _handleKeyEvent);
     if (widget.initialAttachments != null) {
       _attachments.addAll(widget.initialAttachments!);
     }
@@ -69,76 +71,12 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
     super.dispose();
   }
 
-  bool get _canSend =>
-      (_isComposing || _attachments.isNotEmpty) && !widget.isLoading;
+  // -- Sending -----------------------------------------------------------------
 
-  // -- Text handling ---------------------------------------------------------
-
-  void _handleSubmitted() {
-    final text = _controller.text.trim();
-    if (!_canSend) return;
-
+  void _handleSend(String text) {
     final attachments = List<ChatAttachment>.from(_attachments);
     widget.onSend(text, attachments);
-    _controller.clear();
-    setState(() {
-      _isComposing = false;
-      _attachments.clear();
-    });
-    _focusNode.requestFocus();
-  }
-
-  void _handleTextChange(String text) {
-    final isComposing = text.trim().isNotEmpty;
-    if (_isComposing != isComposing) {
-      setState(() => _isComposing = isComposing);
-    }
-  }
-
-  KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
-    if (event is! KeyDownEvent) return KeyEventResult.ignored;
-
-    if (HardwareKeyboard.instance.isControlPressed &&
-        event.logicalKey == LogicalKeyboardKey.keyV) {
-      _handlePaste();
-      return KeyEventResult.handled;
-    }
-
-    final isEnter = event.logicalKey == LogicalKeyboardKey.enter ||
-        event.logicalKey == LogicalKeyboardKey.numpadEnter;
-    if (!isEnter) return KeyEventResult.ignored;
-
-    if (HardwareKeyboard.instance.isShiftPressed) {
-      final sel = _controller.selection;
-      final text = _controller.text;
-      final newText = text.replaceRange(sel.start, sel.end, '\n');
-      _controller.value = TextEditingValue(
-        text: newText,
-        selection: TextSelection.collapsed(offset: sel.start + 1),
-      );
-      setState(() => _isComposing = newText.trim().isNotEmpty);
-    } else {
-      _handleSubmitted();
-    }
-    return KeyEventResult.handled;
-  }
-
-  Future<void> _handlePaste() async {
-    final clipboardData = await Clipboard.getData('text/plain');
-    if (clipboardData?.text != null) {
-      final sel = _controller.selection;
-      final text = _controller.text;
-      final newText = text.replaceRange(
-        sel.start,
-        sel.end,
-        clipboardData!.text!,
-      );
-      _controller.text = newText;
-      _controller.selection = TextSelection.collapsed(
-        offset: sel.start + clipboardData.text!.length,
-      );
-      _handleTextChange(newText);
-    }
+    setState(() => _attachments.clear());
   }
 
   // -- Voice recording -------------------------------------------------------
@@ -196,7 +134,8 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
         return;
       }
 
-      // Insert transcript at cursor position
+      // Insert transcript at cursor position. MessageComposer listens to
+      // this controller directly, so its send-button state updates itself.
       final currentText = _controller.text;
       final selection = _controller.selection;
       final insertPos =
@@ -213,13 +152,12 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
       _controller.selection = TextSelection.collapsed(
         offset: insertPos + prefix.length + result.transcript.length,
       );
-      _handleTextChange(_controller.text);
 
       // Auto-submit if the setting is enabled
       final settings = context.read<SettingsProvider>();
       if (settings.autoSubmitStt && result.transcript.trim().isNotEmpty) {
         await Future.delayed(const Duration(milliseconds: 200));
-        if (mounted) _handleSubmitted();
+        if (mounted) _composerKey.currentState?.submit();
       }
     } on VoiceRecordingException catch (e) {
       if (mounted) {
@@ -308,209 +246,90 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
     final colorScheme = theme.colorScheme;
     final isMobile = MediaQuery.of(context).size.width < 600;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        border: Border(
-          top: BorderSide(
-            color: colorScheme.outlineVariant.withValues(alpha: 0.5),
-          ),
+    return MessageComposer(
+      key: _composerKey,
+      controller: _controller,
+      focusNode: _focusNode,
+      onSend: _handleSend,
+      onStop: widget.onStop,
+      isLoading: widget.isLoading,
+      hintText: widget.hintText,
+      hasExtraContent: _attachments.isNotEmpty,
+      above: _attachments.isEmpty
+          ? null
+          : AttachmentPreviewBar(
+              attachments: _attachments,
+              onRemove: _removeAttachment,
+              colorScheme: colorScheme,
+              textTheme: theme.textTheme,
+            ),
+      leading: IconButton(
+        key: const ValueKey('attach_button'),
+        onPressed: widget.isLoading ? null : _pickFiles,
+        icon: const Icon(Icons.attach_file, size: 22),
+        tooltip: 'Attach file',
+        style: IconButton.styleFrom(
+          foregroundColor: colorScheme.onSurfaceVariant,
+          minimumSize: const Size(32, 32),
+          padding: EdgeInsets.zero,
         ),
+        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
       ),
-      padding: EdgeInsets.symmetric(
-        horizontal: isMobile ? 4 : 12,
-        vertical: isMobile ? 2 : 8,
-      ),
-      child: SafeArea(
-        top: false,
-        // Match the message list's centered reading column (820px) so the
-        // composer lines up with the conversation above it.
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 820),
-            child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (_attachments.isNotEmpty) ...[
-              AttachmentPreviewBar(
-                attachments: _attachments,
-                onRemove: _removeAttachment,
-                colorScheme: colorScheme,
-                textTheme: theme.textTheme,
+      overlay: !_isRecording
+          ? null
+          : Container(
+              decoration: BoxDecoration(
+                color: colorScheme.errorContainer.withValues(alpha: 0.9),
+                borderRadius: BorderRadius.circular(isMobile ? 16 : 20),
+                border: Border.all(
+                  color: colorScheme.error.withValues(alpha: 0.5),
+                ),
               ),
-              const SizedBox(height: 8),
-            ],
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                // Attach file button
-                Padding(
-                  padding: EdgeInsets.only(right: isMobile ? 0 : 8),
-                  child: IconButton(
-                    key: const ValueKey('attach_button'),
-                    onPressed: widget.isLoading ? null : _pickFiles,
-                    icon: const Icon(Icons.attach_file, size: 22),
-                    tooltip: 'Attach file',
-                    style: IconButton.styleFrom(
-                      foregroundColor: colorScheme.onSurfaceVariant,
-                      minimumSize: const Size(32, 32),
-                      padding: EdgeInsets.zero,
-                    ),
-                    constraints: const BoxConstraints(
-                      minWidth: 32,
-                      minHeight: 32,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  PulsingDot(color: colorScheme.error),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Recording ${_formatDuration(_recordingDuration)}',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: colorScheme.onErrorContainer,
+                      fontWeight: FontWeight.w500,
+                      fontSize: isMobile ? 12 : null,
                     ),
                   ),
-                ),
-                // Text field with recording overlay
-                Expanded(
-                  child: Stack(
-                    children: [
-                      Container(
-                        decoration: BoxDecoration(
-                          color: colorScheme.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(isMobile ? 16 : 20),
-                          border: Border.all(
-                            color: colorScheme.outlineVariant
-                                .withValues(alpha: 0.5),
-                          ),
-                        ),
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(maxHeight: isMobile ? 100 : 150),
-                          child: TextField(
-                            key: const ValueKey('message_input'),
-                            controller: _controller,
-                            focusNode: _focusNode,
-                            onChanged: _handleTextChange,
-                            maxLines: null,
-                            minLines: 1,
-                            textCapitalization: TextCapitalization.sentences,
-                            decoration: InputDecoration(
-                              hintText: widget.hintText,
-                              contentPadding: EdgeInsets.symmetric(
-                                horizontal: isMobile ? 10 : 12,
-                                vertical: isMobile ? 8 : 10,
-                              ),
-                              border: InputBorder.none,
-                              hintStyle: TextStyle(
-                                color: colorScheme.onSurfaceVariant
-                                    .withValues(alpha: 0.6),
-                              ),
-                            ),
-                            style: theme.textTheme.bodyMedium,
-                          ),
-                        ),
-                      ),
-                      if (_isRecording)
-                        Positioned.fill(
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: colorScheme.errorContainer
-                                  .withValues(alpha: 0.9),
-                              borderRadius: BorderRadius.circular(isMobile ? 16 : 20),
-                              border: Border.all(
-                                color: colorScheme.error
-                                    .withValues(alpha: 0.5),
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                PulsingDot(color: colorScheme.error),
-                                const SizedBox(width: 6),
-                                Text(
-                                  'Recording ${_formatDuration(_recordingDuration)}',
-                                  style:
-                                      theme.textTheme.bodyMedium?.copyWith(
-                                    color: colorScheme.onErrorContainer,
-                                    fontWeight: FontWeight.w500,
-                                    fontSize: isMobile ? 12 : null,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                SizedBox(width: isMobile ? 4 : 8),
-                // Send / Mic / Stop / Transcribing button
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  curve: Curves.easeInOut,
-                  child: widget.isLoading
-                      ? IconButton.filled(
-                          key: const ValueKey('stop_button'),
-                          onPressed: widget.onStop,
-                          icon: const Icon(Icons.stop_rounded, size: 20),
-                          tooltip: 'Stop generation',
-                          style: IconButton.styleFrom(
-                            backgroundColor: colorScheme.error,
-                            foregroundColor: colorScheme.onError,
-                            minimumSize: Size(isMobile ? 32 : 40, isMobile ? 32 : 40),
-                            padding: EdgeInsets.zero,
-                          ),
-                          constraints: BoxConstraints(
-                            minWidth: isMobile ? 32 : 40,
-                            minHeight: isMobile ? 32 : 40,
-                          ),
-                        )
-                      : _isTranscribing
-                          ? SizedBox(
-                              width: isMobile ? 32 : 40,
-                              height: isMobile ? 32 : 40,
-                              child: const Padding(
-                                padding: EdgeInsets.all(6),
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              ),
-                            )
-                          : _canSend
-                              ? IconButton.filled(
-                                  key: const ValueKey('send_button'),
-                                  onPressed: _handleSubmitted,
-                                  icon: Icon(Icons.send, size: isMobile ? 18 : 20),
-                                  tooltip: 'Send message',
-                                  style: IconButton.styleFrom(
-                                    backgroundColor: colorScheme.primary,
-                                    foregroundColor: colorScheme.onPrimary,
-                                    minimumSize: Size(isMobile ? 32 : 40, isMobile ? 32 : 40),
-                                    padding: EdgeInsets.zero,
-                                  ),
-                                  constraints: BoxConstraints(
-                                    minWidth: isMobile ? 32 : 40,
-                                    minHeight: isMobile ? 32 : 40,
-                                  ),
-                                )
-                              : IconButton(
-                                  key: const ValueKey('voice_button'),
-                                  onPressed: _toggleRecording,
-                                  icon: Icon(
-                                    _isRecording ? Icons.stop : Icons.mic,
-                                    size: isMobile ? 20 : 22,
-                                  ),
-                                  tooltip: _isRecording ? 'Stop recording' : 'Voice input',
-                                  style: IconButton.styleFrom(
-                                    foregroundColor: _isRecording
-                                        ? colorScheme.error
-                                        : colorScheme.onSurfaceVariant,
-                                    minimumSize: Size(isMobile ? 32 : 40, isMobile ? 32 : 40),
-                                    padding: EdgeInsets.zero,
-                                  ),
-                                  constraints: BoxConstraints(
-                                    minWidth: isMobile ? 32 : 40,
-                                    minHeight: isMobile ? 32 : 40,
-                                  ),
-                                ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ],
+      idleTrailingBuilder: (_) => _isTranscribing
+          ? SizedBox(
+              width: isMobile ? 32 : 40,
+              height: isMobile ? 32 : 40,
+              child: const Padding(
+                padding: EdgeInsets.all(6),
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            )
+          : IconButton(
+              key: const ValueKey('voice_button'),
+              onPressed: _toggleRecording,
+              icon: Icon(
+                _isRecording ? Icons.stop : Icons.mic,
+                size: isMobile ? 20 : 22,
+              ),
+              tooltip: _isRecording ? 'Stop recording' : 'Voice input',
+              style: IconButton.styleFrom(
+                foregroundColor: _isRecording
+                    ? colorScheme.error
+                    : colorScheme.onSurfaceVariant,
+                minimumSize: Size(isMobile ? 32 : 40, isMobile ? 32 : 40),
+                padding: EdgeInsets.zero,
+              ),
+              constraints: BoxConstraints(
+                minWidth: isMobile ? 32 : 40,
+                minHeight: isMobile ? 32 : 40,
+              ),
             ),
-          ),
-        ),
-      ),
     );
   }
 }

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/auth_service.dart';
+import '../../../core/reading_column.dart';
 import '../../../core/responsive.dart';
 import '../../memory/providers/memory_provider.dart';
 import '../../microapps/widgets/micro_app_panel.dart';
@@ -684,15 +685,7 @@ class _ChatPageContentState extends State<_ChatPageContent> {
 
     // Every list item lives in a centered reading column so wide desktop
     // windows don't stretch prose to unreadable line lengths.
-    Widget centered(Widget child) => Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 820),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: child,
-            ),
-          ),
-        );
+    Widget centered(Widget child) => ReadingColumn(child: child);
 
     return ListView.builder(
       controller: _scrollController,

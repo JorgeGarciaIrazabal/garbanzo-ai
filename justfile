@@ -31,6 +31,11 @@ dev-deps:
         gstreamer1.0-plugins-good \
         gstreamer1.0-plugins-bad
 
+
+opencode:
+	ollama launch opencode --model micro-apps-glm --yes
+
+
 # Start Docker, backend, TTS, and frontend on Android (real device or emulator) — kills port 8000 if busy
 dev:
     #!/usr/bin/env bash
