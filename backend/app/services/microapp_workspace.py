@@ -262,6 +262,19 @@ class MicroappWorkspaceManager:
             return
         model = self._settings.microapps_opencode_model
         bare_model = model.split("/", 1)[1] if "/" in model else model
+        # All Ollama cloud models available in the prod stack. Each must be
+        # pulled (``ollama pull <name>:cloud``) and the container signed in
+        # once — see deploy/README.md. The key is the model id opencode sees;
+        # the value carries its display name. The active model (from
+        # MICROAPPS_OPENCODE_MODEL) is always present even if not listed here.
+        cloud_models = {
+            bare_model: {"name": bare_model},
+            "glm-5.2:cloud": {"name": "glm-5.2:cloud"},
+            "gemma4:cloud": {"name": "gemma4:cloud"},
+            "minimax-m3:cloud": {"name": "minimax-m3:cloud"},
+            "nemotron-3-ultra:cloud": {"name": "nemotron-3-ultra:cloud"},
+            "kimi-k2.7-code:cloud": {"name": "kimi-k2.7-code:cloud"},
+        }
         config = {
             "$schema": "https://opencode.ai/config.json",
             "provider": {
@@ -269,7 +282,7 @@ class MicroappWorkspaceManager:
                     "npm": "@ai-sdk/openai-compatible",
                     "name": "Ollama (local)",
                     "options": {"baseURL": f"{self._settings.ollama_base_url.rstrip('/')}/v1"},
-                    "models": {bare_model: {"name": bare_model}},
+                    "models": cloud_models,
                 }
             },
             "model": model,

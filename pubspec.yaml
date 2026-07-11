@@ -59,6 +59,7 @@ dependencies:
   google_fonts: ^8.1.0
   fetch_client: ^1.2.1
   dio_compatibility_layer: ^0.1.1
+  url_launcher: ^6.3.1
 
 dev_dependencies:
   flutter_test:

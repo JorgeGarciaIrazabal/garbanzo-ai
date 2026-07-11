@@ -36,17 +36,25 @@ Android hit the same backend simultaneously.
    fully isolated from any host Ollama install. On first deploy, pull the
    models the app needs:
    ```
-   docker compose -f deploy/docker-compose.yml --env-file deploy/.env exec ollama ollama pull llama3.2
-   docker compose -f deploy/docker-compose.yml --env-file deploy/.env exec ollama ollama pull granite4:micro
-   docker compose -f deploy/docker-compose.yml --env-file deploy/.env exec ollama ollama pull nomic-embed-text
-   ```
-   Cloud models (e.g. `kimi-k2.7-code:cloud`, used by `MICROAPPS_OPENCODE_MODEL`)
-   require a **one-time** `ollama signin` inside the container: run
-   `docker compose -f deploy/docker-compose.yml --env-file deploy/.env exec ollama ollama signin`
-   and confirm the printed URL in a browser while logged into ollama.com. The
-   sign-in binds to the key in the `ollama_data` volume, so it survives
-   redeploys — only wiping the volume requires signing in again. Local-only
-   models work without it.
+    docker compose -f deploy/docker-compose.yml --env-file deploy/.env exec ollama ollama pull llama3.2
+    docker compose -f deploy/docker-compose.yml --env-file deploy/.env exec ollama ollama pull granite4:micro
+    docker compose -f deploy/docker-compose.yml --env-file deploy/.env exec ollama ollama pull nomic-embed-text
+    ```
+    Cloud models (e.g. `kimi-k2.7-code:cloud`, `glm-5.2:cloud`, `gemma4:cloud`,
+    `minimax-m3:cloud`, `nemotron-3-ultra:cloud`)
+    require a **one-time** `ollama signin` inside the container: run
+    `docker compose -f deploy/docker-compose.yml --env-file deploy/.env exec ollama ollama signin`
+    and confirm the printed URL in a browser while logged into ollama.com. The
+    sign-in binds to the key in the `ollama_data` volume, so it survives
+    redeploys — only wiping the volume requires signing in again. Local-only
+    models work without it. After signing in, pull each cloud model:
+    ```
+    docker compose -f deploy/docker-compose.yml --env-file deploy/.env exec ollama ollama pull glm-5.2:cloud
+    docker compose -f deploy/docker-compose.yml --env-file deploy/.env exec ollama ollama pull gemma4:cloud
+    docker compose -f deploy/docker-compose.yml --env-file deploy/.env exec ollama ollama pull minimax-m3:cloud
+    docker compose -f deploy/docker-compose.yml --env-file deploy/.env exec ollama ollama pull nemotron-3-ultra:cloud
+    docker compose -f deploy/docker-compose.yml --env-file deploy/.env exec ollama ollama pull kimi-k2.7-code:cloud
+    ```
 6. Merge your work to `main`, then run `just deploy`.
 
 > The free ngrok plan allows **one agent session**. `just deploy` refuses to

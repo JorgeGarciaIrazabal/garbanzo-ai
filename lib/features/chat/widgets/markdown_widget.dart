@@ -6,6 +6,7 @@ import 'package:flutter_math_fork/flutter_math.dart';
 import 'package:garbanzo_ai/features/chat/widgets/mermaid_diagram.dart';
 import 'package:highlight/languages/all.dart';
 import 'package:markdown/markdown.dart' as md;
+import 'package:url_launcher/url_launcher.dart';
 
 /// A reusable widget for rendering markdown content with CommonMark support.
 ///
@@ -109,10 +110,16 @@ class _MarkdownWidgetState extends State<MarkdownWidget> {
     });
   }
 
-  void _handleLinkTap(String text, String? href, String title) {
-    // Links are handled automatically by flutter_markdown when using
-    // MarkdownBody, but we can add custom handling here if needed.
-    debugPrint('Link tapped: $href');
+  Future<void> _handleLinkTap(String text, String? href, String title) async {
+    if (href == null || href.isEmpty) return;
+    final uri = Uri.tryParse(href);
+    if (uri == null) {
+      debugPrint('Link tap: invalid URI: $href');
+      return;
+    }
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      debugPrint('Link tap: could not launch $href');
+    }
   }
 
   MarkdownStyleSheet _buildStyleSheet(bool isDark) {
