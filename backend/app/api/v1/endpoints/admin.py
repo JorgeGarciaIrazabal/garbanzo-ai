@@ -9,10 +9,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.security import get_current_admin_user
+from app.core.security import get_current_admin_user, hash_password
 from app.db.session import get_db
 from app.models.user import User
-from app.schemas.admin import AdminUserOut, AdminUserUpdate
+from app.schemas.admin import AdminUserCreate, AdminUserOut, AdminUserUpdate
 from app.schemas.mcp import (
     MCPServerCreate,
     MCPServerOut,
@@ -36,6 +36,38 @@ def get_mcp_service(db: Annotated[AsyncSession, Depends(get_db)]) -> MCPService:
 # ============================================================================
 # Users
 # ============================================================================
+
+
+@router.post(
+    "/users",
+    response_model=AdminUserOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create a new user (admin only)",
+)
+async def create_user(
+    data: AdminUserCreate,
+    users: Annotated[UserService, Depends(get_user_service)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _admin: Annotated[dict[str, Any], Depends(get_current_admin_user)],
+) -> AdminUserOut:
+    email = data.email.lower()
+    existing = await users.get_by_email(email)
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already registered",
+        )
+
+    user = await users.create(
+        email=email,
+        hashed_password=hash_password(data.password),
+        full_name=data.full_name,
+    )
+    if data.is_admin:
+        user.is_admin = True
+    await db.commit()
+    await db.refresh(user)
+    return AdminUserOut.model_validate(user)
 
 
 @router.get("/users", response_model=list[AdminUserOut], summary="List all users")

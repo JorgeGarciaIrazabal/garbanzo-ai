@@ -36,7 +36,8 @@ async def _client():
 
 
 class TestRegister:
-    async def test_register_new_user(self, db_session):
+    async def test_register_is_disabled(self, db_session):
+        """Public registration is disabled — this is a private app."""
         _install_overrides(db_session)
         try:
             async with await _client() as c:
@@ -48,36 +49,7 @@ class TestRegister:
                         "full_name": "Alice",
                     },
                 )
-            assert resp.status_code == 201
-            body = resp.json()
-            assert body["email"] == "alice@example.com"
-            assert body["full_name"] == "Alice"
-        finally:
-            _clear_overrides()
-
-    async def test_register_existing_email_400(self, db_session):
-        # test@example.com is seeded by the fixture.
-        _install_overrides(db_session)
-        try:
-            async with await _client() as c:
-                resp = await c.post(
-                    "/api/v1/auth/register",
-                    json={"email": "test@example.com", "password": "password123"},
-                )
-            assert resp.status_code == 400
-        finally:
-            _clear_overrides()
-
-    async def test_register_normalizes_email(self, db_session):
-        _install_overrides(db_session)
-        try:
-            async with await _client() as c:
-                resp = await c.post(
-                    "/api/v1/auth/register",
-                    json={"email": "MixedCase@Example.com", "password": "password123"},
-                )
-            assert resp.status_code == 201
-            assert resp.json()["email"] == "mixedcase@example.com"
+            assert resp.status_code == 403
         finally:
             _clear_overrides()
 

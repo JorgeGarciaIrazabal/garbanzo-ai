@@ -9,11 +9,9 @@ class LoginPage extends StatefulWidget {
   const LoginPage({
     super.key,
     required this.onLoginSuccess,
-    this.onNavigateToRegister,
   });
 
   final VoidCallback onLoginSuccess;
-  final VoidCallback? onNavigateToRegister;
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -138,14 +136,6 @@ class _LoginPageState extends State<LoginPage> {
           isLoading: _loading,
           onPressed: _submit,
         ),
-        if (widget.onNavigateToRegister != null) ...[
-          const SizedBox(height: 16),
-          TextButton(
-            key: const ValueKey('go_to_register'),
-            onPressed: _loading ? null : widget.onNavigateToRegister,
-            child: const Text('Create an account'),
-          ),
-        ],
       ],
     );
   }

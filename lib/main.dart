@@ -12,7 +12,6 @@ import 'package:garbanzo_ai/features/chat/widgets/chat_page.dart';
 import 'package:garbanzo_ai/features/notifications/services/push_service.dart';
 import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
 import 'package:garbanzo_ai/pages/login_page.dart';
-import 'package:garbanzo_ai/pages/register_page.dart';
 
 void main() {
   if (kDebugMode) {
@@ -59,7 +58,6 @@ class AuthGate extends StatefulWidget {
 class _AuthGateState extends State<AuthGate> {
   bool _checking = true;
   bool _loggedIn = false;
-  bool _showRegister = false;
 
   @override
   void initState() {
@@ -88,23 +86,9 @@ class _AuthGateState extends State<AuthGate> {
     unawaited(PushService.instance.registerDevice());
   }
 
-  void _onRegisterSuccess() {
-    setState(() => _loggedIn = true);
-    unawaited(AuthService.instance.getCurrentUser());
-    unawaited(PushService.instance.registerDevice());
-  }
-
   void _onLogout() {
     setState(() => _loggedIn = false);
     unawaited(PushService.instance.unregisterDevice());
-  }
-
-  void _showRegisterPage() {
-    setState(() => _showRegister = true);
-  }
-
-  void _showLoginPage() {
-    setState(() => _showRegister = false);
   }
 
   @override
@@ -119,16 +103,8 @@ class _AuthGateState extends State<AuthGate> {
       return ChatPage(onLogout: _onLogout);
     }
 
-    if (_showRegister) {
-      return RegisterPage(
-        onRegisterSuccess: _onRegisterSuccess,
-        onNavigateToLogin: _showLoginPage,
-      );
-    }
-
     return LoginPage(
       onLoginSuccess: _onLoginSuccess,
-      onNavigateToRegister: _showRegisterPage,
     );
   }
 }

@@ -82,6 +82,74 @@ async def test_non_admin_gets_403(db_session):
         _clear_overrides()
 
 
+async def test_admin_can_create_user(db_session):
+    await _seed(db_session, "admin@example.com", is_admin=True)
+
+    _install_overrides(db_session, admin_email="admin@example.com")
+    try:
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            resp = await client.post(
+                "/api/v1/admin/users",
+                headers={"Authorization": f"Bearer {_token('admin@example.com')}"},
+                json={
+                    "email": "newuser@example.com",
+                    "password": "password123",
+                    "full_name": "New User",
+                },
+            )
+        assert resp.status_code == 201, resp.text
+        body = resp.json()
+        assert body["email"] == "newuser@example.com"
+        assert body["full_name"] == "New User"
+        assert body["is_admin"] is False
+    finally:
+        _clear_overrides()
+
+
+async def test_admin_can_create_admin_user(db_session):
+    await _seed(db_session, "admin@example.com", is_admin=True)
+
+    _install_overrides(db_session, admin_email="admin@example.com")
+    try:
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            resp = await client.post(
+                "/api/v1/admin/users",
+                headers={"Authorization": f"Bearer {_token('admin@example.com')}"},
+                json={
+                    "email": "newadmin@example.com",
+                    "password": "password123",
+                    "is_admin": True,
+                },
+            )
+        assert resp.status_code == 201
+        assert resp.json()["is_admin"] is True
+    finally:
+        _clear_overrides()
+
+
+async def test_admin_create_user_duplicate_400(db_session):
+    await _seed(db_session, "admin@example.com", is_admin=True)
+    await _seed(db_session, "existing@example.com")
+
+    _install_overrides(db_session, admin_email="admin@example.com")
+    try:
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            resp = await client.post(
+                "/api/v1/admin/users",
+                headers={"Authorization": f"Bearer {_token('admin@example.com')}"},
+                json={
+                    "email": "existing@example.com",
+                    "password": "password123",
+                },
+            )
+        assert resp.status_code == 400
+    finally:
+        _clear_overrides()
+
+
 async def test_admin_can_list_users(db_session):
     await _seed(db_session, "admin@example.com", is_admin=True)
     await _seed(db_session, "alice@example.com")

@@ -18,6 +18,28 @@ class AdminService {
   // Users
   // ==========================================================================
 
+  Future<AdminUser> createUser({
+    required String email,
+    required String password,
+    String? fullName,
+    bool isAdmin = false,
+  }) async {
+    final body = <String, dynamic>{
+      'email': email.trim(),
+      'password': password,
+    };
+    if (fullName != null && fullName.trim().isNotEmpty) {
+      body['full_name'] = fullName.trim();
+    }
+    if (isAdmin) body['is_admin'] = true;
+
+    final res = await _api.post('/api/v1/admin/users', data: body);
+    if (res.statusCode == 201 && res.data is Map<String, dynamic>) {
+      return AdminUser.fromJson(res.data as Map<String, dynamic>);
+    }
+    throw _handleError(res);
+  }
+
   Future<List<AdminUser>> listUsers() async {
     final res = await _api.get('/api/v1/admin/users');
     if (res.statusCode == 200 && res.data is List) {

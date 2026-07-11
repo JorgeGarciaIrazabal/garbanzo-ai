@@ -77,42 +77,6 @@ class AuthService {
     }
   }
 
-  Future<AuthResult> register(
-    String email,
-    String password, {
-    String? fullName,
-  }) async {
-    try {
-      final res = await _client.post(
-        '/api/v1/auth/register',
-        data: {
-          'email': email.trim(),
-          'password': password,
-          if (fullName != null && fullName.trim().isNotEmpty)
-            'full_name': fullName.trim(),
-        },
-      );
-
-      if (res.statusCode == 201) {
-        // Auto-login after registration
-        return await login(email, password);
-      }
-
-      if (res.statusCode == 400) {
-        final data = res.data;
-        final detail =
-            data is Map<String, dynamic> ? data['detail'] as String? : null;
-        return AuthResult.failure(detail ?? 'Registration failed');
-      }
-      return AuthResult.failure('Registration failed. Please try again.');
-    } on DioException catch (e) {
-      return AuthResult.failure(_dioErrorMessage(e));
-    } catch (e) {
-      return AuthResult.failure(
-          'An unexpected error occurred. Please try again.');
-    }
-  }
-
   Future<AuthResult> login(String email, String password) async {
     try {
       final res = await _client.post(

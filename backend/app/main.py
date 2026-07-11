@@ -259,7 +259,6 @@ else:
     <h2>Available Endpoints:</h2>
     <ul>
         <li><code>GET /api/v1/health</code> - Health check</li>
-        <li><code>POST /api/v1/auth/register</code> - Register a new user</li>
         <li><code>POST /api/v1/auth/login</code> - Login and get JWT token</li>
         <li><code>GET /api/v1/auth/me</code> - Get current user (requires auth)</li>
         <li><code>GET /docs</code> - API documentation (Swagger UI)</li>

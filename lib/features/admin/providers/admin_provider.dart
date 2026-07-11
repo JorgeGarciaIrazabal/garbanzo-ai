@@ -58,6 +58,31 @@ class AdminProvider extends ChangeNotifier {
     }
   }
 
+  Future<AdminUser?> createUser({
+    required String email,
+    required String password,
+    String? fullName,
+    bool isAdmin = false,
+  }) async {
+    _usersError = null;
+    try {
+      final created = await _service.createUser(
+        email: email,
+        password: password,
+        fullName: fullName,
+        isAdmin: isAdmin,
+      );
+      _users = [..._users, created];
+      notifyListeners();
+      return created;
+    } catch (e) {
+      _usersError = describeFailure(e, label: 'Failed to create user');
+      logDebug(_usersError!);
+      notifyListeners();
+      return null;
+    }
+  }
+
   Future<void> updateUser(
     String email, {
     bool? isAdmin,

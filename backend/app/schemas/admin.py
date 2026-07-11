@@ -2,7 +2,23 @@
 
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
+
+
+class AdminUserCreate(BaseModel):
+    """Payload for admin-only user creation."""
+
+    email: EmailStr
+    password: str = Field(..., min_length=6)
+    full_name: str | None = Field(None, max_length=100)
+    is_admin: bool = Field(False, description="Grant admin privileges on creation")
+
+    @field_validator("password")
+    @classmethod
+    def validate_password_length(cls, v: str) -> str:
+        if len(v.encode("utf-8")) > 72:
+            raise ValueError("Password must not exceed 72 bytes")
+        return v
 
 
 class AdminUserOut(BaseModel):

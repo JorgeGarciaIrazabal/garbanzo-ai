@@ -35,27 +35,18 @@ def _to_user_out(user: Any) -> UserOut:
     )
 
 
-@router.post("/register", response_model=UserOut, status_code=status.HTTP_201_CREATED)
+@router.post("/register", status_code=status.HTTP_403_FORBIDDEN)
 async def register(
     user_data: UserCreate,
-    users: Annotated[UserService, Depends(get_user_service)],
-    settings: Annotated[Settings, Depends(get_settings)],
-) -> UserOut:
-    email = user_data.email.lower()
-    existing = await users.get_by_email(email)
-    if existing:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered",
-        )
+) -> dict[str, str]:
+    """Public registration is disabled — this is a private app.
 
-    user = await users.create(
-        email=email,
-        hashed_password=hash_password(user_data.password),
-        full_name=user_data.full_name,
+    User creation is handled by admins via ``POST /api/v1/admin/users``.
+    """
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Public registration is disabled. Ask an admin to create your account.",
     )
-
-    return _to_user_out(user)
 
 
 @router.post("/login", response_model=TokenResponse)
