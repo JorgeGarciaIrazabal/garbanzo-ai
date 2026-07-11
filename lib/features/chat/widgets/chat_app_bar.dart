@@ -78,6 +78,34 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
               isEnabled: !chatProvider.isSending,
             ),
           ),
+        // Closed micro-app panel: offer a way back in without re-running
+        // the tool (on narrow screens closing it is otherwise a dead end).
+        if (chatProvider.panel.canReopen)
+          showSidebar
+              ? Padding(
+                  padding: const EdgeInsets.only(right: 4),
+                  child: ActionChip(
+                    avatar: const Icon(
+                      Icons.space_dashboard_outlined,
+                      size: 16,
+                    ),
+                    label: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 140),
+                      child: Text(
+                        chatProvider.panel.appTitle ?? 'Micro-app',
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    tooltip: 'Reopen the micro-app panel',
+                    onPressed: chatProvider.panel.reopen,
+                  ),
+                )
+              : IconButton(
+                  icon: const Icon(Icons.space_dashboard_outlined),
+                  tooltip:
+                      'Reopen ${chatProvider.panel.appTitle ?? 'micro-app'}',
+                  onPressed: chatProvider.panel.reopen,
+                ),
         const NotificationBell(),
         IconButton(
           icon: const Icon(Icons.settings),

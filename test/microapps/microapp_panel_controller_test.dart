@@ -62,7 +62,9 @@ void main() {
 
     test('ignores malformed results (missing dev_port)', () {
       final c = MicroappPanelController();
-      final handled = c.openFromToolResult('micro_app', {'app': 'house-designer'});
+      final handled = c.openFromToolResult('micro_app', {
+        'app': 'house-designer',
+      });
       expect(handled, isFalse);
       expect(c.isOpen, isFalse);
     });
@@ -95,7 +97,10 @@ void main() {
         'panel_token': 'tok123',
       });
       expect(handled, isTrue);
-      expect(c.url, contains('/micro-apps/house-designer/?embed=1&mp_token=tok123'));
+      expect(
+        c.url,
+        contains('/micro-apps/house-designer/?embed=1&mp_token=tok123'),
+      );
     });
 
     test('reload bumps the counter; close hides the panel', () {
@@ -109,6 +114,31 @@ void main() {
       c.reload();
       expect(c.reloadCounter, before + 1);
       c.close();
+      expect(c.isOpen, isFalse);
+    });
+
+    test('close keeps the app so canReopen/reopen restore it', () {
+      final c = MicroappPanelController();
+      c.openFromToolResult('micro_app', {
+        'app': 'house-designer',
+        'app_path': 'house-designer/',
+        'dev_port': 8123,
+      });
+      expect(c.canReopen, isFalse); // already open
+
+      c.close();
+      expect(c.isOpen, isFalse);
+      expect(c.canReopen, isTrue);
+
+      c.reopen();
+      expect(c.isOpen, isTrue);
+      expect(c.url, contains('house-designer/'));
+    });
+
+    test('reopen is a no-op when nothing was ever opened', () {
+      final c = MicroappPanelController();
+      expect(c.canReopen, isFalse);
+      c.reopen();
       expect(c.isOpen, isFalse);
     });
   });

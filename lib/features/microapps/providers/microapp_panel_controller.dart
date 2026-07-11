@@ -89,4 +89,15 @@ class MicroappPanelController extends ChangeNotifier {
     _open = false;
     notifyListeners();
   }
+
+  /// True when a previously shown app can be brought back: closing the panel
+  /// keeps the app/url state, only [isOpen] flips.
+  bool get canReopen => !_open && url != null;
+
+  /// Re-show the last app without needing to re-trigger the tool.
+  void reopen() {
+    if (url == null) return;
+    _open = true;
+    notifyListeners();
+  }
 }
