@@ -174,6 +174,67 @@ class Settings(BaseSettings):
         ]
 
 
+# Secret values that are obviously placeholders and must never reach prod.
+_PLACEHOLDER_SECRETS = frozenset(
+    {
+        "",
+        "change-this-in-production",
+        "changeme",
+        "change-me",
+        "secret",
+        "your-secret-key",
+    }
+)
+
+
+def validate_startup_config(settings: "Settings") -> tuple[list[str], list[str]]:
+    """Check settings for boot-time problems.
+
+    Returns ``(fatal, warnings)`` message lists. Fatal issues are ones the
+    caller should refuse to start on when ``settings.debug`` is False —
+    catching them at boot beats a placeholder JWT key silently signing
+    tokens in prod.
+    """
+    fatal: list[str] = []
+    warns: list[str] = []
+
+    if settings.secret_key.strip().lower() in _PLACEHOLDER_SECRETS:
+        msg = "SECRET_KEY is unset or a known placeholder — set a real key in .env"
+        (warns if settings.debug else fatal).append(msg)
+    elif len(settings.secret_key) < 32:
+        warns.append(
+            "SECRET_KEY is shorter than 32 characters — consider a longer random key"
+        )
+
+    if settings.microapps_proxy_mode and not settings.microapps_repo_path:
+        warns.append(
+            "MICROAPPS_PROXY_MODE is on but MICROAPPS_REPO_PATH is empty — "
+            "the /micro-apps proxy has nothing to serve"
+        )
+
+    return fatal, warns
+
+
+def feature_summary(settings: "Settings") -> list[str]:
+    """One line per optional feature, for the startup log."""
+    from pathlib import Path
+
+    def flag(enabled: bool) -> str:
+        return "enabled " if enabled else "disabled"
+
+    return [
+        f"llm            : {settings.llm_provider} @ {settings.ollama_base_url} "
+        f"(default model: {settings.default_model})",
+        f"stt            : {flag(True)} (mode: {settings.stt_mode})",
+        f"push (FCM)     : {flag(Path(settings.firebase_credentials_path).is_file())}",
+        f"micro-apps     : {flag(bool(settings.microapps_repo_path))}"
+        + (" (proxy mode)" if settings.microapps_proxy_mode else ""),
+        f"microapps sync : {flag(bool(settings.microapps_git_url))}",
+        f"test user      : {flag(bool(settings.test_user_email and settings.test_user_password))}",
+        f"admin emails   : {len(settings.admin_emails_list)} configured",
+    ]
+
+
 @lru_cache
 def get_settings() -> Settings:
     return Settings()

@@ -119,8 +119,26 @@ async def _promote_admin_emails() -> None:
         logger.warning("Failed to promote admin emails", exc_info=True)
 
 
+def _check_config() -> None:
+    """Validate settings and log the feature table; refuse to boot on fatal issues."""
+    from app.core.config import feature_summary, validate_startup_config
+
+    fatal, warns = validate_startup_config(settings)
+    for line in feature_summary(settings):
+        logger.info("config | %s", line)
+    for msg in warns:
+        logger.warning("config | %s", msg)
+    if fatal:
+        for msg in fatal:
+            logger.critical("config | %s", msg)
+        raise RuntimeError(
+            "Refusing to start with invalid production config: " + "; ".join(fatal)
+        )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    _check_config()
     await init_db()
     _register_default_llm_provider()
     await _ensure_test_user()
