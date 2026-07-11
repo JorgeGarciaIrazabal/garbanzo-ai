@@ -14,14 +14,14 @@ const _uuid = Uuid();
 
 /// Provider for managing chat conversation and message state.
 ///
-/// Model selection is handled by [ModelProvider]. This provider reads the
-/// currently-selected model from its [selectedModelId] callback so the two
-/// stay decoupled.
+/// Model selection is handled by [ModelProvider]. The currently-selected
+/// model id is pushed in via [selectedModelId] (wired through a
+/// `ChangeNotifierProxyProvider` in the page) so the two stay decoupled.
 class ChatProvider extends ChangeNotifier {
   ChatProvider({
-    required String? Function() selectedModelId,
+    String? selectedModelId,
     ChatService? chatService,
-  })  : _selectedModelId = selectedModelId,
+  })  : _selectedModelIdValue = selectedModelId,
         _chatService = chatService ?? ChatService.instance {
     // Rebuild chat widgets when the micro-app panel opens/closes/reloads.
     panel.addListener(notifyListeners);
@@ -29,7 +29,14 @@ class ChatProvider extends ChangeNotifier {
   }
 
   final ChatService _chatService;
-  final String? Function() _selectedModelId;
+  String? _selectedModelIdValue;
+
+  /// Latest model selection from [ModelProvider]; updated by the
+  /// ProxyProvider without rebuilding this provider. No notify — selection
+  /// only affects *future* sends/creates, not currently-rendered state.
+  set selectedModelId(String? id) => _selectedModelIdValue = id;
+
+  String? _selectedModelId() => _selectedModelIdValue;
 
   /// Drives the live micro-app panel beside the chat. Opened when the model
   /// calls the `house_designer` tool (see the tool_result branch below) or by

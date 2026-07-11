@@ -65,7 +65,7 @@ class _FakeChatService extends ChatService {
 Future<ChatProvider> _providerWithOpenConversation(
     _FakeChatService service) async {
   final provider =
-      ChatProvider(selectedModelId: () => 'llama3.2', chatService: service);
+      ChatProvider(selectedModelId: 'llama3.2', chatService: service);
   await provider.loadConversation('conv-1');
   return provider;
 }

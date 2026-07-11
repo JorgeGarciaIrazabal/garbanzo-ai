@@ -42,28 +42,21 @@ class ChatPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => ModelProvider(),
-      child: Builder(
-        builder: (context) {
-          final modelProvider = context.read<ModelProvider>();
-          return MultiProvider(
-            providers: [
-              ChangeNotifierProvider(
-                create: (_) => ChatProvider(
-                  selectedModelId: () => modelProvider.selectedModelId,
-                ),
-              ),
-              ChangeNotifierProvider(create: (_) => MemoryProvider()),
-              ChangeNotifierProvider(create: (_) => SystemPromptProvider()),
-              ChangeNotifierProvider(create: (_) => ToolProvider()),
-              ChangeNotifierProvider(create: (_) => SearchProvider()),
-              ChangeNotifierProvider(create: (_) => NotificationProvider()),
-            ],
-            child: _ChatPageContent(onLogout: onLogout),
-          );
-        },
-      ),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => ModelProvider()),
+        ChangeNotifierProxyProvider<ModelProvider, ChatProvider>(
+          create: (_) => ChatProvider(),
+          update: (_, model, chat) =>
+              chat!..selectedModelId = model.selectedModelId,
+        ),
+        ChangeNotifierProvider(create: (_) => MemoryProvider()),
+        ChangeNotifierProvider(create: (_) => SystemPromptProvider()),
+        ChangeNotifierProvider(create: (_) => ToolProvider()),
+        ChangeNotifierProvider(create: (_) => SearchProvider()),
+        ChangeNotifierProvider(create: (_) => NotificationProvider()),
+      ],
+      child: _ChatPageContent(onLogout: onLogout),
     );
   }
 }

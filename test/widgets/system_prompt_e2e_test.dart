@@ -10,7 +10,7 @@ import 'package:provider/provider.dart';
 
 /// Minimal fake ChatProvider that only exposes what SystemPromptBanner reads.
 class _FakeChatProvider extends ChatProvider {
-  _FakeChatProvider(this._conversation) : super(selectedModelId: () => null);
+  _FakeChatProvider(this._conversation);
 
   final Conversation? _conversation;
 
