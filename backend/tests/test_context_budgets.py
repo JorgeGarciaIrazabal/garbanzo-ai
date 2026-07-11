@@ -84,9 +84,7 @@ async def test_context_length_falls_back_to_heuristic_when_unknown(db_session):
 
 
 async def test_context_length_survives_provider_errors(db_session):
-    service = _service_with_provider(
-        db_session, _FixedContextProvider(raise_on_lookup=True)
-    )
+    service = _service_with_provider(db_session, _FixedContextProvider(raise_on_lookup=True))
     assert await service._get_context_length("somemodel:1b") == 4096
 
 
@@ -95,14 +93,10 @@ async def test_context_length_survives_provider_errors(db_session):
 # ============================================================================
 
 
-async def test_stream_sets_num_ctx_and_stamps_context_length(
-    db_session, test_user_email
-):
+async def test_stream_sets_num_ctx_and_stamps_context_length(db_session, test_user_email):
     provider = _FixedContextProvider(2048)
     service = _service_with_provider(db_session, provider)
-    conv = await ConversationService(db_session).create(
-        user_id=test_user_email, title="ctx test"
-    )
+    conv = await ConversationService(db_session).create(user_id=test_user_email, title="ctx test")
     conv.enabled_tools = []
     await db_session.commit()
 
@@ -118,17 +112,13 @@ async def test_stream_sets_num_ctx_and_stamps_context_length(
     assert done.metadata["context_length"] == 2048
 
 
-async def test_client_num_ctx_is_clamped_to_server_ceiling(
-    db_session, test_user_email
-):
+async def test_client_num_ctx_is_clamped_to_server_ceiling(db_session, test_user_email):
     """A client may shrink the window but never grow it past the server's
     effective context — an oversized num_ctx would make the runtime allocate
     an arbitrarily large KV cache."""
     provider = _FixedContextProvider(2048)
     service = _service_with_provider(db_session, provider)
-    conv = await ConversationService(db_session).create(
-        user_id=test_user_email, title="clamp test"
-    )
+    conv = await ConversationService(db_session).create(user_id=test_user_email, title="clamp test")
     conv.enabled_tools = []
     await db_session.commit()
 
@@ -152,9 +142,7 @@ async def test_client_num_ctx_is_clamped_to_server_ceiling(
 
 def _patch_settings(monkeypatch, **overrides):
     settings = Settings(**overrides)
-    monkeypatch.setattr(
-        "app.services.chat_service.get_settings", lambda: settings
-    )
+    monkeypatch.setattr("app.services.chat_service.get_settings", lambda: settings)
 
 
 async def test_memory_budget_trims_overflow(db_session, monkeypatch):

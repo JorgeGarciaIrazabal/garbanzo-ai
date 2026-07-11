@@ -26,10 +26,15 @@ class STTService:
     _instance: "STTService | None" = None
     _ready = asyncio.Event()
     _error: Exception | None = None
+    # Serialize model access — WhisperModel is not thread-safe for concurrent
+    # inference.  Without this, two simultaneous requests can corrupt GPU
+    # memory or crash the worker thread.
+    _lock = asyncio.Lock()
 
-    def __init__(self, model, language: str = "en"):
+    def __init__(self, model, language: str = "en", beam_size: int = 1):
         self._model = model
         self._language = language
+        self._beam_size = beam_size
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -87,7 +92,11 @@ class STTService:
             compute_type=compute_type,
         )
 
-        return STTService(model, language=settings.stt_language)
+        return STTService(
+            model,
+            language=settings.stt_language,
+            beam_size=settings.stt_beam_size,
+        )
 
     @classmethod
     async def get_instance(cls) -> "STTService":
@@ -106,12 +115,20 @@ class STTService:
         self, audio_bytes: bytes, filename: str, language: str | None = None
     ) -> TranscriptionResponse:
         """Transcribe audio bytes to text using the local model."""
-        text = await asyncio.to_thread(
-            self._transcribe_sync, audio_bytes, filename, language or self._language
+        async with self._lock:
+            result = await asyncio.to_thread(
+                self._transcribe_sync,
+                audio_bytes,
+                filename,
+                language or self._language,
+            )
+        return TranscriptionResponse(
+            text=result["text"],
+            language=result.get("language"),
+            duration=result.get("duration"),
         )
-        return TranscriptionResponse(text=text)
 
-    def _transcribe_sync(self, audio_bytes: bytes, filename: str, language: str) -> str:
+    def _transcribe_sync(self, audio_bytes: bytes, filename: str, language: str) -> dict:
         import soundfile as sf
 
         # Decode audio bytes to numpy array
@@ -124,27 +141,40 @@ class STTService:
         # Ensure float32
         audio_data = audio_data.astype(np.float32)
 
-        segments, _info = self._model.transcribe(
+        # Estimate duration to decide on VAD.  For short clips the VAD filter
+        # is overly aggressive and often produces false negatives, triggering
+        # a full second pass — wasting time.  Skip VAD entirely for short audio.
+        settings = get_settings()
+        est_duration = len(audio_data) / max(sample_rate, 1)
+        use_vad = est_duration > settings.stt_vad_max_duration
+
+        segments, info = self._model.transcribe(
             audio_data,
             language=language,
-            vad_filter=True,
-            beam_size=5,
+            vad_filter=use_vad,
+            beam_size=self._beam_size,
+            condition_on_previous_text=False,
         )
         text = " ".join(seg.text.strip() for seg in segments).strip()
 
         # If VAD removed everything, retry without VAD — the filter can be
         # overly aggressive with certain microphone/sample-rate combinations.
-        if not text:
+        if not text and use_vad:
             logger.info("VAD returned empty result, retrying without VAD filter")
-            segments, _info = self._model.transcribe(
+            segments, info = self._model.transcribe(
                 audio_data,
                 language=language,
                 vad_filter=False,
-                beam_size=5,
+                beam_size=self._beam_size,
+                condition_on_previous_text=False,
             )
             text = " ".join(seg.text.strip() for seg in segments).strip()
 
-        return text
+        return {
+            "text": text,
+            "language": getattr(info, "language", None),
+            "duration": getattr(info, "duration", None),
+        }
 
     # ------------------------------------------------------------------
     # Health
@@ -158,29 +188,37 @@ class RemoteSTTService:
     """Fallback: transcribes via the Docker-based Faster Whisper server."""
 
     def __init__(self, base_url: str):
-        self.base_url = base_url
+        self.base_url = base_url.rstrip("/")
+        self._client = None  # httpx.AsyncClient, created lazily
+
+    async def _get_client(self):
+        if self._client is None or self._client.is_closed:
+            import httpx
+
+            self._client = httpx.AsyncClient(timeout=120.0)
+        return self._client
 
     async def transcribe(
         self, audio_bytes: bytes, filename: str, language: str = "en"
     ) -> TranscriptionResponse:
-        import httpx
-
-        async with httpx.AsyncClient(timeout=120.0) as client:
-            response = await client.post(
-                f"{self.base_url}/v1/audio/transcriptions",
-                files={"file": (filename, audio_bytes)},
-                data={"language": language, "vad_filter": "true"},
-            )
-            response.raise_for_status()
-            data = response.json()
-            return TranscriptionResponse(text=data["text"])
+        client = await self._get_client()
+        response = await client.post(
+            f"{self.base_url}/v1/audio/transcriptions",
+            files={"file": (filename, audio_bytes)},
+            data={"language": language, "vad_filter": "true"},
+        )
+        response.raise_for_status()
+        data = response.json()
+        return TranscriptionResponse(
+            text=data["text"],
+            language=data.get("language"),
+            duration=data.get("duration"),
+        )
 
     async def health_check(self) -> bool:
-        import httpx
-
         try:
-            async with httpx.AsyncClient(timeout=5.0) as client:
-                response = await client.get(self.base_url)
-                return response.status_code == 200
-        except httpx.HTTPError:
+            client = await self._get_client()
+            response = await client.get(self.base_url)
+            return response.status_code == 200
+        except Exception:
             return False

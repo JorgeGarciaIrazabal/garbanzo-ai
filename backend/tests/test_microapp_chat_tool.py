@@ -113,7 +113,8 @@ async def test_run_micro_app_house_happy_path(tmp_path, monkeypatch):
     monkeypatch.setattr(mct, "manager", _StubManager(tmp_path))
     monkeypatch.setattr(mct, "list_registry_apps", lambda: [HOUSE_APP, FIRE_APP])
     monkeypatch.setattr(
-        mct, "agent",
+        mct,
+        "agent",
         _stub_agent(
             ChatResponseChunk(type="chunk", content="Added a window."),
             ChatResponseChunk(type="done", metadata={}),
@@ -178,7 +179,8 @@ async def test_run_micro_app_source_only(tmp_path, monkeypatch):
     monkeypatch.setattr(mct, "manager", _StubManager(tmp_path))
     monkeypatch.setattr(mct, "list_registry_apps", lambda: [HOUSE_APP, FIRE_APP])
     monkeypatch.setattr(
-        mct, "agent",
+        mct,
+        "agent",
         _stub_agent(ChatResponseChunk(type="chunk", content="Made the map bigger.")),
     )
 
@@ -197,8 +199,10 @@ async def test_run_micro_app_source_only(tmp_path, monkeypatch):
 async def test_run_micro_app_disabled(tmp_path, monkeypatch):
     monkeypatch.setattr(mct, "manager", _StubManager(tmp_path, enabled=False))
     result = await run_micro_app(
-        user_email="jorge@x.com", args={"instruction": "hi"},
-        prior_app=None, prior_file=None,
+        user_email="jorge@x.com",
+        args={"instruction": "hi"},
+        prior_app=None,
+        prior_file=None,
     )
     assert result["ok"] is False
     assert "not configured" in result["summary"]
@@ -210,12 +214,15 @@ async def test_run_micro_app_agent_error(tmp_path, monkeypatch):
     monkeypatch.setattr(mct, "manager", _StubManager(tmp_path))
     monkeypatch.setattr(mct, "list_registry_apps", lambda: [HOUSE_APP])
     monkeypatch.setattr(
-        mct, "agent",
+        mct,
+        "agent",
         _stub_agent(ChatResponseChunk(type="error", error="opencode crashed")),
     )
     result = await run_micro_app(
-        user_email="jorge@x.com", args={"instruction": "boom"},
-        prior_app=None, prior_file=None,
+        user_email="jorge@x.com",
+        args={"instruction": "boom"},
+        prior_app=None,
+        prior_file=None,
     )
     assert result["ok"] is False
     assert "opencode crashed" in result["summary"]

@@ -40,6 +40,7 @@ JUDGE_SCHEMA = {
 
 # ---------------------------------------------------------------------- prompts
 
+
 def _transcript(history: list[tuple[str, str]]) -> str:
     return "\n".join(f"[{who}]: {text}" for who, text in history)
 
@@ -102,7 +103,7 @@ def prompt_v2_balanced(agent: Agent, scenario: Scenario) -> tuple[str, str]:
         "personal logistics with no question)\n"
         "  • is clearly outside this assistant's persona AND another listed "
         "assistant is a much better fit\n"
-        "  • is just an acknowledgement (\"thanks\", \"ok\", \"got it\")\n"
+        '  • is just an acknowledgement ("thanks", "ok", "got it")\n'
         "  • has already been answered fully by another assistant in the "
         "transcript and adds nothing"
     )
@@ -130,7 +131,7 @@ def prompt_v3_helpful(agent: Agent, scenario: Scenario) -> tuple[str, str]:
         "Reply with should_respond=false ONLY when:\n"
         "  • the latest message is humans chatting with each other (no "
         "question, no request)\n"
-        "  • it's a brief acknowledgement (\"thanks\", \"ok\")\n"
+        '  • it\'s a brief acknowledgement ("thanks", "ok")\n'
         "  • another assistant in the room has already answered it completely\n"
         "  • the message is clearly off-topic for THIS assistant AND a more "
         "specialized assistant is present"
@@ -170,16 +171,16 @@ def prompt_v4_explicit(agent: Agent, scenario: Scenario) -> tuple[str, str]:
         "summarize, brainstorm, roleplay, draft an email, continue a "
         "passage, code snippet, etc.)\n"
         "  • addressed to this assistant by name or @-mention\n"
-        "  • addressed to the room generally (\"anyone\", \"can someone\")\n\n"
+        '  • addressed to the room generally ("anyone", "can someone")\n\n'
         "Set should_respond=FALSE only when the latest message is:\n"
         "  • humans chatting with each other with no question/request "
         "(small-talk, banter, personal logistics, complaints, sarcasm)\n"
-        "  • a brief acknowledgement (\"thanks\", \"ok\", \"got it\")\n"
+        '  • a brief acknowledgement ("thanks", "ok", "got it")\n'
         "  • already answered in full by another assistant earlier in the "
         "transcript\n"
         "  • clearly outside this assistant's persona AND another listed "
         "assistant in this room is obviously a much better fit\n\n"
-        "IMPORTANT: \"off-topic\" only applies when there is another "
+        'IMPORTANT: "off-topic" only applies when there is another '
         "assistant who fits better. If this assistant is the only one in the "
         "room, it should answer ANY reasonable AI request."
     )
@@ -209,13 +210,13 @@ def prompt_v5_targeted(agent: Agent, scenario: Scenario) -> tuple[str, str]:
         "questions, calculations, definitions, translations, advice, "
         "brainstorming, recommendations, AND ALL CREATIVE TASKS — "
         "writing stories, poems, jokes, roleplay, drafts, summaries, "
-        "code. \"Entertain me\" or \"tell me a joke\" counts.\n\n"
+        'code. "Entertain me" or "tell me a joke" counts.\n\n'
         "Reply with should_respond=false ONLY when:\n"
         "  1. Humans are chatting with each other and there is no "
         "request for the assistant (small-talk, banter, sarcasm, "
-        "complaints, logistics like \"meet at 7\").\n"
-        "  2. The latest message is just an acknowledgement (\"thanks\", "
-        "\"ok\", \"got it\").\n"
+        'complaints, logistics like "meet at 7").\n'
+        '  2. The latest message is just an acknowledgement ("thanks", '
+        '"ok", "got it").\n'
         "  3. Another AI assistant in this same room has ALREADY fully "
         "answered this exact question in the transcript above.\n"
         "  4. The latest message uses @name to address a specific HUMAN "
@@ -267,7 +268,10 @@ SCENARIOS: list[Scenario] = [
         name="madrid_granada_general_assistant",
         agent=Agent(name="Helper"),
         history=[
-            ("alice", "I would like to know how long it takes to go from madrid to granada in spain"),
+            (
+                "alice",
+                "I would like to know how long it takes to go from madrid to granada in spain",
+            ),
         ],
         expected=True,
         notes="The exact failure case the user reported. Generic assistant, factual question.",
@@ -402,7 +406,10 @@ SCENARIOS: list[Scenario] = [
             persona="You are a travel-planning assistant; you love sharing tips on transit, hotels, and itineraries.",
         ),
         history=[
-            ("alice", "I would like to know how long it takes to go from madrid to granada in spain"),
+            (
+                "alice",
+                "I would like to know how long it takes to go from madrid to granada in spain",
+            ),
         ],
         other_agents=["Helper"],
         expected=True,
@@ -445,7 +452,10 @@ SCENARIOS: list[Scenario] = [
             ("bob", "what happened"),
             ("alice", "back-to-back meetings, six straight hours"),
             ("bob", "brutal"),
-            ("alice", "anyway, quick q — what's the difference between TCP and UDP again? someone asked me at lunch and I blanked"),
+            (
+                "alice",
+                "anyway, quick q — what's the difference between TCP and UDP again? someone asked me at lunch and I blanked",
+            ),
         ],
         expected=True,
         notes="Real question is the last line of a long human chat.",
@@ -483,7 +493,10 @@ SCENARIOS: list[Scenario] = [
         name="agent_explicitly_invited_in_prose",
         agent=Agent(name="Helper"),
         history=[
-            ("alice", "hey, would love to hear what Helper thinks about whether we should switch to typescript"),
+            (
+                "alice",
+                "hey, would love to hear what Helper thinks about whether we should switch to typescript",
+            ),
         ],
         expected=True,
         notes="Invited by name without using @.",
@@ -503,7 +516,10 @@ SCENARIOS: list[Scenario] = [
         name="sarcastic_question",
         agent=Agent(name="Helper"),
         history=[
-            ("alice", "ohhh great, ANOTHER deploy at 5pm on a Friday, who thought THAT was a good idea?"),
+            (
+                "alice",
+                "ohhh great, ANOTHER deploy at 5pm on a Friday, who thought THAT was a good idea?",
+            ),
             ("bob", "lol classic"),
         ],
         expected=False,
@@ -745,9 +761,7 @@ async def benchmark(models: list[str], prompts: dict, scenarios: list[Scenario])
                 hit = "✅" if decision == sc.expected else "❌"
                 want = "YES" if sc.expected else "NO "
                 got = "YES" if decision else "NO "
-                print(
-                    f"  {hit} want={want} got={got}  ({ms:>4}ms)  {sc.name:<48} {reason[:80]}"
-                )
+                print(f"  {hit} want={want} got={got}  ({ms:>4}ms)  {sc.name:<48} {reason[:80]}")
                 results.append(
                     Result(
                         model=model,
@@ -831,7 +845,6 @@ async def main() -> None:
     print(f"\nDetailed results written to {out_path}")
 
 
-
 # ----------------------------------------------------------------- batched mode
 #
 # One judge call covering ALL auto agents in a room instead of one call per
@@ -888,9 +901,7 @@ def prompt_batched(
         agent_lines.append(f"- {a.name} ({persona})")
     extra_peers = [p for p in peer_names if p not in {a.name for a in agents}]
     peers = (
-        f"Also present (not being evaluated): {', '.join(extra_peers)}.\n"
-        if extra_peers
-        else ""
+        f"Also present (not being evaluated): {', '.join(extra_peers)}.\n" if extra_peers else ""
     )
     sys = (
         "You are a routing classifier for a multi-participant chat room. "
@@ -1022,7 +1033,9 @@ async def benchmark_batched(models: list[str]) -> None:
             fp += decision and not sc.expected
             fn += (not decision) and sc.expected
             mark = "✅" if ok else "❌"
-            print(f"  {mark} want={'YES' if sc.expected else 'NO '} got={'YES' if decision else 'NO '}  ({ms:>4}ms)  {sc.name:<48} {reason[:70]}")
+            print(
+                f"  {mark} want={'YES' if sc.expected else 'NO '} got={'YES' if decision else 'NO '}  ({ms:>4}ms)  {sc.name:<48} {reason[:70]}"
+            )
         n = len(SCENARIOS)
         print(
             f"\n  single-scenario accuracy via batched prompt: "

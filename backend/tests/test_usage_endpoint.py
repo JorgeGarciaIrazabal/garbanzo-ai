@@ -58,48 +58,50 @@ async def _seed(db_session):
     await db_session.flush()
 
     now = datetime.now(UTC)
-    db_session.add_all([
-        Message(
-            id=str(uuid.uuid4()),
-            conversation_id=conv_a.id,
-            role="user",
-            content="hi",
-            created_at=now,
-        ),
-        Message(
-            id=str(uuid.uuid4()),
-            conversation_id=conv_a.id,
-            role="assistant",
-            content="hello",
-            meta={"tokens_prompt": 10, "tokens_generated": 20},
-            created_at=now,
-        ),
-        Message(
-            id=str(uuid.uuid4()),
-            conversation_id=conv_a.id,
-            role="assistant",
-            content="again",
-            meta={"tokens_prompt": 5, "tokens_generated": 15},
-            created_at=now - timedelta(days=1),
-        ),
-        Message(
-            id=str(uuid.uuid4()),
-            conversation_id=conv_b.id,
-            role="assistant",
-            content="hi from b",
-            meta={"tokens_prompt": 50, "tokens_generated": 100},
-            created_at=now,
-        ),
-        # Out-of-window message (should be excluded when days=7)
-        Message(
-            id=str(uuid.uuid4()),
-            conversation_id=conv_b.id,
-            role="assistant",
-            content="ancient",
-            meta={"tokens_prompt": 999, "tokens_generated": 999},
-            created_at=now - timedelta(days=60),
-        ),
-    ])
+    db_session.add_all(
+        [
+            Message(
+                id=str(uuid.uuid4()),
+                conversation_id=conv_a.id,
+                role="user",
+                content="hi",
+                created_at=now,
+            ),
+            Message(
+                id=str(uuid.uuid4()),
+                conversation_id=conv_a.id,
+                role="assistant",
+                content="hello",
+                meta={"tokens_prompt": 10, "tokens_generated": 20},
+                created_at=now,
+            ),
+            Message(
+                id=str(uuid.uuid4()),
+                conversation_id=conv_a.id,
+                role="assistant",
+                content="again",
+                meta={"tokens_prompt": 5, "tokens_generated": 15},
+                created_at=now - timedelta(days=1),
+            ),
+            Message(
+                id=str(uuid.uuid4()),
+                conversation_id=conv_b.id,
+                role="assistant",
+                content="hi from b",
+                meta={"tokens_prompt": 50, "tokens_generated": 100},
+                created_at=now,
+            ),
+            # Out-of-window message (should be excluded when days=7)
+            Message(
+                id=str(uuid.uuid4()),
+                conversation_id=conv_b.id,
+                role="assistant",
+                content="ancient",
+                meta={"tokens_prompt": 999, "tokens_generated": 999},
+                created_at=now - timedelta(days=60),
+            ),
+        ]
+    )
     await db_session.commit()
     return conv_a, conv_b
 
@@ -108,9 +110,7 @@ async def test_usage_summary_totals(db_session):
     await _seed(db_session)
     _install(db_session)
     try:
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as c:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             resp = await c.get(
                 "/api/v1/usage/summary?days=7",
                 headers={"Authorization": "Bearer x"},
@@ -130,9 +130,7 @@ async def test_usage_summary_by_model(db_session):
     await _seed(db_session)
     _install(db_session)
     try:
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as c:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             resp = await c.get(
                 "/api/v1/usage/summary?days=7",
                 headers={"Authorization": "Bearer x"},
@@ -150,9 +148,7 @@ async def test_usage_summary_by_day(db_session):
     await _seed(db_session)
     _install(db_session)
     try:
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as c:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             resp = await c.get(
                 "/api/v1/usage/summary?days=7",
                 headers={"Authorization": "Bearer x"},
@@ -169,9 +165,7 @@ async def test_usage_summary_by_day(db_session):
 async def test_usage_summary_empty_for_new_user(db_session):
     _install(db_session)
     try:
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as c:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             resp = await c.get(
                 "/api/v1/usage/summary",
                 headers={"Authorization": "Bearer x"},

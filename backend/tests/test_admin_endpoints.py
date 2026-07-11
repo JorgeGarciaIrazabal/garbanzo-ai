@@ -50,6 +50,7 @@ def _install_overrides(db_session, admin_email: str | None):
     app.dependency_overrides[get_settings] = _override_settings
 
     if admin_email is not None:
+
         async def _override_admin():
             return {"email": admin_email, "token_payload": {"sub": admin_email}, "is_admin": True}
 

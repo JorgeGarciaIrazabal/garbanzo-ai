@@ -61,9 +61,7 @@ async def test_re_registering_token_reassigns_ownership(db_session):
     from app.core.security import hash_password
     from app.models.user import User
 
-    db_session.add(
-        User(email="other@example.com", hashed_password=hash_password("x"))
-    )
+    db_session.add(User(email="other@example.com", hashed_password=hash_password("x")))
     await db_session.commit()
 
     svc = DeviceService(db_session)

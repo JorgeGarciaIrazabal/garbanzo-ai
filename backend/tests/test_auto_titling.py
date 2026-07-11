@@ -17,9 +17,7 @@ pytestmark = pytest.mark.asyncio
 
 class TestCleanGeneratedTitle:
     def test_strips_quotes_and_trailing_punctuation(self):
-        assert _clean_generated_title('"Quantum Computing Basics."') == (
-            "Quantum Computing Basics"
-        )
+        assert _clean_generated_title('"Quantum Computing Basics."') == ("Quantum Computing Basics")
 
     def test_takes_first_non_empty_line(self):
         assert _clean_generated_title("\n\nPython Debugging Help\nmore") == (

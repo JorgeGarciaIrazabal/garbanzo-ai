@@ -147,9 +147,7 @@ class TestChatMessage:
 class TestChatMessageOut:
     def test_fields(self):
         now = datetime.now()
-        msg = ChatMessageOut(
-            id="msg-1", role="user", content="hello", created_at=now, meta=None
-        )
+        msg = ChatMessageOut(id="msg-1", role="user", content="hello", created_at=now, meta=None)
         assert msg.id == "msg-1"
 
     @pytest.mark.parametrize("role", ["tool_call", "tool_result"])
@@ -251,9 +249,7 @@ class TestConversationUpdate:
 class TestConversationOut:
     def test_fields(self):
         now = datetime.now()
-        out = ConversationOut(
-            id="conv-1", model="llama3.2", created_at=now, updated_at=now
-        )
+        out = ConversationOut(id="conv-1", model="llama3.2", created_at=now, updated_at=now)
         assert out.id == "conv-1"
         assert out.message_count == 0
 

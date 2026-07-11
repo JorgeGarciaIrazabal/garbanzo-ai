@@ -25,35 +25,79 @@ def _drive(events: list[dict]):
 
 def test_translate_full_sequence():
     events = [
-        {"type": "message.updated",
-         "properties": {"info": {"id": "m1", "role": "assistant", "sessionID": SID}}},
-        {"type": "message.part.updated",
-         "properties": {"part": {"id": "p1", "messageID": "m1", "type": "text",
-                                 "text": "Hello", "sessionID": SID}}},
-        {"type": "message.part.updated",
-         "properties": {"part": {"id": "p1", "messageID": "m1", "type": "text",
-                                 "text": "Hello world", "sessionID": SID}}},
-        {"type": "message.part.updated",
-         "properties": {"part": {"id": "p2", "messageID": "m1", "type": "reasoning",
-                                 "text": "let me think", "sessionID": SID}}},
-        {"type": "message.part.updated",
-         "properties": {"part": {"id": "t1", "messageID": "m1", "type": "tool",
-                                 "tool": "edit", "callID": "c1",
-                                 "state": {"status": "running",
-                                           "input": {"filePath": "houses/x.house.json"}},
-                                 "sessionID": SID}}},
-        {"type": "message.part.updated",
-         "properties": {"part": {"id": "t1", "messageID": "m1", "type": "tool",
-                                 "tool": "edit", "callID": "c1",
-                                 "state": {"status": "completed", "output": "done"},
-                                 "sessionID": SID}}},
+        {
+            "type": "message.updated",
+            "properties": {"info": {"id": "m1", "role": "assistant", "sessionID": SID}},
+        },
+        {
+            "type": "message.part.updated",
+            "properties": {
+                "part": {
+                    "id": "p1",
+                    "messageID": "m1",
+                    "type": "text",
+                    "text": "Hello",
+                    "sessionID": SID,
+                }
+            },
+        },
+        {
+            "type": "message.part.updated",
+            "properties": {
+                "part": {
+                    "id": "p1",
+                    "messageID": "m1",
+                    "type": "text",
+                    "text": "Hello world",
+                    "sessionID": SID,
+                }
+            },
+        },
+        {
+            "type": "message.part.updated",
+            "properties": {
+                "part": {
+                    "id": "p2",
+                    "messageID": "m1",
+                    "type": "reasoning",
+                    "text": "let me think",
+                    "sessionID": SID,
+                }
+            },
+        },
+        {
+            "type": "message.part.updated",
+            "properties": {
+                "part": {
+                    "id": "t1",
+                    "messageID": "m1",
+                    "type": "tool",
+                    "tool": "edit",
+                    "callID": "c1",
+                    "state": {"status": "running", "input": {"filePath": "houses/x.house.json"}},
+                    "sessionID": SID,
+                }
+            },
+        },
+        {
+            "type": "message.part.updated",
+            "properties": {
+                "part": {
+                    "id": "t1",
+                    "messageID": "m1",
+                    "type": "tool",
+                    "tool": "edit",
+                    "callID": "c1",
+                    "state": {"status": "completed", "output": "done"},
+                    "sessionID": SID,
+                }
+            },
+        },
         {"type": "session.idle", "properties": {"sessionID": SID}},
     ]
     chunks, state = _drive(events)
     types = [c.type for c in chunks]
-    assert types == [
-        "chunk", "chunk", "thinking", "tool_call", "tool_result", "done"
-    ]
+    assert types == ["chunk", "chunk", "thinking", "tool_call", "tool_result", "done"]
     assert chunks[0].content == "Hello"
     assert chunks[1].content == " world"  # incremental delta
     assert chunks[2].content == "let me think"
@@ -66,8 +110,7 @@ def test_translate_full_sequence():
 
 
 def test_translate_session_error_is_terminal():
-    events = [{"type": "session.error",
-               "properties": {"sessionID": SID, "error": "kaboom"}}]
+    events = [{"type": "session.error", "properties": {"sessionID": SID, "error": "kaboom"}}]
     chunks, state = _drive(events)
     assert len(chunks) == 1
     assert chunks[0].type == "error"
@@ -77,11 +120,22 @@ def test_translate_session_error_is_terminal():
 
 def test_translate_ignores_other_sessions():
     events = [
-        {"type": "message.updated",
-         "properties": {"info": {"id": "m1", "role": "assistant", "sessionID": "other"}}},
-        {"type": "message.part.updated",
-         "properties": {"part": {"id": "p1", "messageID": "m1", "type": "text",
-                                 "text": "nope", "sessionID": "other"}}},
+        {
+            "type": "message.updated",
+            "properties": {"info": {"id": "m1", "role": "assistant", "sessionID": "other"}},
+        },
+        {
+            "type": "message.part.updated",
+            "properties": {
+                "part": {
+                    "id": "p1",
+                    "messageID": "m1",
+                    "type": "text",
+                    "text": "nope",
+                    "sessionID": "other",
+                }
+            },
+        },
     ]
     chunks, _ = _drive(events)
     assert chunks == []
@@ -89,11 +143,22 @@ def test_translate_ignores_other_sessions():
 
 def test_translate_user_text_suppressed():
     events = [
-        {"type": "message.updated",
-         "properties": {"info": {"id": "m1", "role": "user", "sessionID": SID}}},
-        {"type": "message.part.updated",
-         "properties": {"part": {"id": "p1", "messageID": "m1", "type": "text",
-                                 "text": "my prompt", "sessionID": SID}}},
+        {
+            "type": "message.updated",
+            "properties": {"info": {"id": "m1", "role": "user", "sessionID": SID}},
+        },
+        {
+            "type": "message.part.updated",
+            "properties": {
+                "part": {
+                    "id": "p1",
+                    "messageID": "m1",
+                    "type": "text",
+                    "text": "my prompt",
+                    "sessionID": SID,
+                }
+            },
+        },
     ]
     chunks, _ = _drive(events)
     assert chunks == []  # user's own echoed message is not re-streamed
@@ -101,11 +166,19 @@ def test_translate_user_text_suppressed():
 
 def test_tool_error_result():
     events = [
-        {"type": "message.part.updated",
-         "properties": {"part": {"id": "t1", "type": "tool", "tool": "bash",
-                                 "callID": "c9",
-                                 "state": {"status": "error", "error": "boom"},
-                                 "sessionID": SID}}},
+        {
+            "type": "message.part.updated",
+            "properties": {
+                "part": {
+                    "id": "t1",
+                    "type": "tool",
+                    "tool": "bash",
+                    "callID": "c9",
+                    "state": {"status": "error", "error": "boom"},
+                    "sessionID": SID,
+                }
+            },
+        },
     ]
     chunks, _ = _drive(events)
     assert [c.type for c in chunks] == ["tool_call", "tool_result"]
@@ -115,7 +188,7 @@ def test_tool_error_result():
 def test_sse_data_framing():
     buffer: list[str] = []
     assert _iter_sse_data(": comment", buffer) == []
-    assert _iter_sse_data("data: {\"a\":1}", buffer) == []
+    assert _iter_sse_data('data: {"a":1}', buffer) == []
     completed = _iter_sse_data("", buffer)
     assert completed == ['{"a":1}']
     assert buffer == []

@@ -41,24 +41,53 @@ async def main() -> None:
     cases = [
         (
             "Madrid/Granada (bug #1)",
-            SimpleNamespace(name="Helper", system_prompt=None, is_active=True, id="a1", provider="ollama", model="llama3.2:3b"),
+            SimpleNamespace(
+                name="Helper",
+                system_prompt=None,
+                is_active=True,
+                id="a1",
+                provider="ollama",
+                model="llama3.2:3b",
+            ),
             [SimpleNamespace(name="Helper", id="a1", is_active=True)],
-            [_msg("I would like to know how long it takes to go from madrid to granada in spain", user="alice@example.com")],
+            [
+                _msg(
+                    "I would like to know how long it takes to go from madrid to granada in spain",
+                    user="alice@example.com",
+                )
+            ],
             True,
         ),
         (
             "Story request, single agent (bug #2)",
-            SimpleNamespace(name="agent", system_prompt=None, is_active=True, id="a1", provider="ollama", model="llama3.2:3b"),
+            SimpleNamespace(
+                name="agent",
+                system_prompt=None,
+                is_active=True,
+                id="a1",
+                provider="ollama",
+                model="llama3.2:3b",
+            ),
             [SimpleNamespace(name="agent", id="a1", is_active=True)],
             [
                 _msg("I'm planning a road trip from Madrid to Granada", user="alice@example.com"),
-                _msg("can you create a super story about people doing this trip?", user="alice@example.com"),
+                _msg(
+                    "can you create a super story about people doing this trip?",
+                    user="alice@example.com",
+                ),
             ],
             True,
         ),
         (
             "Pure human small talk",
-            SimpleNamespace(name="Helper", system_prompt=None, is_active=True, id="a1", provider="ollama", model="llama3.2:3b"),
+            SimpleNamespace(
+                name="Helper",
+                system_prompt=None,
+                is_active=True,
+                id="a1",
+                provider="ollama",
+                model="llama3.2:3b",
+            ),
             [SimpleNamespace(name="Helper", id="a1", is_active=True)],
             [
                 _msg("did you watch the game?", user="alice@example.com"),
@@ -68,7 +97,14 @@ async def main() -> None:
         ),
         (
             "Coding question to coder",
-            SimpleNamespace(name="Coder", system_prompt="You are a senior Python engineer.", is_active=True, id="a1", provider="ollama", model="llama3.2:3b"),
+            SimpleNamespace(
+                name="Coder",
+                system_prompt="You are a senior Python engineer.",
+                is_active=True,
+                id="a1",
+                provider="ollama",
+                model="llama3.2:3b",
+            ),
             [
                 SimpleNamespace(name="Coder", id="a1", is_active=True),
                 SimpleNamespace(name="Helper", id="a2", is_active=True),
@@ -78,7 +114,14 @@ async def main() -> None:
         ),
         (
             "Acknowledgement",
-            SimpleNamespace(name="Helper", system_prompt=None, is_active=True, id="a1", provider="ollama", model="llama3.2:3b"),
+            SimpleNamespace(
+                name="Helper",
+                system_prompt=None,
+                is_active=True,
+                id="a1",
+                provider="ollama",
+                model="llama3.2:3b",
+            ),
             [SimpleNamespace(name="Helper", id="a1", is_active=True)],
             [
                 _msg("100 °C at sea level.", agent_id="a1"),

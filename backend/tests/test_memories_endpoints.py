@@ -103,9 +103,7 @@ async def test_update_memory(db_session):
     _install_overrides(db_session)
     try:
         async with await _client() as c:
-            resp = await c.patch(
-                f"/api/v1/memories/{m.id}", json={"content": "new"}
-            )
+            resp = await c.patch(f"/api/v1/memories/{m.id}", json={"content": "new"})
         assert resp.status_code == 200
         assert resp.json()["content"] == "new"
     finally:
@@ -152,15 +150,11 @@ async def test_cross_user_isolation(db_session):
     from app.core.security import hash_password
     from app.models.user import User
 
-    db_session.add(
-        User(email="other@example.com", hashed_password=hash_password("x"))
-    )
+    db_session.add(User(email="other@example.com", hashed_password=hash_password("x")))
     await db_session.commit()
 
     svc = MemoryService(db_session)
-    others_memory = await svc.create_memory(
-        user_id="other@example.com", content="secret"
-    )
+    others_memory = await svc.create_memory(user_id="other@example.com", content="secret")
 
     _install_overrides(db_session, email="test@example.com")
     try:

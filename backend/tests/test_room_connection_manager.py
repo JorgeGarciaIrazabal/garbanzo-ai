@@ -49,9 +49,7 @@ async def test_many_dead_sockets_no_recursive_presence_storm():
     broadcast_presence → disconnect recursion. With N dead sockets the
     survivor must see exactly ONE presence update, not N."""
     alive = _FakeSocket()
-    sockets = [("alice", alive)] + [
-        (f"ghost-{i}", _FakeSocket(dead=True)) for i in range(5)
-    ]
+    sockets = [("alice", alive)] + [(f"ghost-{i}", _FakeSocket(dead=True)) for i in range(5)]
     manager = await _manager_with("room-1", sockets)
 
     await manager.broadcast("room-1", {"type": "message", "content": "hi"})

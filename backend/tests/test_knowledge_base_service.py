@@ -33,6 +33,7 @@ def _make_service(db_session, provider=None):
         settings=_TEST_SETTINGS,
     )
 
+
 pytestmark = pytest.mark.asyncio
 
 
@@ -77,10 +78,14 @@ async def test_create_document_extracts_and_chunks_and_dispatches_embedding(
     assert doc.chunk_count >= 1
     # Chunks are persisted before the background embedding task fires.
     chunks = (
-        await db_session.execute(
-            select(KnowledgeChunk).where(KnowledgeChunk.document_id == doc.id)
+        (
+            await db_session.execute(
+                select(KnowledgeChunk).where(KnowledgeChunk.document_id == doc.id)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert len(chunks) == doc.chunk_count
     assert all(c.user_id == "test@example.com" for c in chunks)
     assert all(c.chunk_index >= 0 for c in chunks)
@@ -148,10 +153,14 @@ async def test_delete_document_removes_chunks(db_session):
     assert ok
 
     remaining_chunks = (
-        await db_session.execute(
-            select(KnowledgeChunk).where(KnowledgeChunk.document_id == doc.id)
+        (
+            await db_session.execute(
+                select(KnowledgeChunk).where(KnowledgeChunk.document_id == doc.id)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert remaining_chunks == []
     assert await service.get_document(doc.id, "test@example.com") is None
 
@@ -295,9 +304,7 @@ class TestHybridSearchAndThreshold:
             embedding_provider=_FakeEmbeddingProvider(),
             settings=Settings(kb_background_embedding=False),
         )
-        result = await service._hybrid_search(
-            "u@example.com", "query", [0.0] * 768, limit=5
-        )
+        result = await service._hybrid_search("u@example.com", "query", [0.0] * 768, limit=5)
         assert result is None
 
         # Session still works: an unrelated query succeeds afterwards.

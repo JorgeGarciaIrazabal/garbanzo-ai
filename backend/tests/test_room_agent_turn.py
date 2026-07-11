@@ -178,9 +178,7 @@ async def test_agent_turn_persists_partial_on_provider_error(db_session, monkeyp
 
 
 async def test_agent_turn_skips_empty_reply(db_session, monkeypatch):
-    provider = _ScriptedRoomProvider(
-        [ChatChunk(content="", is_finished=True, metadata={})]
-    )
+    provider = _ScriptedRoomProvider([ChatChunk(content="", is_finished=True, metadata={})])
     room_id, svc = await _make_room_with_agent(db_session, provider)
     fake = _FakeRoomManager()
     monkeypatch.setattr("app.services.room_chat_service.room_manager", fake)

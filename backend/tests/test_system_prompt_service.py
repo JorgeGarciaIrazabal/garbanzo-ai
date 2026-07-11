@@ -49,9 +49,7 @@ class TestUserTemplates:
 
     async def test_update_template(self, db_session, test_user_email):
         svc = SystemPromptService(db_session)
-        tpl = await svc.create_template(
-            user_id=test_user_email, name="Old", content="c"
-        )
+        tpl = await svc.create_template(user_id=test_user_email, name="Old", content="c")
         updated = await svc.update_template(
             tpl.id, test_user_email, name="New", content="new content"
         )
@@ -64,16 +62,12 @@ class TestUserTemplates:
         await svc.seed_builtin_templates()
         templates = await svc.list_templates(test_user_email)
         builtin = next(t for t in templates if t.is_builtin)
-        result = await svc.update_template(
-            builtin.id, test_user_email, name="hack"
-        )
+        result = await svc.update_template(builtin.id, test_user_email, name="hack")
         assert result is None
 
     async def test_delete_template(self, db_session, test_user_email):
         svc = SystemPromptService(db_session)
-        tpl = await svc.create_template(
-            user_id=test_user_email, name="Trash", content="c"
-        )
+        tpl = await svc.create_template(user_id=test_user_email, name="Trash", content="c")
         assert await svc.delete_template(tpl.id, test_user_email) is True
         assert await svc.get_template(tpl.id, test_user_email) is None
 
@@ -84,9 +78,7 @@ class TestUserTemplates:
         builtin = next(t for t in templates if t.is_builtin)
         assert await svc.delete_template(builtin.id, test_user_email) is False
 
-    async def test_user_cannot_see_other_users_templates(
-        self, db_session, test_user_email
-    ):
+    async def test_user_cannot_see_other_users_templates(self, db_session, test_user_email):
         from app.core.security import hash_password
         from app.models.user import User
 
@@ -95,9 +87,7 @@ class TestUserTemplates:
         await db_session.commit()
 
         svc = SystemPromptService(db_session)
-        await svc.create_template(
-            user_id="other@example.com", name="secret", content="c"
-        )
+        await svc.create_template(user_id="other@example.com", name="secret", content="c")
         mine = await svc.list_templates(test_user_email)
         names = {t.name for t in mine}
         assert "secret" not in names
@@ -113,9 +103,7 @@ class TestUserDefaultPrompt:
         await svc.set_user_default_prompt(test_user_email, "Be nice")
         assert await svc.get_user_default_prompt(test_user_email) == "Be nice"
 
-    async def test_clearing_default_normalizes_to_none(
-        self, db_session, test_user_email
-    ):
+    async def test_clearing_default_normalizes_to_none(self, db_session, test_user_email):
         svc = SystemPromptService(db_session)
         await svc.set_user_default_prompt(test_user_email, "Be nice")
         result = await svc.set_user_default_prompt(test_user_email, "")

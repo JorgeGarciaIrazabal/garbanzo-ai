@@ -184,9 +184,7 @@ class TestMemoryDedup:
     @pytest.mark.asyncio
     async def test_exact_text_duplicates_dropped(self, db_session, test_user_email):
         service = MemoryService(db_session, embedding_provider=_FakeEmbedder(fail=True))
-        await service.create_memory(
-            user_id=test_user_email, content="User works at Acme"
-        )
+        await service.create_memory(user_id=test_user_email, content="User works at Acme")
 
         kept, embeddings = await service.filter_duplicate_candidates(
             test_user_email,
@@ -210,9 +208,7 @@ class TestMemoryDedup:
             }
         )
         service = MemoryService(db_session, embedding_provider=embedder)
-        await service.create_memory(
-            user_id=test_user_email, content="User works at Acme"
-        )
+        await service.create_memory(user_id=test_user_email, content="User works at Acme")
 
         kept, embeddings = await service.filter_duplicate_candidates(
             test_user_email,
@@ -225,9 +221,7 @@ class TestMemoryDedup:
     async def test_backfill_embeds_missing(self, db_session, test_user_email):
         # Created while the embedder was down → no embedding stored.
         broken = MemoryService(db_session, embedding_provider=_FakeEmbedder(fail=True))
-        memory = await broken.create_memory(
-            user_id=test_user_email, content="User likes hiking"
-        )
+        memory = await broken.create_memory(user_id=test_user_email, content="User likes hiking")
         assert memory.embedding is None
 
         healthy = MemoryService(db_session, embedding_provider=_FakeEmbedder())
@@ -237,17 +231,13 @@ class TestMemoryDedup:
         assert refreshed.embedding is not None
 
     @pytest.mark.asyncio
-    async def test_relevant_memories_fall_back_to_recency(
-        self, db_session, test_user_email
-    ):
+    async def test_relevant_memories_fall_back_to_recency(self, db_session, test_user_email):
         # SQLite has no cosine operator, so the semantic path raises and the
         # recency fallback must kick in — memories stay reachable.
         service = MemoryService(db_session, embedding_provider=_FakeEmbedder())
         await service.create_memory(user_id=test_user_email, content="fact one")
         await service.create_memory(user_id=test_user_email, content="fact two")
 
-        results = await service.get_relevant_memories(
-            test_user_email, query="anything", limit=5
-        )
+        results = await service.get_relevant_memories(test_user_email, query="anything", limit=5)
         contents = {m.content for m in results}
         assert contents == {"fact one", "fact two"}

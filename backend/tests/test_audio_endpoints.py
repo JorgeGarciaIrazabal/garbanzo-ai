@@ -35,9 +35,9 @@ def _override_settings() -> Settings:
 
 
 # Apply settings override for all tests in this module.
-app.dependency_overrides[
-    __import__("app.core.config", fromlist=["get_settings"]).get_settings
-] = _override_settings
+app.dependency_overrides[__import__("app.core.config", fromlist=["get_settings"]).get_settings] = (
+    _override_settings
+)
 
 
 # ---------------------------------------------------------------------------

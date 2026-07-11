@@ -17,8 +17,10 @@ def test_chunk_text_splits_long_input():
 
 
 def test_chunk_text_preserves_full_content_with_overlap():
-    text = "First sentence. Second sentence. Third sentence. Fourth sentence. " \
-           "Fifth sentence. Sixth sentence."
+    text = (
+        "First sentence. Second sentence. Third sentence. Fourth sentence. "
+        "Fifth sentence. Sixth sentence."
+    )
     chunks = chunk_text(text, chunk_size=40, overlap=10)
     # Concatenating chunks (minus overlap) should cover every substring of the
     # original text at least once.
@@ -38,9 +40,11 @@ def test_chunk_text_single_short_input_is_one_chunk():
 
 
 def test_chunk_text_prefers_paragraph_boundary():
-    text = ("Paragraph one has some content to fill the chunk window. "
-            "\n\n"
-            "Paragraph two starts here and is separate from paragraph one.")
+    text = (
+        "Paragraph one has some content to fill the chunk window. "
+        "\n\n"
+        "Paragraph two starts here and is separate from paragraph one."
+    )
     chunks = chunk_text(text, chunk_size=70, overlap=10)
     assert len(chunks) >= 2
     # First chunk should end at the paragraph boundary (no leak into paragraph 2).

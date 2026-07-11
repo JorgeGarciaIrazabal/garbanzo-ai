@@ -33,9 +33,7 @@ async def test_plain_text_mime_type_is_decoded():
 async def test_plain_text_by_extension_when_mime_type_is_generic():
     # Browsers often send application/octet-stream (or omit type) for source
     # files; the filename extension should still route to plain-text decode.
-    att = _attachment(
-        name="script.py", mime_type="application/octet-stream", raw=b"print('hi')"
-    )
+    att = _attachment(name="script.py", mime_type="application/octet-stream", raw=b"print('hi')")
     result = await extract_attachment_text(att)
     assert result == "print('hi')"
 

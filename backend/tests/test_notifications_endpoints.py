@@ -107,12 +107,7 @@ async def test_mark_all_read(db_session):
         async with await _client() as c:
             resp = await c.post("/api/v1/notifications/read-all")
             assert resp.status_code == 204
-            assert (
-                (await c.get("/api/v1/notifications/unread-count")).json()[
-                    "unread_count"
-                ]
-                == 0
-            )
+            assert (await c.get("/api/v1/notifications/unread-count")).json()["unread_count"] == 0
     finally:
         _clear_overrides()
 

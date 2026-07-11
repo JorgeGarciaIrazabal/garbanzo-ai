@@ -42,9 +42,7 @@ def test_strong_secret_is_clean():
 
 
 def test_proxy_mode_without_repo_path_warns():
-    _, warns = validate_startup_config(
-        _settings(microapps_proxy_mode=True, microapps_repo_path="")
-    )
+    _, warns = validate_startup_config(_settings(microapps_proxy_mode=True, microapps_repo_path=""))
     assert any("MICROAPPS_PROXY_MODE" in w for w in warns)
 
 

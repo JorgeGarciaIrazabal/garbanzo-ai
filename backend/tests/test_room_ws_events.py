@@ -118,9 +118,7 @@ def test_ws_message_from_model_handles_null_created_at():
 
 
 def test_stream_start_event_shape():
-    dump = RoomStreamStartEvent(
-        message_id="m1", agent_id="a1", agent_name="Ada"
-    ).model_dump()
+    dump = RoomStreamStartEvent(message_id="m1", agent_id="a1", agent_name="Ada").model_dump()
     assert dump == {
         "type": "stream_start",
         "message_id": "m1",
@@ -191,6 +189,4 @@ def test_typing_command_parses_and_defaults():
     assert RoomTypingCommand.model_validate({"type": "typing", "typing": True}).typing
     # ``typing`` defaults to False when omitted, matching the old
     # ``bool(event.get("typing", False))`` behaviour.
-    assert (
-        RoomTypingCommand.model_validate({"type": "typing"}).typing is False
-    )
+    assert RoomTypingCommand.model_validate({"type": "typing"}).typing is False

@@ -76,9 +76,7 @@ async def test_create_and_list_template(db_session):
 
 async def test_update_template(db_session):
     svc = SystemPromptService(db_session)
-    tpl = await svc.create_template(
-        user_id="test@example.com", name="old", content="c"
-    )
+    tpl = await svc.create_template(user_id="test@example.com", name="old", content="c")
 
     _install_overrides(db_session)
     try:
@@ -108,9 +106,7 @@ async def test_update_missing_404(db_session):
 
 async def test_delete_template(db_session):
     svc = SystemPromptService(db_session)
-    tpl = await svc.create_template(
-        user_id="test@example.com", name="trash", content="c"
-    )
+    tpl = await svc.create_template(user_id="test@example.com", name="trash", content="c")
 
     _install_overrides(db_session)
     try:

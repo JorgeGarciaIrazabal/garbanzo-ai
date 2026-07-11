@@ -1,6 +1,8 @@
 #include "my_application.h"
 
 #include <flutter_linux/flutter_linux.h>
+#include <unistd.h>
+#include <limits.h>
 #ifdef GDK_WINDOWING_X11
 #include <gdk/gdkx.h>
 #endif
@@ -45,14 +47,31 @@ static void my_application_activate(GApplication* application) {
   if (use_header_bar) {
     GtkHeaderBar* header_bar = GTK_HEADER_BAR(gtk_header_bar_new());
     gtk_widget_show(GTK_WIDGET(header_bar));
-    gtk_header_bar_set_title(header_bar, "garbanzo_ai");
+    gtk_header_bar_set_title(header_bar, "Garbanzo AI");
     gtk_header_bar_set_show_close_button(header_bar, TRUE);
     gtk_window_set_titlebar(window, GTK_WIDGET(header_bar));
   } else {
-    gtk_window_set_title(window, "garbanzo_ai");
+    gtk_window_set_title(window, "Garbanzo AI");
   }
 
   gtk_window_set_default_size(window, 1280, 720);
+
+  // Set window icon from the bundled resource (data/ next to the binary).
+  g_autoptr(GError) icon_error = nullptr;
+  char exe_path[PATH_MAX];
+  ssize_t len = readlink("/proc/self/exe", exe_path, sizeof(exe_path) - 1);
+  if (len > 0) {
+    exe_path[len] = '\0';
+    gchar* exe_dir = g_path_get_dirname(exe_path);
+    gchar* icon_path = g_build_filename(exe_dir, "data", "garbanzo_ai.png", nullptr);
+    GdkPixbuf* icon_pixbuf = gdk_pixbuf_new_from_file(icon_path, &icon_error);
+    if (icon_pixbuf) {
+      gtk_window_set_icon(GTK_WINDOW(window), icon_pixbuf);
+      g_object_unref(icon_pixbuf);
+    }
+    g_free(icon_path);
+    g_free(exe_dir);
+  }
 
   g_autoptr(FlDartProject) project = fl_dart_project_new();
   fl_dart_project_set_dart_entrypoint_arguments(

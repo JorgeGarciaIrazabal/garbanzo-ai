@@ -63,7 +63,6 @@ async def test_run_scheduled_action_happy_path(db_session, test_user_email):
         title="Standup",
     )
 
-
     patches: list = []
     _, convs_instance, _, send_stub = await _make_stub_module(action, patches)
 
@@ -77,9 +76,7 @@ async def test_run_scheduled_action_happy_path(db_session, test_user_email):
             return False
 
     session_maker_mock.return_value = _Ctx()
-    patches.append(
-        patch("app.jobs.scheduled_action_job.async_session_maker", session_maker_mock)
-    )
+    patches.append(patch("app.jobs.scheduled_action_job.async_session_maker", session_maker_mock))
 
     for p in patches:
         p.start()
@@ -124,13 +121,9 @@ async def test_run_scheduled_action_skips_inactive(db_session, test_user_email):
 
     patches: list = []
     conv_mock = MagicMock()
-    patches.append(
-        patch("app.jobs.scheduled_action_job.ConversationService", conv_mock)
-    )
+    patches.append(patch("app.jobs.scheduled_action_job.ConversationService", conv_mock))
     patches.append(patch("app.jobs.scheduled_action_job.ChatService", MagicMock()))
-    patches.append(
-        patch("app.jobs.scheduled_action_job.send_to_user", AsyncMock())
-    )
+    patches.append(patch("app.jobs.scheduled_action_job.send_to_user", AsyncMock()))
 
     class _Ctx:
         async def __aenter__(self):  # noqa: N805
@@ -140,9 +133,7 @@ async def test_run_scheduled_action_skips_inactive(db_session, test_user_email):
             return False
 
     session_maker_mock = MagicMock(return_value=_Ctx())
-    patches.append(
-        patch("app.jobs.scheduled_action_job.async_session_maker", session_maker_mock)
-    )
+    patches.append(patch("app.jobs.scheduled_action_job.async_session_maker", session_maker_mock))
 
     for p in patches:
         p.start()
@@ -160,9 +151,7 @@ async def test_run_scheduled_action_skips_inactive(db_session, test_user_email):
 
 async def test_run_scheduled_action_missing_action_is_noop(db_session):
     patches: list = []
-    patches.append(
-        patch("app.jobs.scheduled_action_job.ConversationService", MagicMock())
-    )
+    patches.append(patch("app.jobs.scheduled_action_job.ConversationService", MagicMock()))
     patches.append(patch("app.jobs.scheduled_action_job.ChatService", MagicMock()))
 
     class _Ctx:

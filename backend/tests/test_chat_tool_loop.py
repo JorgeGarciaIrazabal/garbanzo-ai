@@ -246,9 +246,7 @@ async def test_capped_pass_drops_stray_tool_calls(db_session, test_user_email):
     assert len(tool_call_chunks) == MAX_TOOL_ITERATIONS
 
 
-async def test_clean_function_name_resolves_via_lookup(
-    db_session, test_user_email
-):
+async def test_clean_function_name_resolves_via_lookup(db_session, test_user_email):
     """When the model emits a clean (no-colon) function name, the chat
     service must resolve it back to the right (server_id, tool_name) via
     the per-request lookup built from the advertised tool list. Regression
@@ -265,9 +263,7 @@ async def test_clean_function_name_resolves_via_lookup(
     ]
 
     # Model emits a clean name ("get_current_time"), no server prefix.
-    tool_calls = [
-        {"id": "c1", "name": "get_current_time", "arguments": {"timezone": "UTC"}}
-    ]
+    tool_calls = [{"id": "c1", "name": "get_current_time", "arguments": {"timezone": "UTC"}}]
     provider = _ScriptedProvider(
         [
             [
@@ -291,12 +287,15 @@ async def test_clean_function_name_resolves_via_lookup(
         captured["args"] = args
         return {"ok": True, "content": "12:00"}
 
-    with patch(
-        "app.services.chat_service.MCPService.list_all_tools",
-        new=AsyncMock(return_value=fake_tools),
-    ), patch(
-        "app.services.chat_service.MCPService.call_tool",
-        new=AsyncMock(side_effect=_fake_call_tool),
+    with (
+        patch(
+            "app.services.chat_service.MCPService.list_all_tools",
+            new=AsyncMock(return_value=fake_tools),
+        ),
+        patch(
+            "app.services.chat_service.MCPService.call_tool",
+            new=AsyncMock(side_effect=_fake_call_tool),
+        ),
     ):
         async for _ in service.send_message(
             conversation_id=conv_id,
@@ -312,18 +311,14 @@ async def test_clean_function_name_resolves_via_lookup(
     }
 
 
-async def test_each_iteration_yields_a_done_chunk(
-    db_session, test_user_email
-):
+async def test_each_iteration_yields_a_done_chunk(db_session, test_user_email):
     """Regression: the backend yields ONE ``done`` chunk per iteration of
     the tool-calling loop (one before tool execution, one after the final
     answer). Frontends must therefore treat ``done`` as iteration-scoped
     metadata and only finalize on the SSE stream's own end — otherwise a
     mid-stream reload races against in-flight chunks and erases them.
     This test pins the contract."""
-    tool_calls = [
-        {"id": "call-x", "name": "echo", "arguments": {"q": "hi"}}
-    ]
+    tool_calls = [{"id": "call-x", "name": "echo", "arguments": {"q": "hi"}}]
     provider = _ScriptedProvider(
         [
             [
@@ -366,9 +361,7 @@ async def test_each_iteration_yields_a_done_chunk(
     assert "has_tool_calls" not in (done_chunks[-1].metadata or {})
 
 
-async def test_thinking_carries_across_iterations_to_final_assistant(
-    db_session, test_user_email
-):
+async def test_thinking_carries_across_iterations_to_final_assistant(db_session, test_user_email):
     """The model often emits reasoning during the tool-calling iteration
     (which produces no `content` and so was historically dropped) and then
     just an answer in the next iteration. We accumulate that prior thinking
@@ -385,9 +378,7 @@ async def test_thinking_carries_across_iterations_to_final_assistant(
                     is_finished=False,
                     is_thinking=True,
                 ),
-                ChatChunk(
-                    content="", is_finished=False, tool_calls=tool_calls
-                ),
+                ChatChunk(content="", is_finished=False, tool_calls=tool_calls),
                 ChatChunk(content="", is_finished=True, metadata={}),
             ],
             # Iteration 2: more thinking + final content.
@@ -424,9 +415,7 @@ async def test_thinking_carries_across_iterations_to_final_assistant(
     from app.models.message import Message
 
     result = await db_session.execute(
-        select(Message)
-        .where(Message.conversation_id == conv_id)
-        .order_by(Message.created_at)
+        select(Message).where(Message.conversation_id == conv_id).order_by(Message.created_at)
     )
     rows = list(result.scalars().all())
     assistants = [m for m in rows if m.role == "assistant"]
@@ -439,9 +428,7 @@ async def test_thinking_carries_across_iterations_to_final_assistant(
     assert "reasoning step two" in thinking
 
 
-async def test_tool_calls_sent_as_structured_field_not_content_json(
-    db_session, test_user_email
-):
+async def test_tool_calls_sent_as_structured_field_not_content_json(db_session, test_user_email):
     """Regression: when replaying tool calls back to the LLM in the next
     iteration, send them via the API's native ``tool_calls`` field — never
     as raw JSON in ``content``. If the model sees its own tool-call JSON
@@ -588,10 +575,10 @@ async def test_tool_result_truncated_to_cap(db_session, test_user_email, monkeyp
     from app.models.message import Message as MessageModel
 
     rows = (
-        await db_session.execute(
-            select(MessageModel).where(MessageModel.role == "tool_result")
-        )
-    ).scalars().all()
+        (await db_session.execute(select(MessageModel).where(MessageModel.role == "tool_result")))
+        .scalars()
+        .all()
+    )
     assert len(rows) == 1
     content = rows[0].content
     assert "[truncated" in content
@@ -599,8 +586,6 @@ async def test_tool_result_truncated_to_cap(db_session, test_user_email, monkeyp
     assert rows[0].meta.get("truncated") is True
 
     # The model also received the truncated text, not the full dump.
-    tool_msgs = [
-        m for m in provider.calls[1]["messages"] if m.role == "tool"
-    ]
+    tool_msgs = [m for m in provider.calls[1]["messages"] if m.role == "tool"]
     assert len(tool_msgs) == 1
     assert "[truncated" in tool_msgs[0].content

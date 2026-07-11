@@ -172,18 +172,14 @@ class TestList:
         from app.services.scheduled_action_service import ScheduledActionService
 
         svc = ScheduledActionService(db_session)
-        await svc.create(
-            user_id="test@example.com", prompt="mine", cron_expr="0 9 * * *"
-        )
+        await svc.create(user_id="test@example.com", prompt="mine", cron_expr="0 9 * * *")
         # Seed an action for a different user — must not surface.
         from app.core.security import hash_password
         from app.models.user import User
 
         db_session.add(User(email="other@example.com", hashed_password=hash_password("x")))
         await db_session.commit()
-        await svc.create(
-            user_id="other@example.com", prompt="theirs", cron_expr="0 9 * * *"
-        )
+        await svc.create(user_id="other@example.com", prompt="theirs", cron_expr="0 9 * * *")
 
         _install_overrides(db_session)
         try:
@@ -204,9 +200,7 @@ class TestGet:
         from app.services.scheduled_action_service import ScheduledActionService
 
         svc = ScheduledActionService(db_session)
-        action = await svc.create(
-            user_id="test@example.com", prompt="x", cron_expr="0 9 * * *"
-        )
+        action = await svc.create(user_id="test@example.com", prompt="x", cron_expr="0 9 * * *")
 
         _install_overrides(db_session)
         try:
@@ -238,9 +232,7 @@ class TestPatch:
         from app.services.scheduled_action_service import ScheduledActionService
 
         svc = ScheduledActionService(db_session)
-        action = await svc.create(
-            user_id="test@example.com", prompt="x", cron_expr="0 9 * * *"
-        )
+        action = await svc.create(user_id="test@example.com", prompt="x", cron_expr="0 9 * * *")
 
         _install_overrides(db_session)
         _SchedulerStub.reset()
@@ -261,9 +253,7 @@ class TestPatch:
         from app.services.scheduled_action_service import ScheduledActionService
 
         svc = ScheduledActionService(db_session)
-        action = await svc.create(
-            user_id="test@example.com", prompt="x", cron_expr="0 9 * * *"
-        )
+        action = await svc.create(user_id="test@example.com", prompt="x", cron_expr="0 9 * * *")
 
         _install_overrides(db_session)
         future = (datetime.now(tz=UTC) + timedelta(days=1)).isoformat()
@@ -285,9 +275,7 @@ class TestPatch:
         from app.services.scheduled_action_service import ScheduledActionService
 
         svc = ScheduledActionService(db_session)
-        action = await svc.create(
-            user_id="test@example.com", prompt="x", cron_expr="0 9 * * *"
-        )
+        action = await svc.create(user_id="test@example.com", prompt="x", cron_expr="0 9 * * *")
 
         _install_overrides(db_session)
         try:
@@ -320,9 +308,7 @@ class TestDelete:
         from app.services.scheduled_action_service import ScheduledActionService
 
         svc = ScheduledActionService(db_session)
-        action = await svc.create(
-            user_id="test@example.com", prompt="x", cron_expr="0 9 * * *"
-        )
+        action = await svc.create(user_id="test@example.com", prompt="x", cron_expr="0 9 * * *")
 
         _install_overrides(db_session)
         _SchedulerStub.reset()

@@ -250,9 +250,7 @@ class TestSearch:
         contents = {m.content for m in hits[0].matched_messages}
         assert "What is docker compose?" in contents
 
-    async def test_user_isolation(
-        self, service: ConversationService, db_session: AsyncSession
-    ):
+    async def test_user_isolation(self, service: ConversationService, db_session: AsyncSession):
         # Create a second user and a conversation belonging to them.
         other = User(
             email="other@example.com",
@@ -265,9 +263,7 @@ class TestSearch:
         other_conv = await other_service.create(
             "other@example.com", title="Secret topic from other user"
         )
-        await _add_message(
-            db_session, other_conv.id, "user", "Private payload mentioning topic"
-        )
+        await _add_message(db_session, other_conv.id, "user", "Private payload mentioning topic")
 
         await service.create(USER_ID, title="My own topic notes")
 
@@ -298,9 +294,7 @@ class TestSearch:
         self, service: ConversationService, db_session: AsyncSession
     ):
         conv = await service.create(USER_ID, title="Report 100% done")
-        await _add_message(
-            db_session, conv.id, "user", "Summary_with_underscores and 50% progress"
-        )
+        await _add_message(db_session, conv.id, "user", "Summary_with_underscores and 50% progress")
 
         # '%' should be treated literally, not as a LIKE wildcard.
         hits, total = await service.search(USER_ID, "100%")

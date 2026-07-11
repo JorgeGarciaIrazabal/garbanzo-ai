@@ -152,9 +152,7 @@ async def test_list_documents(db_session):
 
 async def test_get_document_404_for_other_user(db_session):
     # Seed a second user with one doc.
-    db_session.add(
-        User(email="other@example.com", hashed_password=hash_password("x"))
-    )
+    db_session.add(User(email="other@example.com", hashed_password=hash_password("x")))
     await db_session.commit()
     service = KnowledgeBaseService(db_session, embedding_provider=_FakeEmbeddingProvider())
     other_doc = await service.create_document(
@@ -196,9 +194,7 @@ async def test_delete_document(db_session):
 
 
 async def test_delete_refuses_other_users_document(db_session):
-    db_session.add(
-        User(email="other@example.com", hashed_password=hash_password("x"))
-    )
+    db_session.add(User(email="other@example.com", hashed_password=hash_password("x")))
     await db_session.commit()
     service = KnowledgeBaseService(db_session, embedding_provider=_FakeEmbeddingProvider())
     other_doc = await service.create_document(

@@ -92,6 +92,8 @@ class Settings(BaseSettings):
     stt_model: str = "Systran/faster-distil-whisper-large-v3"
     stt_device: str = "auto"  # "auto", "cpu", or "cuda"
     stt_language: str = "en"
+    stt_beam_size: int = 1
+    stt_vad_max_duration: float = 10.0  # skip VAD for clips shorter than this (seconds)
     kokoro_url: str = "http://localhost:8020"  # kept for fallback / external kokoro
     default_tts_voice: str = "af_heart"
     default_tts_speed: float = 1.0

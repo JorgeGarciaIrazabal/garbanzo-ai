@@ -127,9 +127,7 @@ class TestMe:
         app.dependency_overrides[get_current_user] = _override_user
         try:
             async with await _client() as c:
-                token = create_access_token(
-                    {"sub": "test@example.com"}, _TEST_SETTINGS
-                )
+                token = create_access_token({"sub": "test@example.com"}, _TEST_SETTINGS)
                 resp = await c.get(
                     "/api/v1/auth/me",
                     headers={"Authorization": f"Bearer {token}"},
@@ -202,9 +200,7 @@ class TestUpdateProfile:
         """Passing null explicitly clears the stored default."""
         user = (
             await db_session.execute(
-                __import__("sqlalchemy").select(User).where(
-                    User.email == "test@example.com"
-                )
+                __import__("sqlalchemy").select(User).where(User.email == "test@example.com")
             )
         ).scalar_one()
         user.default_model = "llama3.2"
@@ -299,9 +295,7 @@ class TestRefresh:
     async def test_refresh_issues_new_tokens(self, db_session):
         _install_overrides(db_session)
         try:
-            refresh_token = create_refresh_token(
-                {"sub": "test@example.com"}, _TEST_SETTINGS
-            )
+            refresh_token = create_refresh_token({"sub": "test@example.com"}, _TEST_SETTINGS)
             async with await _client() as c:
                 resp = await c.post(
                     "/api/v1/auth/refresh",
@@ -320,9 +314,7 @@ class TestRefresh:
         """An access token is not a refresh token — /refresh must reject it."""
         _install_overrides(db_session)
         try:
-            access_token = create_access_token(
-                {"sub": "test@example.com"}, _TEST_SETTINGS
-            )
+            access_token = create_access_token({"sub": "test@example.com"}, _TEST_SETTINGS)
             async with await _client() as c:
                 resp = await c.post(
                     "/api/v1/auth/refresh",
@@ -347,9 +339,7 @@ class TestRefresh:
     async def test_refresh_rejects_unknown_user(self, db_session):
         _install_overrides(db_session)
         try:
-            refresh_token = create_refresh_token(
-                {"sub": "ghost@example.com"}, _TEST_SETTINGS
-            )
+            refresh_token = create_refresh_token({"sub": "ghost@example.com"}, _TEST_SETTINGS)
             async with await _client() as c:
                 resp = await c.post(
                     "/api/v1/auth/refresh",
@@ -371,9 +361,7 @@ class TestRefresh:
 
         _install_overrides(db_session)
         try:
-            refresh_token = create_refresh_token(
-                {"sub": "banned@example.com"}, _TEST_SETTINGS
-            )
+            refresh_token = create_refresh_token({"sub": "banned@example.com"}, _TEST_SETTINGS)
             async with await _client() as c:
                 resp = await c.post(
                     "/api/v1/auth/refresh",
@@ -383,15 +371,11 @@ class TestRefresh:
         finally:
             _clear_overrides()
 
-    async def test_access_token_cannot_impersonate_refresh_on_protected_route(
-        self, db_session
-    ):
+    async def test_access_token_cannot_impersonate_refresh_on_protected_route(self, db_session):
         """A refresh token must not authenticate protected API endpoints."""
         _install_overrides(db_session)
         try:
-            refresh_token = create_refresh_token(
-                {"sub": "test@example.com"}, _TEST_SETTINGS
-            )
+            refresh_token = create_refresh_token({"sub": "test@example.com"}, _TEST_SETTINGS)
             async with await _client() as c:
                 resp = await c.get(
                     "/api/v1/auth/me",

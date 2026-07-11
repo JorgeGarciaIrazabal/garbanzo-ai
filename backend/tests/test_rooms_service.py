@@ -28,9 +28,7 @@ async def test_create_room_adds_owner_as_member(db_session):
 @pytest.mark.asyncio
 async def test_create_room_with_additional_members(db_session):
     # Seed a second user
-    db_session.add(
-        User(email="alice@example.com", hashed_password=hash_password("pw"))
-    )
+    db_session.add(User(email="alice@example.com", hashed_password=hash_password("pw")))
     await db_session.commit()
 
     svc = RoomService(db_session)
@@ -50,9 +48,7 @@ async def test_non_owner_cannot_update(db_session):
 
     svc = RoomService(db_session)
     room = await svc.create(owner_id="test@example.com", name="Room")
-    await svc.add_member(
-        room_id=room.id, user_id="test@example.com", new_user_id="bob@example.com"
-    )
+    await svc.add_member(room_id=room.id, user_id="test@example.com", new_user_id="bob@example.com")
 
     with pytest.raises(RoomPermissionError):
         await svc.update(room_id=room.id, user_id="bob@example.com", name="Hack")
@@ -65,13 +61,9 @@ async def test_transfer_ownership(db_session):
 
     svc = RoomService(db_session)
     room = await svc.create(owner_id="test@example.com", name="Room")
-    await svc.add_member(
-        room_id=room.id, user_id="test@example.com", new_user_id="bob@example.com"
-    )
+    await svc.add_member(room_id=room.id, user_id="test@example.com", new_user_id="bob@example.com")
 
-    await svc.update(
-        room_id=room.id, user_id="test@example.com", owner_id="bob@example.com"
-    )
+    await svc.update(room_id=room.id, user_id="test@example.com", owner_id="bob@example.com")
 
     room = await svc.get(room.id, viewer_id="bob@example.com")
     assert room.owner_id == "bob@example.com"
@@ -139,9 +131,7 @@ async def test_search_scopes(db_session):
 
     svc_a = RoomService(db_session)
     await svc_a.create(owner_id="test@example.com", name="Alpha Private")
-    await svc_a.create(
-        owner_id="test@example.com", name="Alpha Public", is_public=True
-    )
+    await svc_a.create(owner_id="test@example.com", name="Alpha Public", is_public=True)
     # Room owned by Bob, not shared with test user
     svc_b = RoomService(db_session)
     await svc_b.create(owner_id="bob@example.com", name="Beta")
@@ -186,9 +176,7 @@ async def test_member_full_name_in_members_response(db_session):
     assert out_by_email["test@example.com"].full_name is None
 
     # RoomDetailOut (get/create/update) path carries it too.
-    detail = RoomDetailOut.from_model(
-        await svc.get(room.id, viewer_id="test@example.com")
-    )
+    detail = RoomDetailOut.from_model(await svc.get(room.id, viewer_id="test@example.com"))
     detail_by_email = {m.user_id: m.full_name for m in detail.members}
     assert detail_by_email["alice@example.com"] == "Alice Smith"
     assert detail_by_email["test@example.com"] is None

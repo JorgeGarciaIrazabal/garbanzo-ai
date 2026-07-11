@@ -40,9 +40,7 @@ class TestNotificationCrud:
         svc = NotificationService(db_session)
         assert await svc.mark_read(test_user_email, "missing") is False
 
-    async def test_mark_read_other_user_cannot_touch(
-        self, db_session, test_user_email
-    ):
+    async def test_mark_read_other_user_cannot_touch(self, db_session, test_user_email):
         from app.core.security import hash_password
         from app.models.user import User
 
@@ -85,9 +83,7 @@ class TestNotificationPreferences:
 
     async def test_update_preferences(self, db_session, test_user_email):
         svc = NotificationService(db_session)
-        prefs = await svc.update_preferences(
-            test_user_email, reminders_enabled=False
-        )
+        prefs = await svc.update_preferences(test_user_email, reminders_enabled=False)
         assert prefs.reminders_enabled is False
         assert prefs.chat_responses_enabled is True
 
@@ -96,8 +92,6 @@ class TestNotificationPreferences:
         # Seed preferences then disable reminders.
         await svc.update_preferences(test_user_email, reminders_enabled=False)
         assert await svc.is_channel_enabled(test_user_email, "reminders") is False
-        assert (
-            await svc.is_channel_enabled(test_user_email, "chat_responses") is True
-        )
+        assert await svc.is_channel_enabled(test_user_email, "chat_responses") is True
         # Unknown channels default to True.
         assert await svc.is_channel_enabled(test_user_email, "weird") is True

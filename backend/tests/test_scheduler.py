@@ -47,9 +47,7 @@ def test_register_inactive_triggers_unregister():
 
 def test_register_invalid_cron_is_logged_not_raised(caplog):
     fake_scheduler = MagicMock()
-    bad = SimpleNamespace(
-        id="bad", title=None, cron_expr="nonsense", run_at=None, is_active=True
-    )
+    bad = SimpleNamespace(id="bad", title=None, cron_expr="nonsense", run_at=None, is_active=True)
     with patch("app.scheduler.get_scheduler", return_value=fake_scheduler):
         register_scheduled_action(bad)
     # No add_job call.

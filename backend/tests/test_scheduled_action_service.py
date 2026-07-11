@@ -178,9 +178,7 @@ class TestScheduledActionServiceUpdate:
         assert updated.prompt == "new"
         assert updated.title == "renamed"
 
-    async def test_update_toggle_inactive_clears_next_run(
-        self, db_session, test_user_email
-    ):
+    async def test_update_toggle_inactive_clears_next_run(self, db_session, test_user_email):
         svc = ScheduledActionService(db_session)
         action = await svc.create(
             user_id=test_user_email,
@@ -234,9 +232,7 @@ class TestScheduledActionServiceUpdate:
                 set_run_at=True,
             )
 
-    async def test_update_clearing_both_triggers_raises(
-        self, db_session, test_user_email
-    ):
+    async def test_update_clearing_both_triggers_raises(self, db_session, test_user_email):
         svc = ScheduledActionService(db_session)
         action = await svc.create(
             user_id=test_user_email,
@@ -285,9 +281,7 @@ class TestScheduledActionServiceDelete:
 
 
 class TestScheduledActionServiceRecordRun:
-    async def test_record_run_recurring_keeps_active(
-        self, db_session, test_user_email
-    ):
+    async def test_record_run_recurring_keeps_active(self, db_session, test_user_email):
         svc = ScheduledActionService(db_session)
         action = await svc.create(
             user_id=test_user_email,
@@ -295,9 +289,7 @@ class TestScheduledActionServiceRecordRun:
             cron_expr="0 9 * * *",
         )
         new_next = datetime.now(tz=UTC) + timedelta(days=1)
-        await svc.record_run(
-            action.id, status_label="success", next_run=new_next
-        )
+        await svc.record_run(action.id, status_label="success", next_run=new_next)
 
         refreshed = await svc.get(action.id, test_user_email)
         assert refreshed is not None
@@ -306,14 +298,10 @@ class TestScheduledActionServiceRecordRun:
         assert refreshed.last_run_at is not None
         assert refreshed.next_run is not None
 
-    async def test_record_run_one_off_auto_deactivates(
-        self, db_session, test_user_email
-    ):
+    async def test_record_run_one_off_auto_deactivates(self, db_session, test_user_email):
         svc = ScheduledActionService(db_session)
         when = datetime.now(tz=UTC) + timedelta(days=1)
-        action = await svc.create(
-            user_id=test_user_email, prompt="x", run_at=when
-        )
+        action = await svc.create(user_id=test_user_email, prompt="x", run_at=when)
         await svc.record_run(action.id, status_label="success", next_run=None)
 
         refreshed = await svc.get(action.id, test_user_email)
