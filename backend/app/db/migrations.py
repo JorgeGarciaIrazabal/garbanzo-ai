@@ -34,8 +34,7 @@ async def run_migrations(database_url: str) -> None:
             " applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
         )
         applied = {
-            row["filename"]
-            for row in await conn.fetch("SELECT filename FROM schema_migrations")
+            row["filename"] for row in await conn.fetch("SELECT filename FROM schema_migrations")
         }
         for path in sorted(MIGRATIONS_DIR.glob("*.sql")):
             if path.name in applied:

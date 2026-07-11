@@ -319,9 +319,7 @@ async def _sse_stream(
         yield f"data: {error_response.model_dump_json()}\n\n"
 
 
-def _make_push_callback(
-    user_id: str, conversation_id: str
-) -> Callable[[str], Awaitable[None]]:
+def _make_push_callback(user_id: str, conversation_id: str) -> Callable[[str], Awaitable[None]]:
     """Build a callback that sends an FCM push with the accumulated response."""
 
     async def _push(accumulated: str) -> None:
@@ -493,8 +491,16 @@ async def stop_chat_stream(
 async def list_models(
     service: Annotated[ChatService, Depends(get_chat_service)],
     settings: Annotated[Settings, Depends(get_settings)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> ModelList:
     models = await service.list_available_models()
+    # Filter out models explicitly disabled by an admin.
+    from app.services.model_management_service import ModelManagementService
+
+    mgmt = ModelManagementService(db)
+    disabled = await mgmt.get_disabled_ids()
+    if disabled:
+        models = [m for m in models if m.id not in disabled]
     return ModelList(models=models, default_model=settings.default_model)
 
 

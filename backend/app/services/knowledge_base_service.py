@@ -75,11 +75,7 @@ def _looks_like_text(text: str, sample_size: int = 4000) -> bool:
     sample = text[:sample_size]
     if not sample:
         return False
-    bad = sum(
-        1
-        for ch in sample
-        if ch == "�" or (ord(ch) < 32 and ch not in "\n\r\t")
-    )
+    bad = sum(1 for ch in sample if ch == "�" or (ord(ch) < 32 and ch not in "\n\r\t"))
     return bad / len(sample) < 0.10
 
 
@@ -92,15 +88,11 @@ def extract_text(data: bytes, filename: str, mime_type: str) -> str:
         return _extract_pdf(data)
     if mime == "text/csv" or lower_name.endswith(".csv"):
         return _extract_csv(data)
-    if (
-        mime
-        in {
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            "application/vnd.ms-excel",
-            "application/vnd.oasis.opendocument.spreadsheet",
-        }
-        or lower_name.endswith((".xlsx", ".xls", ".ods"))
-    ):
+    if mime in {
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "application/vnd.ms-excel",
+        "application/vnd.oasis.opendocument.spreadsheet",
+    } or lower_name.endswith((".xlsx", ".xls", ".ods")):
         return _extract_spreadsheet(data)
     return _extract_plain(data)
 
@@ -241,9 +233,7 @@ class KnowledgeBaseService:
         result = await self.db.execute(query)
         return list(result.scalars().all())
 
-    async def get_document(
-        self, document_id: str, user_id: str
-    ) -> KnowledgeDocument | None:
+    async def get_document(self, document_id: str, user_id: str) -> KnowledgeDocument | None:
         query = select(KnowledgeDocument).where(
             KnowledgeDocument.id == document_id,
             KnowledgeDocument.user_id == user_id,
@@ -345,10 +335,9 @@ class KnowledgeBaseService:
                 ),
                 0.0,
             )
-            fused = (
-                cast(semantic, Float) * weight
-                + cast(lexical, Float) * (1.0 - weight)
-            ).label("score")
+            fused = (cast(semantic, Float) * weight + cast(lexical, Float) * (1.0 - weight)).label(
+                "score"
+            )
 
             stmt = (
                 self._base_chunk_query(user_id)
@@ -411,12 +400,16 @@ class KnowledgeBaseService:
                 if not doc:
                     return
                 chunk_rows = (
-                    await session.execute(
-                        select(KnowledgeChunk)
-                        .where(KnowledgeChunk.document_id == document_id)
-                        .order_by(KnowledgeChunk.chunk_index)
+                    (
+                        await session.execute(
+                            select(KnowledgeChunk)
+                            .where(KnowledgeChunk.document_id == document_id)
+                            .order_by(KnowledgeChunk.chunk_index)
+                        )
                     )
-                ).scalars().all()
+                    .scalars()
+                    .all()
+                )
                 if not chunk_rows:
                     doc.status = "ready"
                     await session.commit()

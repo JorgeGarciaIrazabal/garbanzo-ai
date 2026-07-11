@@ -176,9 +176,7 @@ async def run_agent_turn(
                         # Flag that the answer was forced by the iteration
                         # budget, so clients/persisted meta can surface it.
                         chunk.metadata.setdefault("tool_iteration_cap", True)
-                        chunk.metadata.setdefault(
-                            "max_iterations", max_tool_iterations
-                        )
+                        chunk.metadata.setdefault("max_iterations", max_tool_iterations)
                     for key, value in (extra_finish_metadata or {}).items():
                         chunk.metadata.setdefault(key, value)
                     metadata = chunk.metadata
@@ -194,9 +192,7 @@ async def run_agent_turn(
                     msg_meta["thinking"] = combined_thinking
                 pending_thinking = []
                 await sink.persist_assistant(full_response, msg_meta or None)
-                llm_messages.append(
-                    LLMMessage(role="assistant", content=full_response)
-                )
+                llm_messages.append(LLMMessage(role="assistant", content=full_response))
                 result.content = full_response
                 result.thinking = combined_thinking
                 result.metadata = metadata
@@ -229,9 +225,7 @@ async def run_agent_turn(
                 yield ChatChunk(
                     content="",
                     is_finished=False,
-                    metadata={
-                        "tool_execution": {**execution, "status": "started"}
-                    },
+                    metadata={"tool_execution": {**execution, "status": "started"}},
                 )
                 started_at = asyncio.get_event_loop().time()
                 if execute_tool is None:
@@ -241,9 +235,7 @@ async def run_agent_turn(
                     }
                 else:
                     tool_result = await execute_tool(call)
-                duration_ms = int(
-                    (asyncio.get_event_loop().time() - started_at) * 1000
-                )
+                duration_ms = int((asyncio.get_event_loop().time() - started_at) * 1000)
                 yield ChatChunk(
                     content="",
                     is_finished=False,
@@ -257,17 +249,13 @@ async def run_agent_turn(
                 )
 
                 raw_text = stringify_tool_result(tool_result)
-                result_text = truncate_tool_result(
-                    raw_text, get_settings().tool_result_max_chars
-                )
+                result_text = truncate_tool_result(raw_text, get_settings().tool_result_max_chars)
                 result_meta = {
                     "tool_call_id": call.get("id"),
                     "tool_name": call.get("name"),
                     # Oversized results are stored truncated too — the
                     # meta JSONB otherwise carries the full payload.
-                    "result": tool_result
-                    if len(raw_text) == len(result_text)
-                    else result_text,
+                    "result": tool_result if len(raw_text) == len(result_text) else result_text,
                     "duration_ms": duration_ms,
                 }
                 if len(raw_text) != len(result_text):
@@ -305,9 +293,7 @@ async def run_agent_turn(
                 "error_type": "streaming_error",
             }
             combined_thinking = "\n\n".join(
-                [*pending_thinking, thinking_content]
-                if thinking_content
-                else pending_thinking
+                [*pending_thinking, thinking_content] if thinking_content else pending_thinking
             )
             if combined_thinking:
                 msg_meta["thinking"] = combined_thinking

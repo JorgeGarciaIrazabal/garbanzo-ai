@@ -9,17 +9,26 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import get_settings
 from app.core.security import get_current_admin_user, hash_password
 from app.db.session import get_db
 from app.models.user import User
-from app.schemas.admin import AdminUserCreate, AdminUserOut, AdminUserUpdate
+from app.schemas.admin import (
+    AdminUserCreate,
+    AdminUserOut,
+    AdminUserUpdate,
+    AvailableModelOut,
+    AvailableModelUpdate,
+)
 from app.schemas.mcp import (
     MCPServerCreate,
     MCPServerOut,
     MCPServerTestResult,
     MCPServerUpdate,
 )
+from app.services.chat_service import ChatService
 from app.services.mcp_service import MCPService
+from app.services.model_management_service import ModelManagementService
 from app.services.user_service import UserService
 
 router = APIRouter(dependencies=[Depends(get_current_admin_user)])
@@ -31,6 +40,12 @@ def get_user_service(db: Annotated[AsyncSession, Depends(get_db)]) -> UserServic
 
 def get_mcp_service(db: Annotated[AsyncSession, Depends(get_db)]) -> MCPService:
     return MCPService(db)
+
+
+def get_model_management_service(
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> ModelManagementService:
+    return ModelManagementService(db)
 
 
 # ============================================================================
@@ -216,3 +231,85 @@ async def test_mcp_connection(
         )
     result = await service.test_connection(server)
     return MCPServerTestResult(**result)
+
+
+# ============================================================================
+# Model Management
+# ============================================================================
+
+
+@router.get(
+    "/models",
+    response_model=list[AvailableModelOut],
+    summary="List all models with their admin-controlled visibility",
+)
+async def list_models(
+    service: Annotated[ModelManagementService, Depends(get_model_management_service)],
+    _admin: Annotated[dict[str, Any], Depends(get_current_admin_user)],
+) -> list[AvailableModelOut]:
+    rows = await service.list_db_models()
+    return [
+        AvailableModelOut(
+            model_id=row.model_id,
+            is_enabled=row.is_enabled,
+            is_new=False,
+            updated_at=row.updated_at,
+        )
+        for row in rows
+    ]
+
+
+@router.post(
+    "/models/sync",
+    response_model=list[AvailableModelOut],
+    summary="Sync models from the live LLM provider into the database",
+)
+async def sync_models(
+    service: Annotated[ModelManagementService, Depends(get_model_management_service)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _admin: Annotated[dict[str, Any], Depends(get_current_admin_user)],
+) -> list[AvailableModelOut]:
+    """Discover all models currently available from the configured LLM provider
+    and create rows in the ``available_models`` table for any new ones.
+
+    Existing rows keep their ``is_enabled`` status.  The merged response
+    includes live provider metadata (name, description, context_length)
+    alongside the DB state so the admin UI can display a complete picture.
+    """
+    settings = get_settings()
+    chat_service = ChatService(db, provider_name=settings.llm_provider)
+    provider_models = await chat_service.list_available_models()
+    merged = await service.upsert_from_provider(provider_models)
+    await db.commit()
+    return [
+        AvailableModelOut(
+            model_id=m["model_id"],
+            is_enabled=m["is_enabled"],
+            is_new=m["is_new"],
+            updated_at=m.get("updated_at"),
+        )
+        for m in merged
+    ]
+
+
+@router.patch(
+    "/models/{model_id}",
+    response_model=AvailableModelOut,
+    summary="Enable or disable a model for all users",
+)
+async def update_model(
+    model_id: str,
+    data: AvailableModelUpdate,
+    service: Annotated[ModelManagementService, Depends(get_model_management_service)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _admin: Annotated[dict[str, Any], Depends(get_current_admin_user)],
+) -> AvailableModelOut:
+    row = await service.set_enabled(model_id, data.is_enabled)
+    await db.commit()
+    await db.refresh(row)
+    return AvailableModelOut(
+        model_id=row.model_id,
+        is_enabled=row.is_enabled,
+        is_new=False,
+        updated_at=row.updated_at,
+    )

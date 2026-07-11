@@ -39,10 +39,9 @@ def _panel_signal(ws: Workspace) -> dict:
     settings = get_settings()
     signal: dict = {"dev_port": ws.dev_port, "proxied": settings.microapps_proxy_mode}
     if settings.microapps_proxy_mode:
-        signal["panel_token"] = create_microapps_panel_token(
-            ws.user_email, ws.slug, settings
-        )
+        signal["panel_token"] = create_microapps_panel_token(ws.user_email, ws.slug, settings)
     return signal
+
 
 # Sentinel "server id" in the tool lookup so the chat executor can recognise a
 # native (non-MCP) tool call and route it here.
@@ -139,8 +138,19 @@ def micro_app_descriptor(apps: list[MicroAppInfo]) -> dict | None:
 # Words that signal a pure open/view request when the model omits the `edit`
 # flag — a light fallback so opening stays fast even without the flag.
 _VIEW_ONLY_HINTS = (
-    "open", "show", "view", "display", "see ", "look at",
-    "abre", "abrir", "muestra", "muéstrame", "muestrame", "ver ", "enseña",
+    "open",
+    "show",
+    "view",
+    "display",
+    "see ",
+    "look at",
+    "abre",
+    "abrir",
+    "muestra",
+    "muéstrame",
+    "muestrame",
+    "ver ",
+    "enseña",
 )
 
 
@@ -159,9 +169,24 @@ def _coerce_edit(raw, instruction: str) -> bool:
         return False  # nothing to do → treat as a plain open
     # Short instruction that starts with a view verb and no obvious change verb.
     if any(text.startswith(h) or f" {h}" in text for h in _VIEW_ONLY_HINTS):
-        change_verbs = ("add", "change", "make", "remove", "delete", "move",
-                        "resize", "bigger", "smaller", "añade", "cambia",
-                        "quita", "elimina", "haz", "mueve", "agranda")
+        change_verbs = (
+            "add",
+            "change",
+            "make",
+            "remove",
+            "delete",
+            "move",
+            "resize",
+            "bigger",
+            "smaller",
+            "añade",
+            "cambia",
+            "quita",
+            "elimina",
+            "haz",
+            "mueve",
+            "agranda",
+        )
         if not any(v in text for v in change_verbs):
             return False
     return True

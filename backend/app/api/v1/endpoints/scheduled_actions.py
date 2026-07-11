@@ -45,9 +45,7 @@ async def create_scheduled_action(
             is_active=data.is_active,
         )
     except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
-        ) from exc
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
     register_scheduled_action(action)
     return ScheduledActionResponse.model_validate(action)
@@ -111,9 +109,7 @@ async def update_scheduled_action(
             set_run_at="run_at" in raw,
         )
     except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
-        ) from exc
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
     if action is None:
         raise HTTPException(

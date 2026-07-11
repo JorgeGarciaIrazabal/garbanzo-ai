@@ -61,96 +61,96 @@ _load_api_key_from_env_file()
 from ollama import Client  # noqa: E402  (import after the key is in the environment)
 
 try:
-  # Preferred high-level API (if available)
-  from mcp.server.fastmcp import FastMCP  # type: ignore
+    # Preferred high-level API (if available)
+    from mcp.server.fastmcp import FastMCP  # type: ignore
 
-  _FASTMCP_AVAILABLE = True
+    _FASTMCP_AVAILABLE = True
 except Exception:
-  _FASTMCP_AVAILABLE = False
+    _FASTMCP_AVAILABLE = False
 
 if not _FASTMCP_AVAILABLE:
-  # Fallback to the low-level stdio server API
-  from mcp.server import Server  # type: ignore
-  from mcp.server.stdio import stdio_server  # type: ignore
+    # Fallback to the low-level stdio server API
+    from mcp.server import Server  # type: ignore
+    from mcp.server.stdio import stdio_server  # type: ignore
 
 
 client = Client()
 
 
 def _web_search_impl(query: str, max_results: int = 3) -> dict[str, Any]:
-  res = client.web_search(query=query, max_results=max_results)
-  return res.model_dump()
+    res = client.web_search(query=query, max_results=max_results)
+    return res.model_dump()
 
 
 def _web_fetch_impl(url: str) -> dict[str, Any]:
-  res = client.web_fetch(url=url)
-  return res.model_dump()
+    res = client.web_fetch(url=url)
+    return res.model_dump()
 
 
 if _FASTMCP_AVAILABLE:
-  app = FastMCP('ollama-search-fetch')
+    app = FastMCP("ollama-search-fetch")
 
-  @app.tool()
-  def web_search(query: str, max_results: int = 3) -> dict[str, Any]:
-    """
-    Perform a web search using Ollama's hosted search API.
+    @app.tool()
+    def web_search(query: str, max_results: int = 3) -> dict[str, Any]:
+        """
+        Perform a web search using Ollama's hosted search API.
 
-    Args:
-      query: The search query to run.
-      max_results: Maximum results to return (default: 3).
+        Args:
+          query: The search query to run.
+          max_results: Maximum results to return (default: 3).
 
-    Returns:
-      JSON-serializable dict matching ollama.WebSearchResponse.model_dump()
-    """
+        Returns:
+          JSON-serializable dict matching ollama.WebSearchResponse.model_dump()
+        """
 
-    return _web_search_impl(query=query, max_results=max_results)
+        return _web_search_impl(query=query, max_results=max_results)
 
-  @app.tool()
-  def web_fetch(url: str) -> dict[str, Any]:
-    """
-    Fetch the content of a web page for the provided URL.
+    @app.tool()
+    def web_fetch(url: str) -> dict[str, Any]:
+        """
+        Fetch the content of a web page for the provided URL.
 
-    Args:
-      url: The absolute URL to fetch.
+        Args:
+          url: The absolute URL to fetch.
 
-    Returns:
-      JSON-serializable dict matching ollama.WebFetchResponse.model_dump()
-    """
+        Returns:
+          JSON-serializable dict matching ollama.WebFetchResponse.model_dump()
+        """
 
-    return _web_fetch_impl(url=url)
+        return _web_fetch_impl(url=url)
 
-  if __name__ == '__main__':
-    app.run()
+    if __name__ == "__main__":
+        app.run()
 
 else:
-  server = Server('ollama-search-fetch')  # type: ignore[name-defined]
+    server = Server("ollama-search-fetch")  # type: ignore[name-defined]
 
-  @server.tool()  # type: ignore[attr-defined]
-  async def web_search(query: str, max_results: int = 3) -> dict[str, Any]:
-    """
-    Perform a web search using Ollama's hosted search API.
+    @server.tool()  # type: ignore[attr-defined]
+    async def web_search(query: str, max_results: int = 3) -> dict[str, Any]:
+        """
+        Perform a web search using Ollama's hosted search API.
 
-    Args:
-      query: The search query to run.
-      max_results: Maximum results to return (default: 3).
-    """
+        Args:
+          query: The search query to run.
+          max_results: Maximum results to return (default: 3).
+        """
 
-    return await asyncio.to_thread(_web_search_impl, query, max_results)
+        return await asyncio.to_thread(_web_search_impl, query, max_results)
 
-  @server.tool()  # type: ignore[attr-defined]
-  async def web_fetch(url: str) -> dict[str, Any]:
-    """
-    Fetch the content of a web page for the provided URL.
+    @server.tool()  # type: ignore[attr-defined]
+    async def web_fetch(url: str) -> dict[str, Any]:
+        """
+        Fetch the content of a web page for the provided URL.
 
-    Args:
-      url: The absolute URL to fetch.
-    """
+        Args:
+          url: The absolute URL to fetch.
+        """
 
-    return await asyncio.to_thread(_web_fetch_impl, url)
+        return await asyncio.to_thread(_web_fetch_impl, url)
 
-  async def _main() -> None:
-    async with stdio_server() as (read, write):  # type: ignore[name-defined]
-      await server.run(read, write)  # type: ignore[attr-defined]
+    async def _main() -> None:
+        async with stdio_server() as (read, write):  # type: ignore[name-defined]
+            await server.run(read, write)  # type: ignore[attr-defined]
 
-  if __name__ == '__main__':
-    asyncio.run(_main())
+    if __name__ == "__main__":
+        asyncio.run(_main())

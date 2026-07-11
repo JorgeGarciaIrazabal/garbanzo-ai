@@ -65,8 +65,10 @@ class OllamaEmbeddingProvider(EmbeddingProvider):
         except (ResponseError, RequestError):
             logger.exception("Ollama embedding request failed")
             raise
-        embeddings = response.get("embeddings") if isinstance(response, dict) else getattr(
-            response, "embeddings", None
+        embeddings = (
+            response.get("embeddings")
+            if isinstance(response, dict)
+            else getattr(response, "embeddings", None)
         )
         if not embeddings:
             raise RuntimeError("Ollama returned no embeddings")

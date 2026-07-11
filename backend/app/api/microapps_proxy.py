@@ -90,20 +90,14 @@ async def proxy_http(path: str, request: Request) -> Response:
         raise HTTPException(status_code=401, detail="Missing or invalid panel token")
 
     port = manager.dev_port_for(slug)
-    params = [
-        (k, v)
-        for k, v in request.query_params.multi_items()
-        if k != TOKEN_QUERY_PARAM
-    ]
+    params = [(k, v) for k, v in request.query_params.multi_items() if k != TOKEN_QUERY_PARAM]
     url = httpx.URL(f"http://127.0.0.1:{port}/micro-apps/{path}", params=params)
     headers = {
         k: v
         for k, v in request.headers.items()
         if k.lower() not in _HOP_BY_HOP and k.lower() != "host"
     }
-    content = (
-        request.stream() if request.method in ("POST", "PUT", "PATCH") else None
-    )
+    content = request.stream() if request.method in ("POST", "PUT", "PATCH") else None
     client = _get_client()
     try:
         upstream = await client.send(
@@ -119,17 +113,14 @@ async def proxy_http(path: str, request: Request) -> Response:
     response = StreamingResponse(
         upstream.aiter_raw(),
         status_code=upstream.status_code,
-        headers={
-            k: v for k, v in upstream.headers.items() if k.lower() not in _HOP_BY_HOP
-        },
+        headers={k: v for k, v in upstream.headers.items() if k.lower() not in _HOP_BY_HOP},
         background=BackgroundTask(upstream.aclose),
     )
     if query_token:
         # Entry request: persist the token so asset/XHR/SSE/WS requests
         # (which can't carry it) keep routing to this workspace.
         secure = (
-            request.url.scheme == "https"
-            or request.headers.get("x-forwarded-proto") == "https"
+            request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https"
         )
         response.set_cookie(
             COOKIE_NAME,
@@ -152,19 +143,14 @@ async def proxy_websocket(websocket: WebSocket, path: str) -> None:
         return
 
     slug = _resolve_slug(
-        websocket.query_params.get(TOKEN_QUERY_PARAM)
-        or websocket.cookies.get(COOKIE_NAME)
+        websocket.query_params.get(TOKEN_QUERY_PARAM) or websocket.cookies.get(COOKIE_NAME)
     )
     if slug is None:
         await websocket.close(code=4401)
         return
 
     port = manager.dev_port_for(slug)
-    params = [
-        (k, v)
-        for k, v in websocket.query_params.multi_items()
-        if k != TOKEN_QUERY_PARAM
-    ]
+    params = [(k, v) for k, v in websocket.query_params.multi_items() if k != TOKEN_QUERY_PARAM]
     target = str(httpx.URL(f"ws://127.0.0.1:{port}/micro-apps/{path}", params=params))
     subprotocols = websocket.scope.get("subprotocols") or None
 

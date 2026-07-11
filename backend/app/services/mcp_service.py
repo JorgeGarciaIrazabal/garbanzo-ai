@@ -202,9 +202,7 @@ class MCPService:
     async def test_connection(self, server: MCPServer) -> dict[str, Any]:
         """Open a session, list tools, and return a summary result."""
         try:
-            tools = await asyncio.wait_for(
-                self._list_tools_for_server(server), timeout=15.0
-            )
+            tools = await asyncio.wait_for(self._list_tools_for_server(server), timeout=15.0)
             return {"ok": True, "tools_count": len(tools), "error": None}
         except Exception as exc:
             logger.warning("MCP test_connection failed for %s: %s", server.id, exc)
@@ -235,9 +233,7 @@ class MCPService:
         all_tools: list[dict[str, Any]] = []
         for server in servers:
             try:
-                tools = await asyncio.wait_for(
-                    self._list_tools_for_server(server), timeout=15.0
-                )
+                tools = await asyncio.wait_for(self._list_tools_for_server(server), timeout=15.0)
                 all_tools.extend(tools)
             except Exception as exc:
                 logger.warning(

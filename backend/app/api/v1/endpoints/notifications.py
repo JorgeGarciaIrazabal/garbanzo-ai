@@ -49,9 +49,7 @@ async def unread_count(
     current_user: Annotated[dict[str, Any], Depends(get_current_user)],
     service: Annotated[NotificationService, Depends(get_service)],
 ) -> UnreadCountResponse:
-    return UnreadCountResponse(
-        unread_count=await service.unread_count(current_user["email"])
-    )
+    return UnreadCountResponse(unread_count=await service.unread_count(current_user["email"]))
 
 
 @router.post(

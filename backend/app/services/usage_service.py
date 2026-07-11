@@ -105,10 +105,7 @@ class UsageService:
             d["tokens_generated"] += gen_t
 
         by_model_list = sorted(
-            (
-                UsageByModel(model=name, **stats)
-                for name, stats in by_model.items()
-            ),
+            (UsageByModel(model=name, **stats) for name, stats in by_model.items()),
             key=lambda x: x.tokens_generated,
             reverse=True,
         )
@@ -117,10 +114,7 @@ class UsageService:
             key=lambda x: x.tokens_generated,
             reverse=True,
         )[:20]
-        by_day_list = [
-            UsageByDay(date=date, **stats)
-            for date, stats in sorted(by_day.items())
-        ]
+        by_day_list = [UsageByDay(date=date, **stats) for date, stats in sorted(by_day.items())]
 
         return UsageSummary(
             days=days,

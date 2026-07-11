@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import 'package:garbanzo_ai/core/guarded_state.dart';
 import 'package:garbanzo_ai/core/log.dart';
+import 'package:garbanzo_ai/features/admin/models/admin_model.dart';
 import 'package:garbanzo_ai/features/admin/models/admin_user.dart';
 import 'package:garbanzo_ai/features/admin/models/mcp_server.dart';
 import 'package:garbanzo_ai/features/admin/services/admin_service.dart';
@@ -38,6 +39,19 @@ class AdminProvider extends ChangeNotifier {
 
   String? _serversError;
   String? get serversError => _serversError;
+
+  // ==========================================================================
+  // Models state
+  // ==========================================================================
+
+  List<AdminModel> _models = [];
+  List<AdminModel> get models => List.unmodifiable(_models);
+
+  bool _isLoadingModels = false;
+  bool get isLoadingModels => _isLoadingModels;
+
+  String? _modelsError;
+  String? get modelsError => _modelsError;
 
   // ==========================================================================
   // Users
@@ -239,9 +253,74 @@ class AdminProvider extends ChangeNotifier {
     }
   }
 
+  // ==========================================================================
+  // Models
+  // ==========================================================================
+
+  Future<void> loadModels() async {
+    _isLoadingModels = true;
+    _modelsError = null;
+    notifyListeners();
+    try {
+      _models = await _service.listModels();
+    } catch (e) {
+      _modelsError = describeFailure(e, label: 'Failed to load models');
+      logDebug(_modelsError!);
+    } finally {
+      _isLoadingModels = false;
+      notifyListeners();
+    }
+  }
+
+  Future<List<AdminModel>> syncModels() async {
+    _modelsError = null;
+    _isLoadingModels = true;
+    notifyListeners();
+    try {
+      _models = await _service.syncModels();
+      notifyListeners();
+      return _models;
+    } catch (e) {
+      _modelsError = describeFailure(e, label: 'Failed to sync models');
+      logDebug(_modelsError!);
+      notifyListeners();
+      return [];
+    } finally {
+      _isLoadingModels = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> updateModel(String modelId, {required bool enabled}) async {
+    _modelsError = null;
+    try {
+      final updated = await _service.updateModel(modelId, enabled: enabled);
+      final idx = _models.indexWhere((m) => m.modelId == modelId);
+      if (idx >= 0) {
+        _models = [
+          ..._models.sublist(0, idx),
+          updated.copyWith(
+            name: _models[idx].name,
+            description: _models[idx].description,
+            contextLength: _models[idx].contextLength,
+          ),
+          ..._models.sublist(idx + 1),
+        ];
+      } else {
+        _models = [..._models, updated];
+      }
+      notifyListeners();
+    } catch (e) {
+      _modelsError = describeFailure(e, label: 'Failed to update model');
+      logDebug(_modelsError!);
+      notifyListeners();
+    }
+  }
+
   void clearErrors() {
     _usersError = null;
     _serversError = null;
+    _modelsError = null;
     notifyListeners();
   }
 }

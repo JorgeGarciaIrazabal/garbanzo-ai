@@ -242,8 +242,8 @@ class ConversationUpdate(BaseModel):
         None,
         description=(
             "Allowed tool keys for this conversation. None = all enabled tools, "
-            "[] = no tools, [\"srv:tool\"] = specific subset. "
-            "Each key is \"{server_id}:{tool_name}\"."
+            '[] = no tools, ["srv:tool"] = specific subset. '
+            'Each key is "{server_id}:{tool_name}".'
         ),
     )
     is_pinned: bool | None = Field(
@@ -275,8 +275,7 @@ class ConversationOut(BaseModel):
     enabled_tools: list[str] | None = Field(
         None,
         description=(
-            "Allowed tool keys. None = all enabled tools, "
-            "[] = none, [\"srv:tool\"] = subset."
+            'Allowed tool keys. None = all enabled tools, [] = none, ["srv:tool"] = subset.'
         ),
     )
     is_pinned: bool = Field(default=False, description="Whether this conversation is pinned")

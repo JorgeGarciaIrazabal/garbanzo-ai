@@ -277,3 +277,77 @@ async def test_admin_mcp_server_crud(db_session):
             assert all(s["id"] != server_id for s in resp.json())
     finally:
         _clear_overrides()
+
+
+async def test_admin_models_list_empty(db_session):
+    """When no models are in the DB, the admin list should be empty."""
+    await _seed(db_session, "admin@example.com", is_admin=True)
+
+    _install_overrides(db_session, admin_email="admin@example.com")
+    try:
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            resp = await client.get(
+                "/api/v1/admin/models",
+                headers={"Authorization": f"Bearer {_token('admin@example.com')}"},
+            )
+        assert resp.status_code == 200
+        assert resp.json() == []
+    finally:
+        _clear_overrides()
+
+
+async def test_admin_model_enable_disable(db_session):
+    """Admin can enable/disable a model; the row is created on first PATCH."""
+    await _seed(db_session, "admin@example.com", is_admin=True)
+
+    _install_overrides(db_session, admin_email="admin@example.com")
+    try:
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            headers = {"Authorization": f"Bearer {_token('admin@example.com')}"}
+
+            # Disable a model that doesn't exist yet — should create it
+            resp = await client.patch(
+                "/api/v1/admin/models/llama3.2:latest",
+                headers=headers,
+                json={"is_enabled": False},
+            )
+            assert resp.status_code == 200, resp.text
+            body = resp.json()
+            assert body["model_id"] == "llama3.2:latest"
+            assert body["is_enabled"] is False
+
+            # List should show the disabled model
+            resp = await client.get("/api/v1/admin/models", headers=headers)
+            assert resp.status_code == 200
+            rows = resp.json()
+            assert len(rows) == 1
+            assert rows[0]["model_id"] == "llama3.2:latest"
+            assert rows[0]["is_enabled"] is False
+
+            # Re-enable
+            resp = await client.patch(
+                "/api/v1/admin/models/llama3.2:latest",
+                headers=headers,
+                json={"is_enabled": True},
+            )
+            assert resp.status_code == 200
+            assert resp.json()["is_enabled"] is True
+    finally:
+        _clear_overrides()
+
+
+async def test_non_admin_models_403(db_session):
+    """Non-admin users cannot access the admin models endpoint."""
+    _install_overrides(db_session, admin_email=None)
+    try:
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            resp = await client.get(
+                "/api/v1/admin/models",
+                headers={"Authorization": f"Bearer {_token('test@example.com')}"},
+            )
+        assert resp.status_code == 403
+    finally:
+        _clear_overrides()

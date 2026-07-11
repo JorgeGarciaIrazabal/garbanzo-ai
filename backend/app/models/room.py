@@ -50,9 +50,7 @@ class Room(Base):
         server_default="chat",
         comment="'chat' | 'debate'",
     )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
@@ -100,9 +98,7 @@ class RoomMember(Base):
         server_default="member",
         comment="'owner' | 'member'",
     )
-    joined_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    joined_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     room: Mapped["Room"] = relationship(back_populates="members")
     # Read-only link to the underlying user, eager-loaded so ``full_name`` is
@@ -141,18 +137,14 @@ class RoomAgent(Base):
         server_default="mention",
         comment="'mention' | 'always' | 'round_robin' | 'auto'",
     )
-    turn_order: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=0, server_default="0"
-    )
+    turn_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     is_active: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True, server_default="true"
     )
     is_moderator: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default="false"
     )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     room: Mapped["Room"] = relationship(back_populates="agents")
 
@@ -181,8 +173,6 @@ class RoomMessage(Base):
     )
     content: Mapped[str] = mapped_column(Text, nullable=False)
     meta: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     room: Mapped["Room"] = relationship(back_populates="messages")

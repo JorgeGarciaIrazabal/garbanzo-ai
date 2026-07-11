@@ -28,9 +28,7 @@ class RoomConnectionManager:
     """Singleton broker for room WebSocket fan-out."""
 
     def __init__(self) -> None:
-        self._rooms: dict[str, dict[str, list[WebSocket]]] = defaultdict(
-            lambda: defaultdict(list)
-        )
+        self._rooms: dict[str, dict[str, list[WebSocket]]] = defaultdict(lambda: defaultdict(list))
         self._lock = asyncio.Lock()
 
     async def connect(self, room_id: str, user_id: str, ws: WebSocket) -> None:

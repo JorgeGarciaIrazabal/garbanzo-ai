@@ -190,13 +190,10 @@ class ConversationService:
 
         # Sub-query: distinct conversation IDs that match either by title
         # or by having at least one message whose content matches.
-        title_match = (
-            select(Conversation.id)
-            .where(
-                Conversation.is_deleted == False,  # noqa: E712
-                Conversation.user_id == user_id,
-                Conversation.title.ilike(pattern, escape="\\"),
-            )
+        title_match = select(Conversation.id).where(
+            Conversation.is_deleted == False,  # noqa: E712
+            Conversation.user_id == user_id,
+            Conversation.title.ilike(pattern, escape="\\"),
         )
         message_match = (
             select(Conversation.id)
@@ -245,9 +242,7 @@ class ConversationService:
             )
             .order_by(Message.created_at)
         )
-        matched_messages = list(
-            (await self.db.execute(matched_msgs_query)).scalars().all()
-        )
+        matched_messages = list((await self.db.execute(matched_msgs_query)).scalars().all())
         msgs_by_conv: dict[str, list[Message]] = {cid: [] for cid in conv_ids}
         for msg in matched_messages:
             msgs_by_conv.setdefault(msg.conversation_id, []).append(msg)

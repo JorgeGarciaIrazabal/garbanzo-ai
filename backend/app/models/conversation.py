@@ -52,7 +52,7 @@ class Conversation(Base):
         nullable=True,
         comment=(
             "Per-conversation MCP tool selection. NULL = all enabled tools, "
-            "[] = no tools, [\"srv:tool\"] = subset."
+            '[] = no tools, ["srv:tool"] = subset.'
         ),
     )
 

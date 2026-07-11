@@ -131,9 +131,7 @@ def _check_config() -> None:
     if fatal:
         for msg in fatal:
             logger.critical("config | %s", msg)
-        raise RuntimeError(
-            "Refusing to start with invalid production config: " + "; ".join(fatal)
-        )
+        raise RuntimeError("Refusing to start with invalid production config: " + "; ".join(fatal))
 
 
 @asynccontextmanager

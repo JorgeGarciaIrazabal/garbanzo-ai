@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from app.core.config import Settings
 from app.db.base import Base
+from app.models.available_model import AvailableModel  # noqa: F401 — register model
 from app.models.conversation import Conversation  # noqa: F401 — register model
 from app.models.device_token import DeviceToken  # noqa: F401 — register model
 from app.models.knowledge_base import (  # noqa: F401 — register models

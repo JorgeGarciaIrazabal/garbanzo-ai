@@ -218,8 +218,7 @@ class MicroappWorkspaceManager:
         listing = self._git(repo, "worktree", "list", "--porcelain").stdout
         target = ws.path.resolve()
         present = any(
-            line.startswith("worktree ")
-            and Path(line[len("worktree ") :]).resolve() == target
+            line.startswith("worktree ") and Path(line[len("worktree ") :]).resolve() == target
             for line in listing.splitlines()
         )
         if present and ws.path.is_dir():
@@ -250,9 +249,7 @@ class MicroappWorkspaceManager:
                 check=False,
             )
             if proc.returncode != 0:
-                logger.warning(
-                    "npm install failed for %s: %s", app_dir.name, proc.stderr[-500:]
-                )
+                logger.warning("npm install failed for %s: %s", app_dir.name, proc.stderr[-500:])
 
     def _seed_opencode_config(self, ws: Workspace) -> None:
         """Write a minimal opencode.json into the worktree if absent.
@@ -271,9 +268,7 @@ class MicroappWorkspaceManager:
                 "ollama": {
                     "npm": "@ai-sdk/openai-compatible",
                     "name": "Ollama (local)",
-                    "options": {
-                        "baseURL": f"{self._settings.ollama_base_url.rstrip('/')}/v1"
-                    },
+                    "options": {"baseURL": f"{self._settings.ollama_base_url.rstrip('/')}/v1"},
                     "models": {bare_model: {"name": bare_model}},
                 }
             },
@@ -295,12 +290,12 @@ class MicroappWorkspaceManager:
         if ws.dev_proc is not None and ws.dev_proc.poll() is None:
             return
         env = {**os.environ, "PORT": str(ws.dev_port)}
-        ws.dev_proc = self._spawn(
-            ["node", "scripts/dev-server.js"], str(ws.path), env
-        )
+        ws.dev_proc = self._spawn(["node", "scripts/dev-server.js"], str(ws.path), env)
         logger.info(
             "microapps: dev server for %s on :%s (pid %s)",
-            ws.slug, ws.dev_port, getattr(ws.dev_proc, "pid", "?"),
+            ws.slug,
+            ws.dev_port,
+            getattr(ws.dev_proc, "pid", "?"),
         )
 
     def _wait_opencode_ready(self, base: str, proc: subprocess.Popen) -> bool:
@@ -501,7 +496,9 @@ class MicroappWorkspaceManager:
                 self._git(wt, "rebase", "--abort", check=False)
                 logger.warning(
                     "microapps: rebase of %s onto %s/main failed: %s",
-                    wt.name, remote, rebase.stderr.strip(),
+                    wt.name,
+                    remote,
+                    rebase.stderr.strip(),
                 )
                 continue
             # Running workspaces may need new deps after the rebase; others
@@ -648,9 +645,7 @@ class MicroappWorkspaceManager:
         #    but only when this branch actually has commits origin/main lacks.
         pushed = False
         base = self._base_ref(ws)
-        rl = self._git(
-            ws.path, "rev-list", "--count", f"{base}..HEAD", check=False
-        )
+        rl = self._git(ws.path, "rev-list", "--count", f"{base}..HEAD", check=False)
         ahead = int(rl.stdout.strip() or 0) if rl.returncode == 0 else (1 if committed else 0)
         if ahead > 0:
             push = self._git(ws.path, "push", remote, "HEAD:main", check=False)
@@ -664,9 +659,7 @@ class MicroappWorkspaceManager:
             summary = f"Published {commit_sha} to main."
         else:
             summary = f"Committed {commit_sha} (not pushed)."
-        return PublishResult(
-            committed=committed, commit=commit_sha, pushed=pushed, message=summary
-        )
+        return PublishResult(committed=committed, commit=commit_sha, pushed=pushed, message=summary)
 
     def revert(
         self, user_email: str, paths: list[str] | None = None, all_changes: bool = False
@@ -686,9 +679,7 @@ class MicroappWorkspaceManager:
             self._git(ws.path, "checkout", "--", ".", check=False)
             self._git(ws.path, "clean", "-fd", check=False)
         else:
-            raise WorkspaceError(
-                "Refusing to revert everything without an explicit 'all' flag"
-            )
+            raise WorkspaceError("Refusing to revert everything without an explicit 'all' flag")
         return self.changes(user_email)
 
     def _safe_rel(self, ws: Workspace, rel_path: str) -> str:
@@ -702,9 +693,7 @@ class MicroappWorkspaceManager:
 
     # -- house creation -----------------------------------------------------
 
-    def create_house(
-        self, user_email: str, name: str, template: str | None = None
-    ) -> str:
+    def create_house(self, user_email: str, name: str, template: str | None = None) -> str:
         """Create ``houses/<slug>.house.json`` by copying a template. Returns rel path."""
         self._require_enabled()
         ws = self._get_or_create_state(user_email)

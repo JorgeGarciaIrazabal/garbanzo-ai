@@ -1,3 +1,4 @@
+from app.models.available_model import AvailableModel
 from app.models.conversation import Conversation
 from app.models.device_token import DeviceToken
 from app.models.knowledge_base import KnowledgeChunk, KnowledgeDocument
@@ -12,6 +13,7 @@ from app.models.user import User
 
 __all__ = [
     "User",
+    "AvailableModel",
     "Conversation",
     "Message",
     "UserMemory",

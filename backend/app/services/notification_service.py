@@ -37,9 +37,7 @@ class NotificationService:
         await self.db.refresh(notif)
         return notif
 
-    async def list_for_user(
-        self, user_id: str, *, limit: int = 50
-    ) -> list[Notification]:
+    async def list_for_user(self, user_id: str, *, limit: int = 50) -> list[Notification]:
         result = await self.db.execute(
             select(Notification)
             .where(Notification.user_id == user_id)
@@ -108,9 +106,7 @@ class NotificationService:
     async def get_preferences(self, user_id: str) -> NotificationPreferences:
         """Return prefs for ``user_id``, creating a default row if missing."""
         result = await self.db.execute(
-            select(NotificationPreferences).where(
-                NotificationPreferences.user_id == user_id
-            )
+            select(NotificationPreferences).where(NotificationPreferences.user_id == user_id)
         )
         prefs = result.scalar_one_or_none()
         if prefs is not None:

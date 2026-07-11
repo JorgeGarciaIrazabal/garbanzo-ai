@@ -76,9 +76,7 @@ def _to_status(ws: Workspace) -> WorkspaceStatus:
         setup_progress=ws.setup_progress,
         proxied=proxied,
         panel_token=(
-            create_microapps_panel_token(ws.user_email, ws.slug, settings)
-            if proxied
-            else None
+            create_microapps_panel_token(ws.user_email, ws.slug, settings) if proxied else None
         ),
     )
 
@@ -206,26 +204,18 @@ async def get_changes(_: FeatureGate, current_user: CurrentUser) -> ChangesSumma
 
 
 @router.post("/publish", response_model=PublishResult)
-async def publish(
-    _: FeatureGate, current_user: CurrentUser, data: PublishRequest
-) -> PublishResult:
+async def publish(_: FeatureGate, current_user: CurrentUser, data: PublishRequest) -> PublishResult:
     """Validate houses, commit, rebase onto origin/main and push HEAD:main."""
     try:
-        return await asyncio.to_thread(
-            manager.publish, current_user["email"], data.message
-        )
+        return await asyncio.to_thread(manager.publish, current_user["email"], data.message)
     except WorkspaceError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
 @router.post("/revert", response_model=ChangesSummary)
-async def revert(
-    _: FeatureGate, current_user: CurrentUser, data: RevertRequest
-) -> ChangesSummary:
+async def revert(_: FeatureGate, current_user: CurrentUser, data: RevertRequest) -> ChangesSummary:
     """Discard changes, scoped to paths or (explicitly) everything."""
     try:
-        return await asyncio.to_thread(
-            manager.revert, current_user["email"], data.paths, data.all
-        )
+        return await asyncio.to_thread(manager.revert, current_user["email"], data.paths, data.all)
     except WorkspaceError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc

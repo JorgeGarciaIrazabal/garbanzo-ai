@@ -94,9 +94,7 @@ async def generate_conversation_title(
     provider: LLMProvider, model: str, user_text: str, assistant_text: str
 ) -> str:
     """Generate a 3-5 word conversation title; returns "" on empty output."""
-    prompt = _TITLE_PROMPT.format(
-        user=user_text[:500], assistant=assistant_text[:500]
-    )
+    prompt = _TITLE_PROMPT.format(user=user_text[:500], assistant=assistant_text[:500])
     raw = await provider.chat(
         messages=[LLMMessage(role="user", content=prompt)],
         model=model,
@@ -106,14 +104,15 @@ async def generate_conversation_title(
 
 
 async def _generate_title_task(
-    provider: LLMProvider, conversation_id: str, model: str,
-    user_text: str, assistant_text: str,
+    provider: LLMProvider,
+    conversation_id: str,
+    model: str,
+    user_text: str,
+    assistant_text: str,
 ) -> None:
     """Background task: generate and persist a title with its own session."""
     try:
-        title = await generate_conversation_title(
-            provider, model, user_text, assistant_text
-        )
+        title = await generate_conversation_title(provider, model, user_text, assistant_text)
         if not title:
             return
         from app.db.session import async_session_maker
@@ -242,9 +241,7 @@ class ChatService:
         if last_assistant and last_assistant.meta:
             tokens_prompt = last_assistant.meta.get("tokens_prompt")
         if not tokens_prompt:
-            tokens_prompt = get_token_counter().count_messages(
-                [m.content or "" for m in messages]
-            )
+            tokens_prompt = get_token_counter().count_messages([m.content or "" for m in messages])
 
         context_length = await self._get_context_length(conversation.model)
         if tokens_prompt < int(context_length * 0.8):
@@ -288,8 +285,7 @@ class ChatService:
             "- important results returned by tools\n"
             "- any open questions or unfinished work\n"
             "Omit pleasantries and repetition. Do not address the user; "
-            "write neutral notes.\n\n"
-            + summary_input
+            "write neutral notes.\n\n" + summary_input
         )
 
         try:
@@ -562,9 +558,7 @@ class ChatService:
         ChatService._active_streams[conversation_id] = cancel_event
 
         try:
-            ollama_tools, tool_lookup = await self._resolve_tools_for_conversation(
-                conversation
-            )
+            ollama_tools, tool_lookup = await self._resolve_tools_for_conversation(conversation)
 
             # What personal context informed this reply — stamped onto the
             # finish chunk (and thus the persisted message meta) alongside
@@ -582,9 +576,7 @@ class ChatService:
                 sink=_ConversationTurnSink(self.db, conversation),
                 options=opts,
                 tools=ollama_tools or None,
-                execute_tool=lambda call: self._execute_tool_call(
-                    call, tool_lookup, conversation
-                ),
+                execute_tool=lambda call: self._execute_tool_call(call, tool_lookup, conversation),
                 cancel_event=cancel_event,
                 max_tool_iterations=MAX_TOOL_ITERATIONS,
                 extra_finish_metadata=extra_meta or None,
@@ -592,12 +584,7 @@ class ChatService:
             ):
                 yield chunk
 
-            if (
-                result.completed
-                and is_first_exchange
-                and result.content
-                and last_user_text
-            ):
+            if result.completed and is_first_exchange and result.content and last_user_text:
                 self._spawn_title_generation(
                     conversation_id,
                     conversation.model,
@@ -652,9 +639,7 @@ class ChatService:
             filtered = all_tools
         else:
             allowed = set(enabled)
-            filtered = [
-                t for t in all_tools if tool_key(t["server_id"], t["name"]) in allowed
-            ]
+            filtered = [t for t in all_tools if tool_key(t["server_id"], t["name"]) in allowed]
         ollama_tools, lookup = build_tool_payload(filtered)
 
         # The micro_app capability is always offered when the micro-apps feature
@@ -705,9 +690,7 @@ class ChatService:
     # Ephemeral by design (in-process); the files themselves are durable state.
     _active_target: dict[str, tuple[str | None, str | None]] = {}
 
-    async def _execute_native_tool(
-        self, name: str, args: dict, conversation
-    ) -> dict:
+    async def _execute_native_tool(self, name: str, args: dict, conversation) -> dict:
         """Dispatch a first-class (non-MCP) tool such as ``micro_app``."""
         if name != MICRO_APP_TOOL:
             return {"ok": False, "error": f"Unknown native tool: {name}"}
@@ -832,13 +815,9 @@ class ChatService:
                 # tool_calls so the model doesn't see (and imitate) the JSON.
                 inline = _maybe_parse_inline_tool_calls(msg.content)
                 if inline is not None:
-                    result.append(
-                        LLMMessage(role="assistant", content="", tool_calls=inline)
-                    )
+                    result.append(LLMMessage(role="assistant", content="", tool_calls=inline))
                 else:
-                    result.append(
-                        LLMMessage(role=msg.role, content=msg.content, images=images)
-                    )
+                    result.append(LLMMessage(role=msg.role, content=msg.content, images=images))
             else:
                 result.append(LLMMessage(role=msg.role, content=msg.content, images=images))
 
@@ -949,8 +928,7 @@ class ChatService:
                         used += cost
                         injected += 1
                         lines.append(
-                            f"--- Source: {m.document_filename} "
-                            f"(relevance: {m.score:.2f}) ---"
+                            f"--- Source: {m.document_filename} (relevance: {m.score:.2f}) ---"
                         )
                         lines.append(m.content)
                         lines.append("")
@@ -959,9 +937,7 @@ class ChatService:
                     # Distinct source filenames, in injection order, for the
                     # client to render as citation chips.
                     stats["kb_sources"] = list(
-                        dict.fromkeys(
-                            m.document_filename for m in matches[:injected]
-                        )
+                        dict.fromkeys(m.document_filename for m in matches[:injected])
                     )
             except Exception as e:
                 logger.warning("Failed to load KB context for system prompt: %s", e)

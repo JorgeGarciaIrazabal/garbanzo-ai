@@ -167,11 +167,7 @@ class Settings(BaseSettings):
 
     @property
     def admin_emails_list(self) -> list[str]:
-        return [
-            e.strip().lower()
-            for e in self.admin_emails.split(",")
-            if e.strip()
-        ]
+        return [e.strip().lower() for e in self.admin_emails.split(",") if e.strip()]
 
 
 # Secret values that are obviously placeholders and must never reach prod.
@@ -202,9 +198,7 @@ def validate_startup_config(settings: "Settings") -> tuple[list[str], list[str]]
         msg = "SECRET_KEY is unset or a known placeholder — set a real key in .env"
         (warns if settings.debug else fatal).append(msg)
     elif len(settings.secret_key) < 32:
-        warns.append(
-            "SECRET_KEY is shorter than 32 characters — consider a longer random key"
-        )
+        warns.append("SECRET_KEY is shorter than 32 characters — consider a longer random key")
 
     if settings.microapps_proxy_mode and not settings.microapps_repo_path:
         warns.append(

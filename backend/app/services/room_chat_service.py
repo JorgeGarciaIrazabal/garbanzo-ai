@@ -67,9 +67,7 @@ class _RoomTurnSink:
     address the open bubble.
     """
 
-    def __init__(
-        self, db: AsyncSession, room_id: str, agent: RoomAgent, message_id: str
-    ):
+    def __init__(self, db: AsyncSession, room_id: str, agent: RoomAgent, message_id: str):
         self.db = db
         self.room_id = room_id
         self.agent = agent
@@ -154,13 +152,17 @@ class RoomChatService:
 
     async def _load_history(self, room_id: str, limit: int = 100) -> list[RoomMessage]:
         rows = (
-            await self.db.execute(
-                select(RoomMessage)
-                .where(RoomMessage.room_id == room_id)
-                .order_by(RoomMessage.created_at.desc())
-                .limit(limit)
+            (
+                await self.db.execute(
+                    select(RoomMessage)
+                    .where(RoomMessage.room_id == room_id)
+                    .order_by(RoomMessage.created_at.desc())
+                    .limit(limit)
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         return list(reversed(rows))
 
     async def _persist_message(
@@ -194,9 +196,7 @@ class RoomChatService:
 
     # ------------------------------------------------------------- user entry
 
-    async def handle_user_post(
-        self, room_id: str, user_id: str, content: str
-    ) -> RoomMessage:
+    async def handle_user_post(self, room_id: str, user_id: str, content: str) -> RoomMessage:
         room = await self._load_room(room_id)
         if room is None:
             raise ValueError("Room not found")
@@ -255,11 +255,7 @@ class RoomChatService:
 
         # (2) Always-respond agents
         always = sorted(
-            [
-                a
-                for a in active
-                if a.response_mode == "always" and a.id != triggering_agent_id
-            ],
+            [a for a in active if a.response_mode == "always" and a.id != triggering_agent_id],
             key=lambda a: (a.turn_order, a.created_at),
         )
         for a in always:
@@ -272,8 +268,7 @@ class RoomChatService:
                 [
                     a
                     for a in active
-                    if a.response_mode == "round_robin"
-                    and a.id != triggering_agent_id
+                    if a.response_mode == "round_robin" and a.id != triggering_agent_id
                 ],
                 key=lambda a: (a.turn_order, a.created_at),
             )
@@ -338,8 +333,7 @@ class RoomChatService:
             "should_respond": {
                 "type": "boolean",
                 "description": (
-                    "True only if the agent should reply to the most recent "
-                    "message right now."
+                    "True only if the agent should reply to the most recent message right now."
                 ),
             },
             "reason": {
@@ -384,7 +378,14 @@ class RoomChatService:
         transcript = "\n".join(transcript_lines)
 
         last_msg = recent[-1] if recent else None
-        last_preview = (last_msg.content[:140].replace("\n", " ") + ("…" if last_msg and len(last_msg.content) > 140 else "")) if last_msg else ""
+        last_preview = (
+            (
+                last_msg.content[:140].replace("\n", " ")
+                + ("…" if last_msg and len(last_msg.content) > 140 else "")
+            )
+            if last_msg
+            else ""
+        )
         logger.info(
             "[AUTO-JUDGE] ▶ asking judge=%s — agent=%s room=%s last_msg=%r",
             judge_model,
@@ -399,9 +400,7 @@ class RoomChatService:
             if persona
             else "No specific persona — general-purpose assistant."
         )
-        other_active = [
-            a.name for a in room.agents if a.is_active and a.id != agent.id
-        ]
+        other_active = [a.name for a in room.agents if a.is_active and a.id != agent.id]
         peer_line = (
             f"Other agents present: {', '.join(other_active)}."
             if other_active
@@ -523,9 +522,7 @@ class RoomChatService:
             try:
                 final_msg = await self._run_single_agent(ctx, agent, history)
             except Exception:
-                logger.exception(
-                    "Agent turn failed (room=%s agent=%s)", ctx.room.id, agent.name
-                )
+                logger.exception("Agent turn failed (room=%s agent=%s)", ctx.room.id, agent.name)
                 continue
 
             if final_msg is None:
@@ -646,9 +643,7 @@ class RoomChatService:
             )
         sys_parts.append(room_desc)
 
-        llm_messages: list[LLMMessage] = [
-            LLMMessage(role="system", content="\n\n".join(sys_parts))
-        ]
+        llm_messages: list[LLMMessage] = [LLMMessage(role="system", content="\n\n".join(sys_parts))]
 
         for msg in history:
             if msg.role not in ("user", "assistant"):
@@ -668,9 +663,7 @@ class RoomChatService:
             else:
                 # A human message
                 label = msg.sender_user_id or "user"
-                llm_messages.append(
-                    LLMMessage(role="user", content=f"[{label}]: {msg.content}")
-                )
+                llm_messages.append(LLMMessage(role="user", content=f"[{label}]: {msg.content}"))
 
         return llm_messages
 

@@ -23,9 +23,7 @@ async def transcribe_audio(
 ) -> TranscriptionResponse:
     audio_bytes = await file.read()
     if not audio_bytes:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Empty audio file"
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Empty audio file")
     try:
         if settings.stt_mode == "remote":
             from app.services.stt_service import RemoteSTTService

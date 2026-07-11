@@ -16,9 +16,7 @@ from app.models.scheduled_action import ScheduledAction
 logger = logging.getLogger(__name__)
 
 
-def build_trigger(
-    cron_expr: str | None, run_at: datetime | None
-) -> CronTrigger | DateTrigger:
+def build_trigger(cron_expr: str | None, run_at: datetime | None) -> CronTrigger | DateTrigger:
     """Build an APScheduler trigger from a cron expression or a datetime."""
     if cron_expr and run_at:
         raise ValueError("Specify cron_expr OR run_at, not both.")
@@ -34,9 +32,7 @@ def build_trigger(
     raise ValueError("Either cron_expr or run_at is required.")
 
 
-def compute_next_run(
-    cron_expr: str | None, run_at: datetime | None
-) -> datetime | None:
+def compute_next_run(cron_expr: str | None, run_at: datetime | None) -> datetime | None:
     """Compute the next fire time for the trigger, or None if already past."""
     trigger = build_trigger(cron_expr, run_at)
     now = datetime.now(tz=UTC)

@@ -5,6 +5,25 @@ from datetime import datetime
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
+class AvailableModelOut(BaseModel):
+    """A model row returned by the admin models endpoint."""
+
+    model_id: str = Field(..., description="Model identifier (e.g. 'llama3.2:latest')")
+    is_enabled: bool = Field(True, description="Whether the model is visible to users")
+    is_new: bool = Field(
+        False, description="Whether the model exists in the provider but not yet enabled"
+    )
+    updated_at: datetime | None = Field(None, description="Last update timestamp")
+
+    model_config = {"from_attributes": True}
+
+
+class AvailableModelUpdate(BaseModel):
+    """Mutable admin-controlled model fields."""
+
+    is_enabled: bool = Field(..., description="Enable or disable the model for all users")
+
+
 class AdminUserCreate(BaseModel):
     """Payload for admin-only user creation."""
 

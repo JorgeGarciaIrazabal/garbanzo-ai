@@ -85,11 +85,15 @@ class SystemPromptService:
     async def seed_builtin_templates(self) -> int:
         """Insert any missing builtin templates. Returns count created."""
         existing_names = set(
-            (await self.db.execute(
-                select(SystemPromptTemplate.name).where(
-                    SystemPromptTemplate.is_builtin == True  # noqa: E712
+            (
+                await self.db.execute(
+                    select(SystemPromptTemplate.name).where(
+                        SystemPromptTemplate.is_builtin == True  # noqa: E712
+                    )
                 )
-            )).scalars().all()
+            )
+            .scalars()
+            .all()
         )
 
         created = 0
@@ -123,13 +127,9 @@ class SystemPromptService:
         )
         return list(result.scalars().all())
 
-    async def get_template(
-        self, template_id: str, user_id: str
-    ) -> SystemPromptTemplate | None:
+    async def get_template(self, template_id: str, user_id: str) -> SystemPromptTemplate | None:
         result = await self.db.execute(
-            SystemPromptTemplate.visible_to(user_id).where(
-                SystemPromptTemplate.id == template_id
-            )
+            SystemPromptTemplate.visible_to(user_id).where(SystemPromptTemplate.id == template_id)
         )
         return result.scalar_one_or_none()
 
@@ -190,9 +190,7 @@ class SystemPromptService:
         )
         return result.scalar_one_or_none()
 
-    async def set_user_default_prompt(
-        self, user_id: str, prompt: str | None
-    ) -> str | None:
+    async def set_user_default_prompt(self, user_id: str, prompt: str | None) -> str | None:
         result = await self.db.execute(select(User).where(User.email == user_id))
         user = result.scalar_one_or_none()
         if not user:

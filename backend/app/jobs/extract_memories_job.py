@@ -52,9 +52,7 @@ async def run_memory_extraction_job(
                 try:
                     await memory_service.backfill_missing_embeddings(user_id)
                 except Exception as e:
-                    logger.warning(
-                        "Embedding backfill failed for %s: %s", user_id, e
-                    )
+                    logger.warning("Embedding backfill failed for %s: %s", user_id, e)
 
             total_memories = sum(len(memories) for memories in results.values())
             users_with_memories = sum(1 for memories in results.values() if memories)

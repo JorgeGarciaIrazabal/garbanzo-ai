@@ -220,10 +220,8 @@ class MemoryExtractionService:
 
         # Drop near-duplicates of what we already know — daily extraction
         # would otherwise re-learn "user works at Acme" forever.
-        memory_contents, embeddings = (
-            await self._memory_service.filter_duplicate_candidates(
-                user_id, memory_contents
-            )
+        memory_contents, embeddings = await self._memory_service.filter_duplicate_candidates(
+            user_id, memory_contents
         )
         if not memory_contents:
             logger.info("All extracted memories were duplicates for %s", user_id)

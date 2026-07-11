@@ -31,18 +31,14 @@ api_router.include_router(knowledge_base.router, prefix="/kb", tags=["knowledge-
 api_router.include_router(mcp.router, prefix="/mcp", tags=["mcp"])
 api_router.include_router(memories.router, prefix="/memories", tags=["memories"])
 api_router.include_router(microapps.router, prefix="/microapps", tags=["microapps"])
-api_router.include_router(
-    notifications.router, prefix="/notifications", tags=["notifications"]
-)
+api_router.include_router(notifications.router, prefix="/notifications", tags=["notifications"])
 api_router.include_router(
     scheduled_actions.router,
     prefix="/scheduled-actions",
     tags=["scheduled-actions"],
 )
 api_router.include_router(stt.router, prefix="/stt", tags=["stt"])
-api_router.include_router(
-    system_prompts.router, prefix="/system-prompts", tags=["system-prompts"]
-)
+api_router.include_router(system_prompts.router, prefix="/system-prompts", tags=["system-prompts"])
 api_router.include_router(tts.router, prefix="/tts", tags=["tts"])
 api_router.include_router(usage.router, prefix="/usage", tags=["usage"])
 api_router.include_router(rooms.router, prefix="/rooms", tags=["rooms"])

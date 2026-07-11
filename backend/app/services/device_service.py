@@ -14,9 +14,7 @@ class DeviceService:
 
     async def register(self, user_id: str, token: str, platform: str) -> DeviceToken:
         """Register a device token for the user, or reassign it if it already exists."""
-        result = await self.db.execute(
-            select(DeviceToken).where(DeviceToken.token == token)
-        )
+        result = await self.db.execute(select(DeviceToken).where(DeviceToken.token == token))
         existing = result.scalar_one_or_none()
         if existing is not None:
             existing.user_id = user_id

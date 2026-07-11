@@ -21,9 +21,7 @@ class ScheduledActionCreate(BaseModel):
         max_length=100,
         description="5-field crontab expression (e.g. '0 9 * * mon')",
     )
-    run_at: datetime | None = Field(
-        None, description="Specific datetime for a one-off action"
-    )
+    run_at: datetime | None = Field(None, description="Specific datetime for a one-off action")
     model: str | None = Field(None, max_length=100)
     system_prompt: str | None = Field(None, max_length=20000)
     is_active: bool = True
@@ -33,9 +31,7 @@ class ScheduledActionCreate(BaseModel):
         has_cron = bool((self.cron_expr or "").strip())
         has_run_at = self.run_at is not None
         if has_cron == has_run_at:
-            raise ValueError(
-                "Provide exactly one of cron_expr or run_at."
-            )
+            raise ValueError("Provide exactly one of cron_expr or run_at.")
         return self
 
 

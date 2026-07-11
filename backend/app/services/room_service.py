@@ -76,11 +76,9 @@ class RoomService:
         # Validate invitee emails exist in users table before inserting
         if invitees:
             existing = set(
-                (
-                    await self.db.execute(
-                        select(User.email).where(User.email.in_(invitees))
-                    )
-                ).scalars().all()
+                (await self.db.execute(select(User.email).where(User.email.in_(invitees))))
+                .scalars()
+                .all()
             )
             missing = [e for e in invitees if e not in existing]
             if missing:
@@ -173,9 +171,7 @@ class RoomService:
         escaped = normalized.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
         pattern = f"%{escaped}%"
 
-        member_rooms_subq = (
-            select(RoomMember.room_id).where(RoomMember.user_id == viewer_id)
-        )
+        member_rooms_subq = select(RoomMember.room_id).where(RoomMember.user_id == viewer_id)
 
         base = Room.active().where(
             or_(
@@ -203,9 +199,7 @@ class RoomService:
         )
         rooms = list((await self.db.execute(query_stmt)).scalars().unique().all())
 
-        member_ids = set(
-            (await self.db.execute(member_rooms_subq)).scalars().all()
-        )
+        member_ids = set((await self.db.execute(member_rooms_subq)).scalars().all())
         hits = [RoomSearchHit(room=r, is_member=r.id in member_ids) for r in rooms]
         return hits, total
 
@@ -244,9 +238,7 @@ class RoomService:
                 )
             ).scalar_one_or_none()
             if new_owner_row is None:
-                raise RoomPermissionError(
-                    "New owner must already be a member of the room"
-                )
+                raise RoomPermissionError("New owner must already be a member of the room")
             # Demote old owner, promote new owner
             old_owner_row = (
                 await self.db.execute(
@@ -289,9 +281,7 @@ class RoomService:
         await self.db.commit()
         return member
 
-    async def remove_member(
-        self, room_id: str, user_id: str, target_user_id: str
-    ) -> None:
+    async def remove_member(self, room_id: str, user_id: str, target_user_id: str) -> None:
         room = await self._require_owner(room_id, user_id)
         if target_user_id == room.owner_id:
             raise RoomPermissionError("Cannot remove the owner; transfer ownership first")
@@ -310,12 +300,16 @@ class RoomService:
 
     async def list_members(self, room_id: str) -> list[RoomMember]:
         rows = (
-            await self.db.execute(
-                select(RoomMember)
-                .where(RoomMember.room_id == room_id)
-                .order_by(RoomMember.joined_at)
+            (
+                await self.db.execute(
+                    select(RoomMember)
+                    .where(RoomMember.room_id == room_id)
+                    .order_by(RoomMember.joined_at)
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         return list(rows)
 
     # ------------------------------------------------------------------ Agents
@@ -364,9 +358,7 @@ class RoomService:
         await self._require_owner(room_id, user_id)
         agent = (
             await self.db.execute(
-                select(RoomAgent).where(
-                    RoomAgent.id == agent_id, RoomAgent.room_id == room_id
-                )
+                select(RoomAgent).where(RoomAgent.id == agent_id, RoomAgent.room_id == room_id)
             )
         ).scalar_one_or_none()
         if agent is None:
@@ -382,9 +374,7 @@ class RoomService:
         await self._require_owner(room_id, user_id)
         agent = (
             await self.db.execute(
-                select(RoomAgent).where(
-                    RoomAgent.id == agent_id, RoomAgent.room_id == room_id
-                )
+                select(RoomAgent).where(RoomAgent.id == agent_id, RoomAgent.room_id == room_id)
             )
         ).scalar_one_or_none()
         if agent is None:
@@ -394,12 +384,16 @@ class RoomService:
 
     async def list_agents(self, room_id: str) -> list[RoomAgent]:
         rows = (
-            await self.db.execute(
-                select(RoomAgent)
-                .where(RoomAgent.room_id == room_id)
-                .order_by(RoomAgent.turn_order, RoomAgent.created_at)
+            (
+                await self.db.execute(
+                    select(RoomAgent)
+                    .where(RoomAgent.room_id == room_id)
+                    .order_by(RoomAgent.turn_order, RoomAgent.created_at)
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         return list(rows)
 
     # ---------------------------------------------------------------- Messages
@@ -412,22 +406,30 @@ class RoomService:
         total = (await self.db.execute(count_query)).scalar() or 0
 
         rows = (
-            await self.db.execute(
-                base.order_by(RoomMessage.created_at)
-                .offset((page - 1) * page_size)
-                .limit(page_size)
+            (
+                await self.db.execute(
+                    base.order_by(RoomMessage.created_at)
+                    .offset((page - 1) * page_size)
+                    .limit(page_size)
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         return list(rows), total
 
     async def all_messages_for_export(self, room_id: str) -> list[RoomMessage]:
         rows = (
-            await self.db.execute(
-                select(RoomMessage)
-                .where(RoomMessage.room_id == room_id)
-                .order_by(RoomMessage.created_at)
+            (
+                await self.db.execute(
+                    select(RoomMessage)
+                    .where(RoomMessage.room_id == room_id)
+                    .order_by(RoomMessage.created_at)
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         return list(rows)
 
     # --------------------------------------------------------------- Internals

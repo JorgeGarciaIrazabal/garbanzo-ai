@@ -42,18 +42,14 @@ def _service(db: AsyncSession = Depends(get_db)) -> RoomService:
     return RoomService(db)
 
 
-async def _require_visible_room(
-    service: RoomService, room_id: str, user_id: str
-):
+async def _require_visible_room(service: RoomService, room_id: str, user_id: str):
     room = await service.get(room_id, viewer_id=user_id)
     if room is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Room not found")
     return room
 
 
-async def _require_member(
-    service: RoomService, room_id: str, user_id: str
-):
+async def _require_member(service: RoomService, room_id: str, user_id: str):
     room = await _require_visible_room(service, room_id, user_id)
     if not any(m.user_id == user_id for m in room.members):
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Not a room member")

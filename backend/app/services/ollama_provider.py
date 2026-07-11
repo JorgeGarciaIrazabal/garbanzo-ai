@@ -111,9 +111,7 @@ class OllamaProvider(LLMProvider):
             try:
                 stream = await client.chat(**chat_kwargs)
                 iterator = stream.__aiter__()
-                first = await asyncio.wait_for(
-                    iterator.__anext__(), timeout=FIRST_CHUNK_TIMEOUT
-                )
+                first = await asyncio.wait_for(iterator.__anext__(), timeout=FIRST_CHUNK_TIMEOUT)
                 break
             except StopAsyncIteration:
                 return
@@ -134,9 +132,7 @@ class OllamaProvider(LLMProvider):
         assert iterator is not None
         while True:
             try:
-                chunk = await asyncio.wait_for(
-                    iterator.__anext__(), timeout=CHUNK_TIMEOUT
-                )
+                chunk = await asyncio.wait_for(iterator.__anext__(), timeout=CHUNK_TIMEOUT)
             except StopAsyncIteration:
                 return
             yield chunk
@@ -321,9 +317,7 @@ class OllamaProvider(LLMProvider):
             # Fetch real metadata (context length + capabilities) for every
             # model concurrently; results are cached so this is only slow on
             # the first listing after startup.
-            metas = await asyncio.gather(
-                *(self._get_model_meta(name) for name in model_names)
-            )
+            metas = await asyncio.gather(*(self._get_model_meta(name) for name in model_names))
 
             models = []
             for m, (real_context, capabilities) in zip(response.models, metas, strict=True):

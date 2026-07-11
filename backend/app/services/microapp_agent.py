@@ -104,9 +104,7 @@ def translate_event(ev: dict, state: StreamState) -> list[ChatResponseChunk]:
                 out.append(
                     ChatResponseChunk(
                         type="tool_call",
-                        tool_calls=[
-                            {"id": call_id, "name": tool, "arguments": _tool_input(st)}
-                        ],
+                        tool_calls=[{"id": call_id, "name": tool, "arguments": _tool_input(st)}],
                     )
                 )
             if status in ("completed", "error") and call_id not in state.tool_finished:
@@ -202,9 +200,7 @@ class MicroappAgent:
                     buffer: list[str] = []
                     while True:
                         try:
-                            line = await asyncio.wait_for(
-                                anext(lines), timeout=_WATCHDOG_TIMEOUT
-                            )
+                            line = await asyncio.wait_for(anext(lines), timeout=_WATCHDOG_TIMEOUT)
                         except TimeoutError:
                             # Silent: is opencode alive or dead?
                             try:
@@ -229,9 +225,7 @@ class MicroappAgent:
                         if state.done:
                             break
                 if not state.done:
-                    yield ChatResponseChunk(
-                        type="done", metadata={"session_id": sid}
-                    )
+                    yield ChatResponseChunk(type="done", metadata={"session_id": sid})
             except Exception as exc:  # noqa: BLE001
                 logger.exception("microapp agent stream failed")
                 yield ChatResponseChunk(type="error", error=str(exc)[:500])

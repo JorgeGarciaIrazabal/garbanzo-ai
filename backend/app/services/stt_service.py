@@ -68,6 +68,7 @@ class STTService:
         if device == "auto":
             try:
                 import torch
+
                 device = "cuda" if torch.cuda.is_available() else "cpu"
             except ImportError:
                 device = "cpu"
@@ -76,7 +77,9 @@ class STTService:
 
         logger.info(
             "Loading Faster-Whisper model %s on %s (%s) …",
-            settings.stt_model, device, compute_type,
+            settings.stt_model,
+            device,
+            compute_type,
         )
         model = WhisperModel(
             settings.stt_model,
@@ -108,9 +111,7 @@ class STTService:
         )
         return TranscriptionResponse(text=text)
 
-    def _transcribe_sync(
-        self, audio_bytes: bytes, filename: str, language: str
-    ) -> str:
+    def _transcribe_sync(self, audio_bytes: bytes, filename: str, language: str) -> str:
         import soundfile as sf
 
         # Decode audio bytes to numpy array

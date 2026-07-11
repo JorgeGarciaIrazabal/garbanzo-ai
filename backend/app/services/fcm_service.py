@@ -99,9 +99,7 @@ async def send_to_user(
     if _app is None:
         return 0
 
-    result = await db.execute(
-        select(DeviceToken).where(DeviceToken.user_id == user_id)
-    )
+    result = await db.execute(select(DeviceToken).where(DeviceToken.user_id == user_id))
     tokens = list(result.scalars().all())
     if not tokens:
         return 0
@@ -130,9 +128,7 @@ async def send_to_user(
             logger.exception("Failed to send FCM push to token %s...", dt.token[:12])
 
     if expired_tokens:
-        await db.execute(
-            delete(DeviceToken).where(DeviceToken.token.in_(expired_tokens))
-        )
+        await db.execute(delete(DeviceToken).where(DeviceToken.token.in_(expired_tokens)))
         await db.commit()
         logger.info("Removed %d expired FCM tokens for user %s", len(expired_tokens), user_id)
 

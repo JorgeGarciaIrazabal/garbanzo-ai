@@ -36,12 +36,8 @@ class ScheduledAction(Base):
     is_active: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True, server_default="true"
     )
-    next_run: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
-    last_run_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    next_run: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     last_run_status: Mapped[str | None] = mapped_column(String(32), nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(

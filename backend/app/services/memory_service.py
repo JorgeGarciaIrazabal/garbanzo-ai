@@ -105,10 +105,7 @@ class MemoryService:
             try:
                 query_vector = (await self._embedder.embed([query]))[0]
                 distance = UserMemory.embedding.cosine_distance(query_vector)
-                age_days = (
-                    func.extract("epoch", func.now() - UserMemory.created_at)
-                    / 86400.0
-                )
+                age_days = func.extract("epoch", func.now() - UserMemory.created_at) / 86400.0
                 stmt = (
                     select(UserMemory)
                     .where(
@@ -137,9 +134,7 @@ class MemoryService:
                     ranked.extend((await self.db.execute(fill_stmt)).scalars().all())
                 return ranked
             except Exception as e:
-                logger.warning(
-                    "Semantic memory ranking unavailable, using recency: %s", e
-                )
+                logger.warning("Semantic memory ranking unavailable, using recency: %s", e)
 
         stmt = (
             select(UserMemory)
@@ -196,8 +191,7 @@ class MemoryService:
         kept_vectors: list[list[float] | None] = []
         for text, vector in zip(texts, vectors, strict=True):
             duplicate = any(
-                self._cosine(vector, other) >= _DUPLICATE_SIMILARITY
-                for other in existing_vectors
+                self._cosine(vector, other) >= _DUPLICATE_SIMILARITY for other in existing_vectors
             ) or any(
                 self._cosine(vector, other) >= _DUPLICATE_SIMILARITY
                 for other in kept_vectors
@@ -232,9 +226,7 @@ class MemoryService:
         for memory, vector in zip(missing, vectors, strict=True):
             memory.embedding = vector
         await self.db.commit()
-        logger.info(
-            "Backfilled embeddings for %d memories (user %s)", len(missing), user_id
-        )
+        logger.info("Backfilled embeddings for %d memories (user %s)", len(missing), user_id)
         return len(missing)
 
     async def update_memory(

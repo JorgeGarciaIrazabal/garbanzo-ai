@@ -113,13 +113,10 @@ async def room_websocket(
                     svc = RoomService(db)
                     room = await svc.get(room_id, viewer_id=user_id)
                     still_member = room is not None and (
-                        room.is_public
-                        or any(m.user_id == user_id for m in room.members)
+                        room.is_public or any(m.user_id == user_id for m in room.members)
                     )
                     if not still_member:
-                        await websocket.close(
-                            code=status.WS_1008_POLICY_VIOLATION
-                        )
+                        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
                         return
 
                     chat = RoomChatService(db)
@@ -137,9 +134,7 @@ async def room_websocket(
                     continue
                 await room_manager.broadcast(
                     room_id,
-                    RoomTypingEvent(
-                        user_id=user_id, typing=typing_cmd.typing
-                    ).model_dump(),
+                    RoomTypingEvent(user_id=user_id, typing=typing_cmd.typing).model_dump(),
                 )
             else:
                 await _send_error(websocket, f"Unknown event: {event_type}")

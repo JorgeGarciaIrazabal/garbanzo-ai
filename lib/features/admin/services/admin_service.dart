@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
 import 'package:garbanzo_ai/core/api_client.dart';
+import 'package:garbanzo_ai/features/admin/models/admin_model.dart';
 import 'package:garbanzo_ai/features/admin/models/admin_user.dart';
 import 'package:garbanzo_ai/features/admin/models/mcp_server.dart';
 
@@ -164,6 +165,43 @@ class AdminService {
         await _api.post('/api/v1/admin/mcp-servers/$id/test-connection');
     if (res.statusCode == 200 && res.data is Map<String, dynamic>) {
       return MCPTestResult.fromJson(res.data as Map<String, dynamic>);
+    }
+    throw _handleError(res);
+  }
+
+  // ==========================================================================
+  // Models
+  // ==========================================================================
+
+  Future<List<AdminModel>> listModels() async {
+    final res = await _api.get('/api/v1/admin/models');
+    if (res.statusCode == 200 && res.data is List) {
+      return (res.data as List)
+          .whereType<Map<String, dynamic>>()
+          .map((e) => AdminModel.fromJson(e))
+          .toList();
+    }
+    throw _handleError(res);
+  }
+
+  Future<List<AdminModel>> syncModels() async {
+    final res = await _api.post('/api/v1/admin/models/sync');
+    if (res.statusCode == 200 && res.data is List) {
+      return (res.data as List)
+          .whereType<Map<String, dynamic>>()
+          .map((e) => AdminModel.fromJson(e))
+          .toList();
+    }
+    throw _handleError(res);
+  }
+
+  Future<AdminModel> updateModel(String modelId, {required bool enabled}) async {
+    final res = await _api.patch(
+      '/api/v1/admin/models/${Uri.encodeComponent(modelId)}',
+      data: {'is_enabled': enabled},
+    );
+    if (res.statusCode == 200 && res.data is Map<String, dynamic>) {
+      return AdminModel.fromJson(res.data as Map<String, dynamic>);
     }
     throw _handleError(res);
   }
