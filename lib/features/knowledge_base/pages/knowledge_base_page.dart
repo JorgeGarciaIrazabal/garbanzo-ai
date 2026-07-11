@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'package:garbanzo_ai/core/widgets/skeleton.dart';
 import 'package:garbanzo_ai/features/knowledge_base/models/knowledge_document.dart';
 import 'package:garbanzo_ai/features/knowledge_base/providers/knowledge_base_provider.dart';
 
@@ -151,7 +152,7 @@ class _KnowledgeBasePageState extends State<KnowledgeBasePage> {
       body: Builder(
         builder: (context) {
           if (provider.documents.isEmpty && provider.isLoading) {
-            return const Center(child: CircularProgressIndicator());
+            return const SkeletonList(showAvatar: true);
           }
           if (provider.documents.isEmpty) {
             return const _EmptyState();

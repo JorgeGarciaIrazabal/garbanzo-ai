@@ -5,6 +5,7 @@ import 'package:garbanzo_ai/core/auth_service.dart';
 import 'package:garbanzo_ai/core/reading_column.dart';
 import 'package:garbanzo_ai/core/responsive.dart';
 import 'package:garbanzo_ai/core/smart_scroll_controller.dart';
+import 'package:garbanzo_ai/core/widgets/skeleton.dart';
 import 'package:garbanzo_ai/features/chat/widgets/input/message_composer.dart';
 import 'package:garbanzo_ai/features/rooms/models/room_models.dart';
 import 'package:garbanzo_ai/features/rooms/providers/room_provider.dart';
@@ -89,7 +90,7 @@ class _RoomChatPageBodyState extends State<_RoomChatPageBody> {
     final showSidebar = context.isWide;
 
     final mainColumn = provider.loading && room == null
-        ? const Center(child: CircularProgressIndicator())
+        ? const SkeletonList(showAvatar: true, itemCount: 6)
         : Column(
             children: [
               if (provider.error != null)

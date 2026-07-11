@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'package:garbanzo_ai/features/notifications/models/app_notification.dart';
+import 'package:garbanzo_ai/core/widgets/skeleton.dart';
 import 'package:garbanzo_ai/features/notifications/providers/notification_provider.dart';
 
 class NotificationsPage extends StatefulWidget {
@@ -41,7 +42,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
       body: Consumer<NotificationProvider>(
         builder: (context, provider, _) {
           if (provider.isLoading && provider.items.isEmpty) {
-            return const Center(child: CircularProgressIndicator());
+            return const SkeletonList(showAvatar: true);
           }
           if (provider.error != null && provider.items.isEmpty) {
             return Center(

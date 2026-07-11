@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'package:garbanzo_ai/core/widgets/skeleton.dart';
 import 'package:garbanzo_ai/features/memory/models/memory.dart';
 import 'package:garbanzo_ai/features/memory/providers/memory_provider.dart';
 import 'package:garbanzo_ai/features/memory/widgets/memory_list_widget.dart';
@@ -139,42 +140,44 @@ class _MemoryPageState extends State<MemoryPage> {
           ),
         ],
       ),
-      body: Stack(
-        children: [
-          // Memory list
-          MemoryListWidget(
-            memories: provider.memories,
-            onEdit: _showEditMemoryDialog,
-            onDelete: _showDeleteConfirmationDialog,
-            onToggleActive: (memory) =>
-                provider.toggleMemoryActive(memory.id, memory.isActive),
-          ),
-
-          // Loading overlay
-          if (provider.isLoading)
-            Container(
-              color: Colors.black12,
-              child: const Center(child: CircularProgressIndicator()),
-            ),
-
-          // Error snackbar
-          if (provider.error != null)
-            Positioned(
-              bottom: 16,
-              left: 16,
-              right: 16,
-              child: SnackBar(
-                content: Text(provider.error!),
-                backgroundColor: Colors.red,
-                action: SnackBarAction(
-                  label: 'Dismiss',
-                  textColor: Colors.white,
-                  onPressed: () => provider.clearError(),
+      body: provider.isLoading && provider.memories.isEmpty
+          ? const SkeletonList()
+          : Stack(
+              children: [
+                // Memory list
+                MemoryListWidget(
+                  memories: provider.memories,
+                  onEdit: _showEditMemoryDialog,
+                  onDelete: _showDeleteConfirmationDialog,
+                  onToggleActive: (memory) =>
+                      provider.toggleMemoryActive(memory.id, memory.isActive),
                 ),
-              ),
+
+                // Loading overlay
+                if (provider.isLoading)
+                  Container(
+                    color: Colors.black12,
+                    child: const Center(child: CircularProgressIndicator()),
+                  ),
+
+                // Error snackbar
+                if (provider.error != null)
+                  Positioned(
+                    bottom: 16,
+                    left: 16,
+                    right: 16,
+                    child: SnackBar(
+                      content: Text(provider.error!),
+                      backgroundColor: Colors.red,
+                      action: SnackBarAction(
+                        label: 'Dismiss',
+                        textColor: Colors.white,
+                        onPressed: () => provider.clearError(),
+                      ),
+                    ),
+                  ),
+              ],
             ),
-        ],
-      ),
       floatingActionButton: FloatingActionButton(
         onPressed: provider.isLoading ? null : _showCreateMemoryDialog,
         tooltip: 'Create memory',

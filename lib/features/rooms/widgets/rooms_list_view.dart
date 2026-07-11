@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:garbanzo_ai/core/widgets/skeleton.dart';
 import 'package:garbanzo_ai/features/rooms/models/room_models.dart';
 
 /// Visual list of rooms styled to match the conversation list.
@@ -33,7 +34,7 @@ class RoomsListView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (loading && rooms.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      return const SkeletonList(showAvatar: true);
     }
     if (error != null) {
       return Center(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'package:garbanzo_ai/core/widgets/skeleton.dart';
 import 'package:garbanzo_ai/features/chat/models/conversation.dart';
 import 'package:garbanzo_ai/features/chat/providers/search_provider.dart';
 import 'package:garbanzo_ai/features/chat/widgets/search_results_widget.dart';
@@ -72,8 +73,8 @@ class ConversationListWidget extends StatelessWidget {
               if (searchProvider.searchQuery.isNotEmpty) {
                 return const SearchResultsWidget();
               }
-              if (isLoading) {
-                return const Center(child: CircularProgressIndicator());
+              if (isLoading && conversations.isEmpty) {
+                return const SkeletonList();
               }
               if (conversations.isEmpty) {
                 return _EmptyState(colorScheme: colorScheme);
