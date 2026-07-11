@@ -14,27 +14,16 @@ class MemoryPage extends StatefulWidget {
 }
 
 class _MemoryPageState extends State<MemoryPage> {
-  late final MemoryProvider _provider;
+  // App-level provider (see main.dart) — shared with the chat page's
+  // memory toggle, so edits here are visible there immediately.
+  MemoryProvider get _provider => context.read<MemoryProvider>();
 
   @override
   void initState() {
     super.initState();
-    _provider = MemoryProvider();
-    _provider.addListener(_onProviderChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _provider.refreshMemories();
+      if (mounted) _provider.refreshMemories();
     });
-  }
-
-  void _onProviderChanged() {
-    if (mounted) setState(() {});
-  }
-
-  @override
-  void dispose() {
-    _provider.removeListener(_onProviderChanged);
-    _provider.dispose();
-    super.dispose();
   }
 
   void _showCreateMemoryDialog() {
@@ -138,60 +127,58 @@ class _MemoryPageState extends State<MemoryPage> {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider.value(
-      value: _provider,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Memories'),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.add),
-              onPressed: _provider.isLoading ? null : _showCreateMemoryDialog,
-              tooltip: 'Create new memory',
-            ),
-          ],
-        ),
-        body: Stack(
-          children: [
-            // Memory list
-            MemoryListWidget(
-              memories: _provider.memories,
-              onEdit: _showEditMemoryDialog,
-              onDelete: _showDeleteConfirmationDialog,
-              onToggleActive: (memory) =>
-                  _provider.toggleMemoryActive(memory.id, memory.isActive),
+    final provider = context.watch<MemoryProvider>();
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Memories'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add),
+            onPressed: provider.isLoading ? null : _showCreateMemoryDialog,
+            tooltip: 'Create new memory',
+          ),
+        ],
+      ),
+      body: Stack(
+        children: [
+          // Memory list
+          MemoryListWidget(
+            memories: provider.memories,
+            onEdit: _showEditMemoryDialog,
+            onDelete: _showDeleteConfirmationDialog,
+            onToggleActive: (memory) =>
+                provider.toggleMemoryActive(memory.id, memory.isActive),
+          ),
+
+          // Loading overlay
+          if (provider.isLoading)
+            Container(
+              color: Colors.black12,
+              child: const Center(child: CircularProgressIndicator()),
             ),
 
-            // Loading overlay
-            if (_provider.isLoading)
-              Container(
-                color: Colors.black12,
-                child: const Center(child: CircularProgressIndicator()),
-              ),
-
-            // Error snackbar
-            if (_provider.error != null)
-              Positioned(
-                bottom: 16,
-                left: 16,
-                right: 16,
-                child: SnackBar(
-                  content: Text(_provider.error!),
-                  backgroundColor: Colors.red,
-                  action: SnackBarAction(
-                    label: 'Dismiss',
-                    textColor: Colors.white,
-                    onPressed: () => _provider.clearError(),
-                  ),
+          // Error snackbar
+          if (provider.error != null)
+            Positioned(
+              bottom: 16,
+              left: 16,
+              right: 16,
+              child: SnackBar(
+                content: Text(provider.error!),
+                backgroundColor: Colors.red,
+                action: SnackBarAction(
+                  label: 'Dismiss',
+                  textColor: Colors.white,
+                  onPressed: () => provider.clearError(),
                 ),
               ),
-          ],
-        ),
-        floatingActionButton: FloatingActionButton(
-          onPressed: _provider.isLoading ? null : _showCreateMemoryDialog,
-          tooltip: 'Create memory',
-          child: const Icon(Icons.add),
-        ),
+            ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: provider.isLoading ? null : _showCreateMemoryDialog,
+        tooltip: 'Create memory',
+        child: const Icon(Icons.add),
       ),
     );
   }

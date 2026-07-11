@@ -78,10 +78,7 @@ class ProfileSection extends StatelessWidget {
           ListTile(
             leading: Icon(Icons.logout, color: colorScheme.error),
             title: Text('Sign out', style: TextStyle(color: colorScheme.error)),
-            onTap: () async {
-              await AuthService.instance.logout();
-              onLogout();
-            },
+            onTap: onLogout,
           ),
         ],
       ),

@@ -1,11 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import 'package:garbanzo_ai/features/chat/models/conversation.dart';
 import 'package:garbanzo_ai/features/chat/widgets/conversation_list_widget.dart';
-import 'package:garbanzo_ai/features/rooms/pages/room_chat_page.dart';
 import 'package:garbanzo_ai/features/rooms/providers/room_provider.dart';
 import 'package:garbanzo_ai/features/rooms/widgets/create_room_dialog.dart';
 import 'package:garbanzo_ai/features/rooms/widgets/rooms_list_view.dart';
@@ -161,13 +161,7 @@ class _RoomsTab extends StatelessWidget {
                       provider,
                     );
                     if (created != null && context.mounted) {
-                      unawaited(
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => RoomChatPage(roomId: created.id),
-                          ),
-                        ),
-                      );
+                      unawaited(context.push('/rooms/${created.id}'));
                     }
                   },
                   icon: const Icon(Icons.group_add, size: 18),
@@ -193,23 +187,13 @@ class _RoomsTab extends StatelessWidget {
             error: provider.error,
             compact: true,
             onSelect: (room) {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => RoomChatPage(roomId: room.id),
-                ),
-              );
+              context.push('/rooms/${room.id}');
             },
             onDelete: (room) => provider.deleteRoom(room.id),
             onCreate: () async {
               final created = await showCreateRoomDialog(context, provider);
               if (created != null && context.mounted) {
-                unawaited(
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => RoomChatPage(roomId: created.id),
-                    ),
-                  ),
-                );
+                unawaited(context.push('/rooms/${created.id}'));
               }
             },
           ),

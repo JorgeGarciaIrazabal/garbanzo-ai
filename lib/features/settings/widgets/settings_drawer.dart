@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:garbanzo_ai/features/settings/widgets/drawer_sections/app_settings_section.dart';
 import 'package:garbanzo_ai/features/settings/widgets/drawer_sections/conversation_section.dart';
 import 'package:garbanzo_ai/features/settings/widgets/drawer_sections/pages_section.dart';
 import 'package:garbanzo_ai/features/settings/widgets/drawer_sections/section_header.dart';
-import 'package:garbanzo_ai/features/settings/pages/settings_page.dart';
 
 /// Right-side drawer, organized into three groups:
 ///   1. Pages — navigation to every feature page
@@ -13,12 +13,7 @@ import 'package:garbanzo_ai/features/settings/pages/settings_page.dart';
 ///
 /// Section content lives in `drawer_sections/`; this file is just the shell.
 class SettingsDrawer extends StatelessWidget {
-  const SettingsDrawer({super.key, this.onLogout});
-
-  /// Forwarded to the dedicated settings page so its Profile section can
-  /// sign out. Optional: callers that don't pass it get an in-place logout
-  /// via AuthService but no navigation callback.
-  final VoidCallback? onLogout;
+  const SettingsDrawer({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -58,11 +53,7 @@ class SettingsDrawer extends StatelessWidget {
               dense: true,
               onTap: () {
                 Navigator.of(context).pop();
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => SettingsPage(onLogout: onLogout ?? () {}),
-                  ),
-                );
+                context.push('/settings');
               },
             ),
             const Divider(height: 1),

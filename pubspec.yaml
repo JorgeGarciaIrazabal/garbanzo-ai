@@ -60,6 +60,9 @@ dependencies:
   fetch_client: ^1.2.1
   dio_compatibility_layer: ^0.1.1
   url_launcher: ^6.3.1
+  go_router: ^17.3.0
+  flutter_web_plugins:
+    sdk: flutter
 
 dev_dependencies:
   flutter_test:

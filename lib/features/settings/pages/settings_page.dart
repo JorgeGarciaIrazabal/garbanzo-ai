@@ -1,54 +1,33 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'package:go_router/go_router.dart';
+
 import 'package:garbanzo_ai/core/auth_service.dart';
+import 'package:garbanzo_ai/core/auth_state.dart';
 import 'package:garbanzo_ai/features/chat/providers/model_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/system_prompt_provider.dart';
 import 'package:garbanzo_ai/features/chat/services/audio_service.dart';
 import 'package:garbanzo_ai/features/chat/widgets/system_prompt_editor_dialog.dart';
 import 'package:garbanzo_ai/features/notifications/providers/notification_provider.dart';
-import 'package:garbanzo_ai/features/usage/pages/usage_page.dart';
 import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
 import 'package:garbanzo_ai/features/settings/widgets/profile_section.dart';
 
 /// Dedicated settings screen. Navigation target for `/settings`.
 ///
 /// Sections: Profile, Appearance, Models, Voice, Memory, Notifications.
-/// Each section is an anchor-tile in the sidebar on wide screens.
-///
-/// Created with its own ModelProvider, SystemPromptProvider, and
-/// NotificationProvider because pushed routes don't inherit the chat page's
-/// provider scope. SettingsProvider is app-level, so it's pulled from above.
-class SettingsPage extends StatelessWidget {
-  const SettingsPage({super.key, required this.onLogout});
-
-  final VoidCallback onLogout;
+/// All providers (Model, SystemPrompt, Notification, Settings) are app-level,
+/// so this page pulls everything from the tree.
+class SettingsPage extends StatefulWidget {
+  const SettingsPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => ModelProvider()),
-        ChangeNotifierProvider(create: (_) => SystemPromptProvider()),
-        ChangeNotifierProvider(create: (_) => NotificationProvider()),
-      ],
-      child: _SettingsPageContent(onLogout: onLogout),
-    );
-  }
-}
-
-class _SettingsPageContent extends StatefulWidget {
-  const _SettingsPageContent({required this.onLogout});
-
-  final VoidCallback onLogout;
-
-  @override
-  State<_SettingsPageContent> createState() => _SettingsPageState();
+  State<SettingsPage> createState() => _SettingsPageState();
 }
 
 enum _Section { profile, appearance, models, voice, memory, notifications }
 
-class _SettingsPageState extends State<_SettingsPageContent> {
+class _SettingsPageState extends State<SettingsPage> {
   _Section _selected = _Section.profile;
   UserInfo? _user;
   List<VoiceOption> _voices = const [];
@@ -158,7 +137,7 @@ class _SettingsPageState extends State<_SettingsPageContent> {
         return ProfileSection(
           user: _user,
           onUserChanged: _refreshUser,
-          onLogout: widget.onLogout,
+          onLogout: () => context.read<AuthState>().logout(),
         );
       case _Section.appearance:
         return _appearanceSection();
@@ -316,11 +295,7 @@ class _SettingsPageState extends State<_SettingsPageContent> {
             title: const Text('Token usage'),
             subtitle: const Text('Charts by model, conversation, day'),
             trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              Navigator.of(
-                context,
-              ).push(MaterialPageRoute(builder: (_) => const UsagePage()));
-            },
+            onTap: () => context.push('/usage'),
           ),
         ],
       ),

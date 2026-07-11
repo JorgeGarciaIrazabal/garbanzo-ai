@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
-import 'package:garbanzo_ai/features/notifications/pages/notifications_page.dart';
 import 'package:garbanzo_ai/features/notifications/providers/notification_provider.dart';
 
 /// AppBar bell icon with an unread badge that opens the notifications page.
@@ -19,16 +19,9 @@ class NotificationBell extends StatelessWidget {
         IconButton(
           icon: const Icon(Icons.notifications_outlined),
           tooltip: 'Notifications',
-          onPressed: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => ChangeNotifierProvider.value(
-                  value: provider,
-                  child: const NotificationsPage(),
-                ),
-              ),
-            );
-          },
+          // NotificationProvider is app-level, so the notifications route
+          // shares this bell's provider (badge and page stay in sync).
+          onPressed: () => context.push('/notifications'),
         ),
         if (count > 0)
           Positioned(

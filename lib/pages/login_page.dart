@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import 'package:garbanzo_ai/core/api_client.dart';
 import 'package:garbanzo_ai/core/auth_service.dart';
+import 'package:garbanzo_ai/core/auth_state.dart';
 import 'package:garbanzo_ai/core/guarded_state.dart';
 import 'package:garbanzo_ai/core/widgets/auth_form_layout.dart';
 
 class LoginPage extends StatefulWidget {
-  const LoginPage({super.key, required this.onLoginSuccess});
-
-  final VoidCallback onLoginSuccess;
+  const LoginPage({super.key});
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -47,7 +47,8 @@ class _LoginPageState extends State<LoginPage> {
       setState(() => _loading = false);
 
       if (result.success) {
-        widget.onLoginSuccess();
+        // Flips the router's auth guard, which redirects to /chat.
+        context.read<AuthState>().markLoggedIn();
       } else {
         setState(() => _error = result.error);
       }

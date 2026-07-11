@@ -2,16 +2,25 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_web_plugins/url_strategy.dart';
+import 'package:go_router/go_router.dart';
 import 'package:marionette_flutter/marionette_flutter.dart';
 import 'package:provider/provider.dart';
 
 import 'package:garbanzo_ai/core/api_client.dart';
-import 'package:garbanzo_ai/core/auth_service.dart';
+import 'package:garbanzo_ai/core/auth_state.dart';
+import 'package:garbanzo_ai/core/router.dart';
 import 'package:garbanzo_ai/core/theme.dart';
-import 'package:garbanzo_ai/features/chat/widgets/chat_page.dart';
+import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
+import 'package:garbanzo_ai/features/chat/providers/model_provider.dart';
+import 'package:garbanzo_ai/features/chat/providers/search_provider.dart';
+import 'package:garbanzo_ai/features/chat/providers/system_prompt_provider.dart';
+import 'package:garbanzo_ai/features/knowledge_base/providers/knowledge_base_provider.dart';
+import 'package:garbanzo_ai/features/memory/providers/memory_provider.dart';
+import 'package:garbanzo_ai/features/notifications/providers/notification_provider.dart';
 import 'package:garbanzo_ai/features/notifications/services/push_service.dart';
 import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
-import 'package:garbanzo_ai/pages/login_page.dart';
+import 'package:garbanzo_ai/features/tools/providers/tool_provider.dart';
 
 void main() {
   if (kDebugMode) {
@@ -19,6 +28,9 @@ void main() {
   } else {
     WidgetsFlutterBinding.ensureInitialized();
   }
+  // Clean path URLs on web (no /#/). The backend's SPA catch-all serves
+  // index.html for unknown paths, so deep links survive a refresh.
+  usePathUrlStrategy();
   // Kick off the initial token load before the first widget builds so
   // auth-bearing requests from providers see an in-memory token immediately.
   unawaited(ApiClient.instance.loadToken());
@@ -26,23 +38,42 @@ void main() {
   runApp(const GarbanzoApp());
 }
 
-class GarbanzoApp extends StatelessWidget {
+class GarbanzoApp extends StatefulWidget {
   const GarbanzoApp({super.key});
 
   @override
+  State<GarbanzoApp> createState() => _GarbanzoAppState();
+}
+
+class _GarbanzoAppState extends State<GarbanzoApp> {
+  final AuthState _authState = AuthState();
+  late final GoRouter _router = buildRouter(_authState);
+
+  @override
+  void dispose() {
+    _router.dispose();
+    _authState.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => SettingsProvider(),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider.value(value: _authState),
+        ChangeNotifierProvider(create: (_) => SettingsProvider()),
+      ],
       child: Consumer<SettingsProvider>(
         builder: (context, settings, child) {
-          return MaterialApp(
+          return MaterialApp.router(
             title: 'Garbanzo AI',
             theme: buildTheme(Brightness.light),
             darkTheme: buildTheme(Brightness.dark),
             themeMode: settings.loaded
                 ? settings.flutterThemeMode
                 : ThemeMode.system,
-            home: const AuthGate(),
+            routerConfig: _router,
+            builder: (context, child) => _AppProviders(child: child!),
           );
         },
       ),
@@ -50,59 +81,37 @@ class GarbanzoApp extends StatelessWidget {
   }
 }
 
-class AuthGate extends StatefulWidget {
-  const AuthGate({super.key});
+/// User-scoped providers, mounted above the navigator so every route shares
+/// one instance (pushed pages no longer re-create their own copies).
+///
+/// All providers are lazy — nothing is constructed while on /login. The
+/// subtree is keyed on [AuthState.epoch], which increments on logout, so a
+/// new login starts from disposed-and-rebuilt provider state.
+class _AppProviders extends StatelessWidget {
+  const _AppProviders({required this.child});
 
-  @override
-  State<AuthGate> createState() => _AuthGateState();
-}
-
-class _AuthGateState extends State<AuthGate> {
-  bool _checking = true;
-  bool _loggedIn = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _checkAuth();
-  }
-
-  Future<void> _checkAuth() async {
-    final isLoggedIn = await AuthService.instance.isLoggedIn();
-    if (mounted) {
-      setState(() {
-        _loggedIn = isLoggedIn;
-        _checking = false;
-      });
-    }
-    if (isLoggedIn) {
-      unawaited(PushService.instance.registerDevice());
-    }
-  }
-
-  void _onLoginSuccess() {
-    setState(() => _loggedIn = true);
-    // Fire-and-forget: populate cached user (including is_admin) without
-    // blocking the UI transition.
-    unawaited(AuthService.instance.getCurrentUser());
-    unawaited(PushService.instance.registerDevice());
-  }
-
-  void _onLogout() {
-    setState(() => _loggedIn = false);
-    unawaited(PushService.instance.unregisterDevice());
-  }
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    if (_checking) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
-
-    if (_loggedIn) {
-      return ChatPage(onLogout: _onLogout);
-    }
-
-    return LoginPage(onLoginSuccess: _onLoginSuccess);
+    final epoch = context.select<AuthState, int>((a) => a.epoch);
+    return MultiProvider(
+      key: ValueKey(epoch),
+      providers: [
+        ChangeNotifierProvider(create: (_) => ModelProvider()),
+        ChangeNotifierProxyProvider<ModelProvider, ChatProvider>(
+          create: (_) => ChatProvider(),
+          update: (_, model, chat) =>
+              chat!..selectedModelId = model.selectedModelId,
+        ),
+        ChangeNotifierProvider(create: (_) => MemoryProvider()),
+        ChangeNotifierProvider(create: (_) => SystemPromptProvider()),
+        ChangeNotifierProvider(create: (_) => ToolProvider()),
+        ChangeNotifierProvider(create: (_) => SearchProvider()),
+        ChangeNotifierProvider(create: (_) => NotificationProvider()),
+        ChangeNotifierProvider(create: (_) => KnowledgeBaseProvider()),
+      ],
+      child: child,
+    );
   }
 }

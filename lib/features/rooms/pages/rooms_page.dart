@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
-import 'package:garbanzo_ai/features/rooms/pages/room_chat_page.dart';
 import 'package:garbanzo_ai/features/rooms/providers/room_provider.dart';
 import 'package:garbanzo_ai/features/rooms/widgets/create_room_dialog.dart';
 import 'package:garbanzo_ai/features/rooms/widgets/rooms_list_view.dart';
@@ -54,9 +54,7 @@ class _RoomsPageBody extends StatelessWidget {
   }
 
   void _openRoom(BuildContext context, String roomId) {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => RoomChatPage(roomId: roomId)));
+    context.push('/rooms/$roomId');
   }
 
   Future<void> _createRoom(BuildContext context, RoomProvider provider) async {

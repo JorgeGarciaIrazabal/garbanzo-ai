@@ -2,24 +2,20 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
-import 'package:garbanzo_ai/core/auth_service.dart';
+import 'package:garbanzo_ai/core/auth_state.dart';
 import 'package:garbanzo_ai/core/reading_column.dart';
 import 'package:garbanzo_ai/core/responsive.dart';
-import 'package:garbanzo_ai/features/memory/providers/memory_provider.dart';
 import 'package:garbanzo_ai/features/microapps/widgets/micro_app_panel.dart';
-import 'package:garbanzo_ai/features/notifications/providers/notification_provider.dart';
 import 'package:garbanzo_ai/features/notifications/widgets/notification_bell.dart';
 import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
 import 'package:garbanzo_ai/features/settings/widgets/settings_drawer.dart';
-import 'package:garbanzo_ai/features/tools/providers/tool_provider.dart';
 import 'package:garbanzo_ai/features/chat/models/chat_attachment.dart';
 import 'package:garbanzo_ai/features/chat/models/chat_message.dart';
 import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/model_provider.dart';
-import 'package:garbanzo_ai/features/chat/providers/search_provider.dart';
-import 'package:garbanzo_ai/features/chat/providers/system_prompt_provider.dart';
 import 'package:garbanzo_ai/features/chat/widgets/chat_input_widget.dart';
 import 'package:garbanzo_ai/features/chat/widgets/chat_message_widget.dart';
 import 'package:garbanzo_ai/features/chat/widgets/chat_sidebar.dart';
@@ -33,38 +29,97 @@ import 'package:garbanzo_ai/features/chat/widgets/tool_activity_group.dart';
 
 /// Main chat page with conversation sidebar and message area.
 ///
-/// Provides both [ChatProvider] (conversations/messages) and [ModelProvider]
-/// (model selection) via the widget tree.
-class ChatPage extends StatelessWidget {
-  const ChatPage({super.key, required this.onLogout});
+/// [ChatProvider], [ModelProvider], and the other user-scoped providers live
+/// at the app level (see `main.dart`), so this page only binds the route's
+/// [conversationId] to the provider — and mirrors provider changes back into
+/// the URL so conversations are linkable on web.
+class ChatPage extends StatefulWidget {
+  const ChatPage({super.key, this.conversationId});
 
-  final VoidCallback onLogout;
+  /// Conversation id from the `/chat/:conversationId` route, if any.
+  final String? conversationId;
 
   @override
-  Widget build(BuildContext context) {
-    return MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => ModelProvider()),
-        ChangeNotifierProxyProvider<ModelProvider, ChatProvider>(
-          create: (_) => ChatProvider(),
-          update: (_, model, chat) =>
-              chat!..selectedModelId = model.selectedModelId,
-        ),
-        ChangeNotifierProvider(create: (_) => MemoryProvider()),
-        ChangeNotifierProvider(create: (_) => SystemPromptProvider()),
-        ChangeNotifierProvider(create: (_) => ToolProvider()),
-        ChangeNotifierProvider(create: (_) => SearchProvider()),
-        ChangeNotifierProvider(create: (_) => NotificationProvider()),
-      ],
-      child: _ChatPageContent(onLogout: onLogout),
-    );
+  State<ChatPage> createState() => _ChatPageState();
+}
+
+class _ChatPageState extends State<ChatPage> {
+  ChatProvider? _provider;
+
+  /// Conversation load requested by the URL but not yet reflected in the
+  /// provider. While set, provider→URL sync is suspended so interim
+  /// notifications (which still carry the old conversation) can't yank the
+  /// URL back mid-load.
+  String? _pendingLoad;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final provider = context.read<ChatProvider>();
+    if (!identical(provider, _provider)) {
+      _provider?.removeListener(_syncUrlFromProvider);
+      _provider = provider;
+      provider.addListener(_syncUrlFromProvider);
+      _loadFromUrl();
+    }
   }
+
+  @override
+  void didUpdateWidget(covariant ChatPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.conversationId != widget.conversationId) {
+      _loadFromUrl();
+    }
+  }
+
+  @override
+  void dispose() {
+    _provider?.removeListener(_syncUrlFromProvider);
+    super.dispose();
+  }
+
+  /// URL → provider: load the conversation named in the route when it
+  /// differs from the one currently open.
+  void _loadFromUrl() {
+    final id = widget.conversationId;
+    final provider = _provider;
+    if (provider == null || id == null) return;
+    if (id == provider.currentConversation?.id) return;
+    _pendingLoad = id;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _provider?.loadConversation(id);
+    });
+  }
+
+  /// Provider → URL: keep the address bar on the open conversation. All
+  /// selection flows (sidebar tap, branch, auto-create on send, delete) go
+  /// through the provider, so this single listener covers them all.
+  void _syncUrlFromProvider() {
+    if (!mounted) return;
+    final provider = _provider;
+    if (provider == null) return;
+    final currentId = provider.currentConversation?.id;
+    if (_pendingLoad != null) {
+      if (currentId == _pendingLoad || provider.error != null) {
+        _pendingLoad = null;
+      } else {
+        return;
+      }
+    }
+    // Don't touch the URL while another page (settings, memory, …) is
+    // pushed on top of the chat.
+    final route = ModalRoute.of(context);
+    if (route != null && !route.isCurrent) return;
+    if (currentId == widget.conversationId) return;
+    GoRouter.of(context).go(currentId == null ? '/chat' : '/chat/$currentId');
+  }
+
+  @override
+  Widget build(BuildContext context) => const _ChatPageContent();
 }
 
 class _ChatPageContent extends StatefulWidget {
-  const _ChatPageContent({required this.onLogout});
-
-  final VoidCallback onLogout;
+  const _ChatPageContent();
 
   @override
   State<_ChatPageContent> createState() => _ChatPageContentState();
@@ -371,7 +426,7 @@ class _ChatPageContentState extends State<_ChatPageContent> {
 
     return Scaffold(
       key: _scaffoldKey,
-      endDrawer: SettingsDrawer(onLogout: widget.onLogout),
+      endDrawer: const SettingsDrawer(),
       body: DragTarget<List<dynamic>>(
         onWillAcceptWithDetails: (details) {
           final data = details.data;
@@ -635,8 +690,7 @@ class _ChatPageContentState extends State<_ChatPageContent> {
           tooltip: 'Account menu',
           onSelected: (value) async {
             if (value == 'logout') {
-              await AuthService.instance.logout();
-              widget.onLogout();
+              await context.read<AuthState>().logout();
             }
           },
           itemBuilder: (context) => [

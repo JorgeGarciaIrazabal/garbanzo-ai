@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
-import 'package:garbanzo_ai/features/rooms/pages/room_chat_page.dart';
 import 'package:garbanzo_ai/features/rooms/providers/room_provider.dart';
 import 'package:garbanzo_ai/features/rooms/widgets/create_room_dialog.dart';
 import 'package:garbanzo_ai/features/rooms/widgets/rooms_list_view.dart';
@@ -50,17 +50,21 @@ class _RoomsSidebarState extends State<RoomsSidebar> {
       widget.onBeforeNavigate?.call();
       return;
     }
-    final navigator = Navigator.of(context, rootNavigator: true);
+    final router = GoRouter.of(context);
     widget.onBeforeNavigate?.call();
-    navigator.pushReplacement(
-      MaterialPageRoute(builder: (_) => RoomChatPage(roomId: roomId)),
-    );
+    // Replace so back returns to the chat, not the previously open room.
+    router.pushReplacement('/rooms/$roomId');
   }
 
   void _backToChats(BuildContext context) {
-    final navigator = Navigator.of(context, rootNavigator: true);
+    final router = GoRouter.of(context);
     widget.onBeforeNavigate?.call();
-    navigator.pop();
+    // Deep-linked room pages have no stack below them — fall back to /chat.
+    if (router.canPop()) {
+      router.pop();
+    } else {
+      router.go('/chat');
+    }
   }
 
   Future<void> _create(BuildContext context) async {

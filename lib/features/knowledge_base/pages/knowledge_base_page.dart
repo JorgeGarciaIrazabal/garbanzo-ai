@@ -15,14 +15,17 @@ class KnowledgeBasePage extends StatefulWidget {
 }
 
 class _KnowledgeBasePageState extends State<KnowledgeBasePage> {
-  late final KnowledgeBaseProvider _provider;
+  // App-level provider (see main.dart); the embedding-progress poll timer
+  // stays page-scoped so it stops as soon as the page is closed.
+  KnowledgeBaseProvider get _provider => context.read<KnowledgeBaseProvider>();
   Timer? _pollTimer;
 
   @override
   void initState() {
     super.initState();
-    _provider = KnowledgeBaseProvider();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _provider.refresh());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _provider.refresh();
+    });
     _pollTimer = Timer.periodic(
       const Duration(seconds: 4),
       (_) => _pollProcessing(),
@@ -30,6 +33,7 @@ class _KnowledgeBasePageState extends State<KnowledgeBasePage> {
   }
 
   Future<void> _pollProcessing() async {
+    if (!mounted) return;
     if (_provider.hasProcessingDocuments) {
       await _provider.refreshProcessing();
     }
@@ -38,7 +42,6 @@ class _KnowledgeBasePageState extends State<KnowledgeBasePage> {
   @override
   void dispose() {
     _pollTimer?.cancel();
-    _provider.dispose();
     super.dispose();
   }
 
@@ -133,46 +136,44 @@ class _KnowledgeBasePageState extends State<KnowledgeBasePage> {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider.value(
-      value: _provider,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Knowledge Base'),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.refresh),
-              onPressed: _provider.refresh,
-              tooltip: 'Refresh',
-            ),
-          ],
-        ),
-        body: Consumer<KnowledgeBaseProvider>(
-          builder: (context, provider, _) {
-            if (provider.documents.isEmpty && provider.isLoading) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (provider.documents.isEmpty) {
-              return const _EmptyState();
-            }
-            return RefreshIndicator(
-              onRefresh: provider.refresh,
-              child: ListView.separated(
-                padding: const EdgeInsets.all(8),
-                itemCount: provider.documents.length,
-                separatorBuilder: (_, _) => const Divider(height: 1),
-                itemBuilder: (_, i) => _DocumentTile(
-                  doc: provider.documents[i],
-                  onDelete: () => _confirmDelete(provider.documents[i]),
-                ),
+    final provider = context.watch<KnowledgeBaseProvider>();
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Knowledge Base'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: provider.refresh,
+            tooltip: 'Refresh',
+          ),
+        ],
+      ),
+      body: Builder(
+        builder: (context) {
+          if (provider.documents.isEmpty && provider.isLoading) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (provider.documents.isEmpty) {
+            return const _EmptyState();
+          }
+          return RefreshIndicator(
+            onRefresh: provider.refresh,
+            child: ListView.separated(
+              padding: const EdgeInsets.all(8),
+              itemCount: provider.documents.length,
+              separatorBuilder: (_, _) => const Divider(height: 1),
+              itemBuilder: (_, i) => _DocumentTile(
+                doc: provider.documents[i],
+                onDelete: () => _confirmDelete(provider.documents[i]),
               ),
-            );
-          },
-        ),
-        floatingActionButton: FloatingActionButton.extended(
-          onPressed: _provider.isLoading ? null : _pickAndUpload,
-          icon: const Icon(Icons.upload_file),
-          label: const Text('Upload'),
-        ),
+            ),
+          );
+        },
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: provider.isLoading ? null : _pickAndUpload,
+        icon: const Icon(Icons.upload_file),
+        label: const Text('Upload'),
       ),
     );
   }
