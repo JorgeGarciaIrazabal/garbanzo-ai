@@ -34,7 +34,9 @@ import random
 import re
 import shutil
 import signal
+import socket
 import subprocess
+import threading
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -140,6 +142,14 @@ class MicroappWorkspaceManager:
         self._validate_house = house_validator or self._default_validate_house
         self._auto_install_deps = auto_install_deps
         self._workspaces: dict[str, Workspace] = {}
+        # Per-slug locks so concurrent ensure() calls for the same user can't
+        # race the ~60s startup sequence and double-spawn subprocesses.
+        self._locks: dict[str, threading.Lock] = {}
+        self._locks_guard = threading.Lock()
+
+    def _slug_lock(self, slug: str) -> threading.Lock:
+        with self._locks_guard:
+            return self._locks.setdefault(slug, threading.Lock())
 
     # -- config helpers -----------------------------------------------------
 
@@ -185,17 +195,20 @@ class MicroappWorkspaceManager:
 
     # -- workspace state ----------------------------------------------------
 
+    def _new_state(self, user_email: str, slug: str) -> Workspace:
+        return Workspace(
+            user_email=user_email,
+            slug=slug,
+            path=self.worktree_path(slug),
+            branch=f"garbanzo/{slug}",
+            dev_port=self.dev_port_for(slug),
+        )
+
     def _get_or_create_state(self, user_email: str) -> Workspace:
         slug = slugify_email(user_email)
         ws = self._workspaces.get(slug)
         if ws is None:
-            ws = Workspace(
-                user_email=user_email,
-                slug=slug,
-                path=self.worktree_path(slug),
-                branch=f"garbanzo/{slug}",
-                dev_port=self.dev_port_for(slug),
-            )
+            ws = self._new_state(user_email, slug)
             self._workspaces[slug] = ws
         return ws
 
@@ -302,11 +315,26 @@ class MicroappWorkspaceManager:
                 time.sleep(_OPENCODE_READY_INTERVAL)
         return False
 
+    @staticmethod
+    def _pick_free_port() -> int:
+        """Random port in the opencode band, bind-tested so a collision with
+        another process (or another user's opencode) retries instead of
+        handing out a port that fails at spawn time."""
+        for _ in range(20):
+            port = random.randint(40000, 60000)  # noqa: S311 — not security-sensitive
+            with socket.socket() as s:
+                try:
+                    s.bind(("127.0.0.1", port))
+                except OSError:
+                    continue
+            return port
+        raise WorkspaceError("Could not find a free local port for opencode")
+
     def _start_opencode(self, ws: Workspace) -> None:
         if ws.opencode_ready and ws.opencode_proc and ws.opencode_proc.poll() is None:
             return
         self._seed_opencode_config(ws)
-        port = random.randint(40000, 60000)  # noqa: S311 — not security-sensitive
+        port = self._pick_free_port()
         base = f"http://127.0.0.1:{port}"
         env = {**os.environ}
         proc = self._spawn(
@@ -358,8 +386,17 @@ class MicroappWorkspaceManager:
     # -- public lifecycle API ----------------------------------------------
 
     def ensure_sync(self, user_email: str) -> Workspace:
-        """Blocking ensure() core. Public async wrapper is ``ensure``."""
+        """Blocking ensure() core. Public async wrapper is ``ensure``.
+
+        Serialized per user: the startup sequence blocks for up to ~60s, and
+        without the lock two concurrent calls would double-spawn the
+        dev-server/opencode subprocesses.
+        """
         self._require_enabled()
+        with self._slug_lock(slugify_email(user_email)):
+            return self._ensure_sync_locked(user_email)
+
+    def _ensure_sync_locked(self, user_email: str) -> Workspace:
         ws = self._get_or_create_state(user_email)
         ws.state = "starting"
         try:
@@ -382,9 +419,12 @@ class MicroappWorkspaceManager:
         return await asyncio.to_thread(self.ensure_sync, user_email)
 
     def status(self, user_email: str) -> Workspace:
-        """Return current in-memory state (no side effects)."""
+        """Return current in-memory state. Read-only: unknown users get a
+        transient ``stopped`` snapshot that is NOT cached in ``_workspaces``."""
         self._require_enabled()
-        return self._get_or_create_state(user_email)
+        slug = slugify_email(user_email)
+        ws = self._workspaces.get(slug)
+        return ws if ws is not None else self._new_state(user_email, slug)
 
     def stop(self, user_email: str) -> None:
         """Kill both subprocesses but keep the worktree on disk."""
