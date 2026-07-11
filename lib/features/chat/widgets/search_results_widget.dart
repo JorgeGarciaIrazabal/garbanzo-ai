@@ -5,7 +5,11 @@ import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/search_provider.dart';
 
 class SearchResultsWidget extends StatelessWidget {
-  const SearchResultsWidget({super.key});
+  const SearchResultsWidget({super.key, this.onResultSelected});
+
+  /// Called after a result is tapped and its conversation load has been
+  /// kicked off — used by the mobile search sheet to dismiss itself.
+  final VoidCallback? onResultSelected;
 
   @override
   Widget build(BuildContext context) {
@@ -75,6 +79,7 @@ class SearchResultsWidget extends StatelessWidget {
                       );
                       // Clear search when conversation is selected
                       searchProvider.clearSearch();
+                      onResultSelected?.call();
                     },
                   );
                 },

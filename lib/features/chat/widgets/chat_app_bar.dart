@@ -6,6 +6,7 @@ import 'package:garbanzo_ai/core/responsive.dart';
 import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/model_provider.dart';
 import 'package:garbanzo_ai/features/chat/widgets/mobile_drawer.dart';
+import 'package:garbanzo_ai/features/chat/widgets/mobile_search_sheet.dart';
 import 'package:garbanzo_ai/features/chat/widgets/model_selector_widget.dart';
 import 'package:garbanzo_ai/features/notifications/widgets/notification_bell.dart';
 
@@ -56,6 +57,12 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
               ),
             ),
       actions: [
+        if (!showSidebar)
+          IconButton(
+            icon: const Icon(Icons.search),
+            tooltip: 'Search conversations',
+            onPressed: () => showMobileSearchSheet(context),
+          ),
         if (showSidebar)
           Padding(
             padding: const EdgeInsets.only(right: 8),

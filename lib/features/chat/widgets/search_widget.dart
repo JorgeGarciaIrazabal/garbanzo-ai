@@ -5,8 +5,14 @@ import 'package:garbanzo_ai/features/chat/providers/search_provider.dart';
 class SearchWidget extends StatefulWidget {
   final ValueChanged<String>? onChanged;
   final VoidCallback? onClear;
+  final bool autofocus;
 
-  const SearchWidget({super.key, this.onChanged, this.onClear});
+  const SearchWidget({
+    super.key,
+    this.onChanged,
+    this.onClear,
+    this.autofocus = false,
+  });
 
   @override
   State<SearchWidget> createState() => _SearchWidgetState();
@@ -35,6 +41,7 @@ class _SearchWidgetState extends State<SearchWidget> {
           padding: const EdgeInsets.all(12.0),
           child: TextField(
             controller: _controller,
+            autofocus: widget.autofocus,
             decoration: InputDecoration(
               hintText: 'Search conversations...',
               prefixIcon: const Icon(Icons.search),
