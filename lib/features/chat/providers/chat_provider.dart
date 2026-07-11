@@ -8,6 +8,7 @@ import 'package:garbanzo_ai/features/microapps/providers/microapp_panel_controll
 import 'package:garbanzo_ai/features/chat/models/chat_attachment.dart';
 import 'package:garbanzo_ai/features/chat/models/chat_message.dart';
 import 'package:garbanzo_ai/features/chat/models/conversation.dart';
+import 'package:garbanzo_ai/features/chat/providers/conversation_list_controller.dart';
 import 'package:garbanzo_ai/features/chat/services/chat_service.dart';
 
 const _uuid = Uuid();
@@ -21,12 +22,19 @@ class ChatProvider extends ChangeNotifier {
   ChatProvider({String? selectedModelId, ChatService? chatService})
     : _selectedModelIdValue = selectedModelId,
       _chatService = chatService ?? ChatService.instance {
-    // Rebuild chat widgets when the micro-app panel opens/closes/reloads.
+    conversationList = ConversationListController(chatService: _chatService);
+    // Rebuild chat widgets when the micro-app panel opens/closes/reloads
+    // or the sidebar list changes.
     panel.addListener(notifyListeners);
-    _loadConversations();
+    conversationList.addListener(notifyListeners);
+    conversationList.load();
   }
 
   final ChatService _chatService;
+
+  /// Sidebar conversation list (loading, pin, optimistic delete + undo).
+  /// Notifications are forwarded, so watching this provider is enough.
+  late final ConversationListController conversationList;
   String? _selectedModelIdValue;
 
   /// Latest model selection from [ModelProvider]; updated by the
@@ -54,14 +62,12 @@ class ChatProvider extends ChangeNotifier {
   bool _isSending = false;
   bool get isSending => _isSending;
 
-  List<Conversation> _conversations = [];
-  List<Conversation> get conversations => List.unmodifiable(_conversations);
+  List<Conversation> get conversations => conversationList.conversations;
 
-  bool _isLoadingConversations = false;
-  bool get isLoadingConversations => _isLoadingConversations;
+  bool get isLoadingConversations => conversationList.isLoading;
 
   String? _error;
-  String? get error => _error;
+  String? get error => _error ?? conversationList.error;
 
   StreamSubscription<ChatResponseChunk>? _streamSubscription;
 
@@ -132,24 +138,7 @@ class ChatProvider extends ChangeNotifier {
   // Conversations
   // ==========================================================================
 
-  Future<void> _loadConversations() async {
-    _isLoadingConversations = true;
-    _error = null;
-    notifyListeners();
-
-    try {
-      final list = await _chatService.listConversations();
-      _conversations = list.items;
-    } catch (e) {
-      _error = 'Failed to load conversations: $e';
-      logDebug(_error!);
-    } finally {
-      _isLoadingConversations = false;
-      notifyListeners();
-    }
-  }
-
-  Future<void> refreshConversations() async => _loadConversations();
+  Future<void> refreshConversations() async => conversationList.load();
 
   Future<void> loadConversation(String conversationId) async {
     // Switching away mid-stream: stop the old stream so its chunks can't
@@ -205,10 +194,7 @@ class ChatProvider extends ChangeNotifier {
       _messages = [];
 
       // Immediately add the new conversation to the list for sidebar visibility
-      _conversations = [
-        conversation.copyWith(messageCount: 0),
-        ..._conversations,
-      ];
+      conversationList.prepend(conversation.copyWith(messageCount: 0));
       notifyListeners();
 
       if (initialMessage != null && initialMessage.isNotEmpty) {
@@ -217,7 +203,7 @@ class ChatProvider extends ChangeNotifier {
         notifyListeners();
       }
 
-      await _loadConversations();
+      await conversationList.load();
     } catch (e) {
       _error = 'Failed to create conversation: $e';
       _isSending = false;
@@ -256,7 +242,7 @@ class ChatProvider extends ChangeNotifier {
         isPinned: isPinned,
       );
       _currentConversation = updated;
-      await _loadConversations();
+      await conversationList.load();
     } catch (e) {
       _error = 'Failed to update conversation: $e';
       logDebug(_error!);
@@ -265,85 +251,28 @@ class ChatProvider extends ChangeNotifier {
   }
 
   Future<void> togglePin(String conversationId) async {
-    _error = null;
-    try {
-      final idx = _conversations.indexWhere((c) => c.id == conversationId);
-      if (idx < 0) return;
-      final conv = _conversations[idx];
-      final updated = await _chatService.updateConversation(
-        conversationId,
-        isPinned: !conv.isPinned,
-      );
-      if (_currentConversation?.id == conversationId) {
-        _currentConversation = updated;
-      }
-      await _loadConversations();
-    } catch (e) {
-      _error = 'Failed to pin conversation: $e';
-      logDebug(_error!);
+    final updated = await conversationList.togglePin(conversationId);
+    if (updated != null && _currentConversation?.id == conversationId) {
+      _currentConversation = updated;
       notifyListeners();
     }
   }
-
-  // Deletion is optimistic with an undo window: the conversation leaves the
-  // UI immediately, but the API call fires only after the window expires.
-  // Undo within the window cancels the deletion entirely.
-  static const _undoWindow = Duration(seconds: 6);
-  final Map<String, ({Conversation conversation, int index, Timer timer})>
-  _pendingDeletes = {};
 
   Future<void> deleteConversation(String conversationId) async {
     _error = null;
     _actionEpoch++;
 
-    final index = _conversations.indexWhere((c) => c.id == conversationId);
-    if (index < 0) return;
-    final conversation = _conversations[index];
-
     if (_currentConversation?.id == conversationId) {
       _currentConversation = null;
       _messages = [];
+      notifyListeners();
     }
-    _conversations = _conversations
-        .where((c) => c.id != conversationId)
-        .toList();
-    notifyListeners();
-
-    _pendingDeletes.remove(conversationId)?.timer.cancel();
-    _pendingDeletes[conversationId] = (
-      conversation: conversation,
-      index: index,
-      timer: Timer(_undoWindow, () => _commitDelete(conversationId)),
-    );
+    conversationList.delete(conversationId);
   }
 
   /// Restore a conversation deleted within the undo window.
-  void undoDeleteConversation(String conversationId) {
-    final pending = _pendingDeletes.remove(conversationId);
-    if (pending == null) return;
-    pending.timer.cancel();
-    _restoreConversation(pending.conversation, pending.index);
-  }
-
-  Future<void> _commitDelete(String conversationId) async {
-    final pending = _pendingDeletes.remove(conversationId);
-    if (pending == null) return;
-    try {
-      await _chatService.deleteConversation(conversationId);
-    } catch (e) {
-      // Server-side deletion failed — bring the conversation back.
-      _restoreConversation(pending.conversation, pending.index);
-      _error = 'Failed to delete conversation: $e';
-      logDebug(_error!);
-    }
-  }
-
-  void _restoreConversation(Conversation conversation, int index) {
-    final list = List<Conversation>.from(_conversations);
-    list.insert(index.clamp(0, list.length), conversation);
-    _conversations = list;
-    notifyListeners();
-  }
+  void undoDeleteConversation(String conversationId) =>
+      conversationList.undoDelete(conversationId);
 
   void clearCurrentConversation() {
     if (_streamSubscription != null) {
@@ -383,18 +312,8 @@ class ChatProvider extends ChangeNotifier {
 
   /// Updates the current conversation's entry in the conversations list.
   void _updateConversationInList() {
-    if (_currentConversation == null) return;
-    final index = _conversations.indexWhere(
-      (c) => c.id == _currentConversation!.id,
-    );
-    if (index >= 0) {
-      _conversations = [
-        ..._conversations.sublist(0, index),
-        _currentConversation!,
-        ..._conversations.sublist(index + 1),
-      ];
-      notifyListeners();
-    }
+    final current = _currentConversation;
+    if (current != null) conversationList.replaceEntry(current);
   }
 
   // ==========================================================================
@@ -536,7 +455,7 @@ class ChatProvider extends ChangeNotifier {
         messageId,
       );
       // Prepend to sidebar list
-      _conversations = [newConv, ..._conversations];
+      conversationList.prepend(newConv);
       // Navigate to new branch
       await loadConversation(newConv.id);
     } catch (e) {
@@ -837,14 +756,14 @@ class ChatProvider extends ChangeNotifier {
     _titleRefreshTimer?.cancel();
     _titleRefreshTimer = Timer(const Duration(seconds: 4), () async {
       if (_isSending) return;
-      await _loadConversations();
+      await conversationList.load();
       final id = _currentConversation?.id;
       if (id == null) return;
-      final idx = _conversations.indexWhere((c) => c.id == id);
-      if (idx >= 0 &&
-          _conversations[idx].title != _currentConversation!.title) {
+      final list = conversationList.conversations;
+      final idx = list.indexWhere((c) => c.id == id);
+      if (idx >= 0 && list[idx].title != _currentConversation!.title) {
         _currentConversation = _currentConversation!.copyWith(
-          title: _conversations[idx].title,
+          title: list[idx].title,
         );
         notifyListeners();
       }
@@ -876,6 +795,9 @@ class ChatProvider extends ChangeNotifier {
 
   void clearError() {
     _error = null;
+    if (conversationList.error != null) {
+      conversationList.clearError();
+    }
     notifyListeners();
   }
 
@@ -888,15 +810,10 @@ class ChatProvider extends ChangeNotifier {
     _streamSubscription?.cancel();
     _streamFlushTimer?.cancel();
     _titleRefreshTimer?.cancel();
-    // Flush pending deletions so an undo-window deletion isn't silently
-    // dropped when the provider goes away (e.g. logout).
-    for (final entry in _pendingDeletes.entries) {
-      entry.value.timer.cancel();
-      unawaited(_chatService.deleteConversation(entry.key));
-    }
-    _pendingDeletes.clear();
     streamingMessage.dispose();
     panel.dispose();
+    // Flushes pending undo-window deletions.
+    conversationList.dispose();
     super.dispose();
   }
 }

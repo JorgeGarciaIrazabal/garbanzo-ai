@@ -16,6 +16,10 @@ class FilePickResult {
   final List<String> validationErrors;
 }
 
+/// A raw file (name + bytes) awaiting validation. Used by callers that get
+/// files from somewhere other than the picker (e.g. drag-and-drop).
+typedef RawPickedFile = ({String name, Uint8List bytes});
+
 /// Handles file picking, validation, and MIME type inference.
 class FilePickerHelper {
   /// Open the file picker and validate selected files.
@@ -40,25 +44,41 @@ class FilePickerHelper {
 
     if (result == null) return null;
 
+    return validate(
+      files: [
+        for (final file in result.files)
+          if (file.bytes != null) (name: file.name, bytes: file.bytes!),
+      ],
+      existingNames: existingNames,
+    );
+  }
+
+  /// Validate raw files against size limits and duplicate names.
+  ///
+  /// Single source of truth for attachment validation — shared by the file
+  /// picker above and the chat page's drag-and-drop path.
+  static FilePickResult validate({
+    required Iterable<RawPickedFile> files,
+    required Set<String> existingNames,
+  }) {
     final added = <ChatAttachment>[];
     final rejected = <String>[];
     final validationErrors = <String>[];
 
-    for (final file in result.files) {
+    for (final file in files) {
       final bytes = file.bytes;
-      if (bytes == null) continue;
-
-      final mime = inferMime(file.name, bytes);
+      final name = file.name;
+      final mime = inferMime(name, bytes);
       final isImage = mime.startsWith('image/');
       final isPdf = mime == 'application/pdf';
       final isSpreadsheet =
           mime.endsWith('spreadsheetml.sheet') ||
           mime == 'application/vnd.ms-excel' ||
           mime == 'application/vnd.oasis.opendocument.spreadsheet' ||
-          file.name.toLowerCase().endsWith('.csv') ||
-          file.name.toLowerCase().endsWith('.xlsx') ||
-          file.name.toLowerCase().endsWith('.xls') ||
-          file.name.toLowerCase().endsWith('.ods');
+          name.toLowerCase().endsWith('.csv') ||
+          name.toLowerCase().endsWith('.xlsx') ||
+          name.toLowerCase().endsWith('.xls') ||
+          name.toLowerCase().endsWith('.ods');
 
       final maxBytes = isImage
           ? 5 * 1024 * 1024
@@ -70,22 +90,18 @@ class FilePickerHelper {
 
       if (bytes.length > maxBytes) {
         rejected.add(
-          '${file.name} (${formatBytes(bytes.length)} - max ${formatBytes(maxBytes)})',
+          '$name (${formatBytes(bytes.length)} - max ${formatBytes(maxBytes)})',
         );
         continue;
       }
 
-      if (existingNames.contains(file.name)) {
-        validationErrors.add('Duplicate file: ${file.name}');
+      if (existingNames.contains(name)) {
+        validationErrors.add('Duplicate file: $name');
         continue;
       }
 
       added.add(
-        ChatAttachment.fromPicked(
-          name: file.name,
-          mimeType: mime,
-          bytes: bytes,
-        ),
+        ChatAttachment.fromPicked(name: name, mimeType: mime, bytes: bytes),
       );
     }
 

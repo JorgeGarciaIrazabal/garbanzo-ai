@@ -1,29 +1,26 @@
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
-import 'package:garbanzo_ai/core/auth_state.dart';
 import 'package:garbanzo_ai/core/reading_column.dart';
 import 'package:garbanzo_ai/core/responsive.dart';
 import 'package:garbanzo_ai/features/microapps/widgets/micro_app_panel.dart';
-import 'package:garbanzo_ai/features/notifications/widgets/notification_bell.dart';
 import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
 import 'package:garbanzo_ai/features/settings/widgets/settings_drawer.dart';
-import 'package:garbanzo_ai/features/chat/models/chat_attachment.dart';
 import 'package:garbanzo_ai/features/chat/models/chat_message.dart';
 import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/model_provider.dart';
+import 'package:garbanzo_ai/features/chat/widgets/chat_app_bar.dart';
 import 'package:garbanzo_ai/features/chat/widgets/chat_input_widget.dart';
+import 'package:garbanzo_ai/features/chat/widgets/input/file_picker_helper.dart';
+import 'package:garbanzo_ai/features/chat/widgets/panel_resize_handle.dart';
 import 'package:garbanzo_ai/features/chat/widgets/chat_message_widget.dart';
 import 'package:garbanzo_ai/features/chat/widgets/chat_sidebar.dart';
 import 'package:garbanzo_ai/features/chat/widgets/context_summary_widget.dart';
 import 'package:garbanzo_ai/features/chat/widgets/context_window_indicator.dart';
 import 'package:garbanzo_ai/features/chat/widgets/empty_chat_state.dart';
-import 'package:garbanzo_ai/features/chat/widgets/mobile_drawer.dart';
-import 'package:garbanzo_ai/features/chat/widgets/model_selector_widget.dart';
 import 'package:garbanzo_ai/features/chat/widgets/system_prompt_banner.dart';
 import 'package:garbanzo_ai/features/chat/widgets/tool_activity_group.dart';
 
@@ -303,7 +300,8 @@ class _ChatPageContentState extends State<_ChatPageContent> {
       );
   }
 
-  /// Handle dropped files and add them as attachments.
+  /// Handle dropped files: validate through the same [FilePickerHelper]
+  /// rules as the file-picker path, then stage them as pending attachments.
   Future<void> _handleDroppedFiles(List<dynamic> files) async {
     setState(() => _isDragOver = false);
 
@@ -315,104 +313,37 @@ class _ChatPageContentState extends State<_ChatPageContent> {
       return;
     }
 
-    final added = <ChatAttachment>[];
-    final rejected = <String>[];
-    final validationErrors = <String>[];
-
+    final rawFiles = <RawPickedFile>[];
     for (final file in files) {
       if (file is! File) continue;
-
       final bytes = await file.readAsBytes();
-      final mime = _inferMime(file.path, bytes);
-      final filename = file.path.split('/').last;
-      final isImage = mime.startsWith('image/');
-      final isPdf = mime == 'application/pdf';
-      final isSpreadsheet =
-          mime.endsWith('spreadsheetml.sheet') ||
-          mime == 'application/vnd.ms-excel' ||
-          mime == 'application/vnd.oasis.opendocument.spreadsheet' ||
-          filename.toLowerCase().endsWith('.csv') ||
-          filename.toLowerCase().endsWith('.xlsx') ||
-          filename.toLowerCase().endsWith('.xls') ||
-          filename.toLowerCase().endsWith('.ods');
-
-      final maxBytes = isImage
-          ? 5 *
-                1024 *
-                1024 // 5 MB for images
-          : isPdf
-          ? 20 *
-                1024 *
-                1024 // 20 MB for PDFs
-          : isSpreadsheet
-          ? 10 *
-                1024 *
-                1024 // 10 MB for spreadsheets/CSV
-          : 10 * 1024 * 1024; // 10 MB for other documents
-
-      if (bytes.length > maxBytes) {
-        rejected.add(
-          '$filename (${_formatFileSize(bytes.length)} - max ${_formatFileSize(maxBytes)})',
-        );
-        continue;
-      }
-
-      // Check for duplicate filenames
-      if (chatProvider.pendingAttachments?.any((a) => a.name == filename) ==
-          true) {
-        validationErrors.add('Duplicate file: $filename');
-        continue;
-      }
-
-      added.add(
-        ChatAttachment.fromPicked(name: filename, mimeType: mime, bytes: bytes),
-      );
+      rawFiles.add((name: file.path.split('/').last, bytes: bytes));
     }
 
-    // Show validation errors
-    if (validationErrors.isNotEmpty && mounted) {
-      for (final error in validationErrors) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(error)));
-      }
-    }
+    final result = FilePickerHelper.validate(
+      files: rawFiles,
+      existingNames: {...?chatProvider.pendingAttachments?.map((a) => a.name)},
+    );
+    if (!mounted) return;
 
-    // Show rejection errors
-    if (rejected.isNotEmpty && mounted) {
+    for (final error in result.validationErrors) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error)));
+    }
+    if (result.rejected.isNotEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Files too large:\n${rejected.join('\n')}'),
+          content: Text('Files too large:\n${result.rejected.join('\n')}'),
           backgroundColor: Theme.of(context).colorScheme.error,
           behavior: SnackBarBehavior.floating,
         ),
       );
     }
 
-    if (added.isNotEmpty) {
-      chatProvider.addAttachments(added);
+    if (result.added.isNotEmpty) {
+      chatProvider.addAttachments(result.added);
     }
-  }
-
-  String _formatFileSize(int bytes) {
-    if (bytes < 1024) return '$bytes B';
-    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    return '${(bytes / (1024 * 1024)).toStringAsFixed(2)} MB';
-  }
-
-  String _inferMime(String path, Uint8List bytes) {
-    final lower = path.toLowerCase();
-    if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg';
-    if (lower.endsWith('.png')) return 'image/png';
-    if (lower.endsWith('.gif')) return 'image/gif';
-    if (lower.endsWith('.webp')) return 'image/webp';
-    if (lower.endsWith('.bmp')) return 'image/bmp';
-    if (lower.endsWith('.pdf')) return 'application/pdf';
-    if (lower.endsWith('.json')) return 'application/json';
-    if (lower.endsWith('.html') || lower.endsWith('.htm')) return 'text/html';
-    if (lower.endsWith('.csv')) return 'text/csv';
-    if (lower.endsWith('.xml')) return 'application/xml';
-    return 'text/plain';
   }
 
   @override
@@ -460,7 +391,12 @@ class _ChatPageContentState extends State<_ChatPageContent> {
                   Expanded(
                     child: Column(
                       children: [
-                        _buildAppBar(chatProvider, modelProvider, colorScheme),
+                        ChatAppBar(
+                          onOpenSettings: () =>
+                              _scaffoldKey.currentState?.openEndDrawer(),
+                          onDeleteConversation: (id) =>
+                              _deleteWithUndo(chatProvider, id),
+                        ),
                         if (chatProvider.error != null)
                           _ErrorBanner(
                             message: chatProvider.error!,
@@ -553,7 +489,7 @@ class _ChatPageContentState extends State<_ChatPageContent> {
                           width: width,
                           child: Row(
                             children: [
-                              _PanelResizeHandle(
+                              PanelResizeHandle(
                                 onDrag: (dx) => setState(
                                   () => _panelWidth = (width - dx).clamp(
                                     _minPanelWidth,
@@ -634,80 +570,6 @@ class _ChatPageContentState extends State<_ChatPageContent> {
           );
         },
       ),
-    );
-  }
-
-  PreferredSizeWidget _buildAppBar(
-    ChatProvider chatProvider,
-    ModelProvider modelProvider,
-    ColorScheme colorScheme,
-  ) {
-    return AppBar(
-      title: Text(
-        chatProvider.currentConversation?.displayTitle ?? 'New Chat',
-        overflow: TextOverflow.ellipsis,
-      ),
-      leading: _showSidebar(context)
-          ? null
-          : IconButton(
-              icon: const Icon(Icons.menu),
-              onPressed: () => showMobileConversationDrawer(
-                context: context,
-                conversations: chatProvider.conversations,
-                selectedId: chatProvider.currentConversation?.id,
-                onSelect: (id) => chatProvider.loadConversation(id),
-                onDelete: (id) => _deleteWithUndo(chatProvider, id),
-                onNewChat: () => chatProvider.clearCurrentConversation(),
-                onTogglePin: (id) => chatProvider.togglePin(id),
-              ),
-            ),
-      actions: [
-        if (_showSidebar(context))
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: ModelSelectorWidget(
-              models: modelProvider.availableModels,
-              selectedId: modelProvider.selectedModelId,
-              onSelect: (id) {
-                modelProvider.selectModel(id);
-                if (chatProvider.currentConversation != null) {
-                  chatProvider.updateConversation(model: id);
-                }
-              },
-              isEnabled: !chatProvider.isSending,
-            ),
-          ),
-        const NotificationBell(),
-        IconButton(
-          icon: const Icon(Icons.settings),
-          tooltip: 'Settings',
-          onPressed: () {
-            _scaffoldKey.currentState?.openEndDrawer();
-          },
-        ),
-        PopupMenuButton<String>(
-          icon: const Icon(Icons.account_circle),
-          tooltip: 'Account menu',
-          onSelected: (value) async {
-            if (value == 'logout') {
-              await context.read<AuthState>().logout();
-            }
-          },
-          itemBuilder: (context) => [
-            const PopupMenuItem(
-              value: 'logout',
-              child: Row(
-                children: [
-                  Icon(Icons.logout),
-                  SizedBox(width: 8),
-                  Text('Sign out'),
-                ],
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(width: 8),
-      ],
     );
   }
 
@@ -878,48 +740,6 @@ class _ErrorBanner extends StatelessWidget {
             visualDensity: VisualDensity.compact,
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// Draggable divider that resizes the micro-app side panel. Drag left/right to
-/// widen/narrow; double-click to reset to the default width.
-class _PanelResizeHandle extends StatelessWidget {
-  const _PanelResizeHandle({required this.onDrag, required this.onReset});
-
-  /// Called with the horizontal drag delta (dx) on each move.
-  final ValueChanged<double> onDrag;
-  final VoidCallback onReset;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return MouseRegion(
-      cursor: SystemMouseCursors.resizeLeftRight,
-      child: GestureDetector(
-        behavior: HitTestBehavior.translucent,
-        onHorizontalDragUpdate: (d) => onDrag(d.delta.dx),
-        onDoubleTap: onReset,
-        child: SizedBox(
-          width: 10,
-          child: Center(
-            child: Container(
-              width: 1,
-              color: theme.dividerColor,
-              child: Center(
-                child: Container(
-                  width: 4,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.outlineVariant,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
       ),
     );
   }

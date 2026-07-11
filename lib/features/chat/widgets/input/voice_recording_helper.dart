@@ -136,7 +136,7 @@ class VoiceRecordingHelper {
           '-f',
           'S16_LE',
           '-r',
-          '44100',
+          '16000',
           '-c',
           '1',
           tempPath,
@@ -159,7 +159,11 @@ class VoiceRecordingHelper {
           throw const VoiceRecordingException('Microphone permission denied');
         }
         await _recorder!.start(
-          const RecordConfig(encoder: AudioEncoder.wav),
+          const RecordConfig(
+            encoder: AudioEncoder.wav,
+            sampleRate: 16000,
+            numChannels: 1,
+          ),
           path: tempPath,
         );
         return true;
