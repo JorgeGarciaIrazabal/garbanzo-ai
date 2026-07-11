@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../settings/providers/settings_provider.dart';
+import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
 
 /// Shown when no conversation is active — prompts the user to start chatting.
 class EmptyChatState extends StatelessWidget {
@@ -24,7 +24,7 @@ class EmptyChatState extends StatelessWidget {
           Icon(
             Icons.chat_bubble_outline,
             size: 64,
-            color: colorScheme.primary.withOpacity(0.5),
+            color: colorScheme.primary.withValues(alpha: 0.5),
           ),
           const SizedBox(height: 24),
           Text(

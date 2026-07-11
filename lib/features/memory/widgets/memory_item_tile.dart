@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../models/memory.dart';
+import 'package:garbanzo_ai/features/memory/models/memory.dart';
 
 /// Individual memory tile displaying content, source, and status.
 class MemoryItemTile extends StatelessWidget {

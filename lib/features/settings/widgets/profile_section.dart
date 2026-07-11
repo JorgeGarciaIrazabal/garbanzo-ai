@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/auth_service.dart';
-import 'change_password_dialog.dart';
-import 'edit_profile_dialog.dart';
+import 'package:garbanzo_ai/core/auth_service.dart';
+import 'package:garbanzo_ai/features/settings/widgets/change_password_dialog.dart';
+import 'package:garbanzo_ai/features/settings/widgets/edit_profile_dialog.dart';
 
 /// Profile block: shows account identity and exposes edit / password dialogs.
 ///

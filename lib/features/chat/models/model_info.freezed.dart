@@ -300,7 +300,7 @@ as bool?,
 /// @nodoc
 mixin _$ModelList {
 
- List<ModelInfo> get models;
+ List<ModelInfo> get models; String? get defaultModel;
 /// Create a copy of ModelList
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -313,16 +313,16 @@ $ModelListCopyWith<ModelList> get copyWith => _$ModelListCopyWithImpl<ModelList>
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ModelList&&const DeepCollectionEquality().equals(other.models, models));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ModelList&&const DeepCollectionEquality().equals(other.models, models)&&(identical(other.defaultModel, defaultModel) || other.defaultModel == defaultModel));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(models));
+int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(models),defaultModel);
 
 @override
 String toString() {
-  return 'ModelList(models: $models)';
+  return 'ModelList(models: $models, defaultModel: $defaultModel)';
 }
 
 
@@ -333,7 +333,7 @@ abstract mixin class $ModelListCopyWith<$Res>  {
   factory $ModelListCopyWith(ModelList value, $Res Function(ModelList) _then) = _$ModelListCopyWithImpl;
 @useResult
 $Res call({
- List<ModelInfo> models
+ List<ModelInfo> models, String? defaultModel
 });
 
 
@@ -350,10 +350,11 @@ class _$ModelListCopyWithImpl<$Res>
 
 /// Create a copy of ModelList
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? models = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? models = null,Object? defaultModel = freezed,}) {
   return _then(ModelList(
 models: null == models ? _self.models : models // ignore: cast_nullable_to_non_nullable
-as List<ModelInfo>,
+as List<ModelInfo>,defaultModel: freezed == defaultModel ? _self.defaultModel : defaultModel // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 
@@ -438,10 +439,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( List<ModelInfo> models)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( List<ModelInfo> models,  String? defaultModel)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _ModelList() when $default != null:
-return $default(_that.models);case _:
+return $default(_that.models,_that.defaultModel);case _:
   return orElse();
 
 }
@@ -459,10 +460,10 @@ return $default(_that.models);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( List<ModelInfo> models)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( List<ModelInfo> models,  String? defaultModel)  $default,) {final _that = this;
 switch (_that) {
 case _ModelList():
-return $default(_that.models);case _:
+return $default(_that.models,_that.defaultModel);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -479,10 +480,10 @@ return $default(_that.models);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( List<ModelInfo> models)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( List<ModelInfo> models,  String? defaultModel)?  $default,) {final _that = this;
 switch (_that) {
 case _ModelList() when $default != null:
-return $default(_that.models);case _:
+return $default(_that.models,_that.defaultModel);case _:
   return null;
 
 }
@@ -494,7 +495,7 @@ return $default(_that.models);case _:
 @JsonSerializable()
 
 class _ModelList implements ModelList {
-  const _ModelList({required  List<ModelInfo> models}): _models = models;
+  const _ModelList({required  List<ModelInfo> models, this.defaultModel}): _models = models;
   factory _ModelList.fromJson(Map<String, dynamic> json) => _$ModelListFromJson(json);
 
  final  List<ModelInfo> _models;
@@ -504,6 +505,7 @@ class _ModelList implements ModelList {
   return EqualUnmodifiableListView(_models);
 }
 
+@override final  String? defaultModel;
 
 /// Create a copy of ModelList
 /// with the given fields replaced by the non-null parameter values.
@@ -518,16 +520,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ModelList&&const DeepCollectionEquality().equals(other._models, _models));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ModelList&&const DeepCollectionEquality().equals(other._models, _models)&&(identical(other.defaultModel, defaultModel) || other.defaultModel == defaultModel));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(_models));
+int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(_models),defaultModel);
 
 @override
 String toString() {
-  return 'ModelList(models: $models)';
+  return 'ModelList(models: $models, defaultModel: $defaultModel)';
 }
 
 
@@ -538,7 +540,7 @@ abstract mixin class _$ModelListCopyWith<$Res> implements $ModelListCopyWith<$Re
   factory _$ModelListCopyWith(_ModelList value, $Res Function(_ModelList) _then) = __$ModelListCopyWithImpl;
 @override @useResult
 $Res call({
- List<ModelInfo> models
+ List<ModelInfo> models, String? defaultModel
 });
 
 
@@ -555,10 +557,11 @@ class __$ModelListCopyWithImpl<$Res>
 
 /// Create a copy of ModelList
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? models = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? models = null,Object? defaultModel = freezed,}) {
   return _then(_ModelList(
 models: null == models ? _self._models : models // ignore: cast_nullable_to_non_nullable
-as List<ModelInfo>,
+as List<ModelInfo>,defaultModel: freezed == defaultModel ? _self.defaultModel : defaultModel // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 

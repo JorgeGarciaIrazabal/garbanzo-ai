@@ -2,10 +2,10 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 
-import '../../../core/api_client.dart';
-import '../../chat/models/chat_message.dart';
-import '../../chat/services/chat_service.dart' show parseSseChunks;
-import '../models/micro_app.dart';
+import 'package:garbanzo_ai/core/api_client.dart';
+import 'package:garbanzo_ai/features/chat/models/chat_message.dart';
+import 'package:garbanzo_ai/features/chat/services/chat_service.dart' show parseSseChunks;
+import 'package:garbanzo_ai/features/microapps/models/micro_app.dart';
 
 /// The micro-apps backend surface the provider depends on. An interface so
 /// tests can supply a fake without the HTTP client.

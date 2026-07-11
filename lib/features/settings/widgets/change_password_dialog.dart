@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/auth_service.dart';
+import 'package:garbanzo_ai/core/auth_service.dart';
 
 class ChangePasswordDialog extends StatefulWidget {
   const ChangePasswordDialog({super.key});

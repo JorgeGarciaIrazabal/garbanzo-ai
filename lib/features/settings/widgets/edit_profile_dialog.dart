@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/auth_service.dart';
+import 'package:garbanzo_ai/core/auth_service.dart';
 
 /// Edits full name and email. On successful email change, signs the user out —
 /// the old JWT is bound to the previous email.

@@ -1,7 +1,7 @@
 import 'package:dio/dio.dart';
 
-import '../../../core/api_client.dart';
-import '../models/knowledge_document.dart';
+import 'package:garbanzo_ai/core/api_client.dart';
+import 'package:garbanzo_ai/features/knowledge_base/models/knowledge_document.dart';
 
 class KnowledgeBaseService {
   KnowledgeBaseService._();

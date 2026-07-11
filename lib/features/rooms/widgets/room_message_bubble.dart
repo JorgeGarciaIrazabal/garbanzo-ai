@@ -282,7 +282,7 @@ class _RoomMessageBubbleState extends State<RoomMessageBubble> {
         fgColor: cs.onSurface,
         avatarBg: cs.tertiaryContainer,
         avatarFg: cs.onTertiaryContainer,
-        outlineColor: cs.outlineVariant.withOpacity(0.4),
+        outlineColor: cs.outlineVariant.withValues(alpha: 0.4),
       );
     }
     final email = widget.message.senderUserId ?? 'user';
@@ -377,7 +377,7 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fgMuted = variant.fgColor.withOpacity(0.7);
+    final fgMuted = variant.fgColor.withValues(alpha: 0.7);
     return Row(
       children: [
         Flexible(
@@ -415,7 +415,7 @@ class _Header extends StatelessWidget {
             height: 10,
             child: CircularProgressIndicator(
               strokeWidth: 1.6,
-              color: variant.fgColor.withOpacity(0.7),
+              color: variant.fgColor.withValues(alpha: 0.7),
             ),
           ),
         ],

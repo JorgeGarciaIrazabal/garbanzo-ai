@@ -1,10 +1,11 @@
 import 'package:flutter/foundation.dart';
 
-import '../models/scheduled_action.dart';
-import '../services/scheduled_actions_api_service.dart';
+import 'package:garbanzo_ai/core/guarded_state.dart';
+import 'package:garbanzo_ai/features/scheduled_actions/models/scheduled_action.dart';
+import 'package:garbanzo_ai/features/scheduled_actions/services/scheduled_actions_api_service.dart';
 
 /// State for the scheduled-actions page.
-class ScheduledActionsProvider extends ChangeNotifier {
+class ScheduledActionsProvider extends ChangeNotifier with GuardedStateMixin {
   ScheduledActionsProvider({ScheduledActionsApiService? service})
       : _api = service ?? ScheduledActionsApiService.instance;
 
@@ -13,24 +14,13 @@ class ScheduledActionsProvider extends ChangeNotifier {
   List<ScheduledAction> _actions = [];
   List<ScheduledAction> get actions => List.unmodifiable(_actions);
 
-  bool _loading = false;
-  bool get loading => _loading;
-
-  String? _error;
-  String? get error => _error;
+  /// Forwards to [isLoading]; the page reads `.loading`.
+  bool get loading => isLoading;
 
   Future<void> load() async {
-    _loading = true;
-    _error = null;
-    notifyListeners();
-    try {
+    await runGuarded('Failed to load scheduled actions', () async {
       _actions = await _api.list();
-    } catch (e) {
-      _error = 'Failed to load scheduled actions: $e';
-    } finally {
-      _loading = false;
-      notifyListeners();
-    }
+    });
   }
 
   Future<ScheduledAction?> create({
@@ -41,7 +31,7 @@ class ScheduledActionsProvider extends ChangeNotifier {
     String? systemPrompt,
     String? model,
   }) async {
-    try {
+    return runGuarded('Failed to create scheduled action', () async {
       final action = await _api.create(
         prompt: prompt,
         title: title,
@@ -51,34 +41,22 @@ class ScheduledActionsProvider extends ChangeNotifier {
         model: model,
       );
       _actions = [action, ..._actions];
-      notifyListeners();
       return action;
-    } catch (e) {
-      _error = '$e';
-      notifyListeners();
-      return null;
-    }
+    }, trackLoading: false);
   }
 
   Future<void> setActive(String id, bool isActive) async {
-    try {
+    await runGuarded('Failed to update scheduled action', () async {
       final updated = await _api.update(id, isActive: isActive);
       _replace(updated);
-    } catch (e) {
-      _error = '$e';
-      notifyListeners();
-    }
+    }, trackLoading: false);
   }
 
   Future<void> delete(String id) async {
-    try {
+    await runGuarded('Failed to delete scheduled action', () async {
       await _api.delete(id);
       _actions = _actions.where((a) => a.id != id).toList();
-      notifyListeners();
-    } catch (e) {
-      _error = '$e';
-      notifyListeners();
-    }
+    }, trackLoading: false);
   }
 
   void _replace(ScheduledAction updated) {
@@ -89,11 +67,5 @@ class ScheduledActionsProvider extends ChangeNotifier {
       updated,
       ..._actions.sublist(idx + 1),
     ];
-    notifyListeners();
-  }
-
-  void clearError() {
-    _error = null;
-    notifyListeners();
   }
 }

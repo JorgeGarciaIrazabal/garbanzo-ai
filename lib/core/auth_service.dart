@@ -1,6 +1,6 @@
 import 'package:dio/dio.dart';
 
-import 'api_client.dart';
+import 'package:garbanzo_ai/core/api_client.dart';
 
 /// Sentinel marking "argument not provided" in optional-null contexts.
 const Object _unset = Object();

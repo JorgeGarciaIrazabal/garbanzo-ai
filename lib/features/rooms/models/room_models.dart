@@ -55,19 +55,32 @@ class RoomAgent {
 class RoomMember {
   final String roomId;
   final String userId;
+
+  /// Optional display name for the member. The backend added this field
+  /// after the model shipped, so it may be absent/null on older payloads —
+  /// callers fall back to [userId] (the email) for display.
+  final String? fullName;
   final String role; // 'owner' | 'member'
   final DateTime joinedAt;
 
   const RoomMember({
     required this.roomId,
     required this.userId,
+    this.fullName,
     required this.role,
     required this.joinedAt,
   });
 
+  /// Display name for the member: [fullName] when present, else the email.
+  String get displayName {
+    final name = fullName?.trim();
+    return (name != null && name.isNotEmpty) ? name : userId;
+  }
+
   factory RoomMember.fromJson(Map<String, dynamic> j) => RoomMember(
         roomId: j['room_id'] as String,
         userId: j['user_id'] as String,
+        fullName: j['full_name'] as String?,
         role: j['role'] as String,
         joinedAt: DateTime.parse(j['joined_at'] as String),
       );

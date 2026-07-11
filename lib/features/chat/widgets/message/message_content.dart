@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../markdown_widget.dart';
+import 'package:garbanzo_ai/features/chat/widgets/markdown_widget.dart';
 
 /// Displays message content with markdown rendering.
 class MessageContent extends StatelessWidget {

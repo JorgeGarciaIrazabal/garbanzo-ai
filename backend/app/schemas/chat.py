@@ -3,6 +3,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+from app.core.config import get_settings
+
 # ============================================================================
 # Attachment Schemas
 # ============================================================================
@@ -194,7 +196,7 @@ class ConversationCreate(BaseModel):
         description="Optional conversation title",
     )
     model: str = Field(
-        default="llama3.2",
+        default_factory=lambda: get_settings().default_model,
         max_length=100,
         description="The model to use for this conversation",
     )
@@ -442,6 +444,10 @@ class ModelList(BaseModel):
     """List of available models."""
 
     models: list[ModelInfo] = Field(..., description="Available models")
+    default_model: str = Field(
+        default_factory=lambda: get_settings().default_model,
+        description="The server's default model, used when a conversation doesn't specify one",
+    )
 
 
 # ============================================================================

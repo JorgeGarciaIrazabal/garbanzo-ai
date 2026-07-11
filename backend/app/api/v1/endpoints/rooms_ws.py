@@ -26,16 +26,32 @@ import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect, status
+from pydantic import ValidationError
 
 from app.core.config import Settings, get_settings
 from app.core.security import decode_token
 from app.db.session import async_session_maker
+from app.schemas.room import (
+    RoomErrorEvent,
+    RoomPostCommand,
+    RoomTypingCommand,
+    RoomTypingEvent,
+)
 from app.services.room_chat_service import RoomChatService
 from app.services.room_connection_manager import room_manager
 from app.services.room_service import RoomService
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+
+async def _send_error(websocket: WebSocket, message: str) -> None:
+    """Send a typed ``error`` event to a single connection.
+
+    Serialized via ``json.dumps(model_dump())`` (not ``model_dump_json``) so the
+    on-wire bytes stay identical to the pre-refactor hand-rolled dict.
+    """
+    await websocket.send_text(json.dumps(RoomErrorEvent(error=message).model_dump()))
 
 
 @router.websocket("/ws/rooms/{room_id}")
@@ -77,14 +93,17 @@ async def room_websocket(
             try:
                 event = json.loads(raw)
             except json.JSONDecodeError:
-                await websocket.send_text(
-                    json.dumps({"type": "error", "error": "Invalid JSON"})
-                )
+                await _send_error(websocket, "Invalid JSON")
                 continue
 
-            event_type = event.get("type")
+            event_type = event.get("type") if isinstance(event, dict) else None
             if event_type == "post":
-                content = (event.get("content") or "").strip()
+                try:
+                    command = RoomPostCommand.model_validate(event)
+                except ValidationError:
+                    # Missing/invalid content — same as an empty post: ignore.
+                    continue
+                content = command.content.strip()
                 if not content:
                     continue
                 async with async_session_maker() as db:
@@ -110,23 +129,20 @@ async def room_websocket(
                         )
                     except Exception:
                         logger.exception("WS handle_user_post failed")
-                        await websocket.send_text(
-                            json.dumps(
-                                {"type": "error", "error": "Failed to post message"}
-                            )
-                        )
+                        await _send_error(websocket, "Failed to post message")
             elif event_type == "typing":
-                typing = bool(event.get("typing", False))
+                try:
+                    typing_cmd = RoomTypingCommand.model_validate(event)
+                except ValidationError:
+                    continue
                 await room_manager.broadcast(
                     room_id,
-                    {"type": "typing", "user_id": user_id, "typing": typing},
+                    RoomTypingEvent(
+                        user_id=user_id, typing=typing_cmd.typing
+                    ).model_dump(),
                 )
             else:
-                await websocket.send_text(
-                    json.dumps(
-                        {"type": "error", "error": f"Unknown event: {event_type}"}
-                    )
-                )
+                await _send_error(websocket, f"Unknown event: {event_type}")
     except WebSocketDisconnect:
         pass
     except Exception:

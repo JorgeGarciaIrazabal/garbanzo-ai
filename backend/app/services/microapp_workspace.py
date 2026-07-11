@@ -23,6 +23,7 @@ node/opencode.
 from __future__ import annotations
 
 import atexit
+import contextlib
 import ctypes
 import ctypes.util
 import hashlib
@@ -341,17 +342,13 @@ class MicroappWorkspaceManager:
                 try:
                     os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
                 except Exception:  # noqa: BLE001
-                    try:
+                    with contextlib.suppress(Exception):
                         proc.kill()
-                    except Exception:  # noqa: BLE001
-                        pass
             if port is not None:
-                try:
+                with contextlib.suppress(Exception):
                     subprocess.run(  # noqa: S603
                         ["pkill", "-9", "-f", f"{pattern}.*{port}"], check=False
                     )
-                except Exception:  # noqa: BLE001
-                    pass
         ws.dev_proc = None
         ws.opencode_proc = None
         ws.opencode_port = None

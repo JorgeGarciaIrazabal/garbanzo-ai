@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend:
+    name: Backend (lint + test)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: garbanzo
+          POSTGRES_PASSWORD: garbanzo_dev
+          POSTGRES_DB: garbanzo_ai
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      # backend/tests/conftest.py actually runs everything against an
+      # in-memory SQLite DB, but the app is still importable with these set
+      # so Settings() reflects the real dev credentials (see docker-compose.yml)
+      # if any test or startup path touches the real DATABASE_URL.
+      DATABASE_URL: postgresql+asyncpg://garbanzo:garbanzo_dev@localhost:5432/garbanzo_ai
+      SECRET_KEY: ci-test-secret-key-do-not-use-in-prod
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv + Python
+        uses: astral-sh/setup-uv@v8
+        with:
+          python-version: "3.12"
+
+      - name: Install just
+        uses: extractions/setup-just@v4
+
+      - name: Install backend dependencies
+        run: just be-install
+
+      - name: Lint (ruff)
+        run: just be-lint
+
+      - name: Test (pytest)
+        run: just be-test
+
+  frontend:
+    name: Frontend (lint + test)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # pubspec.yaml pins `sdk: ^3.11.0` (Dart) — current Flutter stable
+      # ships a Dart SDK well above that, so the stable channel is used
+      # as-is rather than pinning an exact Flutter version.
+      - name: Install Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Install just
+        uses: extractions/setup-just@v4
+
+      - name: Install frontend dependencies
+        run: just fe-install
+
+      - name: Lint (flutter analyze)
+        run: just fe-lint
+
+      - name: Test (flutter test)
+        run: just fe-test

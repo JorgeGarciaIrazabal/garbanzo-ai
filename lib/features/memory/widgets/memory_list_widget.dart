@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../models/memory.dart';
-import '../widgets/memory_item_tile.dart';
+import 'package:garbanzo_ai/features/memory/models/memory.dart';
+import 'package:garbanzo_ai/features/memory/widgets/memory_item_tile.dart';
 
 /// Scrollable list of memories with empty state handling.
 class MemoryListWidget extends StatelessWidget {

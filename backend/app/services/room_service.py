@@ -114,9 +114,12 @@ class RoomService:
         # Refresh cached relationships so any in-session mutations (new
         # members, agent edits) are visible.
         await self.db.refresh(room, attribute_names=["members", "agents"])
-        if viewer_id is not None and not room.is_public:
-            if not await self.is_member(room_id, viewer_id):
-                return None
+        if (
+            viewer_id is not None
+            and not room.is_public
+            and not await self.is_member(room_id, viewer_id)
+        ):
+            return None
         return room
 
     async def is_member(self, room_id: str, user_id: str) -> bool:

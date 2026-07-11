@@ -29,6 +29,14 @@ from sqlalchemy.orm import selectinload
 from app.core.config import get_settings
 from app.models.room import Room, RoomAgent, RoomMessage
 from app.schemas.chat import ChatOptions
+from app.schemas.room import (
+    RoomChunkEvent,
+    RoomDoneEvent,
+    RoomMessageEvent,
+    RoomStreamStartEvent,
+    RoomThinkingEvent,
+    RoomWSMessage,
+)
 from app.services.agent_turn import run_agent_turn
 from app.services.llm_provider import (
     LLMProvider,
@@ -37,7 +45,6 @@ from app.services.llm_provider import (
 from app.services.llm_provider import (
     Message as LLMMessage,
 )
-from app.services.ollama_provider import OllamaProvider
 from app.services.room_connection_manager import room_manager
 
 logger = logging.getLogger(__name__)
@@ -105,15 +112,8 @@ class _RoomTurnSink:
 class RoomChatService:
     def __init__(self, db: AsyncSession):
         self.db = db
-        self._ensure_default_provider()
 
     # ------------------------------------------------------------------ setup
-
-    @staticmethod
-    def _ensure_default_provider() -> None:
-        if "ollama" not in ProviderRegistry.list_providers():
-            settings = get_settings()
-            ProviderRegistry.register(OllamaProvider(base_url=settings.ollama_base_url))
 
     def _get_provider(self, name: str) -> LLMProvider:
         provider = ProviderRegistry.get(name)
@@ -188,17 +188,9 @@ class RoomChatService:
         return msg
 
     @staticmethod
-    def _message_to_wire(msg: RoomMessage) -> dict:
-        return {
-            "id": msg.id,
-            "room_id": msg.room_id,
-            "role": msg.role,
-            "sender_user_id": msg.sender_user_id,
-            "sender_agent_id": msg.sender_agent_id,
-            "content": msg.content,
-            "meta": msg.meta,
-            "created_at": msg.created_at.isoformat() if msg.created_at else None,
-        }
+    def _message_event(msg: RoomMessage) -> dict:
+        """Serialized ``message`` WS event for a persisted room message."""
+        return RoomMessageEvent(message=RoomWSMessage.from_model(msg)).model_dump()
 
     # ------------------------------------------------------------- user entry
 
@@ -215,9 +207,7 @@ class RoomChatService:
             content=content,
             sender_user_id=user_id,
         )
-        await room_manager.broadcast(
-            room_id, {"type": "message", "message": self._message_to_wire(user_msg)}
-        )
+        await room_manager.broadcast(room_id, self._message_event(user_msg))
 
         await self._run_agent_turns(
             _TurnContext(room=room, depth=0),
@@ -324,7 +314,7 @@ class RoomChatService:
                 *(self._auto_should_respond(room, agent, history) for agent in auto),
                 return_exceptions=True,
             )
-            for agent, result in zip(auto, judge_results):
+            for agent, result in zip(auto, judge_results, strict=True):
                 if isinstance(result, BaseException):
                     logger.error(
                         "[AUTO-JUDGE] crashed for agent=%s in room=%s",
@@ -560,12 +550,11 @@ class RoomChatService:
         # Announce the incoming streaming message so the UI can open a bubble.
         await room_manager.broadcast(
             ctx.room.id,
-            {
-                "type": "stream_start",
-                "message_id": message_id,
-                "agent_id": agent.id,
-                "agent_name": agent.name,
-            },
+            RoomStreamStartEvent(
+                message_id=message_id,
+                agent_id=agent.id,
+                agent_name=agent.name,
+            ).model_dump(),
         )
 
         sink = _RoomTurnSink(self.db, ctx.room.id, agent, message_id)
@@ -587,22 +576,20 @@ class RoomChatService:
                 if chunk.content:
                     await room_manager.broadcast(
                         ctx.room.id,
-                        {
-                            "type": "thinking",
-                            "message_id": message_id,
-                            "agent_id": agent.id,
-                            "content": chunk.content,
-                        },
+                        RoomThinkingEvent(
+                            message_id=message_id,
+                            agent_id=agent.id,
+                            content=chunk.content,
+                        ).model_dump(),
                     )
             elif chunk.content:
                 await room_manager.broadcast(
                     ctx.room.id,
-                    {
-                        "type": "chunk",
-                        "message_id": message_id,
-                        "agent_id": agent.id,
-                        "content": chunk.content,
-                    },
+                    RoomChunkEvent(
+                        message_id=message_id,
+                        agent_id=agent.id,
+                        content=chunk.content,
+                    ).model_dump(),
                 )
 
         msg = sink.message
@@ -610,16 +597,10 @@ class RoomChatService:
             return None
         await self.db.refresh(msg)
 
+        await room_manager.broadcast(ctx.room.id, self._message_event(msg))
         await room_manager.broadcast(
             ctx.room.id,
-            {
-                "type": "message",
-                "message": self._message_to_wire(msg),
-            },
-        )
-        await room_manager.broadcast(
-            ctx.room.id,
-            {"type": "done", "message_id": message_id, "agent_id": agent.id},
+            RoomDoneEvent(message_id=message_id, agent_id=agent.id).model_dump(),
         )
 
         # Notify offline members about @mentions directed at them.

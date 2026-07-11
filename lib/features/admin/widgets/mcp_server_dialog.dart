@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../models/mcp_server.dart';
+import 'package:garbanzo_ai/features/admin/models/mcp_server.dart';
 
 /// Result returned from [MCPServerDialog].
 class MCPServerDialogResult {

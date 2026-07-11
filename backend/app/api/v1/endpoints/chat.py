@@ -492,9 +492,10 @@ async def stop_chat_stream(
 )
 async def list_models(
     service: Annotated[ChatService, Depends(get_chat_service)],
+    settings: Annotated[Settings, Depends(get_settings)],
 ) -> ModelList:
     models = await service.list_available_models()
-    return ModelList(models=models)
+    return ModelList(models=models, default_model=settings.default_model)
 
 
 @router.get(

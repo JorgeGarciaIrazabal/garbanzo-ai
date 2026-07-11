@@ -6,6 +6,7 @@ from sqlalchemy import select
 from app.core.security import hash_password
 from app.models.room import RoomMember
 from app.models.user import User
+from app.schemas.room import RoomDetailOut, RoomMemberOut
 from app.services.room_service import (
     RoomNotFoundError,
     RoomPermissionError,
@@ -157,6 +158,40 @@ async def test_search_scopes(db_session):
     # Bob can see his own "Beta" with scope=mine
     hits, total = await svc_b.search("bob@example.com", "Beta", scope="mine")
     assert total == 1
+
+
+@pytest.mark.asyncio
+async def test_member_full_name_in_members_response(db_session):
+    db_session.add(
+        User(
+            email="alice@example.com",
+            hashed_password=hash_password("pw"),
+            full_name="Alice Smith",
+        )
+    )
+    await db_session.commit()
+
+    svc = RoomService(db_session)
+    room = await svc.create(
+        owner_id="test@example.com",
+        name="Room",
+        member_emails=["alice@example.com"],
+    )
+
+    # list_members endpoint path
+    members = await svc.list_members(room.id)
+    out_by_email = {m.user_id: RoomMemberOut.from_model(m) for m in members}
+    assert out_by_email["alice@example.com"].full_name == "Alice Smith"
+    # The seeded test user has no full_name → nullable field stays None.
+    assert out_by_email["test@example.com"].full_name is None
+
+    # RoomDetailOut (get/create/update) path carries it too.
+    detail = RoomDetailOut.from_model(
+        await svc.get(room.id, viewer_id="test@example.com")
+    )
+    detail_by_email = {m.user_id: m.full_name for m in detail.members}
+    assert detail_by_email["alice@example.com"] == "Alice Smith"
+    assert detail_by_email["test@example.com"] is None
 
 
 @pytest.mark.asyncio

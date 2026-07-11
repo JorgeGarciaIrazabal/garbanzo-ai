@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:record/record.dart';
 
-import '../../services/audio_service.dart';
+import 'package:garbanzo_ai/features/chat/services/audio_service.dart';
 
 /// Result of a completed voice recording + transcription.
 class VoiceRecordingResult {
@@ -48,7 +48,7 @@ class VoiceRecordingHelper {
       _arecordPath = null;
     } else {
       path = await _recorder?.stop();
-      _recorder?.dispose();
+      unawaited(_recorder?.dispose());
       _recorder = null;
     }
 
@@ -83,7 +83,7 @@ class VoiceRecordingHelper {
 
   /// Cancel any active recording and release resources.
   void dispose() {
-    _recorder?.dispose();
+    unawaited(_recorder?.dispose());
     _recorder = null;
     _arecordProcess?.kill();
     _arecordProcess = null;
@@ -96,7 +96,7 @@ class VoiceRecordingHelper {
     _recorder = AudioRecorder();
     final hasPermission = await _recorder!.hasPermission();
     if (!hasPermission) {
-      _recorder?.dispose();
+      unawaited(_recorder?.dispose());
       _recorder = null;
       throw const VoiceRecordingException('Microphone permission denied');
     }
@@ -111,7 +111,7 @@ class VoiceRecordingHelper {
       );
       return true;
     } catch (e) {
-      _recorder?.dispose();
+      unawaited(_recorder?.dispose());
       _recorder = null;
       throw VoiceRecordingException('Failed to start recording: $e');
     }
@@ -144,7 +144,7 @@ class VoiceRecordingHelper {
         _recorder = AudioRecorder();
         final hasPermission = await _recorder!.hasPermission();
         if (!hasPermission) {
-          _recorder?.dispose();
+          unawaited(_recorder?.dispose());
           _recorder = null;
           throw const VoiceRecordingException('Microphone permission denied');
         }
@@ -154,7 +154,7 @@ class VoiceRecordingHelper {
         );
         return true;
       } catch (e) {
-        _recorder?.dispose();
+        unawaited(_recorder?.dispose());
         _recorder = null;
         if (e is VoiceRecordingException) rethrow;
       }

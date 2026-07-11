@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../models/chat_message.dart';
-import 'tool_bubble_widget.dart';
+import 'package:garbanzo_ai/features/chat/models/chat_message.dart';
+import 'package:garbanzo_ai/features/chat/widgets/tool_bubble_widget.dart';
 
 /// A run of consecutive `tool_call` / `tool_result` messages rendered as a
 /// single collapsible section, mirroring the thinking-content UX.

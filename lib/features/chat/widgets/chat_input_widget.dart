@@ -1,16 +1,16 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../settings/providers/settings_provider.dart';
-import '../models/chat_attachment.dart';
-import 'input/attachment_preview.dart';
-import 'input/file_picker_helper.dart';
-import 'input/message_composer.dart';
-import 'input/pulsing_dot.dart';
-import 'input/voice_recording_helper.dart';
+import 'package:garbanzo_ai/core/log.dart';
+import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
+import 'package:garbanzo_ai/features/chat/models/chat_attachment.dart';
+import 'package:garbanzo_ai/features/chat/widgets/input/attachment_preview.dart';
+import 'package:garbanzo_ai/features/chat/widgets/input/file_picker_helper.dart';
+import 'package:garbanzo_ai/features/chat/widgets/input/message_composer.dart';
+import 'package:garbanzo_ai/features/chat/widgets/input/pulsing_dot.dart';
+import 'package:garbanzo_ai/features/chat/widgets/input/voice_recording_helper.dart';
 
 /// Widget for the chat text input field with optional file attachments.
 ///
@@ -166,7 +166,7 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
         );
       }
     } catch (e) {
-      if (kDebugMode) print('Transcription failed: $e');
+      logDebug('Transcription failed: $e');
       if (mounted) {
         // Map raw failures to actionable messages instead of dumping the
         // exception at the user.

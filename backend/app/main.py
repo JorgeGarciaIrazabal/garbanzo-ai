@@ -81,6 +81,19 @@ async def _ensure_test_user() -> None:
         logger.info("Created test user: %s", settings.test_user_email)
 
 
+def _register_default_llm_provider() -> None:
+    """Register the default (Ollama) LLM provider in the process-wide registry.
+
+    Idempotent — safe to call even if a provider with the same name is
+    already registered (e.g. re-registered during tests).
+    """
+    from app.services.llm_provider import ProviderRegistry
+    from app.services.ollama_provider import OllamaProvider
+
+    if "ollama" not in ProviderRegistry.list_providers():
+        ProviderRegistry.register(OllamaProvider(base_url=settings.ollama_base_url))
+
+
 async def _promote_admin_emails() -> None:
     """Promote users matching settings.admin_emails_list to is_admin=True."""
     emails = settings.admin_emails_list
@@ -109,6 +122,7 @@ async def _promote_admin_emails() -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
+    _register_default_llm_provider()
     await _ensure_test_user()
     await _promote_admin_emails()
     from app.services.system_prompt_service import seed_builtin_templates_task

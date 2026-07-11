@@ -19,6 +19,8 @@ from typing import Any
 
 from fastapi import WebSocket
 
+from app.schemas.room import RoomPresenceEvent
+
 logger = logging.getLogger(__name__)
 
 
@@ -95,7 +97,9 @@ class RoomConnectionManager:
             await self.broadcast_presence(room_id)
 
     async def broadcast_presence(self, room_id: str) -> None:
-        event = {"type": "presence", "online": self.online_users(room_id)}
+        # Typed event (see app.schemas.room.RoomPresenceEvent). Serialized via
+        # json.dumps(model_dump()) so the wire bytes are unchanged.
+        event = RoomPresenceEvent(online=self.online_users(room_id)).model_dump()
         # Sockets that die here are removed but deliberately do NOT trigger
         # another presence broadcast — the next presence-changing event
         # carries the corrected list. (This was the recursion source.)

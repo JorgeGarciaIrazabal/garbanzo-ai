@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../models/chat_attachment.dart';
+import 'package:garbanzo_ai/features/chat/models/chat_attachment.dart';
 
 /// Horizontal scrollable row of attachment preview chips shown above the input.
 class AttachmentPreviewBar extends StatelessWidget {

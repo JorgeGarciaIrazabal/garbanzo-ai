@@ -1,6 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
-import 'conversation.dart';
+import 'package:garbanzo_ai/features/chat/models/conversation.dart';
 
 part 'search_result.freezed.dart';
 part 'search_result.g.dart';

@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/auth_service.dart';
-import '../../../admin/pages/admin_page.dart';
-import '../../../knowledge_base/pages/knowledge_base_page.dart';
-import '../../../memory/pages/memory_page.dart';
-import '../../../rooms/pages/rooms_page.dart';
-import '../../../scheduled_actions/pages/scheduled_actions_page.dart';
-import '../../../tools/pages/skills_library_page.dart';
-import '../../../usage/pages/usage_page.dart';
+import 'package:garbanzo_ai/core/auth_service.dart';
+import 'package:garbanzo_ai/features/admin/pages/admin_page.dart';
+import 'package:garbanzo_ai/features/knowledge_base/pages/knowledge_base_page.dart';
+import 'package:garbanzo_ai/features/memory/pages/memory_page.dart';
+import 'package:garbanzo_ai/features/rooms/pages/rooms_page.dart';
+import 'package:garbanzo_ai/features/scheduled_actions/pages/scheduled_actions_page.dart';
+import 'package:garbanzo_ai/features/tools/pages/skills_library_page.dart';
+import 'package:garbanzo_ai/features/usage/pages/usage_page.dart';
 
 /// Navigation list to every feature page. One place to find everything,
 /// instead of page links scattered between toggle sections.

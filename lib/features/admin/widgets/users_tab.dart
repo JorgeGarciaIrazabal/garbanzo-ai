@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../core/auth_service.dart';
-import '../providers/admin_provider.dart';
+import 'package:garbanzo_ai/core/auth_service.dart';
+import 'package:garbanzo_ai/features/admin/providers/admin_provider.dart';
 
 /// Tab rendering the list of registered users with admin/disabled toggles.
 class UsersTab extends StatefulWidget {

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../../../core/reading_column.dart';
+import 'package:garbanzo_ai/core/reading_column.dart';
 
 /// Shared chrome for posting a message: a framed multi-line text field with
 /// Enter-to-send / Shift+Enter-for-newline handling, plus a send/stop button.
@@ -36,11 +36,22 @@ class MessageComposer extends StatefulWidget {
     this.overlay,
     this.above,
     this.idleTrailingBuilder,
+    this.onChanged,
+    this.onBlur,
   });
 
   final ValueChanged<String> onSend;
   final TextEditingController? controller;
   final FocusNode? focusNode;
+
+  /// Called whenever the field's text changes. Optional — used by rooms to
+  /// drive a debounced typing indicator; chat leaves it null (no behaviour
+  /// change).
+  final ValueChanged<String>? onChanged;
+
+  /// Called when the field loses focus. Optional — rooms use it to clear the
+  /// typing indicator.
+  final VoidCallback? onBlur;
 
   /// Called when the user presses the stop button during streaming.
   final VoidCallback? onStop;
@@ -83,22 +94,29 @@ class MessageComposerState extends State<MessageComposer> {
     if (widget.focusNode != null) {
       widget.focusNode!.onKeyEvent = _handleKeyEvent;
     }
+    if (widget.onBlur != null) _focusNode.addListener(_handleFocusChanged);
     _isComposing = _controller.text.trim().isNotEmpty;
   }
 
   @override
   void dispose() {
     _controller.removeListener(_handleControllerChanged);
+    if (widget.onBlur != null) _focusNode.removeListener(_handleFocusChanged);
     if (widget.controller == null) _controller.dispose();
     if (widget.focusNode == null) _focusNode.dispose();
     super.dispose();
   }
 
   void _handleControllerChanged() {
+    widget.onChanged?.call(_controller.text);
     final isComposing = _controller.text.trim().isNotEmpty;
     if (isComposing != _isComposing) {
       setState(() => _isComposing = isComposing);
     }
+  }
+
+  void _handleFocusChanged() {
+    if (!_focusNode.hasFocus) widget.onBlur?.call();
   }
 
   /// Submits the current text (if any) via [MessageComposer.onSend], then

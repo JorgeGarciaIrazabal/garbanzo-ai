@@ -1,6 +1,7 @@
 """Ollama LLM provider implementation using the official ollama-py SDK."""
 
 import asyncio
+import contextlib
 import logging
 from collections.abc import AsyncIterator
 from typing import Any
@@ -79,10 +80,8 @@ class OllamaProvider(LLMProvider):
         context_length: int | None = None
         for key, value in (response.modelinfo or {}).items():
             if key.endswith(".context_length"):
-                try:
+                with contextlib.suppress(TypeError, ValueError):
                     context_length = int(value)
-                except (TypeError, ValueError):
-                    pass
                 break
         capabilities = list(response.capabilities or [])
 
@@ -327,7 +326,7 @@ class OllamaProvider(LLMProvider):
             )
 
             models = []
-            for m, (real_context, capabilities) in zip(response.models, metas):
+            for m, (real_context, capabilities) in zip(response.models, metas, strict=True):
                 model_name = m.model or ""
                 details = m.details
 

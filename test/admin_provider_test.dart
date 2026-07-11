@@ -49,7 +49,7 @@ void main() {
           .thenThrow(Exception('network down'));
 
       await provider.loadUsers();
-      expect(provider.usersError, contains('network down'));
+      expect(provider.usersError, contains('Failed to load users'));
       expect(provider.users, isEmpty);
     });
 

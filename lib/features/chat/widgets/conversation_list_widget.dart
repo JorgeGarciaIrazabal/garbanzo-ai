@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../models/conversation.dart';
-import '../providers/search_provider.dart';
-import 'search_results_widget.dart';
-import 'search_widget.dart';
+import 'package:garbanzo_ai/features/chat/models/conversation.dart';
+import 'package:garbanzo_ai/features/chat/providers/search_provider.dart';
+import 'package:garbanzo_ai/features/chat/widgets/search_results_widget.dart';
+import 'package:garbanzo_ai/features/chat/widgets/search_widget.dart';
 
 /// Widget displaying a list of conversations.
 class ConversationListWidget extends StatelessWidget {
@@ -45,7 +45,7 @@ class ConversationListWidget extends StatelessWidget {
           decoration: BoxDecoration(
             border: Border(
               bottom: BorderSide(
-                color: colorScheme.outlineVariant.withOpacity(0.5),
+                color: colorScheme.outlineVariant.withValues(alpha: 0.5),
               ),
             ),
           ),
@@ -115,7 +115,7 @@ class ConversationListWidget extends StatelessWidget {
         color: colorScheme.surfaceContainerLow,
         border: Border(
           right: BorderSide(
-            color: colorScheme.outlineVariant.withOpacity(0.5),
+            color: colorScheme.outlineVariant.withValues(alpha: 0.5),
           ),
         ),
       ),
@@ -168,13 +168,13 @@ class _EmptyState extends StatelessWidget {
           Icon(
             Icons.chat_bubble_outline,
             size: 48,
-            color: colorScheme.onSurfaceVariant.withOpacity(0.5),
+            color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
           ),
           const SizedBox(height: 16),
           Text(
             'No conversations yet',
             style: TextStyle(
-              color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
             ),
           ),
         ],
@@ -206,8 +206,8 @@ class _ConversationListItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final unselectedIcon = isSelected
-        ? colorScheme.onPrimaryContainer.withOpacity(0.7)
-        : colorScheme.onSurfaceVariant.withOpacity(0.5);
+        ? colorScheme.onPrimaryContainer.withValues(alpha: 0.7)
+        : colorScheme.onSurfaceVariant.withValues(alpha: 0.5);
 
     return Material(
       color: isSelected
@@ -220,7 +220,7 @@ class _ConversationListItem extends StatelessWidget {
           decoration: BoxDecoration(
             border: Border(
               bottom: BorderSide(
-                color: colorScheme.outlineVariant.withOpacity(0.3),
+                color: colorScheme.outlineVariant.withValues(alpha: 0.3),
               ),
             ),
           ),
@@ -256,8 +256,8 @@ class _ConversationListItem extends StatelessWidget {
                       '${conversation.messageCount} message${conversation.messageCount == 1 ? '' : 's'}',
                       style: textTheme.labelSmall?.copyWith(
                         color: isSelected
-                            ? colorScheme.onPrimaryContainer.withOpacity(0.7)
-                            : colorScheme.onSurfaceVariant.withOpacity(0.7),
+                            ? colorScheme.onPrimaryContainer.withValues(alpha: 0.7)
+                            : colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
                       ),
                     ),
                   ],

@@ -27,6 +27,8 @@ abstract class ModelInfo with _$ModelInfo {
 abstract class ModelList with _$ModelList {
   const factory ModelList({
     required List<ModelInfo> models,
+    // Server-recommended default model id, if the backend provides one.
+    String? defaultModel,
   }) = _ModelList;
 
   factory ModelList.fromJson(Map<String, dynamic> json) =>

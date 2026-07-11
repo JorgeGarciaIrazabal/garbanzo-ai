@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
-import '../models/chat_message.dart';
+import 'package:garbanzo_ai/features/chat/models/chat_message.dart';
 
 /// A single entry on the tool-activity rail — either an MCP tool invocation
 /// (`role: tool_call`) or the server's response (`role: tool_result`).

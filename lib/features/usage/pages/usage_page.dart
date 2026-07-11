@@ -2,8 +2,8 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../models/usage_summary.dart';
-import '../providers/usage_provider.dart';
+import 'package:garbanzo_ai/features/usage/models/usage_summary.dart';
+import 'package:garbanzo_ai/features/usage/providers/usage_provider.dart';
 
 class UsagePage extends StatelessWidget {
   const UsagePage({super.key});

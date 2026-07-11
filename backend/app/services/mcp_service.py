@@ -151,10 +151,12 @@ class MCPService:
             headers: dict[str, str] | None = None
             if server.auth_header:
                 headers = {"Authorization": server.auth_header}
-            async with sse_client(server.url, headers=headers) as (read, write):
-                async with ClientSession(read, write) as session:
-                    await session.initialize()
-                    yield session
+            async with (
+                sse_client(server.url, headers=headers) as (read, write),
+                ClientSession(read, write) as session,
+            ):
+                await session.initialize()
+                yield session
         elif server.transport == "stdio":
             if not server.command:
                 raise ValueError(f"Server {server.id} has no command configured")
@@ -171,10 +173,12 @@ class MCPService:
                 args=list(server.args or []),
                 env=child_env,
             )
-            async with stdio_client(params) as (read, write):
-                async with ClientSession(read, write) as session:
-                    await session.initialize()
-                    yield session
+            async with (
+                stdio_client(params) as (read, write),
+                ClientSession(read, write) as session,
+            ):
+                await session.initialize()
+                yield session
         else:
             raise ValueError(f"Unknown transport: {server.transport}")
 

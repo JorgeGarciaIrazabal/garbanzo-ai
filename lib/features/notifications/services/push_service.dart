@@ -5,7 +5,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 
-import '../../../core/api_client.dart';
+import 'package:garbanzo_ai/core/api_client.dart';
 
 /// Manages the Firebase Messaging lifecycle: init, permission, token
 /// registration with the backend, and token-refresh handling.

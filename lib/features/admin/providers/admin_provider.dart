@@ -1,8 +1,10 @@
 import 'package:flutter/foundation.dart';
 
-import '../models/admin_user.dart';
-import '../models/mcp_server.dart';
-import '../services/admin_service.dart';
+import 'package:garbanzo_ai/core/guarded_state.dart';
+import 'package:garbanzo_ai/core/log.dart';
+import 'package:garbanzo_ai/features/admin/models/admin_user.dart';
+import 'package:garbanzo_ai/features/admin/models/mcp_server.dart';
+import 'package:garbanzo_ai/features/admin/services/admin_service.dart';
 
 /// ChangeNotifier managing admin state: users + MCP servers.
 class AdminProvider extends ChangeNotifier {
@@ -48,8 +50,8 @@ class AdminProvider extends ChangeNotifier {
     try {
       _users = await _service.listUsers();
     } catch (e) {
-      _usersError = 'Failed to load users: $e';
-      if (kDebugMode) print(_usersError);
+      _usersError = describeFailure(e, label: 'Failed to load users');
+      logDebug(_usersError!);
     } finally {
       _isLoadingUsers = false;
       notifyListeners();
@@ -80,8 +82,8 @@ class AdminProvider extends ChangeNotifier {
       }
       notifyListeners();
     } catch (e) {
-      _usersError = 'Failed to update user: $e';
-      if (kDebugMode) print(_usersError);
+      _usersError = describeFailure(e, label: 'Failed to update user');
+      logDebug(_usersError!);
       notifyListeners();
     }
   }
@@ -97,8 +99,8 @@ class AdminProvider extends ChangeNotifier {
     try {
       _servers = await _service.listMCPServers();
     } catch (e) {
-      _serversError = 'Failed to load servers: $e';
-      if (kDebugMode) print(_serversError);
+      _serversError = describeFailure(e, label: 'Failed to load servers');
+      logDebug(_serversError!);
     } finally {
       _isLoadingServers = false;
       notifyListeners();
@@ -133,8 +135,8 @@ class AdminProvider extends ChangeNotifier {
       notifyListeners();
       return created;
     } catch (e) {
-      _serversError = 'Failed to create server: $e';
-      if (kDebugMode) print(_serversError);
+      _serversError = describeFailure(e, label: 'Failed to create server');
+      logDebug(_serversError!);
       notifyListeners();
       return null;
     }
@@ -179,8 +181,8 @@ class AdminProvider extends ChangeNotifier {
       notifyListeners();
       return updated;
     } catch (e) {
-      _serversError = 'Failed to update server: $e';
-      if (kDebugMode) print(_serversError);
+      _serversError = describeFailure(e, label: 'Failed to update server');
+      logDebug(_serversError!);
       notifyListeners();
       return null;
     }
@@ -194,8 +196,8 @@ class AdminProvider extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      _serversError = 'Failed to delete server: $e';
-      if (kDebugMode) print(_serversError);
+      _serversError = describeFailure(e, label: 'Failed to delete server');
+      logDebug(_serversError!);
       notifyListeners();
       return false;
     }
@@ -205,8 +207,8 @@ class AdminProvider extends ChangeNotifier {
     try {
       return await _service.testMCPServer(id);
     } catch (e) {
-      _serversError = 'Failed to test server: $e';
-      if (kDebugMode) print(_serversError);
+      _serversError = describeFailure(e, label: 'Failed to test server');
+      logDebug(_serversError!);
       notifyListeners();
       return MCPTestResult(ok: false, error: e.toString());
     }

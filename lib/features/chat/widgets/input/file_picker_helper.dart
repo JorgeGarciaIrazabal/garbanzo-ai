@@ -1,7 +1,7 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 
-import '../../models/chat_attachment.dart';
+import 'package:garbanzo_ai/features/chat/models/chat_attachment.dart';
 
 /// Result of a file picking operation.
 class FilePickResult {

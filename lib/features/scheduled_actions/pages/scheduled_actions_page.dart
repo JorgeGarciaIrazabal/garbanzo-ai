@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../models/scheduled_action.dart';
-import '../providers/scheduled_actions_provider.dart';
+import 'package:garbanzo_ai/features/scheduled_actions/models/scheduled_action.dart';
+import 'package:garbanzo_ai/features/scheduled_actions/providers/scheduled_actions_provider.dart';
 
 class ScheduledActionsPage extends StatelessWidget {
   const ScheduledActionsPage({super.key});

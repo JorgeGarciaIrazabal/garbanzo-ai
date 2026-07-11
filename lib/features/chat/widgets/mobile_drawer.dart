@@ -1,11 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../rooms/pages/room_chat_page.dart';
-import '../../rooms/providers/room_provider.dart';
-import '../../rooms/widgets/create_room_dialog.dart';
-import '../../rooms/widgets/rooms_list_view.dart';
-import '../models/conversation.dart';
+import 'package:garbanzo_ai/features/rooms/pages/room_chat_page.dart';
+import 'package:garbanzo_ai/features/rooms/providers/room_provider.dart';
+import 'package:garbanzo_ai/features/rooms/widgets/create_room_dialog.dart';
+import 'package:garbanzo_ai/features/rooms/widgets/rooms_list_view.dart';
+import 'package:garbanzo_ai/features/chat/models/conversation.dart';
 
 /// Bottom-sheet drawer for mobile screens. Contains a Chats / Rooms tab
 /// switcher matching the wide-layout sidebar so rooms are equally
@@ -213,10 +215,12 @@ class _MobileDrawerBodyState extends State<_MobileDrawerBody> {
                       if (!context.mounted) return;
                       if (created != null) {
                         Navigator.pop(context);
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                RoomChatPage(roomId: created.id),
+                        unawaited(
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  RoomChatPage(roomId: created.id),
+                            ),
                           ),
                         );
                       }

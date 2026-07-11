@@ -1,12 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../models/conversation.dart';
-import 'conversation_list_widget.dart';
-import '../../rooms/pages/room_chat_page.dart';
-import '../../rooms/providers/room_provider.dart';
-import '../../rooms/widgets/create_room_dialog.dart';
-import '../../rooms/widgets/rooms_list_view.dart';
+import 'package:garbanzo_ai/features/chat/models/conversation.dart';
+import 'package:garbanzo_ai/features/chat/widgets/conversation_list_widget.dart';
+import 'package:garbanzo_ai/features/rooms/pages/room_chat_page.dart';
+import 'package:garbanzo_ai/features/rooms/providers/room_provider.dart';
+import 'package:garbanzo_ai/features/rooms/widgets/create_room_dialog.dart';
+import 'package:garbanzo_ai/features/rooms/widgets/rooms_list_view.dart';
 
 /// Sidebar shown on wide layouts. Contains a Chats / Rooms tab switcher so
 /// rooms feel like first-class peers of conversations.
@@ -58,7 +60,7 @@ class _ChatSidebarState extends State<ChatSidebar> {
       decoration: BoxDecoration(
         color: cs.surfaceContainerLow,
         border: Border(
-          right: BorderSide(color: cs.outlineVariant.withOpacity(0.5)),
+          right: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.5)),
         ),
       ),
       child: Column(
@@ -144,7 +146,7 @@ class _RoomsTab extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
           decoration: BoxDecoration(
             border: Border(
-              bottom: BorderSide(color: cs.outlineVariant.withOpacity(0.5)),
+              bottom: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.5)),
             ),
           ),
           child: Row(
@@ -157,9 +159,11 @@ class _RoomsTab extends StatelessWidget {
                       provider,
                     );
                     if (created != null && context.mounted) {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => RoomChatPage(roomId: created.id),
+                      unawaited(
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => RoomChatPage(roomId: created.id),
+                          ),
                         ),
                       );
                     }
@@ -198,9 +202,11 @@ class _RoomsTab extends StatelessWidget {
             onCreate: () async {
               final created = await showCreateRoomDialog(context, provider);
               if (created != null && context.mounted) {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => RoomChatPage(roomId: created.id),
+                unawaited(
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => RoomChatPage(roomId: created.id),
+                    ),
                   ),
                 );
               }

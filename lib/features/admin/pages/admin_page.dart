@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../providers/admin_provider.dart';
-import '../widgets/mcp_servers_tab.dart';
-import '../widgets/users_tab.dart';
+import 'package:garbanzo_ai/features/admin/providers/admin_provider.dart';
+import 'package:garbanzo_ai/features/admin/widgets/mcp_servers_tab.dart';
+import 'package:garbanzo_ai/features/admin/widgets/users_tab.dart';
 
 /// Admin portal with tabs for user management + MCP server configuration.
 ///

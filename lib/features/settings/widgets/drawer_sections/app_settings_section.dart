@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../chat/services/audio_service.dart';
-import '../../../notifications/providers/notification_provider.dart';
-import '../../providers/settings_provider.dart';
-import 'section_header.dart';
+import 'package:garbanzo_ai/features/chat/services/audio_service.dart';
+import 'package:garbanzo_ai/features/notifications/providers/notification_provider.dart';
+import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
+import 'package:garbanzo_ai/features/settings/widgets/drawer_sections/section_header.dart';
 
 /// App-wide preferences: appearance, chat display, voice, notifications.
 class AppSettingsSection extends StatelessWidget {

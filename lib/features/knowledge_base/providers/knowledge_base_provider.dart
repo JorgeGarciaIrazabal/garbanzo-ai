@@ -1,43 +1,25 @@
 import 'package:flutter/foundation.dart';
 
-import '../models/knowledge_document.dart';
-import '../services/knowledge_base_service.dart';
+import 'package:garbanzo_ai/core/guarded_state.dart';
+import 'package:garbanzo_ai/features/knowledge_base/models/knowledge_document.dart';
+import 'package:garbanzo_ai/features/knowledge_base/services/knowledge_base_service.dart';
 
-class KnowledgeBaseProvider extends ChangeNotifier {
+class KnowledgeBaseProvider extends ChangeNotifier with GuardedStateMixin {
   KnowledgeBaseProvider({KnowledgeBaseService? service})
       : _service = service ?? KnowledgeBaseService.instance;
 
   final KnowledgeBaseService _service;
 
   List<KnowledgeDocument> _documents = [];
-  bool _isLoading = false;
-  String? _error;
 
   List<KnowledgeDocument> get documents => _documents;
-  bool get isLoading => _isLoading;
-  String? get error => _error;
   bool get hasProcessingDocuments =>
       _documents.any((d) => d.isProcessing);
 
-  void clearError() {
-    if (_error != null) {
-      _error = null;
-      notifyListeners();
-    }
-  }
-
   Future<void> refresh() async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-    try {
+    await runGuarded('Failed to load documents', () async {
       _documents = await _service.listDocuments();
-    } catch (e) {
-      _error = e.toString();
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
+    });
   }
 
   Future<KnowledgeDocument?> upload({
@@ -45,10 +27,7 @@ class KnowledgeBaseProvider extends ChangeNotifier {
     required List<int> bytes,
     String? mimeType,
   }) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-    try {
+    return runGuarded('Failed to upload document', () async {
       final doc = await _service.uploadDocument(
         filename: filename,
         bytes: bytes,
@@ -56,25 +35,14 @@ class KnowledgeBaseProvider extends ChangeNotifier {
       );
       _documents = [doc, ..._documents];
       return doc;
-    } catch (e) {
-      _error = e.toString();
-      return null;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
+    });
   }
 
   Future<void> delete(String documentId) async {
-    _error = null;
-    try {
+    await runGuarded('Failed to delete document', () async {
       await _service.deleteDocument(documentId);
       _documents = _documents.where((d) => d.id != documentId).toList();
-      notifyListeners();
-    } catch (e) {
-      _error = e.toString();
-      notifyListeners();
-    }
+    }, trackLoading: false);
   }
 
   /// Fetch updated status for any still-processing documents. Call on a

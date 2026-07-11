@@ -113,8 +113,8 @@ class _RoomTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final unselectedIcon = isSelected
-        ? colorScheme.onPrimaryContainer.withOpacity(0.7)
-        : colorScheme.onSurfaceVariant.withOpacity(0.6);
+        ? colorScheme.onPrimaryContainer.withValues(alpha: 0.7)
+        : colorScheme.onSurfaceVariant.withValues(alpha: 0.6);
 
     final subtitle = _subtitle();
 
@@ -132,7 +132,7 @@ class _RoomTile extends StatelessWidget {
           decoration: BoxDecoration(
             border: Border(
               bottom: BorderSide(
-                color: colorScheme.outlineVariant.withOpacity(0.3),
+                color: colorScheme.outlineVariant.withValues(alpha: 0.3),
               ),
             ),
           ),
@@ -182,8 +182,8 @@ class _RoomTile extends StatelessWidget {
                       subtitle,
                       style: textTheme.labelSmall?.copyWith(
                         color: isSelected
-                            ? colorScheme.onPrimaryContainer.withOpacity(0.7)
-                            : colorScheme.onSurfaceVariant.withOpacity(0.7),
+                            ? colorScheme.onPrimaryContainer.withValues(alpha: 0.7)
+                            : colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -260,14 +260,14 @@ class _CountBadge extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 14, color: color.withOpacity(0.8)),
+        Icon(icon, size: 14, color: color.withValues(alpha: 0.8)),
         const SizedBox(width: 2),
         Text(
           '$count',
           style: TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.w500,
-            color: color.withOpacity(0.85),
+            color: color.withValues(alpha: 0.85),
           ),
         ),
       ],
@@ -292,13 +292,13 @@ class _EmptyState extends StatelessWidget {
             Icon(
               Icons.group_outlined,
               size: 56,
-              color: colorScheme.onSurfaceVariant.withOpacity(0.4),
+              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
             ),
             const SizedBox(height: 16),
             Text(
               'No rooms yet',
               style: TextStyle(
-                color: colorScheme.onSurfaceVariant.withOpacity(0.85),
+                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.85),
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -308,7 +308,7 @@ class _EmptyState extends StatelessWidget {
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 12,
-                color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
               ),
             ),
             if (onCreate != null) ...[

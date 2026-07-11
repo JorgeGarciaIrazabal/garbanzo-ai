@@ -580,7 +580,7 @@ async def test_tool_result_truncated_to_cap(db_session, test_user_email, monkeyp
         "app.services.chat_service.MCPService.call_tool",
         new=AsyncMock(side_effect=_fake_call_tool),
     ):
-        async for c in service.send_message(conv_id, test_user_email, "hi"):
+        async for _c in service.send_message(conv_id, test_user_email, "hi"):
             pass
 
     from sqlalchemy import select

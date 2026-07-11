@@ -1,10 +1,11 @@
 import 'package:flutter/foundation.dart';
 
-import '../models/mcp_tool.dart';
-import '../services/tool_service.dart';
+import 'package:garbanzo_ai/core/guarded_state.dart';
+import 'package:garbanzo_ai/features/tools/models/mcp_tool.dart';
+import 'package:garbanzo_ai/features/tools/services/tool_service.dart';
 
 /// ChangeNotifier that fetches and caches the list of available MCP tools.
-class ToolProvider extends ChangeNotifier {
+class ToolProvider extends ChangeNotifier with GuardedStateMixin {
   ToolProvider({ToolService? service})
       : _service = service ?? ToolService.instance;
 
@@ -13,33 +14,18 @@ class ToolProvider extends ChangeNotifier {
   List<MCPTool> _tools = [];
   List<MCPTool> get tools => List.unmodifiable(_tools);
 
-  bool _isLoading = false;
-  bool get isLoading => _isLoading;
-
-  String? _error;
-  String? get error => _error;
-
   bool _loaded = false;
   bool get isLoaded => _loaded;
 
   /// Load the full tool catalog. Idempotent — calling repeatedly only triggers
   /// a single in-flight request.
   Future<void> load({bool force = false}) async {
-    if (_isLoading) return;
+    if (isLoading) return;
     if (_loaded && !force) return;
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-    try {
+    await runGuarded('Failed to load tools', () async {
       _tools = await _service.listAllTools();
       _loaded = true;
-    } catch (e) {
-      _error = 'Failed to load tools: $e';
-      if (kDebugMode) print(_error);
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
+    });
   }
 
   /// Group the current tools by server name, preserving tool order within each
@@ -50,10 +36,5 @@ class ToolProvider extends ChangeNotifier {
       out.putIfAbsent(t.serverName, () => []).add(t);
     }
     return out;
-  }
-
-  void clearError() {
-    _error = null;
-    notifyListeners();
   }
 }

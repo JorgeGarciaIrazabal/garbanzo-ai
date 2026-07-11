@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import 'message_action_button.dart';
+import 'package:garbanzo_ai/features/chat/widgets/message/message_action_button.dart';
 
 /// Copy button for copying message content to clipboard.
 class CopyButton extends StatefulWidget {

@@ -1,12 +1,13 @@
 import 'package:flutter/foundation.dart';
 
-import '../models/memory.dart';
-import '../services/memory_api_service.dart';
+import 'package:garbanzo_ai/core/guarded_state.dart';
+import 'package:garbanzo_ai/features/memory/models/memory.dart';
+import 'package:garbanzo_ai/features/memory/services/memory_api_service.dart';
 
 /// Provider for managing memory state.
 ///
 /// Handles loading, creating, updating, and deleting memories.
-class MemoryProvider extends ChangeNotifier {
+class MemoryProvider extends ChangeNotifier with GuardedStateMixin {
   MemoryProvider() {
     _loadMemories();
   }
@@ -20,12 +21,6 @@ class MemoryProvider extends ChangeNotifier {
   List<Memory> _memories = [];
   List<Memory> get memories => List.unmodifiable(_memories);
 
-  bool _isLoading = false;
-  bool get isLoading => _isLoading;
-
-  String? _error;
-  String? get error => _error;
-
   bool _isCreating = false;
   bool get isCreating => _isCreating;
 
@@ -37,20 +32,9 @@ class MemoryProvider extends ChangeNotifier {
   // ==========================================================================
 
   Future<void> _loadMemories() async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-
-    try {
-      final memories = await _memoryService.listMemories();
-      _memories = memories;
-    } catch (e) {
-      _error = 'Failed to load memories: $e';
-      if (kDebugMode) print(_error);
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
+    await runGuarded('Failed to load memories', () async {
+      _memories = await _memoryService.listMemories();
+    });
   }
 
   Future<void> refreshMemories() async => _loadMemories();
@@ -61,23 +45,16 @@ class MemoryProvider extends ChangeNotifier {
     String? sourceConversationId,
   }) async {
     _isCreating = true;
-    _error = null;
     notifyListeners();
-
-    try {
+    await runGuarded('Failed to create memory', () async {
       final memory = await _memoryService.createMemory(
         content: content,
         sourceConversationId: sourceConversationId,
       );
       _memories = [memory, ..._memories];
-      notifyListeners();
-    } catch (e) {
-      _error = 'Failed to create memory: $e';
-      if (kDebugMode) print(_error);
-      notifyListeners();
-    } finally {
-      _isCreating = false;
-    }
+    }, trackLoading: false);
+    _isCreating = false;
+    notifyListeners();
   }
 
   /// Update a memory's content or active status.
@@ -87,10 +64,8 @@ class MemoryProvider extends ChangeNotifier {
     bool? isActive,
   }) async {
     _isUpdating = true;
-    _error = null;
     notifyListeners();
-
-    try {
+    await runGuarded('Failed to update memory', () async {
       final updated = await _memoryService.updateMemory(
         memoryId: memoryId,
         content: content,
@@ -103,31 +78,18 @@ class MemoryProvider extends ChangeNotifier {
           updated,
           ..._memories.sublist(index + 1),
         ];
-        notifyListeners();
       }
-    } catch (e) {
-      _error = 'Failed to update memory: $e';
-      if (kDebugMode) print(_error);
-      notifyListeners();
-    } finally {
-      _isUpdating = false;
-    }
+    }, trackLoading: false);
+    _isUpdating = false;
+    notifyListeners();
   }
 
   /// Deactivate (soft-delete) a memory.
   Future<void> deactivateMemory(String memoryId) async {
-    _error = null;
-    notifyListeners();
-
-    try {
+    await runGuarded('Failed to deactivate memory', () async {
       await _memoryService.deactivateMemory(memoryId);
       _memories.removeWhere((m) => m.id == memoryId);
-      notifyListeners();
-    } catch (e) {
-      _error = 'Failed to deactivate memory: $e';
-      if (kDebugMode) print(_error);
-      notifyListeners();
-    }
+    }, trackLoading: false);
   }
 
   /// Toggle a memory's active status.
@@ -136,14 +98,5 @@ class MemoryProvider extends ChangeNotifier {
       memoryId: memoryId,
       isActive: !currentlyActive,
     );
-  }
-
-  // ==========================================================================
-  // Error handling
-  // ==========================================================================
-
-  void clearError() {
-    _error = null;
-    notifyListeners();
   }
 }

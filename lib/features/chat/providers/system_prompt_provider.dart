@@ -1,11 +1,12 @@
 import 'package:flutter/foundation.dart';
 
-import '../models/system_prompt_template.dart';
-import '../services/system_prompt_service.dart';
+import 'package:garbanzo_ai/core/guarded_state.dart';
+import 'package:garbanzo_ai/features/chat/models/system_prompt_template.dart';
+import 'package:garbanzo_ai/features/chat/services/system_prompt_service.dart';
 
 /// Manages the list of system prompt templates (builtins + user-saved) and
 /// the user's global default system prompt.
-class SystemPromptProvider extends ChangeNotifier {
+class SystemPromptProvider extends ChangeNotifier with GuardedStateMixin {
   SystemPromptProvider() {
     refresh();
   }
@@ -18,12 +19,6 @@ class SystemPromptProvider extends ChangeNotifier {
   String? _userDefault;
   String? get userDefault => _userDefault;
 
-  bool _isLoading = false;
-  bool get isLoading => _isLoading;
-
-  String? _error;
-  String? get error => _error;
-
   List<SystemPromptTemplate> get builtinTemplates =>
       _templates.where((t) => t.isBuiltin).toList();
 
@@ -31,23 +26,14 @@ class SystemPromptProvider extends ChangeNotifier {
       _templates.where((t) => !t.isBuiltin).toList();
 
   Future<void> refresh() async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-    try {
+    await runGuarded('Failed to load system prompts', () async {
       final results = await Future.wait<Object?>([
         _service.listTemplates(),
         _service.getUserDefault(),
       ]);
       _templates = results[0] as List<SystemPromptTemplate>;
       _userDefault = results[1] as String?;
-    } catch (e) {
-      _error = 'Failed to load system prompts: $e';
-      if (kDebugMode) print(_error);
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
+    });
   }
 
   Future<SystemPromptTemplate?> createTemplate({
@@ -55,21 +41,15 @@ class SystemPromptProvider extends ChangeNotifier {
     required String content,
     String? description,
   }) async {
-    try {
+    return runGuarded('Failed to create template', () async {
       final created = await _service.createTemplate(
         name: name,
         content: content,
         description: description,
       );
       _templates = [..._templates, created];
-      notifyListeners();
       return created;
-    } catch (e) {
-      _error = 'Failed to create template: $e';
-      if (kDebugMode) print(_error);
-      notifyListeners();
-      return null;
-    }
+    }, trackLoading: false);
   }
 
   Future<SystemPromptTemplate?> updateTemplate(
@@ -78,51 +58,34 @@ class SystemPromptProvider extends ChangeNotifier {
     String? content,
     String? description,
   }) async {
-    try {
+    return runGuarded('Failed to update template', () async {
       final updated = await _service.updateTemplate(
         templateId,
         name: name,
         content: content,
         description: description,
       );
-      _templates = _templates
-          .map((t) => t.id == updated.id ? updated : t)
-          .toList();
-      notifyListeners();
+      _templates =
+          _templates.map((t) => t.id == updated.id ? updated : t).toList();
       return updated;
-    } catch (e) {
-      _error = 'Failed to update template: $e';
-      if (kDebugMode) print(_error);
-      notifyListeners();
-      return null;
-    }
+    }, trackLoading: false);
   }
 
   Future<bool> deleteTemplate(String templateId) async {
-    try {
+    final ok = await runGuarded('Failed to delete template', () async {
       await _service.deleteTemplate(templateId);
       _templates = _templates.where((t) => t.id != templateId).toList();
-      notifyListeners();
       return true;
-    } catch (e) {
-      _error = 'Failed to delete template: $e';
-      if (kDebugMode) print(_error);
-      notifyListeners();
-      return false;
-    }
+    }, trackLoading: false);
+    return ok ?? false;
   }
 
   Future<void> setUserDefault(String? prompt) async {
-    try {
+    await runGuarded('Failed to save default prompt', () async {
       final trimmed = prompt?.trim();
       _userDefault = await _service.setUserDefault(
         trimmed == null || trimmed.isEmpty ? null : trimmed,
       );
-      notifyListeners();
-    } catch (e) {
-      _error = 'Failed to save default prompt: $e';
-      if (kDebugMode) print(_error);
-      notifyListeners();
-    }
+    }, trackLoading: false);
   }
 }

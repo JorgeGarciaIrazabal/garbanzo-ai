@@ -1,5 +1,5 @@
-import '../../../core/api_client.dart';
-import '../models/usage_summary.dart';
+import 'package:garbanzo_ai/core/api_client.dart';
+import 'package:garbanzo_ai/features/usage/models/usage_summary.dart';
 
 class UsageService {
   UsageService._();

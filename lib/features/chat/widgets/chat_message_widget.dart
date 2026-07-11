@@ -1,22 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../settings/providers/settings_provider.dart';
-import '../models/chat_message.dart';
-import '../providers/chat_provider.dart';
-import 'input/pulsing_dot.dart';
-import 'message/attachment_display.dart';
-import 'message/branch_button.dart';
-import 'message/copy_button.dart';
-import 'message/edit_button.dart';
-import 'message/message_content.dart';
-import 'message/message_metadata.dart';
-import 'message/regenerate_button.dart';
-import 'message/reveal_on_hover.dart';
-import 'message/speak_button.dart';
-import 'message/thinking_content.dart';
-import 'remember_this_button.dart';
-import 'tool_bubble_widget.dart';
+import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
+import 'package:garbanzo_ai/features/chat/models/chat_message.dart';
+import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
+import 'package:garbanzo_ai/features/chat/widgets/input/pulsing_dot.dart';
+import 'package:garbanzo_ai/features/chat/widgets/message/attachment_display.dart';
+import 'package:garbanzo_ai/features/chat/widgets/message/branch_button.dart';
+import 'package:garbanzo_ai/features/chat/widgets/message/copy_button.dart';
+import 'package:garbanzo_ai/features/chat/widgets/message/edit_button.dart';
+import 'package:garbanzo_ai/features/chat/widgets/message/message_content.dart';
+import 'package:garbanzo_ai/features/chat/widgets/message/message_metadata.dart';
+import 'package:garbanzo_ai/features/chat/widgets/message/regenerate_button.dart';
+import 'package:garbanzo_ai/features/chat/widgets/message/reveal_on_hover.dart';
+import 'package:garbanzo_ai/features/chat/widgets/message/speak_button.dart';
+import 'package:garbanzo_ai/features/chat/widgets/message/thinking_content.dart';
+import 'package:garbanzo_ai/features/chat/widgets/remember_this_button.dart';
+import 'package:garbanzo_ai/features/chat/widgets/tool_bubble_widget.dart';
 
 /// Widget for displaying a single chat message.
 ///

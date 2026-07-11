@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../pages/notifications_page.dart';
-import '../providers/notification_provider.dart';
+import 'package:garbanzo_ai/features/notifications/pages/notifications_page.dart';
+import 'package:garbanzo_ai/features/notifications/providers/notification_provider.dart';
 
 /// AppBar bell icon with an unread badge that opens the notifications page.
 class NotificationBell extends StatelessWidget {

@@ -1,5 +1,5 @@
-import '../../../core/api_client.dart';
-import '../models/scheduled_action.dart';
+import 'package:garbanzo_ai/core/api_client.dart';
+import 'package:garbanzo_ai/features/scheduled_actions/models/scheduled_action.dart';
 
 /// HTTP client for the `/api/v1/scheduled-actions` endpoints.
 class ScheduledActionsApiService {

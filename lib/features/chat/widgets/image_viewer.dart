@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../models/chat_attachment.dart';
+import 'package:garbanzo_ai/features/chat/models/chat_attachment.dart';
 
 /// Full-screen image viewer with zoom, pan, and dismiss gestures.
 class ImageViewer extends StatefulWidget {

@@ -5,13 +5,13 @@ import 'package:flutter/material.dart';
 import 'package:marionette_flutter/marionette_flutter.dart';
 import 'package:provider/provider.dart';
 
-import 'core/api_client.dart';
-import 'core/auth_service.dart';
-import 'features/chat/widgets/chat_page.dart';
-import 'features/notifications/services/push_service.dart';
-import 'features/settings/providers/settings_provider.dart';
-import 'pages/login_page.dart';
-import 'pages/register_page.dart';
+import 'package:garbanzo_ai/core/api_client.dart';
+import 'package:garbanzo_ai/core/auth_service.dart';
+import 'package:garbanzo_ai/features/chat/widgets/chat_page.dart';
+import 'package:garbanzo_ai/features/notifications/services/push_service.dart';
+import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
+import 'package:garbanzo_ai/pages/login_page.dart';
+import 'package:garbanzo_ai/pages/register_page.dart';
 
 void main() {
   if (kDebugMode) {

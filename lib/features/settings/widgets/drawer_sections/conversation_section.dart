@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../chat/providers/chat_provider.dart';
-import '../../../chat/providers/model_provider.dart';
-import '../../../chat/providers/system_prompt_provider.dart';
-import '../../../chat/widgets/system_prompt_editor_dialog.dart';
-import 'section_header.dart';
-import 'tools_picker.dart';
+import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
+import 'package:garbanzo_ai/features/chat/providers/model_provider.dart';
+import 'package:garbanzo_ai/features/chat/providers/system_prompt_provider.dart';
+import 'package:garbanzo_ai/features/chat/widgets/system_prompt_editor_dialog.dart';
+import 'package:garbanzo_ai/features/settings/widgets/drawer_sections/section_header.dart';
+import 'package:garbanzo_ai/features/settings/widgets/drawer_sections/tools_picker.dart';
 
 /// Everything scoped to the active conversation: model, system prompt,
 /// memory/knowledge-base toggles, and the tool whitelist.

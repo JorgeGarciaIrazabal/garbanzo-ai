@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
+from sqlalchemy import inspect as sa_inspect
 
 # ============================================================================
 # Agents
@@ -82,8 +83,37 @@ class RoomMemberOut(BaseModel):
     user_id: str
     role: MemberRole
     joined_at: datetime
+    # Additive + nullable: the member's display name (``User.full_name``).
+    # Old clients ignore it; new clients fall back to ``user_id`` (the email)
+    # when it is ``None``.
+    full_name: str | None = None
 
     model_config = {"from_attributes": True}
+
+    @classmethod
+    def from_model(cls, member: Any) -> "RoomMemberOut":
+        """Build from a ``RoomMember`` ORM row, pulling ``full_name`` from the
+        related ``User`` **only if** that relationship is already loaded.
+
+        The guard avoids triggering a lazy (sync) IO load on an async session
+        for call sites that did not eager-load ``RoomMember.user`` — those
+        simply serialize ``full_name`` as ``None``.
+        """
+        full_name: str | None = None
+        try:
+            unloaded = sa_inspect(member).unloaded
+        except Exception:  # pragma: no cover - non-ORM input
+            unloaded = set()
+        if "user" not in unloaded:
+            user = getattr(member, "user", None)
+            full_name = getattr(user, "full_name", None) if user is not None else None
+        return cls(
+            room_id=member.room_id,
+            user_id=member.user_id,
+            role=member.role,
+            joined_at=member.joined_at,
+            full_name=full_name,
+        )
 
 
 # ============================================================================
@@ -167,7 +197,7 @@ class RoomDetailOut(RoomOut):
             updated_at=room.updated_at,
             member_count=len(room.members) if room.members is not None else 0,
             agent_count=len(room.agents) if room.agents is not None else 0,
-            members=[RoomMemberOut.model_validate(m) for m in (room.members or [])],
+            members=[RoomMemberOut.from_model(m) for m in (room.members or [])],
             agents=[RoomAgentOut.model_validate(a) for a in (room.agents or [])],
         )
 
@@ -218,3 +248,142 @@ class RoomExport(BaseModel):
 
     room: RoomDetailOut
     messages: list[RoomMessageOut]
+
+
+# ============================================================================
+# WebSocket events
+# ============================================================================
+#
+# These models are the single source of truth for the room WebSocket wire
+# format. The endpoint (``rooms_ws.py``), the chat orchestrator
+# (``room_chat_service.py``) and the connection manager
+# (``room_connection_manager.py``) construct these and serialize them via
+# ``model_dump()`` / ``model_dump_json()`` instead of hand-rolled dicts.
+#
+# CRITICAL: the serialized JSON is a public contract shared with the Flutter
+# client. Field names, types and optionality must not drift. The round-trip
+# test in ``tests/test_room_ws_events.py`` pins the exact serialized shape of
+# every event so accidental drift fails loudly.
+#
+# Each ``type`` field is a ``Literal`` discriminator with a default value, so
+# ``Model(...).model_dump()`` always emits ``{"type": "<name>", ...}`` with the
+# discriminator first (Pydantic preserves field-definition order).
+
+
+class RoomWSMessage(BaseModel):
+    """The message object embedded in a server ``message`` event.
+
+    Mirrors the historic ``_message_to_wire`` dict exactly: ``created_at`` is an
+    ISO-8601 string (or ``None``), everything else passes through unchanged.
+    """
+
+    id: str
+    room_id: str
+    role: RoomMessageRole
+    sender_user_id: str | None = None
+    sender_agent_id: str | None = None
+    content: str
+    meta: dict[str, Any] | None = None
+    created_at: str | None = None
+
+    @classmethod
+    def from_model(cls, msg: Any) -> "RoomWSMessage":
+        return cls(
+            id=msg.id,
+            room_id=msg.room_id,
+            role=msg.role,
+            sender_user_id=msg.sender_user_id,
+            sender_agent_id=msg.sender_agent_id,
+            content=msg.content,
+            meta=msg.meta,
+            created_at=msg.created_at.isoformat() if msg.created_at else None,
+        )
+
+
+# ---- Server → client events ------------------------------------------------
+
+
+class RoomMessageEvent(BaseModel):
+    """A persisted message (user or agent) was added to the room."""
+
+    type: Literal["message"] = "message"
+    message: RoomWSMessage
+
+
+class RoomStreamStartEvent(BaseModel):
+    """An agent is about to stream a reply; clients open a bubble for it."""
+
+    type: Literal["stream_start"] = "stream_start"
+    message_id: str
+    agent_id: str
+    agent_name: str
+
+
+class RoomChunkEvent(BaseModel):
+    """A text delta for the in-flight streaming message."""
+
+    type: Literal["chunk"] = "chunk"
+    message_id: str
+    agent_id: str
+    content: str
+
+
+class RoomThinkingEvent(BaseModel):
+    """A reasoning / thought delta for the in-flight streaming message.
+
+    Note: the canonical type is ``thinking``. The frontend keeps a legacy
+    alias for the old ``thinking_chunk`` type, so servers only ever emit
+    ``thinking``.
+    """
+
+    type: Literal["thinking"] = "thinking"
+    message_id: str
+    agent_id: str
+    content: str
+
+
+class RoomDoneEvent(BaseModel):
+    """The agent finished streaming ``message_id``."""
+
+    type: Literal["done"] = "done"
+    message_id: str
+    agent_id: str
+
+
+class RoomPresenceEvent(BaseModel):
+    """The set of currently-connected user ids (emails) for the room."""
+
+    type: Literal["presence"] = "presence"
+    online: list[str]
+
+
+class RoomTypingEvent(BaseModel):
+    """A user's typing indicator, broadcast to the room."""
+
+    type: Literal["typing"] = "typing"
+    user_id: str
+    typing: bool
+
+
+class RoomErrorEvent(BaseModel):
+    """A per-connection error (invalid JSON, unknown event, post failure)."""
+
+    type: Literal["error"] = "error"
+    error: str
+
+
+# ---- Client → server commands ----------------------------------------------
+
+
+class RoomPostCommand(BaseModel):
+    """Client asks to post a user message to the room."""
+
+    type: Literal["post"] = "post"
+    content: str
+
+
+class RoomTypingCommand(BaseModel):
+    """Client broadcasts its own typing state."""
+
+    type: Literal["typing"] = "typing"
+    typing: bool = False

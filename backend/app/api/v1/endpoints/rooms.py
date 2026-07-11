@@ -88,7 +88,7 @@ async def create_room(
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,
             detail=f"Unknown user email(s): {', '.join(e.emails)}",
-        )
+        ) from e
     return RoomDetailOut.from_model(room)
 
 
@@ -162,10 +162,10 @@ async def update_room(
             mode=data.mode,
             owner_id=data.owner_id,
         )
-    except RoomNotFoundError:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Room not found")
+    except RoomNotFoundError as e:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Room not found") from e
     except RoomPermissionError as e:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, detail=str(e))
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail=str(e)) from e
     return RoomDetailOut.from_model(room)
 
 
@@ -182,10 +182,10 @@ async def delete_room(
 ) -> None:
     try:
         await service.delete(room_id=room_id, user_id=current_user["email"])
-    except RoomNotFoundError:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Room not found")
+    except RoomNotFoundError as e:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Room not found") from e
     except RoomPermissionError as e:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, detail=str(e))
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail=str(e)) from e
 
 
 # -------------------------------------------------------------------- Members
@@ -203,7 +203,7 @@ async def list_members(
 ) -> list[RoomMemberOut]:
     await _require_member(service, room_id, current_user["email"])
     members = await service.list_members(room_id)
-    return [RoomMemberOut.model_validate(m) for m in members]
+    return [RoomMemberOut.from_model(m) for m in members]
 
 
 @router.post(
@@ -225,11 +225,11 @@ async def add_member(
             new_user_id=data.user_id,
             role=data.role,
         )
-    except RoomNotFoundError:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Room not found")
+    except RoomNotFoundError as e:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Room not found") from e
     except RoomPermissionError as e:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, detail=str(e))
-    return RoomMemberOut.model_validate(member)
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail=str(e)) from e
+    return RoomMemberOut.from_model(member)
 
 
 @router.delete(
@@ -250,10 +250,10 @@ async def remove_member(
             user_id=current_user["email"],
             target_user_id=user_email,
         )
-    except RoomNotFoundError:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Room not found")
+    except RoomNotFoundError as e:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Room not found") from e
     except RoomPermissionError as e:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, detail=str(e))
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail=str(e)) from e
 
 
 # --------------------------------------------------------------------- Agents
@@ -300,10 +300,10 @@ async def add_agent(
             is_active=data.is_active,
             is_moderator=data.is_moderator,
         )
-    except RoomNotFoundError:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Room not found")
+    except RoomNotFoundError as e:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Room not found") from e
     except RoomPermissionError as e:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, detail=str(e))
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail=str(e)) from e
     return RoomAgentOut.model_validate(agent)
 
 
@@ -327,10 +327,10 @@ async def update_agent(
             agent_id=agent_id,
             **payload,
         )
-    except RoomNotFoundError:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Not found")
+    except RoomNotFoundError as e:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Not found") from e
     except RoomPermissionError as e:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, detail=str(e))
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail=str(e)) from e
     return RoomAgentOut.model_validate(agent)
 
 
@@ -350,10 +350,10 @@ async def delete_agent(
         await service.delete_agent(
             room_id=room_id, user_id=current_user["email"], agent_id=agent_id
         )
-    except RoomNotFoundError:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Not found")
+    except RoomNotFoundError as e:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Not found") from e
     except RoomPermissionError as e:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, detail=str(e))
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail=str(e)) from e
 
 
 # ------------------------------------------------------------------- Messages

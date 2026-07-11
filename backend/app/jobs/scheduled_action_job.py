@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 
+from app.core.config import get_settings
 from app.db.session import async_session_maker
 from app.services.chat_service import ChatService
 from app.services.conversation_service import ConversationService
@@ -41,7 +42,7 @@ async def run_scheduled_action(action_id: str) -> None:
         conversation = await convs.create(
             user_id=user_id,
             title=f"⏰ {title}",
-            model=action.model or "llama3.2",
+            model=action.model or get_settings().default_model,
             system_prompt=action.system_prompt,
         )
 

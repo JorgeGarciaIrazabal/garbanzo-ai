@@ -33,6 +33,9 @@ migrate_working_dir/
 /build/
 /coverage/
 
+# Flutter desktop-run log files dropped at the repo root (e.g. flutter_01.log)
+flutter_*.log
+
 # Symbolication related
 app.*.symbols
 

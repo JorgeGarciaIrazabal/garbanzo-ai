@@ -3,7 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
-import '../../../core/api_client.dart';
+import 'package:garbanzo_ai/core/api_client.dart';
 
 /// A TTS voice available from the backend.
 class VoiceOption {

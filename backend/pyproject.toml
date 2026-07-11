@@ -60,8 +60,14 @@ target-version = "py312"
 line-length = 100
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "N", "W", "UP"]
+select = ["E", "F", "I", "N", "W", "UP", "B", "SIM", "ASYNC"]
 ignore = ["E501"]
+
+# FastAPI's `Depends(...)` / `Query(...)` / etc. as argument defaults is the
+# framework's intended, documented pattern (not the mutable-default-argument
+# footgun B008 targets) — see astral-sh/ruff#4103 and FastAPI's own docs.
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["fastapi.Depends", "fastapi.params.Depends"]
 
 [tool.ruff.format]
 quote-style = "double"

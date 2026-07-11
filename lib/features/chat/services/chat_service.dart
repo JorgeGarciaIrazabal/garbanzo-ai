@@ -4,11 +4,12 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
-import '../../../core/api_client.dart';
-import '../models/chat_attachment.dart';
-import '../models/chat_message.dart';
-import '../models/conversation.dart';
-import '../models/model_info.dart';
+import 'package:garbanzo_ai/core/log.dart';
+import 'package:garbanzo_ai/core/api_client.dart';
+import 'package:garbanzo_ai/features/chat/models/chat_attachment.dart';
+import 'package:garbanzo_ai/features/chat/models/chat_message.dart';
+import 'package:garbanzo_ai/features/chat/models/conversation.dart';
+import 'package:garbanzo_ai/features/chat/models/model_info.dart';
 
 /// Service for interacting with the chat API.
 ///
@@ -292,10 +293,7 @@ Stream<ChatResponseChunk> parseSseChunks(Stream<String> chunks) async* {
           final decoded = jsonDecode(jsonStr) as Map<String, dynamic>;
           yield ChatResponseChunk.fromJson(decoded);
         } catch (e) {
-          if (kDebugMode) {
-            // ignore: avoid_print
-            print('Failed to parse SSE chunk: $jsonStr');
-          }
+          logDebug('Failed to parse SSE chunk: $jsonStr');
         }
       }
     }

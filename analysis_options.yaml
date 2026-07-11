@@ -13,7 +13,6 @@ analyzer:
   errors:
     invalid_annotation_target: ignore
     depend_on_referenced_packages: ignore
-    deprecated_member_use: ignore
 
 linter:
   # The lint rules applied to this project can be customized in the
@@ -29,6 +28,9 @@ linter:
   rules:
     # avoid_print: false  # Uncomment to disable the `avoid_print` rule
     # prefer_single_quotes: true  # Uncomment to enable the `prefer_single_quotes` rule
+    always_use_package_imports: true
+    prefer_final_locals: true
+    unawaited_futures: true
 
 # Additional information about this file can be found at
 # https://dart.dev/guides/language/analysis-options

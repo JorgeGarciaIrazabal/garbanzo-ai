@@ -50,7 +50,7 @@ void main() {
       await provider.load();
 
       expect(provider.actions, isEmpty);
-      expect(provider.error, contains('network down'));
+      expect(provider.error, contains('Failed to load scheduled actions'));
       expect(provider.loading, isFalse);
     });
   });
@@ -95,7 +95,7 @@ void main() {
         cronExpr: '0 9 * * *',
       );
       expect(result, isNull);
-      expect(provider.error, contains('bad cron'));
+      expect(provider.error, contains('Failed to create scheduled action'));
       expect(provider.actions, isEmpty);
     });
   });
@@ -144,7 +144,7 @@ void main() {
       await provider.load();
       await provider.setActive('1', false);
 
-      expect(provider.error, contains('server down'));
+      expect(provider.error, contains('Failed to update scheduled action'));
       expect(provider.actions.single.isActive, isTrue);
     });
   });
@@ -171,7 +171,7 @@ void main() {
       await provider.delete('1');
 
       expect(provider.actions, hasLength(1));
-      expect(provider.error, contains('nope'));
+      expect(provider.error, contains('Failed to delete scheduled action'));
     });
   });
 

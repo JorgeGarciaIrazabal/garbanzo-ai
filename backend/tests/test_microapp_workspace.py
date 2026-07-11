@@ -16,6 +16,7 @@ import pytest
 
 from app.core.config import Settings
 from app.services.microapp_workspace import (
+    FeatureDisabledError,
     MicroappWorkspaceManager,
     WorkspaceError,
     slugify_email,
@@ -251,5 +252,5 @@ def test_feature_disabled_manager():
         )
     )
     assert mgr.enabled is False
-    with pytest.raises(Exception):
+    with pytest.raises(FeatureDisabledError):
         mgr.status(EMAIL)

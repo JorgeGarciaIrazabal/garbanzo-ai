@@ -155,7 +155,7 @@ class MemoryService:
 
     @staticmethod
     def _cosine(a, b) -> float:
-        dot = sum(x * y for x, y in zip(a, b))
+        dot = sum(x * y for x, y in zip(a, b, strict=True))
         norm_a = sum(x * x for x in a) ** 0.5
         norm_b = sum(y * y for y in b) ** 0.5
         if norm_a == 0 or norm_b == 0:
@@ -194,7 +194,7 @@ class MemoryService:
         existing_vectors = [m.embedding for m in existing if m.embedding is not None]
         kept_texts: list[str] = []
         kept_vectors: list[list[float] | None] = []
-        for text, vector in zip(texts, vectors):
+        for text, vector in zip(texts, vectors, strict=True):
             duplicate = any(
                 self._cosine(vector, other) >= _DUPLICATE_SIMILARITY
                 for other in existing_vectors
@@ -229,7 +229,7 @@ class MemoryService:
         except Exception as e:
             logger.warning("Memory embedding backfill skipped: %s", e)
             return 0
-        for memory, vector in zip(missing, vectors):
+        for memory, vector in zip(missing, vectors, strict=True):
             memory.embedding = vector
         await self.db.commit()
         logger.info(

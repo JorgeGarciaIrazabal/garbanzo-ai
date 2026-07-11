@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 
-import '../../../core/api_client.dart';
-import '../services/microapp_service.dart';
+import 'package:garbanzo_ai/core/api_client.dart';
+import 'package:garbanzo_ai/features/microapps/services/microapp_service.dart';
 
 /// Drives the live micro-app panel shown beside the main chat.
 ///

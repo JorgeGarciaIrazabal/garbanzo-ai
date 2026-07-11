@@ -2,8 +2,8 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'http_adapter/http_adapter_stub.dart'
-    if (dart.library.js_interop) 'http_adapter/http_adapter_web.dart';
+import 'package:garbanzo_ai/core/http_adapter/http_adapter_stub.dart'
+    if (dart.library.js_interop) 'package:garbanzo_ai/core/http_adapter/http_adapter_web.dart';
 
 const _apiBaseUrl = String.fromEnvironment(
   'API_BASE_URL',

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../models/mcp_server.dart';
-import '../providers/admin_provider.dart';
-import 'mcp_server_dialog.dart';
+import 'package:garbanzo_ai/features/admin/models/mcp_server.dart';
+import 'package:garbanzo_ai/features/admin/providers/admin_provider.dart';
+import 'package:garbanzo_ai/features/admin/widgets/mcp_server_dialog.dart';
 
 /// Tab rendering the list of configured MCP servers.
 class MCPServersTab extends StatefulWidget {

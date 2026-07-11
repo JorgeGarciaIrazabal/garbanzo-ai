@@ -1,5 +1,5 @@
-import '../../../core/api_client.dart';
-import '../models/app_notification.dart';
+import 'package:garbanzo_ai/core/api_client.dart';
+import 'package:garbanzo_ai/features/notifications/models/app_notification.dart';
 
 class NotificationListResult {
   const NotificationListResult({required this.items, required this.unreadCount});

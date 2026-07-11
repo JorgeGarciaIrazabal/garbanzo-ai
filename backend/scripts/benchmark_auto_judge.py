@@ -824,7 +824,9 @@ async def main() -> None:
     # Also dump per-scenario × per-(model,prompt) breakdown to JSON for
     # post-hoc analysis.
     out_path = "scripts/benchmark_auto_judge_results.json"
-    with open(out_path, "w") as f:
+    # Blocking write is fine here: this is a one-shot CLI benchmark script,
+    # not a request-serving code path, and it's the last thing main() does.
+    with open(out_path, "w") as f:  # noqa: ASYNC230
         json.dump([r.__dict__ for r in results], f, indent=2)
     print(f"\nDetailed results written to {out_path}")
 

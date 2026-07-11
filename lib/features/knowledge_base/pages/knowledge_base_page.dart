@@ -4,8 +4,8 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../models/knowledge_document.dart';
-import '../providers/knowledge_base_provider.dart';
+import 'package:garbanzo_ai/features/knowledge_base/models/knowledge_document.dart';
+import 'package:garbanzo_ai/features/knowledge_base/providers/knowledge_base_provider.dart';
 
 class KnowledgeBasePage extends StatefulWidget {
   const KnowledgeBasePage({super.key});

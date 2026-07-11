@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
-import '../models/mcp_tool.dart';
-import '../providers/tool_provider.dart';
+import 'package:garbanzo_ai/features/tools/models/mcp_tool.dart';
+import 'package:garbanzo_ai/features/tools/providers/tool_provider.dart';
 
 /// Full-page view of every MCP tool available to the current user, grouped
 /// by originating server.

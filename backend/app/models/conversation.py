@@ -5,6 +5,7 @@ from sqlalchemy import DateTime, ForeignKey, Select, String, Text, func, select
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.core.config import get_settings
 from app.db.base import Base
 
 if TYPE_CHECKING:
@@ -25,7 +26,11 @@ class Conversation(Base):
         index=True,
     )
     title: Mapped[str | None] = mapped_column(String(200), nullable=True)
-    model: Mapped[str] = mapped_column(String(100), nullable=False, default="llama3.2")
+    model: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False,
+        default=lambda: get_settings().default_model,
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

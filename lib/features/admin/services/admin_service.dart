@@ -1,8 +1,8 @@
 import 'package:dio/dio.dart';
 
-import '../../../core/api_client.dart';
-import '../models/admin_user.dart';
-import '../models/mcp_server.dart';
+import 'package:garbanzo_ai/core/api_client.dart';
+import 'package:garbanzo_ai/features/admin/models/admin_user.dart';
+import 'package:garbanzo_ai/features/admin/models/mcp_server.dart';
 
 /// HTTP service for admin endpoints (users + MCP servers).
 ///

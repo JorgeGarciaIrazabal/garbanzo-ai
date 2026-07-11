@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../core/auth_service.dart';
-import '../core/widgets/auth_form_layout.dart';
+import 'package:garbanzo_ai/core/auth_service.dart';
+import 'package:garbanzo_ai/core/guarded_state.dart';
+import 'package:garbanzo_ai/core/widgets/auth_form_layout.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({
@@ -63,7 +64,7 @@ class _RegisterPageState extends State<RegisterPage> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = 'An unexpected error occurred. Please try again.';
+        _error = describeFailure(e);
       });
     }
   }

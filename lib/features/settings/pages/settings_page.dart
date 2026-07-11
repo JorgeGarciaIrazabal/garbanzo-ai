@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../core/auth_service.dart';
-import '../../chat/providers/model_provider.dart';
-import '../../chat/providers/system_prompt_provider.dart';
-import '../../chat/services/audio_service.dart';
-import '../../chat/widgets/system_prompt_editor_dialog.dart';
-import '../../notifications/providers/notification_provider.dart';
-import '../../usage/pages/usage_page.dart';
-import '../providers/settings_provider.dart';
-import '../widgets/profile_section.dart';
+import 'package:garbanzo_ai/core/auth_service.dart';
+import 'package:garbanzo_ai/features/chat/providers/model_provider.dart';
+import 'package:garbanzo_ai/features/chat/providers/system_prompt_provider.dart';
+import 'package:garbanzo_ai/features/chat/services/audio_service.dart';
+import 'package:garbanzo_ai/features/chat/widgets/system_prompt_editor_dialog.dart';
+import 'package:garbanzo_ai/features/notifications/providers/notification_provider.dart';
+import 'package:garbanzo_ai/features/usage/pages/usage_page.dart';
+import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
+import 'package:garbanzo_ai/features/settings/widgets/profile_section.dart';
 
 /// Dedicated settings screen. Navigation target for `/settings`.
 ///

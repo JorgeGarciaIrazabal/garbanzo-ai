@@ -4,10 +4,10 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../settings/providers/settings_provider.dart';
-import '../../services/audio_service.dart';
-import '../../utils/text_cleaner.dart';
-import 'message_action_button.dart';
+import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
+import 'package:garbanzo_ai/features/chat/services/audio_service.dart';
+import 'package:garbanzo_ai/features/chat/utils/text_cleaner.dart';
+import 'package:garbanzo_ai/features/chat/widgets/message/message_action_button.dart';
 
 /// Speak button for TTS playback of assistant messages.
 ///
@@ -99,7 +99,7 @@ class _SpeakButtonState extends State<SpeakButton> {
 
         // Fresh player per chunk — reusing the same player for sequential
         // play() calls is unreliable across platforms (web, Android, Linux).
-        _player?.dispose();
+        unawaited(_player?.dispose());
         _player = AudioPlayer();
 
         if (i == 0 && mounted) {

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../providers/microapp_panel_controller.dart';
-import '../services/microapp_service.dart';
-import 'micro_app_view.dart';
+import 'package:garbanzo_ai/features/microapps/providers/microapp_panel_controller.dart';
+import 'package:garbanzo_ai/features/microapps/services/microapp_service.dart';
+import 'package:garbanzo_ai/features/microapps/widgets/micro_app_view.dart';
 
 /// The live micro-app view shown beside the chat. Header (house name + reload /
 /// publish / revert / close) over a dumb [MicroAppView]. Used both as a side

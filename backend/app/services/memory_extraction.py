@@ -6,6 +6,7 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import get_settings
 from app.models.conversation import Conversation
 from app.models.memory import UserMemory
 from app.models.message import Message
@@ -115,12 +116,13 @@ class MemoryExtractionService:
         self,
         user_id: str,
         conversations: list[Conversation],
-        model: str = "llama3.2",
+        model: str | None = None,
     ) -> list[str]:
         """Use LLM to extract memories from a list of conversations.
 
         Returns a list of memory content strings.
         """
+        model = model or get_settings().default_model
         if not conversations:
             return []
 
@@ -191,12 +193,13 @@ class MemoryExtractionService:
         self,
         user_id: str,
         hours: int = 24,
-        model: str = "llama3.2",
+        model: str | None = None,
     ) -> list[UserMemory]:
         """Extract memories from recent conversations and store them.
 
         Returns the list of created memory records.
         """
+        model = model or get_settings().default_model
         # Fetch recent conversations
         conversations = await self.fetch_recent_conversations(user_id, hours=hours)
 
@@ -230,7 +233,7 @@ class MemoryExtractionService:
         source_conv_id = conversations[0].id if conversations else None
         created_memories = []
 
-        for content, embedding in zip(memory_contents, embeddings):
+        for content, embedding in zip(memory_contents, embeddings, strict=True):
             memory = await self._memory_service.create_memory(
                 user_id=user_id,
                 content=content,
@@ -251,12 +254,13 @@ class MemoryExtractionService:
     async def extract_memories_for_all_users(
         self,
         hours: int = 24,
-        model: str = "llama3.2",
+        model: str | None = None,
     ) -> dict[str, list[UserMemory]]:
         """Extract memories for all users with recent activity.
 
         Returns a dict mapping user_id to their created memories.
         """
+        model = model or get_settings().default_model
         # Find all users with recent conversations
         cutoff = datetime.now(UTC) - timedelta(hours=hours)
 

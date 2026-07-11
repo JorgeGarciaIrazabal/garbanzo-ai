@@ -105,6 +105,17 @@ class RoomMember(Base):
     )
 
     room: Mapped["Room"] = relationship(back_populates="members")
+    # Read-only link to the underlying user, eager-loaded so ``full_name`` is
+    # available wherever members are serialized without triggering a lazy
+    # (sync) load on the async session. ``viewonly`` because membership writes
+    # go through ``user_id`` directly.
+    user: Mapped["User"] = relationship(
+        "User",
+        primaryjoin="RoomMember.user_id == User.email",
+        foreign_keys=[user_id],
+        viewonly=True,
+        lazy="selectin",
+    )
 
 
 class RoomAgent(Base):

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../chat/providers/chat_provider.dart';
-import '../../../tools/providers/tool_provider.dart';
-import 'section_header.dart';
+import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
+import 'package:garbanzo_ai/features/tools/providers/tool_provider.dart';
+import 'package:garbanzo_ai/features/settings/widgets/drawer_sections/section_header.dart';
 
 /// Per-conversation tool-selection UI. Shows nothing until a conversation is
 /// active. Semantics:

@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../core/api_client.dart';
-import '../core/auth_service.dart';
-import '../core/widgets/auth_form_layout.dart';
+import 'package:garbanzo_ai/core/api_client.dart';
+import 'package:garbanzo_ai/core/auth_service.dart';
+import 'package:garbanzo_ai/core/guarded_state.dart';
+import 'package:garbanzo_ai/core/widgets/auth_form_layout.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({
@@ -59,7 +60,10 @@ class _LoginPageState extends State<LoginPage> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = 'An unexpected error occurred. Please try again.';
+        _error = describeFailure(
+          e,
+          unauthorizedMessage: 'Incorrect email or password',
+        );
       });
     }
   }

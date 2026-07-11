@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../providers/chat_provider.dart';
-import '../providers/system_prompt_provider.dart';
-import 'system_prompt_editor_dialog.dart';
+import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
+import 'package:garbanzo_ai/features/chat/providers/system_prompt_provider.dart';
+import 'package:garbanzo_ai/features/chat/widgets/system_prompt_editor_dialog.dart';
 
 /// Collapsible banner shown at the top of a conversation thread that
 /// displays the active system prompt (per-conversation override or the

@@ -3,11 +3,12 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
-import '../../microapps/providers/microapp_panel_controller.dart';
-import '../models/chat_attachment.dart';
-import '../models/chat_message.dart';
-import '../models/conversation.dart';
-import '../services/chat_service.dart';
+import 'package:garbanzo_ai/core/log.dart';
+import 'package:garbanzo_ai/features/microapps/providers/microapp_panel_controller.dart';
+import 'package:garbanzo_ai/features/chat/models/chat_attachment.dart';
+import 'package:garbanzo_ai/features/chat/models/chat_message.dart';
+import 'package:garbanzo_ai/features/chat/models/conversation.dart';
+import 'package:garbanzo_ai/features/chat/services/chat_service.dart';
 
 const _uuid = Uuid();
 
@@ -136,7 +137,7 @@ class ChatProvider extends ChangeNotifier {
       _conversations = list.items;
     } catch (e) {
       _error = 'Failed to load conversations: $e';
-      if (kDebugMode) print(_error);
+      logDebug(_error!);
     } finally {
       _isLoadingConversations = false;
       notifyListeners();
@@ -163,7 +164,7 @@ class ChatProvider extends ChangeNotifier {
       _messages = _hydrateAttachments(conversation.messages ?? []);
     } catch (e) {
       _error = 'Failed to load conversation: $e';
-      if (kDebugMode) print(_error);
+      logDebug(_error!);
     } finally {
       notifyListeners();
     }
@@ -212,7 +213,7 @@ class ChatProvider extends ChangeNotifier {
     } catch (e) {
       _error = 'Failed to create conversation: $e';
       _isSending = false;
-      if (kDebugMode) print(_error);
+      logDebug(_error!);
       notifyListeners();
     }
   }
@@ -250,7 +251,7 @@ class ChatProvider extends ChangeNotifier {
       await _loadConversations();
     } catch (e) {
       _error = 'Failed to update conversation: $e';
-      if (kDebugMode) print(_error);
+      logDebug(_error!);
       notifyListeners();
     }
   }
@@ -271,7 +272,7 @@ class ChatProvider extends ChangeNotifier {
       await _loadConversations();
     } catch (e) {
       _error = 'Failed to pin conversation: $e';
-      if (kDebugMode) print(_error);
+      logDebug(_error!);
       notifyListeners();
     }
   }
@@ -324,7 +325,7 @@ class ChatProvider extends ChangeNotifier {
       // Server-side deletion failed — bring the conversation back.
       _restoreConversation(pending.conversation, pending.index);
       _error = 'Failed to delete conversation: $e';
-      if (kDebugMode) print(_error);
+      logDebug(_error!);
     }
   }
 
@@ -442,7 +443,7 @@ class ChatProvider extends ChangeNotifier {
     } catch (e) {
       _error = 'Failed to send message: $e';
       _isSending = false;
-      if (kDebugMode) print(_error);
+      logDebug(_error!);
       notifyListeners();
     }
   }
@@ -473,7 +474,7 @@ class ChatProvider extends ChangeNotifier {
     } catch (e) {
       _error = 'Failed to regenerate: $e';
       _isSending = false;
-      if (kDebugMode) print(_error);
+      logDebug(_error!);
       notifyListeners();
     }
   }
@@ -507,7 +508,7 @@ class ChatProvider extends ChangeNotifier {
     } catch (e) {
       _error = 'Failed to edit message: $e';
       _isSending = false;
-      if (kDebugMode) print(_error);
+      logDebug(_error!);
       notifyListeners();
     }
   }
@@ -530,7 +531,7 @@ class ChatProvider extends ChangeNotifier {
       await loadConversation(newConv.id);
     } catch (e) {
       _error = 'Failed to branch conversation: $e';
-      if (kDebugMode) print(_error);
+      logDebug(_error!);
       notifyListeners();
     }
   }
@@ -622,7 +623,7 @@ class ChatProvider extends ChangeNotifier {
         _syncStreamingIntoList();
         _error = 'Streaming error: $e';
         _isSending = false;
-        if (kDebugMode) print('Stream error: $e');
+        logDebug('Stream error: $e');
         _clearStreamingState();
         notifyListeners();
       },
@@ -658,7 +659,7 @@ class ChatProvider extends ChangeNotifier {
   }
 
   Future<void> stopStreaming() async {
-    _streamSubscription?.cancel();
+    unawaited(_streamSubscription?.cancel());
     _streamSubscription = null;
     _isSending = false;
     _actionEpoch++;
@@ -677,7 +678,7 @@ class ChatProvider extends ChangeNotifier {
       try {
         await _chatService.stopStreaming(_currentConversation!.id);
       } catch (e) {
-        if (kDebugMode) print('Failed to stop streaming on backend: $e');
+        logDebug('Failed to stop streaming on backend: $e');
       }
     }
   }
@@ -817,7 +818,7 @@ class ChatProvider extends ChangeNotifier {
       _messages = _hydrateAttachments(conversation.messages ?? []);
       notifyListeners();
     } catch (e) {
-      if (kDebugMode) print('Failed to reload conversation: $e');
+      logDebug('Failed to reload conversation: $e');
     }
   }
 

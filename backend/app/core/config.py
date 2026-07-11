@@ -28,6 +28,11 @@ class Settings(BaseSettings):
     llm_provider: str = "ollama"
     ollama_base_url: str = "http://host.docker.internal:11434"
 
+    # Default model for new conversations / scheduled actions / background
+    # jobs when no explicit model is chosen. Must match a model ID returned
+    # by GET /api/v1/chat/models.
+    default_model: str = "llama3.2"
+
     # Context window cap in tokens. The effective window for a conversation
     # is min(model's maximum, this value); it is passed to the provider as
     # num_ctx so the runtime actually allocates that window (Ollama otherwise

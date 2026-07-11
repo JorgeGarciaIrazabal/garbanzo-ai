@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../models/memory.dart';
-import '../providers/memory_provider.dart';
-import '../widgets/memory_list_widget.dart';
+import 'package:garbanzo_ai/features/memory/models/memory.dart';
+import 'package:garbanzo_ai/features/memory/providers/memory_provider.dart';
+import 'package:garbanzo_ai/features/memory/widgets/memory_list_widget.dart';
 
 /// Main page for viewing, editing, and managing memories.
 class MemoryPage extends StatefulWidget {

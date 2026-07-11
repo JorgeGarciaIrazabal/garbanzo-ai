@@ -10,6 +10,7 @@ from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.config import get_settings
 from app.models.conversation import Conversation
 from app.models.message import Message
 
@@ -77,11 +78,12 @@ class ConversationService:
         self,
         user_id: str,
         title: str | None = None,
-        model: str = "llama3.2",
+        model: str | None = None,
         initial_message: str | None = None,
         system_prompt: str | None = None,
     ) -> Conversation:
         conversation_id = str(uuid.uuid4())
+        model = model or get_settings().default_model
 
         if title is None and initial_message:
             title = initial_message[:50] + ("..." if len(initial_message) > 50 else "")

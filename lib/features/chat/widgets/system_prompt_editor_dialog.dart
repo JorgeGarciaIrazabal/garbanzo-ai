@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../models/system_prompt_template.dart';
-import '../providers/system_prompt_provider.dart';
+import 'package:garbanzo_ai/features/chat/models/system_prompt_template.dart';
+import 'package:garbanzo_ai/features/chat/providers/system_prompt_provider.dart';
 
 /// Result returned from [SystemPromptEditorDialog].
 ///

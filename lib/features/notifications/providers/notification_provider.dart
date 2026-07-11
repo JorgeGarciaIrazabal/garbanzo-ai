@@ -2,15 +2,17 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
-import '../models/app_notification.dart';
-import '../services/notification_api_service.dart';
+import 'package:garbanzo_ai/core/guarded_state.dart';
+import 'package:garbanzo_ai/core/log.dart';
+import 'package:garbanzo_ai/features/notifications/models/app_notification.dart';
+import 'package:garbanzo_ai/features/notifications/services/notification_api_service.dart';
 
 /// Provider for the in-app notification center.
 ///
 /// Holds the list of notifications plus an unread count badge. Polls the
 /// backend periodically while the app is in the foreground so the badge stays
 /// roughly current without pushing new state over FCM to the Flutter side.
-class NotificationProvider extends ChangeNotifier {
+class NotificationProvider extends ChangeNotifier with GuardedStateMixin {
   NotificationProvider() {
     refresh();
     _pollTimer = Timer.periodic(
@@ -24,16 +26,12 @@ class NotificationProvider extends ChangeNotifier {
 
   List<AppNotification> _items = [];
   int _unreadCount = 0;
-  bool _isLoading = false;
-  String? _error;
 
   NotificationPreferences? _preferences;
   bool _loadingPreferences = false;
 
   List<AppNotification> get items => List.unmodifiable(_items);
   int get unreadCount => _unreadCount;
-  bool get isLoading => _isLoading;
-  String? get error => _error;
   NotificationPreferences? get preferences => _preferences;
   bool get loadingPreferences => _loadingPreferences;
 
@@ -44,20 +42,11 @@ class NotificationProvider extends ChangeNotifier {
   }
 
   Future<void> refresh() async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-    try {
+    await runGuarded('Failed to load notifications', () async {
       final result = await _api.list();
       _items = result.items;
       _unreadCount = result.unreadCount;
-    } catch (e) {
-      _error = 'Failed to load notifications: $e';
-      if (kDebugMode) debugPrint(_error);
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
+    });
   }
 
   Future<void> _refreshUnreadCount() async {
@@ -86,7 +75,7 @@ class NotificationProvider extends ChangeNotifier {
     try {
       await _api.markRead(id);
     } catch (e) {
-      if (kDebugMode) debugPrint('markRead failed: $e');
+      logDebug('markRead failed: $e');
     }
   }
 
@@ -98,7 +87,7 @@ class NotificationProvider extends ChangeNotifier {
     try {
       await _api.markAllRead();
     } catch (e) {
-      if (kDebugMode) debugPrint('markAllRead failed: $e');
+      logDebug('markAllRead failed: $e');
     }
   }
 
@@ -109,7 +98,7 @@ class NotificationProvider extends ChangeNotifier {
       await _api.delete(id);
       await _refreshUnreadCount();
     } catch (e) {
-      if (kDebugMode) debugPrint('delete failed: $e');
+      logDebug('delete failed: $e');
     }
   }
 
@@ -122,7 +111,7 @@ class NotificationProvider extends ChangeNotifier {
     try {
       _preferences = await _api.getPreferences();
     } catch (e) {
-      if (kDebugMode) debugPrint('loadPreferences failed: $e');
+      logDebug('loadPreferences failed: $e');
     } finally {
       _loadingPreferences = false;
       notifyListeners();
@@ -155,7 +144,7 @@ class NotificationProvider extends ChangeNotifier {
       );
       notifyListeners();
     } catch (e) {
-      if (kDebugMode) debugPrint('updatePreferences failed: $e');
+      logDebug('updatePreferences failed: $e');
       await loadPreferences();
     }
   }

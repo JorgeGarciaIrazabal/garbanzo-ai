@@ -83,7 +83,7 @@ class _RoomsSidebarState extends State<RoomsSidebar> {
               color: cs.surfaceContainerLow,
               border: Border(
                 right: BorderSide(
-                  color: cs.outlineVariant.withOpacity(0.5),
+                  color: cs.outlineVariant.withValues(alpha: 0.5),
                 ),
               ),
             ),
@@ -134,7 +134,7 @@ class _Header extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(12, 14, 12, 14),
           decoration: BoxDecoration(
             border: Border(
-              bottom: BorderSide(color: cs.outlineVariant.withOpacity(0.5)),
+              bottom: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.5)),
             ),
           ),
           child: Row(
@@ -178,7 +178,7 @@ class _NewRoomBar extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
       decoration: BoxDecoration(
         border: Border(
-          bottom: BorderSide(color: cs.outlineVariant.withOpacity(0.5)),
+          bottom: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.5)),
         ),
       ),
       child: Row(

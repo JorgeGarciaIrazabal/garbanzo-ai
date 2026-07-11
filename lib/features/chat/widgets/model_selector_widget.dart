@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../models/model_info.dart';
+import 'package:garbanzo_ai/features/chat/models/model_info.dart';
 
 /// Dropdown for selecting the LLM model.
 class ModelSelectorWidget extends StatelessWidget {
@@ -65,7 +65,7 @@ class ModelSelectorWidget extends StatelessWidget {
                     Text(
                       model.description!,
                       style: theme.textTheme.labelSmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+                        color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),

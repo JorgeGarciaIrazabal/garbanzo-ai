@@ -1,7 +1,7 @@
 import 'package:dio/dio.dart';
 
-import '../../../core/api_client.dart';
-import '../models/mcp_tool.dart';
+import 'package:garbanzo_ai/core/api_client.dart';
+import 'package:garbanzo_ai/features/tools/models/mcp_tool.dart';
 
 /// Service for fetching the set of MCP tools available to the current user.
 class ToolService {

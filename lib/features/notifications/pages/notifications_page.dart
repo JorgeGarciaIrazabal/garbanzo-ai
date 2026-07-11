@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../models/app_notification.dart';
-import '../providers/notification_provider.dart';
+import 'package:garbanzo_ai/features/notifications/models/app_notification.dart';
+import 'package:garbanzo_ai/features/notifications/providers/notification_provider.dart';
 
 class NotificationsPage extends StatefulWidget {
   const NotificationsPage({super.key});

@@ -1,5 +1,5 @@
-import '../../../core/api_client.dart';
-import '../models/system_prompt_template.dart';
+import 'package:garbanzo_ai/core/api_client.dart';
+import 'package:garbanzo_ai/features/chat/models/system_prompt_template.dart';
 
 /// Client for the `/api/v1/system-prompts` endpoints.
 class SystemPromptService {

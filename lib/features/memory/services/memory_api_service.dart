@@ -1,5 +1,5 @@
-import '../../../core/api_client.dart';
-import '../models/memory.dart';
+import 'package:garbanzo_ai/core/api_client.dart';
+import 'package:garbanzo_ai/features/memory/models/memory.dart';
 
 /// Service for interacting with the Memory API.
 ///

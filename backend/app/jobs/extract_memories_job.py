@@ -2,6 +2,7 @@
 
 import logging
 
+from app.core.config import get_settings
 from app.db.session import async_session_maker
 from app.services.memory_extraction import MemoryExtractionService
 
@@ -9,13 +10,12 @@ logger = logging.getLogger(__name__)
 
 # Job configuration defaults
 DEFAULT_HOUR = 2  # 2 AM
-DEFAULT_MODEL = "llama3.2"
 DEFAULT_LOOKBACK_HOURS = 24
 
 
 async def run_memory_extraction_job(
     hour: int = DEFAULT_HOUR,
-    model: str = DEFAULT_MODEL,
+    model: str | None = None,
     lookback_hours: int = DEFAULT_LOOKBACK_HOURS,
 ) -> None:
     """Run the memory extraction job.
@@ -27,9 +27,11 @@ async def run_memory_extraction_job(
 
     Args:
         hour: The hour of day to run (for logging purposes)
-        model: The LLM model to use for extraction
+        model: The LLM model to use for extraction (defaults to
+            ``settings.default_model``)
         lookback_hours: How many hours of conversation history to analyze
     """
+    model = model or get_settings().default_model
     logger.info("Starting memory extraction job (model=%s, lookback=%dh)", model, lookback_hours)
 
     async with async_session_maker() as db:

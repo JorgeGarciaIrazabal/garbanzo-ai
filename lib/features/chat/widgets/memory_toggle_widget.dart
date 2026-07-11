@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../providers/chat_provider.dart';
+import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
 
 /// A toggle switch to enable/disable memory injection for the current conversation.
 ///
@@ -74,8 +74,8 @@ class _MemoryToggleWidgetState extends State<MemoryToggleWidget> {
           Switch(
             value: useMemory,
             onChanged: _isUpdating ? null : (_) => _toggleMemory(),
-            activeColor: Theme.of(context).colorScheme.primary,
-            activeTrackColor: Theme.of(context).colorScheme.primary.withOpacity(0.5),
+            activeThumbColor: Theme.of(context).colorScheme.primary,
+            activeTrackColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5),
           ),
           if (_isUpdating) ...[
             const SizedBox(width: 8),

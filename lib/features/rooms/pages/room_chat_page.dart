@@ -4,9 +4,11 @@ import 'package:provider/provider.dart';
 import 'package:garbanzo_ai/core/auth_service.dart';
 import 'package:garbanzo_ai/core/reading_column.dart';
 import 'package:garbanzo_ai/core/responsive.dart';
+import 'package:garbanzo_ai/core/smart_scroll_controller.dart';
 import 'package:garbanzo_ai/features/chat/widgets/input/message_composer.dart';
 import 'package:garbanzo_ai/features/rooms/models/room_models.dart';
 import 'package:garbanzo_ai/features/rooms/providers/room_provider.dart';
+import 'package:garbanzo_ai/features/rooms/services/room_socket_service.dart';
 import 'package:garbanzo_ai/features/rooms/widgets/add_agent_dialog.dart';
 import 'package:garbanzo_ai/features/rooms/widgets/room_message_bubble.dart';
 import 'package:garbanzo_ai/features/rooms/widgets/rooms_sidebar.dart';
@@ -33,23 +35,38 @@ class _RoomChatPageBody extends StatefulWidget {
 }
 
 class _RoomChatPageBodyState extends State<_RoomChatPageBody> {
-  final _scrollCtrl = ScrollController();
+  final _scroll = SmartScrollController();
+  RoomProvider? _providerRef;
+
+  @override
+  void initState() {
+    super.initState();
+    _scroll.attach();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Follow the live streaming bubble as it grows. Agent chunk updates flow
+    // through the ValueNotifier (not notifyListeners), so the scroll-follow
+    // needs its own listener.
+    final provider = context.read<RoomProvider>();
+    if (!identical(provider, _providerRef)) {
+      _providerRef?.streamingMessage.removeListener(_onStreamingUpdate);
+      _providerRef = provider;
+      provider.streamingMessage.addListener(_onStreamingUpdate);
+    }
+  }
 
   @override
   void dispose() {
-    _scrollCtrl.dispose();
+    _providerRef?.streamingMessage.removeListener(_onStreamingUpdate);
+    _scroll.dispose();
     super.dispose();
   }
 
-  void _autoScroll() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_scrollCtrl.hasClients) return;
-      _scrollCtrl.animateTo(
-        _scrollCtrl.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 160),
-        curve: Curves.easeOut,
-      );
-    });
+  void _onStreamingUpdate() {
+    if (mounted) _scroll.followStreaming();
   }
 
   @override
@@ -60,11 +77,14 @@ class _RoomChatPageBodyState extends State<_RoomChatPageBody> {
     final colorScheme = theme.colorScheme;
     final me = AuthService.instance.cachedUser?.email;
     final messages = provider.messages;
-    _autoScroll();
 
-    final lastMsg = messages.isEmpty ? null : messages.last;
-    final lastIsStreamingAgent = lastMsg != null &&
-        lastMsg.senderAgentId != null;
+    final lastSenderIsMe =
+        messages.isNotEmpty && messages.last.senderUserId == me;
+    _scroll.handleStructural(
+      itemCount: messages.length,
+      containerId: room?.id,
+      forceFollow: lastSenderIsMe,
+    );
 
     final showSidebar = context.isWide;
 
@@ -78,38 +98,49 @@ class _RoomChatPageBodyState extends State<_RoomChatPageBody> {
                   onDismiss: () =>
                       room != null ? provider.openRoom(room.id) : null,
                 ),
+              _ConnectionBanner(
+                state: provider.connectionState,
+                onRetry: provider.retryConnection,
+              ),
               Expanded(
                 child: messages.isEmpty
                     ? _EmptyState(room: room)
-                    : ListView.builder(
-                        controller: _scrollCtrl,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        itemCount: messages.length,
-                        itemBuilder: (_, i) {
-                          final m = messages[i];
-                          final isLast = i == messages.length - 1;
-                          return ReadingColumn(
-                            child: RoomMessageBubble(
-                              message: m,
-                              room: room,
-                              currentUserEmail: me,
-                              isStreaming: isLast &&
-                                  lastIsStreamingAgent &&
-                                  // Streaming placeholders have empty
-                                  // content until done; we treat the last
-                                  // agent message as streaming only if it's
-                                  // still empty (the provider replaces with
-                                  // the canonical message when done).
-                                  m.content.isEmpty,
+                    : Stack(
+                        children: [
+                          _buildMessageList(provider, room, me),
+                          Positioned(
+                            right: 16,
+                            bottom: 12,
+                            child: ValueListenableBuilder<bool>(
+                              valueListenable: _scroll.showJumpToBottom,
+                              builder: (context, show, _) => AnimatedSwitcher(
+                                duration: const Duration(milliseconds: 150),
+                                child: show
+                                    ? FloatingActionButton.small(
+                                        heroTag: 'room_jump_to_bottom',
+                                        tooltip: 'Jump to latest message',
+                                        onPressed: () =>
+                                            _scroll.scrollToBottom(),
+                                        child: const Icon(
+                                            Icons.keyboard_arrow_down),
+                                      )
+                                    : const SizedBox.shrink(),
+                              ),
                             ),
-                          );
-                        },
+                          ),
+                        ],
                       ),
+              ),
+              _TypingStrip(
+                typingUsers: provider.typingUsers,
+                room: room,
               ),
               MessageComposer(
                 enabled: room != null,
                 hintText: 'Message the room… (use @AgentName or @all)',
                 onSend: (text) => provider.sendMessage(text),
+                onChanged: provider.handleComposerChanged,
+                onBlur: provider.handleComposerBlur,
               ),
             ],
           );
@@ -159,6 +190,46 @@ class _RoomChatPageBodyState extends State<_RoomChatPageBody> {
     );
   }
 
+  Widget _buildMessageList(
+    RoomProvider provider,
+    Room? room,
+    String? me,
+  ) {
+    final messages = provider.messages;
+    return ListView.builder(
+      controller: _scroll.controller,
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      itemCount: messages.length,
+      itemBuilder: (_, i) {
+        final m = messages[i];
+
+        Widget bubble(RoomMessage msg, {required bool isStreaming}) =>
+            ReadingColumn(
+              child: RoomMessageBubble(
+                message: msg,
+                room: room,
+                currentUserEmail: me,
+                isStreaming: isStreaming,
+              ),
+            );
+
+        // The in-flight agent bubble subscribes to the streaming channel
+        // directly, so per-chunk updates repaint only this one widget instead
+        // of the whole list.
+        if (m.id == provider.streamingMessageId) {
+          return ValueListenableBuilder<RoomMessage?>(
+            valueListenable: provider.streamingMessage,
+            builder: (context, live, _) => bubble(
+              live != null && live.id == m.id ? live : m,
+              isStreaming: true,
+            ),
+          );
+        }
+        return bubble(m, isStreaming: false);
+      },
+    );
+  }
+
   void _showRoomsDrawer(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -202,6 +273,130 @@ class _RoomChatPageBodyState extends State<_RoomChatPageBody> {
   }
 }
 
+/// Slim banner shown while the socket is reconnecting or has given up.
+class _ConnectionBanner extends StatelessWidget {
+  const _ConnectionBanner({required this.state, required this.onRetry});
+
+  final RoomConnectionState state;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    switch (state) {
+      case RoomConnectionState.reconnecting:
+        return Container(
+          width: double.infinity,
+          color: cs.secondaryContainer,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 13,
+                height: 13,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: cs.onSecondaryContainer,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Reconnecting…',
+                  style:
+                      TextStyle(color: cs.onSecondaryContainer, fontSize: 13),
+                ),
+              ),
+            ],
+          ),
+        );
+      case RoomConnectionState.failed:
+        return Container(
+          width: double.infinity,
+          color: cs.errorContainer,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          child: Row(
+            children: [
+              Icon(Icons.cloud_off, size: 16, color: cs.onErrorContainer),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Connection lost.',
+                  style: TextStyle(color: cs.onErrorContainer, fontSize: 13),
+                ),
+              ),
+              TextButton(
+                onPressed: onRetry,
+                style: TextButton.styleFrom(
+                  foregroundColor: cs.onErrorContainer,
+                  visualDensity: VisualDensity.compact,
+                ),
+                child: const Text('Try again'),
+              ),
+            ],
+          ),
+        );
+      case RoomConnectionState.connecting:
+      case RoomConnectionState.connected:
+      case RoomConnectionState.closed:
+        return const SizedBox.shrink();
+    }
+  }
+}
+
+/// "X is typing…" strip rendered just above the composer.
+class _TypingStrip extends StatelessWidget {
+  const _TypingStrip({required this.typingUsers, required this.room});
+
+  final List<String> typingUsers;
+  final Room? room;
+
+  String _label() {
+    final names = typingUsers.map(_displayName).toList();
+    if (names.isEmpty) return '';
+    if (names.length == 1) return '${names[0]} is typing…';
+    if (names.length == 2) return '${names[0]} and ${names[1]} are typing…';
+    return 'Several people are typing…';
+  }
+
+  String _displayName(String userId) {
+    final members = room?.members ?? const [];
+    for (final m in members) {
+      if (m.userId == userId) return m.displayName;
+    }
+    return userId.contains('@') ? userId.split('@').first : userId;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final label = _label();
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 150),
+      alignment: Alignment.bottomCenter,
+      child: label.isEmpty
+          ? const SizedBox(width: double.infinity)
+          : ReadingColumn(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 2, 16, 4),
+                child: Row(
+                  children: [
+                    Text(
+                      label,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: cs.onSurfaceVariant,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+    );
+  }
+}
+
 class _EmptyState extends StatelessWidget {
   const _EmptyState({required this.room});
   final Room? room;
@@ -217,7 +412,7 @@ class _EmptyState extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.forum_outlined,
-                size: 64, color: cs.primary.withOpacity(0.5)),
+                size: 64, color: cs.primary.withValues(alpha: 0.5)),
             const SizedBox(height: 16),
             Text(
               'Welcome to ${room?.name ?? 'this room'}',
@@ -299,13 +494,14 @@ class _MembersAgentsPanel extends StatelessWidget {
                   : Colors.grey,
               child: const Icon(Icons.person, size: 18, color: Colors.white),
             ),
-            title: Text(m.userId),
-            subtitle: Text(m.role),
+            title: Text(m.displayName),
+            subtitle: Text(_memberSubtitle(m)),
             trailing: m.role == 'owner'
                 ? null
                 : IconButton(
                     icon: const Icon(Icons.remove_circle_outline),
-                    onPressed: () => provider.removeMember(m.userId),
+                    tooltip: 'Remove member',
+                    onPressed: () => _confirmRemoveMember(context, provider, m),
                   ),
           ),
         TextButton.icon(
@@ -330,7 +526,7 @@ class _MembersAgentsPanel extends StatelessWidget {
             trailing: IconButton(
               icon: const Icon(Icons.delete_outline),
               tooltip: 'Remove agent',
-              onPressed: () => provider.deleteAgent(a.id),
+              onPressed: () => _confirmDeleteAgent(context, provider, a),
             ),
           ),
         TextButton.icon(
@@ -340,6 +536,14 @@ class _MembersAgentsPanel extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  /// Subtitle for a member row: show the email (when the title is a real name)
+  /// alongside the role; degrade to just the role when there's no name to
+  /// distinguish it from the email already shown in the title.
+  String _memberSubtitle(RoomMember m) {
+    final hasName = m.fullName != null && m.fullName!.trim().isNotEmpty;
+    return hasName ? '${m.userId} · ${m.role}' : m.role;
   }
 
   String _agentSubtitle(RoomAgent a) {
@@ -360,6 +564,80 @@ class _MembersAgentsPanel extends StatelessWidget {
         return 'auto (smart)';
       default:
         return mode;
+    }
+  }
+
+  Future<void> _confirmRemoveMember(
+    BuildContext context,
+    RoomProvider provider,
+    RoomMember member,
+  ) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Remove member?'),
+        content: Text('Remove ${member.userId} from this room?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(ctx).colorScheme.error,
+            ),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await provider.removeMember(member.userId);
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to remove member: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _confirmDeleteAgent(
+    BuildContext context,
+    RoomProvider provider,
+    RoomAgent agent,
+  ) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete agent?'),
+        content: Text('Delete agent ${agent.name}? This cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(ctx).colorScheme.error,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await provider.deleteAgent(agent.id);
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to delete agent: $e')),
+        );
+      }
     }
   }
 
@@ -401,5 +679,4 @@ class _MembersAgentsPanel extends StatelessWidget {
       ),
     );
   }
-
 }

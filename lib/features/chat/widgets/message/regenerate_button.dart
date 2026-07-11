@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'message_action_button.dart';
+import 'package:garbanzo_ai/features/chat/widgets/message/message_action_button.dart';
 
 /// Compact "Regenerate" button for the last assistant message.
 class RegenerateButton extends StatelessWidget {

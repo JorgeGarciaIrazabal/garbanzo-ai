@@ -4,32 +4,32 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../core/auth_service.dart';
-import '../../../core/reading_column.dart';
-import '../../../core/responsive.dart';
-import '../../memory/providers/memory_provider.dart';
-import '../../microapps/widgets/micro_app_panel.dart';
-import '../../notifications/providers/notification_provider.dart';
-import '../../notifications/widgets/notification_bell.dart';
-import '../../settings/providers/settings_provider.dart';
-import '../../settings/widgets/settings_drawer.dart';
-import '../../tools/providers/tool_provider.dart';
-import '../models/chat_attachment.dart';
-import '../models/chat_message.dart';
-import '../providers/chat_provider.dart';
-import '../providers/model_provider.dart';
-import '../providers/search_provider.dart';
-import '../providers/system_prompt_provider.dart';
-import 'chat_input_widget.dart';
-import 'chat_message_widget.dart';
-import 'chat_sidebar.dart';
-import 'context_summary_widget.dart';
-import 'context_window_indicator.dart';
-import 'empty_chat_state.dart';
-import 'mobile_drawer.dart';
-import 'model_selector_widget.dart';
-import 'system_prompt_banner.dart';
-import 'tool_activity_group.dart';
+import 'package:garbanzo_ai/core/auth_service.dart';
+import 'package:garbanzo_ai/core/reading_column.dart';
+import 'package:garbanzo_ai/core/responsive.dart';
+import 'package:garbanzo_ai/features/memory/providers/memory_provider.dart';
+import 'package:garbanzo_ai/features/microapps/widgets/micro_app_panel.dart';
+import 'package:garbanzo_ai/features/notifications/providers/notification_provider.dart';
+import 'package:garbanzo_ai/features/notifications/widgets/notification_bell.dart';
+import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
+import 'package:garbanzo_ai/features/settings/widgets/settings_drawer.dart';
+import 'package:garbanzo_ai/features/tools/providers/tool_provider.dart';
+import 'package:garbanzo_ai/features/chat/models/chat_attachment.dart';
+import 'package:garbanzo_ai/features/chat/models/chat_message.dart';
+import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
+import 'package:garbanzo_ai/features/chat/providers/model_provider.dart';
+import 'package:garbanzo_ai/features/chat/providers/search_provider.dart';
+import 'package:garbanzo_ai/features/chat/providers/system_prompt_provider.dart';
+import 'package:garbanzo_ai/features/chat/widgets/chat_input_widget.dart';
+import 'package:garbanzo_ai/features/chat/widgets/chat_message_widget.dart';
+import 'package:garbanzo_ai/features/chat/widgets/chat_sidebar.dart';
+import 'package:garbanzo_ai/features/chat/widgets/context_summary_widget.dart';
+import 'package:garbanzo_ai/features/chat/widgets/context_window_indicator.dart';
+import 'package:garbanzo_ai/features/chat/widgets/empty_chat_state.dart';
+import 'package:garbanzo_ai/features/chat/widgets/mobile_drawer.dart';
+import 'package:garbanzo_ai/features/chat/widgets/model_selector_widget.dart';
+import 'package:garbanzo_ai/features/chat/widgets/system_prompt_banner.dart';
+import 'package:garbanzo_ai/features/chat/widgets/tool_activity_group.dart';
 
 /// Main chat page with conversation sidebar and message area.
 ///
@@ -370,15 +370,16 @@ class _ChatPageContentState extends State<_ChatPageContent> {
       key: _scaffoldKey,
       endDrawer: SettingsDrawer(onLogout: widget.onLogout),
       body: DragTarget<List<dynamic>>(
-      onWillAccept: (data) {
-        if (data == null || data.isEmpty) return false;
+      onWillAcceptWithDetails: (details) {
+        final data = details.data;
+        if (data.isEmpty) return false;
         setState(() => _isDragOver = true);
         return true;
       },
       onLeave: (_) {
         setState(() => _isDragOver = false);
       },
-      onAccept: _handleDroppedFiles,
+      onAcceptWithDetails: (details) => _handleDroppedFiles(details.data),
       builder: (context, candidateData, rejectedData) {
         return Stack(
           children: [

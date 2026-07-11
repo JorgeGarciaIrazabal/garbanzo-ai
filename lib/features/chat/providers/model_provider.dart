@@ -1,15 +1,16 @@
 import 'package:flutter/foundation.dart';
 
-import '../../../core/auth_service.dart';
-import '../models/model_info.dart';
-import '../services/chat_service.dart';
+import 'package:garbanzo_ai/core/auth_service.dart';
+import 'package:garbanzo_ai/core/guarded_state.dart';
+import 'package:garbanzo_ai/features/chat/models/model_info.dart';
+import 'package:garbanzo_ai/features/chat/services/chat_service.dart';
 
 /// Provider for managing LLM model selection.
 ///
 /// Separated from [ChatProvider] so that model state can be loaded once
 /// and shared across the app without tying it to a single conversation.
 /// The user's default model is persisted on the backend via `/auth/me`.
-class ModelProvider extends ChangeNotifier {
+class ModelProvider extends ChangeNotifier with GuardedStateMixin {
   ModelProvider() {
     _loadModels();
   }
@@ -23,30 +24,27 @@ class ModelProvider extends ChangeNotifier {
   String? get selectedModelId => _selectedModelId;
 
   Future<void> _loadModels() async {
-    try {
+    await runGuarded('Failed to load models', () async {
       final modelList = await _chatService.listModels();
       _availableModels = modelList.models;
 
       if (_selectedModelId == null && _availableModels.isNotEmpty) {
-        final serverDefault = AuthService.instance.cachedUser?.defaultModel;
+        // Preference order: the user's persisted default (via /auth/me) >
+        // the models endpoint's server-recommended default > the hardcoded
+        // fallback chain (used only if neither hint is present/valid).
+        final userDefault = AuthService.instance.cachedUser?.defaultModel;
+        final serverDefault = modelList.defaultModel;
         ModelInfo? match;
-        if (serverDefault != null && serverDefault.isNotEmpty) {
-          match = _availableModels.firstWhere(
-            (m) => m.id == serverDefault,
-            orElse: () => _pickFallback(_availableModels),
-          );
-        } else {
-          match = _pickFallback(_availableModels);
+        for (final candidate in [userDefault, serverDefault]) {
+          if (candidate != null && candidate.isNotEmpty) {
+            match = _availableModels.where((m) => m.id == candidate).firstOrNull;
+            if (match != null) break;
+          }
         }
+        match ??= _pickFallback(_availableModels);
         _selectedModelId = match.id;
       }
-
-      notifyListeners();
-    } catch (e) {
-      if (kDebugMode) {
-        print('Failed to load models: $e');
-      }
-    }
+    }, trackLoading: false);
   }
 
   void selectModel(String modelId) {

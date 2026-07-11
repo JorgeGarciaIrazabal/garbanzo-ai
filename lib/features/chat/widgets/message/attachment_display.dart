@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../models/chat_attachment.dart';
-import '../image_viewer.dart';
+import 'package:garbanzo_ai/features/chat/models/chat_attachment.dart';
+import 'package:garbanzo_ai/features/chat/widgets/image_viewer.dart';
 
 /// Displays attached images as thumbnails and documents as chips.
 class AttachmentDisplay extends StatelessWidget {

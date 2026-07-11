@@ -33,7 +33,11 @@ _ModelList _$ModelListFromJson(Map<String, dynamic> json) => _ModelList(
   models: (json['models'] as List<dynamic>)
       .map((e) => ModelInfo.fromJson(e as Map<String, dynamic>))
       .toList(),
+  defaultModel: json['default_model'] as String?,
 );
 
 Map<String, dynamic> _$ModelListToJson(_ModelList instance) =>
-    <String, dynamic>{'models': instance.models};
+    <String, dynamic>{
+      'models': instance.models,
+      'default_model': instance.defaultModel,
+    };

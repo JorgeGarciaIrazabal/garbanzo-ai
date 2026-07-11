@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
-import 'drawer_sections/app_settings_section.dart';
-import 'drawer_sections/conversation_section.dart';
-import 'drawer_sections/pages_section.dart';
-import 'drawer_sections/section_header.dart';
-import '../pages/settings_page.dart';
+import 'package:garbanzo_ai/features/settings/widgets/drawer_sections/app_settings_section.dart';
+import 'package:garbanzo_ai/features/settings/widgets/drawer_sections/conversation_section.dart';
+import 'package:garbanzo_ai/features/settings/widgets/drawer_sections/pages_section.dart';
+import 'package:garbanzo_ai/features/settings/widgets/drawer_sections/section_header.dart';
+import 'package:garbanzo_ai/features/settings/pages/settings_page.dart';
 
 /// Right-side drawer, organized into three groups:
 ///   1. Pages — navigation to every feature page
