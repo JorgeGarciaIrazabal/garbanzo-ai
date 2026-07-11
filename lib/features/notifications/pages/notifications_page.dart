@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:garbanzo_ai/core/widgets/brand_mark.dart';
 import 'package:provider/provider.dart';
 
 import 'package:garbanzo_ai/features/notifications/models/app_notification.dart';
@@ -57,11 +58,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
-                    Icons.notifications_none,
-                    size: 64,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+                  const BrandMark(size: 72),
                   const SizedBox(height: 12),
                   Text(
                     'No notifications yet',

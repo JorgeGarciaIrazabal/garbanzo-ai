@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:garbanzo_ai/core/widgets/brand_mark.dart';
 
 import 'package:garbanzo_ai/core/widgets/skeleton.dart';
 import 'package:garbanzo_ai/features/rooms/models/room_models.dart';
@@ -294,11 +295,7 @@ class _EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.group_outlined,
-              size: 56,
-              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
-            ),
+            const BrandMark(size: 72),
             const SizedBox(height: 16),
             Text(
               'No rooms yet',

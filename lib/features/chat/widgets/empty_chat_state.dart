@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:garbanzo_ai/core/widgets/brand_mark.dart';
 import 'package:provider/provider.dart';
 
 import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
@@ -21,11 +22,7 @@ class EmptyChatState extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.chat_bubble_outline,
-              size: 64,
-              color: colorScheme.primary.withValues(alpha: 0.5),
-            ),
+            const BrandMark(size: 88),
             const SizedBox(height: 24),
             Text(
               'Start a conversation',

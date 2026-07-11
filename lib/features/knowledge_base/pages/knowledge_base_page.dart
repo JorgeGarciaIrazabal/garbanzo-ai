@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:garbanzo_ai/core/widgets/brand_mark.dart';
 import 'package:provider/provider.dart';
 
 import 'package:garbanzo_ai/core/widgets/skeleton.dart';
@@ -192,11 +193,7 @@ class _EmptyState extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.menu_book,
-              size: 64,
-              color: theme.colorScheme.primary.withAlpha(140),
-            ),
+            const BrandMark(size: 72),
             const SizedBox(height: 16),
             Text('No documents yet', style: theme.textTheme.titleLarge),
             const SizedBox(height: 8),
