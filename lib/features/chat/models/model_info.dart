@@ -5,7 +5,7 @@ part 'model_info.g.dart';
 
 /// Information about an available LLM model.
 @freezed
-class ModelInfo with _$ModelInfo {
+abstract class ModelInfo with _$ModelInfo {
   const factory ModelInfo({
     required String id,
     required String name,
@@ -24,7 +24,7 @@ class ModelInfo with _$ModelInfo {
 
 /// A list of available models.
 @freezed
-class ModelList with _$ModelList {
+abstract class ModelList with _$ModelList {
   const factory ModelList({
     required List<ModelInfo> models,
   }) = _ModelList;

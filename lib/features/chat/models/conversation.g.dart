@@ -6,8 +6,8 @@ part of 'conversation.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-_$ConversationImpl _$$ConversationImplFromJson(Map<String, dynamic> json) =>
-    _$ConversationImpl(
+_Conversation _$ConversationFromJson(Map<String, dynamic> json) =>
+    _Conversation(
       id: json['id'] as String,
       title: json['title'] as String?,
       model: json['model'] as String,
@@ -27,7 +27,7 @@ _$ConversationImpl _$$ConversationImplFromJson(Map<String, dynamic> json) =>
           .toList(),
     );
 
-Map<String, dynamic> _$$ConversationImplToJson(_$ConversationImpl instance) =>
+Map<String, dynamic> _$ConversationToJson(_Conversation instance) =>
     <String, dynamic>{
       'id': instance.id,
       'title': instance.title,
@@ -44,22 +44,20 @@ Map<String, dynamic> _$$ConversationImplToJson(_$ConversationImpl instance) =>
       'messages': instance.messages,
     };
 
-_$ConversationListImpl _$$ConversationListImplFromJson(
-  Map<String, dynamic> json,
-) => _$ConversationListImpl(
-  items: (json['items'] as List<dynamic>)
-      .map((e) => Conversation.fromJson(e as Map<String, dynamic>))
-      .toList(),
-  total: (json['total'] as num).toInt(),
-  page: (json['page'] as num).toInt(),
-  pageSize: (json['page_size'] as num).toInt(),
-);
+_ConversationList _$ConversationListFromJson(Map<String, dynamic> json) =>
+    _ConversationList(
+      items: (json['items'] as List<dynamic>)
+          .map((e) => Conversation.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      total: (json['total'] as num).toInt(),
+      page: (json['page'] as num).toInt(),
+      pageSize: (json['page_size'] as num).toInt(),
+    );
 
-Map<String, dynamic> _$$ConversationListImplToJson(
-  _$ConversationListImpl instance,
-) => <String, dynamic>{
-  'items': instance.items,
-  'total': instance.total,
-  'page': instance.page,
-  'page_size': instance.pageSize,
-};
+Map<String, dynamic> _$ConversationListToJson(_ConversationList instance) =>
+    <String, dynamic>{
+      'items': instance.items,
+      'total': instance.total,
+      'page': instance.page,
+      'page_size': instance.pageSize,
+    };

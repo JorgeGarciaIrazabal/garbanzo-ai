@@ -5,7 +5,7 @@ part 'memory.g.dart';
 
 /// A memory stored about a user, extracted from conversations or manually created.
 @freezed
-class Memory with _$Memory {
+abstract class Memory with _$Memory {
   const Memory._();
 
   const factory Memory({
@@ -22,7 +22,7 @@ class Memory with _$Memory {
 
 /// A list of memories.
 @freezed
-class MemoryList with _$MemoryList {
+abstract class MemoryList with _$MemoryList {
   const MemoryList._();
 
   const factory MemoryList({

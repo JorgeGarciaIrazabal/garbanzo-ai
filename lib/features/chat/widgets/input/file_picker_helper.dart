@@ -23,7 +23,7 @@ class FilePickerHelper {
   static Future<FilePickResult?> pickFiles({
     required Set<String> existingNames,
   }) async {
-    final result = await FilePicker.platform.pickFiles(
+    final result = await FilePicker.pickFiles(
       allowMultiple: true,
       withData: true,
       type: FileType.custom,

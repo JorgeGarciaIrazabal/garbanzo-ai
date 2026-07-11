@@ -6,8 +6,8 @@ part of 'search_result.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-_$MatchedMessageImpl _$$MatchedMessageImplFromJson(Map<String, dynamic> json) =>
-    _$MatchedMessageImpl(
+_MatchedMessage _$MatchedMessageFromJson(Map<String, dynamic> json) =>
+    _MatchedMessage(
       id: json['id'] as String,
       content: json['content'] as String,
       role: json['role'] as String,
@@ -15,19 +15,18 @@ _$MatchedMessageImpl _$$MatchedMessageImplFromJson(Map<String, dynamic> json) =>
       snippet: json['snippet'] as String?,
     );
 
-Map<String, dynamic> _$$MatchedMessageImplToJson(
-  _$MatchedMessageImpl instance,
-) => <String, dynamic>{
-  'id': instance.id,
-  'content': instance.content,
-  'role': instance.role,
-  'created_at': instance.createdAt.toIso8601String(),
-  'snippet': instance.snippet,
-};
+Map<String, dynamic> _$MatchedMessageToJson(_MatchedMessage instance) =>
+    <String, dynamic>{
+      'id': instance.id,
+      'content': instance.content,
+      'role': instance.role,
+      'created_at': instance.createdAt.toIso8601String(),
+      'snippet': instance.snippet,
+    };
 
-_$ConversationSearchResultImpl _$$ConversationSearchResultImplFromJson(
+_ConversationSearchResult _$ConversationSearchResultFromJson(
   Map<String, dynamic> json,
-) => _$ConversationSearchResultImpl(
+) => _ConversationSearchResult(
   conversation: Conversation.fromJson(
     json['conversation'] as Map<String, dynamic>,
   ),
@@ -38,15 +37,15 @@ _$ConversationSearchResultImpl _$$ConversationSearchResultImplFromJson(
       const [],
 );
 
-Map<String, dynamic> _$$ConversationSearchResultImplToJson(
-  _$ConversationSearchResultImpl instance,
+Map<String, dynamic> _$ConversationSearchResultToJson(
+  _ConversationSearchResult instance,
 ) => <String, dynamic>{
   'conversation': instance.conversation,
   'matched_messages': instance.matchedMessages,
 };
 
-_$SearchResultsImpl _$$SearchResultsImplFromJson(Map<String, dynamic> json) =>
-    _$SearchResultsImpl(
+_SearchResults _$SearchResultsFromJson(Map<String, dynamic> json) =>
+    _SearchResults(
       items: (json['items'] as List<dynamic>)
           .map(
             (e) => ConversationSearchResult.fromJson(e as Map<String, dynamic>),
@@ -58,7 +57,7 @@ _$SearchResultsImpl _$$SearchResultsImplFromJson(Map<String, dynamic> json) =>
       query: json['query'] as String,
     );
 
-Map<String, dynamic> _$$SearchResultsImplToJson(_$SearchResultsImpl instance) =>
+Map<String, dynamic> _$SearchResultsToJson(_SearchResults instance) =>
     <String, dynamic>{
       'items': instance.items,
       'total': instance.total,

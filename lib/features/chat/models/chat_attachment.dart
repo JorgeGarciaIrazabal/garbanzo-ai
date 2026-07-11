@@ -10,7 +10,7 @@ enum AttachmentType { image, document }
 
 /// A file the user has selected to attach to a chat message.
 @Freezed(toJson: false, fromJson: false)
-class ChatAttachment with _$ChatAttachment {
+abstract class ChatAttachment with _$ChatAttachment {
   const ChatAttachment._();
 
   const factory ChatAttachment({

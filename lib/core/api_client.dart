@@ -2,6 +2,9 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'http_adapter/http_adapter_stub.dart'
+    if (dart.library.js_interop) 'http_adapter/http_adapter_web.dart';
+
 const _apiBaseUrl = String.fromEnvironment(
   'API_BASE_URL',
   defaultValue: '',
@@ -35,6 +38,16 @@ class ApiClient {
       // Don't throw on non-2xx so callers can inspect status codes directly.
       validateStatus: (status) => true,
     ));
+
+    // On web, replace the default XHR adapter with a Fetch-based one so
+    // streamed responses (SSE chat, streaming TTS) arrive incrementally.
+    // XHR also treats connect+receive timeouts as a TOTAL request deadline,
+    // which aborted slow LLM turns; fetch has no such cap. No-op on IO
+    // platforms (returns null).
+    final platformAdapter = createPlatformAdapter();
+    if (platformAdapter != null) {
+      _dio.httpClientAdapter = platformAdapter;
+    }
 
     _dio.interceptors.add(InterceptorsWrapper(
       onRequest: _onRequest,

@@ -6,9 +6,9 @@ part of 'system_prompt_template.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-_$SystemPromptTemplateImpl _$$SystemPromptTemplateImplFromJson(
+_SystemPromptTemplate _$SystemPromptTemplateFromJson(
   Map<String, dynamic> json,
-) => _$SystemPromptTemplateImpl(
+) => _SystemPromptTemplate(
   id: json['id'] as String,
   name: json['name'] as String,
   description: json['description'] as String?,
@@ -17,8 +17,8 @@ _$SystemPromptTemplateImpl _$$SystemPromptTemplateImplFromJson(
   createdAt: DateTime.parse(json['created_at'] as String),
 );
 
-Map<String, dynamic> _$$SystemPromptTemplateImplToJson(
-  _$SystemPromptTemplateImpl instance,
+Map<String, dynamic> _$SystemPromptTemplateToJson(
+  _SystemPromptTemplate instance,
 ) => <String, dynamic>{
   'id': instance.id,
   'name': instance.name,

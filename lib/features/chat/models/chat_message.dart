@@ -12,7 +12,7 @@ Object? _readMetadata(Map json, String key) =>
 
 /// A single message in a chat conversation.
 @freezed
-class ChatMessage with _$ChatMessage {
+abstract class ChatMessage with _$ChatMessage {
   const ChatMessage._();
 
   const factory ChatMessage({
@@ -38,7 +38,7 @@ class ChatMessage with _$ChatMessage {
 
 /// A single tool invocation requested by the assistant.
 @freezed
-class ToolCall with _$ToolCall {
+abstract class ToolCall with _$ToolCall {
   const ToolCall._();
 
   const factory ToolCall({
@@ -53,7 +53,7 @@ class ToolCall with _$ToolCall {
 
 /// The result of a single tool invocation.
 @freezed
-class ToolResult with _$ToolResult {
+abstract class ToolResult with _$ToolResult {
   const ToolResult._();
 
   const factory ToolResult({
@@ -68,7 +68,7 @@ class ToolResult with _$ToolResult {
 
 /// A chunk of a streaming chat response.
 @freezed
-class ChatResponseChunk with _$ChatResponseChunk {
+abstract class ChatResponseChunk with _$ChatResponseChunk {
   const ChatResponseChunk._();
 
   const factory ChatResponseChunk({

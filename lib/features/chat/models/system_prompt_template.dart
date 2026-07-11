@@ -5,7 +5,7 @@ part 'system_prompt_template.g.dart';
 
 /// A reusable system prompt (built-in persona or user-saved custom prompt).
 @freezed
-class SystemPromptTemplate with _$SystemPromptTemplate {
+abstract class SystemPromptTemplate with _$SystemPromptTemplate {
   const SystemPromptTemplate._();
 
   const factory SystemPromptTemplate({

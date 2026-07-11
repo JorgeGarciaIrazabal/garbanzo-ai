@@ -7,7 +7,7 @@ part 'conversation.g.dart';
 
 /// A conversation thread between a user and the AI.
 @freezed
-class Conversation with _$Conversation {
+abstract class Conversation with _$Conversation {
   const Conversation._();
 
   const factory Conversation({
@@ -50,7 +50,7 @@ class Conversation with _$Conversation {
 
 /// A list of conversations with pagination info.
 @freezed
-class ConversationList with _$ConversationList {
+abstract class ConversationList with _$ConversationList {
   const ConversationList._();
 
   const factory ConversationList({

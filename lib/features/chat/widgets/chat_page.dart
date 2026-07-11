@@ -222,12 +222,28 @@ class _ChatPageContentState extends State<_ChatPageContent> {
   /// snackbar's Undo restores the conversation before it fires.
   void _deleteWithUndo(ChatProvider chatProvider, String id) {
     chatProvider.deleteConversation(id);
+
+    // Anchor the snackbar near the top of the window: SnackBars dock to the
+    // bottom by default, so a large bottom margin lifts a floating one up,
+    // while symmetric horizontal margins keep it from spanning the full width.
+    final media = MediaQuery.of(context);
+    final horizontalMargin = ((media.size.width - 420) / 2).clamp(16.0, 400.0);
+    final bottomMargin =
+        (media.size.height - media.padding.top - 88).clamp(80.0, 2000.0);
+
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
           content: const Text('Conversation deleted'),
-          duration: const Duration(seconds: 5),
+          duration: const Duration(seconds: 3),
+          behavior: SnackBarBehavior.floating,
+          showCloseIcon: true,
+          margin: EdgeInsets.only(
+            left: horizontalMargin,
+            right: horizontalMargin,
+            bottom: bottomMargin,
+          ),
           action: SnackBarAction(
             label: 'Undo',
             onPressed: () => chatProvider.undoDeleteConversation(id),

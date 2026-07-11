@@ -1,6 +1,6 @@
-// coverage:ignore-file
 // GENERATED CODE - DO NOT MODIFY BY HAND
-// ignore_for_file: type=lint
+// coverage:ignore-file
+// ignore_for_file: type=lint, type=warning, deprecated_member_use, deprecated_member_use_from_same_package
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
 part of 'chat_message.dart';
@@ -9,1038 +9,1163 @@ part of 'chat_message.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
+// dart format off
 T _$identity<T>(T value) => value;
-
-final _privateConstructorUsedError = UnsupportedError(
-  'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models',
-);
-
-ChatMessage _$ChatMessageFromJson(Map<String, dynamic> json) {
-  return _ChatMessage.fromJson(json);
-}
 
 /// @nodoc
 mixin _$ChatMessage {
-  String get id => throw _privateConstructorUsedError;
-  String get role => throw _privateConstructorUsedError;
-  String get content => throw _privateConstructorUsedError;
-  DateTime get createdAt => throw _privateConstructorUsedError;
-  @JsonKey(readValue: _readMetadata)
-  Map<String, dynamic>? get metadata => throw _privateConstructorUsedError;
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  List<ChatAttachment> get attachments => throw _privateConstructorUsedError;
+
+ String get id; String get role; String get content; DateTime get createdAt;@JsonKey(readValue: _readMetadata) Map<String, dynamic>? get metadata;@JsonKey(includeFromJson: false, includeToJson: false) List<ChatAttachment> get attachments;
+/// Create a copy of ChatMessage
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$ChatMessageCopyWith<ChatMessage> get copyWith => _$ChatMessageCopyWithImpl<ChatMessage>(this as ChatMessage, _$identity);
 
   /// Serializes this ChatMessage to a JSON map.
-  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
+  Map<String, dynamic> toJson();
 
-  /// Create a copy of ChatMessage
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  $ChatMessageCopyWith<ChatMessage> get copyWith =>
-      throw _privateConstructorUsedError;
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ChatMessage&&(identical(other.id, id) || other.id == id)&&(identical(other.role, role) || other.role == role)&&(identical(other.content, content) || other.content == content)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&const DeepCollectionEquality().equals(other.metadata, metadata)&&const DeepCollectionEquality().equals(other.attachments, attachments));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,id,role,content,createdAt,const DeepCollectionEquality().hash(metadata),const DeepCollectionEquality().hash(attachments));
+
+@override
+String toString() {
+  return 'ChatMessage(id: $id, role: $role, content: $content, createdAt: $createdAt, metadata: $metadata, attachments: $attachments)';
+}
+
+
 }
 
 /// @nodoc
-abstract class $ChatMessageCopyWith<$Res> {
-  factory $ChatMessageCopyWith(
-    ChatMessage value,
-    $Res Function(ChatMessage) then,
-  ) = _$ChatMessageCopyWithImpl<$Res, ChatMessage>;
-  @useResult
-  $Res call({
-    String id,
-    String role,
-    String content,
-    DateTime createdAt,
-    @JsonKey(readValue: _readMetadata) Map<String, dynamic>? metadata,
-    @JsonKey(includeFromJson: false, includeToJson: false)
-    List<ChatAttachment> attachments,
-  });
-}
+abstract mixin class $ChatMessageCopyWith<$Res>  {
+  factory $ChatMessageCopyWith(ChatMessage value, $Res Function(ChatMessage) _then) = _$ChatMessageCopyWithImpl;
+@useResult
+$Res call({
+ String id, String role, String content, DateTime createdAt,@JsonKey(readValue: _readMetadata) Map<String, dynamic>? metadata,@JsonKey(includeFromJson: false, includeToJson: false) List<ChatAttachment> attachments
+});
 
+
+
+
+}
 /// @nodoc
-class _$ChatMessageCopyWithImpl<$Res, $Val extends ChatMessage>
+class _$ChatMessageCopyWithImpl<$Res>
     implements $ChatMessageCopyWith<$Res> {
-  _$ChatMessageCopyWithImpl(this._value, this._then);
+  _$ChatMessageCopyWithImpl(this._self, this._then);
 
-  // ignore: unused_field
-  final $Val _value;
-  // ignore: unused_field
-  final $Res Function($Val) _then;
+  final ChatMessage _self;
+  final $Res Function(ChatMessage) _then;
 
-  /// Create a copy of ChatMessage
-  /// with the given fields replaced by the non-null parameter values.
-  @pragma('vm:prefer-inline')
-  @override
-  $Res call({
-    Object? id = null,
-    Object? role = null,
-    Object? content = null,
-    Object? createdAt = null,
-    Object? metadata = freezed,
-    Object? attachments = null,
-  }) {
-    return _then(
-      _value.copyWith(
-            id: null == id
-                ? _value.id
-                : id // ignore: cast_nullable_to_non_nullable
-                      as String,
-            role: null == role
-                ? _value.role
-                : role // ignore: cast_nullable_to_non_nullable
-                      as String,
-            content: null == content
-                ? _value.content
-                : content // ignore: cast_nullable_to_non_nullable
-                      as String,
-            createdAt: null == createdAt
-                ? _value.createdAt
-                : createdAt // ignore: cast_nullable_to_non_nullable
-                      as DateTime,
-            metadata: freezed == metadata
-                ? _value.metadata
-                : metadata // ignore: cast_nullable_to_non_nullable
-                      as Map<String, dynamic>?,
-            attachments: null == attachments
-                ? _value.attachments
-                : attachments // ignore: cast_nullable_to_non_nullable
-                      as List<ChatAttachment>,
-          )
-          as $Val,
-    );
-  }
+/// Create a copy of ChatMessage
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? role = null,Object? content = null,Object? createdAt = null,Object? metadata = freezed,Object? attachments = null,}) {
+  return _then(ChatMessage(
+id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as String,role: null == role ? _self.role : role // ignore: cast_nullable_to_non_nullable
+as String,content: null == content ? _self.content : content // ignore: cast_nullable_to_non_nullable
+as String,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
+as DateTime,metadata: freezed == metadata ? _self.metadata : metadata // ignore: cast_nullable_to_non_nullable
+as Map<String, dynamic>?,attachments: null == attachments ? _self.attachments : attachments // ignore: cast_nullable_to_non_nullable
+as List<ChatAttachment>,
+  ));
 }
 
-/// @nodoc
-abstract class _$$ChatMessageImplCopyWith<$Res>
-    implements $ChatMessageCopyWith<$Res> {
-  factory _$$ChatMessageImplCopyWith(
-    _$ChatMessageImpl value,
-    $Res Function(_$ChatMessageImpl) then,
-  ) = __$$ChatMessageImplCopyWithImpl<$Res>;
-  @override
-  @useResult
-  $Res call({
-    String id,
-    String role,
-    String content,
-    DateTime createdAt,
-    @JsonKey(readValue: _readMetadata) Map<String, dynamic>? metadata,
-    @JsonKey(includeFromJson: false, includeToJson: false)
-    List<ChatAttachment> attachments,
-  });
 }
 
-/// @nodoc
-class __$$ChatMessageImplCopyWithImpl<$Res>
-    extends _$ChatMessageCopyWithImpl<$Res, _$ChatMessageImpl>
-    implements _$$ChatMessageImplCopyWith<$Res> {
-  __$$ChatMessageImplCopyWithImpl(
-    _$ChatMessageImpl _value,
-    $Res Function(_$ChatMessageImpl) _then,
-  ) : super(_value, _then);
 
-  /// Create a copy of ChatMessage
-  /// with the given fields replaced by the non-null parameter values.
-  @pragma('vm:prefer-inline')
-  @override
-  $Res call({
-    Object? id = null,
-    Object? role = null,
-    Object? content = null,
-    Object? createdAt = null,
-    Object? metadata = freezed,
-    Object? attachments = null,
-  }) {
-    return _then(
-      _$ChatMessageImpl(
-        id: null == id
-            ? _value.id
-            : id // ignore: cast_nullable_to_non_nullable
-                  as String,
-        role: null == role
-            ? _value.role
-            : role // ignore: cast_nullable_to_non_nullable
-                  as String,
-        content: null == content
-            ? _value.content
-            : content // ignore: cast_nullable_to_non_nullable
-                  as String,
-        createdAt: null == createdAt
-            ? _value.createdAt
-            : createdAt // ignore: cast_nullable_to_non_nullable
-                  as DateTime,
-        metadata: freezed == metadata
-            ? _value._metadata
-            : metadata // ignore: cast_nullable_to_non_nullable
-                  as Map<String, dynamic>?,
-        attachments: null == attachments
-            ? _value._attachments
-            : attachments // ignore: cast_nullable_to_non_nullable
-                  as List<ChatAttachment>,
-      ),
-    );
-  }
+/// Adds pattern-matching-related methods to [ChatMessage].
+extension ChatMessagePatterns on ChatMessage {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _ChatMessage value)?  $default,{required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case _ChatMessage() when $default != null:
+return $default(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _ChatMessage value)  $default,){
+final _that = this;
+switch (_that) {
+case _ChatMessage():
+return $default(_that);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _ChatMessage value)?  $default,){
+final _that = this;
+switch (_that) {
+case _ChatMessage() when $default != null:
+return $default(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String role,  String content,  DateTime createdAt, @JsonKey(readValue: _readMetadata)  Map<String, dynamic>? metadata, @JsonKey(includeFromJson: false, includeToJson: false)  List<ChatAttachment> attachments)?  $default,{required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case _ChatMessage() when $default != null:
+return $default(_that.id,_that.role,_that.content,_that.createdAt,_that.metadata,_that.attachments);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String role,  String content,  DateTime createdAt, @JsonKey(readValue: _readMetadata)  Map<String, dynamic>? metadata, @JsonKey(includeFromJson: false, includeToJson: false)  List<ChatAttachment> attachments)  $default,) {final _that = this;
+switch (_that) {
+case _ChatMessage():
+return $default(_that.id,_that.role,_that.content,_that.createdAt,_that.metadata,_that.attachments);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String role,  String content,  DateTime createdAt, @JsonKey(readValue: _readMetadata)  Map<String, dynamic>? metadata, @JsonKey(includeFromJson: false, includeToJson: false)  List<ChatAttachment> attachments)?  $default,) {final _that = this;
+switch (_that) {
+case _ChatMessage() when $default != null:
+return $default(_that.id,_that.role,_that.content,_that.createdAt,_that.metadata,_that.attachments);case _:
+  return null;
+
+}
+}
+
 }
 
 /// @nodoc
 @JsonSerializable()
-class _$ChatMessageImpl extends _ChatMessage {
-  const _$ChatMessageImpl({
-    required this.id,
-    required this.role,
-    required this.content,
-    required this.createdAt,
-    @JsonKey(readValue: _readMetadata) final Map<String, dynamic>? metadata,
-    @JsonKey(includeFromJson: false, includeToJson: false)
-    final List<ChatAttachment> attachments = const [],
-  }) : _metadata = metadata,
-       _attachments = attachments,
-       super._();
 
-  factory _$ChatMessageImpl.fromJson(Map<String, dynamic> json) =>
-      _$$ChatMessageImplFromJson(json);
+class _ChatMessage extends ChatMessage {
+  const _ChatMessage({required this.id, required this.role, required this.content, required this.createdAt, @JsonKey(readValue: _readMetadata)  Map<String, dynamic>? metadata, @JsonKey(includeFromJson: false, includeToJson: false)  List<ChatAttachment> attachments = const []}): _metadata = metadata,_attachments = attachments,super._();
+  factory _ChatMessage.fromJson(Map<String, dynamic> json) => _$ChatMessageFromJson(json);
 
-  @override
-  final String id;
-  @override
-  final String role;
-  @override
-  final String content;
-  @override
-  final DateTime createdAt;
-  final Map<String, dynamic>? _metadata;
-  @override
-  @JsonKey(readValue: _readMetadata)
-  Map<String, dynamic>? get metadata {
-    final value = _metadata;
-    if (value == null) return null;
-    if (_metadata is EqualUnmodifiableMapView) return _metadata;
-    // ignore: implicit_dynamic_type
-    return EqualUnmodifiableMapView(value);
-  }
-
-  final List<ChatAttachment> _attachments;
-  @override
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  List<ChatAttachment> get attachments {
-    if (_attachments is EqualUnmodifiableListView) return _attachments;
-    // ignore: implicit_dynamic_type
-    return EqualUnmodifiableListView(_attachments);
-  }
-
-  @override
-  String toString() {
-    return 'ChatMessage(id: $id, role: $role, content: $content, createdAt: $createdAt, metadata: $metadata, attachments: $attachments)';
-  }
-
-  @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
-        (other.runtimeType == runtimeType &&
-            other is _$ChatMessageImpl &&
-            (identical(other.id, id) || other.id == id) &&
-            (identical(other.role, role) || other.role == role) &&
-            (identical(other.content, content) || other.content == content) &&
-            (identical(other.createdAt, createdAt) ||
-                other.createdAt == createdAt) &&
-            const DeepCollectionEquality().equals(other._metadata, _metadata) &&
-            const DeepCollectionEquality().equals(
-              other._attachments,
-              _attachments,
-            ));
-  }
-
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  @override
-  int get hashCode => Object.hash(
-    runtimeType,
-    id,
-    role,
-    content,
-    createdAt,
-    const DeepCollectionEquality().hash(_metadata),
-    const DeepCollectionEquality().hash(_attachments),
-  );
-
-  /// Create a copy of ChatMessage
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  @override
-  @pragma('vm:prefer-inline')
-  _$$ChatMessageImplCopyWith<_$ChatMessageImpl> get copyWith =>
-      __$$ChatMessageImplCopyWithImpl<_$ChatMessageImpl>(this, _$identity);
-
-  @override
-  Map<String, dynamic> toJson() {
-    return _$$ChatMessageImplToJson(this);
-  }
+@override final  String id;
+@override final  String role;
+@override final  String content;
+@override final  DateTime createdAt;
+ final  Map<String, dynamic>? _metadata;
+@override@JsonKey(readValue: _readMetadata) Map<String, dynamic>? get metadata {
+  final value = _metadata;
+  if (value == null) return null;
+  if (_metadata is EqualUnmodifiableMapView) return _metadata;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableMapView(value);
 }
 
-abstract class _ChatMessage extends ChatMessage {
-  const factory _ChatMessage({
-    required final String id,
-    required final String role,
-    required final String content,
-    required final DateTime createdAt,
-    @JsonKey(readValue: _readMetadata) final Map<String, dynamic>? metadata,
-    @JsonKey(includeFromJson: false, includeToJson: false)
-    final List<ChatAttachment> attachments,
-  }) = _$ChatMessageImpl;
-  const _ChatMessage._() : super._();
-
-  factory _ChatMessage.fromJson(Map<String, dynamic> json) =
-      _$ChatMessageImpl.fromJson;
-
-  @override
-  String get id;
-  @override
-  String get role;
-  @override
-  String get content;
-  @override
-  DateTime get createdAt;
-  @override
-  @JsonKey(readValue: _readMetadata)
-  Map<String, dynamic>? get metadata;
-  @override
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  List<ChatAttachment> get attachments;
-
-  /// Create a copy of ChatMessage
-  /// with the given fields replaced by the non-null parameter values.
-  @override
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  _$$ChatMessageImplCopyWith<_$ChatMessageImpl> get copyWith =>
-      throw _privateConstructorUsedError;
+ final  List<ChatAttachment> _attachments;
+@override@JsonKey(includeFromJson: false, includeToJson: false) List<ChatAttachment> get attachments {
+  if (_attachments is EqualUnmodifiableListView) return _attachments;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_attachments);
 }
 
-ToolCall _$ToolCallFromJson(Map<String, dynamic> json) {
-  return _ToolCall.fromJson(json);
+
+/// Create a copy of ChatMessage
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$ChatMessageCopyWith<_ChatMessage> get copyWith => __$ChatMessageCopyWithImpl<_ChatMessage>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$ChatMessageToJson(this, );
 }
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ChatMessage&&(identical(other.id, id) || other.id == id)&&(identical(other.role, role) || other.role == role)&&(identical(other.content, content) || other.content == content)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&const DeepCollectionEquality().equals(other._metadata, _metadata)&&const DeepCollectionEquality().equals(other._attachments, _attachments));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,id,role,content,createdAt,const DeepCollectionEquality().hash(_metadata),const DeepCollectionEquality().hash(_attachments));
+
+@override
+String toString() {
+  return 'ChatMessage(id: $id, role: $role, content: $content, createdAt: $createdAt, metadata: $metadata, attachments: $attachments)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$ChatMessageCopyWith<$Res> implements $ChatMessageCopyWith<$Res> {
+  factory _$ChatMessageCopyWith(_ChatMessage value, $Res Function(_ChatMessage) _then) = __$ChatMessageCopyWithImpl;
+@override @useResult
+$Res call({
+ String id, String role, String content, DateTime createdAt,@JsonKey(readValue: _readMetadata) Map<String, dynamic>? metadata,@JsonKey(includeFromJson: false, includeToJson: false) List<ChatAttachment> attachments
+});
+
+
+
+
+}
+/// @nodoc
+class __$ChatMessageCopyWithImpl<$Res>
+    implements _$ChatMessageCopyWith<$Res> {
+  __$ChatMessageCopyWithImpl(this._self, this._then);
+
+  final _ChatMessage _self;
+  final $Res Function(_ChatMessage) _then;
+
+/// Create a copy of ChatMessage
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? role = null,Object? content = null,Object? createdAt = null,Object? metadata = freezed,Object? attachments = null,}) {
+  return _then(_ChatMessage(
+id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as String,role: null == role ? _self.role : role // ignore: cast_nullable_to_non_nullable
+as String,content: null == content ? _self.content : content // ignore: cast_nullable_to_non_nullable
+as String,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
+as DateTime,metadata: freezed == metadata ? _self._metadata : metadata // ignore: cast_nullable_to_non_nullable
+as Map<String, dynamic>?,attachments: null == attachments ? _self._attachments : attachments // ignore: cast_nullable_to_non_nullable
+as List<ChatAttachment>,
+  ));
+}
+
+
+}
+
 
 /// @nodoc
 mixin _$ToolCall {
-  String get id => throw _privateConstructorUsedError;
-  String get name => throw _privateConstructorUsedError;
-  Map<String, dynamic>? get arguments => throw _privateConstructorUsedError;
+
+ String get id; String get name; Map<String, dynamic>? get arguments;
+/// Create a copy of ToolCall
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$ToolCallCopyWith<ToolCall> get copyWith => _$ToolCallCopyWithImpl<ToolCall>(this as ToolCall, _$identity);
 
   /// Serializes this ToolCall to a JSON map.
-  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
+  Map<String, dynamic> toJson();
 
-  /// Create a copy of ToolCall
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  $ToolCallCopyWith<ToolCall> get copyWith =>
-      throw _privateConstructorUsedError;
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ToolCall&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&const DeepCollectionEquality().equals(other.arguments, arguments));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,id,name,const DeepCollectionEquality().hash(arguments));
+
+@override
+String toString() {
+  return 'ToolCall(id: $id, name: $name, arguments: $arguments)';
+}
+
+
 }
 
 /// @nodoc
-abstract class $ToolCallCopyWith<$Res> {
-  factory $ToolCallCopyWith(ToolCall value, $Res Function(ToolCall) then) =
-      _$ToolCallCopyWithImpl<$Res, ToolCall>;
-  @useResult
-  $Res call({String id, String name, Map<String, dynamic>? arguments});
-}
+abstract mixin class $ToolCallCopyWith<$Res>  {
+  factory $ToolCallCopyWith(ToolCall value, $Res Function(ToolCall) _then) = _$ToolCallCopyWithImpl;
+@useResult
+$Res call({
+ String id, String name, Map<String, dynamic>? arguments
+});
 
+
+
+
+}
 /// @nodoc
-class _$ToolCallCopyWithImpl<$Res, $Val extends ToolCall>
+class _$ToolCallCopyWithImpl<$Res>
     implements $ToolCallCopyWith<$Res> {
-  _$ToolCallCopyWithImpl(this._value, this._then);
+  _$ToolCallCopyWithImpl(this._self, this._then);
 
-  // ignore: unused_field
-  final $Val _value;
-  // ignore: unused_field
-  final $Res Function($Val) _then;
+  final ToolCall _self;
+  final $Res Function(ToolCall) _then;
 
-  /// Create a copy of ToolCall
-  /// with the given fields replaced by the non-null parameter values.
-  @pragma('vm:prefer-inline')
-  @override
-  $Res call({
-    Object? id = null,
-    Object? name = null,
-    Object? arguments = freezed,
-  }) {
-    return _then(
-      _value.copyWith(
-            id: null == id
-                ? _value.id
-                : id // ignore: cast_nullable_to_non_nullable
-                      as String,
-            name: null == name
-                ? _value.name
-                : name // ignore: cast_nullable_to_non_nullable
-                      as String,
-            arguments: freezed == arguments
-                ? _value.arguments
-                : arguments // ignore: cast_nullable_to_non_nullable
-                      as Map<String, dynamic>?,
-          )
-          as $Val,
-    );
-  }
+/// Create a copy of ToolCall
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? arguments = freezed,}) {
+  return _then(ToolCall(
+id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
+as String,arguments: freezed == arguments ? _self.arguments : arguments // ignore: cast_nullable_to_non_nullable
+as Map<String, dynamic>?,
+  ));
 }
 
-/// @nodoc
-abstract class _$$ToolCallImplCopyWith<$Res>
-    implements $ToolCallCopyWith<$Res> {
-  factory _$$ToolCallImplCopyWith(
-    _$ToolCallImpl value,
-    $Res Function(_$ToolCallImpl) then,
-  ) = __$$ToolCallImplCopyWithImpl<$Res>;
-  @override
-  @useResult
-  $Res call({String id, String name, Map<String, dynamic>? arguments});
 }
 
-/// @nodoc
-class __$$ToolCallImplCopyWithImpl<$Res>
-    extends _$ToolCallCopyWithImpl<$Res, _$ToolCallImpl>
-    implements _$$ToolCallImplCopyWith<$Res> {
-  __$$ToolCallImplCopyWithImpl(
-    _$ToolCallImpl _value,
-    $Res Function(_$ToolCallImpl) _then,
-  ) : super(_value, _then);
 
-  /// Create a copy of ToolCall
-  /// with the given fields replaced by the non-null parameter values.
-  @pragma('vm:prefer-inline')
-  @override
-  $Res call({
-    Object? id = null,
-    Object? name = null,
-    Object? arguments = freezed,
-  }) {
-    return _then(
-      _$ToolCallImpl(
-        id: null == id
-            ? _value.id
-            : id // ignore: cast_nullable_to_non_nullable
-                  as String,
-        name: null == name
-            ? _value.name
-            : name // ignore: cast_nullable_to_non_nullable
-                  as String,
-        arguments: freezed == arguments
-            ? _value._arguments
-            : arguments // ignore: cast_nullable_to_non_nullable
-                  as Map<String, dynamic>?,
-      ),
-    );
-  }
+/// Adds pattern-matching-related methods to [ToolCall].
+extension ToolCallPatterns on ToolCall {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _ToolCall value)?  $default,{required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case _ToolCall() when $default != null:
+return $default(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _ToolCall value)  $default,){
+final _that = this;
+switch (_that) {
+case _ToolCall():
+return $default(_that);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _ToolCall value)?  $default,){
+final _that = this;
+switch (_that) {
+case _ToolCall() when $default != null:
+return $default(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String name,  Map<String, dynamic>? arguments)?  $default,{required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case _ToolCall() when $default != null:
+return $default(_that.id,_that.name,_that.arguments);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String name,  Map<String, dynamic>? arguments)  $default,) {final _that = this;
+switch (_that) {
+case _ToolCall():
+return $default(_that.id,_that.name,_that.arguments);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String name,  Map<String, dynamic>? arguments)?  $default,) {final _that = this;
+switch (_that) {
+case _ToolCall() when $default != null:
+return $default(_that.id,_that.name,_that.arguments);case _:
+  return null;
+
+}
+}
+
 }
 
 /// @nodoc
 @JsonSerializable()
-class _$ToolCallImpl extends _ToolCall {
-  const _$ToolCallImpl({
-    required this.id,
-    required this.name,
-    final Map<String, dynamic>? arguments,
-  }) : _arguments = arguments,
-       super._();
 
-  factory _$ToolCallImpl.fromJson(Map<String, dynamic> json) =>
-      _$$ToolCallImplFromJson(json);
+class _ToolCall extends ToolCall {
+  const _ToolCall({required this.id, required this.name,  Map<String, dynamic>? arguments}): _arguments = arguments,super._();
+  factory _ToolCall.fromJson(Map<String, dynamic> json) => _$ToolCallFromJson(json);
 
-  @override
-  final String id;
-  @override
-  final String name;
-  final Map<String, dynamic>? _arguments;
-  @override
-  Map<String, dynamic>? get arguments {
-    final value = _arguments;
-    if (value == null) return null;
-    if (_arguments is EqualUnmodifiableMapView) return _arguments;
-    // ignore: implicit_dynamic_type
-    return EqualUnmodifiableMapView(value);
-  }
-
-  @override
-  String toString() {
-    return 'ToolCall(id: $id, name: $name, arguments: $arguments)';
-  }
-
-  @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
-        (other.runtimeType == runtimeType &&
-            other is _$ToolCallImpl &&
-            (identical(other.id, id) || other.id == id) &&
-            (identical(other.name, name) || other.name == name) &&
-            const DeepCollectionEquality().equals(
-              other._arguments,
-              _arguments,
-            ));
-  }
-
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  @override
-  int get hashCode => Object.hash(
-    runtimeType,
-    id,
-    name,
-    const DeepCollectionEquality().hash(_arguments),
-  );
-
-  /// Create a copy of ToolCall
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  @override
-  @pragma('vm:prefer-inline')
-  _$$ToolCallImplCopyWith<_$ToolCallImpl> get copyWith =>
-      __$$ToolCallImplCopyWithImpl<_$ToolCallImpl>(this, _$identity);
-
-  @override
-  Map<String, dynamic> toJson() {
-    return _$$ToolCallImplToJson(this);
-  }
+@override final  String id;
+@override final  String name;
+ final  Map<String, dynamic>? _arguments;
+@override Map<String, dynamic>? get arguments {
+  final value = _arguments;
+  if (value == null) return null;
+  if (_arguments is EqualUnmodifiableMapView) return _arguments;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableMapView(value);
 }
 
-abstract class _ToolCall extends ToolCall {
-  const factory _ToolCall({
-    required final String id,
-    required final String name,
-    final Map<String, dynamic>? arguments,
-  }) = _$ToolCallImpl;
-  const _ToolCall._() : super._();
 
-  factory _ToolCall.fromJson(Map<String, dynamic> json) =
-      _$ToolCallImpl.fromJson;
+/// Create a copy of ToolCall
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$ToolCallCopyWith<_ToolCall> get copyWith => __$ToolCallCopyWithImpl<_ToolCall>(this, _$identity);
 
-  @override
-  String get id;
-  @override
-  String get name;
-  @override
-  Map<String, dynamic>? get arguments;
-
-  /// Create a copy of ToolCall
-  /// with the given fields replaced by the non-null parameter values.
-  @override
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  _$$ToolCallImplCopyWith<_$ToolCallImpl> get copyWith =>
-      throw _privateConstructorUsedError;
+@override
+Map<String, dynamic> toJson() {
+  return _$ToolCallToJson(this, );
 }
 
-ToolResult _$ToolResultFromJson(Map<String, dynamic> json) {
-  return _ToolResult.fromJson(json);
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ToolCall&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&const DeepCollectionEquality().equals(other._arguments, _arguments));
 }
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,id,name,const DeepCollectionEquality().hash(_arguments));
+
+@override
+String toString() {
+  return 'ToolCall(id: $id, name: $name, arguments: $arguments)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$ToolCallCopyWith<$Res> implements $ToolCallCopyWith<$Res> {
+  factory _$ToolCallCopyWith(_ToolCall value, $Res Function(_ToolCall) _then) = __$ToolCallCopyWithImpl;
+@override @useResult
+$Res call({
+ String id, String name, Map<String, dynamic>? arguments
+});
+
+
+
+
+}
+/// @nodoc
+class __$ToolCallCopyWithImpl<$Res>
+    implements _$ToolCallCopyWith<$Res> {
+  __$ToolCallCopyWithImpl(this._self, this._then);
+
+  final _ToolCall _self;
+  final $Res Function(_ToolCall) _then;
+
+/// Create a copy of ToolCall
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? arguments = freezed,}) {
+  return _then(_ToolCall(
+id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
+as String,arguments: freezed == arguments ? _self._arguments : arguments // ignore: cast_nullable_to_non_nullable
+as Map<String, dynamic>?,
+  ));
+}
+
+
+}
+
 
 /// @nodoc
 mixin _$ToolResult {
-  String get toolCallId => throw _privateConstructorUsedError;
-  String get toolName => throw _privateConstructorUsedError;
-  dynamic get result => throw _privateConstructorUsedError;
+
+ String get toolCallId; String get toolName; dynamic get result;
+/// Create a copy of ToolResult
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$ToolResultCopyWith<ToolResult> get copyWith => _$ToolResultCopyWithImpl<ToolResult>(this as ToolResult, _$identity);
 
   /// Serializes this ToolResult to a JSON map.
-  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
+  Map<String, dynamic> toJson();
 
-  /// Create a copy of ToolResult
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  $ToolResultCopyWith<ToolResult> get copyWith =>
-      throw _privateConstructorUsedError;
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ToolResult&&(identical(other.toolCallId, toolCallId) || other.toolCallId == toolCallId)&&(identical(other.toolName, toolName) || other.toolName == toolName)&&const DeepCollectionEquality().equals(other.result, result));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,toolCallId,toolName,const DeepCollectionEquality().hash(result));
+
+@override
+String toString() {
+  return 'ToolResult(toolCallId: $toolCallId, toolName: $toolName, result: $result)';
+}
+
+
 }
 
 /// @nodoc
-abstract class $ToolResultCopyWith<$Res> {
-  factory $ToolResultCopyWith(
-    ToolResult value,
-    $Res Function(ToolResult) then,
-  ) = _$ToolResultCopyWithImpl<$Res, ToolResult>;
-  @useResult
-  $Res call({String toolCallId, String toolName, dynamic result});
-}
+abstract mixin class $ToolResultCopyWith<$Res>  {
+  factory $ToolResultCopyWith(ToolResult value, $Res Function(ToolResult) _then) = _$ToolResultCopyWithImpl;
+@useResult
+$Res call({
+ String toolCallId, String toolName, dynamic result
+});
 
+
+
+
+}
 /// @nodoc
-class _$ToolResultCopyWithImpl<$Res, $Val extends ToolResult>
+class _$ToolResultCopyWithImpl<$Res>
     implements $ToolResultCopyWith<$Res> {
-  _$ToolResultCopyWithImpl(this._value, this._then);
+  _$ToolResultCopyWithImpl(this._self, this._then);
 
-  // ignore: unused_field
-  final $Val _value;
-  // ignore: unused_field
-  final $Res Function($Val) _then;
+  final ToolResult _self;
+  final $Res Function(ToolResult) _then;
 
-  /// Create a copy of ToolResult
-  /// with the given fields replaced by the non-null parameter values.
-  @pragma('vm:prefer-inline')
-  @override
-  $Res call({
-    Object? toolCallId = null,
-    Object? toolName = null,
-    Object? result = freezed,
-  }) {
-    return _then(
-      _value.copyWith(
-            toolCallId: null == toolCallId
-                ? _value.toolCallId
-                : toolCallId // ignore: cast_nullable_to_non_nullable
-                      as String,
-            toolName: null == toolName
-                ? _value.toolName
-                : toolName // ignore: cast_nullable_to_non_nullable
-                      as String,
-            result: freezed == result
-                ? _value.result
-                : result // ignore: cast_nullable_to_non_nullable
-                      as dynamic,
-          )
-          as $Val,
-    );
-  }
+/// Create a copy of ToolResult
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? toolCallId = null,Object? toolName = null,Object? result = freezed,}) {
+  return _then(ToolResult(
+toolCallId: null == toolCallId ? _self.toolCallId : toolCallId // ignore: cast_nullable_to_non_nullable
+as String,toolName: null == toolName ? _self.toolName : toolName // ignore: cast_nullable_to_non_nullable
+as String,result: freezed == result ? _self.result : result // ignore: cast_nullable_to_non_nullable
+as dynamic,
+  ));
 }
 
-/// @nodoc
-abstract class _$$ToolResultImplCopyWith<$Res>
-    implements $ToolResultCopyWith<$Res> {
-  factory _$$ToolResultImplCopyWith(
-    _$ToolResultImpl value,
-    $Res Function(_$ToolResultImpl) then,
-  ) = __$$ToolResultImplCopyWithImpl<$Res>;
-  @override
-  @useResult
-  $Res call({String toolCallId, String toolName, dynamic result});
 }
 
-/// @nodoc
-class __$$ToolResultImplCopyWithImpl<$Res>
-    extends _$ToolResultCopyWithImpl<$Res, _$ToolResultImpl>
-    implements _$$ToolResultImplCopyWith<$Res> {
-  __$$ToolResultImplCopyWithImpl(
-    _$ToolResultImpl _value,
-    $Res Function(_$ToolResultImpl) _then,
-  ) : super(_value, _then);
 
-  /// Create a copy of ToolResult
-  /// with the given fields replaced by the non-null parameter values.
-  @pragma('vm:prefer-inline')
-  @override
-  $Res call({
-    Object? toolCallId = null,
-    Object? toolName = null,
-    Object? result = freezed,
-  }) {
-    return _then(
-      _$ToolResultImpl(
-        toolCallId: null == toolCallId
-            ? _value.toolCallId
-            : toolCallId // ignore: cast_nullable_to_non_nullable
-                  as String,
-        toolName: null == toolName
-            ? _value.toolName
-            : toolName // ignore: cast_nullable_to_non_nullable
-                  as String,
-        result: freezed == result
-            ? _value.result
-            : result // ignore: cast_nullable_to_non_nullable
-                  as dynamic,
-      ),
-    );
-  }
+/// Adds pattern-matching-related methods to [ToolResult].
+extension ToolResultPatterns on ToolResult {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _ToolResult value)?  $default,{required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case _ToolResult() when $default != null:
+return $default(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _ToolResult value)  $default,){
+final _that = this;
+switch (_that) {
+case _ToolResult():
+return $default(_that);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _ToolResult value)?  $default,){
+final _that = this;
+switch (_that) {
+case _ToolResult() when $default != null:
+return $default(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String toolCallId,  String toolName,  dynamic result)?  $default,{required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case _ToolResult() when $default != null:
+return $default(_that.toolCallId,_that.toolName,_that.result);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String toolCallId,  String toolName,  dynamic result)  $default,) {final _that = this;
+switch (_that) {
+case _ToolResult():
+return $default(_that.toolCallId,_that.toolName,_that.result);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String toolCallId,  String toolName,  dynamic result)?  $default,) {final _that = this;
+switch (_that) {
+case _ToolResult() when $default != null:
+return $default(_that.toolCallId,_that.toolName,_that.result);case _:
+  return null;
+
+}
+}
+
 }
 
 /// @nodoc
 @JsonSerializable()
-class _$ToolResultImpl extends _ToolResult {
-  const _$ToolResultImpl({
-    required this.toolCallId,
-    required this.toolName,
-    this.result,
-  }) : super._();
 
-  factory _$ToolResultImpl.fromJson(Map<String, dynamic> json) =>
-      _$$ToolResultImplFromJson(json);
+class _ToolResult extends ToolResult {
+  const _ToolResult({required this.toolCallId, required this.toolName, this.result}): super._();
+  factory _ToolResult.fromJson(Map<String, dynamic> json) => _$ToolResultFromJson(json);
 
-  @override
-  final String toolCallId;
-  @override
-  final String toolName;
-  @override
-  final dynamic result;
+@override final  String toolCallId;
+@override final  String toolName;
+@override final  dynamic result;
 
-  @override
-  String toString() {
-    return 'ToolResult(toolCallId: $toolCallId, toolName: $toolName, result: $result)';
-  }
+/// Create a copy of ToolResult
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$ToolResultCopyWith<_ToolResult> get copyWith => __$ToolResultCopyWithImpl<_ToolResult>(this, _$identity);
 
-  @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
-        (other.runtimeType == runtimeType &&
-            other is _$ToolResultImpl &&
-            (identical(other.toolCallId, toolCallId) ||
-                other.toolCallId == toolCallId) &&
-            (identical(other.toolName, toolName) ||
-                other.toolName == toolName) &&
-            const DeepCollectionEquality().equals(other.result, result));
-  }
-
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  @override
-  int get hashCode => Object.hash(
-    runtimeType,
-    toolCallId,
-    toolName,
-    const DeepCollectionEquality().hash(result),
-  );
-
-  /// Create a copy of ToolResult
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  @override
-  @pragma('vm:prefer-inline')
-  _$$ToolResultImplCopyWith<_$ToolResultImpl> get copyWith =>
-      __$$ToolResultImplCopyWithImpl<_$ToolResultImpl>(this, _$identity);
-
-  @override
-  Map<String, dynamic> toJson() {
-    return _$$ToolResultImplToJson(this);
-  }
+@override
+Map<String, dynamic> toJson() {
+  return _$ToolResultToJson(this, );
 }
 
-abstract class _ToolResult extends ToolResult {
-  const factory _ToolResult({
-    required final String toolCallId,
-    required final String toolName,
-    final dynamic result,
-  }) = _$ToolResultImpl;
-  const _ToolResult._() : super._();
-
-  factory _ToolResult.fromJson(Map<String, dynamic> json) =
-      _$ToolResultImpl.fromJson;
-
-  @override
-  String get toolCallId;
-  @override
-  String get toolName;
-  @override
-  dynamic get result;
-
-  /// Create a copy of ToolResult
-  /// with the given fields replaced by the non-null parameter values.
-  @override
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  _$$ToolResultImplCopyWith<_$ToolResultImpl> get copyWith =>
-      throw _privateConstructorUsedError;
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ToolResult&&(identical(other.toolCallId, toolCallId) || other.toolCallId == toolCallId)&&(identical(other.toolName, toolName) || other.toolName == toolName)&&const DeepCollectionEquality().equals(other.result, result));
 }
 
-ChatResponseChunk _$ChatResponseChunkFromJson(Map<String, dynamic> json) {
-  return _ChatResponseChunk.fromJson(json);
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,toolCallId,toolName,const DeepCollectionEquality().hash(result));
+
+@override
+String toString() {
+  return 'ToolResult(toolCallId: $toolCallId, toolName: $toolName, result: $result)';
 }
+
+
+}
+
+/// @nodoc
+abstract mixin class _$ToolResultCopyWith<$Res> implements $ToolResultCopyWith<$Res> {
+  factory _$ToolResultCopyWith(_ToolResult value, $Res Function(_ToolResult) _then) = __$ToolResultCopyWithImpl;
+@override @useResult
+$Res call({
+ String toolCallId, String toolName, dynamic result
+});
+
+
+
+
+}
+/// @nodoc
+class __$ToolResultCopyWithImpl<$Res>
+    implements _$ToolResultCopyWith<$Res> {
+  __$ToolResultCopyWithImpl(this._self, this._then);
+
+  final _ToolResult _self;
+  final $Res Function(_ToolResult) _then;
+
+/// Create a copy of ToolResult
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? toolCallId = null,Object? toolName = null,Object? result = freezed,}) {
+  return _then(_ToolResult(
+toolCallId: null == toolCallId ? _self.toolCallId : toolCallId // ignore: cast_nullable_to_non_nullable
+as String,toolName: null == toolName ? _self.toolName : toolName // ignore: cast_nullable_to_non_nullable
+as String,result: freezed == result ? _self.result : result // ignore: cast_nullable_to_non_nullable
+as dynamic,
+  ));
+}
+
+
+}
+
 
 /// @nodoc
 mixin _$ChatResponseChunk {
-  String get type => throw _privateConstructorUsedError;
-  String? get content => throw _privateConstructorUsedError;
-  String? get error => throw _privateConstructorUsedError;
-  Map<String, dynamic>? get metadata => throw _privateConstructorUsedError;
-  List<ToolCall>? get toolCalls => throw _privateConstructorUsedError;
-  ToolResult? get toolResult => throw _privateConstructorUsedError;
+
+ String get type; String? get content; String? get error; Map<String, dynamic>? get metadata; List<ToolCall>? get toolCalls; ToolResult? get toolResult;
+/// Create a copy of ChatResponseChunk
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$ChatResponseChunkCopyWith<ChatResponseChunk> get copyWith => _$ChatResponseChunkCopyWithImpl<ChatResponseChunk>(this as ChatResponseChunk, _$identity);
 
   /// Serializes this ChatResponseChunk to a JSON map.
-  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
+  Map<String, dynamic> toJson();
 
-  /// Create a copy of ChatResponseChunk
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  $ChatResponseChunkCopyWith<ChatResponseChunk> get copyWith =>
-      throw _privateConstructorUsedError;
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ChatResponseChunk&&(identical(other.type, type) || other.type == type)&&(identical(other.content, content) || other.content == content)&&(identical(other.error, error) || other.error == error)&&const DeepCollectionEquality().equals(other.metadata, metadata)&&const DeepCollectionEquality().equals(other.toolCalls, toolCalls)&&(identical(other.toolResult, toolResult) || other.toolResult == toolResult));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,type,content,error,const DeepCollectionEquality().hash(metadata),const DeepCollectionEquality().hash(toolCalls),toolResult);
+
+@override
+String toString() {
+  return 'ChatResponseChunk(type: $type, content: $content, error: $error, metadata: $metadata, toolCalls: $toolCalls, toolResult: $toolResult)';
+}
+
+
 }
 
 /// @nodoc
-abstract class $ChatResponseChunkCopyWith<$Res> {
-  factory $ChatResponseChunkCopyWith(
-    ChatResponseChunk value,
-    $Res Function(ChatResponseChunk) then,
-  ) = _$ChatResponseChunkCopyWithImpl<$Res, ChatResponseChunk>;
-  @useResult
-  $Res call({
-    String type,
-    String? content,
-    String? error,
-    Map<String, dynamic>? metadata,
-    List<ToolCall>? toolCalls,
-    ToolResult? toolResult,
-  });
+abstract mixin class $ChatResponseChunkCopyWith<$Res>  {
+  factory $ChatResponseChunkCopyWith(ChatResponseChunk value, $Res Function(ChatResponseChunk) _then) = _$ChatResponseChunkCopyWithImpl;
+@useResult
+$Res call({
+ String type, String? content, String? error, Map<String, dynamic>? metadata, List<ToolCall>? toolCalls, ToolResult? toolResult
+});
 
-  $ToolResultCopyWith<$Res>? get toolResult;
+
+$ToolResultCopyWith<$Res>? get toolResult;
+
 }
-
 /// @nodoc
-class _$ChatResponseChunkCopyWithImpl<$Res, $Val extends ChatResponseChunk>
+class _$ChatResponseChunkCopyWithImpl<$Res>
     implements $ChatResponseChunkCopyWith<$Res> {
-  _$ChatResponseChunkCopyWithImpl(this._value, this._then);
+  _$ChatResponseChunkCopyWithImpl(this._self, this._then);
 
-  // ignore: unused_field
-  final $Val _value;
-  // ignore: unused_field
-  final $Res Function($Val) _then;
+  final ChatResponseChunk _self;
+  final $Res Function(ChatResponseChunk) _then;
 
-  /// Create a copy of ChatResponseChunk
-  /// with the given fields replaced by the non-null parameter values.
-  @pragma('vm:prefer-inline')
-  @override
-  $Res call({
-    Object? type = null,
-    Object? content = freezed,
-    Object? error = freezed,
-    Object? metadata = freezed,
-    Object? toolCalls = freezed,
-    Object? toolResult = freezed,
-  }) {
-    return _then(
-      _value.copyWith(
-            type: null == type
-                ? _value.type
-                : type // ignore: cast_nullable_to_non_nullable
-                      as String,
-            content: freezed == content
-                ? _value.content
-                : content // ignore: cast_nullable_to_non_nullable
-                      as String?,
-            error: freezed == error
-                ? _value.error
-                : error // ignore: cast_nullable_to_non_nullable
-                      as String?,
-            metadata: freezed == metadata
-                ? _value.metadata
-                : metadata // ignore: cast_nullable_to_non_nullable
-                      as Map<String, dynamic>?,
-            toolCalls: freezed == toolCalls
-                ? _value.toolCalls
-                : toolCalls // ignore: cast_nullable_to_non_nullable
-                      as List<ToolCall>?,
-            toolResult: freezed == toolResult
-                ? _value.toolResult
-                : toolResult // ignore: cast_nullable_to_non_nullable
-                      as ToolResult?,
-          )
-          as $Val,
-    );
-  }
-
-  /// Create a copy of ChatResponseChunk
-  /// with the given fields replaced by the non-null parameter values.
-  @override
-  @pragma('vm:prefer-inline')
-  $ToolResultCopyWith<$Res>? get toolResult {
-    if (_value.toolResult == null) {
-      return null;
-    }
-
-    return $ToolResultCopyWith<$Res>(_value.toolResult!, (value) {
-      return _then(_value.copyWith(toolResult: value) as $Val);
-    });
-  }
+/// Create a copy of ChatResponseChunk
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? type = null,Object? content = freezed,Object? error = freezed,Object? metadata = freezed,Object? toolCalls = freezed,Object? toolResult = freezed,}) {
+  return _then(ChatResponseChunk(
+type: null == type ? _self.type : type // ignore: cast_nullable_to_non_nullable
+as String,content: freezed == content ? _self.content : content // ignore: cast_nullable_to_non_nullable
+as String?,error: freezed == error ? _self.error : error // ignore: cast_nullable_to_non_nullable
+as String?,metadata: freezed == metadata ? _self.metadata : metadata // ignore: cast_nullable_to_non_nullable
+as Map<String, dynamic>?,toolCalls: freezed == toolCalls ? _self.toolCalls : toolCalls // ignore: cast_nullable_to_non_nullable
+as List<ToolCall>?,toolResult: freezed == toolResult ? _self.toolResult : toolResult // ignore: cast_nullable_to_non_nullable
+as ToolResult?,
+  ));
 }
+/// Create a copy of ChatResponseChunk
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$ToolResultCopyWith<$Res>? get toolResult {
+    if (_self.toolResult == null) {
+    return null;
+  }
 
-/// @nodoc
-abstract class _$$ChatResponseChunkImplCopyWith<$Res>
-    implements $ChatResponseChunkCopyWith<$Res> {
-  factory _$$ChatResponseChunkImplCopyWith(
-    _$ChatResponseChunkImpl value,
-    $Res Function(_$ChatResponseChunkImpl) then,
-  ) = __$$ChatResponseChunkImplCopyWithImpl<$Res>;
-  @override
-  @useResult
-  $Res call({
-    String type,
-    String? content,
-    String? error,
-    Map<String, dynamic>? metadata,
-    List<ToolCall>? toolCalls,
-    ToolResult? toolResult,
+  return $ToolResultCopyWith<$Res>(_self.toolResult!, (value) {
+    return _then(_self.copyWith(toolResult: value));
   });
-
-  @override
-  $ToolResultCopyWith<$Res>? get toolResult;
+}
 }
 
-/// @nodoc
-class __$$ChatResponseChunkImplCopyWithImpl<$Res>
-    extends _$ChatResponseChunkCopyWithImpl<$Res, _$ChatResponseChunkImpl>
-    implements _$$ChatResponseChunkImplCopyWith<$Res> {
-  __$$ChatResponseChunkImplCopyWithImpl(
-    _$ChatResponseChunkImpl _value,
-    $Res Function(_$ChatResponseChunkImpl) _then,
-  ) : super(_value, _then);
 
-  /// Create a copy of ChatResponseChunk
-  /// with the given fields replaced by the non-null parameter values.
-  @pragma('vm:prefer-inline')
-  @override
-  $Res call({
-    Object? type = null,
-    Object? content = freezed,
-    Object? error = freezed,
-    Object? metadata = freezed,
-    Object? toolCalls = freezed,
-    Object? toolResult = freezed,
-  }) {
-    return _then(
-      _$ChatResponseChunkImpl(
-        type: null == type
-            ? _value.type
-            : type // ignore: cast_nullable_to_non_nullable
-                  as String,
-        content: freezed == content
-            ? _value.content
-            : content // ignore: cast_nullable_to_non_nullable
-                  as String?,
-        error: freezed == error
-            ? _value.error
-            : error // ignore: cast_nullable_to_non_nullable
-                  as String?,
-        metadata: freezed == metadata
-            ? _value._metadata
-            : metadata // ignore: cast_nullable_to_non_nullable
-                  as Map<String, dynamic>?,
-        toolCalls: freezed == toolCalls
-            ? _value._toolCalls
-            : toolCalls // ignore: cast_nullable_to_non_nullable
-                  as List<ToolCall>?,
-        toolResult: freezed == toolResult
-            ? _value.toolResult
-            : toolResult // ignore: cast_nullable_to_non_nullable
-                  as ToolResult?,
-      ),
-    );
-  }
+/// Adds pattern-matching-related methods to [ChatResponseChunk].
+extension ChatResponseChunkPatterns on ChatResponseChunk {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _ChatResponseChunk value)?  $default,{required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case _ChatResponseChunk() when $default != null:
+return $default(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _ChatResponseChunk value)  $default,){
+final _that = this;
+switch (_that) {
+case _ChatResponseChunk():
+return $default(_that);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _ChatResponseChunk value)?  $default,){
+final _that = this;
+switch (_that) {
+case _ChatResponseChunk() when $default != null:
+return $default(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String type,  String? content,  String? error,  Map<String, dynamic>? metadata,  List<ToolCall>? toolCalls,  ToolResult? toolResult)?  $default,{required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case _ChatResponseChunk() when $default != null:
+return $default(_that.type,_that.content,_that.error,_that.metadata,_that.toolCalls,_that.toolResult);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String type,  String? content,  String? error,  Map<String, dynamic>? metadata,  List<ToolCall>? toolCalls,  ToolResult? toolResult)  $default,) {final _that = this;
+switch (_that) {
+case _ChatResponseChunk():
+return $default(_that.type,_that.content,_that.error,_that.metadata,_that.toolCalls,_that.toolResult);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String type,  String? content,  String? error,  Map<String, dynamic>? metadata,  List<ToolCall>? toolCalls,  ToolResult? toolResult)?  $default,) {final _that = this;
+switch (_that) {
+case _ChatResponseChunk() when $default != null:
+return $default(_that.type,_that.content,_that.error,_that.metadata,_that.toolCalls,_that.toolResult);case _:
+  return null;
+
+}
+}
+
 }
 
 /// @nodoc
 @JsonSerializable()
-class _$ChatResponseChunkImpl extends _ChatResponseChunk {
-  const _$ChatResponseChunkImpl({
-    required this.type,
-    this.content,
-    this.error,
-    final Map<String, dynamic>? metadata,
-    final List<ToolCall>? toolCalls,
-    this.toolResult,
-  }) : _metadata = metadata,
-       _toolCalls = toolCalls,
-       super._();
 
-  factory _$ChatResponseChunkImpl.fromJson(Map<String, dynamic> json) =>
-      _$$ChatResponseChunkImplFromJson(json);
+class _ChatResponseChunk extends ChatResponseChunk {
+  const _ChatResponseChunk({required this.type, this.content, this.error,  Map<String, dynamic>? metadata,  List<ToolCall>? toolCalls, this.toolResult}): _metadata = metadata,_toolCalls = toolCalls,super._();
+  factory _ChatResponseChunk.fromJson(Map<String, dynamic> json) => _$ChatResponseChunkFromJson(json);
 
-  @override
-  final String type;
-  @override
-  final String? content;
-  @override
-  final String? error;
-  final Map<String, dynamic>? _metadata;
-  @override
-  Map<String, dynamic>? get metadata {
-    final value = _metadata;
-    if (value == null) return null;
-    if (_metadata is EqualUnmodifiableMapView) return _metadata;
-    // ignore: implicit_dynamic_type
-    return EqualUnmodifiableMapView(value);
-  }
-
-  final List<ToolCall>? _toolCalls;
-  @override
-  List<ToolCall>? get toolCalls {
-    final value = _toolCalls;
-    if (value == null) return null;
-    if (_toolCalls is EqualUnmodifiableListView) return _toolCalls;
-    // ignore: implicit_dynamic_type
-    return EqualUnmodifiableListView(value);
-  }
-
-  @override
-  final ToolResult? toolResult;
-
-  @override
-  String toString() {
-    return 'ChatResponseChunk(type: $type, content: $content, error: $error, metadata: $metadata, toolCalls: $toolCalls, toolResult: $toolResult)';
-  }
-
-  @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
-        (other.runtimeType == runtimeType &&
-            other is _$ChatResponseChunkImpl &&
-            (identical(other.type, type) || other.type == type) &&
-            (identical(other.content, content) || other.content == content) &&
-            (identical(other.error, error) || other.error == error) &&
-            const DeepCollectionEquality().equals(other._metadata, _metadata) &&
-            const DeepCollectionEquality().equals(
-              other._toolCalls,
-              _toolCalls,
-            ) &&
-            (identical(other.toolResult, toolResult) ||
-                other.toolResult == toolResult));
-  }
-
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  @override
-  int get hashCode => Object.hash(
-    runtimeType,
-    type,
-    content,
-    error,
-    const DeepCollectionEquality().hash(_metadata),
-    const DeepCollectionEquality().hash(_toolCalls),
-    toolResult,
-  );
-
-  /// Create a copy of ChatResponseChunk
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  @override
-  @pragma('vm:prefer-inline')
-  _$$ChatResponseChunkImplCopyWith<_$ChatResponseChunkImpl> get copyWith =>
-      __$$ChatResponseChunkImplCopyWithImpl<_$ChatResponseChunkImpl>(
-        this,
-        _$identity,
-      );
-
-  @override
-  Map<String, dynamic> toJson() {
-    return _$$ChatResponseChunkImplToJson(this);
-  }
+@override final  String type;
+@override final  String? content;
+@override final  String? error;
+ final  Map<String, dynamic>? _metadata;
+@override Map<String, dynamic>? get metadata {
+  final value = _metadata;
+  if (value == null) return null;
+  if (_metadata is EqualUnmodifiableMapView) return _metadata;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableMapView(value);
 }
 
-abstract class _ChatResponseChunk extends ChatResponseChunk {
-  const factory _ChatResponseChunk({
-    required final String type,
-    final String? content,
-    final String? error,
-    final Map<String, dynamic>? metadata,
-    final List<ToolCall>? toolCalls,
-    final ToolResult? toolResult,
-  }) = _$ChatResponseChunkImpl;
-  const _ChatResponseChunk._() : super._();
-
-  factory _ChatResponseChunk.fromJson(Map<String, dynamic> json) =
-      _$ChatResponseChunkImpl.fromJson;
-
-  @override
-  String get type;
-  @override
-  String? get content;
-  @override
-  String? get error;
-  @override
-  Map<String, dynamic>? get metadata;
-  @override
-  List<ToolCall>? get toolCalls;
-  @override
-  ToolResult? get toolResult;
-
-  /// Create a copy of ChatResponseChunk
-  /// with the given fields replaced by the non-null parameter values.
-  @override
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  _$$ChatResponseChunkImplCopyWith<_$ChatResponseChunkImpl> get copyWith =>
-      throw _privateConstructorUsedError;
+ final  List<ToolCall>? _toolCalls;
+@override List<ToolCall>? get toolCalls {
+  final value = _toolCalls;
+  if (value == null) return null;
+  if (_toolCalls is EqualUnmodifiableListView) return _toolCalls;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(value);
 }
+
+@override final  ToolResult? toolResult;
+
+/// Create a copy of ChatResponseChunk
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$ChatResponseChunkCopyWith<_ChatResponseChunk> get copyWith => __$ChatResponseChunkCopyWithImpl<_ChatResponseChunk>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$ChatResponseChunkToJson(this, );
+}
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ChatResponseChunk&&(identical(other.type, type) || other.type == type)&&(identical(other.content, content) || other.content == content)&&(identical(other.error, error) || other.error == error)&&const DeepCollectionEquality().equals(other._metadata, _metadata)&&const DeepCollectionEquality().equals(other._toolCalls, _toolCalls)&&(identical(other.toolResult, toolResult) || other.toolResult == toolResult));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,type,content,error,const DeepCollectionEquality().hash(_metadata),const DeepCollectionEquality().hash(_toolCalls),toolResult);
+
+@override
+String toString() {
+  return 'ChatResponseChunk(type: $type, content: $content, error: $error, metadata: $metadata, toolCalls: $toolCalls, toolResult: $toolResult)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$ChatResponseChunkCopyWith<$Res> implements $ChatResponseChunkCopyWith<$Res> {
+  factory _$ChatResponseChunkCopyWith(_ChatResponseChunk value, $Res Function(_ChatResponseChunk) _then) = __$ChatResponseChunkCopyWithImpl;
+@override @useResult
+$Res call({
+ String type, String? content, String? error, Map<String, dynamic>? metadata, List<ToolCall>? toolCalls, ToolResult? toolResult
+});
+
+
+@override $ToolResultCopyWith<$Res>? get toolResult;
+
+}
+/// @nodoc
+class __$ChatResponseChunkCopyWithImpl<$Res>
+    implements _$ChatResponseChunkCopyWith<$Res> {
+  __$ChatResponseChunkCopyWithImpl(this._self, this._then);
+
+  final _ChatResponseChunk _self;
+  final $Res Function(_ChatResponseChunk) _then;
+
+/// Create a copy of ChatResponseChunk
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? type = null,Object? content = freezed,Object? error = freezed,Object? metadata = freezed,Object? toolCalls = freezed,Object? toolResult = freezed,}) {
+  return _then(_ChatResponseChunk(
+type: null == type ? _self.type : type // ignore: cast_nullable_to_non_nullable
+as String,content: freezed == content ? _self.content : content // ignore: cast_nullable_to_non_nullable
+as String?,error: freezed == error ? _self.error : error // ignore: cast_nullable_to_non_nullable
+as String?,metadata: freezed == metadata ? _self._metadata : metadata // ignore: cast_nullable_to_non_nullable
+as Map<String, dynamic>?,toolCalls: freezed == toolCalls ? _self._toolCalls : toolCalls // ignore: cast_nullable_to_non_nullable
+as List<ToolCall>?,toolResult: freezed == toolResult ? _self.toolResult : toolResult // ignore: cast_nullable_to_non_nullable
+as ToolResult?,
+  ));
+}
+
+/// Create a copy of ChatResponseChunk
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$ToolResultCopyWith<$Res>? get toolResult {
+    if (_self.toolResult == null) {
+    return null;
+  }
+
+  return $ToolResultCopyWith<$Res>(_self.toolResult!, (value) {
+    return _then(_self.copyWith(toolResult: value));
+  });
+}
+}
+
+// dart format on

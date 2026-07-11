@@ -7,7 +7,7 @@ part 'search_result.g.dart';
 
 /// A message that matched the search query.
 @freezed
-class MatchedMessage with _$MatchedMessage {
+abstract class MatchedMessage with _$MatchedMessage {
   const MatchedMessage._();
 
   const factory MatchedMessage({
@@ -25,7 +25,7 @@ class MatchedMessage with _$MatchedMessage {
 
 /// Search result with conversation and matched messages.
 @freezed
-class ConversationSearchResult with _$ConversationSearchResult {
+abstract class ConversationSearchResult with _$ConversationSearchResult {
   const ConversationSearchResult._();
 
   const factory ConversationSearchResult({
@@ -39,7 +39,7 @@ class ConversationSearchResult with _$ConversationSearchResult {
 
 /// Paginated search results.
 @freezed
-class SearchResults with _$SearchResults {
+abstract class SearchResults with _$SearchResults {
   const SearchResults._();
 
   const factory SearchResults({
