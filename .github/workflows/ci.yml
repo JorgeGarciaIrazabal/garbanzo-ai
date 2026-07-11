@@ -38,7 +38,8 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Install uv + Python
-        uses: astral-sh/setup-uv@v8
+        # setup-uv publishes only full-semver tags (no floating v8 major tag)
+        uses: astral-sh/setup-uv@v8.3.2
         with:
           python-version: "3.12"
 
