@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 
 import 'package:garbanzo_ai/core/api_client.dart';
 import 'package:garbanzo_ai/core/auth_service.dart';
+import 'package:garbanzo_ai/core/theme.dart';
 import 'package:garbanzo_ai/features/chat/widgets/chat_page.dart';
 import 'package:garbanzo_ai/features/notifications/services/push_service.dart';
 import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
@@ -29,58 +30,6 @@ void main() {
 class GarbanzoApp extends StatelessWidget {
   const GarbanzoApp({super.key});
 
-  /// Light theme with a warm, professional color scheme.
-  ThemeData get _lightTheme {
-    return ThemeData(
-      useMaterial3: true,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: const Color(0xFF6750A4), // Deep purple
-        brightness: Brightness.light,
-      ),
-      appBarTheme: const AppBarTheme(
-        centerTitle: false,
-        elevation: 0,
-      ),
-      cardTheme: CardThemeData(
-        elevation: 1,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-      ),
-      inputDecorationTheme: InputDecorationTheme(
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
-      ),
-    );
-  }
-
-  /// Dark theme with proper contrast for readability.
-  ThemeData get _darkTheme {
-    return ThemeData(
-      useMaterial3: true,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: const Color(0xFF6750A4), // Deep purple
-        brightness: Brightness.dark,
-      ),
-      appBarTheme: const AppBarTheme(
-        centerTitle: false,
-        elevation: 0,
-      ),
-      cardTheme: CardThemeData(
-        elevation: 1,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-      ),
-      inputDecorationTheme: InputDecorationTheme(
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
@@ -89,8 +38,8 @@ class GarbanzoApp extends StatelessWidget {
         builder: (context, settings, child) {
           return MaterialApp(
             title: 'Garbanzo AI',
-            theme: _lightTheme,
-            darkTheme: _darkTheme,
+            theme: buildTheme(Brightness.light),
+            darkTheme: buildTheme(Brightness.dark),
             themeMode: settings.loaded ? settings.flutterThemeMode : ThemeMode.system,
             home: const AuthGate(),
           );
