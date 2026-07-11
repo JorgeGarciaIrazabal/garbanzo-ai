@@ -10,6 +10,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings, get_settings
+from app.core.rate_limit import rate_limit
 from app.core.security import get_current_user
 from app.db.session import get_db
 from app.schemas.chat import (
@@ -359,6 +360,7 @@ _SSE_HEADERS = {
     "/conversations/{conversation_id}/chat",
     summary="Send a message and stream response",
     response_class=StreamingResponse,
+    dependencies=[Depends(rate_limit("chat"))],
 )
 async def chat_stream(
     conversation_id: str,
@@ -388,6 +390,7 @@ async def chat_stream(
     "/conversations/{conversation_id}/messages/{message_id}/regenerate",
     summary="Regenerate an assistant message",
     response_class=StreamingResponse,
+    dependencies=[Depends(rate_limit("chat"))],
 )
 async def regenerate_message(
     conversation_id: str,
@@ -417,6 +420,7 @@ async def regenerate_message(
     "/conversations/{conversation_id}/messages/{message_id}/edit",
     summary="Edit a user message and re-run the conversation",
     response_class=StreamingResponse,
+    dependencies=[Depends(rate_limit("chat"))],
 )
 async def edit_message(
     conversation_id: str,

@@ -5,6 +5,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 
 from app.core.config import Settings, get_settings
+from app.core.rate_limit import rate_limit
 from app.core.security import get_current_user
 from app.schemas.audio import TranscriptionResponse
 
@@ -15,6 +16,7 @@ router = APIRouter()
     "/transcribe",
     response_model=TranscriptionResponse,
     summary="Transcribe audio to text",
+    dependencies=[Depends(rate_limit("stt"))],
 )
 async def transcribe_audio(
     file: UploadFile,

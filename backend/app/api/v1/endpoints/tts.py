@@ -5,6 +5,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import Response, StreamingResponse
 
+from app.core.rate_limit import rate_limit
 from app.core.security import get_current_user
 from app.schemas.audio import SpeechRequest, VoiceList
 from app.services.tts_service import TTSService
@@ -22,6 +23,7 @@ _CONTENT_TYPES = {
 @router.post(
     "/speak",
     summary="Synthesize speech from text",
+    dependencies=[Depends(rate_limit("tts"))],
 )
 async def speak(
     data: SpeechRequest,
@@ -47,6 +49,7 @@ async def speak(
 @router.post(
     "/speak/stream",
     summary="Stream synthesized speech audio",
+    dependencies=[Depends(rate_limit("tts"))],
 )
 async def speak_stream(
     data: SpeechRequest,

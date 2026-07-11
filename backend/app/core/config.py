@@ -100,6 +100,13 @@ class Settings(BaseSettings):
     kokoro_model_dir: str = "data/kokoro/models/v1_0"
     kokoro_voices_dir: str = "data/kokoro/voices"
 
+    # Rate limiting for expensive endpoints (chat/TTS/STT), keyed by user.
+    # Off by default so dev stays unlimited; 0 disables a single scope.
+    rate_limit_enabled: bool = False
+    rate_limit_chat_per_minute: int = 20
+    rate_limit_tts_per_minute: int = 30
+    rate_limit_stt_per_minute: int = 30
+
     # CORS
     cors_origins: str = "http://localhost:3000,http://localhost:8000"
 
