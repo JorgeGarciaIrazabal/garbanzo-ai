@@ -136,6 +136,7 @@ class _ImageViewerState extends State<ImageViewer>
                       offset: _offset * (1.0 - _dismissController.value),
                       child: Image.memory(
                         widget.attachment.bytes,
+                        semanticLabel: widget.attachment.name,
                         width: double.infinity,
                         height: double.infinity,
                         fit: BoxFit.contain,

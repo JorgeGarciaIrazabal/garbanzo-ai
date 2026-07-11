@@ -115,6 +115,7 @@ class _ImageThumbnailState extends State<ImageThumbnail> {
         borderRadius: BorderRadius.circular(8),
         child: Image.memory(
           widget.attachment.bytes,
+          semanticLabel: 'Attached image: ${widget.attachment.name}',
           width: 160,
           height: 160,
           fit: BoxFit.cover,

@@ -322,6 +322,7 @@ class MessageComposerState extends State<MessageComposer> {
     }
     return IconButton.filled(
       key: const ValueKey('send_button'),
+      tooltip: 'Send message',
       onPressed: null,
       icon: Icon(Icons.send, size: isMobile ? 18 : 20),
       style: IconButton.styleFrom(

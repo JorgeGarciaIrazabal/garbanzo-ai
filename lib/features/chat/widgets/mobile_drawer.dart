@@ -180,6 +180,7 @@ class _MobileDrawerBodyState extends State<_MobileDrawerBody> {
                         onPressed: () => widget.onTogglePin!(conversation.id),
                       ),
                     IconButton(
+                      tooltip: 'Delete conversation',
                       icon: const Icon(Icons.delete_outline),
                       onPressed: () => widget.onDelete(conversation.id),
                     ),

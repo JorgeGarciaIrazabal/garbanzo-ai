@@ -45,6 +45,7 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
       leading: showSidebar
           ? null
           : IconButton(
+              tooltip: 'Open conversations',
               icon: const Icon(Icons.menu),
               onPressed: () => showMobileConversationDrawer(
                 context: context,

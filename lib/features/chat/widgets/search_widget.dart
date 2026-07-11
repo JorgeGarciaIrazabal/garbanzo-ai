@@ -47,6 +47,7 @@ class _SearchWidgetState extends State<SearchWidget> {
               prefixIcon: const Icon(Icons.search),
               suffixIcon: _controller.text.isNotEmpty
                   ? IconButton(
+                      tooltip: 'Clear search',
                       icon: const Icon(Icons.clear),
                       onPressed: () {
                         _controller.clear();

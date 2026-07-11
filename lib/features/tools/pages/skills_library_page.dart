@@ -120,6 +120,7 @@ class _SkillsLibraryContentState extends State<_SkillsLibraryContent> {
                 suffixIcon: _query.isEmpty
                     ? null
                     : IconButton(
+                        tooltip: 'Clear search',
                         icon: const Icon(Icons.close),
                         onPressed: () {
                           setState(() {

@@ -354,21 +354,24 @@ class _Avatar extends StatelessWidget {
     final hasGlyph =
         variant.avatarText != null && variant.avatarText!.isNotEmpty;
     final hasLetter = variant.avatarLetter != null;
-    return CircleAvatar(
-      radius: radius,
-      backgroundColor: variant.avatarBg,
-      foregroundColor: variant.avatarFg,
-      child: hasGlyph
-          ? Text(variant.avatarText!, style: TextStyle(fontSize: radius))
-          : hasLetter
-          ? Text(
-              variant.avatarLetter!,
-              style: TextStyle(
-                fontSize: radius - 3,
-                fontWeight: FontWeight.w600,
-              ),
-            )
-          : Icon(variant.avatarIcon, size: radius + 2),
+    return Semantics(
+      label: variant.title,
+      child: CircleAvatar(
+        radius: radius,
+        backgroundColor: variant.avatarBg,
+        foregroundColor: variant.avatarFg,
+        child: hasGlyph
+            ? Text(variant.avatarText!, style: TextStyle(fontSize: radius))
+            : hasLetter
+            ? Text(
+                variant.avatarLetter!,
+                style: TextStyle(
+                  fontSize: radius - 3,
+                  fontWeight: FontWeight.w600,
+                ),
+              )
+            : Icon(variant.avatarIcon, size: radius + 2),
+      ),
     );
   }
 }

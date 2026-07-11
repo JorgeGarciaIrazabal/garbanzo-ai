@@ -303,7 +303,7 @@ class _EmptyState extends StatelessWidget {
             Text(
               'No rooms yet',
               style: TextStyle(
-                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.85),
+                color: colorScheme.onSurfaceVariant,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -313,7 +313,7 @@ class _EmptyState extends StatelessWidget {
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 12,
-                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                color: colorScheme.onSurfaceVariant,
               ),
             ),
             if (onCreate != null) ...[

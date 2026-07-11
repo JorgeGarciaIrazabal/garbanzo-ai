@@ -174,9 +174,7 @@ class _EmptyState extends StatelessWidget {
           const SizedBox(height: 16),
           Text(
             'No conversations yet',
-            style: TextStyle(
-              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
-            ),
+            style: TextStyle(color: colorScheme.onSurfaceVariant),
           ),
         ],
       ),
@@ -283,6 +281,7 @@ class _ConversationListItem extends StatelessWidget {
                 ),
               // Delete button
               IconButton(
+                tooltip: 'Delete conversation',
                 onPressed: onDelete,
                 icon: const Icon(Icons.delete_outline, size: 18),
                 color: unselectedIcon,

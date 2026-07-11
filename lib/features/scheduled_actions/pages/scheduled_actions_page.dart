@@ -29,6 +29,7 @@ class _ScheduledActionsView extends StatelessWidget {
         title: const Text('Scheduled actions'),
         actions: [
           IconButton(
+            tooltip: 'Refresh',
             icon: const Icon(Icons.refresh),
             onPressed: provider.loading ? null : provider.load,
           ),
@@ -83,6 +84,7 @@ class _ScheduledActionsView extends StatelessWidget {
                         ),
                       ),
                       IconButton(
+                        tooltip: 'Dismiss error',
                         icon: const Icon(Icons.close),
                         onPressed: provider.clearError,
                       ),

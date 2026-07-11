@@ -731,6 +731,7 @@ class _ErrorBanner extends StatelessWidget {
             ),
           ),
           IconButton(
+            tooltip: 'Dismiss error',
             icon: Icon(
               Icons.close,
               color: colorScheme.onErrorContainer,

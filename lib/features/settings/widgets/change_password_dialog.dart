@@ -70,6 +70,9 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
                 decoration: InputDecoration(
                   labelText: 'Current password',
                   suffixIcon: IconButton(
+                    tooltip: _obscureCurrent
+                        ? 'Show password'
+                        : 'Hide password',
                     icon: Icon(
                       _obscureCurrent ? Icons.visibility : Icons.visibility_off,
                     ),
@@ -86,6 +89,7 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
                 decoration: InputDecoration(
                   labelText: 'New password',
                   suffixIcon: IconButton(
+                    tooltip: _obscureNext ? 'Show password' : 'Hide password',
                     icon: Icon(
                       _obscureNext ? Icons.visibility : Icons.visibility_off,
                     ),

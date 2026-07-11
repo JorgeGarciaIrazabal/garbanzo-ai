@@ -115,6 +115,9 @@ class _CreateUserDialogState extends State<CreateUserDialog> {
                   border: const OutlineInputBorder(),
                   prefixIcon: const Icon(Icons.lock_outlined),
                   suffixIcon: IconButton(
+                    tooltip: _obscurePassword
+                        ? 'Show password'
+                        : 'Hide password',
                     icon: Icon(
                       _obscurePassword
                           ? Icons.visibility_outlined

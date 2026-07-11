@@ -92,6 +92,7 @@ class SearchResultsWidget extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     IconButton(
+                      tooltip: 'Previous page',
                       icon: const Icon(Icons.chevron_left),
                       onPressed: searchProvider.currentPage > 1
                           ? () => searchProvider.previousPage()
@@ -102,6 +103,7 @@ class SearchResultsWidget extends StatelessWidget {
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                     IconButton(
+                      tooltip: 'Next page',
                       icon: const Icon(Icons.chevron_right),
                       onPressed: results.hasMore
                           ? () => searchProvider.nextPage()
