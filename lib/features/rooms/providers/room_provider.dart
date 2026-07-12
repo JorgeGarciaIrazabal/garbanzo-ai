@@ -316,8 +316,24 @@ class RoomProvider extends ChangeNotifier {
         }
         break;
       case 'done':
-        // The final 'message' event carries canonical content; nothing special
-        // to do here.
+        // The canonical 'message' event normally arrives first and clears the
+        // stream. If it didn't, the turn failed or produced nothing — finalize
+        // here so the placeholder doesn't keep showing typing dots forever.
+        final id = event['message_id'] as String?;
+        if (id == null) return;
+        final stream = _streaming.remove(id);
+        if (stream == null) return;
+        if (id == _streamingMessageId) {
+          _syncStreamingIntoList();
+          _clearStreamingChannel();
+        }
+        if (stream.content.isEmpty) {
+          // Nothing ever streamed — drop the empty bubble.
+          _messages = _messages.where((m) => m.id != id).toList();
+        } else {
+          _upsertMessage(stream.build());
+        }
+        notifyListeners();
         break;
       case 'tool':
         // Tool execution progress / result for an agent stream.

@@ -206,6 +206,72 @@ void main() {
 
       provider.dispose();
     });
+
+    test('done without a canonical message drops an empty placeholder',
+        () async {
+      final channel = FakeRoomChannel();
+      final provider = _wire(channel).provider;
+
+      await provider.openRoom('r1');
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      channel.emit(jsonEncode({
+        'type': 'stream_start',
+        'message_id': 'm1',
+        'agent_id': 'a1',
+      }));
+      await Future<void>.delayed(Duration.zero);
+      expect(provider.messages.where((m) => m.id == 'm1'), hasLength(1));
+
+      // The turn failed server-side: no chunks, no canonical message.
+      channel.emit(jsonEncode({
+        'type': 'done',
+        'message_id': 'm1',
+        'agent_id': 'a1',
+      }));
+      await Future<void>.delayed(Duration.zero);
+
+      expect(provider.streamingMessageId, isNull);
+      expect(provider.messages.where((m) => m.id == 'm1'), isEmpty);
+
+      provider.dispose();
+    });
+
+    test('done without a canonical message keeps partial streamed content',
+        () async {
+      final channel = FakeRoomChannel();
+      final provider = _wire(channel).provider;
+
+      await provider.openRoom('r1');
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      channel.emit(jsonEncode({
+        'type': 'stream_start',
+        'message_id': 'm1',
+        'agent_id': 'a1',
+      }));
+      channel.emit(jsonEncode({
+        'type': 'chunk',
+        'message_id': 'm1',
+        'content': 'partial',
+      }));
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+
+      channel.emit(jsonEncode({
+        'type': 'done',
+        'message_id': 'm1',
+        'agent_id': 'a1',
+      }));
+      await Future<void>.delayed(Duration.zero);
+
+      expect(provider.streamingMessageId, isNull);
+      expect(
+        provider.messages.firstWhere((m) => m.id == 'm1').content,
+        'partial',
+      );
+
+      provider.dispose();
+    });
   });
 
   group('RoomProvider reconnect', () {

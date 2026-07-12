@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
+import 'package:garbanzo_ai/features/chat/models/chat_message.dart';
 import 'package:garbanzo_ai/features/chat/widgets/message/copy_button.dart';
 import 'package:garbanzo_ai/features/chat/widgets/message/message_content.dart';
 import 'package:garbanzo_ai/features/chat/widgets/message/message_metadata.dart';
 import 'package:garbanzo_ai/features/chat/widgets/message/reveal_on_hover.dart';
 import 'package:garbanzo_ai/features/chat/widgets/message/speak_button.dart';
 import 'package:garbanzo_ai/features/chat/widgets/message/thinking_content.dart';
+import 'package:garbanzo_ai/features/chat/widgets/tool_bubble_widget.dart';
 import 'package:garbanzo_ai/features/rooms/models/room_models.dart';
 
 /// Rendering for a single room message.
@@ -122,6 +124,21 @@ class _RoomMessageBubbleState extends State<RoomMessageBubble> {
 
   @override
   Widget build(BuildContext context) {
+    final message = widget.message;
+    // Persisted tool activity renders as the same compact, collapsible rows
+    // the 1:1 chat uses — never as raw JSON prose.
+    if (message.role == 'tool_call' || message.role == 'tool_result') {
+      return ToolBubbleWidget(
+        message: ChatMessage(
+          id: message.id,
+          role: message.role,
+          content: message.content,
+          createdAt: message.createdAt,
+          metadata: message.meta,
+        ),
+        isStreaming: widget.isStreaming,
+      );
+    }
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),

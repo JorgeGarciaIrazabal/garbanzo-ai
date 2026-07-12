@@ -243,11 +243,16 @@ class RoomChatService:
             exclude_user_ids={user_id},
         )
 
-        await self._run_agent_turns(
-            _TurnContext(room=room, depth=0),
-            triggering_content=content,
-            triggering_agent_id=None,
-        )
+        try:
+            await self._run_agent_turns(
+                _TurnContext(room=room, depth=0),
+                triggering_content=content,
+                triggering_agent_id=None,
+            )
+        except Exception:
+            # The user's message is already persisted and broadcast — an
+            # agent-side failure must not surface as "Failed to post message".
+            logger.exception("Agent turns failed after user post (room=%s)", room_id)
         return user_msg
 
     # -------------------------------------------------------------- selection
@@ -557,6 +562,10 @@ class RoomChatService:
                 final_msg = await self._run_single_agent(ctx, agent, history)
             except Exception:
                 logger.exception("Agent turn failed (room=%s agent=%s)", ctx.room.id, agent.name)
+                # A failed flush leaves the shared session in an aborted
+                # transaction — clear it so later agents and history queries
+                # don't fail on a poisoned session.
+                await self.db.rollback()
                 continue
 
             if final_msg is None:
@@ -658,6 +667,13 @@ class RoomChatService:
 
         msg = sink.message
         if msg is None:
+            # Nothing persisted (empty reply or failed turn) — still close the
+            # stream so clients tear down the placeholder bubble instead of
+            # showing typing dots forever.
+            await room_manager.broadcast(
+                ctx.room.id,
+                RoomDoneEvent(message_id=message_id, agent_id=agent.id).model_dump(),
+            )
             return None
         await self.db.refresh(msg)
 

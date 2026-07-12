@@ -198,5 +198,29 @@ async def test_agent_turn_skips_empty_reply(db_session, monkeypatch):
         .all()
     )
     assert assistants == []
-    # Bubble opened but never resolved to a message — no done event.
-    assert _event_types(fake) == ["message", "stream_start"]
+    # Bubble opened but never resolved to a message — done still fires so
+    # clients tear the placeholder down.
+    assert _event_types(fake) == ["message", "stream_start", "done"]
+
+
+async def test_user_post_survives_agent_turn_crash(db_session, monkeypatch):
+    """An agent-side failure must never bubble up to the WS handler.
+
+    The user's message is already persisted and broadcast by then — letting
+    the exception escape makes the client show "Failed to post message" for
+    a post that succeeded.
+    """
+    provider = _ScriptedRoomProvider([ChatChunk(content="", is_finished=True, metadata={})])
+    room_id, svc = await _make_room_with_agent(db_session, provider)
+    fake = _FakeRoomManager()
+    monkeypatch.setattr("app.services.room_chat_service.room_manager", fake)
+
+    async def _boom(*args, **kwargs):
+        raise RuntimeError("agent cascade blew up")
+
+    monkeypatch.setattr(svc, "_run_agent_turns", _boom)
+
+    user_msg = await svc.handle_user_post(room_id, "test@example.com", "hi")
+
+    assert user_msg.content == "hi"
+    assert _event_types(fake) == ["message"]
