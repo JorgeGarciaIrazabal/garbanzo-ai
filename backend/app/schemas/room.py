@@ -26,6 +26,9 @@ class RoomAgentCreate(BaseModel):
     turn_order: int = Field(default=0, ge=0)
     is_active: bool = True
     is_moderator: bool = False
+    enabled_tools: list[str] | None = Field(
+        None, description="MCP tool whitelist: null=all, []=none, ['srv:tool']=subset"
+    )
 
 
 class RoomAgentUpdate(BaseModel):
@@ -40,6 +43,9 @@ class RoomAgentUpdate(BaseModel):
     turn_order: int | None = Field(None, ge=0)
     is_active: bool | None = None
     is_moderator: bool | None = None
+    enabled_tools: list[str] | None = Field(
+        None, description="MCP tool whitelist: null=all, []=none, ['srv:tool']=subset"
+    )
 
 
 class RoomAgentOut(BaseModel):
@@ -54,6 +60,7 @@ class RoomAgentOut(BaseModel):
     turn_order: int
     is_active: bool
     is_moderator: bool
+    enabled_tools: list[str] | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -348,6 +355,19 @@ class RoomDoneEvent(BaseModel):
     type: Literal["done"] = "done"
     message_id: str
     agent_id: str
+
+
+class RoomToolEvent(BaseModel):
+    """A tool execution event (call, result, or progress) for an agent turn."""
+
+    type: Literal["tool"] = "tool"
+    message_id: str
+    agent_id: str
+    tool_call_id: str | None = None
+    tool_name: str | None = None
+    status: Literal["started", "finished", "result"] = "started"
+    duration_ms: int | None = None
+    result: dict[str, Any] | None = None
 
 
 class RoomPresenceEvent(BaseModel):

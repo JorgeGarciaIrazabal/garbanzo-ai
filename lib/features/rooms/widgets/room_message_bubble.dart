@@ -73,6 +73,53 @@ class _RoomMessageBubbleState extends State<RoomMessageBubble> {
         meta.containsKey('response_time_ms');
   }
 
+  List<Map<String, dynamic>> _toolEvents() {
+    final meta = widget.message.meta;
+    if (meta == null) return const [];
+    final events = meta['tool_events'];
+    if (events is List) {
+      return events.cast<Map<String, dynamic>>();
+    }
+    return const [];
+  }
+
+  Widget _buildToolSummary(ColorScheme colorScheme, ThemeData theme) {
+    final events = _toolEvents();
+    final running = events.where((e) => e['status'] == 'started').length;
+    final names = <String>{};
+    for (final e in events) {
+      final name = e['tool_name'] as String?;
+      if (name != null) names.add(name);
+    }
+    final label = running > 0
+        ? 'Using tools: ${names.join(', ')}…'
+        : 'Used ${names.length} tool(s): ${names.take(3).join(', ')}${names.length > 3 ? '…' : ''}';
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4, left: 2),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.build_circle_outlined,
+            size: 14,
+            color: colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              label,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return MouseRegion(
@@ -112,6 +159,7 @@ class _RoomMessageBubbleState extends State<RoomMessageBubble> {
             ],
           ),
           const SizedBox(height: 6),
+          if (_toolEvents().isNotEmpty) _buildToolSummary(colorScheme, theme),
           if (thinking != null)
             ThinkingContent(
               thinkingContent: thinking,

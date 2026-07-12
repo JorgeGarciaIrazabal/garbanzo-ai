@@ -14,10 +14,11 @@ class RoomAgent {
   final String provider;
   final String model;
   final String? systemPrompt;
-  final String responseMode; // 'mention' | 'always' | 'round_robin'
+  final String responseMode; // 'mention' | 'always' | 'round_robin' | 'auto'
   final int turnOrder;
   final bool isActive;
   final bool isModerator;
+  final List<String>? enabledTools;
   final DateTime createdAt;
 
   const RoomAgent({
@@ -32,6 +33,7 @@ class RoomAgent {
     required this.turnOrder,
     required this.isActive,
     required this.isModerator,
+    this.enabledTools,
     required this.createdAt,
   });
 
@@ -47,6 +49,9 @@ class RoomAgent {
     turnOrder: j['turn_order'] as int,
     isActive: j['is_active'] as bool,
     isModerator: j['is_moderator'] as bool,
+    enabledTools: (j['enabled_tools'] as List?)
+        ?.map((e) => e.toString())
+        .toList(),
     createdAt: DateTime.parse(j['created_at'] as String),
   );
 }

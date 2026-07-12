@@ -295,6 +295,7 @@ async def add_agent(
             turn_order=data.turn_order,
             is_active=data.is_active,
             is_moderator=data.is_moderator,
+            enabled_tools=data.enabled_tools,
         )
     except RoomNotFoundError as e:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Room not found") from e

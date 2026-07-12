@@ -144,6 +144,11 @@ class RoomAgent(Base):
     is_moderator: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default="false"
     )
+    enabled_tools: Mapped[list[str] | None] = mapped_column(
+        JSONB,
+        nullable=True,
+        comment="MCP tool whitelist: null=all enabled, []=none, ['srv:tool']=subset",
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     room: Mapped["Room"] = relationship(back_populates="agents")

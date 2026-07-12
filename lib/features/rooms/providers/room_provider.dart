@@ -319,6 +319,28 @@ class RoomProvider extends ChangeNotifier {
         // The final 'message' event carries canonical content; nothing special
         // to do here.
         break;
+      case 'tool':
+        // Tool execution progress / result for an agent stream.
+        // Update the streaming message's meta so the UI can show tool activity.
+        final id = event['message_id'] as String?;
+        if (id == null) return;
+        final stream = _streaming[id];
+        if (stream == null) return;
+        final toolName = event['tool_name'] as String? ?? 'tool';
+        final status = event['status'] as String? ?? 'started';
+        stream.toolEvents.add({
+          'tool_name': toolName,
+          'status': status,
+          'duration_ms': event['duration_ms'],
+          'result': event['result'],
+        });
+        if (id == _streamingMessageId) {
+          _pushStreamingUpdate(stream.build());
+        } else {
+          _upsertMessage(stream.build());
+          notifyListeners();
+        }
+        break;
       case 'presence':
         _online = ((event['online'] as List?) ?? const [])
             .map((e) => e.toString())
@@ -425,6 +447,7 @@ class RoomProvider extends ChangeNotifier {
     int turnOrder = 0,
     bool isModerator = false,
     String? avatar,
+    List<String>? enabledTools,
   }) async {
     final room = _currentRoom;
     if (room == null) return;
@@ -437,6 +460,7 @@ class RoomProvider extends ChangeNotifier {
       turnOrder: turnOrder,
       isModerator: isModerator,
       avatar: avatar,
+      enabledTools: enabledTools,
     );
     _currentRoom = await _service.getRoom(room.id);
     notifyListeners();
@@ -485,10 +509,12 @@ class _StreamingMessage {
   final String? agentId;
   String content = '';
   String thinking = '';
+  final List<Map<String, dynamic>> toolEvents = [];
 
   RoomMessage build() {
     final meta = Map<String, dynamic>.from(base.meta ?? const {});
     if (thinking.isNotEmpty) meta['thinking'] = thinking;
+    if (toolEvents.isNotEmpty) meta['tool_events'] = toolEvents;
     return base.copyWith(content: content, meta: meta);
   }
 }

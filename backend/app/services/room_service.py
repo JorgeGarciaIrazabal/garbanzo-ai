@@ -328,6 +328,7 @@ class RoomService:
         turn_order: int = 0,
         is_active: bool = True,
         is_moderator: bool = False,
+        enabled_tools: list[str] | None = None,
     ) -> RoomAgent:
         await self._require_owner(room_id, user_id)
         agent = RoomAgent(
@@ -342,6 +343,7 @@ class RoomService:
             turn_order=turn_order,
             is_active=is_active,
             is_moderator=is_moderator,
+            enabled_tools=enabled_tools,
         )
         self.db.add(agent)
         await self.db.commit()

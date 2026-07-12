@@ -50,7 +50,44 @@ class PushService {
         '[PushService] foreground message: ${message.notification?.title}',
       );
     });
+
+    // Handle notification taps when the app is in background/terminated.
+    FirebaseMessaging.onMessageOpenedApp.listen((message) {
+      final data = message.data;
+      debugPrint('[PushService] notification tapped: $data');
+      _handleNotificationTap(data);
+    });
+
+    // Handle notification taps that launched the app from terminated state.
+    unawaited(
+      FirebaseMessaging.instance.getInitialMessage().then((message) {
+        if (message != null) {
+          debugPrint(
+            '[PushService] app launched from notification: ${message.data}',
+          );
+          _handleNotificationTap(message.data);
+        }
+      }),
+    );
   }
+
+  void _handleNotificationTap(Map<String, dynamic> data) {
+    final roomId = data['room_id'] as String?;
+    if (roomId != null) {
+      debugPrint('[PushService] deep-linking to room: $roomId');
+      // The navigation is handled by the app's router listening to
+      // [PushService.instance.pendingRoomId].
+      pendingRoomId = roomId;
+      _pendingRoomIdController.add(roomId);
+    }
+  }
+
+  /// Room ID from a tapped notification, awaiting navigation.
+  String? pendingRoomId;
+
+  final StreamController<String> _pendingRoomIdController =
+      StreamController<String>.broadcast();
+  Stream<String> get onOpenRoom => _pendingRoomIdController.stream;
 
   /// Request notification permission, fetch the FCM token, and send it to the
   /// backend. Call this after the user successfully logs in.
@@ -128,5 +165,6 @@ class PushService {
     _initialized = false;
     _firebaseReady = false;
     _registeredToken = null;
+    await _pendingRoomIdController.close();
   }
 }

@@ -115,6 +115,7 @@ class RoomService {
     String responseMode = 'mention',
     int turnOrder = 0,
     bool isModerator = false,
+    List<String>? enabledTools,
   }) async {
     final resp = await _api.post(
       '/api/v1/rooms/$roomId/agents',
@@ -128,6 +129,7 @@ class RoomService {
         'turn_order': turnOrder,
         'is_active': true,
         'is_moderator': isModerator,
+        'enabled_tools': ?enabledTools,
       },
     );
     if (resp.statusCode != 201) {

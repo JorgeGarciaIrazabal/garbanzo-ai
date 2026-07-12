@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import 'package:garbanzo_ai/core/widgets/animated_dialog.dart';
 import 'package:garbanzo_ai/features/chat/models/model_info.dart';
 import 'package:garbanzo_ai/features/chat/services/chat_service.dart';
 import 'package:garbanzo_ai/features/rooms/providers/room_provider.dart';
+import 'package:garbanzo_ai/features/tools/providers/tool_provider.dart';
 
 /// Show the "Add agent" dialog. Returns when the dialog closes.
 Future<void> showAddAgentDialog(BuildContext context, RoomProvider provider) {
@@ -27,6 +29,8 @@ class _AddAgentDialogState extends State<_AddAgentDialog> {
   String _mode = 'mention';
   bool _moderator = false;
   bool _saving = false;
+  bool _allTools = true;
+  Set<String> _selectedTools = {};
 
   List<ModelInfo>? _models; // null = loading
   String? _modelLoadError;
@@ -84,6 +88,7 @@ class _AddAgentDialogState extends State<_AddAgentDialog> {
             : _promptCtrl.text.trim(),
         responseMode: _mode,
         isModerator: _moderator,
+        enabledTools: _allTools ? null : _selectedTools.toList(),
       );
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
@@ -147,6 +152,8 @@ class _AddAgentDialogState extends State<_AddAgentDialog> {
                 ],
                 onChanged: (v) => setState(() => _mode = v ?? 'mention'),
               ),
+              const SizedBox(height: 8),
+              _buildToolSelector(),
               const SizedBox(height: 8),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
@@ -271,6 +278,94 @@ class _AddAgentDialogState extends State<_AddAgentDialog> {
           )
           .toList(),
       onChanged: (v) => setState(() => _selectedModelId = v),
+    );
+  }
+
+  Widget _buildToolSelector() {
+    return Consumer<ToolProvider>(
+      builder: (context, toolProvider, _) {
+        if (!toolProvider.isLoaded && !toolProvider.isLoading) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            toolProvider.load();
+          });
+        }
+        final tools = toolProvider.tools;
+        final allKeys = tools.map((t) => t.qualifiedKey).toSet();
+
+        return ExpansionTile(
+          leading: const Icon(Icons.build_outlined, size: 18),
+          title: const Text('Tools'),
+          subtitle: Text(
+            _allTools
+                ? 'All tools enabled'
+                : '${_selectedTools.length} of ${allKeys.length} tools enabled',
+          ),
+          dense: true,
+          childrenPadding: const EdgeInsets.symmetric(horizontal: 8),
+          children: [
+            if (toolProvider.isLoading && tools.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    SizedBox(width: 8),
+                    Text('Loading tools…'),
+                  ],
+                ),
+              )
+            else if (tools.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                child: Text(
+                  'No MCP tools available. Configure from the Admin panel.',
+                  style: TextStyle(fontSize: 12),
+                ),
+              )
+            else ...[
+              SwitchListTile(
+                title: const Text('All tools'),
+                value: _allTools,
+                onChanged: (v) => setState(() {
+                  _allTools = v;
+                  if (!v) _selectedTools = Set.from(allKeys);
+                }),
+                dense: true,
+              ),
+              if (!_allTools)
+                ...toolProvider.toolsByServer.entries.map((entry) {
+                  final serverTools = entry.value;
+                  return Column(
+                    children: serverTools.map((tool) {
+                      final key = tool.qualifiedKey;
+                      final isOn = _selectedTools.contains(key);
+                      return CheckboxListTile(
+                        value: isOn,
+                        onChanged: (v) => setState(() {
+                          if (v == true) {
+                            _selectedTools.add(key);
+                          } else {
+                            _selectedTools.remove(key);
+                          }
+                        }),
+                        title: Text(
+                          tool.name,
+                          style: const TextStyle(fontFamily: 'monospace'),
+                        ),
+                        dense: true,
+                        controlAffinity: ListTileControlAffinity.leading,
+                      );
+                    }).toList(),
+                  );
+                }),
+            ],
+          ],
+        );
+      },
     );
   }
 }

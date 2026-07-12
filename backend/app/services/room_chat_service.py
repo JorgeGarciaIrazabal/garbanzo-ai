@@ -35,6 +35,7 @@ from app.schemas.room import (
     RoomMessageEvent,
     RoomStreamStartEvent,
     RoomThinkingEvent,
+    RoomToolEvent,
     RoomWSMessage,
 )
 from app.services.agent_turn import run_agent_turn
@@ -45,7 +46,15 @@ from app.services.llm_provider import (
 from app.services.llm_provider import (
     Message as LLMMessage,
 )
+from app.services.mcp_service import (
+    MCPService,
+    build_tool_payload,
+    split_tool_key,
+    tool_key,
+)
 from app.services.room_connection_manager import room_manager
+
+MAX_TOOL_ITERATIONS = 5
 
 logger = logging.getLogger(__name__)
 
@@ -93,12 +102,28 @@ class _RoomTurnSink:
         self.message = msg
 
     async def persist_tool_call(self, tool_calls: list[dict]) -> None:
-        # Room agents don't advertise tools yet; enabling them means
-        # persisting tool traffic as RoomMessage rows here.
-        pass
+        msg = RoomMessage(
+            id=str(uuid.uuid4()),
+            room_id=self.room_id,
+            role="tool_call",
+            content=json.dumps(tool_calls),
+            sender_agent_id=self.agent.id,
+            meta={"tool_calls": tool_calls},
+        )
+        self.db.add(msg)
+        await self.db.flush()
 
     async def persist_tool_result(self, content: str, meta: dict) -> None:
-        pass
+        msg = RoomMessage(
+            id=str(uuid.uuid4()),
+            room_id=self.room_id,
+            role="tool_result",
+            content=content,
+            sender_agent_id=self.agent.id,
+            meta=meta,
+        )
+        self.db.add(msg)
+        await self.db.flush()
 
     async def commit(self) -> None:
         await self.db.commit()
@@ -208,6 +233,15 @@ class RoomChatService:
             sender_user_id=user_id,
         )
         await room_manager.broadcast(room_id, self._message_event(user_msg))
+
+        # Notify offline members that a user posted a message.
+        await self._notify_offline_members(
+            room,
+            sender_label=user_id,
+            body=content,
+            message_id=user_msg.id,
+            exclude_user_ids={user_id},
+        )
 
         await self._run_agent_turns(
             _TurnContext(room=room, depth=0),
@@ -543,6 +577,9 @@ class RoomChatService:
         provider = self._get_provider(agent.provider or "ollama")
         llm_messages = self._build_llm_history(ctx.room, agent, history)
 
+        # Resolve MCP tools for this agent (null=all, []=none, list=subset)
+        ollama_tools, tool_lookup = await self._resolve_tools_for_agent(agent)
+
         message_id = str(uuid.uuid4())
         # Announce the incoming streaming message so the UI can open a bubble.
         await room_manager.broadcast(
@@ -563,11 +600,41 @@ class RoomChatService:
             llm_messages=llm_messages,
             sink=sink,
             options=ChatOptions(temperature=0.7),
+            tools=ollama_tools or None,
+            execute_tool=lambda call: self._execute_tool_call(call, tool_lookup),
+            max_tool_iterations=MAX_TOOL_ITERATIONS,
             persist_partial_on_error=True,
         ):
             if chunk.metadata and chunk.metadata.get("error"):
-                # The sink already persisted the partial/fallback content;
-                # the final "message" broadcast below carries it.
+                continue
+            # Tool execution progress / result events
+            tool_exec = chunk.metadata.get("tool_execution") if chunk.metadata else None
+            tool_result_meta = chunk.metadata.get("tool_result") if chunk.metadata else None
+            if tool_exec:
+                await room_manager.broadcast(
+                    ctx.room.id,
+                    RoomToolEvent(
+                        message_id=message_id,
+                        agent_id=agent.id,
+                        tool_call_id=tool_exec.get("tool_call_id"),
+                        tool_name=tool_exec.get("tool_name"),
+                        status=tool_exec.get("status", "started"),
+                        duration_ms=tool_exec.get("duration_ms"),
+                    ).model_dump(),
+                )
+                continue
+            if tool_result_meta:
+                await room_manager.broadcast(
+                    ctx.room.id,
+                    RoomToolEvent(
+                        message_id=message_id,
+                        agent_id=agent.id,
+                        tool_call_id=tool_result_meta.get("tool_call_id"),
+                        tool_name=tool_result_meta.get("tool_name"),
+                        status="result",
+                        result=tool_result_meta,
+                    ).model_dump(),
+                )
                 continue
             if chunk.is_thinking:
                 if chunk.content:
@@ -600,10 +667,65 @@ class RoomChatService:
             RoomDoneEvent(message_id=message_id, agent_id=agent.id).model_dump(),
         )
 
-        # Notify offline members about @mentions directed at them.
-        await self._notify_mentioned_offline_members(ctx.room, agent, msg.content)
+        # Notify offline members: agent replied + any @mentions in the reply.
+        await self._notify_offline_members(
+            ctx.room,
+            sender_label=agent.name,
+            body=msg.content,
+            message_id=msg.id,
+            exclude_user_ids=set(),
+        )
 
         return msg
+
+    # ----------------------------------------------------------------- tools
+
+    async def _resolve_tools_for_agent(
+        self, agent: RoomAgent
+    ) -> tuple[list[dict], dict[str, tuple[str, str]]]:
+        """Return ``(ollama_tools, lookup)`` for this agent's tool whitelist."""
+        enabled = agent.enabled_tools
+        if enabled is not None and not enabled:
+            return [], {}
+
+        mcp = MCPService(self.db)
+        try:
+            all_tools = await mcp.list_all_tools(enabled_only=True)
+        except Exception as exc:
+            logger.warning("Failed to list MCP tools for room agent: %s", exc)
+            all_tools = []
+
+        if enabled is None:
+            filtered = all_tools
+        else:
+            allowed = set(enabled)
+            filtered = [t for t in all_tools if tool_key(t["server_id"], t["name"]) in allowed]
+        ollama_tools, lookup = build_tool_payload(filtered)
+        return ollama_tools, lookup
+
+    async def _execute_tool_call(self, call: dict, lookup: dict[str, tuple[str, str]]) -> dict:
+        """Run a single tool call through ``MCPService``."""
+        name = call.get("name") or ""
+        args = call.get("arguments") or {}
+        if isinstance(args, str):
+            try:
+                args = json.loads(args)
+            except Exception:
+                args = {}
+
+        target = lookup.get(name)
+        if target is None and ":" in name:
+            target = split_tool_key(name)
+        if target is None:
+            return {"ok": False, "error": f"Unknown tool: {name}"}
+
+        server_id, tool_name = target
+        mcp = MCPService(self.db)
+        try:
+            return await mcp.call_tool(server_id, tool_name, args)
+        except Exception as exc:
+            logger.exception("Room agent tool execution failed: %s", name)
+            return {"ok": False, "error": str(exc)}
 
     # ------------------------------------------------------------------- misc
 
@@ -646,9 +768,16 @@ class RoomChatService:
         llm_messages: list[LLMMessage] = [LLMMessage(role="system", content="\n\n".join(sys_parts))]
 
         for msg in history:
-            if msg.role not in ("user", "assistant"):
+            if msg.role == "tool_result":
+                llm_messages.append(LLMMessage(role="tool", content=msg.content))
+            elif msg.role == "tool_call":
+                tool_calls = (msg.meta or {}).get("tool_calls") or []
+                llm_messages.append(
+                    LLMMessage(role="assistant", content="", tool_calls=tool_calls or None)
+                )
+            elif msg.role not in ("user", "assistant"):
                 continue
-            if msg.sender_agent_id and msg.sender_agent_id != agent.id:
+            elif msg.sender_agent_id and msg.sender_agent_id != agent.id:
                 # Another agent's reply — render as 'user' so this agent sees
                 # it as an incoming turn, with its name tagged for context.
                 other_name = agent_id_to_name.get(
@@ -667,41 +796,42 @@ class RoomChatService:
 
         return llm_messages
 
-    async def _notify_mentioned_offline_members(
-        self, room: Room, agent: RoomAgent, content: str
+    async def _notify_offline_members(
+        self,
+        room: Room,
+        *,
+        sender_label: str,
+        body: str,
+        message_id: str,
+        exclude_user_ids: set[str] | None = None,
     ) -> None:
-        # A very lightweight heuristic: if an agent's reply mentions @user...
-        # Currently we notify members whose email local-part was mentioned.
-        mentions = _MENTION_PATTERN.findall(content)
-        if not mentions:
-            return
+        """Send FCM + in-app notifications to offline room members.
+
+        Called after both user posts and agent replies. Members who are
+        currently connected via WebSocket are skipped (they've already seen
+        the message in real-time). ``exclude_user_ids`` prevents notifying
+        the sender of the triggering message.
+        """
+        exclude = exclude_user_ids or set()
         member_emails = {m.user_id for m in room.members}
 
         from app.db.session import async_session_maker
         from app.services.fcm_service import send_to_user
 
-        local_to_email: dict[str, str] = {}
-        for email in member_emails:
-            local = email.split("@")[0].lower()
-            local_to_email[local] = email
-
-        notified: set[str] = set()
-        for raw in mentions:
-            target = local_to_email.get(raw.lower())
-            if not target or target in notified:
+        for target in member_emails:
+            if target in exclude:
                 continue
             if room_manager.is_user_online(room.id, target):
                 continue
-            notified.add(target)
             try:
                 async with async_session_maker() as session:
                     await send_to_user(
                         session,
                         target,
-                        title=f"{agent.name} mentioned you in {room.name}",
-                        body=content[:160],
+                        title=f"{sender_label} in {room.name}",
+                        body=body[:160],
                         channel="chat_responses",
-                        data={"room_id": room.id},
+                        data={"room_id": room.id, "message_id": message_id},
                     )
             except Exception:
                 logger.exception("Failed to FCM-notify offline member %s", target)
