@@ -38,22 +38,24 @@ class Settings(BaseSettings):
     # num_ctx so the runtime actually allocates that window (Ollama otherwise
     # silently runs at its own default, typically 4096, regardless of the
     # model's maximum). Raising this increases RAM/VRAM use per request.
-    llm_context_window: int = 8192
+    # 100K is a safe default for cloud models (typically 128K–1M) while
+    # local models are still clamped by min(model_max, this value).
+    llm_context_window: int = 100000
 
     # Token budgets for context injected into the system prompt. Memory /
     # KB entries beyond the budget are dropped (in list order) so a large
     # memory store or document base can't crowd out the conversation itself.
-    memory_token_budget: int = 1000
-    kb_token_budget: int = 2000
+    memory_token_budget: int = 4000
+    kb_token_budget: int = 8000
 
     # Maximum memories injected per message (most relevant first). The token
     # budget above still applies on top of this count cap.
-    memory_top_k: int = 8
+    memory_top_k: int = 20
 
     # Tool results larger than this are truncated (with an explicit marker)
     # before being persisted and fed back to the model, so a tool returning
     # megabytes can't blow the context window or the message table.
-    tool_result_max_chars: int = 8000
+    tool_result_max_chars: int = 32000
 
     # Model used for internal classification calls (e.g. the "should this
     # auto-agent jump in?" judge in multi-agent rooms). Override via env var
@@ -157,7 +159,7 @@ class Settings(BaseSettings):
     embedding_dim: int = 768
     kb_chunk_size: int = 1000  # characters
     kb_chunk_overlap: int = 150  # characters
-    kb_top_k: int = 5  # top-K chunks injected per message
+    kb_top_k: int = 10  # top-K chunks injected per message
     kb_max_file_size_mb: int = 25
     # Minimum fused score for a chunk to be injected — keeps barely-related
     # chunks from polluting the context. With kb_semantic_weight=0.7, 0.35

@@ -444,8 +444,8 @@ class _HighlightedCodeBlockState extends State<_HighlightedCodeBlock> {
     );
   }
 
-  String? _normalizeLanguage(String? language) {
-    if (language == null) return null;
+  String _normalizeLanguage(String? language) {
+    if (language == null || language.isEmpty) return 'plaintext';
 
     // Map common language aliases to their canonical names
     final languageMap = {

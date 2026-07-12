@@ -54,10 +54,15 @@ class _ToolBubbleWidgetState extends State<ToolBubbleWidget> {
     if (!_isResult) return null;
     final meta = message.metadata;
     if (meta == null) return null;
+    // During SSE streaming the result is nested under 'tool_result'.
     final r = meta['tool_result'];
     if (r is Map<String, dynamic>) return r;
     if (r is Map) {
       return r.map((k, v) => MapEntry(k.toString(), v));
+    }
+    // When loaded from DB, the result fields live directly in meta.
+    if (meta.containsKey('tool_name') || meta.containsKey('tool_call_id')) {
+      return meta;
     }
     return null;
   }
@@ -232,6 +237,7 @@ class _ToolBubbleWidgetState extends State<ToolBubbleWidget> {
                   Flexible(
                     child: Text(
                       _toolName,
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodySmall?.copyWith(
                         fontFamily: 'monospace',
@@ -322,6 +328,7 @@ class _JsonBlock extends StatelessWidget {
     final colorScheme = theme.colorScheme;
     return Container(
       width: double.infinity,
+      constraints: const BoxConstraints(maxHeight: 320),
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerLow,
@@ -330,24 +337,26 @@ class _JsonBlock extends StatelessWidget {
           color: colorScheme.outlineVariant.withValues(alpha: 0.4),
         ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.8,
-              fontSize: 10,
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.8,
+                fontSize: 10,
+              ),
             ),
-          ),
-          const SizedBox(height: 6),
-          SelectableText(
-            text,
-            style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
-          ),
-        ],
+            const SizedBox(height: 6),
+            SelectableText(
+              text,
+              style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+            ),
+          ],
+        ),
       ),
     );
   }

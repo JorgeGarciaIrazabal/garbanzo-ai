@@ -5,6 +5,21 @@
       "type": "local",
       "command": ["uv", "run", "backend/app/mcp_stdio_servers/web_search.py"],
       "enabled": true
+    },
+    "dart-mcp-server": {
+      "type": "local",
+      "command": ["dart", "mcp-server"],
+      "enabled": true
+    },
+    "marionette": {
+      "type": "local",
+      "command": ["bash", "marionette_mcp"],
+      "enabled": true
+    },
+    "chrome-devtools": {
+      "type": "local",
+      "command": ["npx", "-y", "chrome-devtools-mcp@latest"],
+      "enabled": true
     }
   }
 }

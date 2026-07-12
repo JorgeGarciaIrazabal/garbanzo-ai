@@ -334,20 +334,23 @@ class OllamaProvider(LLMProvider):
                 if context_length is None:
                     # Fallback estimate from parameter size when `show`
                     # metadata is unavailable (e.g. remote/cloud models).
-                    param_size = details.parameter_size if details else None
-                    if param_size and "B" in param_size:
-                        try:
-                            size = float(param_size.replace("B", ""))
-                            if size <= 3:
-                                context_length = 4096
-                            elif size <= 8:
-                                context_length = 8192
-                            elif size <= 20:
-                                context_length = 32768
-                            else:
-                                context_length = 131072
-                        except ValueError:
-                            pass
+                    if ":cloud" in model_name.lower():
+                        context_length = 100000
+                    else:
+                        param_size = details.parameter_size if details else None
+                        if param_size and "B" in param_size:
+                            try:
+                                size = float(param_size.replace("B", ""))
+                                if size <= 3:
+                                    context_length = 4096
+                                elif size <= 8:
+                                    context_length = 8192
+                                elif size <= 20:
+                                    context_length = 32768
+                                else:
+                                    context_length = 131072
+                            except ValueError:
+                                pass
 
                 param_size = details.parameter_size if details else None
                 description_parts = [

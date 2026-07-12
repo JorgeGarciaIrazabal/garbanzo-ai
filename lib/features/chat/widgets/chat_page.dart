@@ -717,6 +717,7 @@ class _ErrorBanner extends StatelessWidget {
 
     return Container(
       width: double.infinity,
+      constraints: const BoxConstraints(maxHeight: 120),
       color: colorScheme.errorContainer,
       padding: const EdgeInsets.all(12),
       child: Row(
@@ -728,10 +729,12 @@ class _ErrorBanner extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(
-              message,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: colorScheme.onErrorContainer,
+            child: SingleChildScrollView(
+              child: Text(
+                message,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onErrorContainer,
+                ),
               ),
             ),
           ),

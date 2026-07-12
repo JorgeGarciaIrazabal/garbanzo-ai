@@ -146,8 +146,15 @@ def estimate_context_length(model_name: str) -> int:
 
     Last-resort fallback for when the provider can't report the model's
     real maximum (e.g. provider unreachable or remote/cloud models).
+    :cloud suffix indicates an Ollama cloud model, which typically has a
+    very large context window (128K–1M). When there is no parameter-size
+    hint in the name we assume 100K for cloud models and 8K otherwise.
     """
     match = re.search(r"(\d+(?:\.\d+)?)b", model_name.lower())
+    if ":cloud" in model_name.lower():
+        if match and float(match.group(1)) > 20:
+            return 131072
+        return 100000
     if match:
         size = float(match.group(1))
         if size <= 3:
