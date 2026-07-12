@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 
 import 'package:garbanzo_ai/core/auth_service.dart';
 import 'package:garbanzo_ai/features/notifications/services/push_service.dart';
@@ -48,8 +48,23 @@ class AuthState extends ChangeNotifier {
     // blocking the UI transition.
     unawaited(AuthService.instance.getCurrentUser());
     unawaited(PushService.instance.registerDevice());
+    // If a push notification tapped a room while logged out, navigate now.
+    final pending = PushService.instance.pendingRoomId;
+    if (pending != null) {
+      PushService.instance.pendingRoomId = null;
+      // Defer to next frame so the router's redirect guard has processed
+      // the loggedIn state change before we push the room route.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _pendingRoomNavigator?.call(pending);
+      });
+    }
     notifyListeners();
   }
+
+  /// Callback set by the app state to navigate to a pending room after login.
+  void Function(String)? _pendingRoomNavigator;
+  set pendingRoomNavigator(void Function(String)? fn) =>
+      _pendingRoomNavigator = fn;
 
   Future<void> logout() async {
     unawaited(PushService.instance.unregisterDevice());
