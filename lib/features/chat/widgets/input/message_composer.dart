@@ -7,7 +7,7 @@ import 'package:garbanzo_ai/core/reading_column.dart';
 /// Enter-to-send / Shift+Enter-for-newline handling, plus a send/stop button.
 ///
 /// Used by both the main chat ([ChatInputWidget], which wraps this with
-/// attachments and voice recording) and rooms (`RoomChatPage`, which uses it
+/// attachments and voice recording) and rooms (`RoomChatView`, which uses it
 /// bare) so the two composers look and behave identically. App-specific
 /// extras plug in via slots:
 ///   - [leading]: widget placed before the text field (e.g. attach button).

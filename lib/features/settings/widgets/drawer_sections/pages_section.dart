@@ -35,13 +35,6 @@ class PagesSection extends StatelessWidget {
           onTap: () => _open(context, '/kb'),
         ),
         ListTile(
-          leading: const Icon(Icons.group_outlined),
-          title: const Text('Rooms'),
-          subtitle: const Text('Multi-person, multi-agent chat rooms'),
-          dense: true,
-          onTap: () => _open(context, '/rooms'),
-        ),
-        ListTile(
           leading: const Icon(Icons.auto_awesome),
           title: const Text('Skills library'),
           subtitle: const Text('Browse available MCP tools'),

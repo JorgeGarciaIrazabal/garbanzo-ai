@@ -1,7 +1,4 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import 'package:garbanzo_ai/features/chat/models/conversation.dart';
@@ -12,6 +9,10 @@ import 'package:garbanzo_ai/features/rooms/widgets/rooms_list_view.dart';
 
 /// Sidebar shown on wide layouts. Contains a Chats / Rooms tab switcher so
 /// rooms feel like first-class peers of conversations.
+///
+/// Room selection is handled by the shell ([onSelectRoom]) which swaps the
+/// content pane in place — the sidebar itself never navigates. Rooms come
+/// from the app-level [RoomProvider].
 class ChatSidebar extends StatefulWidget {
   const ChatSidebar({
     super.key,
@@ -22,6 +23,10 @@ class ChatSidebar extends StatefulWidget {
     required this.onNewChat,
     required this.onTogglePin,
     required this.isLoadingConversations,
+    required this.onSelectRoom,
+    required this.onDeleteRoom,
+    this.selectedRoomId,
+    this.initialTab = 0,
   });
 
   final List<Conversation> conversations;
@@ -31,25 +36,35 @@ class ChatSidebar extends StatefulWidget {
   final VoidCallback onNewChat;
   final ValueChanged<String> onTogglePin;
   final bool isLoadingConversations;
+  final ValueChanged<String> onSelectRoom;
+  final ValueChanged<String> onDeleteRoom;
+  final String? selectedRoomId;
+
+  /// 0 = chats, 1 = rooms. Set to 1 when the shell is showing a room so a
+  /// deep link lands with the matching tab open.
+  final int initialTab;
 
   @override
   State<ChatSidebar> createState() => _ChatSidebarState();
 }
 
 class _ChatSidebarState extends State<ChatSidebar> {
-  int _tab = 0; // 0 = chats, 1 = rooms
-  RoomProvider? _roomsProvider;
-
-  RoomProvider _ensureRoomsProvider() {
-    final p = _roomsProvider ??= RoomProvider();
-    if (p.rooms.isEmpty && !p.loading) p.loadRooms();
-    return p;
-  }
+  late int _tab = widget.initialTab;
 
   @override
-  void dispose() {
-    _roomsProvider?.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    if (_tab == 1) {
+      // Deferred: loadRooms notifies listeners, which is illegal mid-build.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _loadRoomsIfEmpty();
+      });
+    }
+  }
+
+  void _loadRoomsIfEmpty() {
+    final rooms = context.read<RoomProvider>();
+    if (rooms.rooms.isEmpty && !rooms.loading) rooms.loadRooms();
   }
 
   @override
@@ -69,7 +84,7 @@ class _ChatSidebarState extends State<ChatSidebar> {
             value: _tab,
             onChange: (i) {
               setState(() => _tab = i);
-              if (i == 1) _ensureRoomsProvider();
+              if (i == 1) _loadRoomsIfEmpty();
             },
           ),
           Expanded(
@@ -84,9 +99,10 @@ class _ChatSidebarState extends State<ChatSidebar> {
                     isLoading: widget.isLoadingConversations,
                     embedded: true,
                   )
-                : ChangeNotifierProvider.value(
-                    value: _ensureRoomsProvider(),
-                    child: const _RoomsTab(),
+                : _RoomsTab(
+                    selectedRoomId: widget.selectedRoomId,
+                    onSelectRoom: widget.onSelectRoom,
+                    onDeleteRoom: widget.onDeleteRoom,
                   ),
           ),
         ],
@@ -134,7 +150,21 @@ class _Tabs extends StatelessWidget {
 }
 
 class _RoomsTab extends StatelessWidget {
-  const _RoomsTab();
+  const _RoomsTab({
+    required this.selectedRoomId,
+    required this.onSelectRoom,
+    required this.onDeleteRoom,
+  });
+
+  final String? selectedRoomId;
+  final ValueChanged<String> onSelectRoom;
+  final ValueChanged<String> onDeleteRoom;
+
+  Future<void> _create(BuildContext context) async {
+    final provider = context.read<RoomProvider>();
+    final created = await showCreateRoomDialog(context, provider);
+    if (created != null && context.mounted) onSelectRoom(created.id);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -155,15 +185,7 @@ class _RoomsTab extends StatelessWidget {
             children: [
               Expanded(
                 child: FilledButton.icon(
-                  onPressed: () async {
-                    final created = await showCreateRoomDialog(
-                      context,
-                      provider,
-                    );
-                    if (created != null && context.mounted) {
-                      unawaited(context.push('/rooms/${created.id}'));
-                    }
-                  },
+                  onPressed: () => _create(context),
                   icon: const Icon(Icons.group_add, size: 18),
                   label: const Text('New Room'),
                   style: FilledButton.styleFrom(
@@ -184,18 +206,14 @@ class _RoomsTab extends StatelessWidget {
           child: RoomsListView(
             rooms: provider.rooms,
             loading: provider.loading,
-            error: provider.error,
+            // The provider is shared with the open-room view, so `error` may
+            // be an openRoom failure — don't let it blank a loaded list.
+            error: provider.rooms.isEmpty ? provider.error : null,
+            selectedId: selectedRoomId,
             compact: true,
-            onSelect: (room) {
-              context.push('/rooms/${room.id}');
-            },
-            onDelete: (room) => provider.deleteRoom(room.id),
-            onCreate: () async {
-              final created = await showCreateRoomDialog(context, provider);
-              if (created != null && context.mounted) {
-                unawaited(context.push('/rooms/${created.id}'));
-              }
-            },
+            onSelect: (room) => onSelectRoom(room.id),
+            onDelete: (room) => onDeleteRoom(room.id),
+            onCreate: () => _create(context),
           ),
         ),
       ],

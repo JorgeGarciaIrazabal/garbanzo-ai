@@ -19,6 +19,7 @@ import 'package:garbanzo_ai/features/knowledge_base/providers/knowledge_base_pro
 import 'package:garbanzo_ai/features/memory/providers/memory_provider.dart';
 import 'package:garbanzo_ai/features/notifications/providers/notification_provider.dart';
 import 'package:garbanzo_ai/features/notifications/services/push_service.dart';
+import 'package:garbanzo_ai/features/rooms/providers/room_provider.dart';
 import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
 import 'package:garbanzo_ai/features/tools/providers/tool_provider.dart';
 
@@ -135,6 +136,7 @@ class _AppProviders extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => SearchProvider()),
         ChangeNotifierProvider(create: (_) => NotificationProvider()),
         ChangeNotifierProvider(create: (_) => KnowledgeBaseProvider()),
+        ChangeNotifierProvider(create: (_) => RoomProvider()),
       ],
       child: child,
     );

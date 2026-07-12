@@ -3,48 +3,77 @@ import 'package:provider/provider.dart';
 
 import 'package:garbanzo_ai/core/auth_service.dart';
 import 'package:garbanzo_ai/core/reading_column.dart';
-import 'package:garbanzo_ai/core/responsive.dart';
 import 'package:garbanzo_ai/core/smart_scroll_controller.dart';
-import 'package:garbanzo_ai/core/widgets/skeleton.dart';
 import 'package:garbanzo_ai/core/widgets/animated_dialog.dart';
 import 'package:garbanzo_ai/core/widgets/fade_slide_in.dart';
+import 'package:garbanzo_ai/core/widgets/skeleton.dart';
 import 'package:garbanzo_ai/features/chat/widgets/input/message_composer.dart';
 import 'package:garbanzo_ai/features/rooms/models/room_models.dart';
 import 'package:garbanzo_ai/features/rooms/providers/room_provider.dart';
 import 'package:garbanzo_ai/features/rooms/services/room_socket_service.dart';
 import 'package:garbanzo_ai/features/rooms/widgets/add_agent_dialog.dart';
 import 'package:garbanzo_ai/features/rooms/widgets/room_message_bubble.dart';
-import 'package:garbanzo_ai/features/rooms/widgets/rooms_sidebar.dart';
 
-/// Full-page chat UI for a single multi-person / multi-agent room.
-class RoomChatPage extends StatelessWidget {
-  const RoomChatPage({super.key, required this.roomId});
+/// Room chat rendered inside the main chat shell's content pane — the shell
+/// keeps its sidebar, so switching between chats and rooms never leaves the
+/// page.
+///
+/// Reads the app-level [RoomProvider]; opens the room's socket on mount,
+/// follows [roomId] changes, and closes the socket when disposed (unless a
+/// newer view has already taken the connection over).
+class RoomChatView extends StatefulWidget {
+  const RoomChatView({
+    super.key,
+    required this.roomId,
+    required this.onOpenSettings,
+    this.onOpenDrawer,
+  });
+
   final String roomId;
 
+  /// Opens the settings end-drawer (owned by the shell's Scaffold).
+  final VoidCallback onOpenSettings;
+
+  /// Narrow layouts only: opens the chats/rooms drawer.
+  final VoidCallback? onOpenDrawer;
+
   @override
-  Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => RoomProvider()..openRoom(roomId),
-      child: _RoomChatPageBody(roomId: roomId),
-    );
-  }
+  State<RoomChatView> createState() => _RoomChatViewState();
 }
 
-class _RoomChatPageBody extends StatefulWidget {
-  const _RoomChatPageBody({required this.roomId});
-  final String roomId;
-  @override
-  State<_RoomChatPageBody> createState() => _RoomChatPageBodyState();
-}
-
-class _RoomChatPageBodyState extends State<_RoomChatPageBody> {
+class _RoomChatViewState extends State<RoomChatView> {
   final _scroll = SmartScrollController();
   RoomProvider? _providerRef;
+
+  /// Monotonic mount counter: a disposed view must never close a socket a
+  /// newer view (re)opened. Only one RoomChatView exists at a time.
+  static int _mountCounter = 0;
+  late final int _mountId;
 
   @override
   void initState() {
     super.initState();
+    _mountId = ++_mountCounter;
     _scroll.attach();
+    // openRoom notifies listeners, so it can't run synchronously here (we're
+    // mid-build and the sidebar watches the same provider).
+    final provider = context.read<RoomProvider>();
+    if (provider.currentRoom?.id != widget.roomId) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) provider.openRoom(widget.roomId);
+      });
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant RoomChatView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.roomId != widget.roomId) {
+      final provider = context.read<RoomProvider>();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) provider.openRoom(widget.roomId);
+      });
+    }
   }
 
   @override
@@ -65,6 +94,16 @@ class _RoomChatPageBodyState extends State<_RoomChatPageBody> {
   void dispose() {
     _providerRef?.streamingMessage.removeListener(_onStreamingUpdate);
     _scroll.dispose();
+    final provider = _providerRef;
+    final roomId = widget.roomId;
+    // Deferred so leaveRoom's notifyListeners can't fire mid-teardown, and
+    // guarded so a swap to another room (whose openRoom is in flight) or a
+    // newer mount never gets its socket closed from under it.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_mountCounter == _mountId && provider?.currentRoom?.id == roomId) {
+        provider?.leaveRoom();
+      }
+    });
     super.dispose();
   }
 
@@ -89,17 +128,14 @@ class _RoomChatPageBodyState extends State<_RoomChatPageBody> {
       forceFollow: lastSenderIsMe,
     );
 
-    final showSidebar = context.isWide;
-
-    final mainColumn = provider.loading && room == null
+    final body = room == null && provider.error == null
         ? const SkeletonList(showAvatar: true, itemCount: 6)
         : Column(
             children: [
               if (provider.error != null)
                 _ErrorBanner(
                   message: provider.error!,
-                  onDismiss: () =>
-                      room != null ? provider.openRoom(room.id) : null,
+                  onDismiss: () => provider.openRoom(widget.roomId),
                 ),
               _ConnectionBanner(
                 state: provider.connectionState,
@@ -146,48 +182,51 @@ class _RoomChatPageBodyState extends State<_RoomChatPageBody> {
             ],
           );
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              room?.name ?? 'Loading…',
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.titleMedium,
-            ),
-            if (room != null)
-              Text(
-                _subtitleForRoom(room, provider.onlineUsers.length),
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
+    return Column(
+      children: [
+        AppBar(
+          automaticallyImplyLeading: false,
+          leading: widget.onOpenDrawer == null
+              ? null
+              : IconButton(
+                  tooltip: 'Open chats and rooms',
+                  icon: const Icon(Icons.menu),
+                  onPressed: widget.onOpenDrawer,
                 ),
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                room?.name ?? 'Loading…',
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleMedium,
               ),
+              if (room != null)
+                Text(
+                  _subtitleForRoom(room, provider.onlineUsers.length),
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+            ],
+          ),
+          actions: [
+            IconButton(
+              tooltip: 'Members & agents',
+              icon: const Icon(Icons.group_outlined),
+              onPressed: room == null ? null : () => _showPanel(context),
+            ),
+            IconButton(
+              icon: const Icon(Icons.settings),
+              tooltip: 'Settings',
+              onPressed: widget.onOpenSettings,
+            ),
+            const SizedBox(width: 8),
           ],
         ),
-        actions: [
-          if (!showSidebar)
-            IconButton(
-              tooltip: 'All rooms',
-              icon: const Icon(Icons.menu_open),
-              onPressed: () => _showRoomsDrawer(context),
-            ),
-          IconButton(
-            tooltip: 'Members & agents',
-            icon: const Icon(Icons.group_outlined),
-            onPressed: room == null ? null : () => _showPanel(context),
-          ),
-        ],
-      ),
-      body: showSidebar
-          ? Row(
-              children: [
-                RoomsSidebar(selectedRoomId: widget.roomId),
-                Expanded(child: mainColumn),
-              ],
-            )
-          : mainColumn,
+        Expanded(child: body),
+      ],
     );
   }
 
@@ -229,27 +268,6 @@ class _RoomChatPageBodyState extends State<_RoomChatPageBody> {
     );
   }
 
-  void _showRoomsDrawer(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (sheetCtx) => DraggableScrollableSheet(
-        initialChildSize: 0.75,
-        minChildSize: 0.5,
-        maxChildSize: 0.95,
-        expand: false,
-        builder: (_, _) => RoomsSidebar(
-          selectedRoomId: widget.roomId,
-          // Dismiss the bottom sheet before any navigation so we don't push
-          // routes on top of (or pop) the modal route itself.
-          onBeforeNavigate: () {
-            if (Navigator.of(sheetCtx).canPop()) Navigator.of(sheetCtx).pop();
-          },
-        ),
-      ),
-    );
-  }
-
   String _subtitleForRoom(Room room, int onlineCount) {
     final memberWord = room.memberCount == 1 ? 'member' : 'members';
     final agentWord = room.agentCount == 1 ? 'agent' : 'agents';
@@ -264,10 +282,7 @@ class _RoomChatPageBodyState extends State<_RoomChatPageBody> {
       context: context,
       showDragHandle: true,
       isScrollControlled: true,
-      builder: (_) => ChangeNotifierProvider.value(
-        value: context.read<RoomProvider>(),
-        child: const _MembersAgentsPanel(),
-      ),
+      builder: (_) => const _MembersAgentsPanel(),
     );
   }
 }

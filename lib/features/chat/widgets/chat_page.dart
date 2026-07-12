@@ -19,11 +19,14 @@ import 'package:garbanzo_ai/features/chat/widgets/input/file_picker_helper.dart'
 import 'package:garbanzo_ai/features/chat/widgets/panel_resize_handle.dart';
 import 'package:garbanzo_ai/features/chat/widgets/chat_message_widget.dart';
 import 'package:garbanzo_ai/features/chat/widgets/chat_sidebar.dart';
+import 'package:garbanzo_ai/features/chat/widgets/mobile_drawer.dart';
 import 'package:garbanzo_ai/features/chat/widgets/context_summary_widget.dart';
 import 'package:garbanzo_ai/features/chat/widgets/context_window_indicator.dart';
 import 'package:garbanzo_ai/features/chat/widgets/empty_chat_state.dart';
 import 'package:garbanzo_ai/features/chat/widgets/system_prompt_banner.dart';
 import 'package:garbanzo_ai/features/chat/widgets/tool_activity_group.dart';
+import 'package:garbanzo_ai/features/rooms/providers/room_provider.dart';
+import 'package:garbanzo_ai/features/rooms/widgets/room_chat_view.dart';
 
 /// Main chat page with conversation sidebar and message area.
 ///
@@ -31,11 +34,19 @@ import 'package:garbanzo_ai/features/chat/widgets/tool_activity_group.dart';
 /// at the app level (see `main.dart`), so this page only binds the route's
 /// [conversationId] to the provider — and mirrors provider changes back into
 /// the URL so conversations are linkable on web.
+///
+/// This page is also the shell for rooms: `/rooms/:roomId` renders it with
+/// [roomId] set, which swaps the content pane to a [RoomChatView] while the
+/// sidebar stays in place — no separate rooms page.
 class ChatPage extends StatefulWidget {
-  const ChatPage({super.key, this.conversationId});
+  const ChatPage({super.key, this.conversationId, this.roomId});
 
   /// Conversation id from the `/chat/:conversationId` route, if any.
   final String? conversationId;
+
+  /// Room id from the `/rooms/:roomId` route, if any. Mutually exclusive
+  /// with [conversationId].
+  final String? roomId;
 
   @override
   State<ChatPage> createState() => _ChatPageState();
@@ -94,6 +105,10 @@ class _ChatPageState extends State<ChatPage> {
   /// through the provider, so this single listener covers them all.
   void _syncUrlFromProvider() {
     if (!mounted) return;
+    // While a room fills the content pane the conversation is not on screen,
+    // so provider changes must not yank the URL away from /rooms/:id.
+    // Conversation clicks navigate explicitly in that state.
+    if (widget.roomId != null) return;
     final provider = _provider;
     if (provider == null) return;
     final currentId = provider.currentConversation?.id;
@@ -113,11 +128,13 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   @override
-  Widget build(BuildContext context) => const _ChatPageContent();
+  Widget build(BuildContext context) => _ChatPageContent(roomId: widget.roomId);
 }
 
 class _ChatPageContent extends StatefulWidget {
-  const _ChatPageContent();
+  const _ChatPageContent({this.roomId});
+
+  final String? roomId;
 
   @override
   State<_ChatPageContent> createState() => _ChatPageContentState();
@@ -265,6 +282,64 @@ class _ChatPageContentState extends State<_ChatPageContent> {
 
   bool _showSidebar(BuildContext context) => context.isWide;
 
+  // ------------------------------------------------------- shell navigation
+  //
+  // With a room active the conversation URL sync is suspended (see
+  // ChatPage._syncUrlFromProvider), so selection handlers navigate explicitly
+  // to swap the content pane back to a conversation.
+
+  void _selectConversation(String id) {
+    if (widget.roomId != null) {
+      context.go('/chat/$id');
+    } else {
+      context.read<ChatProvider>().loadConversation(id);
+    }
+  }
+
+  void _newChat() {
+    context.read<ChatProvider>().clearCurrentConversation();
+    if (widget.roomId != null) context.go('/chat');
+  }
+
+  void _selectRoom(String id) {
+    if (id == widget.roomId) return;
+    context.go('/rooms/$id');
+  }
+
+  Future<void> _deleteRoom(String id) async {
+    final wasActive = id == widget.roomId;
+    try {
+      await context.read<RoomProvider>().deleteRoom(id);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to delete room: $e')));
+      }
+      return;
+    }
+    if (wasActive && mounted) context.go('/chat');
+  }
+
+  /// Narrow-layout drawer opened from the room header (the chat app bar has
+  /// its own trigger).
+  void _openMobileDrawer() {
+    final chatProvider = context.read<ChatProvider>();
+    showMobileConversationDrawer(
+      context: context,
+      conversations: chatProvider.conversations,
+      selectedId: chatProvider.currentConversation?.id,
+      onSelect: _selectConversation,
+      onDelete: (id) => _deleteWithUndo(chatProvider, id),
+      onNewChat: _newChat,
+      onTogglePin: (id) => chatProvider.togglePin(id),
+      initialTab: 1,
+      selectedRoomId: widget.roomId,
+      onSelectRoom: _selectRoom,
+      onDeleteRoom: _deleteRoom,
+    );
+  }
+
   /// Delete with an undo window: the provider defers the API call, and the
   /// snackbar's Undo restores the conversation before it fires.
   void _deleteWithUndo(ChatProvider chatProvider, String id) {
@@ -361,6 +436,8 @@ class _ChatPageContentState extends State<_ChatPageContent> {
       endDrawer: const SettingsDrawer(),
       body: DragTarget<List<dynamic>>(
         onWillAcceptWithDetails: (details) {
+          // Attachments belong to conversations; ignore drops on a room.
+          if (widget.roomId != null) return false;
           final data = details.data;
           if (data.isEmpty) return false;
           setState(() => _isDragOver = true);
@@ -380,92 +457,107 @@ class _ChatPageContentState extends State<_ChatPageContent> {
                       conversations: chatProvider.conversations,
                       selectedConversationId:
                           chatProvider.currentConversation?.id,
-                      onSelectConversation: (id) =>
-                          chatProvider.loadConversation(id),
+                      onSelectConversation: _selectConversation,
                       onDeleteConversation: (id) =>
                           _deleteWithUndo(chatProvider, id),
-                      onNewChat: () => chatProvider.clearCurrentConversation(),
+                      onNewChat: _newChat,
                       onTogglePin: (id) => chatProvider.togglePin(id),
                       isLoadingConversations:
                           chatProvider.isLoadingConversations,
+                      selectedRoomId: widget.roomId,
+                      initialTab: widget.roomId != null ? 1 : 0,
+                      onSelectRoom: _selectRoom,
+                      onDeleteRoom: _deleteRoom,
                     ),
-                  Expanded(
-                    child: Column(
-                      children: [
-                        ChatAppBar(
-                          onOpenSettings: () =>
-                              _scaffoldKey.currentState?.openEndDrawer(),
-                          onDeleteConversation: (id) =>
-                              _deleteWithUndo(chatProvider, id),
-                        ),
-                        if (chatProvider.error != null)
-                          _ErrorBanner(
-                            message: chatProvider.error!,
-                            onDismiss: chatProvider.clearError,
+                  if (widget.roomId != null)
+                    Expanded(
+                      child: RoomChatView(
+                        roomId: widget.roomId!,
+                        onOpenSettings: () =>
+                            _scaffoldKey.currentState?.openEndDrawer(),
+                        onOpenDrawer: _showSidebar(context)
+                            ? null
+                            : _openMobileDrawer,
+                      ),
+                    )
+                  else
+                    Expanded(
+                      child: Column(
+                        children: [
+                          ChatAppBar(
+                            onOpenSettings: () =>
+                                _scaffoldKey.currentState?.openEndDrawer(),
+                            onDeleteConversation: (id) =>
+                                _deleteWithUndo(chatProvider, id),
                           ),
-                        Builder(
-                          builder: (ctx) {
-                            final tokensUsed = _getLastTokensPrompt(
-                              chatProvider,
-                            );
-                            final contextLength =
-                                _getLastContextLength(chatProvider) ??
-                                modelProvider.selectedModel?.contextLength;
-                            if (tokensUsed != null &&
-                                contextLength != null &&
-                                contextLength > 0) {
-                              return ContextWindowIndicator(
-                                tokensUsed: tokensUsed,
-                                contextLength: contextLength,
+                          if (chatProvider.error != null)
+                            _ErrorBanner(
+                              message: chatProvider.error!,
+                              onDismiss: chatProvider.clearError,
+                            ),
+                          Builder(
+                            builder: (ctx) {
+                              final tokensUsed = _getLastTokensPrompt(
+                                chatProvider,
                               );
-                            }
-                            return const SizedBox.shrink();
-                          },
-                        ),
-                        Expanded(
-                          child: Stack(
-                            children: [
-                              _buildMessageList(chatProvider, theme),
-                              if (_showJumpToBottom)
-                                Positioned(
-                                  right: 16,
-                                  bottom: 12,
-                                  child: FloatingActionButton.small(
-                                    heroTag: 'jump_to_bottom',
-                                    tooltip: 'Jump to latest message',
-                                    onPressed: () => _scrollToBottom(),
-                                    child: const Icon(
-                                      Icons.keyboard_arrow_down,
+                              final contextLength =
+                                  _getLastContextLength(chatProvider) ??
+                                  modelProvider.selectedModel?.contextLength;
+                              if (tokensUsed != null &&
+                                  contextLength != null &&
+                                  contextLength > 0) {
+                                return ContextWindowIndicator(
+                                  tokensUsed: tokensUsed,
+                                  contextLength: contextLength,
+                                );
+                              }
+                              return const SizedBox.shrink();
+                            },
+                          ),
+                          Expanded(
+                            child: Stack(
+                              children: [
+                                _buildMessageList(chatProvider, theme),
+                                if (_showJumpToBottom)
+                                  Positioned(
+                                    right: 16,
+                                    bottom: 12,
+                                    child: FloatingActionButton.small(
+                                      heroTag: 'jump_to_bottom',
+                                      tooltip: 'Jump to latest message',
+                                      onPressed: () => _scrollToBottom(),
+                                      child: const Icon(
+                                        Icons.keyboard_arrow_down,
+                                      ),
                                     ),
                                   ),
-                                ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                        Consumer<ChatProvider>(
-                          builder: (context, provider, _) {
-                            return ChatInputWidget(
-                              onSend: (message, attachments) {
-                                // Merge any pending attachments from drag-drop
-                                final merged = [...attachments];
-                                if (provider.pendingAttachments != null) {
-                                  merged.addAll(provider.pendingAttachments!);
-                                  provider.clearPendingAttachments();
-                                }
-                                provider.sendMessage(
-                                  message,
-                                  attachments: merged,
-                                );
-                              },
-                              onStop: () => chatProvider.stopStreaming(),
-                              isLoading: chatProvider.isSending,
-                              initialAttachments: provider.pendingAttachments,
-                            );
-                          },
-                        ),
-                      ],
+                          Consumer<ChatProvider>(
+                            builder: (context, provider, _) {
+                              return ChatInputWidget(
+                                onSend: (message, attachments) {
+                                  // Merge any pending attachments from drag-drop
+                                  final merged = [...attachments];
+                                  if (provider.pendingAttachments != null) {
+                                    merged.addAll(provider.pendingAttachments!);
+                                    provider.clearPendingAttachments();
+                                  }
+                                  provider.sendMessage(
+                                    message,
+                                    attachments: merged,
+                                  );
+                                },
+                                onStop: () => chatProvider.stopStreaming(),
+                                isLoading: chatProvider.isSending,
+                                initialAttachments: provider.pendingAttachments,
+                              );
+                            },
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
                   // Wide layout: the live micro-app sits beside the chat in a
                   // panel the user can widen/narrow by dragging the divider.
                   if (chatProvider.panel.isOpen && context.isWide)

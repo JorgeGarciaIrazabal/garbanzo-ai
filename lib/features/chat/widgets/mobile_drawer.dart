@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -12,6 +10,11 @@ import 'package:garbanzo_ai/features/chat/models/conversation.dart';
 /// Bottom-sheet drawer for mobile screens. Contains a Chats / Rooms tab
 /// switcher matching the wide-layout sidebar so rooms are equally
 /// discoverable on mobile.
+///
+/// Rooms come from the app-level [RoomProvider]. Selecting a room defaults to
+/// an in-shell navigation (`/rooms/:id`); callers hosting the drawer from a
+/// room view pass [onSelectRoom]/[onDeleteRoom] so the shell can handle
+/// leaving the active room.
 void showMobileConversationDrawer({
   required BuildContext context,
   required List<Conversation> conversations,
@@ -20,6 +23,10 @@ void showMobileConversationDrawer({
   required ValueChanged<String> onDelete,
   required VoidCallback onNewChat,
   ValueChanged<String>? onTogglePin,
+  ValueChanged<String>? onSelectRoom,
+  ValueChanged<String>? onDeleteRoom,
+  String? selectedRoomId,
+  int initialTab = 0,
 }) {
   showModalBottomSheet(
     context: context,
@@ -37,6 +44,10 @@ void showMobileConversationDrawer({
           onDelete: onDelete,
           onNewChat: onNewChat,
           onTogglePin: onTogglePin,
+          onSelectRoom: onSelectRoom,
+          onDeleteRoom: onDeleteRoom,
+          selectedRoomId: selectedRoomId,
+          initialTab: initialTab,
           scrollController: scrollController,
         );
       },
@@ -52,6 +63,10 @@ class _MobileDrawerBody extends StatefulWidget {
     required this.onDelete,
     required this.onNewChat,
     required this.onTogglePin,
+    required this.onSelectRoom,
+    required this.onDeleteRoom,
+    required this.selectedRoomId,
+    required this.initialTab,
     required this.scrollController,
   });
 
@@ -61,6 +76,10 @@ class _MobileDrawerBody extends StatefulWidget {
   final ValueChanged<String> onDelete;
   final VoidCallback onNewChat;
   final ValueChanged<String>? onTogglePin;
+  final ValueChanged<String>? onSelectRoom;
+  final ValueChanged<String>? onDeleteRoom;
+  final String? selectedRoomId;
+  final int initialTab;
   final ScrollController scrollController;
 
   @override
@@ -68,19 +87,40 @@ class _MobileDrawerBody extends StatefulWidget {
 }
 
 class _MobileDrawerBodyState extends State<_MobileDrawerBody> {
-  int _tab = 0;
-  RoomProvider? _rooms;
-
-  RoomProvider _ensureRoomsProvider() {
-    final p = _rooms ??= RoomProvider();
-    if (p.rooms.isEmpty && !p.loading) p.loadRooms();
-    return p;
-  }
+  late int _tab = widget.initialTab;
 
   @override
-  void dispose() {
-    _rooms?.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    if (_tab == 1) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _loadRoomsIfEmpty();
+      });
+    }
+  }
+
+  void _loadRoomsIfEmpty() {
+    final rooms = context.read<RoomProvider>();
+    if (rooms.rooms.isEmpty && !rooms.loading) rooms.loadRooms();
+  }
+
+  void _selectRoom(String roomId) {
+    Navigator.pop(context);
+    final onSelectRoom = widget.onSelectRoom;
+    if (onSelectRoom != null) {
+      onSelectRoom(roomId);
+    } else {
+      context.go('/rooms/$roomId');
+    }
+  }
+
+  void _deleteRoom(String roomId) {
+    final onDeleteRoom = widget.onDeleteRoom;
+    if (onDeleteRoom != null) {
+      onDeleteRoom(roomId);
+    } else {
+      context.read<RoomProvider>().deleteRoom(roomId);
+    }
   }
 
   @override
@@ -109,7 +149,7 @@ class _MobileDrawerBodyState extends State<_MobileDrawerBody> {
               onSelectionChanged: (s) {
                 if (s.isEmpty) return;
                 setState(() => _tab = s.first);
-                if (_tab == 1) _ensureRoomsProvider();
+                if (_tab == 1) _loadRoomsIfEmpty();
               },
             ),
           ),
@@ -195,51 +235,44 @@ class _MobileDrawerBodyState extends State<_MobileDrawerBody> {
   }
 
   Widget _buildRooms(BuildContext context) {
-    final rooms = _ensureRoomsProvider();
-    return ChangeNotifierProvider.value(
-      value: rooms,
-      child: Consumer<RoomProvider>(
-        builder: (context, provider, _) {
-          return Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: FilledButton.icon(
-                    onPressed: () async {
-                      final created = await showCreateRoomDialog(
-                        context,
-                        provider,
-                      );
-                      if (!context.mounted) return;
-                      if (created != null) {
-                        Navigator.pop(context);
-                        unawaited(context.push('/rooms/${created.id}'));
-                      }
-                    },
-                    icon: const Icon(Icons.group_add),
-                    label: const Text('New Room'),
-                  ),
-                ),
-              ),
-              Expanded(
-                child: RoomsListView(
-                  rooms: provider.rooms,
-                  loading: provider.loading,
-                  error: provider.error,
-                  compact: true,
-                  onSelect: (room) {
-                    Navigator.pop(context);
-                    context.push('/rooms/${room.id}');
+    return Consumer<RoomProvider>(
+      builder: (context, provider, _) {
+        return Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+              child: SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: () async {
+                    final created = await showCreateRoomDialog(
+                      context,
+                      provider,
+                    );
+                    if (!context.mounted) return;
+                    if (created != null) _selectRoom(created.id);
                   },
-                  onDelete: (room) => provider.deleteRoom(room.id),
+                  icon: const Icon(Icons.group_add),
+                  label: const Text('New Room'),
                 ),
               ),
-            ],
-          );
-        },
-      ),
+            ),
+            Expanded(
+              child: RoomsListView(
+                rooms: provider.rooms,
+                loading: provider.loading,
+                // Shared with the open-room view — don't let an openRoom
+                // failure blank a loaded list.
+                error: provider.rooms.isEmpty ? provider.error : null,
+                selectedId: widget.selectedRoomId,
+                compact: true,
+                onSelect: (room) => _selectRoom(room.id),
+                onDelete: (room) => _deleteRoom(room.id),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

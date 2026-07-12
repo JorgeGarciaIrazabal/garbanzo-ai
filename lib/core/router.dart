@@ -7,8 +7,6 @@ import 'package:garbanzo_ai/features/chat/widgets/chat_page.dart';
 import 'package:garbanzo_ai/features/knowledge_base/pages/knowledge_base_page.dart';
 import 'package:garbanzo_ai/features/memory/pages/memory_page.dart';
 import 'package:garbanzo_ai/features/notifications/pages/notifications_page.dart';
-import 'package:garbanzo_ai/features/rooms/pages/room_chat_page.dart';
-import 'package:garbanzo_ai/features/rooms/pages/rooms_page.dart';
 import 'package:garbanzo_ai/features/scheduled_actions/pages/scheduled_actions_page.dart';
 import 'package:garbanzo_ai/features/settings/pages/settings_page.dart';
 import 'package:garbanzo_ai/features/tools/pages/skills_library_page.dart';
@@ -52,11 +50,13 @@ GoRouter buildRouter(AuthState auth) {
         builder: (_, state) =>
             ChatPage(conversationId: state.pathParameters['conversationId']),
       ),
-      GoRoute(path: '/rooms', builder: (_, _) => const RoomsPage()),
+      // Rooms render inside the chat shell (sidebar stays put); the bare
+      // /rooms list page is gone — the sidebar's Rooms tab replaced it.
+      GoRoute(path: '/rooms', redirect: (_, _) => '/chat'),
       GoRoute(
         path: '/rooms/:roomId',
         builder: (_, state) =>
-            RoomChatPage(roomId: state.pathParameters['roomId']!),
+            ChatPage(roomId: state.pathParameters['roomId']!),
       ),
       GoRoute(path: '/settings', builder: (_, _) => const SettingsPage()),
       GoRoute(path: '/memory', builder: (_, _) => const MemoryPage()),
