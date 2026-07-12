@@ -431,237 +431,253 @@ class _ChatPageContentState extends State<_ChatPageContent> {
 
     _handleAutoScroll(chatProvider);
 
-    return Scaffold(
-      key: _scaffoldKey,
-      endDrawer: const SettingsDrawer(),
-      body: DragTarget<List<dynamic>>(
-        onWillAcceptWithDetails: (details) {
-          // Attachments belong to conversations; ignore drops on a room.
-          if (widget.roomId != null) return false;
-          final data = details.data;
-          if (data.isEmpty) return false;
-          setState(() => _isDragOver = true);
-          return true;
-        },
-        onLeave: (_) {
-          setState(() => _isDragOver = false);
-        },
-        onAcceptWithDetails: (details) => _handleDroppedFiles(details.data),
-        builder: (context, candidateData, rejectedData) {
-          return Stack(
-            children: [
-              Row(
-                children: [
-                  if (_showSidebar(context))
-                    ChatSidebar(
-                      conversations: chatProvider.conversations,
-                      selectedConversationId:
-                          chatProvider.currentConversation?.id,
-                      onSelectConversation: _selectConversation,
-                      onDeleteConversation: (id) =>
-                          _deleteWithUndo(chatProvider, id),
-                      onNewChat: _newChat,
-                      onTogglePin: (id) => chatProvider.togglePin(id),
-                      isLoadingConversations:
-                          chatProvider.isLoadingConversations,
-                      selectedRoomId: widget.roomId,
-                      initialTab: widget.roomId != null ? 1 : 0,
-                      onSelectRoom: _selectRoom,
-                      onDeleteRoom: _deleteRoom,
-                    ),
-                  if (widget.roomId != null)
-                    Expanded(
-                      child: RoomChatView(
-                        roomId: widget.roomId!,
-                        onOpenSettings: () =>
-                            _scaffoldKey.currentState?.openEndDrawer(),
-                        onOpenDrawer: _showSidebar(context)
-                            ? null
-                            : _openMobileDrawer,
+    // The Android back gesture must close the micro-app overlay (narrow
+    // layouts only) instead of backing out of the app.
+    final panelOverlayOpen = chatProvider.panel.isOpen && context.isNarrow;
+
+    return PopScope(
+      canPop: !panelOverlayOpen,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) chatProvider.panel.close();
+      },
+      child: Scaffold(
+        key: _scaffoldKey,
+        endDrawer: const SettingsDrawer(),
+        body: DragTarget<List<dynamic>>(
+          onWillAcceptWithDetails: (details) {
+            // Attachments belong to conversations; ignore drops on a room.
+            if (widget.roomId != null) return false;
+            final data = details.data;
+            if (data.isEmpty) return false;
+            setState(() => _isDragOver = true);
+            return true;
+          },
+          onLeave: (_) {
+            setState(() => _isDragOver = false);
+          },
+          onAcceptWithDetails: (details) => _handleDroppedFiles(details.data),
+          builder: (context, candidateData, rejectedData) {
+            return Stack(
+              children: [
+                Row(
+                  children: [
+                    if (_showSidebar(context))
+                      ChatSidebar(
+                        conversations: chatProvider.conversations,
+                        selectedConversationId:
+                            chatProvider.currentConversation?.id,
+                        onSelectConversation: _selectConversation,
+                        onDeleteConversation: (id) =>
+                            _deleteWithUndo(chatProvider, id),
+                        onNewChat: _newChat,
+                        onTogglePin: (id) => chatProvider.togglePin(id),
+                        isLoadingConversations:
+                            chatProvider.isLoadingConversations,
+                        selectedRoomId: widget.roomId,
+                        initialTab: widget.roomId != null ? 1 : 0,
+                        onSelectRoom: _selectRoom,
+                        onDeleteRoom: _deleteRoom,
                       ),
-                    )
-                  else
-                    Expanded(
-                      child: Column(
-                        children: [
-                          ChatAppBar(
-                            onOpenSettings: () =>
-                                _scaffoldKey.currentState?.openEndDrawer(),
-                            onDeleteConversation: (id) =>
-                                _deleteWithUndo(chatProvider, id),
-                          ),
-                          if (chatProvider.error != null)
-                            _ErrorBanner(
-                              message: chatProvider.error!,
-                              onDismiss: chatProvider.clearError,
+                    if (widget.roomId != null)
+                      Expanded(
+                        child: RoomChatView(
+                          roomId: widget.roomId!,
+                          onOpenSettings: () =>
+                              _scaffoldKey.currentState?.openEndDrawer(),
+                          onOpenDrawer: _showSidebar(context)
+                              ? null
+                              : _openMobileDrawer,
+                        ),
+                      )
+                    else
+                      Expanded(
+                        child: Column(
+                          children: [
+                            ChatAppBar(
+                              onOpenSettings: () =>
+                                  _scaffoldKey.currentState?.openEndDrawer(),
+                              onDeleteConversation: (id) =>
+                                  _deleteWithUndo(chatProvider, id),
                             ),
-                          Builder(
-                            builder: (ctx) {
-                              final tokensUsed = _getLastTokensPrompt(
-                                chatProvider,
-                              );
-                              final contextLength =
-                                  _getLastContextLength(chatProvider) ??
-                                  modelProvider.selectedModel?.contextLength;
-                              if (tokensUsed != null &&
-                                  contextLength != null &&
-                                  contextLength > 0) {
-                                return ContextWindowIndicator(
-                                  tokensUsed: tokensUsed,
-                                  contextLength: contextLength,
+                            if (chatProvider.error != null)
+                              _ErrorBanner(
+                                message: chatProvider.error!,
+                                onDismiss: chatProvider.clearError,
+                              ),
+                            Builder(
+                              builder: (ctx) {
+                                final tokensUsed = _getLastTokensPrompt(
+                                  chatProvider,
                                 );
-                              }
-                              return const SizedBox.shrink();
-                            },
-                          ),
-                          Expanded(
-                            child: Stack(
-                              children: [
-                                _buildMessageList(chatProvider, theme),
-                                if (_showJumpToBottom)
-                                  Positioned(
-                                    right: 16,
-                                    bottom: 12,
-                                    child: FloatingActionButton.small(
-                                      heroTag: 'jump_to_bottom',
-                                      tooltip: 'Jump to latest message',
-                                      onPressed: () => _scrollToBottom(),
-                                      child: const Icon(
-                                        Icons.keyboard_arrow_down,
+                                final contextLength =
+                                    _getLastContextLength(chatProvider) ??
+                                    modelProvider.selectedModel?.contextLength;
+                                if (tokensUsed != null &&
+                                    contextLength != null &&
+                                    contextLength > 0) {
+                                  return ContextWindowIndicator(
+                                    tokensUsed: tokensUsed,
+                                    contextLength: contextLength,
+                                  );
+                                }
+                                return const SizedBox.shrink();
+                              },
+                            ),
+                            Expanded(
+                              child: Stack(
+                                children: [
+                                  _buildMessageList(chatProvider, theme),
+                                  if (_showJumpToBottom)
+                                    Positioned(
+                                      right: 16,
+                                      bottom: 12,
+                                      child: FloatingActionButton.small(
+                                        heroTag: 'jump_to_bottom',
+                                        tooltip: 'Jump to latest message',
+                                        onPressed: () => _scrollToBottom(),
+                                        child: const Icon(
+                                          Icons.keyboard_arrow_down,
+                                        ),
                                       ),
                                     ),
+                                ],
+                              ),
+                            ),
+                            Consumer<ChatProvider>(
+                              builder: (context, provider, _) {
+                                return ChatInputWidget(
+                                  onSend: (message, attachments) {
+                                    // Merge any pending attachments from drag-drop
+                                    final merged = [...attachments];
+                                    if (provider.pendingAttachments != null) {
+                                      merged.addAll(
+                                        provider.pendingAttachments!,
+                                      );
+                                      provider.clearPendingAttachments();
+                                    }
+                                    provider.sendMessage(
+                                      message,
+                                      attachments: merged,
+                                    );
+                                  },
+                                  onStop: () => chatProvider.stopStreaming(),
+                                  isLoading: chatProvider.isSending,
+                                  initialAttachments:
+                                      provider.pendingAttachments,
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    // Wide layout: the live micro-app sits beside the chat in a
+                    // panel the user can widen/narrow by dragging the divider.
+                    if (chatProvider.panel.isOpen && context.isWide)
+                      Builder(
+                        builder: (context) {
+                          final screenW = MediaQuery.of(context).size.width;
+                          final maxW = (screenW - _minChatWidth).clamp(
+                            _minPanelWidth,
+                            screenW,
+                          );
+                          // Default to a big portion of the screen (Claude-canvas
+                          // style): the panel is the dominant pane, chat sits beside.
+                          final defaultW = (screenW * 0.6).clamp(
+                            _minPanelWidth,
+                            maxW,
+                          );
+                          final width = (_panelWidth ?? defaultW).clamp(
+                            _minPanelWidth,
+                            maxW,
+                          );
+                          return SizedBox(
+                            width: width,
+                            child: Row(
+                              children: [
+                                PanelResizeHandle(
+                                  onDrag: (dx) => setState(
+                                    () => _panelWidth = (width - dx).clamp(
+                                      _minPanelWidth,
+                                      maxW,
+                                    ),
                                   ),
+                                  onReset: () =>
+                                      setState(() => _panelWidth = null),
+                                ),
+                                Expanded(
+                                  child: MicroAppPanel(
+                                    panel: chatProvider.panel,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                  ],
+                ),
+                // Narrow layout: the micro-app takes over as a full-screen overlay.
+                if (chatProvider.panel.isOpen && context.isNarrow)
+                  Positioned.fill(
+                    child: MicroAppPanel(
+                      panel: chatProvider.panel,
+                      showCloseAsBack: true,
+                    ),
+                  ),
+                if (_isDragOver)
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: colorScheme.primary.withValues(alpha: 0.1),
+                          border: Border.all(
+                            color: colorScheme.primary,
+                            width: 4,
+                            strokeAlign: BorderSide.strokeAlignInside,
+                          ),
+                        ),
+                        child: Center(
+                          child: Container(
+                            padding: const EdgeInsets.all(24),
+                            decoration: BoxDecoration(
+                              color: colorScheme.surface,
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.cloud_upload,
+                                  size: 64,
+                                  color: colorScheme.primary,
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'Drop files to attach',
+                                  style: theme.textTheme.headlineSmall
+                                      ?.copyWith(
+                                        color: colorScheme.primary,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Images, PDFs, CSVs, and text files',
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    color: colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
                               ],
                             ),
                           ),
-                          Consumer<ChatProvider>(
-                            builder: (context, provider, _) {
-                              return ChatInputWidget(
-                                onSend: (message, attachments) {
-                                  // Merge any pending attachments from drag-drop
-                                  final merged = [...attachments];
-                                  if (provider.pendingAttachments != null) {
-                                    merged.addAll(provider.pendingAttachments!);
-                                    provider.clearPendingAttachments();
-                                  }
-                                  provider.sendMessage(
-                                    message,
-                                    attachments: merged,
-                                  );
-                                },
-                                onStop: () => chatProvider.stopStreaming(),
-                                isLoading: chatProvider.isSending,
-                                initialAttachments: provider.pendingAttachments,
-                              );
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
-                  // Wide layout: the live micro-app sits beside the chat in a
-                  // panel the user can widen/narrow by dragging the divider.
-                  if (chatProvider.panel.isOpen && context.isWide)
-                    Builder(
-                      builder: (context) {
-                        final screenW = MediaQuery.of(context).size.width;
-                        final maxW = (screenW - _minChatWidth).clamp(
-                          _minPanelWidth,
-                          screenW,
-                        );
-                        // Default to a big portion of the screen (Claude-canvas
-                        // style): the panel is the dominant pane, chat sits beside.
-                        final defaultW = (screenW * 0.6).clamp(
-                          _minPanelWidth,
-                          maxW,
-                        );
-                        final width = (_panelWidth ?? defaultW).clamp(
-                          _minPanelWidth,
-                          maxW,
-                        );
-                        return SizedBox(
-                          width: width,
-                          child: Row(
-                            children: [
-                              PanelResizeHandle(
-                                onDrag: (dx) => setState(
-                                  () => _panelWidth = (width - dx).clamp(
-                                    _minPanelWidth,
-                                    maxW,
-                                  ),
-                                ),
-                                onReset: () =>
-                                    setState(() => _panelWidth = null),
-                              ),
-                              Expanded(
-                                child: MicroAppPanel(panel: chatProvider.panel),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                ],
-              ),
-              // Narrow layout: the micro-app takes over as a full-screen overlay.
-              if (chatProvider.panel.isOpen && context.isNarrow)
-                Positioned.fill(
-                  child: MicroAppPanel(
-                    panel: chatProvider.panel,
-                    showCloseAsBack: true,
-                  ),
-                ),
-              if (_isDragOver)
-                Positioned.fill(
-                  child: IgnorePointer(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: colorScheme.primary.withValues(alpha: 0.1),
-                        border: Border.all(
-                          color: colorScheme.primary,
-                          width: 4,
-                          strokeAlign: BorderSide.strokeAlignInside,
-                        ),
-                      ),
-                      child: Center(
-                        child: Container(
-                          padding: const EdgeInsets.all(24),
-                          decoration: BoxDecoration(
-                            color: colorScheme.surface,
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.cloud_upload,
-                                size: 64,
-                                color: colorScheme.primary,
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                'Drop files to attach',
-                                style: theme.textTheme.headlineSmall?.copyWith(
-                                  color: colorScheme.primary,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Images, PDFs, CSVs, and text files',
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: colorScheme.onSurfaceVariant,
-                                ),
-                              ),
-                            ],
-                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-            ],
-          );
-        },
+              ],
+            );
+          },
+        ),
       ),
     );
   }

@@ -27,16 +27,23 @@ class MicroAppPanel extends StatelessWidget {
     final url = panel.url;
     return Material(
       color: theme.colorScheme.surface,
-      child: Column(
-        children: [
-          _Header(panel: panel, showCloseAsBack: showCloseAsBack),
-          const Divider(height: 1),
-          Expanded(
-            child: url == null
-                ? const Center(child: Text('No app to display'))
-                : MicroAppView(url: url, reloadCounter: panel.reloadCounter),
-          ),
-        ],
+      child: SafeArea(
+        // As an overlay (narrow) the panel covers the whole screen, so the
+        // header must clear the status bar; as a side panel (wide) the chat
+        // chrome already handles insets.
+        top: showCloseAsBack,
+        bottom: showCloseAsBack,
+        child: Column(
+          children: [
+            _Header(panel: panel, showCloseAsBack: showCloseAsBack),
+            const Divider(height: 1),
+            Expanded(
+              child: url == null
+                  ? const Center(child: Text('No app to display'))
+                  : MicroAppView(url: url, reloadCounter: panel.reloadCounter),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -54,9 +61,17 @@ class _Header extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: Row(
         children: [
-          const SizedBox(width: 4),
-          const Icon(Icons.widgets_outlined, size: 18),
-          const SizedBox(width: 8),
+          if (showCloseAsBack)
+            IconButton(
+              tooltip: 'Back to chat',
+              icon: const Icon(Icons.arrow_back, size: 20),
+              onPressed: panel.close,
+            )
+          else ...[
+            const SizedBox(width: 4),
+            const Icon(Icons.widgets_outlined, size: 18),
+            const SizedBox(width: 8),
+          ],
           Expanded(
             child: Text(
               panel.fileName ?? panel.appTitle ?? 'Micro-App',
@@ -74,19 +89,26 @@ class _Header extends StatelessWidget {
             icon: const Icon(Icons.undo, size: 20),
             onPressed: () => _revert(context),
           ),
-          FilledButton.icon(
-            icon: const Icon(Icons.publish, size: 18),
-            label: const Text('Publish'),
-            onPressed: () => _publish(context),
-          ),
-          IconButton(
-            tooltip: showCloseAsBack ? 'Back to chat' : 'Close panel',
-            icon: Icon(
-              showCloseAsBack ? Icons.arrow_forward : Icons.close,
-              size: 20,
+          // Icon-only on phones: the labelled button would crowd out the
+          // title on a narrow header.
+          if (showCloseAsBack)
+            IconButton(
+              tooltip: 'Publish',
+              icon: const Icon(Icons.publish, size: 20),
+              onPressed: () => _publish(context),
+            )
+          else ...[
+            FilledButton.icon(
+              icon: const Icon(Icons.publish, size: 18),
+              label: const Text('Publish'),
+              onPressed: () => _publish(context),
             ),
-            onPressed: panel.close,
-          ),
+            IconButton(
+              tooltip: 'Close panel',
+              icon: const Icon(Icons.close, size: 20),
+              onPressed: panel.close,
+            ),
+          ],
         ],
       ),
     );
