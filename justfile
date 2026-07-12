@@ -196,6 +196,10 @@ fe-integration-test:
 # Run all tests (unit + integration)
 fe-test-all: fe-test fe-integration-test
 
+# Format Dart files (lib/ only — mirrors pre-commit hook)
+fe-format:
+    dart format lib/
+
 # Run Flutter analyze
 fe-lint:
     flutter analyze
@@ -207,6 +211,10 @@ fe-clean:
 # ============================================================================
 # End-to-End Testing (requires both dart-mcp-server and chrome-devtools MCPs)
 # ============================================================================
+
+# Format + lint everything (run before committing to satisfy pre-commit hooks)
+check: be-format fe-format be-lint fe-lint
+    @echo "All checks passed — ready to commit."
 
 # Run all tests (backend + frontend unit tests)
 test: be-test fe-test

@@ -8,6 +8,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 > **IMPORTANT:** Always use `just` commands. Never run `flutter`, `uvicorn`, `uv`, `pytest`, or `docker compose` directly — the justfile is the single source of truth for all dev tasks. Run `just` with no arguments to list all available recipes.
 
+### Pre-commit
+```bash
+just check          # Auto-format + lint both stacks — run before committing
+just fe-format      # Format Dart (lib/)
+just be-format      # Format backend (ruff format)
+just be-lint        # ruff check
+just fe-lint        # flutter analyze
+```
+
 ### Backend (FastAPI)
 ```bash
 just be-dev          # Dev server with hot reload (port 8000)
@@ -29,6 +38,7 @@ just fe-test             # Unit/widget tests
 just fe-integration-test # Run integration_test/app_test.dart on Linux
 just fe-test-all         # Unit + integration tests
 just fe-lint             # flutter analyze
+just fe-format           # dart format (lib/)
 just fe-build            # Build web → backend/web/ (for prod)
 just fe-clean            # Clean Flutter build files
 # Single test file: flutter test test/path/widget_test.dart
