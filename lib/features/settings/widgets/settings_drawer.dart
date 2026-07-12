@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 
+import 'package:garbanzo_ai/core/auth_service.dart';
+import 'package:garbanzo_ai/core/auth_state.dart';
+import 'package:garbanzo_ai/features/notifications/providers/notification_provider.dart';
 import 'package:garbanzo_ai/features/settings/widgets/drawer_sections/app_settings_section.dart';
 import 'package:garbanzo_ai/features/settings/widgets/drawer_sections/conversation_section.dart';
 import 'package:garbanzo_ai/features/settings/widgets/drawer_sections/pages_section.dart';
@@ -28,7 +32,7 @@ class SettingsDrawer extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
+            // Header — settings title + close
             Container(
               padding: const EdgeInsets.fromLTRB(16, 16, 8, 8),
               child: Row(
@@ -45,6 +49,11 @@ class SettingsDrawer extends StatelessWidget {
                 ],
               ),
             ),
+            // Account row — avatar, name/email, sign-out
+            _AccountTile(),
+            const Divider(height: 1),
+            // Notifications row — bell with badge
+            _NotificationsTile(),
             const Divider(height: 1),
             ListTile(
               leading: const Icon(Icons.open_in_new),
@@ -78,6 +87,98 @@ class SettingsDrawer extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Compact account identity row with avatar, name/email, and sign-out action.
+class _AccountTile extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final user = AuthService.instance.cachedUser;
+    final displayName = (user?.fullName?.isNotEmpty ?? false)
+        ? user!.fullName!
+        : (user?.email ?? 'Unknown');
+    final initials = _initials(displayName);
+
+    return ListTile(
+      leading: CircleAvatar(
+        backgroundColor: colorScheme.primary,
+        child: Text(initials, style: TextStyle(color: colorScheme.onPrimary)),
+      ),
+      title: Text(
+        displayName,
+        overflow: TextOverflow.ellipsis,
+        style: theme.textTheme.titleSmall,
+      ),
+      subtitle: Text(
+        user?.email ?? '',
+        overflow: TextOverflow.ellipsis,
+        style: theme.textTheme.bodySmall,
+      ),
+      trailing: IconButton(
+        icon: Icon(Icons.logout, color: colorScheme.error),
+        tooltip: 'Sign out',
+        onPressed: () => context.read<AuthState>().logout(),
+      ),
+    );
+  }
+
+  String _initials(String name) {
+    final parts = name.trim().split(RegExp(r'\s+|@'));
+    if (parts.isEmpty || parts.first.isEmpty) return '?';
+    final first = parts.first[0];
+    if (parts.length == 1) return first.toUpperCase();
+    final second = parts[1].isNotEmpty ? parts[1][0] : '';
+    return '$first$second'.toUpperCase();
+  }
+}
+
+/// Notifications row with an unread badge that navigates to the notifications page.
+class _NotificationsTile extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final provider = context.watch<NotificationProvider>();
+    final count = provider.unreadCount;
+
+    return ListTile(
+      leading: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          const Icon(Icons.notifications_outlined),
+          if (count > 0)
+            Positioned(
+              top: -4,
+              right: -8,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                constraints: const BoxConstraints(minWidth: 14, minHeight: 14),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.error,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  count > 99 ? '99+' : '$count',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onError,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+        ],
+      ),
+      title: const Text('Notifications'),
+      trailing: const Icon(Icons.chevron_right),
+      dense: true,
+      onTap: () {
+        Navigator.of(context).pop();
+        context.push('/notifications');
+      },
     );
   }
 }

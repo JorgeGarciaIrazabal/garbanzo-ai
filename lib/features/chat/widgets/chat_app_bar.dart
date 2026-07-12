@@ -1,17 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import 'package:garbanzo_ai/core/auth_state.dart';
 import 'package:garbanzo_ai/core/responsive.dart';
 import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/model_provider.dart';
 import 'package:garbanzo_ai/features/chat/widgets/mobile_drawer.dart';
 import 'package:garbanzo_ai/features/chat/widgets/mobile_search_sheet.dart';
 import 'package:garbanzo_ai/features/chat/widgets/model_selector_widget.dart';
-import 'package:garbanzo_ai/features/notifications/widgets/notification_bell.dart';
 
-/// App bar for the chat page: conversation title, model selector, notification
-/// bell, settings drawer trigger, and account menu.
+/// App bar for the chat page: conversation title, model selector, and
+/// settings drawer trigger.
 ///
 /// On narrow layouts the leading menu button opens the mobile conversation
 /// drawer instead of the (hidden) sidebar.
@@ -106,32 +104,10 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
                       'Reopen ${chatProvider.panel.appTitle ?? 'micro-app'}',
                   onPressed: chatProvider.panel.reopen,
                 ),
-        const NotificationBell(),
         IconButton(
           icon: const Icon(Icons.settings),
           tooltip: 'Settings',
           onPressed: onOpenSettings,
-        ),
-        PopupMenuButton<String>(
-          icon: const Icon(Icons.account_circle),
-          tooltip: 'Account menu',
-          onSelected: (value) async {
-            if (value == 'logout') {
-              await context.read<AuthState>().logout();
-            }
-          },
-          itemBuilder: (context) => [
-            const PopupMenuItem(
-              value: 'logout',
-              child: Row(
-                children: [
-                  Icon(Icons.logout),
-                  SizedBox(width: 8),
-                  Text('Sign out'),
-                ],
-              ),
-            ),
-          ],
         ),
         const SizedBox(width: 8),
       ],

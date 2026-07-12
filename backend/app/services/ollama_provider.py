@@ -327,7 +327,7 @@ class OllamaProvider(LLMProvider):
                 # Build a human-readable name
                 name_parts = model_name.split(":")
                 display_name = name_parts[0].replace("-", " ").title()
-                if len(name_parts) > 1 and name_parts[1] != "latest":
+                if len(name_parts) > 1 and name_parts[1] not in ("latest", "cloud"):
                     display_name += f" ({name_parts[1]})"
 
                 context_length = real_context
