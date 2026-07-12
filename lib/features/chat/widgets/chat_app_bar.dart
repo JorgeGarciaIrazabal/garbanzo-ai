@@ -10,8 +10,8 @@ import 'package:garbanzo_ai/features/chat/widgets/mobile_search_sheet.dart';
 import 'package:garbanzo_ai/features/chat/widgets/model_selector_widget.dart';
 import 'package:garbanzo_ai/features/notifications/widgets/notification_bell.dart';
 
-/// App bar for the chat page: conversation title, model selector (wide
-/// layouts), notification bell, settings drawer trigger, and account menu.
+/// App bar for the chat page: conversation title, model selector, notification
+/// bell, settings drawer trigger, and account menu.
 ///
 /// On narrow layouts the leading menu button opens the mobile conversation
 /// drawer instead of the (hidden) sidebar.
@@ -64,21 +64,20 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
             tooltip: 'Search conversations',
             onPressed: () => showMobileSearchSheet(context),
           ),
-        if (showSidebar)
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: ModelSelectorWidget(
-              models: modelProvider.availableModels,
-              selectedId: modelProvider.selectedModelId,
-              onSelect: (id) {
-                modelProvider.selectModel(id);
-                if (chatProvider.currentConversation != null) {
-                  chatProvider.updateConversation(model: id);
-                }
-              },
-              isEnabled: !chatProvider.isSending,
-            ),
+        Padding(
+          padding: const EdgeInsets.only(right: 8),
+          child: ModelSelectorWidget(
+            models: modelProvider.availableModels,
+            selectedId: modelProvider.selectedModelId,
+            onSelect: (id) {
+              modelProvider.selectModel(id);
+              if (chatProvider.currentConversation != null) {
+                chatProvider.updateConversation(model: id);
+              }
+            },
+            isEnabled: !chatProvider.isSending,
           ),
+        ),
         // Closed micro-app panel: offer a way back in without re-running
         // the tool (on narrow screens closing it is otherwise a dead end).
         if (chatProvider.panel.canReopen)
