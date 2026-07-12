@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:garbanzo_ai/core/auth_service.dart';
+import 'package:garbanzo_ai/core/widgets/animated_dialog.dart';
 import 'package:garbanzo_ai/features/settings/widgets/change_password_dialog.dart';
 import 'package:garbanzo_ai/features/settings/widgets/edit_profile_dialog.dart';
 
@@ -56,7 +57,7 @@ class ProfileSection extends StatelessWidget {
             title: const Text('Edit profile'),
             subtitle: const Text('Update name and email'),
             onTap: () async {
-              final changed = await showDialog<bool>(
+              final changed = await showAnimatedDialog<bool>(
                 context: context,
                 builder: (_) => EditProfileDialog(user: user),
               );
@@ -68,7 +69,7 @@ class ProfileSection extends StatelessWidget {
             leading: const Icon(Icons.lock_outline),
             title: const Text('Change password'),
             onTap: () async {
-              await showDialog<void>(
+              await showAnimatedDialog<void>(
                 context: context,
                 builder: (_) => const ChangePasswordDialog(),
               );

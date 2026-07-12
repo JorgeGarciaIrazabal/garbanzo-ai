@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'package:garbanzo_ai/core/widgets/animated_dialog.dart';
 import 'package:garbanzo_ai/features/scheduled_actions/models/scheduled_action.dart';
 import 'package:garbanzo_ai/features/scheduled_actions/providers/scheduled_actions_provider.dart';
 
@@ -124,7 +125,7 @@ class _ScheduledActionsView extends StatelessWidget {
 
 void _showCreateDialog(BuildContext context) {
   final provider = context.read<ScheduledActionsProvider>();
-  showDialog<void>(
+  showAnimatedDialog<void>(
     context: context,
     builder: (_) => _ScheduledActionEditor(
       onSubmit:
@@ -232,7 +233,7 @@ class _ActionTile extends StatelessWidget {
     ScheduledAction action,
   ) async {
     final provider = context.read<ScheduledActionsProvider>();
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showAnimatedDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Delete scheduled action'),

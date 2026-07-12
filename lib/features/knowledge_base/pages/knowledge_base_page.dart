@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:garbanzo_ai/core/widgets/brand_mark.dart';
 import 'package:provider/provider.dart';
 
+import 'package:garbanzo_ai/core/widgets/animated_dialog.dart';
 import 'package:garbanzo_ai/core/widgets/skeleton.dart';
 import 'package:garbanzo_ai/features/knowledge_base/models/knowledge_document.dart';
 import 'package:garbanzo_ai/features/knowledge_base/providers/knowledge_base_provider.dart';
@@ -113,7 +114,7 @@ class _KnowledgeBasePageState extends State<KnowledgeBasePage> {
   }
 
   Future<void> _confirmDelete(KnowledgeDocument doc) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showAnimatedDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Delete document'),

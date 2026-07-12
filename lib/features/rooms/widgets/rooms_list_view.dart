@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:garbanzo_ai/core/widgets/brand_mark.dart';
 
+import 'package:garbanzo_ai/core/widgets/animated_dialog.dart';
 import 'package:garbanzo_ai/core/widgets/skeleton.dart';
 import 'package:garbanzo_ai/features/rooms/models/room_models.dart';
 
@@ -69,7 +70,7 @@ class RoomsListView extends StatelessWidget {
   }
 
   Future<void> _confirmDelete(BuildContext context, Room room) async {
-    final ok = await showDialog<bool>(
+    final ok = await showAnimatedDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Delete room?'),

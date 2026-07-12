@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'package:garbanzo_ai/core/widgets/animated_dialog.dart';
 import 'package:garbanzo_ai/features/admin/models/mcp_server.dart';
 import 'package:garbanzo_ai/features/admin/providers/admin_provider.dart';
 import 'package:garbanzo_ai/features/admin/widgets/mcp_server_dialog.dart';
@@ -65,7 +66,7 @@ class _MCPServersTabState extends State<MCPServersTab> {
   }
 
   Future<void> _handleDelete(MCPServer server) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showAnimatedDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Delete MCP server?'),

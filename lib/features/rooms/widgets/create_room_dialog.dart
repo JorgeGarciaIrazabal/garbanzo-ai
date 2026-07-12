@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:garbanzo_ai/core/widgets/animated_dialog.dart';
 import 'package:garbanzo_ai/features/rooms/models/room_models.dart';
 import 'package:garbanzo_ai/features/rooms/providers/room_provider.dart';
 
@@ -11,7 +12,7 @@ Future<Room?> showCreateRoomDialog(
   final descCtrl = TextEditingController();
   final emailsCtrl = TextEditingController();
 
-  return showDialog<Room>(
+  return showAnimatedDialog<Room>(
     context: context,
     builder: (ctx) => AlertDialog(
       title: const Text('New room'),

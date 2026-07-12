@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'package:garbanzo_ai/core/widgets/animated_dialog.dart';
 import 'package:garbanzo_ai/features/memory/providers/memory_provider.dart';
 
 /// A button that allows users to save selected text or entire message content as a memory.
@@ -56,7 +57,7 @@ class RememberThisButton extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final memoryProvider = context.read<MemoryProvider>();
 
-    showDialog(
+    showAnimatedDialog(
       context: context,
       builder: (dialogContext) => ChangeNotifierProvider.value(
         value: memoryProvider,

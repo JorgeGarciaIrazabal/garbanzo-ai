@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'package:garbanzo_ai/core/widgets/animated_dialog.dart';
 import 'package:garbanzo_ai/core/widgets/skeleton.dart';
 import 'package:garbanzo_ai/features/memory/models/memory.dart';
 import 'package:garbanzo_ai/features/memory/providers/memory_provider.dart';
@@ -30,7 +31,7 @@ class _MemoryPageState extends State<MemoryPage> {
   void _showCreateMemoryDialog() {
     final controller = TextEditingController();
 
-    showDialog(
+    showAnimatedDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Create Memory'),
@@ -65,7 +66,7 @@ class _MemoryPageState extends State<MemoryPage> {
   void _showEditMemoryDialog(Memory memory) {
     final controller = TextEditingController(text: memory.content);
 
-    showDialog(
+    showAnimatedDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Edit Memory'),
@@ -101,7 +102,7 @@ class _MemoryPageState extends State<MemoryPage> {
   }
 
   void _showDeleteConfirmationDialog(Memory memory) {
-    showDialog(
+    showAnimatedDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Memory'),

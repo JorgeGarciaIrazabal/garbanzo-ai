@@ -6,6 +6,8 @@ import 'package:garbanzo_ai/core/reading_column.dart';
 import 'package:garbanzo_ai/core/responsive.dart';
 import 'package:garbanzo_ai/core/smart_scroll_controller.dart';
 import 'package:garbanzo_ai/core/widgets/skeleton.dart';
+import 'package:garbanzo_ai/core/widgets/animated_dialog.dart';
+import 'package:garbanzo_ai/core/widgets/fade_slide_in.dart';
 import 'package:garbanzo_ai/features/chat/widgets/input/message_composer.dart';
 import 'package:garbanzo_ai/features/rooms/models/room_models.dart';
 import 'package:garbanzo_ai/features/rooms/providers/room_provider.dart';
@@ -199,12 +201,14 @@ class _RoomChatPageBodyState extends State<_RoomChatPageBody> {
         final m = messages[i];
 
         Widget bubble(RoomMessage msg, {required bool isStreaming}) =>
-            ReadingColumn(
-              child: RoomMessageBubble(
-                message: msg,
-                room: room,
-                currentUserEmail: me,
-                isStreaming: isStreaming,
+            FadeSlideIn(
+              child: ReadingColumn(
+                child: RoomMessageBubble(
+                  message: msg,
+                  room: room,
+                  currentUserEmail: me,
+                  isStreaming: isStreaming,
+                ),
               ),
             );
 
@@ -572,7 +576,7 @@ class _MembersAgentsPanel extends StatelessWidget {
     RoomProvider provider,
     RoomMember member,
   ) async {
-    final ok = await showDialog<bool>(
+    final ok = await showAnimatedDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Remove member?'),
@@ -609,7 +613,7 @@ class _MembersAgentsPanel extends StatelessWidget {
     RoomProvider provider,
     RoomAgent agent,
   ) async {
-    final ok = await showDialog<bool>(
+    final ok = await showAnimatedDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Delete agent?'),
@@ -646,7 +650,7 @@ class _MembersAgentsPanel extends StatelessWidget {
     RoomProvider provider,
   ) async {
     final emailCtrl = TextEditingController();
-    await showDialog(
+    await showAnimatedDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Invite member'),

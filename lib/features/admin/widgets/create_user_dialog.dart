@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'package:garbanzo_ai/core/widgets/animated_dialog.dart';
+
 /// Result returned from [CreateUserDialog].
 class CreateUserDialogResult {
   final String email;
@@ -20,7 +22,7 @@ class CreateUserDialog extends StatefulWidget {
   const CreateUserDialog({super.key});
 
   static Future<CreateUserDialogResult?> show(BuildContext context) {
-    return showDialog<CreateUserDialogResult>(
+    return showAnimatedDialog<CreateUserDialogResult>(
       context: context,
       builder: (_) => const CreateUserDialog(),
     );

@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 
+import 'package:garbanzo_ai/core/widgets/animated_dialog.dart';
 import 'package:garbanzo_ai/features/chat/models/model_info.dart';
 import 'package:garbanzo_ai/features/chat/services/chat_service.dart';
 import 'package:garbanzo_ai/features/rooms/providers/room_provider.dart';
 
 /// Show the "Add agent" dialog. Returns when the dialog closes.
 Future<void> showAddAgentDialog(BuildContext context, RoomProvider provider) {
-  return showDialog<void>(
+  return showAnimatedDialog<void>(
     context: context,
     builder: (_) => _AddAgentDialog(provider: provider),
   );

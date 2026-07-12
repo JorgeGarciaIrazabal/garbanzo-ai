@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:garbanzo_ai/core/widgets/animated_dialog.dart';
 import 'package:garbanzo_ai/features/admin/models/mcp_server.dart';
 
 /// Result returned from [MCPServerDialog].
@@ -37,7 +38,7 @@ class MCPServerDialog extends StatefulWidget {
     BuildContext context, {
     MCPServer? existing,
   }) {
-    return showDialog<MCPServerDialogResult>(
+    return showAnimatedDialog<MCPServerDialogResult>(
       context: context,
       builder: (_) => MCPServerDialog(existing: existing),
     );

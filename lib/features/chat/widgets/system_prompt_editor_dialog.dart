@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'package:garbanzo_ai/core/widgets/animated_dialog.dart';
 import 'package:garbanzo_ai/features/chat/models/system_prompt_template.dart';
 import 'package:garbanzo_ai/features/chat/providers/system_prompt_provider.dart';
 
@@ -43,7 +44,7 @@ class SystemPromptEditorDialog extends StatefulWidget {
     // The dialog lives on its own route, above the route-scoped
     // SystemPromptProvider — re-expose the caller's instance to it.
     final promptProvider = context.read<SystemPromptProvider>();
-    return showDialog<SystemPromptEditorResult>(
+    return showAnimatedDialog<SystemPromptEditorResult>(
       context: context,
       builder: (_) => ChangeNotifierProvider.value(
         value: promptProvider,
@@ -93,7 +94,7 @@ class _SystemPromptEditorDialogState extends State<SystemPromptEditorDialog> {
     final nameController = TextEditingController();
     final descController = TextEditingController();
 
-    final saved = await showDialog<bool>(
+    final saved = await showAnimatedDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Save prompt to library'),
@@ -213,7 +214,7 @@ class _SystemPromptEditorDialogState extends State<SystemPromptEditorDialog> {
                       selected: _selectedTemplateId == tpl.id,
                       onSelected: () => _applyTemplate(tpl),
                       onDelete: () async {
-                        final ok = await showDialog<bool>(
+                        final ok = await showAnimatedDialog<bool>(
                           context: context,
                           builder: (ctx) => AlertDialog(
                             title: Text('Delete "${tpl.name}"?'),

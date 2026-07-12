@@ -74,7 +74,9 @@ void main() {
       await tester.pumpWidget(_wrap(isLive: true, text: 'r'));
       // User collapses while still streaming.
       await tester.tap(find.text('Hide thinking'));
-      await tester.pumpAndSettle();
+      // Use pump (not pumpAndSettle) because the live-state SkeletonPulse
+      // runs a repeating animation that never settles.
+      await tester.pump(const Duration(milliseconds: 300));
       expect(find.text('Show thinking'), findsOneWidget);
 
       // Stream finishes — must not re-expand and must not flip back open.

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'package:garbanzo_ai/core/widgets/skeleton.dart';
+
 /// Displays expandable thinking content.
 ///
 /// Auto-expand semantics (until the user manually toggles the section):
@@ -69,29 +71,38 @@ class _ThinkingContentState extends State<ThinkingContent> {
             hoverColor: colorScheme.onSurface.withValues(alpha: 0.03),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.psychology_outlined, size: 14, color: headerColor),
-                  const SizedBox(width: 7),
-                  Text(
-                    _isExpanded ? 'Hide thinking' : 'Show thinking',
-                    style: widget.textTheme.labelMedium?.copyWith(
+              // While reasoning tokens are streaming, the header gently
+              // pulses so "live" reads at a glance.
+              child: _PulseWhenLive(
+                live: widget.isLive,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.psychology_outlined,
+                      size: 14,
                       color: headerColor,
-                      fontWeight: FontWeight.w500,
                     ),
-                  ),
-                  const SizedBox(width: 3),
-                  AnimatedRotation(
-                    turns: _isExpanded ? 0.5 : 0,
-                    duration: const Duration(milliseconds: 200),
-                    child: Icon(
-                      Icons.keyboard_arrow_down,
-                      size: 16,
-                      color: headerColor.withValues(alpha: 0.7),
+                    const SizedBox(width: 7),
+                    Text(
+                      _isExpanded ? 'Hide thinking' : 'Show thinking',
+                      style: widget.textTheme.labelMedium?.copyWith(
+                        color: headerColor,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 3),
+                    AnimatedRotation(
+                      turns: _isExpanded ? 0.5 : 0,
+                      duration: const Duration(milliseconds: 200),
+                      child: Icon(
+                        Icons.keyboard_arrow_down,
+                        size: 16,
+                        color: headerColor.withValues(alpha: 0.7),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -127,5 +138,18 @@ class _ThinkingContentState extends State<ThinkingContent> {
         const SizedBox(height: 8),
       ],
     );
+  }
+}
+
+/// Wraps [child] in the shared skeleton pulse while [live] is true.
+class _PulseWhenLive extends StatelessWidget {
+  const _PulseWhenLive({required this.live, required this.child});
+
+  final bool live;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return live ? SkeletonPulse(child: child) : child;
   }
 }

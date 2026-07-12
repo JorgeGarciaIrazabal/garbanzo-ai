@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:garbanzo_ai/core/widgets/animated_dialog.dart';
 import 'package:garbanzo_ai/features/microapps/providers/microapp_panel_controller.dart';
 import 'package:garbanzo_ai/features/microapps/services/microapp_service.dart';
 import 'package:garbanzo_ai/features/microapps/widgets/micro_app_view.dart';
@@ -94,7 +95,7 @@ class _Header extends StatelessWidget {
   Future<void> _publish(BuildContext context) async {
     final messenger = ScaffoldMessenger.of(context);
     final controller = TextEditingController();
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showAnimatedDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Publish changes'),
@@ -138,7 +139,7 @@ class _Header extends StatelessWidget {
 
   Future<void> _revert(BuildContext context) async {
     final messenger = ScaffoldMessenger.of(context);
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showAnimatedDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Revert all changes?'),

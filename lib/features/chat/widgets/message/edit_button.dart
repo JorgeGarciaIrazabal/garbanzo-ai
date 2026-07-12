@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:garbanzo_ai/core/widgets/animated_dialog.dart';
 import 'package:garbanzo_ai/features/chat/widgets/message/message_action_button.dart';
 
 /// Compact "Edit" button for user messages.
@@ -20,7 +21,7 @@ class EditMessageButton extends StatelessWidget {
 
   Future<void> _openDialog(BuildContext context) async {
     final controller = TextEditingController(text: content);
-    final result = await showDialog<String>(
+    final result = await showAnimatedDialog<String>(
       context: context,
       builder: (ctx) {
         return AlertDialog(

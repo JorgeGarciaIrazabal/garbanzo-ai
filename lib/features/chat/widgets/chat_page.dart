@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import 'package:garbanzo_ai/core/reading_column.dart';
+import 'package:garbanzo_ai/core/widgets/fade_slide_in.dart';
 import 'package:garbanzo_ai/core/responsive.dart';
 import 'package:garbanzo_ai/features/microapps/widgets/micro_app_panel.dart';
 import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
@@ -643,10 +644,12 @@ class _ChatPageContentState extends State<_ChatPageContent> {
           // Streaming when this group is the trailing item AND a stream
           // is in flight (means the model is still working on the loop).
           final isTrailing = item.endIdx == messages.length - 1;
-          return centered(
-            ToolActivityGroup(
-              messages: item.messages,
-              isStreaming: isTrailing && chatProvider.isSending,
+          return FadeSlideIn(
+            child: centered(
+              ToolActivityGroup(
+                messages: item.messages,
+                isStreaming: isTrailing && chatProvider.isSending,
+              ),
             ),
           );
         }
@@ -655,13 +658,15 @@ class _ChatPageContentState extends State<_ChatPageContent> {
         final msgIdx = messageItem.idx;
         final isLastMessage = msgIdx == messages.length - 1;
 
-        Widget buildBubble(ChatMessage m) => centered(
-          ChatMessageWidget(
-            message: m,
-            isStreaming:
-                isLastMessage && chatProvider.isSending && m.isAssistant,
-            conversationId: chatProvider.currentConversation?.id,
-            isLastAssistant: m.isAssistant && msgIdx == lastAssistantIdx,
+        Widget buildBubble(ChatMessage m) => FadeSlideIn(
+          child: centered(
+            ChatMessageWidget(
+              message: m,
+              isStreaming:
+                  isLastMessage && chatProvider.isSending && m.isAssistant,
+              conversationId: chatProvider.currentConversation?.id,
+              isLastAssistant: m.isAssistant && msgIdx == lastAssistantIdx,
+            ),
           ),
         );
 
