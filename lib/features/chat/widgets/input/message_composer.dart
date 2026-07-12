@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -128,7 +129,15 @@ class MessageComposerState extends State<MessageComposer> {
     if (!_canSend) return;
     widget.onSend(text);
     _controller.clear();
-    _focusNode.requestFocus();
+    // On touch devices collapse the keyboard so the conversation is visible
+    // again; on desktop keep focus for rapid follow-up messages.
+    switch (defaultTargetPlatform) {
+      case TargetPlatform.android:
+      case TargetPlatform.iOS:
+        _focusNode.unfocus();
+      default:
+        _focusNode.requestFocus();
+    }
   }
 
   KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {

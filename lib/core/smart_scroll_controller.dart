@@ -80,6 +80,26 @@ class SmartScrollController {
     }
   }
 
+  double _lastBottomInset = 0;
+  bool _keyboardFollowsBottom = false;
+
+  /// Keyboard-aware follow: when the on-screen keyboard opens the viewport
+  /// shrinks, hiding the newest messages unless the list stays pinned to the
+  /// bottom. Call from `didChangeMetrics` with the view's bottom inset. Only
+  /// follows when the user was already near the bottom when the keyboard
+  /// started opening — never yanks them out of scrollback.
+  void handleKeyboardInset(double bottomInset) {
+    if (bottomInset > _lastBottomInset) {
+      if (_lastBottomInset == 0) _keyboardFollowsBottom = isNearBottom;
+      if (_keyboardFollowsBottom) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          scrollToBottom(animate: false);
+        });
+      }
+    }
+    _lastBottomInset = bottomInset;
+  }
+
   void scrollToBottom({bool animate = true}) {
     if (!controller.hasClients) return;
     final target = controller.position.maxScrollExtent;

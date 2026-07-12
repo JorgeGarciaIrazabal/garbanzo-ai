@@ -140,7 +140,8 @@ class _ChatPageContent extends StatefulWidget {
   State<_ChatPageContent> createState() => _ChatPageContentState();
 }
 
-class _ChatPageContentState extends State<_ChatPageContent> {
+class _ChatPageContentState extends State<_ChatPageContent>
+    with WidgetsBindingObserver {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final ScrollController _scrollController = ScrollController();
   bool _isDragOver = false;
@@ -159,10 +160,33 @@ class _ChatPageContentState extends State<_ChatPageContent> {
   String? _lastConversationId;
   ChatProvider? _chatProviderRef;
 
+  // Keyboard-aware scroll follow: when the on-screen keyboard opens the
+  // viewport shrinks, hiding the latest messages unless we keep the list
+  // pinned to the bottom.
+  double _lastBottomInset = 0;
+  bool _keyboardFollowsBottom = false;
+
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeMetrics() {
+    final bottomInset = View.of(context).viewInsets.bottom;
+    if (bottomInset > _lastBottomInset) {
+      // Keyboard opening/growing: keep the latest messages in view, but only
+      // when the user was already reading them — never yank scrollback.
+      if (_lastBottomInset == 0) _keyboardFollowsBottom = _isNearBottom;
+      if (_keyboardFollowsBottom) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _scrollToBottom(animate: false);
+        });
+      }
+    }
+    _lastBottomInset = bottomInset;
   }
 
   @override
@@ -181,6 +205,7 @@ class _ChatPageContentState extends State<_ChatPageContent> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _chatProviderRef?.streamingMessage.removeListener(_onStreamingUpdate);
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();

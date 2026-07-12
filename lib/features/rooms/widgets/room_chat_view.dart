@@ -41,7 +41,8 @@ class RoomChatView extends StatefulWidget {
   State<RoomChatView> createState() => _RoomChatViewState();
 }
 
-class _RoomChatViewState extends State<RoomChatView> {
+class _RoomChatViewState extends State<RoomChatView>
+    with WidgetsBindingObserver {
   final _scroll = SmartScrollController();
   RoomProvider? _providerRef;
 
@@ -55,6 +56,7 @@ class _RoomChatViewState extends State<RoomChatView> {
     super.initState();
     _mountId = ++_mountCounter;
     _scroll.attach();
+    WidgetsBinding.instance.addObserver(this);
     // openRoom notifies listeners, so it can't run synchronously here (we're
     // mid-build and the sidebar watches the same provider).
     final provider = context.read<RoomProvider>();
@@ -91,7 +93,14 @@ class _RoomChatViewState extends State<RoomChatView> {
   }
 
   @override
+  void didChangeMetrics() {
+    // Keep the newest messages visible while the on-screen keyboard opens.
+    _scroll.handleKeyboardInset(View.of(context).viewInsets.bottom);
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _providerRef?.streamingMessage.removeListener(_onStreamingUpdate);
     _scroll.dispose();
     final provider = _providerRef;
