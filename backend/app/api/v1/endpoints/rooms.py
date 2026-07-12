@@ -400,7 +400,10 @@ async def post_room_message(
 
     chat = RoomChatService(db)
     posted = await chat.handle_user_post(
-        room_id=room_id, user_id=current_user["email"], content=data.content
+        room_id=room_id,
+        user_id=current_user["email"],
+        content=data.content,
+        attachments=data.attachments or None,
     )
     return {"posted_message_id": posted.id}
 

@@ -5,7 +5,9 @@ same token returned by ``/auth/login`` — passed as a query param because
 browser WebSocket APIs don't support custom headers.
 
 Events the client can send:
-    {"type":"post","content":"..."}          — post a user message
+    {"type":"post","content":"...","attachments":[{...}]}  — post a user message
+                                               (attachments optional; same shape
+                                               as the 1:1 chat AttachmentIn)
     {"type":"typing","typing":true|false}    — typing indicator broadcast
 
 Events the server sends:
@@ -104,7 +106,7 @@ async def room_websocket(
                     # Missing/invalid content — same as an empty post: ignore.
                     continue
                 content = command.content.strip()
-                if not content:
+                if not content and not command.attachments:
                     continue
                 async with async_session_maker() as db:
                     # Membership was checked at connect time, but a user can
@@ -122,7 +124,10 @@ async def room_websocket(
                     chat = RoomChatService(db)
                     try:
                         await chat.handle_user_post(
-                            room_id=room_id, user_id=user_id, content=content
+                            room_id=room_id,
+                            user_id=user_id,
+                            content=content,
+                            attachments=command.attachments or None,
                         )
                     except Exception:
                         logger.exception("WS handle_user_post failed")

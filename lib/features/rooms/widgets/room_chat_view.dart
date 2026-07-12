@@ -7,6 +7,9 @@ import 'package:garbanzo_ai/core/smart_scroll_controller.dart';
 import 'package:garbanzo_ai/core/widgets/animated_dialog.dart';
 import 'package:garbanzo_ai/core/widgets/fade_slide_in.dart';
 import 'package:garbanzo_ai/core/widgets/skeleton.dart';
+import 'package:garbanzo_ai/features/chat/models/chat_attachment.dart';
+import 'package:garbanzo_ai/features/chat/widgets/input/attachment_preview.dart';
+import 'package:garbanzo_ai/features/chat/widgets/input/file_picker_helper.dart';
 import 'package:garbanzo_ai/features/chat/widgets/input/message_composer.dart';
 import 'package:garbanzo_ai/features/rooms/models/room_models.dart';
 import 'package:garbanzo_ai/features/rooms/providers/room_provider.dart';
@@ -44,6 +47,7 @@ class RoomChatView extends StatefulWidget {
 class _RoomChatViewState extends State<RoomChatView>
     with WidgetsBindingObserver {
   final _scroll = SmartScrollController();
+  final List<ChatAttachment> _attachments = [];
   RoomProvider? _providerRef;
 
   /// Monotonic mount counter: a disposed view must never close a socket a
@@ -120,6 +124,31 @@ class _RoomChatViewState extends State<RoomChatView>
     if (mounted) _scroll.followStreaming();
   }
 
+  Future<void> _pickFiles() async {
+    final result = await FilePickerHelper.pickFiles(
+      existingNames: _attachments.map((a) => a.name).toSet(),
+    );
+    if (result == null || !mounted) return;
+
+    for (final error in result.validationErrors) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error)));
+    }
+    if (result.rejected.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Files too large:\n${result.rejected.join('\n')}'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+    if (result.added.isNotEmpty) {
+      setState(() => _attachments.addAll(result.added));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<RoomProvider>();
@@ -184,9 +213,40 @@ class _RoomChatViewState extends State<RoomChatView>
               MessageComposer(
                 enabled: room != null,
                 hintText: 'Message the room… (use @AgentName or @all)',
-                onSend: (text) => provider.sendMessage(text),
+                onSend: (text) {
+                  provider.sendMessage(
+                    text,
+                    attachments: List.of(_attachments),
+                  );
+                  setState(() => _attachments.clear());
+                },
                 onChanged: provider.handleComposerChanged,
                 onBlur: provider.handleComposerBlur,
+                hasExtraContent: _attachments.isNotEmpty,
+                above: _attachments.isEmpty
+                    ? null
+                    : AttachmentPreviewBar(
+                        attachments: _attachments,
+                        onRemove: (i) =>
+                            setState(() => _attachments.removeAt(i)),
+                        colorScheme: colorScheme,
+                        textTheme: theme.textTheme,
+                      ),
+                leading: IconButton(
+                  key: const ValueKey('room_attach_button'),
+                  onPressed: room == null ? null : _pickFiles,
+                  icon: const Icon(Icons.attach_file, size: 22),
+                  tooltip: 'Attach file',
+                  style: IconButton.styleFrom(
+                    foregroundColor: colorScheme.onSurfaceVariant,
+                    minimumSize: const Size(32, 32),
+                    padding: EdgeInsets.zero,
+                  ),
+                  constraints: const BoxConstraints(
+                    minWidth: 32,
+                    minHeight: 32,
+                  ),
+                ),
               ),
             ],
           );

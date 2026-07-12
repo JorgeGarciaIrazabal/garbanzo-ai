@@ -7,6 +7,7 @@ import 'package:web_socket_channel/status.dart' as ws_status;
 
 import 'package:garbanzo_ai/core/api_client.dart';
 import 'package:garbanzo_ai/core/log.dart';
+import 'package:garbanzo_ai/features/chat/models/chat_attachment.dart';
 
 /// Lifecycle of a room's live socket, surfaced to the UI so it can show a
 /// "reconnecting…" banner and a retry affordance.
@@ -259,8 +260,15 @@ class RoomSocketService {
     await _open();
   }
 
-  void post(String content) {
-    _channel?.send(jsonEncode({'type': 'post', 'content': content}));
+  void post(String content, {List<ChatAttachment> attachments = const []}) {
+    _channel?.send(
+      jsonEncode({
+        'type': 'post',
+        'content': content,
+        if (attachments.isNotEmpty)
+          'attachments': attachments.map((a) => a.toJson()).toList(),
+      }),
+    );
   }
 
   void typing(bool active) {

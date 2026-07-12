@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import 'package:garbanzo_ai/core/auth_service.dart';
+import 'package:garbanzo_ai/features/chat/models/chat_attachment.dart';
 import 'package:garbanzo_ai/features/rooms/models/room_models.dart';
 import 'package:garbanzo_ai/features/rooms/services/room_service.dart';
 import 'package:garbanzo_ai/features/rooms/services/room_socket_service.dart';
@@ -238,11 +239,14 @@ class RoomProvider extends ChangeNotifier {
 
   // ----------------------------------------------------------------- Sending
 
-  void sendMessage(String content) {
+  void sendMessage(
+    String content, {
+    List<ChatAttachment> attachments = const [],
+  }) {
     final sock = _socket;
     if (sock == null) return;
     _stopTypingSignal();
-    sock.post(content);
+    sock.post(content, attachments: attachments);
   }
 
   // ------------------------------------------------------------ Socket events

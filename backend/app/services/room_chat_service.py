@@ -28,7 +28,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.config import get_settings
 from app.models.room import Room, RoomAgent, RoomMessage
-from app.schemas.chat import ChatOptions
+from app.schemas.chat import AttachmentIn, ChatOptions
 from app.schemas.room import (
     RoomChunkEvent,
     RoomDoneEvent,
@@ -39,6 +39,7 @@ from app.schemas.room import (
     RoomWSMessage,
 )
 from app.services.agent_turn import run_agent_turn
+from app.services.document_parser import extract_attachment_text
 from app.services.llm_provider import (
     LLMProvider,
     ProviderRegistry,
@@ -221,16 +222,44 @@ class RoomChatService:
 
     # ------------------------------------------------------------- user entry
 
-    async def handle_user_post(self, room_id: str, user_id: str, content: str) -> RoomMessage:
+    async def handle_user_post(
+        self,
+        room_id: str,
+        user_id: str,
+        content: str,
+        attachments: list[AttachmentIn] | None = None,
+    ) -> RoomMessage:
         room = await self._load_room(room_id)
         if room is None:
             raise ValueError("Room not found")
 
+        # Mirror the 1:1 chat attachment handling: document text is appended
+        # inline to the stored content; images keep their base64 data in meta
+        # so every member's client (and later agent turns) can render/see them.
+        stored_content = content
+        meta: dict | None = None
+        if attachments:
+            attachment_meta: list[dict] = []
+            doc_texts: list[str] = []
+            for att in attachments:
+                entry = {"name": att.name, "mime_type": att.mime_type, "type": att.type}
+                if att.type == "image":
+                    entry["data"] = att.data
+                elif att.type == "document" and att.data:
+                    extracted_text = await extract_attachment_text(att)
+                    doc_texts.append(f"[Attached file: {att.name}]\n{extracted_text}")
+                attachment_meta.append(entry)
+            if doc_texts:
+                joined = "\n\n".join(doc_texts)
+                stored_content = f"{content}\n\n{joined}" if content else joined
+            meta = {"attachments": attachment_meta}
+
         user_msg = await self._persist_message(
             room_id=room_id,
             role="user",
-            content=content,
+            content=stored_content,
             sender_user_id=user_id,
+            meta=meta,
         )
         await room_manager.broadcast(room_id, self._message_event(user_msg))
 
@@ -238,7 +267,7 @@ class RoomChatService:
         await self._notify_offline_members(
             room,
             sender_label=user_id,
-            body=content,
+            body=content or "📎 Attachment",
             message_id=user_msg.id,
             exclude_user_ids={user_id},
         )
@@ -246,7 +275,7 @@ class RoomChatService:
         try:
             await self._run_agent_turns(
                 _TurnContext(room=room, depth=0),
-                triggering_content=content,
+                triggering_content=stored_content,
                 triggering_agent_id=None,
             )
         except Exception:
@@ -806,11 +835,25 @@ class RoomChatService:
             elif msg.sender_agent_id == agent.id:
                 llm_messages.append(LLMMessage(role="assistant", content=msg.content))
             else:
-                # A human message
+                # A human message. Image attachments (stored base64 in meta)
+                # ride along so multimodal agents can see them.
                 label = msg.sender_user_id or "user"
-                llm_messages.append(LLMMessage(role="user", content=f"[{label}]: {msg.content}"))
+                llm_messages.append(
+                    LLMMessage(
+                        role="user",
+                        content=f"[{label}]: {msg.content}",
+                        images=self._message_images(msg),
+                    )
+                )
 
         return llm_messages
+
+    @staticmethod
+    def _message_images(msg: RoomMessage) -> list[str] | None:
+        """Base64 image data attached to a room message, if any."""
+        atts = (msg.meta or {}).get("attachments") or []
+        images = [a["data"] for a in atts if a.get("type") == "image" and a.get("data")]
+        return images or None
 
     async def _notify_offline_members(
         self,

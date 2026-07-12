@@ -3,7 +3,11 @@
 // Plain Dart classes with fromJson/toJson — not generating freezed here to
 // keep the build lean; each model can be migrated later if needed.
 
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
+
+import 'package:garbanzo_ai/features/chat/models/chat_attachment.dart';
 
 @immutable
 class RoomAgent {
@@ -196,4 +200,25 @@ class RoomMessage {
     meta: j['meta'] as Map<String, dynamic>?,
     createdAt: DateTime.parse(j['created_at'] as String),
   );
+
+  /// Attachments stored in [meta]. Images carry their base64 data (so every
+  /// member can render them); documents are name-only chips — their text was
+  /// appended to [content] server-side.
+  List<ChatAttachment> get attachments {
+    final raw = meta?['attachments'];
+    if (raw is! List) return const [];
+    return [
+      for (final a in raw.whereType<Map<String, dynamic>>())
+        ChatAttachment(
+          name: (a['name'] as String?) ?? 'file',
+          mimeType: (a['mime_type'] as String?) ?? 'application/octet-stream',
+          type: a['type'] == 'image'
+              ? AttachmentType.image
+              : AttachmentType.document,
+          bytes: a['data'] is String
+              ? base64Decode(a['data'] as String)
+              : Uint8List(0),
+        ),
+    ];
+  }
 }

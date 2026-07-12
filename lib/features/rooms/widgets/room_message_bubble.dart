@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:garbanzo_ai/features/chat/models/chat_message.dart';
+import 'package:garbanzo_ai/features/chat/widgets/message/attachment_display.dart';
 import 'package:garbanzo_ai/features/chat/widgets/message/copy_button.dart';
 import 'package:garbanzo_ai/features/chat/widgets/message/message_content.dart';
 import 'package:garbanzo_ai/features/chat/widgets/message/message_metadata.dart';
@@ -302,10 +303,19 @@ class _RoomMessageBubbleState extends State<RoomMessageBubble> {
                         createdAt: message.createdAt,
                       ),
                       const SizedBox(height: 6),
+                      if (message.attachments.isNotEmpty)
+                        AttachmentDisplay(
+                          attachments: message.attachments,
+                          colorScheme: colorScheme,
+                          textTheme: theme.textTheme,
+                        ),
                       // Same markdown path as the 1:1 chat user bubble, so
                       // formatting behaves identically on both surfaces.
                       if (message.content.isEmpty)
-                        Text('…', style: TextStyle(color: variant.fgColor))
+                        if (message.attachments.isEmpty)
+                          Text('…', style: TextStyle(color: variant.fgColor))
+                        else
+                          const SizedBox.shrink()
                       else
                         MessageContent(
                           content: message.content,

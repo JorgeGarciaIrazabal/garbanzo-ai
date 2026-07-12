@@ -6,6 +6,8 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 from sqlalchemy import inspect as sa_inspect
 
+from app.schemas.chat import AttachmentIn
+
 # ============================================================================
 # Agents
 # ============================================================================
@@ -248,6 +250,7 @@ class RoomChatPost(BaseModel):
     """A user-originated message posted via REST (WebSocket is preferred)."""
 
     content: str = Field(..., min_length=1)
+    attachments: list[AttachmentIn] = Field(default_factory=list)
 
 
 class RoomExport(BaseModel):
@@ -400,6 +403,7 @@ class RoomPostCommand(BaseModel):
 
     type: Literal["post"] = "post"
     content: str
+    attachments: list[AttachmentIn] = Field(default_factory=list)
 
 
 class RoomTypingCommand(BaseModel):
