@@ -35,8 +35,6 @@ just fe-run              # Run on Linux desktop (default)
 just fe-run-chrome       # Run on Chrome (browser)
 just fe-run-ngrok URL    # Run against an ngrok backend URL
 just fe-test             # Unit/widget tests
-just fe-integration-test # Run integration_test/app_test.dart on Linux
-just fe-test-all         # Unit + integration tests
 just fe-lint             # flutter analyze
 just fe-format           # dart format (lib/)
 just fe-build            # Build web → backend/web/ (for prod)
@@ -403,7 +401,7 @@ MICROAPPS_OPENCODE_MODEL=ollama/kimi-k2.7-code:cloud
 
 ## E2E Testing
 
-See `/e2e-testing` skill (`/e2e-testing` slash command). Uses Dart MCP to launch the app and Marionette MCP to drive UI interactions via the Flutter VM service URI.
+E2E testing is manual, via the `/e2e-testing` skill (`/e2e-testing` slash command) — there is no committed Flutter `integration_test/` suite. The skill uses Dart MCP to launch the app and Marionette MCP to drive UI interactions via the Flutter VM service URI.
 
 - Always use `just be-dev` to start the backend before E2E tests.
 - Flutter web integration tests (`-d chrome`) are not supported. Use `-d linux` (desktop).

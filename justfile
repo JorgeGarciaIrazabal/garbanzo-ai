@@ -189,13 +189,6 @@ fe-build:
 fe-test:
     flutter test
 
-# Run Flutter integration tests on Linux desktop
-fe-integration-test:
-    flutter test integration_test/app_test.dart -d linux
-
-# Run all tests (unit + integration)
-fe-test-all: fe-test fe-integration-test
-
 # Format Dart files (lib/ only — mirrors pre-commit hook)
 fe-format:
     dart format lib/
