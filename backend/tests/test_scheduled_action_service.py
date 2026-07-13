@@ -59,10 +59,9 @@ class TestComputeNextRun:
         assert abs((nxt - future).total_seconds()) < 1
 
 
-pytestmark = pytest.mark.asyncio
-
-
 class TestScheduledActionServiceCreate:
+    pytestmark = pytest.mark.asyncio
+
     async def test_create_recurring(self, db_session, test_user_email):
         svc = ScheduledActionService(db_session)
         action = await svc.create(
@@ -112,6 +111,8 @@ class TestScheduledActionServiceCreate:
 
 
 class TestScheduledActionServiceReads:
+    pytestmark = pytest.mark.asyncio
+
     async def test_get_scoped_to_user(self, db_session, test_user_email):
         svc = ScheduledActionService(db_session)
         action = await svc.create(
@@ -161,6 +162,8 @@ class TestScheduledActionServiceReads:
 
 
 class TestScheduledActionServiceUpdate:
+    pytestmark = pytest.mark.asyncio
+
     async def test_update_prompt_and_title(self, db_session, test_user_email):
         svc = ScheduledActionService(db_session)
         action = await svc.create(
@@ -254,6 +257,8 @@ class TestScheduledActionServiceUpdate:
 
 
 class TestScheduledActionServiceDelete:
+    pytestmark = pytest.mark.asyncio
+
     async def test_delete_existing(self, db_session, test_user_email):
         svc = ScheduledActionService(db_session)
         action = await svc.create(
@@ -281,6 +286,8 @@ class TestScheduledActionServiceDelete:
 
 
 class TestScheduledActionServiceRecordRun:
+    pytestmark = pytest.mark.asyncio
+
     async def test_record_run_recurring_keeps_active(self, db_session, test_user_email):
         svc = ScheduledActionService(db_session)
         action = await svc.create(

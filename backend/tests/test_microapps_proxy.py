@@ -14,8 +14,6 @@ from app.core.security import (
 )
 from app.main import app
 
-pytestmark = pytest.mark.asyncio
-
 
 def _settings(**overrides) -> Settings:
     kwargs = {
@@ -96,6 +94,8 @@ async def _start_upstream(body: bytes = b"hello-from-dev-server"):
 
 
 class TestProxyHttp:
+    pytestmark = pytest.mark.asyncio
+
     @pytest.fixture(autouse=True)
     def _fresh_client(self):
         # The proxy caches its AsyncClient on first use; each test runs in its
@@ -158,9 +158,9 @@ class TestProxyHttp:
         token = create_microapps_panel_token("a@b.com", "a-b-com", settings)
         try:
             async with _client() as c:
+                c.cookies.set("mp_panel", token)
                 resp = await c.get(
                     "/micro-apps/house-designer/assets/app.js",
-                    cookies={"mp_panel": token},
                 )
         finally:
             server.close()

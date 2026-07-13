@@ -29,9 +29,6 @@ from app.services.llm_provider import Message as LLMMessage
 from app.services.room_chat_service import RoomChatService
 from app.services.room_service import RoomService
 
-pytestmark = pytest.mark.asyncio
-
-
 _TEST_SETTINGS = Settings(
     secret_key="test-secret-key-do-not-use-in-prod",
     database_url="sqlite+aiosqlite:///:memory:",
@@ -136,6 +133,7 @@ async def _user_message(db, room_id: str) -> RoomMessage:
 # ---------------------------------------------------------------- service
 
 
+@pytest.mark.asyncio
 async def test_document_attachment_text_inlined_into_content(db_session, monkeypatch):
     room_id = await _make_room(db_session)
     fake = _FakeRoomManager()
@@ -156,6 +154,7 @@ async def test_document_attachment_text_inlined_into_content(db_session, monkeyp
     assert message_event["message"]["content"] == posted.content
 
 
+@pytest.mark.asyncio
 async def test_image_attachment_kept_in_meta_content_untouched(db_session, monkeypatch):
     room_id = await _make_room(db_session)
     fake = _FakeRoomManager()
@@ -172,6 +171,7 @@ async def test_image_attachment_kept_in_meta_content_untouched(db_session, monke
     ]
 
 
+@pytest.mark.asyncio
 async def test_image_only_post_with_empty_content_is_persisted(db_session, monkeypatch):
     room_id = await _make_room(db_session)
     fake = _FakeRoomManager()
@@ -184,6 +184,7 @@ async def test_image_only_post_with_empty_content_is_persisted(db_session, monke
     assert posted.meta["attachments"][0]["type"] == "image"
 
 
+@pytest.mark.asyncio
 async def test_image_attachment_reaches_agent_as_llm_images(db_session, monkeypatch):
     provider = _RecordingProvider()
     room_id = await _make_room(db_session, with_agent=True, provider=provider)
@@ -240,6 +241,7 @@ class _SessionCtx:
         return False
 
 
+@pytest.mark.asyncio
 async def test_ws_post_with_attachment_and_empty_content_is_accepted(db_session, monkeypatch):
     room_id = await _make_room(db_session)
     fake = _FakeRoomManager()
@@ -266,6 +268,7 @@ async def test_ws_post_with_attachment_and_empty_content_is_accepted(db_session,
     assert posted.meta["attachments"][0]["data"] == "Zm9v"
 
 
+@pytest.mark.asyncio
 async def test_ws_post_with_no_content_and_no_attachments_is_ignored(db_session, monkeypatch):
     room_id = await _make_room(db_session)
     fake = _FakeRoomManager()
@@ -294,6 +297,7 @@ async def test_ws_post_with_no_content_and_no_attachments_is_ignored(db_session,
 # ---------------------------------------------------------------- REST
 
 
+@pytest.mark.asyncio
 async def test_rest_post_with_attachment_persists_message(db_session, monkeypatch):
     room_id = await _make_room(db_session)
     fake = _FakeRoomManager()

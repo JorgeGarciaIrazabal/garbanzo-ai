@@ -34,9 +34,6 @@ def _make_service(db_session, provider=None):
     )
 
 
-pytestmark = pytest.mark.asyncio
-
-
 @dataclass
 class _FakeEmbeddingProvider:
     """Deterministic fake. ``dim`` is intentionally small — tests never do
@@ -58,6 +55,7 @@ async def _seed_second_user(db_session, email: str):
     await db_session.commit()
 
 
+@pytest.mark.asyncio
 async def test_create_document_extracts_and_chunks_and_dispatches_embedding(
     db_session,
 ):
@@ -91,6 +89,7 @@ async def test_create_document_extracts_and_chunks_and_dispatches_embedding(
     assert all(c.chunk_index >= 0 for c in chunks)
 
 
+@pytest.mark.asyncio
 async def test_create_document_rejects_file_with_no_text(db_session):
     service = _make_service(db_session)
     with pytest.raises(ValueError):
@@ -102,6 +101,7 @@ async def test_create_document_rejects_file_with_no_text(db_session):
         )
 
 
+@pytest.mark.asyncio
 async def test_list_documents_is_scoped_to_user(db_session):
     await _seed_second_user(db_session, "other@example.com")
     service = _make_service(db_session)
@@ -125,6 +125,7 @@ async def test_list_documents_is_scoped_to_user(db_session):
     assert [d.filename for d in theirs] == ["theirs.txt"]
 
 
+@pytest.mark.asyncio
 async def test_get_document_refuses_other_users(db_session):
     await _seed_second_user(db_session, "other@example.com")
     service = _make_service(db_session)
@@ -140,6 +141,7 @@ async def test_get_document_refuses_other_users(db_session):
     assert await service.get_document(doc.id, "other@example.com") is None
 
 
+@pytest.mark.asyncio
 async def test_delete_document_removes_chunks(db_session):
     service = _make_service(db_session)
     doc = await service.create_document(
@@ -165,6 +167,7 @@ async def test_delete_document_removes_chunks(db_session):
     assert await service.get_document(doc.id, "test@example.com") is None
 
 
+@pytest.mark.asyncio
 async def test_delete_document_refuses_other_users(db_session):
     await _seed_second_user(db_session, "other@example.com")
     service = _make_service(db_session)
@@ -181,12 +184,14 @@ async def test_delete_document_refuses_other_users(db_session):
     assert await service.get_document(doc.id, "test@example.com") is not None
 
 
+@pytest.mark.asyncio
 async def test_search_returns_empty_for_blank_query(db_session):
     service = _make_service(db_session)
     assert await service.search(user_id="test@example.com", query="") == []
     assert await service.search(user_id="test@example.com", query="   ") == []
 
 
+@pytest.mark.asyncio
 async def test_search_short_circuits_when_provider_fails(db_session, monkeypatch):
     class BrokenProvider:
         dim = 3
@@ -200,6 +205,7 @@ async def test_search_short_circuits_when_provider_fails(db_session, monkeypatch
     assert result == []
 
 
+@pytest.mark.asyncio
 async def test_search_uses_mocked_similarity(db_session, monkeypatch):
     """End-to-end orchestration of ``search`` without pgvector.
 

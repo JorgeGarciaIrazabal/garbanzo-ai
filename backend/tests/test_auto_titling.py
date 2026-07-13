@@ -12,8 +12,6 @@ from app.services.chat_service import (
 from app.services.conversation_service import ConversationService
 from app.services.llm_provider import ChatChunk, LLMProvider, ModelInfo, ProviderRegistry
 
-pytestmark = pytest.mark.asyncio
-
 
 class TestCleanGeneratedTitle:
     def test_strips_quotes_and_trailing_punctuation(self):
@@ -64,6 +62,7 @@ class _TitleProvider(LLMProvider):
         return True
 
 
+@pytest.mark.asyncio
 async def test_generate_conversation_title_uses_provider():
     provider = _TitleProvider('"Rust Memory Management"\n')
     title = await generate_conversation_title(
@@ -77,6 +76,7 @@ async def test_generate_conversation_title_uses_provider():
     assert "Ownership is" in prompt
 
 
+@pytest.mark.asyncio
 async def test_title_spawned_only_on_first_exchange(db_session, test_user_email):
     provider = _TitleProvider()
     ProviderRegistry.register(provider)

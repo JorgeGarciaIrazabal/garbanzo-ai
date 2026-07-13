@@ -113,6 +113,11 @@ async def db_session():
 
         yield session
 
+    # Dispose the engine while the event loop is still alive so aiosqlite's
+    # background connection thread shuts down cleanly (prevents
+    # "Event loop is closed" PytestUnhandledThreadExceptionWarning).
+    await engine.dispose()
+
     # Clean up any remaining references before disposal
     _unpatch_jsonb_columns()
 

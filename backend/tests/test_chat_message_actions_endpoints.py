@@ -15,7 +15,7 @@ import asyncio
 import json
 import uuid
 from collections.abc import AsyncIterator
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -148,7 +148,7 @@ async def _seed_conversation(db_session, user_id: str, turns: list[tuple[str, st
         model="llama3.2",
     )
     db_session.add(conv)
-    base = datetime.utcnow() - timedelta(hours=1)
+    base = datetime.now(UTC) - timedelta(hours=1)
     messages = []
     for i, (role, content) in enumerate(turns):
         msg = Message(

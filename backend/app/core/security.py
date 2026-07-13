@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import bcrypt
@@ -38,9 +38,9 @@ def create_access_token(
 ) -> str:
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now(UTC) + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=settings.access_token_expire_minutes)
+        expire = datetime.now(UTC) + timedelta(minutes=settings.access_token_expire_minutes)
     to_encode.update({"exp": expire, "type": "access"})
     encoded_jwt = jwt.encode(to_encode, settings.secret_key, algorithm="HS256")
     return encoded_jwt
@@ -53,9 +53,9 @@ def create_refresh_token(
 ) -> str:
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now(UTC) + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(days=settings.refresh_token_expire_days)
+        expire = datetime.now(UTC) + timedelta(days=settings.refresh_token_expire_days)
     # jti ensures every rotated refresh token is byte-distinct even when
     # issued within the same second, and gives us a handle for future
     # server-side revocation.
@@ -71,7 +71,7 @@ def create_microapps_panel_token(email: str, slug: str, settings: Settings) -> s
     request (``get_current_user`` only accepts type=access), and vice versa —
     an access token pasted into the proxy is rejected there.
     """
-    expire = datetime.utcnow() + timedelta(hours=12)
+    expire = datetime.now(UTC) + timedelta(hours=12)
     payload = {"sub": email, "slug": slug, "type": "microapps-panel", "exp": expire}
     return jwt.encode(payload, settings.secret_key, algorithm="HS256")
 
