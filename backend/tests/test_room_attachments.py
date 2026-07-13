@@ -198,7 +198,7 @@ async def test_image_attachment_reaches_agent_as_llm_images(db_session, monkeypa
     assert provider.calls, "agent turn never ran"
     user_msgs = [m for m in provider.calls[0] if m.role == "user"]
     assert user_msgs[-1].images == ["imgb64"]
-    assert "[test@example.com]: what is in this image?" == user_msgs[-1].content
+    assert user_msgs[-1].content == "[test@example.com]: what is in this image?"
 
 
 # ---------------------------------------------------------------- wire schema
