@@ -8,8 +8,8 @@ import 'package:garbanzo_ai/core/widgets/animated_dialog.dart';
 import 'package:garbanzo_ai/core/widgets/fade_slide_in.dart';
 import 'package:garbanzo_ai/core/widgets/skeleton.dart';
 import 'package:garbanzo_ai/features/chat/models/chat_attachment.dart';
+import 'package:garbanzo_ai/features/chat/widgets/input/attach_menu_button.dart';
 import 'package:garbanzo_ai/features/chat/widgets/input/attachment_preview.dart';
-import 'package:garbanzo_ai/features/chat/widgets/input/file_picker_helper.dart';
 import 'package:garbanzo_ai/features/chat/widgets/input/message_composer.dart';
 import 'package:garbanzo_ai/features/rooms/models/room_models.dart';
 import 'package:garbanzo_ai/features/rooms/providers/room_provider.dart';
@@ -124,31 +124,6 @@ class _RoomChatViewState extends State<RoomChatView>
     if (mounted) _scroll.followStreaming();
   }
 
-  Future<void> _pickFiles() async {
-    final result = await FilePickerHelper.pickFiles(
-      existingNames: _attachments.map((a) => a.name).toSet(),
-    );
-    if (result == null || !mounted) return;
-
-    for (final error in result.validationErrors) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error)));
-    }
-    if (result.rejected.isNotEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Files too large:\n${result.rejected.join('\n')}'),
-          backgroundColor: Theme.of(context).colorScheme.error,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
-    if (result.added.isNotEmpty) {
-      setState(() => _attachments.addAll(result.added));
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<RoomProvider>();
@@ -232,20 +207,12 @@ class _RoomChatViewState extends State<RoomChatView>
                         colorScheme: colorScheme,
                         textTheme: theme.textTheme,
                       ),
-                leading: IconButton(
-                  key: const ValueKey('room_attach_button'),
-                  onPressed: room == null ? null : _pickFiles,
-                  icon: const Icon(Icons.attach_file, size: 22),
-                  tooltip: 'Attach file',
-                  style: IconButton.styleFrom(
-                    foregroundColor: colorScheme.onSurfaceVariant,
-                    minimumSize: const Size(32, 32),
-                    padding: EdgeInsets.zero,
-                  ),
-                  constraints: const BoxConstraints(
-                    minWidth: 32,
-                    minHeight: 32,
-                  ),
+                leading: AttachMenuButton(
+                  buttonKey: const ValueKey('room_attach_button'),
+                  enabled: room != null,
+                  existingNames: () => _attachments.map((a) => a.name).toSet(),
+                  onAdded: (added) =>
+                      setState(() => _attachments.addAll(added)),
                 ),
               ),
             ],

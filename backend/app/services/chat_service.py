@@ -17,6 +17,7 @@ from app.schemas.chat import AttachmentIn, ChatOptions, ModelInfo
 from app.services.agent_turn import TurnResult, run_agent_turn
 from app.services.conversation_service import ConversationService
 from app.services.document_parser import extract_attachment_text
+from app.services.image_utils import downscale_image_b64
 from app.services.knowledge_base_service import KnowledgeBaseService
 from app.services.llm_provider import (
     ChatChunk,
@@ -335,22 +336,22 @@ class ChatService:
             )
             return
 
-        # Build the content that goes into the DB (append document text inline)
+        # Build the content that goes into the DB (append document text inline).
+        # Images are downscaled for the vision model and their base64 data kept
+        # in meta, so later turns (follow-ups, edit, regenerate) still see them.
         stored_content = content
         attachment_meta: list[dict] = []
-        image_b64_list: list[str] = []
 
         if attachments:
             doc_texts: list[str] = []
             for att in attachments:
-                attachment_meta.append(
-                    {"name": att.name, "mime_type": att.mime_type, "type": att.type}
-                )
-                if att.type == "image":
-                    image_b64_list.append(att.data)
+                entry = {"name": att.name, "mime_type": att.mime_type, "type": att.type}
+                if att.type == "image" and att.data:
+                    entry["data"] = await downscale_image_b64(att.data)
                 elif att.type == "document" and att.data:
                     extracted_text = await extract_attachment_text(att)
                     doc_texts.append(f"[Attached file: {att.name}]\n{extracted_text}")
+                attachment_meta.append(entry)
 
             if doc_texts:
                 stored_content = content + "\n\n" + "\n\n".join(doc_texts)
@@ -372,7 +373,6 @@ class ChatService:
         async for chunk in self._stream_assistant_turn(
             conversation=conversation,
             options=options,
-            pending_images=image_b64_list,
         ):
             yield chunk
 
@@ -495,17 +495,11 @@ class ChatService:
         conversation.updated_at = func.now()  # type: ignore[assignment]
         await self.db.flush()
 
-        # Rehydrate images from the message metadata so the LLM still sees them.
-        image_b64_list: list[str] = []
-        raw_attachments = (target.meta or {}).get("attachments") or []
-        for att in raw_attachments:
-            if isinstance(att, dict) and att.get("type") == "image" and att.get("data"):
-                image_b64_list.append(att["data"])
-
+        # Images survive the edit: history building rehydrates them from each
+        # message's meta.
         async for chunk in self._stream_assistant_turn(
             conversation=conversation,
             options=options,
-            pending_images=image_b64_list or None,
         ):
             yield chunk
 
@@ -519,7 +513,6 @@ class ChatService:
         self,
         conversation,
         options: ChatOptions | None = None,
-        pending_images: list[str] | None = None,
     ) -> AsyncIterator[ChatChunk]:
         """Stream an LLM response for the current state of ``conversation``.
 
@@ -542,7 +535,6 @@ class ChatService:
 
         llm_messages, context_stats = await self._build_message_history_with_system_prompt(
             conversation.messages,
-            pending_images,
             conversation.user_id,
             use_memory=conversation.use_memory,
             use_knowledge_base=conversation.use_knowledge_base,
@@ -713,22 +705,30 @@ class ChatService:
             self._active_target[conv_id] = (result.get("app"), result.get("file"))
         return result
 
-    def _build_message_history(
-        self,
-        messages: list[Message],
-        pending_images: list[str] | None = None,
-    ) -> list[LLMMessage]:
-        result: list[LLMMessage] = []
-        for i, msg in enumerate(messages):
-            is_last = i == len(messages) - 1
-            images = pending_images if (is_last and pending_images) else None
-            result.append(LLMMessage(role=msg.role, content=msg.content, images=images))
-        return result
+    @staticmethod
+    def _message_images(msg: Message) -> list[str] | None:
+        """Base64 image data persisted in the message's attachment meta."""
+        atts = (msg.meta or {}).get("attachments") or []
+        images = [
+            a["data"]
+            for a in atts
+            if isinstance(a, dict) and a.get("type") == "image" and a.get("data")
+        ]
+        return images or None
+
+    def _build_message_history(self, messages: list[Message]) -> list[LLMMessage]:
+        return [
+            LLMMessage(
+                role=msg.role,
+                content=msg.content,
+                images=self._message_images(msg),
+            )
+            for msg in messages
+        ]
 
     async def _build_message_history_with_system_prompt(
         self,
         messages: list[Message],
-        pending_images: list[str] | None = None,
         user_id: str | None = None,
         use_memory: bool = True,
         use_knowledge_base: bool = True,
@@ -739,11 +739,12 @@ class ChatService:
         """Build message history with an optional system prompt prepended.
 
         If use_memory is True and user_id is provided, fetches relevant memories
-        and prepends them to the system prompt.
+        and prepends them to the system prompt. Image attachments are
+        rehydrated from each message's meta, so the vision model keeps seeing
+        them on follow-up turns, edits, and regenerates.
 
         Args:
             messages: List of conversation messages
-            pending_images: Base64-encoded images for multimodal context
             user_id: The user ID to fetch memories for
             use_memory: Whether to inject memories into the system prompt
             context_summary: Summary of earlier messages that were trimmed
@@ -790,9 +791,8 @@ class ChatService:
             )
 
         # Add conversation messages
-        for i, msg in enumerate(filtered_messages):
-            is_last = i == len(filtered_messages) - 1
-            images = pending_images if (is_last and pending_images) else None
+        for msg in filtered_messages:
+            images = self._message_images(msg)
             # Normalize tool-related roles for the LLM: Ollama expects "tool"
             # for a tool result; tool_call messages from the assistant collapse
             # back to an assistant turn carrying structured tool_calls. We

@@ -14,19 +14,20 @@ from app.services.llm_provider import Message as LLMMessage
 class TestBuildMessageHistory:
     """Tests for ChatService._build_message_history (a pure-ish helper)."""
 
-    def _make_msg(self, role: str, content: str) -> Message:
+    def _make_msg(self, role: str, content: str, meta: dict | None = None) -> Message:
         """Create a minimal Message ORM object (no DB needed)."""
         return Message(
             id="fake-id",
             conversation_id="fake-conv",
             role=role,
             content=content,
+            meta=meta,
         )
 
-    def _build(self, messages, images=None):
+    def _build(self, messages):
         # _build_message_history is an instance method; create a minimal instance.
         service = ChatService.__new__(ChatService)
-        return service._build_message_history(messages, images)
+        return service._build_message_history(messages)
 
     def test_single_message(self):
         msgs = [self._make_msg("user", "hello")]
@@ -49,20 +50,37 @@ class TestBuildMessageHistory:
         assert result[1].role == "assistant"
         assert result[2].role == "user"
 
-    def test_images_attached_to_last_message_only(self):
+    def test_images_rehydrated_from_meta(self):
         msgs = [
-            self._make_msg("user", "first"),
-            self._make_msg("user", "second with image"),
+            self._make_msg(
+                "user",
+                "with image",
+                meta={
+                    "attachments": [
+                        {"name": "a.png", "type": "image", "data": "base64data1"},
+                        {"name": "b.txt", "type": "document"},
+                    ]
+                },
+            ),
+            self._make_msg("assistant", "nice picture"),
+            self._make_msg("user", "no image"),
         ]
-        images = ["base64data1", "base64data2"]
-        result = self._build(msgs, images)
+        result = self._build(msgs)
 
-        assert result[0].images is None
-        assert result[1].images == images
+        assert result[0].images == ["base64data1"]
+        assert result[1].images is None
+        assert result[2].images is None
 
-    def test_empty_images_list_not_attached(self):
-        msgs = [self._make_msg("user", "hi")]
-        result = self._build(msgs, [])
+    def test_image_meta_without_data_ignored(self):
+        # Messages persisted before image data was stored in meta.
+        msgs = [
+            self._make_msg(
+                "user",
+                "legacy image",
+                meta={"attachments": [{"name": "a.png", "type": "image"}]},
+            )
+        ]
+        result = self._build(msgs)
         assert result[0].images is None
 
     def test_no_messages(self):

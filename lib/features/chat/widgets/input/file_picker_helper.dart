@@ -1,5 +1,6 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
+import 'package:image_picker/image_picker.dart';
 
 import 'package:garbanzo_ai/features/chat/models/chat_attachment.dart';
 
@@ -22,6 +23,83 @@ typedef RawPickedFile = ({String name, Uint8List bytes});
 
 /// Handles file picking, validation, and MIME type inference.
 class FilePickerHelper {
+  static const _imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'];
+
+  /// Camera photos and gallery picks are downscaled/re-encoded to stay well
+  /// under the 5 MB image attachment limit.
+  static const _maxImageDimension = 2048.0;
+  static const _imageQuality = 85;
+
+  /// Whether the running platform is a phone/tablet where the device camera
+  /// and native photo picker make sense. On the web, [defaultTargetPlatform]
+  /// reflects the underlying OS, so mobile browsers count too.
+  static bool get isMobilePlatform =>
+      defaultTargetPlatform == TargetPlatform.android ||
+      defaultTargetPlatform == TargetPlatform.iOS;
+
+  /// Capture a photo with the device camera. Mobile platforms only
+  /// (see [isMobilePlatform]).
+  static Future<FilePickResult?> takePhoto({
+    required Set<String> existingNames,
+  }) async {
+    final photo = await ImagePicker().pickImage(
+      source: ImageSource.camera,
+      maxWidth: _maxImageDimension,
+      maxHeight: _maxImageDimension,
+      imageQuality: _imageQuality,
+    );
+    if (photo == null) return null;
+
+    final now = DateTime.now();
+    String pad(int n) => n.toString().padLeft(2, '0');
+    final name =
+        'photo_${now.year}${pad(now.month)}${pad(now.day)}'
+        '_${pad(now.hour)}${pad(now.minute)}${pad(now.second)}.jpg';
+
+    return validate(
+      files: [(name: name, bytes: await photo.readAsBytes())],
+      existingNames: existingNames,
+    );
+  }
+
+  /// Pick images only: the native photo picker on mobile, the file picker
+  /// restricted to image extensions everywhere else.
+  static Future<FilePickResult?> pickImages({
+    required Set<String> existingNames,
+  }) async {
+    if (isMobilePlatform) {
+      final photos = await ImagePicker().pickMultiImage(
+        maxWidth: _maxImageDimension,
+        maxHeight: _maxImageDimension,
+        imageQuality: _imageQuality,
+      );
+      if (photos.isEmpty) return null;
+      return validate(
+        files: [
+          for (final photo in photos)
+            (name: photo.name, bytes: await photo.readAsBytes()),
+        ],
+        existingNames: existingNames,
+      );
+    }
+
+    final result = await FilePicker.pickFiles(
+      allowMultiple: true,
+      withData: true,
+      type: FileType.custom,
+      allowedExtensions: _imageExtensions,
+    );
+    if (result == null) return null;
+
+    return validate(
+      files: [
+        for (final file in result.files)
+          if (file.bytes != null) (name: file.name, bytes: file.bytes!),
+      ],
+      existingNames: existingNames,
+    );
+  }
+
   /// Open the file picker and validate selected files.
   /// [existingNames] is used to detect duplicate filenames.
   static Future<FilePickResult?> pickFiles({
@@ -33,7 +111,7 @@ class FilePickerHelper {
       type: FileType.custom,
       allowedExtensions: [
         // images
-        'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp',
+        ..._imageExtensions,
         // documents
         'txt', 'md', 'csv', 'json', 'xml', 'yaml', 'yml',
         'html', 'htm', 'css', 'js', 'ts', 'py', 'dart', 'rs',

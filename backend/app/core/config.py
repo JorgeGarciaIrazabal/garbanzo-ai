@@ -84,6 +84,13 @@ class Settings(BaseSettings):
     # block in ``room_chat_service.py`` for the v1_strict copy.
     room_auto_judge_model: str = "granite4:micro"
 
+    # Image attachments are downscaled to this max dimension (px) before being
+    # stored and sent to the vision model. Local vision models see ~1M pixels
+    # at most (llama3.2-vision 1120², gemma3 896², qwen-VL tiles by area), so
+    # anything past ~1024px only costs tokens and prefill time. Don't go much
+    # lower: text in screenshots gets unreadable for the model below ~1024px.
+    llm_image_max_dim: int = 1024
+
     # Dev test user — set both to auto-create a user on startup
     test_user_email: str = ""
     test_user_password: str = ""

@@ -66,5 +66,11 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>Take photos to attach to chat and room messages.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Pick photos to attach to chat and room messages.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Record voice messages for speech-to-text input.</string>
 </dict>
 </plist>

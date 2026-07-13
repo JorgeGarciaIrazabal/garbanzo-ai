@@ -60,14 +60,19 @@ abstract class ChatAttachment with _$ChatAttachment {
 
   /// Reconstruct from the metadata stored in [Message.meta['attachments']].
   ///
-  /// The backend only persists name, mime_type, and type — not the raw bytes.
+  /// Images carry their (server-downscaled) base64 data so they can still be
+  /// rendered after a reload; documents are name-only — their text was
+  /// appended to the message content server-side.
   factory ChatAttachment.fromMetadata(Map<String, dynamic> json) {
     final mimeType = json['mime_type'] as String? ?? 'application/octet-stream';
+    final data = json['data'];
     return ChatAttachment(
       name: json['name'] as String? ?? 'unknown',
       mimeType: mimeType,
       type: _typeFromMime(mimeType),
-      bytes: Uint8List(0),
+      bytes: data is String && data.isNotEmpty
+          ? base64Decode(data)
+          : Uint8List(0),
     );
   }
 }

@@ -6,8 +6,8 @@ import 'package:provider/provider.dart';
 import 'package:garbanzo_ai/core/log.dart';
 import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
 import 'package:garbanzo_ai/features/chat/models/chat_attachment.dart';
+import 'package:garbanzo_ai/features/chat/widgets/input/attach_menu_button.dart';
 import 'package:garbanzo_ai/features/chat/widgets/input/attachment_preview.dart';
-import 'package:garbanzo_ai/features/chat/widgets/input/file_picker_helper.dart';
 import 'package:garbanzo_ai/features/chat/widgets/input/message_composer.dart';
 import 'package:garbanzo_ai/features/chat/widgets/input/pulsing_dot.dart';
 import 'package:garbanzo_ai/features/chat/widgets/input/voice_recording_helper.dart';
@@ -198,35 +198,6 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
 
   // -- File picking ----------------------------------------------------------
 
-  Future<void> _pickFiles() async {
-    final result = await FilePickerHelper.pickFiles(
-      existingNames: _attachments.map((a) => a.name).toSet(),
-    );
-    if (result == null) return;
-
-    if (result.validationErrors.isNotEmpty && mounted) {
-      for (final error in result.validationErrors) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(error)));
-      }
-    }
-
-    if (result.rejected.isNotEmpty && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Files too large:\n${result.rejected.join('\n')}'),
-          backgroundColor: Theme.of(context).colorScheme.error,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
-
-    if (result.added.isNotEmpty) {
-      setState(() => _attachments.addAll(result.added));
-    }
-  }
-
   void _removeAttachment(int index) {
     setState(() => _attachments.removeAt(index));
   }
@@ -264,17 +235,11 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
               colorScheme: colorScheme,
               textTheme: theme.textTheme,
             ),
-      leading: IconButton(
-        key: const ValueKey('attach_button'),
-        onPressed: widget.isLoading ? null : _pickFiles,
-        icon: const Icon(Icons.attach_file, size: 22),
-        tooltip: 'Attach file',
-        style: IconButton.styleFrom(
-          foregroundColor: colorScheme.onSurfaceVariant,
-          minimumSize: const Size(32, 32),
-          padding: EdgeInsets.zero,
-        ),
-        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+      leading: AttachMenuButton(
+        buttonKey: const ValueKey('attach_button'),
+        enabled: !widget.isLoading,
+        existingNames: () => _attachments.map((a) => a.name).toSet(),
+        onAdded: (added) => setState(() => _attachments.addAll(added)),
       ),
       overlay: !_isRecording
           ? null
