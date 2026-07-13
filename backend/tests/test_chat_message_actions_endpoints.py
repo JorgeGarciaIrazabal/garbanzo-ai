@@ -36,6 +36,24 @@ from app.services.llm_provider import Message as LLMMessage
 pytestmark = pytest.mark.asyncio
 
 
+@pytest.fixture(autouse=True)
+def _no_background_title(monkeypatch):
+    """Stop first-exchange auto-titling from spawning a real background task.
+
+    ``_spawn_title_generation`` fires ``asyncio.create_task`` against the global
+    ``async_session_maker`` (the real DATABASE_URL engine), which outlives the
+    test and binds a pooled connection to a soon-closed event loop. A later
+    test reusing that pool then fails with "Future attached to a different
+    loop". Stubbing it keeps these unit tests hermetic — the titling path has
+    its own coverage in test_auto_titling.py.
+    """
+    monkeypatch.setattr(
+        ChatService,
+        "_spawn_title_generation",
+        lambda *a, **k: None,
+    )
+
+
 _TEST_SETTINGS = Settings(
     secret_key="test-secret-key-do-not-use-in-prod",
     database_url="sqlite+aiosqlite:///:memory:",
@@ -96,7 +114,9 @@ def _clear_overrides():
     app.dependency_overrides.pop(get_db, None)
     app.dependency_overrides.pop(get_current_user, None)
     app.dependency_overrides.pop(get_chat_service, None)
-    app.dependency_overrides.pop(get_settings, None)
+    # Intentionally do NOT pop get_settings — sibling test modules install a
+    # process-wide override at import time; popping it here exposes later
+    # tests to the real settings (and real DATABASE_URL).
 
 
 def _client() -> AsyncClient:

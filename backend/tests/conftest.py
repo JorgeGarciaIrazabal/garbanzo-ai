@@ -51,6 +51,30 @@ def settings() -> Settings:
     )
 
 
+@pytest_asyncio.fixture(autouse=True)
+async def _reset_global_engine():
+    """Drop the process-global engine's pooled connections after every test.
+
+    ``app.db.session`` builds one module-level async engine at import time
+    against the real ``DATABASE_URL``. A handful of code paths bypass the
+    ``get_db`` dependency and use it directly via ``async_session_maker``
+    (``get_current_admin_user``, background auto-titling, push-on-disconnect).
+    Its asyncpg pool binds each connection to the event loop that created it,
+    but pytest-asyncio spins up a fresh loop per test — so a later test that
+    reuses a pooled connection fails with "got Future attached to a different
+    loop".
+
+    Disposing with ``close=False`` abandons the old connections without
+    awaiting their close (which would itself cross loops), forcing the next
+    test to open fresh connections on its own loop. This keeps the suite
+    order-independent.
+    """
+    yield
+    from app.db.session import engine
+
+    await engine.dispose(close=False)
+
+
 @pytest_asyncio.fixture()
 async def db_session():
     """Yield an ``AsyncSession`` backed by an in-memory SQLite database.

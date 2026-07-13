@@ -53,7 +53,9 @@ def _install_overrides(db_session, switch: _UserSwitch):
 def _clear_overrides():
     app.dependency_overrides.pop(get_db, None)
     app.dependency_overrides.pop(get_current_user, None)
-    app.dependency_overrides.pop(get_settings, None)
+    # Intentionally do NOT pop get_settings — sibling test modules install a
+    # process-wide override at import time; popping it here exposes later
+    # tests to the real settings (and real DATABASE_URL).
 
 
 def _client() -> AsyncClient:

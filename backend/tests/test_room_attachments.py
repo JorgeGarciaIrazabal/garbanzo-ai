@@ -334,4 +334,5 @@ async def test_rest_post_with_attachment_persists_message(db_session, monkeypatc
     finally:
         app.dependency_overrides.pop(get_db, None)
         app.dependency_overrides.pop(get_current_user, None)
-        app.dependency_overrides.pop(get_settings, None)
+        # get_settings intentionally stays overridden — sibling test modules
+        # rely on a process-wide override installed at import time.
