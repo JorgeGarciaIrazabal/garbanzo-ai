@@ -1,7 +1,11 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:web_socket_channel/status.dart' as ws_status;
 
+import 'package:garbanzo_ai/features/chat/models/chat_attachment.dart';
 import 'package:garbanzo_ai/features/rooms/services/room_socket_service.dart';
 
 import 'fake_room_channel.dart';
@@ -149,6 +153,72 @@ void main() {
         fresh.completeReady();
         async.flushMicrotasks();
         expect(service.connectionState.value, RoomConnectionState.connected);
+      });
+    });
+
+    test('post serializes attachments in the backend AttachmentIn shape', () {
+      fakeAsync((async) {
+        final channels = <FakeRoomChannel>[];
+        final service = _service(channels);
+        service.connect();
+        async.flushMicrotasks();
+
+        service.post(
+          'look at these',
+          attachments: [
+            ChatAttachment(
+              name: 'photo.png',
+              mimeType: 'image/png',
+              type: AttachmentType.image,
+              bytes: Uint8List.fromList([1, 2, 3]),
+            ),
+            ChatAttachment(
+              name: 'notes.txt',
+              mimeType: 'text/plain',
+              type: AttachmentType.document,
+              bytes: Uint8List.fromList(utf8.encode('doc body')),
+            ),
+          ],
+        );
+
+        expect(channels[0].sent, hasLength(1));
+        final frame = jsonDecode(channels[0].sent.single);
+        expect(frame, {
+          'type': 'post',
+          'content': 'look at these',
+          'attachments': [
+            {
+              'name': 'photo.png',
+              'mime_type': 'image/png',
+              'type': 'image',
+              // Images travel base64-encoded…
+              'data': base64Encode([1, 2, 3]),
+            },
+            {
+              'name': 'notes.txt',
+              'mime_type': 'text/plain',
+              'type': 'document',
+              // …documents travel as plain text.
+              'data': 'doc body',
+            },
+          ],
+        });
+      });
+    });
+
+    test('post without attachments omits the attachments key entirely', () {
+      fakeAsync((async) {
+        final channels = <FakeRoomChannel>[];
+        final service = _service(channels);
+        service.connect();
+        async.flushMicrotasks();
+
+        service.post('plain message');
+
+        final frame =
+            jsonDecode(channels[0].sent.single) as Map<String, dynamic>;
+        expect(frame, {'type': 'post', 'content': 'plain message'});
+        expect(frame.containsKey('attachments'), isFalse);
       });
     });
 
