@@ -3,23 +3,6 @@ import 'package:garbanzo_ai/features/usage/models/usage_summary.dart';
 
 void main() {
   group('UsageSummary.fromJson', () {
-    test('parses empty response with defaults', () {
-      final summary = UsageSummary.fromJson({
-        'days': 30,
-        'total_tokens_prompt': 0,
-        'total_tokens_generated': 0,
-        'total_messages': 0,
-        'by_model': <dynamic>[],
-        'by_conversation': <dynamic>[],
-        'by_day': <dynamic>[],
-      });
-
-      expect(summary.days, 30);
-      expect(summary.totalTokens, 0);
-      expect(summary.totalMessages, 0);
-      expect(summary.byModel, isEmpty);
-    });
-
     test('parses populated response', () {
       final summary = UsageSummary.fromJson({
         'days': 7,

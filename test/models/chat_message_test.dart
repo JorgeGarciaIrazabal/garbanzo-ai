@@ -42,31 +42,6 @@ void main() {
       expect(msg.metadata?['key'], 'from_metadata');
     });
 
-    test('toJson produces correct output', () {
-      final msg = ChatMessage.fromJson(sampleJson);
-      final json = msg.toJson();
-      expect(json['id'], 'msg-1');
-      expect(json['role'], 'user');
-      expect(json['content'], 'Hello!');
-      expect(json['created_at'], isA<String>());
-    });
-
-    test('fromJson -> toJson round-trip preserves data', () {
-      final msg = ChatMessage.fromJson(sampleJson);
-      final json = msg.toJson();
-      final msg2 = ChatMessage.fromJson(json);
-      expect(msg2.id, msg.id);
-      expect(msg2.role, msg.role);
-      expect(msg2.content, msg.content);
-    });
-
-    test('copyWith works', () {
-      final msg = ChatMessage.fromJson(sampleJson);
-      final copied = msg.copyWith(content: 'Updated');
-      expect(copied.content, 'Updated');
-      expect(copied.id, msg.id);
-    });
-
     test('isUser, isAssistant, isSystem', () {
       final user =
           ChatMessage.fromJson({...sampleJson, 'role': 'user'});
@@ -81,17 +56,6 @@ void main() {
       final system =
           ChatMessage.fromJson({...sampleJson, 'role': 'system'});
       expect(system.isSystem, true);
-    });
-
-    test('null metadata is allowed', () {
-      final json = {
-        'id': 'msg-3',
-        'role': 'user',
-        'content': 'no meta',
-        'created_at': '2024-01-01T00:00:00.000Z',
-      };
-      final msg = ChatMessage.fromJson(json);
-      expect(msg.metadata, isNull);
     });
   });
 

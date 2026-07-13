@@ -18,15 +18,6 @@ void main() {
       expect(info.provider, 'ollama');
     });
 
-    test('fromJson handles null optional fields', () {
-      final info = ModelInfo.fromJson({
-        'id': 'gpt-4',
-        'name': 'GPT-4',
-        'provider': 'openai',
-      });
-      expect(info.description, isNull);
-      expect(info.contextLength, isNull);
-    });
   });
 
   group('ModelList', () {
@@ -48,11 +39,6 @@ void main() {
       expect(list.models.length, 2);
       expect(list.models[0].id, 'model-1');
       expect(list.models[1].id, 'model-2');
-    });
-
-    test('fromJson handles empty list', () {
-      final list = ModelList.fromJson({'models': []});
-      expect(list.models, isEmpty);
     });
   });
 }

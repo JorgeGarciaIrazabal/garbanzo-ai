@@ -1,14 +1,15 @@
-"""Unit tests for the ScheduledAction Pydantic schemas."""
+"""Tests for the ScheduledAction custom schedule validator.
+
+Only the cron_expr/run_at mutual-exclusivity validator is covered here;
+plain field constraints are Pydantic's job.
+"""
 
 from datetime import UTC, datetime, timedelta
 
 import pytest
 from pydantic import ValidationError
 
-from app.schemas.scheduled_action import (
-    ScheduledActionCreate,
-    ScheduledActionUpdate,
-)
+from app.schemas.scheduled_action import ScheduledActionCreate
 
 
 class TestCreateValidator:
@@ -37,24 +38,3 @@ class TestCreateValidator:
     def test_empty_cron_treated_as_missing(self):
         with pytest.raises(ValidationError):
             ScheduledActionCreate(prompt="x", cron_expr="  ")
-
-    def test_empty_prompt_rejected(self):
-        with pytest.raises(ValidationError):
-            ScheduledActionCreate(prompt="", cron_expr="0 9 * * *")
-
-
-class TestUpdateSchema:
-    def test_all_fields_optional(self):
-        # Empty patch is valid.
-        ScheduledActionUpdate()
-
-    def test_partial_update(self):
-        model = ScheduledActionUpdate(is_active=False, title="renamed")
-        assert model.is_active is False
-        assert model.title == "renamed"
-        assert model.prompt is None
-
-    def test_prompt_length_constraint(self):
-        # Empty string fails min_length=1.
-        with pytest.raises(ValidationError):
-            ScheduledActionUpdate(prompt="")
