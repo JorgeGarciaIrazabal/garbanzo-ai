@@ -8,11 +8,12 @@ import 'package:garbanzo_ai/features/memory/services/memory_api_service.dart';
 ///
 /// Handles loading, creating, updating, and deleting memories.
 class MemoryProvider extends ChangeNotifier with GuardedStateMixin {
-  MemoryProvider() {
+  MemoryProvider({MemoryApiService? service})
+    : _memoryService = service ?? MemoryApiService.instance {
     _loadMemories();
   }
 
-  final MemoryApiService _memoryService = MemoryApiService.instance;
+  final MemoryApiService _memoryService;
 
   // ==========================================================================
   // State

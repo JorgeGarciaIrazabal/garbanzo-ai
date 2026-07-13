@@ -13,7 +13,8 @@ import 'package:garbanzo_ai/features/notifications/services/notification_api_ser
 /// backend periodically while the app is in the foreground so the badge stays
 /// roughly current without pushing new state over FCM to the Flutter side.
 class NotificationProvider extends ChangeNotifier with GuardedStateMixin {
-  NotificationProvider() {
+  NotificationProvider({NotificationApiService? service})
+    : _api = service ?? NotificationApiService.instance {
     refresh();
     _pollTimer = Timer.periodic(
       const Duration(seconds: 30),
@@ -21,7 +22,7 @@ class NotificationProvider extends ChangeNotifier with GuardedStateMixin {
     );
   }
 
-  final NotificationApiService _api = NotificationApiService.instance;
+  final NotificationApiService _api;
   Timer? _pollTimer;
 
   List<AppNotification> _items = [];
