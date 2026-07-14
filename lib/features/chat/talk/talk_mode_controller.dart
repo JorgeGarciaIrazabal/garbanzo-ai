@@ -31,9 +31,14 @@ enum TalkPhase {
 ///
 /// It reuses [ChatProvider] for the actual LLM turn (so memory, KB, and tools
 /// keep working), [VoiceRecordingHelper] for STT capture, and [TalkTtsQueue]
-/// for speaking the reply. Phase 1 is tap-driven: tap to talk, tap again to
-/// send; the final reply is spoken once the stream ends. VAD auto start/stop
-/// and barge-in arrive in later phases.
+/// for speaking the reply. The reply is spoken **sentence-by-sentence as it
+/// streams** — each completed sentence in [ChatProvider.streamingMessage] is
+/// enqueued immediately, so speech starts on the first sentence instead of
+/// waiting for the whole answer. While the model reasons (thinking chunks or
+/// no speakable text yet) the phase stays [TalkPhase.thinking].
+///
+/// Phase 1/2 are tap-driven: tap to talk, tap again to send. VAD auto
+/// start/stop and voice barge-in arrive in later phases.
 class TalkModeController extends ChangeNotifier {
   TalkModeController({
     required ChatProvider chat,
@@ -49,6 +54,11 @@ class TalkModeController extends ChangeNotifier {
   final VoiceRecordingHelper _recorder = VoiceRecordingHelper();
 
   TalkTtsQueue? _tts;
+
+  /// How many characters of the current reply have already been queued for
+  /// speech, so streaming updates only enqueue the newly-completed remainder.
+  int _spokenUpTo = 0;
+  bool _streamFinished = false;
 
   TalkPhase _phase = TalkPhase.idle;
   TalkPhase get phase => _phase;
@@ -113,49 +123,97 @@ class TalkModeController extends ChangeNotifier {
       return;
     }
 
-    _awaitingReply = true;
+    _beginReply();
     _setPhase(TalkPhase.thinking);
     await _chat.sendMessage(transcript);
     _prevSending = _chat.isSending;
   }
 
-  Future<void> _interrupt() async {
-    _awaitingReply = false;
-    await _tts?.stop();
-    _tts = null;
-    if (_chat.isSending) {
-      await _chat.stopStreaming();
-    }
-    _setPhase(TalkPhase.idle);
+  /// Arm a fresh reply: TTS queue + streaming subscription for live speech.
+  void _beginReply() {
+    _spokenUpTo = 0;
+    _streamFinished = false;
+    _awaitingReply = true;
+    _tts = TalkTtsQueue(
+      voice: _settings.ttsVoice,
+      speed: _settings.ttsSpeed,
+      onComplete: _onQueueDrained,
+    );
+    _chat.streamingMessage.addListener(_onStreamingContent);
   }
 
-  /// Reacts to the chat turn finishing: speak the final assistant reply.
+  /// Speak each newly-completed sentence as the reply streams in.
+  void _onStreamingContent() {
+    final content = _chat.streamingMessage.value?.content ?? '';
+    final cut = lastSentenceBoundary(content, _spokenUpTo);
+    if (cut <= _spokenUpTo) return;
+    _tts?.enqueue(content.substring(_spokenUpTo, cut));
+    _spokenUpTo = cut;
+    if (_phase == TalkPhase.thinking) _setPhase(TalkPhase.speaking);
+  }
+
+  /// Reacts to the chat turn finishing (isSending true → false).
   void _onChatChanged() {
     final sending = _chat.isSending;
     if (_prevSending && !sending && _awaitingReply) {
       _awaitingReply = false;
-      _speakReply();
+      _finishReply();
     }
     _prevSending = sending;
   }
 
-  void _speakReply() {
-    final reply = _lastAssistantContent();
-    if (reply == null || reply.trim().isEmpty) {
-      _setPhase(TalkPhase.idle);
-      return;
+  /// Stream ended: flush the trailing partial sentence and settle the phase.
+  void _finishReply() {
+    _streamFinished = true;
+    _chat.streamingMessage.removeListener(_onStreamingContent);
+
+    // streamingMessage is cleared by the time the turn ends, so read the
+    // committed final text from the message list.
+    final full = _lastAssistantContent() ?? '';
+    if (full.length > _spokenUpTo) {
+      _tts?.enqueue(full.substring(_spokenUpTo));
+      _spokenUpTo = full.length;
     }
-    _setPhase(TalkPhase.speaking);
-    _tts = TalkTtsQueue(
-      voice: _settings.ttsVoice,
-      speed: _settings.ttsSpeed,
-      onComplete: _onSpeakingDone,
-    )..enqueue(reply);
+
+    // If nothing is (or will be) speaking, the turn is over immediately.
+    if (_tts == null || !_tts!.isSpeaking) _endSpeaking();
   }
 
-  void _onSpeakingDone() {
+  /// TTS queue drained. Only ends the turn once the stream has also finished —
+  /// mid-stream drains just wait for the next sentence.
+  void _onQueueDrained() {
+    if (_streamFinished) _endSpeaking();
+  }
+
+  void _endSpeaking() {
     _tts = null;
-    if (_phase == TalkPhase.speaking) _setPhase(TalkPhase.idle);
+    _spokenUpTo = 0;
+    if (_phase == TalkPhase.thinking || _phase == TalkPhase.speaking) {
+      _setPhase(TalkPhase.idle);
+    }
+  }
+
+  Future<void> _interrupt() async {
+    _awaitingReply = false;
+    _streamFinished = true;
+    _chat.streamingMessage.removeListener(_onStreamingContent);
+    await _tts?.stop();
+    _tts = null;
+    _spokenUpTo = 0;
+    if (_chat.isSending) await _chat.stopStreaming();
+    _setPhase(TalkPhase.idle);
+  }
+
+  /// Last index (exclusive) up to which [content] holds complete sentences,
+  /// i.e. just past the final sentence-terminator followed by whitespace.
+  @visibleForTesting
+  static int lastSentenceBoundary(String content, int from) {
+    var cut = from;
+    for (final m in RegExp(r'[.!?]\s').allMatches(content)) {
+      final boundary = m.start + 1; // right after the punctuation
+      if (boundary > from) cut = boundary;
+    }
+    return cut;
   }
 
   String? _lastAssistantContent() {
@@ -181,6 +239,7 @@ class TalkModeController extends ChangeNotifier {
   void dispose() {
     _disposed = true;
     _chat.removeListener(_onChatChanged);
+    _chat.streamingMessage.removeListener(_onStreamingContent);
     _recorder.dispose();
     _tts?.stop();
     super.dispose();

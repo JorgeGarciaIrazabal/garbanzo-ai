@@ -155,11 +155,14 @@ enabled only when a chat conversation is active. Opens `TalkModePage` as a full-
 
 ## 7. Suggested build phases
 
-1. **Skeleton + turn reuse (no VAD):** full-screen page, tap-to-talk → `sendMessage`,
+1. ✅ **Skeleton + turn reuse (no VAD):** full-screen page, tap-to-talk → `sendMessage`,
    auto-speak the final reply via the existing chunked TTS. Proves the loop end-to-end.
-2. **Sentence-streamed TTS:** speak sentences as they stream (latency win) + "Thinking…" state.
+   *(`lib/features/chat/talk/`, Talk icon in the chat app bar.)*
+2. ✅ **Sentence-streamed TTS:** speak sentences as they stream (latency win) + "Thinking…"
+   state. *(Controller watches `ChatProvider.streamingMessage`, enqueues each completed
+   sentence; phase stays `thinking` until the first speakable sentence.)*
 3. **VAD (mobile/web):** amplitude-based auto start/stop listening — true hands-free.
-4. **Interruption:** tap-to-interrupt first; amplitude barge-in where supported.
+4. **Interruption:** tap-to-interrupt first (done in phase 1); amplitude barge-in where supported.
 5. **Polish:** visualizer, wake lock (`wakelock_plus`), mute, settings toggle, error UX.
 6. **Desktop:** switch Talk Mode to the `record`/`parecord` path for amplitude, or keep
    tap-to-stop fallback.
