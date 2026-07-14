@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 
 import 'package:garbanzo_ai/core/widgets/animated_dialog.dart';
@@ -49,10 +50,24 @@ class MicroAppPanel extends StatelessWidget {
   }
 }
 
-class _Header extends StatelessWidget {
+class _Header extends StatefulWidget {
   final MicroappPanelController panel;
   final bool showCloseAsBack;
   const _Header({required this.panel, required this.showCloseAsBack});
+
+  @override
+  State<_Header> createState() => _HeaderState();
+}
+
+class _HeaderState extends State<_Header> {
+  // True while a publish or revert request is in flight. Publish/revert can
+  // take many seconds (git validate → commit → fetch → rebase → push), so we
+  // surface a spinner and disable the mutating actions instead of leaving the
+  // header looking frozen.
+  bool _busy = false;
+
+  MicroappPanelController get panel => widget.panel;
+  bool get showCloseAsBack => widget.showCloseAsBack;
 
   @override
   Widget build(BuildContext context) {
@@ -87,34 +102,55 @@ class _Header extends StatelessWidget {
           IconButton(
             tooltip: 'Revert changes',
             icon: const Icon(Icons.undo, size: 20),
-            onPressed: () => _revert(context),
+            onPressed: _busy ? null : _revert,
           ),
-          // Icon-only on phones: the labelled button would crowd out the
-          // title on a narrow header.
-          if (showCloseAsBack)
-            IconButton(
-              tooltip: 'Publish',
-              icon: const Icon(Icons.publish, size: 20),
-              onPressed: () => _publish(context),
-            )
-          else ...[
-            FilledButton.icon(
-              icon: const Icon(Icons.publish, size: 18),
-              label: const Text('Publish'),
-              onPressed: () => _publish(context),
-            ),
+          _publishControl(theme),
+          // Close only sits in the header on wide layouts; narrow uses the
+          // back arrow above.
+          if (!showCloseAsBack)
             IconButton(
               tooltip: 'Close panel',
               icon: const Icon(Icons.close, size: 20),
               onPressed: panel.close,
             ),
-          ],
         ],
       ),
     );
   }
 
-  Future<void> _publish(BuildContext context) async {
+  /// The Publish action, swapping in a spinner while a request is in flight.
+  /// Icon-only on phones (a labelled button would crowd out the title).
+  Widget _publishControl(ThemeData theme) {
+    if (showCloseAsBack) {
+      return IconButton(
+        tooltip: 'Publish',
+        icon: _busy
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : const Icon(Icons.publish, size: 20),
+        onPressed: _busy ? null : _publish,
+      );
+    }
+    return FilledButton.icon(
+      icon: _busy
+          ? SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: theme.colorScheme.onPrimary,
+              ),
+            )
+          : const Icon(Icons.publish, size: 18),
+      label: Text(_busy ? 'Publishing…' : 'Publish'),
+      onPressed: _busy ? null : _publish,
+    );
+  }
+
+  Future<void> _publish() async {
     final messenger = ScaffoldMessenger.of(context);
     final controller = TextEditingController();
     final confirmed = await showAnimatedDialog<bool>(
@@ -146,20 +182,26 @@ class _Header extends StatelessWidget {
         ],
       ),
     );
+    final rawMessage = controller.text.trim();
+    controller.dispose();
     if (confirmed != true) return;
+
+    setState(() => _busy = true);
     try {
       final res = await MicroappService.instance.publish(
-        message: controller.text.trim().isEmpty ? null : controller.text.trim(),
+        message: rawMessage.isEmpty ? null : rawMessage,
       );
       messenger.showSnackBar(SnackBar(content: Text(res.message)));
     } on MicroappApiException catch (e) {
-      messenger.showSnackBar(
-        SnackBar(content: Text('Publish failed: ${e.detail}')),
-      );
+      if (mounted) await _showError('Publish failed', e.detail);
+    } catch (e) {
+      if (mounted) await _showError('Publish failed', _describe(e));
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
   }
 
-  Future<void> _revert(BuildContext context) async {
+  Future<void> _revert() async {
     final messenger = ScaffoldMessenger.of(context);
     final confirmed = await showAnimatedDialog<bool>(
       context: context,
@@ -181,14 +223,44 @@ class _Header extends StatelessWidget {
       ),
     );
     if (confirmed != true) return;
+
+    setState(() => _busy = true);
     try {
       await MicroappService.instance.revert(all: true);
       panel.reload();
       messenger.showSnackBar(const SnackBar(content: Text('Changes reverted')));
     } on MicroappApiException catch (e) {
-      messenger.showSnackBar(
-        SnackBar(content: Text('Revert failed: ${e.detail}')),
-      );
+      if (mounted) await _showError('Revert failed', e.detail);
+    } catch (e) {
+      if (mounted) await _showError('Revert failed', _describe(e));
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
+  }
+
+  /// A readable message for a non-API error (network drop, timeout, …).
+  String _describe(Object error) {
+    if (error is DioException) {
+      return error.message ?? 'Could not reach the server. Please try again.';
+    }
+    return error.toString();
+  }
+
+  /// Show a failure in a dialog: git errors (e.g. a rebase conflict) can be
+  /// long and multi-line, which a snackbar would truncate.
+  Future<void> _showError(String title, String message) {
+    return showAnimatedDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: SingleChildScrollView(child: Text(message)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 }
