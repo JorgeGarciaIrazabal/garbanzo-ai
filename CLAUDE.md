@@ -108,35 +108,44 @@ One command ships web + backend + Android simultaneously — see `deploy/README.
 ### Backend Layout (`backend/app/`)
 
 ```
-core/          config.py (pydantic-settings), security.py (JWT/bcrypt)
+core/          config.py (pydantic-settings), security.py (JWT/bcrypt),
+               rate_limit.py (in-memory request throttling)
+api/           microapps_proxy.py (authenticated /micro-apps reverse proxy)
 api/v1/        endpoints/
                auth.py, admin.py, chat.py, devices.py, health.py,
-               knowledge_base.py, mcp.py, memories.py, notifications.py,
-               rooms.py, rooms_ws.py, scheduled_actions.py, stt.py,
-               system_prompts.py, tts.py, usage.py
+               knowledge_base.py, mcp.py, memories.py, microapps.py,
+               notifications.py, rooms.py, rooms_ws.py, scheduled_actions.py,
+               stt.py, system_prompts.py, tts.py, usage.py
                →  router.py
 models/        SQLAlchemy ORM:
                User, Conversation, Message, UserMemory,
                SystemPromptTemplate, MCPServer, DeviceToken,
                Notification, NotificationPreferences, ScheduledAction,
-               KnowledgeDocument, KnowledgeChunk,
+               KnowledgeDocument, KnowledgeChunk, AvailableModel,
                Room, RoomMember, RoomAgent, RoomMessage
-schemas/       Pydantic I/O: auth.py, chat.py, memory.py, admin.py, mcp.py,
-               system_prompt.py, device.py, notification.py, scheduled_action.py,
-               usage.py, room.py, knowledge_base.py
+schemas/       Pydantic I/O: auth.py, user.py, chat.py, memory.py, admin.py,
+               mcp.py, system_prompt.py, device.py, notification.py,
+               scheduled_action.py, usage.py, room.py, knowledge_base.py,
+               microapp.py, audio.py
 services/      chat_service.py, conversation_service.py, user_service.py
                llm_provider.py (abstract base + ProviderRegistry)
                ollama_provider.py (concrete impl)
                stt_service.py, tts_service.py
                memory_service.py, memory_extraction.py
                system_prompt_service.py, mcp_service.py
-               knowledge_base_service.py, embedding_provider.py
+               knowledge_base_service.py, embedding_provider.py, document_parser.py
                room_service.py, room_chat_service.py, room_connection_manager.py
-               scheduled_action_service.py, usage_service.py
+               agent_turn.py (shared single-agent turn logic)
+               scheduled_action_service.py, usage_service.py, token_counter.py
+               model_management_service.py (admin model visibility)
+               microapp_workspace.py, microapp_agent.py, microapp_chat_tool.py,
+               microapp_registry.py (opencode-driven micro-apps workspace)
                fcm_service.py, device_service.py, notification_service.py
-db/            base.py, session.py (AsyncSession, init_db)
+               image_utils.py (image attachment resize/encoding)
+db/            base.py, session.py (AsyncSession, init_db), migrations.py
 jobs/          extract_memories_job.py (daily at 2 AM)
                scheduled_action_job.py (user-defined cron/one-shot actions)
+               microapps_sync_job.py (periodic git pull of micro-apps repo)
 scheduler.py   APScheduler lifecycle + action registration
 ```
 
@@ -159,7 +168,7 @@ scheduler.py   APScheduler lifecycle + action registration
 | Group | Endpoints |
 |-------|-----------|
 | **Auth** | `POST /auth/login`, `POST /auth/register`, `GET /auth/me` |
-| **Admin** | `GET /admin/users`, `PATCH /admin/users/{email}`, `GET /admin/mcp-servers`, `POST /admin/mcp-servers`, `PATCH /admin/mcp-servers/{id}`, `DELETE /admin/mcp-servers/{id}`, `POST /admin/mcp-servers/{id}/test-connection` |
+| **Admin** | `POST /admin/users`, `GET /admin/users`, `PATCH /admin/users/{email}`, `GET /admin/mcp-servers`, `POST /admin/mcp-servers`, `PATCH /admin/mcp-servers/{id}`, `DELETE /admin/mcp-servers/{id}`, `POST /admin/mcp-servers/{id}/test-connection`, `GET /admin/models`, `POST /admin/models/sync`, `PATCH /admin/models` |
 | **Chat** | `GET/POST /chat/conversations`, `GET /chat/conversations/search`, `GET /chat/conversations/{id}`, `PATCH /chat/conversations/{id}`, `DELETE /chat/conversations/{id}`, `POST /chat/conversations/{id}/chat` (SSE stream), `POST /chat/conversations/{id}/messages/{mid}/regenerate`, `POST /chat/conversations/{id}/messages/{mid}/edit`, `POST /chat/conversations/{id}/messages/{mid}/branch`, `DELETE /chat/conversations/{id}/chat` (cancel stream), `GET /chat/models`, `GET /chat/health/llm` |
 | **System Prompts** | `GET /system-prompts/templates`, `POST /system-prompts/templates`, `PATCH /system-prompts/templates/{id}`, `DELETE /system-prompts/templates/{id}`, `GET /system-prompts/user-default`, `PUT /system-prompts/user-default` |
 | **STT** | `POST /stt/transcribe`, `GET /stt/health` |
@@ -167,6 +176,7 @@ scheduler.py   APScheduler lifecycle + action registration
 | **Memories** | `POST /memories`, `GET /memories`, `GET /memories/{id}`, `PATCH /memories/{id}`, `DELETE /memories/{id}` |
 | **Knowledge Base** | `POST /kb/documents`, `GET /kb/documents`, `GET /kb/documents/{id}`, `DELETE /kb/documents/{id}`, `GET /kb/search` |
 | **Rooms** | `POST /rooms`, `GET /rooms`, `GET /rooms/search`, `GET /rooms/{id}`, `PATCH /rooms/{id}`, `DELETE /rooms/{id}`, `GET /rooms/{id}/members`, `POST /rooms/{id}/members`, `DELETE /rooms/{id}/members/{email}`, `GET /rooms/{id}/agents`, `POST /rooms/{id}/agents`, `PATCH /rooms/{id}/agents/{id}`, `DELETE /rooms/{id}/agents/{id}`, `GET /rooms/{id}/messages`, `POST /rooms/{id}/chat`, `GET /rooms/{id}/export`, `WS /rooms/{id}` |
+| **Micro-apps** | `POST /microapps/workspace`, `GET /microapps/workspace`, `DELETE /microapps/workspace`, `GET /microapps/apps`, `GET /microapps/houses`, `POST /microapps/houses`, `POST /microapps/agent/chat`, `POST /microapps/agent/abort`, `GET /microapps/changes`, `POST /microapps/publish`, `POST /microapps/revert` |
 | **MCP (Tools)** | `GET /mcp/tools` |
 | **Notifications** | `GET /notifications`, `GET /notifications/unread-count`, `POST /notifications/read-all`, `PATCH /notifications/{id}/read`, `DELETE /notifications/{id}`, `GET /notifications/preferences`, `PATCH /notifications/preferences` |
 | **Devices** | `POST /devices/register`, `DELETE /devices/register` |
@@ -242,6 +252,16 @@ features/tools/
   pages/             SkillsLibraryPage
   providers/         ToolProvider
   models/            MCPTool
+features/scheduled_actions/
+  pages/             ScheduledActionsPage
+  providers/         ScheduledActionsProvider
+  services/          scheduled_actions_api_service.dart
+  models/            ScheduledAction
+features/microapps/
+  providers/         MicroAppPanelController
+  services/          microapp_service.dart
+  models/            MicroApp
+  widgets/           MicroAppPanel, MicroAppView (native/web conditional impls)
 pages/               LoginPage, RegisterPage
 ```
 
@@ -313,6 +333,8 @@ On client disconnect mid-stream, the backend accumulates content and sends an FC
 - `Notification` / `NotificationPreferences` support in-app + FCM push notifications.
 - `DeviceToken` stores FCM tokens per user per platform.
 - `MCPServer` stores registered MCP server configs (managed by admin).
+- `AvailableModel` stores admin-controlled per-model visibility (`model_id`, `is_enabled`).
+- `RoomAgent.enabled_tools` (JSONB) mirrors `Conversation.enabled_tools`: `null` = all, `[]` = none, `["srv:tool"]` = subset.
 - `SystemPromptTemplate` stores built-in and user-created prompt templates.
 - Conversations use soft delete (`is_deleted=True`), not hard delete.
 - PostgreSQL uses `pgvector` extension for embedding storage.

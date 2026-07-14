@@ -82,9 +82,9 @@ Keep it concise. It's a reference for a smart agent, not a tutorial. A few lines
 
 ### Package-Level AGENTS.md
 
-For subdirectories with their own build/test workflow or unique conventions (e.g. a separate package, a deploy directory, a workspace with its own tooling), create a standalone `AGENTS.md` there. Cover what's specific to that package — its purpose, its commands, its conventions.
+A package with its own build/test workflow or conventions (e.g. `backend/`, `lib/`, `deploy/`) gets its own agent context. Write a concise, **agent-oriented** `CLAUDE.md` in that directory — purpose, `just` commands, where code goes, conventions, gotchas — and defer to the root `../CLAUDE.md` for full architecture rather than duplicating it. This is context *for agents*, distinct from a `README.md`, which is for humans; don't point one at the other.
 
-For subdirectories that follow root conventions, symlink: `AGENTS.md → ../CLAUDE.md`. This avoids duplication and stays in sync automatically.
+Then symlink `AGENTS.md → CLAUDE.md` beside it (matching the root, where `AGENTS.md → CLAUDE.md`). The real content lives in `CLAUDE.md`; the symlink lets Claude Code, Cursor, opencode, and other agent tools all read the same file under whichever name they look for.
 
 ## Auto-Creating Skills
 
