@@ -4,9 +4,11 @@ import 'package:provider/provider.dart';
 import 'package:garbanzo_ai/core/responsive.dart';
 import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/model_provider.dart';
+import 'package:garbanzo_ai/features/chat/talk/talk_mode_page.dart';
 import 'package:garbanzo_ai/features/chat/widgets/mobile_drawer.dart';
 import 'package:garbanzo_ai/features/chat/widgets/mobile_search_sheet.dart';
 import 'package:garbanzo_ai/features/chat/widgets/model_selector_widget.dart';
+import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
 
 /// App bar for the chat page: conversation title, model selector, and
 /// settings drawer trigger.
@@ -62,6 +64,18 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
             tooltip: 'Search conversations',
             onPressed: () => showMobileSearchSheet(context),
           ),
+        IconButton(
+          key: const ValueKey('talk_mode_button'),
+          icon: const Icon(Icons.graphic_eq),
+          tooltip: 'Talk',
+          onPressed: chatProvider.isSending
+              ? null
+              : () => TalkModePage.open(
+                  context,
+                  chat: chatProvider,
+                  settings: context.read<SettingsProvider>(),
+                ),
+        ),
         Padding(
           padding: const EdgeInsets.only(right: 8),
           child: ModelSelectorWidget(
