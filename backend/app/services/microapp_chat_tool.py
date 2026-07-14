@@ -22,6 +22,8 @@ from pathlib import Path
 from app.core.config import get_settings
 from app.core.security import create_microapps_panel_token
 from app.schemas.microapp import MicroAppInfo
+from app.services.agent_turn import ProgressEmit
+from app.services.llm_provider import ChatChunk
 from app.services.microapp_agent import agent
 from app.services.microapp_registry import read_registry
 from app.services.microapp_workspace import Workspace, manager
@@ -247,14 +249,40 @@ def _resolve_data_file(
     return files[0]
 
 
+async def _forward_progress(chunk, emit: ProgressEmit) -> None:
+    """Relay one opencode-agent chunk into the outer chat turn as a live step.
+
+    Maps the micro-app agent's ``ChatResponseChunk`` (from ``translate_event``)
+    onto the ``ChatChunk`` shape the turn engine yields, so the existing chat UI
+    renders inner tool calls / results / reasoning as a progress timeline. These
+    are live-only — the turn's sink doesn't persist them, so history stays tidy
+    (one micro_app call + its final summary) after a reload.
+    """
+    if chunk.type == "tool_call" and chunk.tool_calls:
+        await emit(ChatChunk(content="", tool_calls=chunk.tool_calls))
+    elif chunk.type == "tool_result" and chunk.tool_result:
+        await emit(ChatChunk(content="", metadata={"tool_result": chunk.tool_result}))
+    elif chunk.type == "thinking" and chunk.content:
+        await emit(ChatChunk(content=chunk.content, is_thinking=True))
+
+
 async def run_micro_app(
-    *, user_email: str, args: dict, prior_app: str | None, prior_file: str | None
+    *,
+    user_email: str,
+    args: dict,
+    prior_app: str | None,
+    prior_file: str | None,
+    emit: ProgressEmit | None = None,
 ) -> dict:
     """Ensure the workspace, relay the instruction to opencode, return a result.
 
     The returned dict is both fed back to the chat model (as the tool result)
     and surfaced to the frontend (via the ``tool_result`` chunk metadata), so it
     doubles as the panel-open signal: ``app`` + optional ``file`` + ``dev_port``.
+
+    When ``emit`` is provided, the agent's inner steps (file reads/edits,
+    validator runs, reasoning) are forwarded live as they happen so the chat
+    shows a progress timeline instead of going silent for the whole edit.
     """
     if not manager.enabled:
         return {
@@ -326,9 +354,16 @@ async def run_micro_app(
     try:
         async for chunk in agent.stream_instruction(ws, full_instruction):
             if chunk.type == "chunk" and chunk.content:
+                # Agent narration accumulates into the final tool summary; it is
+                # deliberately NOT forwarded as live chat content, which would
+                # bleed the agent's voice into the assistant's own answer.
                 summary_parts.append(chunk.content)
             elif chunk.type == "error" and chunk.error:
                 error = chunk.error
+            elif emit is not None:
+                # Forward the agent's steps live so the chat shows a timeline
+                # (reading a file → editing → running the validator).
+                await _forward_progress(chunk, emit)
     except Exception as exc:  # noqa: BLE001
         logger.exception("microapp agent relay failed")
         error = str(exc)

@@ -29,7 +29,15 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_MAX_TOOL_ITERATIONS = 5
 
-ToolExecutor = Callable[[dict[str, Any]], Awaitable[dict[str, Any]]]
+# A tool may stream live progress by awaiting this emitter with ChatChunks that
+# the turn engine interleaves into its own output (e.g. the micro_app tool
+# forwarding the opencode agent's file edits / validator runs). Tools that don't
+# stream simply ignore it.
+ProgressEmit = Callable[[ChatChunk], Awaitable[None]]
+ToolExecutor = Callable[[dict[str, Any], ProgressEmit], Awaitable[dict[str, Any]]]
+
+# Sentinel marking the end of a tool's progress queue.
+_PROGRESS_DONE = object()
 
 
 def stringify_tool_result(result: Any) -> str:
@@ -234,7 +242,32 @@ async def run_agent_turn(
                         "error": "No tool executor configured",
                     }
                 else:
-                    tool_result = await execute_tool(call)
+                    # Run the tool as a task and drain a progress queue so a
+                    # tool can stream live chunks (via the emitter) that
+                    # interleave into this turn's output while it runs, instead
+                    # of the UI going silent for the whole call.
+                    progress: asyncio.Queue[Any] = asyncio.Queue()
+
+                    async def _emit(chunk: ChatChunk, _q: asyncio.Queue = progress) -> None:
+                        await _q.put(chunk)
+
+                    async def _run(_call: dict = call, _q: asyncio.Queue = progress) -> dict:
+                        try:
+                            return await execute_tool(_call, _emit)
+                        finally:
+                            await _q.put(_PROGRESS_DONE)
+
+                    tool_task = asyncio.create_task(_run())
+                    try:
+                        while True:
+                            item = await progress.get()
+                            if item is _PROGRESS_DONE:
+                                break
+                            yield item
+                        tool_result = await tool_task
+                    finally:
+                        if not tool_task.done():
+                            tool_task.cancel()
                 duration_ms = int((asyncio.get_event_loop().time() - started_at) * 1000)
                 yield ChatChunk(
                     content="",

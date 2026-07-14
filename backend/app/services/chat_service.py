@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import get_settings
 from app.models.message import Message
 from app.schemas.chat import AttachmentIn, ChatOptions, ModelInfo
-from app.services.agent_turn import TurnResult, run_agent_turn
+from app.services.agent_turn import ProgressEmit, TurnResult, run_agent_turn
 from app.services.conversation_service import ConversationService
 from app.services.document_parser import extract_attachment_text
 from app.services.image_utils import downscale_image_b64
@@ -568,7 +568,9 @@ class ChatService:
                 sink=_ConversationTurnSink(self.db, conversation),
                 options=opts,
                 tools=ollama_tools or None,
-                execute_tool=lambda call: self._execute_tool_call(call, tool_lookup, conversation),
+                execute_tool=lambda call, emit: self._execute_tool_call(
+                    call, tool_lookup, conversation, emit
+                ),
                 cancel_event=cancel_event,
                 max_tool_iterations=MAX_TOOL_ITERATIONS,
                 extra_finish_metadata=extra_meta or None,
@@ -645,7 +647,11 @@ class ChatService:
         return ollama_tools, lookup
 
     async def _execute_tool_call(
-        self, call: dict, lookup: dict[str, tuple[str, str]], conversation=None
+        self,
+        call: dict,
+        lookup: dict[str, tuple[str, str]],
+        conversation=None,
+        emit: ProgressEmit | None = None,
     ) -> dict:
         """Run a single tool call through ``MCPService`` (or a native tool).
 
@@ -653,6 +659,9 @@ class ChatService:
         resolve it back to ``(server_id, tool_name)`` via ``lookup``. As a
         legacy fallback we also accept the raw ``"server_id:tool_name"``
         form some older flows produced.
+
+        ``emit`` lets a streaming native tool (``micro_app``) forward live
+        progress into the turn; MCP tools ignore it.
         """
         name = call.get("name") or ""
         args = call.get("arguments") or {}
@@ -670,7 +679,7 @@ class ChatService:
 
         server_id, tool_name = target
         if server_id == NATIVE_SERVER_ID:
-            return await self._execute_native_tool(name, args, conversation)
+            return await self._execute_native_tool(name, args, conversation, emit)
         try:
             return await self._mcp.call_tool(server_id, tool_name, args)
         except Exception as exc:
@@ -682,7 +691,9 @@ class ChatService:
     # Ephemeral by design (in-process); the files themselves are durable state.
     _active_target: dict[str, tuple[str | None, str | None]] = {}
 
-    async def _execute_native_tool(self, name: str, args: dict, conversation) -> dict:
+    async def _execute_native_tool(
+        self, name: str, args: dict, conversation, emit: ProgressEmit | None = None
+    ) -> dict:
         """Dispatch a first-class (non-MCP) tool such as ``micro_app``."""
         if name != MICRO_APP_TOOL:
             return {"ok": False, "error": f"Unknown native tool: {name}"}
@@ -700,6 +711,7 @@ class ChatService:
             args=args,
             prior_app=prior_app,
             prior_file=prior_file,
+            emit=emit,
         )
         if conv_id and result.get("app"):
             self._active_target[conv_id] = (result.get("app"), result.get("file"))

@@ -135,6 +135,56 @@ async def test_run_micro_app_house_happy_path(tmp_path, monkeypatch):
     assert result["dev_port"] == 8123
 
 
+@pytest.mark.asyncio
+async def test_run_micro_app_forwards_progress(tmp_path, monkeypatch):
+    """The agent's inner steps are emitted live while the summary still returns."""
+    _make_houses(tmp_path)
+    monkeypatch.setattr(mct, "manager", _StubManager(tmp_path))
+    monkeypatch.setattr(mct, "list_registry_apps", lambda: [HOUSE_APP])
+    monkeypatch.setattr(
+        mct,
+        "agent",
+        _stub_agent(
+            ChatResponseChunk(type="thinking", content="planning"),
+            ChatResponseChunk(
+                type="tool_call",
+                tool_calls=[{"id": "t1", "name": "read", "arguments": {}}],
+            ),
+            ChatResponseChunk(
+                type="tool_result",
+                tool_result={"tool_call_id": "t1", "tool_name": "read", "result": "ok"},
+            ),
+            ChatResponseChunk(type="chunk", content="Added a window."),
+            ChatResponseChunk(type="done", metadata={}),
+        ),
+    )
+
+    emitted = []
+
+    async def emit(chunk):
+        emitted.append(chunk)
+
+    result = await run_micro_app(
+        user_email="jorge@x.com",
+        args={"instruction": "add a window", "app": "house-designer", "file": "tiny-cabin"},
+        prior_app=None,
+        prior_file=None,
+        emit=emit,
+    )
+
+    # Narration still becomes the final summary; it is NOT forwarded as content.
+    assert result["ok"] is True
+    assert result["summary"] == "Added a window."
+    # The inner steps were forwarded live, in order, without the narration.
+    types = [
+        ("thinking" if c.is_thinking else "tool_call" if c.tool_calls else "tool_result")
+        for c in emitted
+    ]
+    assert types == ["thinking", "tool_call", "tool_result"]
+    assert emitted[1].tool_calls[0]["name"] == "read"
+    assert emitted[2].metadata["tool_result"]["tool_call_id"] == "t1"
+
+
 def test_coerce_edit():
     # explicit flag wins
     assert mct._coerce_edit(True, "open the house") is True
@@ -237,7 +287,7 @@ async def test_chatservice_routes_native_and_remembers_target(monkeypatch):
 
     captured = {}
 
-    async def fake_run(*, user_email, args, prior_app, prior_file):
+    async def fake_run(*, user_email, args, prior_app, prior_file, emit=None):
         captured["prior_app"] = prior_app
         captured["prior_file"] = prior_file
         return {

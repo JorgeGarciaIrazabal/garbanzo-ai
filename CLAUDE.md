@@ -424,3 +424,18 @@ dart run build_runner watch --delete-conflicting-outputs
 ```
 
 > Always commit the generated `.freezed.dart` and `.g.dart` files.
+
+## Skills
+
+This project uses skills (`.claude/skills/<name>/SKILL.md`) to capture workflows that took research or trial-and-error to figure out. Skills are auto-loaded by opencode.
+
+| Skill | Trigger |
+|-------|---------|
+| `vibe-coding` | Writing code, fixing bugs, refactoring — the default workflow for clean code, auto-improving the project, maintaining CLAUDE.md/AGENTS.md, and creating new skills |
+| `e2e-testing` | E2E testing the Flutter app with Dart MCP + Marionette |
+| `project-overview` | Quick reference for project structure and conventions |
+| `task-runner` | Picking and implementing tasks from TASKS.md using the team workflow |
+| `subagent-task-runner` | Picking and implementing tasks from TASKS.md using subagents |
+| `team` | Orchestrating a full-stack development team (lead, backend, frontend, tester) |
+
+When you figure out a non-obvious workflow, capture it as a skill. See the `vibe-coding` skill for guidance.

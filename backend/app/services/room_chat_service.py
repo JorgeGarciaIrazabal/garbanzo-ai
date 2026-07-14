@@ -640,7 +640,7 @@ class RoomChatService:
             sink=sink,
             options=ChatOptions(temperature=0.7),
             tools=ollama_tools or None,
-            execute_tool=lambda call: self._execute_tool_call(call, tool_lookup),
+            execute_tool=lambda call, _emit: self._execute_tool_call(call, tool_lookup),
             max_tool_iterations=MAX_TOOL_ITERATIONS,
             persist_partial_on_error=True,
         ):
