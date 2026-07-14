@@ -142,7 +142,7 @@ async def test_client_num_ctx_is_clamped_to_server_ceiling(db_session, test_user
 
 def _patch_settings(monkeypatch, **overrides):
     settings = Settings(**overrides)
-    monkeypatch.setattr("app.services.chat_service.get_settings", lambda: settings)
+    monkeypatch.setattr("app.services.chat_context.get_settings", lambda: settings)
 
 
 async def test_memory_budget_trims_overflow(db_session, monkeypatch):
@@ -162,7 +162,7 @@ async def test_memory_budget_trims_overflow(db_session, monkeypatch):
     monkeypatch.setattr(service._memories, "get_relevant_memories", fake_memories)
     service._kb.search = _always_empty  # type: ignore[assignment]
 
-    prompt, _stats = await service._build_system_prompt(
+    prompt, _stats = await service._context.build_system_prompt(
         user_id="test@example.com", use_memory=True, use_knowledge_base=False
     )
 
@@ -187,7 +187,7 @@ async def test_memory_within_budget_all_injected(db_session, monkeypatch):
     monkeypatch.setattr(service._memories, "get_relevant_memories", fake_memories)
     service._kb.search = _always_empty  # type: ignore[assignment]
 
-    prompt, _stats = await service._build_system_prompt(
+    prompt, _stats = await service._context.build_system_prompt(
         user_id="test@example.com", use_memory=True, use_knowledge_base=False
     )
 
@@ -221,7 +221,7 @@ async def test_kb_budget_trims_overflow(db_session, monkeypatch):
 
     monkeypatch.setattr(service._kb, "search", fake_search)
 
-    prompt, _stats = await service._build_system_prompt(
+    prompt, _stats = await service._context.build_system_prompt(
         user_id="test@example.com",
         use_memory=False,
         use_knowledge_base=True,

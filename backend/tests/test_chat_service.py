@@ -3,16 +3,17 @@
 import asyncio
 
 from app.models.message import Message
+from app.services.chat_context import ChatContextBuilder
 from app.services.chat_service import ChatService
 from app.services.llm_provider import Message as LLMMessage
 
 # ============================================================================
-# _build_message_history
+# build_message_history
 # ============================================================================
 
 
 class TestBuildMessageHistory:
-    """Tests for ChatService._build_message_history (a pure-ish helper)."""
+    """Tests for ChatContextBuilder.build_message_history (a pure-ish helper)."""
 
     def _make_msg(self, role: str, content: str, meta: dict | None = None) -> Message:
         """Create a minimal Message ORM object (no DB needed)."""
@@ -25,9 +26,8 @@ class TestBuildMessageHistory:
         )
 
     def _build(self, messages):
-        # _build_message_history is an instance method; create a minimal instance.
-        service = ChatService.__new__(ChatService)
-        return service._build_message_history(messages)
+        # build_message_history needs no services for the plain (no-prompt) path.
+        return ChatContextBuilder(None, None, None).build_message_history(messages)
 
     def test_single_message(self):
         msgs = [self._make_msg("user", "hello")]

@@ -127,7 +127,11 @@ schemas/       Pydantic I/O: auth.py, user.py, chat.py, memory.py, admin.py,
                mcp.py, system_prompt.py, device.py, notification.py,
                scheduled_action.py, usage.py, room.py, knowledge_base.py,
                microapp.py, audio.py
-services/      chat_service.py, conversation_service.py, user_service.py
+services/      chat_service.py (turn orchestration + tool loop)
+               chat_context.py (message history + memory/KB system prompt)
+               chat_title.py (conversation auto-titling)
+               conversation_turn_sink.py (persists a turn's messages)
+               conversation_service.py, user_service.py
                llm_provider.py (abstract base + ProviderRegistry)
                ollama_provider.py (concrete impl)
                stt_service.py, tts_service.py

@@ -4,11 +4,8 @@ from collections.abc import AsyncIterator
 
 import pytest
 
-from app.services.chat_service import (
-    ChatService,
-    _clean_generated_title,
-    generate_conversation_title,
-)
+from app.services.chat_service import ChatService
+from app.services.chat_title import _clean_generated_title, generate_conversation_title
 from app.services.conversation_service import ConversationService
 from app.services.llm_provider import ChatChunk, LLMProvider, ModelInfo, ProviderRegistry
 
