@@ -7,23 +7,23 @@ import 'package:flutter/foundation.dart';
 import 'package:record/record.dart';
 
 import 'package:garbanzo_ai/features/chat/services/audio_service.dart';
+import 'package:garbanzo_ai/features/chat/talk/pipewire_echo_cancel.dart';
 import 'package:garbanzo_ai/features/chat/widgets/input/voice_recording_helper.dart';
 
 /// Recorder dedicated to Talk Mode: captures WAV (16 kHz mono) while streaming
 /// a live amplitude reading (dBFS) for voice-activity detection.
 ///
 /// Two backends:
-/// - **Linux desktop** streams raw PCM from `arecord` (ALSA) to stdout, so we
-///   get amplitude *and* audio without needing PulseAudio's `parecord` (which
-///   the `record` package requires and isn't always installed). RMS over each
-///   PCM chunk gives the dBFS level; the bytes are wrapped into a WAV for STT.
-///   It records from the ALSA `default` device — which on PipeWire/PulseAudio
-///   routes to the user's configured mic and, crucially, *shares* the device
-///   (opening a specific `plughw:card` fails with "Device or resource busy"
-///   when the sound server already holds it, and can grab a dead/floating
-///   input on multi-card laptops).
-/// - **Everywhere else** uses the `record` package, whose `onAmplitudeChanged`
-///   provides the level directly.
+/// - **Linux desktop** streams raw PCM to stdout from a subprocess. It prefers
+///   `pw-record` reading a PipeWire **echo-cancelled** source (so the AI's own
+///   playback is removed and voice barge-in works over speakers — see
+///   [PipewireEchoCancel]); if AEC can't be set up it falls back to
+///   `arecord -D default`. Either way RMS over each PCM chunk gives the dBFS
+///   level and the bytes are wrapped into a WAV for STT. Using the `default`
+///   device (not a specific `plughw:card`) shares the mic with the sound
+///   server and avoids grabbing a dead/floating input on multi-card laptops.
+/// - **Everywhere else** uses the `record` package (with `echoCancel` enabled
+///   so mobile hardware AEC kicks in), whose `onAmplitudeChanged` gives level.
 ///
 /// Callers keep tap-to-send as a fallback if no amplitude samples arrive.
 class TalkRecorder {
@@ -32,24 +32,40 @@ class TalkRecorder {
   StreamSubscription<Amplitude>? _ampSub;
   String? _path;
 
-  // arecord backend (Linux).
-  Process? _arecord;
+  // subprocess backend (Linux: pw-record from AEC source, or arecord).
+  Process? _capture;
   StreamSubscription<List<int>>? _pcmSub;
   final BytesBuilder _pcm = BytesBuilder(copy: false);
+  final PipewireEchoCancel _aec = PipewireEchoCancel();
 
   static const _sampleRate = 16000;
   static const _channels = 1;
 
-  bool get _useArecord => !kIsWeb && Platform.isLinux;
+  bool get _useSubprocess => !kIsWeb && Platform.isLinux;
+
+  bool _echoCancelActive = false;
+
+  /// Bumped on every [dispose] so an in-flight [start] (which has async gaps —
+  /// AEC load, permission, process spawn) can detect it was superseded and not
+  /// leak an orphaned capture process.
+  int _startGen = 0;
+  bool _isShutdown = false;
+
+  /// Whether the current capture path removes the AI's TTS echo — a
+  /// prerequisite for enabling voice barge-in without self-interruption.
+  /// True on Linux when the PipeWire echo-cancel source is in use, and on
+  /// mobile where the OS provides hardware AEC.
+  bool get echoCancellationActive => _echoCancelActive;
 
   /// Start capturing. [onDb] receives amplitude readings in dBFS (~every
   /// 100 ms) to drive VAD. Throws [VoiceRecordingException] on failure.
   Future<void> start({required void Function(double db) onDb}) async {
-    // Drop any prior session first so back-to-back starts (e.g. barge-in →
-    // fresh listen) never leak a recorder.
+    if (_isShutdown) return;
+    // Drop any prior capture first so back-to-back starts (e.g. barge-in →
+    // fresh listen) never leak a process. Keeps the AEC module loaded.
     dispose();
-    if (_useArecord) {
-      await _startArecord(onDb);
+    if (_useSubprocess) {
+      await _startSubprocess(onDb);
     } else {
       await _startRecordPackage(onDb);
     }
@@ -57,12 +73,12 @@ class TalkRecorder {
 
   /// Stop capturing and transcribe. Returns `null` if nothing was recorded.
   Future<VoiceRecordingResult?> stopAndTranscribe() async {
-    return _useArecord ? _stopArecord() : _stopRecordPackage();
+    return _useSubprocess ? _stopSubprocess() : _stopRecordPackage();
   }
 
-  /// Cancel any active capture and release resources. Deletes the in-progress
-  /// recording (e.g. a discarded barge-in session).
+  /// Cancel any active capture and release resources (keeps the AEC module).
   void dispose() {
+    _startGen++; // supersede any in-flight start()
     unawaited(_ampSub?.cancel());
     _ampSub = null;
     final recorder = _recorder;
@@ -73,39 +89,78 @@ class TalkRecorder {
 
     unawaited(_pcmSub?.cancel());
     _pcmSub = null;
-    _arecord?.kill(ProcessSignal.sigint);
-    _arecord = null;
+    _capture?.kill(ProcessSignal.sigint);
+    _capture = null;
     _pcm.clear();
   }
 
-  // -- arecord backend (Linux) ----------------------------------------------
+  /// Full teardown for when Talk Mode closes: stops capture and unloads the
+  /// PipeWire echo-cancel module.
+  void shutdown() {
+    _isShutdown = true;
+    dispose();
+    _aec.dispose();
+  }
 
-  Future<void> _startArecord(void Function(double db) onDb) async {
+  // -- subprocess backend (Linux) -------------------------------------------
+
+  Future<void> _startSubprocess(void Function(double db) onDb) async {
+    final gen = _startGen;
+    final aecReady = await _aec.ensureLoaded();
+    if (gen != _startGen) return; // superseded during AEC load
+    _echoCancelActive = aecReady;
+
+    final (exe, args) = aecReady
+        ? (
+            'pw-record',
+            [
+              '--raw',
+              '--target',
+              PipewireEchoCancel.sourceName,
+              '--rate',
+              '$_sampleRate',
+              '--channels',
+              '$_channels',
+              '--format',
+              's16',
+              '-',
+            ],
+          )
+        : (
+            'arecord',
+            [
+              '-D',
+              'default',
+              '-f',
+              'S16_LE',
+              '-r',
+              '$_sampleRate',
+              '-c',
+              '$_channels',
+              '-t',
+              'raw',
+            ],
+          );
+
     final Process proc;
     try {
-      proc = await Process.start('arecord', [
-        '-D',
-        'default',
-        '-f',
-        'S16_LE',
-        '-r',
-        '$_sampleRate',
-        '-c',
-        '$_channels',
-        '-t',
-        'raw',
-      ]);
+      proc = await Process.start(exe, args);
     } catch (e) {
       throw VoiceRecordingException('Failed to start recording: $e');
     }
-    _arecord = proc;
+    // Superseded (disposed/shutdown) while spawning — don't leak the process.
+    if (gen != _startGen) {
+      proc.kill(ProcessSignal.sigint);
+      return;
+    }
+    _capture = proc;
     _pcm.clear();
     _levelRemainder = Uint8List(0);
     _pcmSub = proc.stdout.listen((chunk) {
       final bytes = chunk is Uint8List ? chunk : Uint8List.fromList(chunk);
       _pcm.add(bytes);
       _emitLevels(bytes, onDb);
-    }, onError: (Object e) => debugPrint('TalkRecorder arecord error: $e'));
+    }, onError: (Object e) => debugPrint('TalkRecorder capture error: $e'));
   }
 
   Uint8List _levelRemainder = Uint8List(0);
@@ -129,12 +184,12 @@ class TalkRecorder {
     _levelRemainder = Uint8List.sublistView(buf, off);
   }
 
-  Future<VoiceRecordingResult?> _stopArecord() async {
+  Future<VoiceRecordingResult?> _stopSubprocess() async {
     await _pcmSub?.cancel();
     _pcmSub = null;
-    _arecord?.kill(ProcessSignal.sigint);
-    await _arecord?.exitCode;
-    _arecord = null;
+    _capture?.kill(ProcessSignal.sigint);
+    await _capture?.exitCode;
+    _capture = null;
 
     final pcm = _pcm.takeBytes();
     if (pcm.isEmpty) return null;
@@ -149,10 +204,15 @@ class TalkRecorder {
   // -- record-package backend (mobile / web / macOS / Windows) ---------------
 
   Future<void> _startRecordPackage(void Function(double db) onDb) async {
+    final gen = _startGen;
     final recorder = AudioRecorder();
     if (!await recorder.hasPermission()) {
       await recorder.dispose();
       throw const VoiceRecordingException('Microphone permission denied');
+    }
+    if (gen != _startGen) {
+      await recorder.dispose();
+      return; // superseded during permission check
     }
     _path =
         '${Directory.systemTemp.path}/garbanzo_talk_${DateTime.now().millisecondsSinceEpoch}.wav';
@@ -162,6 +222,10 @@ class TalkRecorder {
           encoder: AudioEncoder.wav,
           sampleRate: _sampleRate,
           numChannels: _channels,
+          // Mobile OSes provide hardware acoustic echo cancellation; enabling
+          // it lets voice barge-in work over the speaker without self-triggering.
+          echoCancel: true,
+          noiseSuppress: true,
         ),
         path: _path!,
       );
@@ -170,6 +234,12 @@ class TalkRecorder {
       _path = null;
       throw VoiceRecordingException('Failed to start recording: $e');
     }
+    if (gen != _startGen) {
+      await recorder.dispose();
+      return; // superseded while starting
+    }
+    // Trust hardware AEC on phones; desktop record backends don't reliably AEC.
+    _echoCancelActive = !kIsWeb && (Platform.isAndroid || Platform.isIOS);
     _recorder = recorder;
     _ampSub = recorder
         .onAmplitudeChanged(const Duration(milliseconds: 100))

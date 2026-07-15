@@ -166,12 +166,14 @@ enabled only when a chat conversation is active. Opens `TalkModePage` as a full-
    listening; the phase loops listen → speak → listen until the ✕ ends the call.
    *Caveat: Linux amplitude via `parecord` is less battle-tested — tap-to-send remains
    the guaranteed fallback, and on-device threshold tuning is still pending.*
-4. ✅ **Interruption:** tap barge-in (tap during speaking → back to listening) always
-   works. Automatic **voice** barge-in is implemented behind a `voiceBargeIn` flag but
-   **defaults off**: over speakers the mic hears the AI's own playback, and without
-   acoustic echo cancellation no energy threshold separates "AI is loud" from "user is
-   talking over it" — so it self-interrupts. Enable it only where there's no echo
-   (headphones), or revisit with AEC.
+4. ✅ **Interruption:** tap barge-in always works. Automatic **voice** barge-in works
+   over speakers via **acoustic echo cancellation** — on Linux `TalkRecorder` loads
+   PipeWire's `libpipewire-module-echo-cancel` (WebRTC AEC) in monitor mode and captures
+   from the echo-cancelled source (`pw-record`), which removes the AI's own playback
+   (~31 dB measured) so it no longer self-triggers; on mobile it uses hardware AEC
+   (`RecordConfig(echoCancel: true)`). Barge-in is armed only while *speaking* and only
+   when echo cancellation is active (else it stays off to avoid self-interruption). See
+   `pipewire_echo_cancel.dart`.
 5. ✅ **Polish:** live level-reactive orb (phase 3), wake lock (`wakelock_plus`, keeps the
    screen on during a call), mute toggle (parks the loop in listening with the mic closed),
    and tap-to-retry error UX. *(Remaining nice-to-have: waveform-bars visualizer variant.)*

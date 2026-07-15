@@ -40,17 +40,17 @@ enum TalkPhase {
 /// stopped → transcribe → send → speak the reply → loop back to listening.
 /// A tap interrupts the current phase and the ✕ button ends the call.
 ///
-/// [voiceBargeIn] (auto-interrupt by talking over the AI) is **off by
-/// default**: with speakers, the mic hears the AI's own playback, and without
-/// acoustic echo cancellation no energy threshold can reliably tell "the AI is
-/// loud" from "the user is talking over it" — so it self-interrupts. It can be
-/// enabled where there's no echo (e.g. headphones). Tap-to-interrupt always
-/// works regardless.
+/// [voiceBargeIn] (auto-interrupt by talking over the AI) is enabled, but only
+/// takes effect when the recorder reports **active echo cancellation** (the
+/// PipeWire echo-cancel source on Linux, or hardware AEC on mobile). Without
+/// AEC the mic hears the AI's own playback and no energy threshold can tell
+/// "the AI is loud" from "the user is talking over it", so barge-in stays off
+/// there to avoid self-interruption. Tap-to-interrupt always works.
 class TalkModeController extends ChangeNotifier {
   TalkModeController({
     required ChatProvider chat,
     required SettingsProvider settings,
-    bool voiceBargeIn = false,
+    bool voiceBargeIn = true,
   }) : _chat = chat,
        _settings = settings,
        _voiceBargeIn = voiceBargeIn {
@@ -169,8 +169,10 @@ class TalkModeController extends ChangeNotifier {
   }
 
   /// Amplitude sample from the recorder. Its meaning depends on the phase:
-  /// while listening it drives VAD + the visualizer; during the reply it
-  /// watches for the user talking over the AI (voice barge-in).
+  /// while listening it drives VAD + the visualizer; while the AI is *speaking*
+  /// it watches for the user talking over it (voice barge-in). Barge-in is not
+  /// armed during `thinking` (nothing is playing yet, so ambient noise
+  /// shouldn't cancel the request).
   void _onDb(double db) {
     switch (_phase) {
       case TalkPhase.listening:
@@ -181,9 +183,9 @@ class TalkModeController extends ChangeNotifier {
         } else {
           notifyListeners(); // refresh the visualizer level
         }
-      case TalkPhase.thinking:
       case TalkPhase.speaking:
         _detectBargeIn(db);
+      case TalkPhase.thinking:
       case TalkPhase.idle:
       case TalkPhase.transcribing:
       case TalkPhase.error:
@@ -241,7 +243,10 @@ class TalkModeController extends ChangeNotifier {
       onComplete: _onQueueDrained,
     );
     _chat.streamingMessage.addListener(_onStreamingContent);
-    if (_voiceBargeIn && !_muted) {
+    // Keep the mic open during the reply for voice barge-in — but only when
+    // echo cancellation is active, otherwise the AI's own playback would
+    // self-trigger an interrupt.
+    if (_voiceBargeIn && !_muted && _recorder.echoCancellationActive) {
       unawaited(
         _recorder
             .start(onDb: _onDb)
@@ -374,7 +379,7 @@ class TalkModeController extends ChangeNotifier {
     _callActive = false;
     _chat.removeListener(_onChatChanged);
     _chat.streamingMessage.removeListener(_onStreamingContent);
-    _recorder.dispose();
+    _recorder.shutdown(); // stops capture and unloads the AEC module
     _tts?.stop();
     super.dispose();
   }
