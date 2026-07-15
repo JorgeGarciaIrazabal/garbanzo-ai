@@ -101,6 +101,16 @@ class TalkVad {
     _noiseFloor += (db - _noiseFloor) * alpha;
   }
 
+  /// Enter the speaking state directly, as if speech had just started at
+  /// [now]. Used when a voice barge-in carries an already-running capture into
+  /// a fresh listen: the user is mid-utterance, so waiting for another
+  /// speech-start would drop the words that triggered the interrupt.
+  void forceSpeaking(DateTime now) {
+    _speaking = true;
+    _speechStartedAt = now;
+    _lastLoudAt = now;
+  }
+
   /// Clear speech state so the detector is ready for a fresh utterance. The
   /// learned noise floor is deliberately kept across utterances.
   void reset() {

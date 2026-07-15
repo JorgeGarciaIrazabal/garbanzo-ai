@@ -76,6 +76,31 @@ class TalkRecorder {
     return _useSubprocess ? _stopSubprocess() : _stopRecordPackage();
   }
 
+  /// Whether the running capture can be carried across an interrupt→listen
+  /// transition without a restart. Only the subprocess backend buffers PCM in
+  /// memory where it can be trimmed; the record-package backend writes to a
+  /// file we can't rewrite mid-capture.
+  bool get supportsCarryOver => _capture != null;
+
+  /// Drop all but the trailing [keep] of buffered PCM, leaving capture
+  /// running. Used on voice barge-in: the buffer holds the whole
+  /// (echo-cancelled) reply period, but only the user's interrupting words at
+  /// the end are worth transcribing.
+  void trimBufferToLast(Duration keep) {
+    if (_capture == null) return;
+    final maxBytes = _sampleRate * 2 * keep.inMilliseconds ~/ 1000;
+    _pcm.add(tailPcm(_pcm.takeBytes(), maxBytes));
+  }
+
+  /// The trailing [maxBytes] of [pcm], aligned to whole S16 samples.
+  @visibleForTesting
+  static Uint8List tailPcm(Uint8List pcm, int maxBytes) {
+    if (pcm.lengthInBytes <= maxBytes) return pcm;
+    var start = pcm.lengthInBytes - maxBytes;
+    if (start.isOdd) start--;
+    return Uint8List.sublistView(pcm, start);
+  }
+
   /// Cancel any active capture and release resources (keeps the AEC module).
   void dispose() {
     _startGen++; // supersede any in-flight start()

@@ -71,6 +71,32 @@ void main() {
       expect(vad.update(-50, at(360)), VadEvent.none); // silent 210ms, spoke 260
     });
 
+    test('forceSpeaking enters speech and ends after normal silence', () {
+      final vad = TalkVad(
+        silenceDuration: const Duration(milliseconds: 900),
+        minSpeechDuration: const Duration(milliseconds: 300),
+      );
+      calibrate(vad);
+      // Barge-in carry-over: the user is already mid-utterance.
+      vad.forceSpeaking(at(0));
+      expect(vad.isSpeaking, isTrue);
+      expect(vad.update(-20, at(200)), VadEvent.none); // still talking
+      expect(vad.update(-50, at(400)), VadEvent.none); // silence begins
+      expect(vad.update(-50, at(1400)), VadEvent.speechEnd);
+    });
+
+    test('forceSpeaking respects minSpeechDuration from the forced start', () {
+      final vad = TalkVad(
+        silenceDuration: const Duration(milliseconds: 100),
+        minSpeechDuration: const Duration(milliseconds: 500),
+      );
+      calibrate(vad);
+      vad.forceSpeaking(at(0));
+      // Silent early: silence window met but speech too short to end.
+      expect(vad.update(-50, at(300)), VadEvent.none);
+      expect(vad.update(-50, at(600)), VadEvent.speechEnd);
+    });
+
     test('reset clears speech state but keeps the learned floor', () {
       final vad = TalkVad();
       for (var i = 0; i < 80; i++) {

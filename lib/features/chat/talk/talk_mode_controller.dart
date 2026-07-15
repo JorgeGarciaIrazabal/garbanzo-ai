@@ -103,9 +103,25 @@ class TalkModeController extends ChangeNotifier {
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
 
+  /// What STT heard in the user's last utterance — shown as a live caption so
+  /// mis-transcriptions are visible instead of silently producing a bad turn.
+  String _userTranscript = '';
+  String get userTranscript => _userTranscript;
+
+  /// The assistant's reply text as it streams in (kept after the turn ends so
+  /// the caption stays readable while the user speaks again).
+  String _assistantText = '';
+  String get assistantText => _assistantText;
+
   bool _prevSending = false;
   bool _awaitingReply = false;
   bool _disposed = false;
+  Timer? _retryTimer;
+
+  /// Whether talking over the AI can interrupt it (needs echo cancellation —
+  /// see the class doc). Drives the status hint while speaking.
+  bool get bargeInAvailable =>
+      _voiceBargeIn && !_muted && _recorder.echoCancellationActive;
 
   /// Human-readable status line for the UI.
   String get statusText => switch (_phase) {
@@ -113,24 +129,27 @@ class TalkModeController extends ChangeNotifier {
     TalkPhase.listening => _muted ? 'Muted' : 'Listening…',
     TalkPhase.transcribing => 'Transcribing…',
     TalkPhase.thinking => 'Thinking…',
-    TalkPhase.speaking => 'Speaking… tap to interrupt',
+    TalkPhase.speaking =>
+      bargeInAvailable
+          ? 'Speaking… talk or tap to interrupt'
+          : 'Speaking… tap to interrupt',
     TalkPhase.error => _errorMessage ?? 'Something went wrong',
   };
 
-  /// Toggle the microphone. Muting closes the mic immediately (if listening);
-  /// unmuting resumes capture. No effect on an in-flight reply.
+  /// Toggle the microphone. Muting closes the mic immediately in whatever
+  /// phase it was open for — the listening capture or the barge-in monitor
+  /// during a reply. Unmuting resumes capture only while listening; mid-reply
+  /// the barge mic stays off until the next listen re-arms it.
   Future<void> toggleMute() async {
     _muted = !_muted;
-    if (_phase != TalkPhase.listening) {
-      notifyListeners();
-      return;
-    }
     if (_muted) {
       _recorder.dispose();
       _level = 0;
       notifyListeners();
-    } else {
+    } else if (_phase == TalkPhase.listening) {
       await _startListening();
+    } else {
+      notifyListeners();
     }
   }
 
@@ -139,6 +158,11 @@ class TalkModeController extends ChangeNotifier {
     switch (_phase) {
       case TalkPhase.idle:
       case TalkPhase.error:
+        if (!_callActive) {
+          // Fresh call — clear captions from the previous one.
+          _userTranscript = '';
+          _assistantText = '';
+        }
         _callActive = true;
         await _startListening();
       case TalkPhase.listening:
@@ -152,6 +176,7 @@ class TalkModeController extends ChangeNotifier {
   }
 
   Future<void> _startListening() async {
+    _retryTimer?.cancel();
     _errorMessage = null;
     _vad.reset();
     _level = 0;
@@ -184,7 +209,7 @@ class TalkModeController extends ChangeNotifier {
           notifyListeners(); // refresh the visualizer level
         }
       case TalkPhase.speaking:
-        _detectBargeIn(db);
+        if (!_muted) _detectBargeIn(db);
       case TalkPhase.thinking:
       case TalkPhase.idle:
       case TalkPhase.transcribing:
@@ -199,7 +224,7 @@ class TalkModeController extends ChangeNotifier {
     if (db > _vad.noiseFloorDb + _bargeMarginDb) {
       if (++_bargeLoud >= _bargeSustainSamples) {
         _bargeLoud = 0;
-        unawaited(_interrupt());
+        unawaited(_interrupt(carryOverCapture: true));
       }
     } else {
       _bargeLoud = 0;
@@ -214,7 +239,7 @@ class TalkModeController extends ChangeNotifier {
       final result = await _recorder.stopAndTranscribe();
       transcript = result?.transcript.trim();
     } catch (e) {
-      _fail('Could not transcribe: $e');
+      _fail('Could not transcribe: ${_brief(e)}', recoverable: true);
       return;
     }
 
@@ -224,6 +249,7 @@ class TalkModeController extends ChangeNotifier {
       return;
     }
 
+    _userTranscript = transcript;
     _beginReply();
     _setPhase(TalkPhase.thinking);
     await _chat.sendMessage(transcript);
@@ -237,6 +263,7 @@ class TalkModeController extends ChangeNotifier {
     _streamFinished = false;
     _awaitingReply = true;
     _bargeLoud = 0;
+    _assistantText = '';
     _tts = TalkTtsQueue(
       voice: _settings.ttsVoice,
       speed: _settings.ttsSpeed,
@@ -257,9 +284,15 @@ class TalkModeController extends ChangeNotifier {
     }
   }
 
-  /// Speak each newly-completed sentence as the reply streams in.
+  /// Speak each newly-completed sentence as the reply streams in, and mirror
+  /// the full text into [assistantText] for the live caption.
   void _onStreamingContent() {
     final content = _chat.streamingMessage.value?.content ?? '';
+    // The notifier clears to null at stream end — keep the last caption.
+    if (content.isNotEmpty && content != _assistantText) {
+      _assistantText = content;
+      notifyListeners();
+    }
     final cut = lastSentenceBoundary(content, _spokenUpTo);
     if (cut <= _spokenUpTo) return;
     _tts?.enqueue(content.substring(_spokenUpTo, cut));
@@ -285,6 +318,7 @@ class TalkModeController extends ChangeNotifier {
     // streamingMessage is cleared by the time the turn ends, so read the
     // committed final text from the message list.
     final full = _lastAssistantContent() ?? '';
+    if (full.isNotEmpty) _assistantText = full;
     if (full.length > _spokenUpTo) {
       _tts?.enqueue(full.substring(_spokenUpTo));
       _spokenUpTo = full.length;
@@ -317,7 +351,12 @@ class TalkModeController extends ChangeNotifier {
     }
   }
 
-  Future<void> _interrupt() async {
+  /// Stop the AI's turn (playback + stream). With [carryOverCapture] — used by
+  /// voice barge-in — the already-running barge mic keeps capturing across the
+  /// transition so the words that *triggered* the interrupt aren't lost: the
+  /// buffer is trimmed to the last couple of seconds (the reply-period echo
+  /// isn't worth transcribing) and the VAD is pre-armed as mid-speech.
+  Future<void> _interrupt({bool carryOverCapture = false}) async {
     _awaitingReply = false;
     _streamFinished = true;
     _chat.streamingMessage.removeListener(_onStreamingContent);
@@ -325,6 +364,19 @@ class TalkModeController extends ChangeNotifier {
     _tts = null;
     _spokenUpTo = 0;
     if (_chat.isSending) await _chat.stopStreaming();
+
+    if (carryOverCapture &&
+        _callActive &&
+        !_muted &&
+        _recorder.supportsCarryOver) {
+      _recorder.trimBufferToLast(const Duration(seconds: 2));
+      _vad
+        ..reset()
+        ..forceSpeaking(DateTime.now());
+      _errorMessage = null;
+      _setPhase(TalkPhase.listening);
+      return;
+    }
     // A tap barge-in during the AI's turn drops straight back to listening.
     await _resumeListeningOrIdle();
   }
@@ -332,6 +384,7 @@ class TalkModeController extends ChangeNotifier {
   /// End the call entirely: stop capture/playback and return to idle.
   Future<void> endCall() async {
     _callActive = false;
+    _retryTimer?.cancel();
     _awaitingReply = false;
     _streamFinished = true;
     _chat.streamingMessage.removeListener(_onStreamingContent);
@@ -361,10 +414,28 @@ class TalkModeController extends ChangeNotifier {
     return null;
   }
 
-  void _fail(String message) {
+  /// Enter the error phase. [recoverable] failures during an active call
+  /// auto-resume listening after a short pause, so a transient hiccup (an STT
+  /// timeout, say) doesn't strand a hands-free call waiting for a tap.
+  /// Non-recoverable ones (mic unavailable) stay parked until the user taps.
+  void _fail(String message, {bool recoverable = false}) {
     logDebug('TalkMode: $message');
     _errorMessage = message;
     _setPhase(TalkPhase.error);
+    if (recoverable && _callActive) {
+      _retryTimer?.cancel();
+      _retryTimer = Timer(const Duration(seconds: 2), () {
+        if (!_disposed && _callActive && _phase == TalkPhase.error) {
+          unawaited(_startListening());
+        }
+      });
+    }
+  }
+
+  /// First ~120 chars of an exception, single line, for the status display.
+  static String _brief(Object e) {
+    final s = e.toString().replaceAll('\n', ' ');
+    return s.length > 120 ? '${s.substring(0, 117)}…' : s;
   }
 
   void _setPhase(TalkPhase phase) {
@@ -377,6 +448,7 @@ class TalkModeController extends ChangeNotifier {
   void dispose() {
     _disposed = true;
     _callActive = false;
+    _retryTimer?.cancel();
     _chat.removeListener(_onChatChanged);
     _chat.streamingMessage.removeListener(_onStreamingContent);
     _recorder.shutdown(); // stops capture and unloads the AEC module

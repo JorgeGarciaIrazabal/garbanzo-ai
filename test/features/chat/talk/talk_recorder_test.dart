@@ -32,6 +32,35 @@ void main() {
     });
   });
 
+  group('TalkRecorder.tailPcm', () {
+    test('returns input unchanged when within the limit', () {
+      final pcm = _pcmFromSamples([1, 2, 3]);
+      expect(TalkRecorder.tailPcm(pcm, 6), same(pcm));
+      expect(TalkRecorder.tailPcm(pcm, 100), same(pcm));
+    });
+
+    test('keeps only the trailing bytes', () {
+      final pcm = _pcmFromSamples([1, 2, 3, 4]);
+      final tail = TalkRecorder.tailPcm(pcm, 4); // last two samples
+      expect(
+        ByteData.sublistView(tail).getInt16(0, Endian.little),
+        3,
+      );
+      expect(tail.lengthInBytes, 4);
+    });
+
+    test('stays aligned to whole S16 samples for odd limits', () {
+      final pcm = _pcmFromSamples([1, 2, 3, 4]);
+      final tail = TalkRecorder.tailPcm(pcm, 3);
+      // Start index is rounded down to an even offset, keeping sample framing.
+      expect(tail.lengthInBytes, 4);
+      expect(
+        ByteData.sublistView(tail).getInt16(0, Endian.little),
+        3,
+      );
+    });
+  });
+
   group('TalkRecorder.wrapPcmInWav', () {
     test('prepends a 44-byte PCM WAV header', () {
       final pcm = _pcmFromSamples([1, 2, 3, 4]);
