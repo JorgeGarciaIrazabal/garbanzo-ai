@@ -161,8 +161,13 @@ enabled only when a chat conversation is active. Opens `TalkModePage` as a full-
 2. ✅ **Sentence-streamed TTS:** speak sentences as they stream (latency win) + "Thinking…"
    state. *(Controller watches `ChatProvider.streamingMessage`, enqueues each completed
    sentence; phase stays `thinking` until the first speakable sentence.)*
-3. **VAD (mobile/web):** amplitude-based auto start/stop listening — true hands-free.
-4. **Interruption:** tap-to-interrupt first (done in phase 1); amplitude barge-in where supported.
+3. ✅ **VAD + call loop:** energy-based `TalkVad` (dBFS thresholds) over a dedicated
+   `TalkRecorder` (record pkg, amplitude stream on all platforms) auto starts/stops
+   listening; the phase loops listen → speak → listen until the ✕ ends the call.
+   *Caveat: Linux amplitude via `parecord` is less battle-tested — tap-to-send remains
+   the guaranteed fallback, and on-device threshold tuning is still pending.*
+4. **Interruption:** tap barge-in works (tap during speaking → back to listening);
+   automatic **voice** barge-in (record-while-playing + echo suppression) still to build.
 5. **Polish:** visualizer, wake lock (`wakelock_plus`), mute, settings toggle, error UX.
 6. **Desktop:** switch Talk Mode to the `record`/`parecord` path for amplitude, or keep
    tap-to-stop fallback.

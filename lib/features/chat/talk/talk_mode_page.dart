@@ -68,11 +68,20 @@ class _TalkModePageState extends State<TalkModePage> {
                     key: const ValueKey('talk_close_button'),
                     icon: const Icon(Icons.close),
                     tooltip: 'End call',
-                    onPressed: () => Navigator.of(context).maybePop(),
+                    onPressed: () async {
+                      await _controller.endCall();
+                      if (context.mounted) {
+                        await Navigator.of(context).maybePop();
+                      }
+                    },
                   ),
                 ),
                 const Spacer(),
-                _TalkOrb(phase: _controller.phase, onTap: _controller.onTap),
+                _TalkOrb(
+                  phase: _controller.phase,
+                  level: _controller.level,
+                  onTap: _controller.onTap,
+                ),
                 const SizedBox(height: 40),
                 Text(
                   _controller.statusText,
@@ -93,11 +102,17 @@ class _TalkModePageState extends State<TalkModePage> {
   }
 }
 
-/// Tappable central orb whose look reflects the current [TalkPhase].
+/// Tappable central orb whose look reflects the current [TalkPhase]. While
+/// listening it swells with the mic [level] for a live audio-reactive cue.
 class _TalkOrb extends StatelessWidget {
-  const _TalkOrb({required this.phase, required this.onTap});
+  const _TalkOrb({
+    required this.phase,
+    required this.level,
+    required this.onTap,
+  });
 
   final TalkPhase phase;
+  final double level;
   final Future<void> Function() onTap;
 
   @override
@@ -112,14 +127,16 @@ class _TalkOrb extends StatelessWidget {
       TalkPhase.error => (scheme.error, Icons.refresh),
     };
     final busy = phase == TalkPhase.transcribing || phase == TalkPhase.thinking;
+    // Listening: grow the orb up to +40px with the live mic level.
+    final size = phase == TalkPhase.listening ? 180 + level * 40 : 180.0;
 
     return GestureDetector(
       key: const ValueKey('talk_orb'),
       onTap: onTap,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
-        width: 180,
-        height: 180,
+        duration: const Duration(milliseconds: 120),
+        width: size,
+        height: size,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: color.withValues(alpha: 0.15),

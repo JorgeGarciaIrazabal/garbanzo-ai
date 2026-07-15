@@ -1,17 +1,20 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import 'package:garbanzo_ai/core/log.dart';
 import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
+import 'package:garbanzo_ai/features/chat/talk/talk_recorder.dart';
 import 'package:garbanzo_ai/features/chat/talk/talk_tts_queue.dart';
-import 'package:garbanzo_ai/features/chat/widgets/input/voice_recording_helper.dart';
+import 'package:garbanzo_ai/features/chat/talk/talk_vad.dart';
 import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
 
 /// Phases of a hands-free voice turn.
 enum TalkPhase {
-  /// Waiting for the user to start a turn.
+  /// Waiting for the user to start a call.
   idle,
 
-  /// Microphone is capturing the user's speech.
+  /// Microphone is open; VAD listens for the user to speak (and stop).
   listening,
 
   /// Captured audio is being transcribed (STT).
@@ -29,16 +32,15 @@ enum TalkPhase {
 
 /// Drives Talk Mode: a small state machine over the existing chat turn.
 ///
-/// It reuses [ChatProvider] for the actual LLM turn (so memory, KB, and tools
-/// keep working), [VoiceRecordingHelper] for STT capture, and [TalkTtsQueue]
-/// for speaking the reply. The reply is spoken **sentence-by-sentence as it
-/// streams** — each completed sentence in [ChatProvider.streamingMessage] is
-/// enqueued immediately, so speech starts on the first sentence instead of
-/// waiting for the whole answer. While the model reasons (thinking chunks or
-/// no speakable text yet) the phase stays [TalkPhase.thinking].
+/// Reuses [ChatProvider] for the LLM turn (so memory, KB, and tools keep
+/// working), [TalkRecorder] + [TalkVad] for hands-free capture, and
+/// [TalkTtsQueue] for speaking the reply sentence-by-sentence as it streams.
 ///
-/// Phase 1/2 are tap-driven: tap to talk, tap again to send. VAD auto
-/// start/stop and voice barge-in arrive in later phases.
+/// Flow once a call is started (first tap): listen → VAD detects the user
+/// stopped → transcribe → send → speak the reply → loop back to listening.
+/// A tap interrupts the current phase; the ✕ button ends the call. Voice
+/// barge-in (auto-interrupt by talking over the AI) is a later phase; tap
+/// barge-in works today.
 class TalkModeController extends ChangeNotifier {
   TalkModeController({
     required ChatProvider chat,
@@ -51,7 +53,8 @@ class TalkModeController extends ChangeNotifier {
 
   final ChatProvider _chat;
   final SettingsProvider _settings;
-  final VoiceRecordingHelper _recorder = VoiceRecordingHelper();
+  final TalkRecorder _recorder = TalkRecorder();
+  final TalkVad _vad = TalkVad();
 
   TalkTtsQueue? _tts;
 
@@ -60,8 +63,17 @@ class TalkModeController extends ChangeNotifier {
   int _spokenUpTo = 0;
   bool _streamFinished = false;
 
+  /// True between the first tap (start call) and ending it (✕ / interrupt to
+  /// idle). Drives the listen→speak→listen loop.
+  bool _callActive = false;
+
   TalkPhase _phase = TalkPhase.idle;
   TalkPhase get phase => _phase;
+
+  /// Normalized mic level (0..1) for the visualizer; only meaningful while
+  /// [TalkPhase.listening].
+  double _level = 0;
+  double get level => _level;
 
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
@@ -72,8 +84,8 @@ class TalkModeController extends ChangeNotifier {
 
   /// Human-readable status line for the UI.
   String get statusText => switch (_phase) {
-    TalkPhase.idle => 'Tap to talk',
-    TalkPhase.listening => 'Listening… tap to send',
+    TalkPhase.idle => 'Tap to start',
+    TalkPhase.listening => 'Listening…',
     TalkPhase.transcribing => 'Transcribing…',
     TalkPhase.thinking => 'Thinking…',
     TalkPhase.speaking => 'Speaking… tap to interrupt',
@@ -85,9 +97,10 @@ class TalkModeController extends ChangeNotifier {
     switch (_phase) {
       case TalkPhase.idle:
       case TalkPhase.error:
+        _callActive = true;
         await _startListening();
       case TalkPhase.listening:
-        await _stopAndSend();
+        await _stopAndSend(); // manual send without waiting for VAD
       case TalkPhase.thinking:
       case TalkPhase.speaking:
         await _interrupt();
@@ -98,16 +111,31 @@ class TalkModeController extends ChangeNotifier {
 
   Future<void> _startListening() async {
     _errorMessage = null;
+    _vad.reset();
+    _level = 0;
     try {
-      await _recorder.startRecording();
+      await _recorder.start(onDb: _onDb);
       _setPhase(TalkPhase.listening);
     } catch (e) {
       _fail('Microphone unavailable: $e');
     }
   }
 
+  /// Amplitude sample from the recorder → feed VAD + visualizer level.
+  void _onDb(double db) {
+    if (_phase != TalkPhase.listening) return;
+    _level = ((db + 60) / 60).clamp(0.0, 1.0);
+    final event = _vad.update(db, DateTime.now());
+    if (event == VadEvent.speechEnd) {
+      unawaited(_stopAndSend());
+    } else {
+      notifyListeners(); // refresh the visualizer level
+    }
+  }
+
   Future<void> _stopAndSend() async {
     _setPhase(TalkPhase.transcribing);
+    _level = 0;
     String? transcript;
     try {
       final result = await _recorder.stopAndTranscribe();
@@ -118,8 +146,8 @@ class TalkModeController extends ChangeNotifier {
     }
 
     if (transcript == null || transcript.isEmpty) {
-      // Nothing heard — quietly return to idle so the user can retry.
-      _setPhase(TalkPhase.idle);
+      // Nothing heard — resume listening so the call keeps going.
+      await _resumeListeningOrIdle();
       return;
     }
 
@@ -176,19 +204,28 @@ class TalkModeController extends ChangeNotifier {
     }
 
     // If nothing is (or will be) speaking, the turn is over immediately.
-    if (_tts == null || !_tts!.isSpeaking) _endSpeaking();
+    if (_tts == null || !_tts!.isSpeaking) unawaited(_endSpeaking());
   }
 
   /// TTS queue drained. Only ends the turn once the stream has also finished —
   /// mid-stream drains just wait for the next sentence.
   void _onQueueDrained() {
-    if (_streamFinished) _endSpeaking();
+    if (_streamFinished) unawaited(_endSpeaking());
   }
 
-  void _endSpeaking() {
+  Future<void> _endSpeaking() async {
     _tts = null;
     _spokenUpTo = 0;
     if (_phase == TalkPhase.thinking || _phase == TalkPhase.speaking) {
+      await _resumeListeningOrIdle();
+    }
+  }
+
+  /// Loop back to listening while the call is active; otherwise settle to idle.
+  Future<void> _resumeListeningOrIdle() async {
+    if (_callActive) {
+      await _startListening();
+    } else {
       _setPhase(TalkPhase.idle);
     }
   }
@@ -200,6 +237,20 @@ class TalkModeController extends ChangeNotifier {
     await _tts?.stop();
     _tts = null;
     _spokenUpTo = 0;
+    if (_chat.isSending) await _chat.stopStreaming();
+    // A tap barge-in during the AI's turn drops straight back to listening.
+    await _resumeListeningOrIdle();
+  }
+
+  /// End the call entirely: stop capture/playback and return to idle.
+  Future<void> endCall() async {
+    _callActive = false;
+    _awaitingReply = false;
+    _streamFinished = true;
+    _chat.streamingMessage.removeListener(_onStreamingContent);
+    _recorder.dispose();
+    await _tts?.stop();
+    _tts = null;
     if (_chat.isSending) await _chat.stopStreaming();
     _setPhase(TalkPhase.idle);
   }
@@ -238,6 +289,7 @@ class TalkModeController extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    _callActive = false;
     _chat.removeListener(_onChatChanged);
     _chat.streamingMessage.removeListener(_onStreamingContent);
     _recorder.dispose();
