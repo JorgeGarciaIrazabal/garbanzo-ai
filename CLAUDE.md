@@ -44,7 +44,8 @@ just fe-clean            # Clean Flutter build files
 
 ### Infrastructure & Combined
 ```bash
-just dev             # Start Docker + backend + frontend on Android (real device or emulator)
+just dev             # Start Docker + backend + frontend on Linux desktop
+just dev-apk         # Start Docker + backend + frontend on Android (real device or emulator)
 just dev-web         # Start Docker + backend + frontend in Chrome for web development
 just dev-deps        # Install Linux audio deps (GStreamer — run once)
 just docker-up       # Start all Docker services (PostgreSQL + Faster Whisper STT)
@@ -209,6 +210,11 @@ features/chat/
   services/          chat_service.dart (CRUD + SSE streaming),
                      audio_service.dart (STT/TTS)
   utils/             text_cleaner.dart (strips markdown/emojis before TTS)
+  talk/              Talk Mode — full-screen hands-free voice call over
+                     ChatProvider: talk_mode_page.dart, talk_mode_controller.dart
+                     (state machine + call loop + voice barge-in), talk_vad.dart
+                     (energy VAD), talk_recorder.dart (mic + amplitude stream),
+                     talk_tts_queue.dart (sentence-streamed playback)
   widgets/           ChatPage, ChatInputWidget, ChatMessageWidget,
                      ConversationListWidget, ModelSelectorWidget,
                      SearchWidget, SearchResultsWidget, SystemPromptBanner,
