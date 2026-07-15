@@ -66,6 +66,12 @@ class TalkModeController extends ChangeNotifier {
   /// True between the first tap (start call) and ending it (✕ / interrupt to
   /// idle). Drives the listen→speak→listen loop.
   bool _callActive = false;
+  bool get isCallActive => _callActive;
+
+  /// When muted, the mic stays closed and the listen loop parks in
+  /// [TalkPhase.listening] without capturing until the user unmutes.
+  bool _muted = false;
+  bool get isMuted => _muted;
 
   TalkPhase _phase = TalkPhase.idle;
   TalkPhase get phase => _phase;
@@ -85,12 +91,29 @@ class TalkModeController extends ChangeNotifier {
   /// Human-readable status line for the UI.
   String get statusText => switch (_phase) {
     TalkPhase.idle => 'Tap to start',
-    TalkPhase.listening => 'Listening…',
+    TalkPhase.listening => _muted ? 'Muted' : 'Listening…',
     TalkPhase.transcribing => 'Transcribing…',
     TalkPhase.thinking => 'Thinking…',
     TalkPhase.speaking => 'Speaking… tap to interrupt',
     TalkPhase.error => _errorMessage ?? 'Something went wrong',
   };
+
+  /// Toggle the microphone. Muting closes the mic immediately (if listening);
+  /// unmuting resumes capture. No effect on an in-flight reply.
+  Future<void> toggleMute() async {
+    _muted = !_muted;
+    if (_phase != TalkPhase.listening) {
+      notifyListeners();
+      return;
+    }
+    if (_muted) {
+      _recorder.dispose();
+      _level = 0;
+      notifyListeners();
+    } else {
+      await _startListening();
+    }
+  }
 
   /// Central tap handler — meaning depends on the current phase.
   Future<void> onTap() async {
@@ -113,6 +136,11 @@ class TalkModeController extends ChangeNotifier {
     _errorMessage = null;
     _vad.reset();
     _level = 0;
+    // Muted: park in listening with the mic closed until the user unmutes.
+    if (_muted) {
+      _setPhase(TalkPhase.listening);
+      return;
+    }
     try {
       await _recorder.start(onDb: _onDb);
       _setPhase(TalkPhase.listening);

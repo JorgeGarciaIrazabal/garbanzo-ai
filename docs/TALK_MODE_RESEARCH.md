@@ -168,9 +168,11 @@ enabled only when a chat conversation is active. Opens `TalkModePage` as a full-
    the guaranteed fallback, and on-device threshold tuning is still pending.*
 4. **Interruption:** tap barge-in works (tap during speaking → back to listening);
    automatic **voice** barge-in (record-while-playing + echo suppression) still to build.
-5. **Polish:** visualizer, wake lock (`wakelock_plus`), mute, settings toggle, error UX.
-6. **Desktop:** switch Talk Mode to the `record`/`parecord` path for amplitude, or keep
-   tap-to-stop fallback.
+5. ✅ **Polish:** live level-reactive orb (phase 3), wake lock (`wakelock_plus`, keeps the
+   screen on during a call), mute toggle (parks the loop in listening with the mic closed),
+   and tap-to-retry error UX. *(Remaining nice-to-have: waveform-bars visualizer variant.)*
+6. ✅ **Desktop:** folded into phase 3 — `TalkRecorder` uses the `record` package
+   (parecord on Linux) on every platform, so there's no separate desktop path.
 
 ---
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
 import 'package:garbanzo_ai/features/chat/talk/talk_mode_controller.dart';
@@ -43,10 +44,14 @@ class _TalkModePageState extends State<TalkModePage> {
       chat: widget.chat,
       settings: widget.settings,
     );
+    // Keep the screen awake for the duration of the call. Ignore failures on
+    // platforms where the plugin isn't available.
+    WakelockPlus.enable().ignore();
   }
 
   @override
   void dispose() {
+    WakelockPlus.disable().ignore();
     _controller.dispose();
     super.dispose();
   }
@@ -93,6 +98,18 @@ class _TalkModePageState extends State<TalkModePage> {
                   ),
                 ),
                 const Spacer(),
+                if (_controller.isCallActive)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 24),
+                    child: IconButton.filledTonal(
+                      key: const ValueKey('talk_mute_button'),
+                      icon: Icon(
+                        _controller.isMuted ? Icons.mic_off : Icons.mic,
+                      ),
+                      tooltip: _controller.isMuted ? 'Unmute' : 'Mute',
+                      onPressed: _controller.toggleMute,
+                    ),
+                  ),
               ],
             );
           },
