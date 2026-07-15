@@ -49,6 +49,7 @@ class AdminUserOut(BaseModel):
     created_at: datetime
     is_admin: bool = False
     is_disabled: bool = False
+    profile_picture_b64: str | None = None
 
     model_config = {"from_attributes": True}
 

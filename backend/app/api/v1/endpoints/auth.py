@@ -1,6 +1,7 @@
+import base64
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings, get_settings
@@ -15,9 +16,13 @@ from app.core.security import (
 from app.db.session import get_db
 from app.schemas.auth import LoginRequest, RefreshRequest, TokenResponse
 from app.schemas.user import PasswordUpdate, UserCreate, UserOut, UserUpdate
+from app.services.image_utils import downscale_image_b64
 from app.services.user_service import UserService
 
 router = APIRouter()
+
+_AVATAR_MAX_DIM = 256
+_AVATAR_MAX_UPLOAD_BYTES = 5 * 1024 * 1024
 
 
 def get_user_service(db: Annotated[AsyncSession, Depends(get_db)]) -> UserService:
@@ -32,6 +37,7 @@ def _to_user_out(user: Any) -> UserOut:
         is_admin=getattr(user, "is_admin", False),
         is_disabled=getattr(user, "is_disabled", False),
         default_model=getattr(user, "default_model", None),
+        profile_picture_b64=getattr(user, "profile_picture_b64", None),
     )
 
 
@@ -196,3 +202,57 @@ async def change_password(
         )
 
     await users.update_password(user, hash_password(payload.new_password))
+
+
+@router.post("/me/avatar", response_model=UserOut)
+async def upload_avatar(
+    current_user: Annotated[dict[str, Any], Depends(get_current_user)],
+    users: Annotated[UserService, Depends(get_user_service)],
+    file: Annotated[UploadFile, File(description="Profile picture, max 5MB")],
+) -> UserOut:
+    """Upload a profile picture. The image is downscaled to 256x256 and stored
+    as base64-encoded JPEG in the database."""
+    raw = await file.read()
+    if len(raw) > _AVATAR_MAX_UPLOAD_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="Image too large (max 5 MB)",
+        )
+
+    data_b64 = base64.b64encode(raw).decode("ascii")
+    downscaled = await downscale_image_b64(data_b64, _AVATAR_MAX_DIM)
+
+    user = await users.get_by_email(current_user["email"])
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    await users.update_profile(
+        user,
+        profile_picture_b64=downscaled,
+        update_profile_picture=True,
+    )
+    return _to_user_out(user)
+
+
+@router.delete("/me/avatar", response_model=UserOut)
+async def delete_avatar(
+    current_user: Annotated[dict[str, Any], Depends(get_current_user)],
+    users: Annotated[UserService, Depends(get_user_service)],
+) -> UserOut:
+    """Remove the profile picture."""
+    user = await users.get_by_email(current_user["email"])
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    await users.update_profile(
+        user,
+        profile_picture_b64=None,
+        update_profile_picture=True,
+    )
+    return _to_user_out(user)

@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
 
 import 'package:garbanzo_ai/core/api_client.dart';
@@ -76,6 +78,45 @@ class AuthService {
       return AuthResult.failure(_dioErrorMessage(e));
     } catch (_) {
       return AuthResult.failure('Failed to change password');
+    }
+  }
+
+  /// Upload a profile picture. [imageBytes] should be raw image file bytes.
+  /// Returns the updated [UserInfo] on success, or null on failure.
+  Future<UserInfo?> uploadAvatar(Uint8List imageBytes, String filename) async {
+    try {
+      final formData = FormData.fromMap({
+        'file': MultipartFile.fromBytes(imageBytes, filename: filename),
+      });
+      final res = await _client.postMultipart(
+        '/api/v1/auth/me/avatar',
+        data: formData,
+      );
+      if (res.statusCode == 200 && res.data is Map<String, dynamic>) {
+        _cachedUser = UserInfo.fromJson(res.data as Map<String, dynamic>);
+        return _cachedUser;
+      }
+      return null;
+    } on DioException catch (_) {
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Remove the current profile picture.
+  Future<UserInfo?> deleteAvatar() async {
+    try {
+      final res = await _client.delete('/api/v1/auth/me/avatar');
+      if (res.statusCode == 200 && res.data is Map<String, dynamic>) {
+        _cachedUser = UserInfo.fromJson(res.data as Map<String, dynamic>);
+        return _cachedUser;
+      }
+      return null;
+    } on DioException catch (_) {
+      return null;
+    } catch (_) {
+      return null;
     }
   }
 
@@ -183,6 +224,7 @@ class UserInfo {
   final bool isAdmin;
   final bool isDisabled;
   final String? defaultModel;
+  final String? profilePictureB64;
 
   const UserInfo({
     required this.email,
@@ -191,6 +233,7 @@ class UserInfo {
     this.isAdmin = false,
     this.isDisabled = false,
     this.defaultModel,
+    this.profilePictureB64,
   });
 
   factory UserInfo.fromJson(Map<String, dynamic> json) {
@@ -206,6 +249,7 @@ class UserInfo {
       isAdmin: json['is_admin'] as bool? ?? false,
       isDisabled: json['is_disabled'] as bool? ?? false,
       defaultModel: json['default_model'] as String?,
+      profilePictureB64: json['profile_picture_b64'] as String?,
     );
   }
 
@@ -216,5 +260,6 @@ class UserInfo {
     'is_admin': isAdmin,
     'is_disabled': isDisabled,
     'default_model': defaultModel,
+    'profile_picture_b64': profilePictureB64,
   };
 }

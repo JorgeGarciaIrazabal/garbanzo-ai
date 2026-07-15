@@ -25,6 +25,7 @@ class User(Base):
     )
     default_system_prompt: Mapped[str | None] = mapped_column(Text, nullable=True)
     default_model: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    profile_picture_b64: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_admin: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,

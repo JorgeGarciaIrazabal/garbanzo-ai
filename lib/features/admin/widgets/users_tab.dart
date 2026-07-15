@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'package:garbanzo_ai/core/auth_service.dart';
+import 'package:garbanzo_ai/core/widgets/user_avatar.dart';
 import 'package:garbanzo_ai/features/admin/providers/admin_provider.dart';
 import 'package:garbanzo_ai/features/admin/widgets/create_user_dialog.dart';
 
@@ -93,16 +94,15 @@ class _UsersTabState extends State<UsersTab> {
             final isSelf = user.email == currentEmail;
 
             return ListTile(
-              leading: CircleAvatar(
+              leading: UserAvatar(
+                profilePictureB64: user.profilePictureB64,
+                displayName: user.fullName ?? user.email,
                 backgroundColor: user.isDisabled
                     ? colorScheme.errorContainer
                     : colorScheme.primaryContainer,
-                child: Icon(
-                  user.isDisabled ? Icons.block : Icons.person,
-                  color: user.isDisabled
-                      ? colorScheme.onErrorContainer
-                      : colorScheme.onPrimaryContainer,
-                ),
+                foregroundColor: user.isDisabled
+                    ? colorScheme.onErrorContainer
+                    : colorScheme.onPrimaryContainer,
               ),
               title: Text(user.email),
               subtitle: Column(

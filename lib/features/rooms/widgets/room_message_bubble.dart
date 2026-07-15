@@ -9,6 +9,7 @@ import 'package:garbanzo_ai/features/chat/widgets/message/reveal_on_hover.dart';
 import 'package:garbanzo_ai/features/chat/widgets/message/speak_button.dart';
 import 'package:garbanzo_ai/features/chat/widgets/message/thinking_content.dart';
 import 'package:garbanzo_ai/features/chat/widgets/tool_bubble_widget.dart';
+import 'package:garbanzo_ai/core/widgets/user_avatar.dart';
 import 'package:garbanzo_ai/features/rooms/models/room_models.dart';
 
 /// Rendering for a single room message.
@@ -343,6 +344,7 @@ class _RoomMessageBubbleState extends State<RoomMessageBubble> {
       return _BubbleVariant(
         kind: _BubbleKind.self,
         title: 'You',
+        avatarImageB64: _profilePictureFor(widget.message.senderUserId),
         avatarIcon: Icons.person,
         bubbleColor: cs.primaryContainer,
         fgColor: cs.onPrimaryContainer,
@@ -371,10 +373,12 @@ class _RoomMessageBubbleState extends State<RoomMessageBubble> {
     }
     final email = widget.message.senderUserId ?? 'user';
     final localPart = email.contains('@') ? email.split('@').first : email;
+    final member = _memberFor(email);
     return _BubbleVariant(
       kind: _BubbleKind.other,
-      title: localPart,
+      title: member?.displayName ?? localPart,
       subtitle: email,
+      avatarImageB64: _profilePictureFor(email),
       avatarLetter: localPart.isEmpty
           ? '?'
           : localPart.characters.first.toUpperCase(),
@@ -385,6 +389,19 @@ class _RoomMessageBubbleState extends State<RoomMessageBubble> {
       avatarFg: cs.onSecondary,
       outlineColor: null,
     );
+  }
+
+  /// Find the [RoomMember] for a given user email, if the room is loaded.
+  RoomMember? _memberFor(String email) {
+    final room = widget.room;
+    if (room == null) return null;
+    return room.members.where((m) => m.userId == email).firstOrNull;
+  }
+
+  /// Profile picture base64 for a sender, looked up from room members.
+  String? _profilePictureFor(String? email) {
+    if (email == null) return null;
+    return _memberFor(email)?.profilePictureB64;
   }
 }
 
@@ -397,6 +414,7 @@ class _BubbleVariant {
     this.subtitle,
     this.avatarLetter,
     this.avatarText,
+    this.avatarImageB64,
     required this.avatarIcon,
     required this.bubbleColor,
     required this.fgColor,
@@ -410,6 +428,7 @@ class _BubbleVariant {
   final String? subtitle;
   final String? avatarLetter;
   final String? avatarText;
+  final String? avatarImageB64;
   final IconData avatarIcon;
   final Color bubbleColor;
   final Color fgColor;
@@ -426,6 +445,20 @@ class _Avatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hasImage =
+        variant.avatarImageB64 != null && variant.avatarImageB64!.isNotEmpty;
+    if (hasImage) {
+      return Semantics(
+        label: variant.title,
+        child: UserAvatar(
+          profilePictureB64: variant.avatarImageB64,
+          displayName: variant.title,
+          backgroundColor: variant.avatarBg,
+          foregroundColor: variant.avatarFg,
+          radius: radius,
+        ),
+      );
+    }
     final hasGlyph =
         variant.avatarText != null && variant.avatarText!.isNotEmpty;
     final hasLetter = variant.avatarLetter != null;

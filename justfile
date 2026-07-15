@@ -37,7 +37,7 @@ opencode:
 
 
 # Start Docker, backend, TTS, and frontend on Android (real device or emulator) — kills port 8000 if busy
-dev:
+dev-apk:
     #!/usr/bin/env bash
     set -e
     export ANDROID_HOME="$HOME/Android/Sdk"
@@ -91,6 +91,31 @@ dev:
     fi
     echo "Starting frontend..."
     flutter run -d "$DEVICE_ID" --dart-define=API_BASE_URL="$API_URL"
+
+# Start Docker, backend, and frontend on Linux desktop — kills port 8000 if busy
+dev:
+    #!/usr/bin/env bash
+    set -e
+    export PATH="$HOME/.local/bin:$PATH"
+    if lsof -ti:8000 > /dev/null 2>&1; then
+        PIDS=$(lsof -ti:8000 | tr '\n' ' ')
+        printf "Port 8000 is in use by PID(s) %s. Kill? [y/N] " "$PIDS"
+        read -r answer
+        if [[ "$answer" =~ ^[Yy]$ ]]; then
+            lsof -ti:8000 | xargs kill
+            echo "Killed."
+        else
+            echo "Aborting."
+            exit 1
+        fi
+    fi
+    docker compose up -d
+    echo "Starting backend on :8000 (includes in-process Kokoro TTS)..."
+    (cd backend && uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000) &
+    BACKEND_PID=$!
+    trap "kill $BACKEND_PID 2>/dev/null; echo 'Stopped.'" EXIT INT TERM
+    echo "Starting frontend on Linux desktop..."
+    flutter run -d linux --dart-define=API_BASE_URL=http://localhost:8000
 
 # Start Docker, backend, and frontend in Chrome for web development — kills port 8000 if busy
 dev-web:

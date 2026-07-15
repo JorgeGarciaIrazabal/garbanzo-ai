@@ -96,7 +96,10 @@ class RoomService:
         result = await self.db.execute(
             select(Room)
             .where(Room.id == room_id)
-            .options(selectinload(Room.members), selectinload(Room.agents))
+            .options(
+                selectinload(Room.members).selectinload(RoomMember.user),
+                selectinload(Room.agents),
+            )
         )
         return result.scalar_one()
 
@@ -104,7 +107,10 @@ class RoomService:
         query = (
             Room.active()
             .where(Room.id == room_id)
-            .options(selectinload(Room.members), selectinload(Room.agents))
+            .options(
+                selectinload(Room.members).selectinload(RoomMember.user),
+                selectinload(Room.agents),
+            )
         )
         room = (await self.db.execute(query)).scalar_one_or_none()
         if room is None:
@@ -304,6 +310,7 @@ class RoomService:
                 await self.db.execute(
                     select(RoomMember)
                     .where(RoomMember.room_id == room_id)
+                    .options(selectinload(RoomMember.user))
                     .order_by(RoomMember.joined_at)
                 )
             )

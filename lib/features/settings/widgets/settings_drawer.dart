@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import 'package:garbanzo_ai/core/auth_service.dart';
 import 'package:garbanzo_ai/core/auth_state.dart';
+import 'package:garbanzo_ai/core/widgets/user_avatar.dart';
 import 'package:garbanzo_ai/features/notifications/providers/notification_provider.dart';
 import 'package:garbanzo_ai/features/settings/widgets/drawer_sections/app_settings_section.dart';
 import 'package:garbanzo_ai/features/settings/widgets/drawer_sections/conversation_section.dart';
@@ -101,12 +102,14 @@ class _AccountTile extends StatelessWidget {
     final displayName = (user?.fullName?.isNotEmpty ?? false)
         ? user!.fullName!
         : (user?.email ?? 'Unknown');
-    final initials = _initials(displayName);
 
     return ListTile(
-      leading: CircleAvatar(
+      leading: UserAvatar(
+        profilePictureB64: user?.profilePictureB64,
+        displayName: displayName,
         backgroundColor: colorScheme.primary,
-        child: Text(initials, style: TextStyle(color: colorScheme.onPrimary)),
+        foregroundColor: colorScheme.onPrimary,
+        radius: 20,
       ),
       title: Text(
         displayName,
@@ -118,21 +121,16 @@ class _AccountTile extends StatelessWidget {
         overflow: TextOverflow.ellipsis,
         style: theme.textTheme.bodySmall,
       ),
+      onTap: () {
+        Navigator.of(context).pop();
+        context.push('/settings');
+      },
       trailing: IconButton(
         icon: Icon(Icons.logout, color: colorScheme.error),
         tooltip: 'Sign out',
         onPressed: () => context.read<AuthState>().logout(),
       ),
     );
-  }
-
-  String _initials(String name) {
-    final parts = name.trim().split(RegExp(r'\s+|@'));
-    if (parts.isEmpty || parts.first.isEmpty) return '?';
-    final first = parts.first[0];
-    if (parts.length == 1) return first.toUpperCase();
-    final second = parts[1].isNotEmpty ? parts[1][0] : '';
-    return '$first$second'.toUpperCase();
   }
 }
 

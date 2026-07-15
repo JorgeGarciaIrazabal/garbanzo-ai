@@ -23,6 +23,7 @@ class UserOut(BaseModel):
     is_admin: bool = False
     is_disabled: bool = False
     default_model: str | None = None
+    profile_picture_b64: str | None = None
 
     model_config = {"from_attributes": True}
 

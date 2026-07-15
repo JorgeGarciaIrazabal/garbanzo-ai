@@ -7,6 +7,7 @@ import 'package:garbanzo_ai/core/smart_scroll_controller.dart';
 import 'package:garbanzo_ai/core/widgets/animated_dialog.dart';
 import 'package:garbanzo_ai/core/widgets/fade_slide_in.dart';
 import 'package:garbanzo_ai/core/widgets/skeleton.dart';
+import 'package:garbanzo_ai/core/widgets/user_avatar.dart';
 import 'package:garbanzo_ai/features/chat/models/chat_attachment.dart';
 import 'package:garbanzo_ai/features/chat/widgets/input/attach_menu_button.dart';
 import 'package:garbanzo_ai/features/chat/widgets/input/attachment_preview.dart';
@@ -543,11 +544,14 @@ class _MembersAgentsPanel extends StatelessWidget {
         const SizedBox(height: 4),
         for (final m in room.members)
           ListTile(
-            leading: CircleAvatar(
+            leading: UserAvatar(
+              profilePictureB64: m.profilePictureB64,
+              displayName: m.displayName,
               backgroundColor: provider.onlineUsers.contains(m.userId)
                   ? Colors.green
                   : Colors.grey,
-              child: const Icon(Icons.person, size: 18, color: Colors.white),
+              foregroundColor: Colors.white,
+              radius: 20,
             ),
             title: Text(m.displayName),
             subtitle: Text(_memberSubtitle(m)),

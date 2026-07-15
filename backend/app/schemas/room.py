@@ -96,32 +96,38 @@ class RoomMemberOut(BaseModel):
     # Old clients ignore it; new clients fall back to ``user_id`` (the email)
     # when it is ``None``.
     full_name: str | None = None
+    profile_picture_b64: str | None = None
 
     model_config = {"from_attributes": True}
 
     @classmethod
     def from_model(cls, member: Any) -> "RoomMemberOut":
-        """Build from a ``RoomMember`` ORM row, pulling ``full_name`` from the
-        related ``User`` **only if** that relationship is already loaded.
+        """Build from a ``RoomMember`` ORM row, pulling ``full_name`` and
+        ``profile_picture_b64`` from the related ``User`` **only if** that
+        relationship is already loaded.
 
         The guard avoids triggering a lazy (sync) IO load on an async session
         for call sites that did not eager-load ``RoomMember.user`` — those
         simply serialize ``full_name`` as ``None``.
         """
         full_name: str | None = None
+        profile_picture_b64: str | None = None
         try:
             unloaded = sa_inspect(member).unloaded
         except Exception:  # pragma: no cover - non-ORM input
             unloaded = set()
         if "user" not in unloaded:
             user = getattr(member, "user", None)
-            full_name = getattr(user, "full_name", None) if user is not None else None
+            if user is not None:
+                full_name = getattr(user, "full_name", None)
+                profile_picture_b64 = getattr(user, "profile_picture_b64", None)
         return cls(
             room_id=member.room_id,
             user_id=member.user_id,
             role=member.role,
             joined_at=member.joined_at,
             full_name=full_name,
+            profile_picture_b64=profile_picture_b64,
         )
 
 

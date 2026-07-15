@@ -29,9 +29,11 @@ class UserService:
         full_name: str | None = None,
         email: str | None = None,
         default_model: str | None = None,
+        profile_picture_b64: str | None = None,
         update_full_name: bool = False,
         update_email: bool = False,
         update_default_model: bool = False,
+        update_profile_picture: bool = False,
     ) -> User:
         """Apply a partial update to the authenticated user's profile.
 
@@ -43,6 +45,8 @@ class UserService:
             user.full_name = full_name
         if update_default_model:
             user.default_model = default_model
+        if update_profile_picture:
+            user.profile_picture_b64 = profile_picture_b64
         if update_email and email is not None and email != user.email:
             user.email = email
         await self.db.flush()

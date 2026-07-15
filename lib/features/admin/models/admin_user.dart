@@ -5,6 +5,7 @@ class AdminUser {
   final DateTime? createdAt;
   final bool isAdmin;
   final bool isDisabled;
+  final String? profilePictureB64;
 
   const AdminUser({
     required this.email,
@@ -12,6 +13,7 @@ class AdminUser {
     this.createdAt,
     this.isAdmin = false,
     this.isDisabled = false,
+    this.profilePictureB64,
   });
 
   factory AdminUser.fromJson(Map<String, dynamic> json) {
@@ -26,6 +28,7 @@ class AdminUser {
       createdAt: parsed,
       isAdmin: json['is_admin'] as bool? ?? false,
       isDisabled: json['is_disabled'] as bool? ?? false,
+      profilePictureB64: json['profile_picture_b64'] as String?,
     );
   }
 
@@ -35,6 +38,7 @@ class AdminUser {
     DateTime? createdAt,
     bool? isAdmin,
     bool? isDisabled,
+    String? profilePictureB64,
   }) {
     return AdminUser(
       email: email ?? this.email,
@@ -42,6 +46,7 @@ class AdminUser {
       createdAt: createdAt ?? this.createdAt,
       isAdmin: isAdmin ?? this.isAdmin,
       isDisabled: isDisabled ?? this.isDisabled,
+      profilePictureB64: profilePictureB64 ?? this.profilePictureB64,
     );
   }
 }
