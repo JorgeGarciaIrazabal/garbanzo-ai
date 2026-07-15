@@ -26,8 +26,8 @@ enum VadEvent {
 /// real clock or microphone.
 class TalkVad {
   TalkVad({
-    this.startMarginDb = 12,
-    this.endMarginDb = 7,
+    this.startMarginDb = 7,
+    this.endMarginDb = 4,
     this.silenceDuration = const Duration(milliseconds: 900),
     this.minSpeechDuration = const Duration(milliseconds: 300),
     double initialNoiseFloorDb = -50,

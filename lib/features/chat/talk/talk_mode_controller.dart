@@ -63,10 +63,11 @@ class TalkModeController extends ChangeNotifier {
   /// user talks over the AI. Tap-to-interrupt works regardless.
   final bool _voiceBargeIn;
 
-  // Barge-in echo guard: only interrupt after several consecutive loud samples
-  // above a high threshold, so the AI's own playback doesn't self-trigger.
-  // Thresholds are conservative and want on-device tuning.
-  static const double _bargeThresholdDb = -22;
+  // Barge-in: interrupt when the user talks over the AI. The threshold is
+  // relative to the learned ambient floor (like speech detection) but with a
+  // wider margin so the AI's own playback echo doesn't self-trigger — the user
+  // has to speak up over the AI. Requires several consecutive loud samples.
+  static const double _bargeMarginDb = 14;
   static const int _bargeSustainSamples = 3; // ~300 ms at a 100 ms interval
   int _bargeLoud = 0;
 
@@ -186,9 +187,10 @@ class TalkModeController extends ChangeNotifier {
     }
   }
 
-  /// Interrupt the AI once the user has been loud for a sustained stretch.
+  /// Interrupt the AI once the user has been loud for a sustained stretch,
+  /// measured relative to the ambient floor the VAD learned while listening.
   void _detectBargeIn(double db) {
-    if (db > _bargeThresholdDb) {
+    if (db > _vad.noiseFloorDb + _bargeMarginDb) {
       if (++_bargeLoud >= _bargeSustainSamples) {
         _bargeLoud = 0;
         unawaited(_interrupt());
