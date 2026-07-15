@@ -4,6 +4,12 @@
 #
 # Builds from a pristine temporary git worktree of main, so it can run from
 # any branch with a dirty tree. Safe to re-run; data lives in named volumes.
+#
+# After a successful deploy, bumps the patch version in pubspec.yaml, commits
+# the bump on main, creates an annotated tag v<version> (with the ngrok URL in
+# the tag message so CI can extract it), and pushes both to origin. The tag
+# push triggers the GitHub Actions workflow that builds Linux + Windows desktop
+# binaries and attaches them to a GitHub Release.
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -35,6 +41,10 @@ done
 
 SHA=$(git -C "$REPO" rev-parse --short main)
 BUILD_NUMBER=$(git -C "$REPO" rev-list --count main)  # monotonic Android versionCode
+
+# Current version from pubspec.yaml (e.g. "1.0.0+1" → "1.0.0")
+CURRENT_VERSION=$(grep '^version:' "$REPO/pubspec.yaml" | sed 's/version: *//' | cut -d+ -f1)
+[[ -n "$CURRENT_VERSION" ]] || die "could not parse version from pubspec.yaml"
 
 # --- Pristine snapshot of main ------------------------------------------------
 WT=$(mktemp -d "${TMPDIR:-/tmp}/garbanzo-deploy.XXXXXX")
@@ -99,3 +109,41 @@ echo "  Web:    https://$NGROK_DOMAIN"
 echo "  APK:    dist/garbanzo-ai-$SHA.apk   (adb install -r dist/garbanzo-ai-$SHA.apk)"
 echo "  Image:  garbanzo-backend:$SHA"
 echo "  Status: just deploy-status"
+
+# --- Tag & version bump -------------------------------------------------------
+# Bump the patch version, commit on main, create an annotated tag, and push.
+# The tag push triggers the GitHub Actions workflow that builds the desktop apps.
+step "Bumping version and creating release tag"
+
+bump_patch() {
+    # Bump the last digit of a semver string (1.2.3 → 1.2.4)
+    local v="$1"
+    local major minor patch
+    IFS='.' read -r major minor patch <<< "$v"
+    patch=$((patch + 1))
+    echo "${major}.${minor}.${patch}"
+}
+
+NEW_VERSION=$(bump_patch "$CURRENT_VERSION")
+# Update pubspec.yaml: keep the existing +build suffix (or add +1 if none)
+BUILD_SUFFIX=$(grep '^version:' "$REPO/pubspec.yaml" | sed 's/version: *//' | cut -d+ -f2)
+[[ -n "$BUILD_SUFFIX" ]] || BUILD_SUFFIX="1"
+sed -i "s/^version:.*/version: ${NEW_VERSION}+${BUILD_SUFFIX}/" "$REPO/pubspec.yaml"
+
+git -C "$REPO" add pubspec.yaml
+git -C "$REPO" commit -m "chore: bump version to ${NEW_VERSION}" >/dev/null
+
+# Create an annotated tag. The tag message includes the ngrok URL on a line
+# prefixed with "API_URL: " so the CI workflow can extract it.
+git -C "$REPO" tag -a "v${NEW_VERSION}" -m "Release v${NEW_VERSION}" -m "API_URL: https://${NGROK_DOMAIN}"
+
+step "Pushing main + tag v${NEW_VERSION} to origin"
+git -C "$REPO" push origin main
+git -C "$REPO" push origin "v${NEW_VERSION}"
+
+echo ""
+echo "Release tag v${NEW_VERSION} pushed."
+echo "  Desktop builds: GitHub Actions will build Linux + Windows binaries and"
+echo "  attach them to a GitHub Release."
+echo "  CI:     https://github.com/JorgeGarciaIrazabal/garbanzo-ai/actions"
+echo "  Release: https://github.com/JorgeGarciaIrazabal/garbanzo-ai/releases/tag/v${NEW_VERSION}"

@@ -84,6 +84,14 @@ One command ships web + backend + Android simultaneously — see `deploy/README.
 3. `docker compose up -d` on `deploy/docker-compose.yml` (project `garbanzo-prod`, env from gitignored `deploy/.env`).
 4. Waits for local health (`127.0.0.1:8001`) and public health (`https://$NGROK_DOMAIN`).
 5. Builds the APK with the ngrok URL baked in and versionCode = `git rev-list --count main` → `dist/garbanzo-ai-<sha>.apk`.
+6. Bumps the patch version in `pubspec.yaml`, commits the bump on `main`, creates an annotated tag `v<version>` (with `API_URL: https://<ngrok-domain>` in the tag message), and pushes both to `origin`.
+
+### Desktop Builds via GitHub Actions (`.github/workflows/build-desktop-apps.yml`)
+- Triggered automatically when a `v*` tag is pushed (by `just deploy`).
+- Builds **Linux** desktop (`.tar.gz`) on `ubuntu-latest` and **Windows** desktop (`.zip`) on `windows-latest` in parallel.
+- Both binaries are baked with `--dart-define=API_BASE_URL` extracted from the tag annotation — no secrets in the repo or CI.
+- Creates a GitHub Release with both binaries attached and auto-generated release notes.
+- No Android APK, Firebase credentials, or `google-services.json` involved — those stay local-only.
 
 ### Prod stack (`deploy/docker-compose.yml`, project `garbanzo-prod`)
 - **postgres** (pgvector, own volume, no host port) + **ollama** (`ollama/ollama`, own `ollama_data` volume, no host port — fully containerized, not the host Ollama install) + **backend** (image `garbanzo-backend`, 127.0.0.1:8001 for smoke tests) + **ngrok** (`ngrok/ngrok` container tunneling the static domain to `backend:8000`, auto-restarting).
