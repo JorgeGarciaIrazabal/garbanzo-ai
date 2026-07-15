@@ -36,10 +36,12 @@ class _SpeakButtonState extends State<SpeakButton> {
   @override
   void didUpdateWidget(SpeakButton old) {
     super.didUpdateWidget(old);
-    // Auto-play: when streaming transitions from true → false
+    // Auto-play: when streaming transitions from true → false. Suppressed while
+    // Talk Mode is open — it speaks the reply itself, and a second playback here
+    // would overlap the same text offset by the streaming lead.
     if (old.isStreaming && !widget.isStreaming && widget.content.isNotEmpty) {
       final settings = context.read<SettingsProvider>();
-      if (settings.autoPlayTts) {
+      if (settings.autoPlayTts && !settings.talkModeActive) {
         _speak();
       }
     }

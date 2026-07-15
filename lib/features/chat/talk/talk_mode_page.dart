@@ -44,6 +44,9 @@ class _TalkModePageState extends State<TalkModePage> {
       chat: widget.chat,
       settings: widget.settings,
     );
+    // Talk Mode owns TTS playback; suppress the chat's per-message auto-play so
+    // replies aren't spoken twice (overlapping) while this call is open.
+    widget.settings.talkModeActive = true;
     // Keep the screen awake for the duration of the call. Ignore failures on
     // platforms where the plugin isn't available.
     WakelockPlus.enable().ignore();
@@ -51,6 +54,7 @@ class _TalkModePageState extends State<TalkModePage> {
 
   @override
   void dispose() {
+    widget.settings.talkModeActive = false;
     WakelockPlus.disable().ignore();
     _controller.dispose();
     super.dispose();

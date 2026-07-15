@@ -38,6 +38,13 @@ class SettingsProvider extends ChangeNotifier {
   bool _onboardingDismissed = false;
   bool _loaded = false;
 
+  /// True while the full-screen Talk Mode call is open. Transient (not
+  /// persisted, doesn't notify). Talk Mode speaks replies itself
+  /// sentence-by-sentence, so the per-message auto-play must stand down while
+  /// this is set — otherwise the same reply plays twice, offset (see
+  /// `SpeakButton` auto-play).
+  bool talkModeActive = false;
+
   String get ttsVoice => _ttsVoice;
   double get ttsSpeed => _ttsSpeed;
   bool get autoPlayTts => _autoPlayTts;
