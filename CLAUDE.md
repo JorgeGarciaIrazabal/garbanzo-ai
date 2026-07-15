@@ -151,9 +151,11 @@ services/      chat_service.py (turn orchestration + tool loop)
                agent_turn.py (shared single-agent turn logic)
                scheduled_action_service.py, usage_service.py, token_counter.py
                model_management_service.py (admin model visibility)
-               microapp_workspace.py, microapp_agent.py, microapp_chat_tool.py,
-               microapp_registry.py (opencode-driven micro-apps workspace)
-               fcm_service.py, device_service.py, notification_service.py
+                microapp_workspace.py, microapp_agent.py, microapp_chat_tool.py,
+                microapp_registry.py (opencode-driven micro-apps workspace)
+                native_tools.py (in-process chat tools: scheduled actions,
+                memories, notifications — no MCP server needed)
+                fcm_service.py, device_service.py, notification_service.py
                image_utils.py (image attachment resize/encoding)
 db/            base.py, session.py (AsyncSession, init_db), migrations.py
 jobs/          extract_memories_job.py (daily at 2 AM)
@@ -341,7 +343,7 @@ On client disconnect mid-stream, the backend accumulates content and sends an FC
 - `Conversation.use_knowledge_base` (boolean) controls whether KB chunks are injected.
 - `Conversation.is_pinned` (boolean) surfaces conversations in the sidebar.
 - `Conversation.context_summary` stores a rolling summary to save context-window space.
-- `Conversation.enabled_tools` (JSONB) stores per-conversation MCP tool whitelists: `null` = all enabled, `[]` = none, `["srv:tool"]` = subset.
+- `Conversation.enabled_tools` (JSONB) stores per-conversation tool whitelists: `null` = all enabled (MCP + native), `[]` = none, `["srv:tool"]` = subset. Native garbo tools use key `"__garbo__:<tool_name>"` (e.g. `"__garbo__:scheduled_actions"`).
 - `Message.meta` is JSONB and stores token counts, generation timing, thinking block content.
 - `Message.role` can be: `user`, `assistant`, `system`, `tool_call`, `tool_result`.
 - `UserMemory` stores extracted/manual user memories with `content`, `source_conversation_id`, `is_active`.

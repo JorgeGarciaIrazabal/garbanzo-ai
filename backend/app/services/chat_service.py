@@ -41,6 +41,12 @@ from app.services.microapp_chat_tool import (
     run_micro_app,
 )
 from app.services.microapp_workspace import manager as microapp_manager
+from app.services.native_tools import (
+    NATIVE_GARBO_SERVER_ID,
+    execute_native_tool,
+    native_tool_descriptors,
+    native_tool_lookup,
+)
 from app.services.system_prompt_service import SystemPromptService
 from app.services.token_counter import get_token_counter
 
@@ -513,6 +519,25 @@ class ChatService:
             if descriptor is not None:
                 ollama_tools.append(descriptor)
                 lookup[MICRO_APP_TOOL] = (NATIVE_SERVER_ID, "micro-app")
+
+        # Native garbo tools (scheduled actions, memories, notifications) are
+        # always available so the model can manage the user's data without the
+        # user leaving the conversation. They run in-process — no MCP server
+        # or admin registration needed, working identically in dev and prod.
+        all_native_descs = native_tool_descriptors()
+        if enabled is None:
+            for desc in all_native_descs:
+                ollama_tools.append(desc)
+            lookup.update(native_tool_lookup())
+        else:
+            allowed = set(enabled)
+            for desc in all_native_descs:
+                tool_name = desc["function"]["name"]
+                key = f"{NATIVE_GARBO_SERVER_ID}:{tool_name}"
+                if key in allowed:
+                    ollama_tools.append(desc)
+                    lookup[tool_name] = (NATIVE_GARBO_SERVER_ID, tool_name)
+
         return ollama_tools, lookup
 
     async def _execute_tool_call(
@@ -549,6 +574,8 @@ class ChatService:
         server_id, tool_name = target
         if server_id == NATIVE_SERVER_ID:
             return await self._execute_native_tool(name, args, conversation, emit)
+        if server_id == NATIVE_GARBO_SERVER_ID:
+            return await self._execute_garbo_tool(tool_name, args, conversation)
         try:
             return await self._mcp.call_tool(server_id, tool_name, args)
         except Exception as exc:
@@ -584,6 +611,33 @@ class ChatService:
         )
         if conv_id and result.get("app"):
             self._active_target[conv_id] = (result.get("app"), result.get("file"))
+        return result
+
+    async def _execute_garbo_tool(self, name: str, args: dict, conversation) -> dict:
+        """Dispatch a native garbo tool (scheduled actions, memories, notifications).
+
+        These tools operate on the calling user's own data — ``conversation.user_id``
+        is the user identity — and share the turn's ``AsyncSession`` for the DB
+        writes.  The ``commit`` happens naturally at the next sink commit, but
+        for create/update/delete operations we commit eagerly so the data is
+        durable even if the turn is cancelled or errors out later.
+        """
+        user_email = getattr(conversation, "user_id", None)
+        if not user_email:
+            return {"ok": False, "error": "No user for this tool."}
+        result = await execute_native_tool(
+            name=name,
+            args=args,
+            db=self.db,
+            user_id=user_email,
+        )
+        # Eagerly commit writes so they survive a turn rollback/cancel.
+        if result.get("ok"):
+            try:
+                await self.db.commit()
+            except Exception:
+                logger.exception("Commit after native tool '%s' failed", name)
+                await self.db.rollback()
         return result
 
     async def list_available_models(self) -> list[ModelInfo]:
