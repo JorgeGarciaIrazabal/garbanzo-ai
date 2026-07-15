@@ -60,7 +60,7 @@ launch_app(device_id: "linux")   → returns { dtd_uri, vm_service_uri, pid }
 ```
 The `vm_service_uri` is returned directly and used as-is for Marionette.
 
-> **Note:** The debug default URL in `api_client.dart` is `http://127.0.0.1:8000`. On Android this routes through the ADB reverse tunnel to the host. On Linux it hits the host directly. Chrome (`-d chrome`) is not supported for E2E tests.
+> **Note:** The debug default URL in `api_client.dart` is `http://127.0.0.1:8000`. On Android this routes through the ADB reverse tunnel to the host. On Linux it hits the host directly. Chrome (`-d chrome`) is not supported for E2E tests. If a fixed-port web server is needed (e.g. browser-based smoke checks outside Marionette), use `just fe-run-test-server`.
 
 ## Step 3 — Connect Marionette
 

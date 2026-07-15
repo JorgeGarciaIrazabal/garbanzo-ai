@@ -1,108 +1,44 @@
 ---
 name: project-overview
-description: Project structure and development conventions for Garbanzo AI
+description: Quick orientation for Garbanzo AI — what the project is, where things live, and which doc to read for detail. Use when starting work in an unfamiliar area or when unsure where code or documentation belongs.
 ---
 
 # Garbanzo AI — Project Overview
 
-## Stack
+Self-hosted AI chat app: async **FastAPI** backend (SQLAlchemy/AsyncPG +
+PostgreSQL/pgvector, JWT auth, SSE streaming, Ollama LLMs, in-process Kokoro
+TTS + Faster Whisper STT) and a **Flutter** frontend (web/desktop/Android,
+Provider + Freezed). Features: chat with tools (MCP + native), user memories,
+knowledge base (RAG), multi-agent rooms (WebSocket), scheduled actions, FCM
+push notifications, micro-apps workspace, Talk Mode.
 
-| Layer | Technology |
-|-------|-----------|
-| Frontend | Flutter (web + desktop) |
-| Backend | FastAPI (Python), SQLAlchemy, PostgreSQL |
-| Package manager (BE) | `uv` |
-| Task runner | `just` (justfile) |
-| Dev database | Docker Compose (PostgreSQL) |
+## Ground rules
 
-## Directory Layout
+- All dev tasks go through `just` — never `flutter`, `uv`, `pytest`, `uvicorn`,
+  or `docker compose` directly. `just` with no args lists every recipe.
+- PostgreSQL runs only via Docker (`just docker-up-db`).
+- `just check` before committing.
 
-```
-garbanzo_ai/
-├── lib/                              # Flutter app
-│   ├── main.dart                     # App entry, AuthGate
-│   ├── core/
-│   │   ├── api_client.dart           # Centralized HTTP client (get/post/patch/delete/send)
-│   │   ├── auth_service.dart         # Register, login, logout, token management
-│   │   └── widgets/
-│   │       └── auth_form_layout.dart # Shared auth form scaffold, error banner, submit button
-│   ├── pages/
-│   │   ├── login_page.dart
-│   │   └── register_page.dart
-│   └── features/
-│       └── chat/
-│           ├── models/
-│           │   ├── chat_message.dart      # ChatMessage, ChatResponseChunk
-│           │   ├── conversation.dart      # Conversation, ConversationList
-│           │   └── model_info.dart        # ModelInfo, ModelList
-│           ├── providers/
-│           │   ├── chat_provider.dart     # Conversation + message state
-│           │   └── model_provider.dart    # LLM model selection state
-│           ├── services/
-│           │   └── chat_service.dart      # HTTP calls (via ApiClient)
-│           └── widgets/
-│               ├── chat_page.dart             # Main page (wires providers)
-│               ├── chat_input_widget.dart     # Text input + send/stop
-│               ├── chat_message_widget.dart   # Single message bubble
-│               ├── conversation_list_widget.dart # Sidebar list
-│               ├── empty_chat_state.dart      # Empty state + suggestions
-│               ├── mobile_drawer.dart         # Bottom-sheet conversation list
-│               └── model_selector_widget.dart # Model dropdown
-├── integration_test/                 # Flutter E2E tests (desktop only)
-├── backend/                          # FastAPI app
-│   └── app/
-│       ├── main.py
-│       ├── core/
-│       │   ├── config.py             # Settings (DB, CORS, LLM provider)
-│       │   └── security.py           # JWT, password hashing
-│       ├── api/v1/endpoints/
-│       │   ├── auth.py               # Register, login, /me
-│       │   ├── chat.py               # Conversation CRUD, streaming, models
-│       │   └── health.py
-│       ├── models/                   # SQLAlchemy ORM
-│       │   ├── user.py
-│       │   ├── conversation.py
-│       │   └── message.py
-│       ├── schemas/                  # Pydantic request/response
-│       │   ├── auth.py
-│       │   ├── user.py
-│       │   └── chat.py
-│       └── services/
-│           ├── user_service.py           # User lookup/creation
-│           ├── conversation_service.py   # Conversation CRUD
-│           ├── chat_service.py           # Messaging + LLM streaming
-│           ├── llm_provider.py           # Abstract LLM provider + registry
-│           └── ollama_provider.py        # Ollama implementation
-├── justfile                          # All dev commands
-└── docker-compose.yml                # PostgreSQL
-```
+## Where things live
 
-## Common Commands
+- `backend/app/` — endpoints (`api/v1/endpoints/`), ORM (`models/`), Pydantic
+  I/O (`schemas/`), business logic (`services/`), SQL migrations
+  (`backend/migrations/NNN_*.sql`, idempotent, auto-applied at startup).
+- `lib/features/<feature>/` — `models/`, `providers/`, `services/`, `widgets/`,
+  `pages/` per feature; cross-feature singletons in `lib/core/`.
+- `deploy/` — prod Docker Compose stack + ops guide.
 
-> Always use `just` commands — never run `flutter`, `uvicorn`, `uv`, or `docker compose` directly.
+## Where to read more
 
-```bash
-just be-dev              # Start FastAPI with hot-reload (port 8000)
-just fe-run              # Run Flutter on Linux desktop (default)
-just fe-run-chrome       # Run Flutter on Chrome
-just fe-run-test-server  # Run Flutter web-server on port 8080 (for MCP E2E)
-just docker-up           # Start PostgreSQL via Docker
-just fe-lint             # flutter analyze
-just be-lint             # ruff check backend/
-just fe-test             # flutter test (unit/widget)
-just be-test             # pytest
-just                     # list all available recipes
-```
+| Topic | File |
+|-------|------|
+| Backend conventions & gotchas | `backend/CLAUDE.md` |
+| Frontend conventions & gotchas | `lib/CLAUDE.md` |
+| Deployment ops | `deploy/CLAUDE.md`, `deploy/README.md` |
+| Full architecture, layouts, chat/SSE flow, rooms | `docs/architecture.md` |
+| API endpoint table | `docs/api.md` |
+| DB models & migrations | `docs/database.md` |
+| Env vars | `docs/environment.md` |
 
-## Auth Flow
-
-1. Register: `POST /api/v1/auth/register`
-2. Login: `POST /api/v1/auth/login` → returns JWT
-3. JWT stored in `SharedPreferences` via `ApiClient`
-4. Authenticated requests send `Authorization: Bearer <token>`
-
-## Flutter Web Quirks
-
-- In debug mode the app targets `http://localhost:8000` for all API calls (see `lib/core/api_client.dart`).
-- Override with `--dart-define=API_BASE_URL=https://...`.
-- Flutter renders into a `<flutter-view>` shadow DOM — standard CSS/JS selectors don't reach widgets.
+Keep these docs current as you work — the policy is in root `CLAUDE.md`
+("Maintaining agent docs").

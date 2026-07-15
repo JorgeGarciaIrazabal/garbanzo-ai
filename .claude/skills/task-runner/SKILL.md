@@ -87,7 +87,7 @@ Constraints from CLAUDE.md:
 ```
 
 ### For backend-only tasks (DB models, endpoints, services):
-Implement directly, following the backend layout in `CLAUDE.md`:
+Implement directly, following `backend/CLAUDE.md` (full layout: `docs/architecture.md`):
 - DB models in `backend/app/models/`
 - Pydantic schemas in `backend/app/schemas/`
 - Business logic in `backend/app/services/`
@@ -96,7 +96,7 @@ Implement directly, following the backend layout in `CLAUDE.md`:
 - Run `just be-lint` and `just be-test` when done
 
 ### For frontend-only tasks (UI, widgets, rendering):
-Implement directly, following the frontend layout in `CLAUDE.md`:
+Implement directly, following `lib/CLAUDE.md` (full layout: `docs/architecture.md`):
 - New features under `lib/features/<feature>/`
 - New pages under `lib/pages/`
 - State via ChangeNotifier providers

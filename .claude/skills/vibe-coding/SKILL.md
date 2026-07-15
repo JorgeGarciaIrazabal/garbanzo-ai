@@ -65,20 +65,27 @@ The goal is not to refactor the whole project after every task. It's to fix what
 
 ## AGENTS.md / CLAUDE.md
 
-`CLAUDE.md` is the project's single source of truth. The root `AGENTS.md` is a symlink to it (`AGENTS.md → CLAUDE.md`). Both names resolve to the same content, so agents that look for either filename find the same reference.
+Agent docs are layered for progressive disclosure — nothing big loads into every session:
 
-### Keeping CLAUDE.md Current
+- **Root `CLAUDE.md`** — lean entry point: critical rules, essential commands, documentation map, doc-maintenance policy. Loads into every session, so it stays ~120 lines.
+- **Scoped `backend/CLAUDE.md`, `lib/CLAUDE.md`, `deploy/CLAUDE.md`** — package-local conventions, gotchas, where code goes. Auto-loaded only when working in that directory.
+- **`docs/architecture.md`, `docs/api.md`, `docs/database.md`, `docs/environment.md`** — detailed reference, read on demand when the task needs it.
 
-CLAUDE.md documents: stack, architecture, all `just` commands, backend layout, frontend layout, API endpoint reference, database notes, auth/storage/streaming patterns, environment variables, deployment, and testing strategy.
+Every `CLAUDE.md` has an `AGENTS.md → CLAUDE.md` symlink beside it so Claude Code, opencode, Cursor, etc. all read the same file.
 
-When you change the project, update the corresponding section:
-- New endpoint → API table
-- New model/service → directory layout
-- New `just` recipe → commands section
-- New env var → env var list
-- Architecture change → architecture section
+### Keeping the Docs Current
 
-Keep it concise. It's a reference for a smart agent, not a tutorial. A few lines in the right table are worth more than paragraphs of prose. Remove things that no longer exist.
+When you change the project, update the **owning file** in the same commit:
+- New/changed endpoint → `docs/api.md`
+- New model/column with non-obvious semantics → `docs/database.md`
+- New env var → `docs/environment.md` (+ `deploy/.env.example` if prod)
+- Service/provider/flow/layout change → `docs/architecture.md`
+- Package convention or gotcha → that package's `CLAUDE.md`
+- New essential command → root `CLAUDE.md` commands block
+
+**If the docs misled you** — a wrong assumption, missing context you had to dig for, a recurring mistake — fix the doc where the next agent would look. That correction is part of the task, not optional polish.
+
+Keep it concise. It's a reference for a smart agent, not a tutorial. A few lines in the right table are worth more than paragraphs of prose. Remove things that no longer exist. Never grow the root file with detail that belongs in a scoped file or `docs/`.
 
 ### Package-Level AGENTS.md
 

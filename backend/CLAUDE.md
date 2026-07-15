@@ -1,9 +1,10 @@
 # Backend — Agent Context
 
-Async FastAPI backend (SQLAlchemy/AsyncPG + PostgreSQL/pgvector, JWT auth). The
-root `../CLAUDE.md` has the full architecture, API endpoint table, and DB model
-notes — read it for cross-stack context. This file is the package-local quick
-reference.
+Async FastAPI backend (SQLAlchemy/AsyncPG + PostgreSQL/pgvector, JWT auth).
+This file is the package-local quick reference. Detailed reference is read on
+demand: `../docs/architecture.md` (layout, flows, startup), `../docs/api.md`
+(endpoint table), `../docs/database.md` (model notes), `../docs/environment.md`
+(env vars).
 
 ## Commands (always via `just`, never `uv`/`pytest`/`uvicorn` directly)
 

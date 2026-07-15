@@ -19,6 +19,17 @@ it for procedures. This file is the agent quick reference.
   volume), **ngrok** (tunnels the static domain to `backend:8000`).
 - `.env` (gitignored) — all prod secrets. `.env.example` documents the keys.
 
+## Deploy side effects
+
+- `just deploy` builds from a snapshot of **local `main`** (works from any
+  branch with a dirty tree), then bumps the patch version in `pubspec.yaml`,
+  commits that bump on `main`, tags `v<version>` (tag message carries
+  `API_URL: https://<ngrok-domain>`), and **pushes both to `origin`**.
+- The pushed `v*` tag triggers `.github/workflows/build-desktop-apps.yml`:
+  Linux `.tar.gz` + Windows `.zip` baked with `--dart-define=API_BASE_URL`
+  from the tag annotation, attached to a GitHub Release. No APK/Firebase in
+  CI — Android stays local (`dist/garbanzo-ai-<sha>.apk`).
+
 ## Gotchas
 
 - Never commit `.env`; edit `.env.example` when adding a key.

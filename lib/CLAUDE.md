@@ -1,9 +1,9 @@
 # Frontend — Agent Context
 
 Flutter client (web/desktop/Android) with Provider state management and Freezed
-data classes. The root `../CLAUDE.md` has the full architecture, chat/SSE flow,
-and provider map — read it for cross-stack context. This file is the
-package-local quick reference.
+data classes. This file is the package-local quick reference. Detailed
+reference is read on demand: `../docs/architecture.md` (frontend layout,
+provider map, chat/SSE flow, rooms WebSocket) and `../docs/api.md` (endpoints).
 
 ## Commands (always via `just`, never `flutter`/`dart` directly)
 
