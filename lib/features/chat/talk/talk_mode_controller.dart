@@ -38,15 +38,19 @@ enum TalkPhase {
 ///
 /// Flow once a call is started (first tap): listen → VAD detects the user
 /// stopped → transcribe → send → speak the reply → loop back to listening.
-/// A tap interrupts the current phase and the ✕ button ends the call. When
-/// [_voiceBargeIn] is on, the mic stays open during the reply and sustained
-/// user speech auto-interrupts the AI (with an echo guard); tap-to-interrupt
-/// is always available as the guaranteed fallback.
+/// A tap interrupts the current phase and the ✕ button ends the call.
+///
+/// [voiceBargeIn] (auto-interrupt by talking over the AI) is **off by
+/// default**: with speakers, the mic hears the AI's own playback, and without
+/// acoustic echo cancellation no energy threshold can reliably tell "the AI is
+/// loud" from "the user is talking over it" — so it self-interrupts. It can be
+/// enabled where there's no echo (e.g. headphones). Tap-to-interrupt always
+/// works regardless.
 class TalkModeController extends ChangeNotifier {
   TalkModeController({
     required ChatProvider chat,
     required SettingsProvider settings,
-    bool voiceBargeIn = true,
+    bool voiceBargeIn = false,
   }) : _chat = chat,
        _settings = settings,
        _voiceBargeIn = voiceBargeIn {

@@ -166,12 +166,12 @@ enabled only when a chat conversation is active. Opens `TalkModePage` as a full-
    listening; the phase loops listen → speak → listen until the ✕ ends the call.
    *Caveat: Linux amplitude via `parecord` is less battle-tested — tap-to-send remains
    the guaranteed fallback, and on-device threshold tuning is still pending.*
-4. ✅ **Interruption:** tap barge-in (tap during speaking → back to listening) plus
-   automatic **voice** barge-in — the mic stays open during the reply and sustained
-   loud speech (≥3 samples above −22 dBFS, an echo guard so the AI's own audio doesn't
-   self-trigger) stops the AI and starts a fresh clean capture. Behind a `voiceBargeIn`
-   flag (default on); tap remains the guaranteed fallback. *Needs on-device validation:
-   record-while-playing behaviour and echo thresholds vary by platform.*
+4. ✅ **Interruption:** tap barge-in (tap during speaking → back to listening) always
+   works. Automatic **voice** barge-in is implemented behind a `voiceBargeIn` flag but
+   **defaults off**: over speakers the mic hears the AI's own playback, and without
+   acoustic echo cancellation no energy threshold separates "AI is loud" from "user is
+   talking over it" — so it self-interrupts. Enable it only where there's no echo
+   (headphones), or revisit with AEC.
 5. ✅ **Polish:** live level-reactive orb (phase 3), wake lock (`wakelock_plus`, keeps the
    screen on during a call), mute toggle (parks the loop in listening with the mic closed),
    and tap-to-retry error UX. *(Remaining nice-to-have: waveform-bars visualizer variant.)*
