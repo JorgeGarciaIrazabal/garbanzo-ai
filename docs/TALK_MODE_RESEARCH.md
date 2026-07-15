@@ -175,8 +175,13 @@ enabled only when a chat conversation is active. Opens `TalkModePage` as a full-
 5. ✅ **Polish:** live level-reactive orb (phase 3), wake lock (`wakelock_plus`, keeps the
    screen on during a call), mute toggle (parks the loop in listening with the mic closed),
    and tap-to-retry error UX. *(Remaining nice-to-have: waveform-bars visualizer variant.)*
-6. ✅ **Desktop:** folded into phase 3 — `TalkRecorder` uses the `record` package
-   (parecord on Linux) on every platform, so there's no separate desktop path.
+6. ✅ **Desktop (Linux):** `TalkRecorder` streams raw PCM from `arecord -D default`
+   and computes RMS→dBFS itself for VAD (the `record` package needs PulseAudio's
+   `parecord`, which isn't always installed). **Use the ALSA `default` device**, not a
+   specific `plughw:card` — on PipeWire, opening a hardware card directly fails with
+   "Device or resource busy", and card auto-detection can grab a dead/floating input.
+   `default` routes to the user's configured mic and shares the device. Verified E2E on
+   Linux: capture → STT → LLM → sentence-streamed TTS, mute, and teardown all work.
 
 ---
 
