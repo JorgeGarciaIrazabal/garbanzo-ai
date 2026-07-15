@@ -62,32 +62,50 @@ class TalkTtsQueue {
     if (!_draining) unawaited(_drain());
   }
 
+  Future<Uint8List> _synthesize(String chunk) => AudioService.instance.speak(
+    chunk,
+    voice: voice,
+    speed: speed,
+    // WAV avoids MP3 encoder priming that clips the first word on playback.
+    format: 'wav',
+  );
+
   Future<void> _drain() async {
     _draining = true;
+    // Keep one sentence synthesizing while the previous one plays, so there's
+    // no audible gap waiting on the TTS round-trip between sentences.
+    Future<Uint8List>? prefetched;
     try {
-      while (_pending.isNotEmpty && !_stopped) {
-        final chunk = _pending.removeAt(0);
-        final audioBytes = await AudioService.instance.speak(
-          chunk,
-          voice: voice,
-          speed: speed,
-        );
+      while (!_stopped) {
+        final current =
+            prefetched ??
+            (_pending.isNotEmpty ? _synthesize(_pending.removeAt(0)) : null);
+        if (current == null) break;
+        prefetched = _pending.isNotEmpty && !_stopped
+            ? _synthesize(_pending.removeAt(0))
+            : null;
+
+        final audioBytes = await current;
         if (_stopped) break;
-
-        unawaited(_player?.dispose());
-        _player = AudioPlayer();
-
-        final completer = Completer<void>();
-        _player!.onPlayerComplete.listen((_) {
-          if (!completer.isCompleted) completer.complete();
-        });
-        await _player!.play(BytesSource(audioBytes));
-        await completer.future;
+        await _playChunk(audioBytes);
       }
     } finally {
       _draining = false;
       if (!_stopped && _pending.isEmpty) onComplete?.call();
     }
+  }
+
+  Future<void> _playChunk(Uint8List audioBytes) async {
+    // Fresh player per chunk — reusing one for sequential play() is unreliable
+    // across platforms (matches speak_button).
+    unawaited(_player?.dispose());
+    _player = AudioPlayer();
+    final completer = Completer<void>();
+    _player!.onPlayerComplete.listen((_) {
+      if (!completer.isCompleted) completer.complete();
+    });
+    await _player!.play(BytesSource(audioBytes));
+    await completer.future;
   }
 
   /// Stop playback and clear the queue. The instance can be reused after

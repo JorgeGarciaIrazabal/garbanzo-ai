@@ -44,10 +44,14 @@ class AudioService {
   }
 
   /// Synthesize text to speech audio bytes (non-streaming).
+  ///
+  /// [format] selects the container: `mp3` (default, smaller) or `wav`
+  /// (lossless, no encoder priming — avoids a clipped first word on playback).
   Future<Uint8List> speak(
     String text, {
     String voice = 'af_heart',
     double speed = 1.0,
+    String format = 'mp3',
   }) async {
     final response = await _api.postBytes(
       '/api/v1/tts/speak',
@@ -55,7 +59,7 @@ class AudioService {
         'text': text,
         'voice': voice,
         'speed': speed,
-        'response_format': 'mp3',
+        'response_format': format,
       },
       receiveTimeout: const Duration(minutes: 3),
     );
