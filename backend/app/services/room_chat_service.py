@@ -21,6 +21,7 @@ import logging
 import re
 import uuid
 from dataclasses import dataclass
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -62,6 +63,21 @@ logger = logging.getLogger(__name__)
 
 
 _MENTION_PATTERN = re.compile(r"@([A-Za-z0-9_\-]+|all)", re.IGNORECASE)
+
+
+def _is_muted(muted_until: datetime | None, now: datetime) -> bool:
+    """Whether a ``RoomMember.muted_until`` value is still in effect.
+
+    ``now`` is always tz-aware (UTC). ``muted_until`` is normally tz-aware too
+    (``DateTime(timezone=True)``), but SQLite — used in tests — round-trips
+    ``DateTime(timezone=True)`` values as naive datetimes, so a naive value is
+    treated as UTC rather than raising on comparison.
+    """
+    if muted_until is None:
+        return False
+    if muted_until.tzinfo is None:
+        muted_until = muted_until.replace(tzinfo=UTC)
+    return muted_until > now
 
 
 @dataclass
@@ -870,18 +886,29 @@ class RoomChatService:
         Called after both user posts and agent replies. Members who are
         currently connected via WebSocket are skipped (they've already seen
         the message in real-time). ``exclude_user_ids`` prevents notifying
-        the sender of the triggering message.
+        the sender of the triggering message. Members with an active room
+        mute (``RoomMember.muted_until`` in the future) are skipped too — the
+        message itself is still persisted/broadcast above, so it appears in
+        the room and still counts toward unread, only the push + in-app
+        notification are suppressed (WhatsApp-style).
         """
         exclude = exclude_user_ids or set()
-        member_emails = {m.user_id for m in room.members}
+        now = datetime.now(UTC)
 
         from app.db.session import async_session_maker
         from app.services.fcm_service import send_to_user
 
-        for target in member_emails:
+        seen: set[str] = set()
+        for member in room.members:
+            target = member.user_id
+            if target in seen:
+                continue
+            seen.add(target)
             if target in exclude:
                 continue
             if room_manager.is_user_online(room.id, target):
+                continue
+            if _is_muted(member.muted_until, now):
                 continue
             try:
                 async with async_session_maker() as session:

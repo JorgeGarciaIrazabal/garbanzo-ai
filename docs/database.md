@@ -35,6 +35,15 @@ half-migrated schema.
 - `KnowledgeDocument` / `KnowledgeChunk` store uploaded documents and vector embeddings for RAG.
 - `Room`, `RoomMember`, `RoomAgent`, `RoomMessage` support multi-person/agent chat rooms.
 - `RoomAgent.enabled_tools` (JSONB) mirrors `Conversation.enabled_tools`: `null` = all, `[]` = none, `["srv:tool"]` = subset.
+- `RoomMember.muted_until` (nullable timestamptz) suppresses push + in-app
+  notifications for that member while `now() < muted_until`; messages still
+  post to the room and still count as unread (WhatsApp behaviour). `NULL` =
+  not muted. "Mute forever" is stored as a far-future sentinel
+  (`room_service.MUTE_FOREVER`, year 9999) rather than a separate boolean
+  column, so every reader — the notification skip-check in
+  `room_chat_service._notify_offline_members`, the frontend badge — only ever
+  needs one comparison against "now". No background job expires mutes; the
+  timestamp is compared lazily at notification time.
 - `ScheduledAction` stores user-defined cron or one-shot prompts.
 - `Notification` / `NotificationPreferences` support in-app + FCM push notifications.
 - `DeviceToken` stores FCM tokens per user per platform.

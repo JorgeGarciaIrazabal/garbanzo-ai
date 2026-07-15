@@ -24,6 +24,7 @@ from app.schemas.room import (
     RoomMemberOut,
     RoomMessageList,
     RoomMessageOut,
+    RoomMuteUpdate,
     RoomOut,
     RoomUpdate,
 )
@@ -250,6 +251,27 @@ async def remove_member(
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Room not found") from e
     except RoomPermissionError as e:
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail=str(e)) from e
+
+
+@router.patch(
+    "/{room_id}/members/me/mute",
+    response_model=RoomMemberOut,
+    summary="Mute or unmute room notifications for the current user",
+)
+async def mute_room(
+    room_id: str,
+    data: RoomMuteUpdate,
+    current_user: Annotated[dict[str, Any], Depends(get_current_user)],
+    service: Annotated[RoomService, Depends(_service)],
+) -> RoomMemberOut:
+    await _require_member(service, room_id, current_user["email"])
+    try:
+        member = await service.set_mute(
+            room_id=room_id, user_id=current_user["email"], duration=data.duration
+        )
+    except RoomNotFoundError as e:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Not a room member") from e
+    return RoomMemberOut.from_model(member)
 
 
 # --------------------------------------------------------------------- Agents

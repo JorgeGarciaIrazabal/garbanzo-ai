@@ -99,6 +99,16 @@ class RoomMember(Base):
         comment="'owner' | 'member'",
     )
     joined_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    muted_until: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment=(
+            "Notifications (push + in-app) are suppressed while now() < muted_until. "
+            "NULL = not muted. 'Mute forever' uses a far-future sentinel "
+            "(see MUTE_FOREVER in room_service.py) rather than a separate bool, so "
+            "callers only ever need one comparison."
+        ),
+    )
 
     room: Mapped["Room"] = relationship(back_populates="members")
     # Read-only link to the underlying user, eager-loaded so ``full_name`` is
