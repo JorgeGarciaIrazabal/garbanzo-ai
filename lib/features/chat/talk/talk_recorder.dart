@@ -24,6 +24,9 @@ class TalkRecorder {
   /// Start capturing. [onDb] receives amplitude readings in dBFS (~every
   /// 100 ms) to drive VAD. Throws [VoiceRecordingException] on failure.
   Future<void> start({required void Function(double db) onDb}) async {
+    // Drop any prior session first so back-to-back starts (e.g. barge-in →
+    // fresh listen) never leak a recorder.
+    dispose();
     final recorder = AudioRecorder();
     if (!await recorder.hasPermission()) {
       await recorder.dispose();
@@ -85,12 +88,30 @@ class TalkRecorder {
     }
   }
 
-  /// Cancel any active capture and release resources.
+  /// Cancel any active capture and release resources. Deletes the in-progress
+  /// recording (e.g. a discarded barge-in session), which `stopAndTranscribe`
+  /// would otherwise have cleaned up.
   void dispose() {
     unawaited(_ampSub?.cancel());
     _ampSub = null;
-    unawaited(_recorder?.dispose());
+    final recorder = _recorder;
+    final path = _path;
     _recorder = null;
     _path = null;
+    unawaited(_teardown(recorder, path));
+  }
+
+  static Future<void> _teardown(AudioRecorder? recorder, String? path) async {
+    if (recorder != null) {
+      try {
+        await recorder.stop();
+      } catch (_) {}
+      await recorder.dispose();
+    }
+    if (path != null) {
+      try {
+        await File(path).delete();
+      } catch (_) {}
+    }
   }
 }

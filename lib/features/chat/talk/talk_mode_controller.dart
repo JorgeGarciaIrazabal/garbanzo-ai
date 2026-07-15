@@ -38,15 +38,18 @@ enum TalkPhase {
 ///
 /// Flow once a call is started (first tap): listen → VAD detects the user
 /// stopped → transcribe → send → speak the reply → loop back to listening.
-/// A tap interrupts the current phase; the ✕ button ends the call. Voice
-/// barge-in (auto-interrupt by talking over the AI) is a later phase; tap
-/// barge-in works today.
+/// A tap interrupts the current phase and the ✕ button ends the call. When
+/// [_voiceBargeIn] is on, the mic stays open during the reply and sustained
+/// user speech auto-interrupts the AI (with an echo guard); tap-to-interrupt
+/// is always available as the guaranteed fallback.
 class TalkModeController extends ChangeNotifier {
   TalkModeController({
     required ChatProvider chat,
     required SettingsProvider settings,
+    bool voiceBargeIn = true,
   }) : _chat = chat,
-       _settings = settings {
+       _settings = settings,
+       _voiceBargeIn = voiceBargeIn {
     _prevSending = _chat.isSending;
     _chat.addListener(_onChatChanged);
   }
@@ -55,6 +58,17 @@ class TalkModeController extends ChangeNotifier {
   final SettingsProvider _settings;
   final TalkRecorder _recorder = TalkRecorder();
   final TalkVad _vad = TalkVad();
+
+  /// When true, keep the mic open during the reply and auto-interrupt if the
+  /// user talks over the AI. Tap-to-interrupt works regardless.
+  final bool _voiceBargeIn;
+
+  // Barge-in echo guard: only interrupt after several consecutive loud samples
+  // above a high threshold, so the AI's own playback doesn't self-trigger.
+  // Thresholds are conservative and want on-device tuning.
+  static const double _bargeThresholdDb = -22;
+  static const int _bargeSustainSamples = 3; // ~300 ms at a 100 ms interval
+  int _bargeLoud = 0;
 
   TalkTtsQueue? _tts;
 
@@ -149,15 +163,38 @@ class TalkModeController extends ChangeNotifier {
     }
   }
 
-  /// Amplitude sample from the recorder → feed VAD + visualizer level.
+  /// Amplitude sample from the recorder. Its meaning depends on the phase:
+  /// while listening it drives VAD + the visualizer; during the reply it
+  /// watches for the user talking over the AI (voice barge-in).
   void _onDb(double db) {
-    if (_phase != TalkPhase.listening) return;
-    _level = ((db + 60) / 60).clamp(0.0, 1.0);
-    final event = _vad.update(db, DateTime.now());
-    if (event == VadEvent.speechEnd) {
-      unawaited(_stopAndSend());
+    switch (_phase) {
+      case TalkPhase.listening:
+        if (_muted) return;
+        _level = ((db + 60) / 60).clamp(0.0, 1.0);
+        if (_vad.update(db, DateTime.now()) == VadEvent.speechEnd) {
+          unawaited(_stopAndSend());
+        } else {
+          notifyListeners(); // refresh the visualizer level
+        }
+      case TalkPhase.thinking:
+      case TalkPhase.speaking:
+        _detectBargeIn(db);
+      case TalkPhase.idle:
+      case TalkPhase.transcribing:
+      case TalkPhase.error:
+        break;
+    }
+  }
+
+  /// Interrupt the AI once the user has been loud for a sustained stretch.
+  void _detectBargeIn(double db) {
+    if (db > _bargeThresholdDb) {
+      if (++_bargeLoud >= _bargeSustainSamples) {
+        _bargeLoud = 0;
+        unawaited(_interrupt());
+      }
     } else {
-      notifyListeners(); // refresh the visualizer level
+      _bargeLoud = 0;
     }
   }
 
@@ -185,17 +222,28 @@ class TalkModeController extends ChangeNotifier {
     _prevSending = _chat.isSending;
   }
 
-  /// Arm a fresh reply: TTS queue + streaming subscription for live speech.
+  /// Arm a fresh reply: TTS queue + streaming subscription for live speech,
+  /// plus (optionally) the barge-in mic so the user can talk over the AI.
   void _beginReply() {
     _spokenUpTo = 0;
     _streamFinished = false;
     _awaitingReply = true;
+    _bargeLoud = 0;
     _tts = TalkTtsQueue(
       voice: _settings.ttsVoice,
       speed: _settings.ttsSpeed,
       onComplete: _onQueueDrained,
     );
     _chat.streamingMessage.addListener(_onStreamingContent);
+    if (_voiceBargeIn && !_muted) {
+      unawaited(
+        _recorder
+            .start(onDb: _onDb)
+            .catchError(
+              (Object e) => logDebug('TalkMode: barge mic failed: $e'),
+            ),
+      );
+    }
   }
 
   /// Speak each newly-completed sentence as the reply streams in.
