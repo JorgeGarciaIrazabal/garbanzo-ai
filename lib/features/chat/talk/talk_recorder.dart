@@ -100,10 +100,33 @@ class TalkRecorder {
     }
     _arecord = proc;
     _pcm.clear();
+    _levelRemainder = Uint8List(0);
     _pcmSub = proc.stdout.listen((chunk) {
-      _pcm.add(chunk);
-      onDb(rmsDbfs(chunk is Uint8List ? chunk : Uint8List.fromList(chunk)));
+      final bytes = chunk is Uint8List ? chunk : Uint8List.fromList(chunk);
+      _pcm.add(bytes);
+      _emitLevels(bytes, onDb);
     }, onError: (Object e) => debugPrint('TalkRecorder arecord error: $e'));
+  }
+
+  Uint8List _levelRemainder = Uint8List(0);
+
+  /// Emit one dBFS reading per fixed 100 ms window regardless of how `arecord`
+  /// chunks its stdout, so VAD timing (and the visualizer) stay responsive.
+  /// Bytes that don't fill a window carry over to the next chunk.
+  void _emitLevels(Uint8List bytes, void Function(double db) onDb) {
+    const frame = _sampleRate ~/ 10 * 2; // 100 ms of mono S16 = 3200 bytes
+    final buf = _levelRemainder.isEmpty
+        ? bytes
+        : (BytesBuilder()
+                ..add(_levelRemainder)
+                ..add(bytes))
+              .takeBytes();
+    var off = 0;
+    while (off + frame <= buf.length) {
+      onDb(rmsDbfs(Uint8List.sublistView(buf, off, off + frame)));
+      off += frame;
+    }
+    _levelRemainder = Uint8List.sublistView(buf, off);
   }
 
   Future<VoiceRecordingResult?> _stopArecord() async {

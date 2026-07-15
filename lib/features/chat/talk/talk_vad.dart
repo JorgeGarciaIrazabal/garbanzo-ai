@@ -10,56 +10,77 @@ enum VadEvent {
   speechEnd,
 }
 
-/// Energy-based voice activity detection over a stream of amplitude samples.
+/// Adaptive energy-based voice activity detection over amplitude samples.
 ///
 /// Fed one dBFS reading at a time (from the recorder's amplitude stream), it
-/// tracks a tiny state machine: silence → speaking (level crosses
-/// [startThresholdDb]) → silence for [silenceDuration] → [VadEvent.speechEnd].
-/// A [minSpeechDuration] floor stops a brief cough/click from being treated as
-/// a complete utterance.
+/// continuously tracks the **ambient noise floor** and detects speech relative
+/// to it, rather than against fixed thresholds — so it works whether the room
+/// tone sits at −55 dBFS (quiet) or −35 dBFS (noisy/high-gain mic). Speech
+/// starts when the level rises [startMarginDb] above the floor; it ends once
+/// the level falls back within [endMarginDb] of the floor for
+/// [silenceDuration]. A [minSpeechDuration] floor debounces brief blips.
 ///
-/// Pure and deterministic — the caller supplies `now`, so it is unit-testable
-/// without a real clock or microphone. Thresholds are dBFS (0 = loudest,
-/// more negative = quieter) and are the main thing to tune on-device.
+/// The floor only adapts while *not* speaking (so speech never inflates it),
+/// adopting quieter levels quickly and drifting up slowly. Pure and
+/// deterministic — the caller supplies `now`, so it is unit-testable without a
+/// real clock or microphone.
 class TalkVad {
   TalkVad({
-    this.startThresholdDb = -35,
-    this.silenceThresholdDb = -42,
-    this.silenceDuration = const Duration(milliseconds: 1000),
+    this.startMarginDb = 12,
+    this.endMarginDb = 7,
+    this.silenceDuration = const Duration(milliseconds: 900),
     this.minSpeechDuration = const Duration(milliseconds: 300),
-  });
+    double initialNoiseFloorDb = -50,
+  }) : _noiseFloor = initialNoiseFloorDb;
 
-  /// Level (dBFS) above which we consider the user to have started speaking.
-  final double startThresholdDb;
+  /// dB above the noise floor at which speech is considered to have started.
+  final double startMarginDb;
 
-  /// Level (dBFS) below which a sample counts toward trailing silence.
-  final double silenceThresholdDb;
+  /// dB above the noise floor below which a sample counts toward silence.
+  final double endMarginDb;
 
-  /// How long the level must stay below [silenceThresholdDb] to end speech.
+  /// How long the level must stay near the floor to end speech.
   final Duration silenceDuration;
 
   /// Minimum speech length before an end can be reported (debounces blips).
   final Duration minSpeechDuration;
 
+  double _noiseFloor;
   bool _speaking = false;
   DateTime? _speechStartedAt;
   DateTime? _lastLoudAt;
 
+  /// Number of leading samples used purely to measure the ambient floor before
+  /// any speech can be detected (so a loud room doesn't self-trigger at start).
+  static const _calibrationSamples = 3;
+  int _calibrated = 0;
+
   bool get isSpeaking => _speaking;
+  double get noiseFloorDb => _noiseFloor;
 
   /// Feed one amplitude reading. Returns the resulting [VadEvent].
   VadEvent update(double db, DateTime now) {
     if (!_speaking) {
-      if (db > startThresholdDb) {
+      if (_calibrated < _calibrationSamples) {
+        // Calibrate: snap the floor to the observed ambient (average of the
+        // first few readings) without allowing a speech-start yet.
+        _noiseFloor = _calibrated == 0 ? db : (_noiseFloor + db) / 2;
+        _calibrated++;
+        return VadEvent.none;
+      }
+      if (db > _noiseFloor + startMarginDb) {
         _speaking = true;
         _speechStartedAt = now;
         _lastLoudAt = now;
         return VadEvent.speechStart;
       }
+      // Only track the floor on genuine (sub-threshold) ambient samples, never
+      // on speech, so the floor can't creep up toward the user's voice.
+      _adaptNoiseFloor(db);
       return VadEvent.none;
     }
 
-    if (db > silenceThresholdDb) {
+    if (db > _noiseFloor + endMarginDb) {
       _lastLoudAt = now;
       return VadEvent.none;
     }
@@ -73,7 +94,15 @@ class TalkVad {
     return VadEvent.none;
   }
 
-  /// Clear state so the detector is ready for a fresh utterance.
+  /// Track ambient level: move down quickly toward quieter readings, up slowly,
+  /// so a brief loud blip doesn't inflate the floor and latch out real speech.
+  void _adaptNoiseFloor(double db) {
+    final alpha = db < _noiseFloor ? 0.3 : 0.05;
+    _noiseFloor += (db - _noiseFloor) * alpha;
+  }
+
+  /// Clear speech state so the detector is ready for a fresh utterance. The
+  /// learned noise floor is deliberately kept across utterances.
   void reset() {
     _speaking = false;
     _speechStartedAt = null;
