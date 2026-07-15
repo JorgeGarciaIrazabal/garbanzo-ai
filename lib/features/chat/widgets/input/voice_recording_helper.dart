@@ -124,15 +124,17 @@ class VoiceRecordingHelper {
   }
 
   Future<bool> _startDesktopRecording(String tempPath) async {
-    // Try arecord with direct ALSA hardware access first
+    // Try arecord first. Use the ALSA `default` device, not a specific
+    // `plughw:card`: on PipeWire, opening a hardware card directly fails with
+    // "Device or resource busy", and picking a card by index can grab a dead
+    // or floating input (→ silent/hallucinated transcription). `default`
+    // routes to the user's configured mic and shares the device.
     if (await _hasBinary('arecord')) {
       try {
-        final card = await _findAlsaCaptureCard();
-        final device = card != null ? 'plughw:$card,0' : 'default';
         _arecordPath = tempPath;
         _arecordProcess = await Process.start('arecord', [
           '-D',
-          device,
+          'default',
           '-f',
           'S16_LE',
           '-r',
@@ -185,35 +187,6 @@ class VoiceRecordingHelper {
       return result.exitCode == 0;
     } catch (_) {
       return false;
-    }
-  }
-
-  /// Find the best ALSA capture card by parsing `arecord -l`.
-  Future<String?> _findAlsaCaptureCard() async {
-    try {
-      final result = await Process.run('arecord', ['-l']);
-      if (result.exitCode != 0) return null;
-
-      final output = result.stdout as String;
-      final lineRe = RegExp(r'card\s+(\d+):\s+\S+\s+\[(.+?)\]');
-
-      String? bestCard;
-      String? firstCard;
-
-      for (final match in lineRe.allMatches(output)) {
-        final cardNum = match.group(1)!;
-        final name = match.group(2)!.toLowerCase();
-
-        firstCard ??= cardNum;
-
-        if (name.contains('dock') || name.contains('hdmi')) continue;
-
-        bestCard ??= cardNum;
-      }
-
-      return bestCard ?? firstCard;
-    } catch (_) {
-      return null;
     }
   }
 }
