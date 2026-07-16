@@ -4,6 +4,7 @@ import 'package:garbanzo_ai/core/auth_service.dart';
 import 'package:garbanzo_ai/core/auth_state.dart';
 import 'package:garbanzo_ai/features/admin/pages/admin_page.dart';
 import 'package:garbanzo_ai/features/chat/widgets/chat_page.dart';
+import 'package:garbanzo_ai/features/friends/pages/friends_page.dart';
 import 'package:garbanzo_ai/features/knowledge_base/pages/knowledge_base_page.dart';
 import 'package:garbanzo_ai/features/memory/pages/memory_page.dart';
 import 'package:garbanzo_ai/features/notifications/pages/notifications_page.dart';
@@ -60,6 +61,7 @@ GoRouter buildRouter(AuthState auth) {
       ),
       GoRoute(path: '/settings', builder: (_, _) => const SettingsPage()),
       GoRoute(path: '/memory', builder: (_, _) => const MemoryPage()),
+      GoRoute(path: '/friends', builder: (_, _) => const FriendsPage()),
       GoRoute(path: '/kb', builder: (_, _) => const KnowledgeBasePage()),
       GoRoute(path: '/usage', builder: (_, _) => const UsagePage()),
       GoRoute(

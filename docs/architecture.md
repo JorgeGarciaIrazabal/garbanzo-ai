@@ -145,6 +145,11 @@ features/notifications/
   services/          notification_api_service.dart, push_service.dart
   models/            AppNotification
   widgets/           NotificationBell
+features/friends/
+  pages/             FriendsPage (send/accept/decline requests, remove friends)
+  providers/         FriendsProvider
+  services/          friends_service.dart
+  models/            Friend, FriendRequest, FriendsList
 features/usage/
   pages/             UsagePage
   providers/         UsageProvider

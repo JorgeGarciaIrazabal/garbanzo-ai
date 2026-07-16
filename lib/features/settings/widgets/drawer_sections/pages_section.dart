@@ -42,6 +42,13 @@ class PagesSection extends StatelessWidget {
           onTap: () => _open(context, '/skills'),
         ),
         ListTile(
+          leading: const Icon(Icons.people_outline),
+          title: const Text('Friends'),
+          subtitle: const Text('Send requests and manage your friends'),
+          dense: true,
+          onTap: () => _open(context, '/friends'),
+        ),
+        ListTile(
           leading: const Icon(Icons.schedule),
           title: const Text('Scheduled actions'),
           subtitle: const Text('Reminders and recurring prompts'),

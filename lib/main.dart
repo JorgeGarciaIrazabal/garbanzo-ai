@@ -16,6 +16,7 @@ import 'package:garbanzo_ai/features/chat/providers/model_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/search_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/style_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/system_prompt_provider.dart';
+import 'package:garbanzo_ai/features/friends/providers/friends_provider.dart';
 import 'package:garbanzo_ai/features/knowledge_base/providers/knowledge_base_provider.dart';
 import 'package:garbanzo_ai/features/memory/providers/memory_provider.dart';
 import 'package:garbanzo_ai/features/notifications/providers/notification_provider.dart';
@@ -148,6 +149,7 @@ class _AppProviders extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => NotificationProvider()),
         ChangeNotifierProvider(create: (_) => KnowledgeBaseProvider()),
         ChangeNotifierProvider(create: (_) => RoomProvider()),
+        ChangeNotifierProvider(create: (_) => FriendsProvider()),
       ],
       child: child,
     );
