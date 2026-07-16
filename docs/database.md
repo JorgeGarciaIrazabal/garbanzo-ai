@@ -50,6 +50,25 @@ half-migrated schema.
   `RoomOut.from_model(room, viewer_email=...)` scanning the (already
   eager-loaded) `room.members` for the caller's own row; `None` when
   `viewer_email` is omitted or the viewer isn't a member.
+- `Conversation.thinking_level` (nullable, one of `off`/`low`/`medium`/`high`)
+  controls reasoning depth for thinking-capable models (Idea 2: "Styles").
+  `NULL` preserves the implicit pre-existing behavior — `ollama_provider`
+  auto-enables thinking (`think=True`) whenever the model advertises the
+  `thinking` capability. An explicit value overrides that: `off`
+  force-disables thinking even for a capable model; `low`/`medium`/`high`
+  map straight onto Ollama's `think` chat option, which the installed
+  `ollama-py` SDK types as `bool | Literal["low", "medium", "high"]`
+  (`ollama/_types.py`). Set from `chat_service._stream_assistant_turn` onto
+  `ChatOptions.think` right before every provider call — it always wins over
+  whatever a client's request-level `ChatOptions` carried, since clients
+  aren't expected to set `think` directly. Either way, the value is only
+  ever sent to Ollama for models that advertise the `thinking` capability
+  (`ModelInfo.supports_thinking` on `GET /chat/models`, already computed by
+  `OllamaProvider.list_models`); this task deliberately did not add a
+  separate "does this model support thinking" flag/endpoint since one
+  already exists — a later task (Idea 2 subtask 5) extends `GET
+  /chat/models` with more capability flags (`supports_tools`,
+  `supports_vision`) alongside it.
 - `ScheduledAction` stores user-defined cron or one-shot prompts.
 - `Notification` / `NotificationPreferences` support in-app + FCM push notifications.
 - `DeviceToken` stores FCM tokens per user per platform.

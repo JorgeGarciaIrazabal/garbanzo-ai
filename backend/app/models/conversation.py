@@ -67,6 +67,18 @@ class Conversation(Base):
             "on Conversation instead of a per-member join table."
         ),
     )
+    thinking_level: Mapped[str | None] = mapped_column(
+        String(10),
+        nullable=True,
+        comment=(
+            "One of 'off' | 'low' | 'medium' | 'high', or NULL. NULL preserves "
+            "the provider's implicit default (auto-enable thinking when the "
+            "model advertises the capability); 'off' force-disables it even "
+            "for a capable model. The other three map straight onto Ollama's "
+            "`think` chat option. Ignored by chat_service/ollama_provider for "
+            "models that don't advertise the 'thinking' capability."
+        ),
+    )
 
     # Relationships
     user: Mapped["User"] = relationship(back_populates="conversations")

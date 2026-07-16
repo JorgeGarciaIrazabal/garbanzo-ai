@@ -420,6 +420,10 @@ class ChatService:
 
         provider = self._get_provider()
         opts = options or ChatOptions()
+        # thinking_level is a persisted conversation setting, not a per-request
+        # option — it always wins over whatever the client's ChatOptions
+        # carried. None reproduces the provider's implicit default.
+        opts.think = conversation.thinking_level
 
         cancel_event = asyncio.Event()
         ChatService._active_streams[conversation_id] = cancel_event

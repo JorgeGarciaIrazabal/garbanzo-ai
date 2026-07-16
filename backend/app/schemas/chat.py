@@ -99,6 +99,18 @@ class ChatOptions(BaseModel):
             "not by clients. For Ollama this maps to options.num_ctx."
         ),
     )
+    think: Literal["off", "low", "medium", "high"] | None = Field(
+        default=None,
+        description=(
+            "Reasoning depth for thinking-capable models. Normally set by "
+            "the server from Conversation.thinking_level, not by clients. "
+            "None preserves the provider's own default (auto-enable "
+            "thinking when the model supports it); 'off' force-disables it "
+            "even for a capable model. Ignored by models that don't "
+            "advertise the 'thinking' capability. For Ollama this maps "
+            "straight onto the `think` chat option."
+        ),
+    )
 
 
 class ChatRequest(BaseModel):
@@ -208,6 +220,13 @@ class ConversationCreate(BaseModel):
         None,
         description="Per-conversation system prompt (overrides the user default)",
     )
+    thinking_level: Literal["off", "low", "medium", "high"] | None = Field(
+        None,
+        description=(
+            "Reasoning depth for thinking-capable models. None = provider "
+            "default (auto-enable thinking when the model supports it)."
+        ),
+    )
 
 
 class ConversationUpdate(BaseModel):
@@ -250,6 +269,15 @@ class ConversationUpdate(BaseModel):
         None,
         description="Pin/unpin this conversation in the sidebar",
     )
+    thinking_level: Literal["off", "low", "medium", "high"] | None = Field(
+        None,
+        description=(
+            "Reasoning depth for thinking-capable models. Not sent in the "
+            "payload → unchanged. Sent as null → reset to the provider "
+            "default (auto-enable thinking when the model supports it). "
+            "Sent as 'off'/'low'/'medium'/'high' → set that level."
+        ),
+    )
 
 
 class ConversationOut(BaseModel):
@@ -279,6 +307,13 @@ class ConversationOut(BaseModel):
         ),
     )
     is_pinned: bool = Field(default=False, description="Whether this conversation is pinned")
+    thinking_level: Literal["off", "low", "medium", "high"] | None = Field(
+        None,
+        description=(
+            "Reasoning depth for thinking-capable models, or null for the "
+            "provider default (auto-enable thinking when the model supports it)."
+        ),
+    )
     # NULL = not muted. A far-future sentinel value means "muted forever" —
     # see ``mute_util.MUTE_FOREVER``. Frontend just compares to "now" to
     # decide whether to render the muted-bell state (mirrors
@@ -317,6 +352,7 @@ class ConversationOut(BaseModel):
             enabled_tools=getattr(conv, "enabled_tools", None),
             is_pinned=getattr(conv, "is_pinned", False),
             muted_until=getattr(conv, "muted_until", None),
+            thinking_level=getattr(conv, "thinking_level", None),
         )
 
 
@@ -359,6 +395,7 @@ class ConversationDetailOut(ConversationOut):
             enabled_tools=getattr(conv, "enabled_tools", None),
             is_pinned=getattr(conv, "is_pinned", False),
             muted_until=getattr(conv, "muted_until", None),
+            thinking_level=getattr(conv, "thinking_level", None),
         )
 
 

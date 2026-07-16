@@ -6,8 +6,8 @@ Difficulty legend (pick the model per task, not per feature):
 |-----|---------|-----------------|
 | `easy` | Mechanical, well-trodden pattern in this repo, low ambiguity | Haiku / small model |
 | `easy-med` | Mostly mechanical but touches 2+ layers or needs a migration | Sonnet |
-| `medium` | New endpoint/widget with some design decisions, single feature area | Sonnet |
-| `med-hard` | Cross-cutting, stateful UI, or careful prompt/tool design | Opus |
+| `medium` | New endpoint/widget with some design decisions, single feature area | Opus |
+| `med-hard` | Cross-cutting, stateful UI, or careful prompt/tool design | Fable |
 | `hard` | Novel UX, tricky Flutter internals, multi-step agentic behavior | Fable |
 
 Work task by task in order, use subagent with right model to execute on each of the subtasks and commit/push after each task is completed
@@ -27,7 +27,7 @@ Add a "✨ Create with AI" flow to the existing system prompt editor. The user d
 
 Replace the plain model dropdown with a **Style** concept: a style = model + thinking level + system prompt (+ optionally voice). Users can compose one ad-hoc per conversation or save named styles ("Deep Work", "Quick Answers", "Funny Friend"). This is the flagship UX item — worth a design pass before coding.
 
-- [ ] `easy-med` **Backend: thinking level on conversations** — Add `thinking_level` (`off | low | medium | high`) to `Conversation` + migration + schema; pass through `chat_service` → `ollama_provider` (`think` option). Detect/flag per-model support so the UI can grey it out.
+- [x] `easy-med` **Backend: thinking level on conversations** — Add `thinking_level` (`off | low | medium | high`) to `Conversation` + migration + schema; pass through `chat_service` → `ollama_provider` (`think` option). Detect/flag per-model support so the UI can grey it out.
 - [ ] `easy-med` **Backend: saved styles** — New `Style` model (name, model_id, thinking_level, system_prompt_template_id, is_default) + CRUD endpoints. Alternatively extend `SystemPromptTemplate` with model/thinking columns — decide during planning; a separate table is cleaner.
 - [ ] `med-hard` **Frontend: Style picker UI** — Redesign `ModelSelectorWidget` into a popover/bottom-sheet: saved styles as cards at top, then expandable "Customize" with model list (search + capability badges: vision/tools/thinking), thinking-level segmented control, and prompt template picker. Must feel great on both desktop and mobile — do a `frontend-design` pass first.
 - [ ] `easy` **Frontend: style chip in the app bar** — Show the active style name/emoji next to the conversation title; tap to open the picker. Persist last-used style for new conversations.

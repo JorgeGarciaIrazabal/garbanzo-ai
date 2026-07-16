@@ -66,6 +66,7 @@ async def create_conversation(
         model=data.model,
         initial_message=data.initial_message,
         system_prompt=data.system_prompt,
+        thinking_level=data.thinking_level,
     )
     return ConversationOut.from_model(conversation)
 
@@ -198,6 +199,10 @@ async def update_conversation(
     payload_set = data.model_fields_set
     set_enabled = "enabled_tools" in payload_set and data.enabled_tools is not None
     clear_enabled = "enabled_tools" in payload_set and data.enabled_tools is None
+    # thinking_level: null is itself a meaningful value ("reset to provider
+    # default"), so we only touch the column when the key was actually
+    # present in the request payload.
+    set_thinking_level = "thinking_level" in payload_set
     conversation = await service.conversations.update(
         conversation_id=conversation_id,
         user_id=current_user["email"],
@@ -211,6 +216,8 @@ async def update_conversation(
         set_enabled_tools=set_enabled,
         clear_enabled_tools=clear_enabled,
         is_pinned=data.is_pinned,
+        thinking_level=data.thinking_level,
+        set_thinking_level=set_thinking_level,
     )
 
     if not conversation:

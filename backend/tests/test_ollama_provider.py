@@ -122,6 +122,95 @@ async def test_stream_chat_passes_num_ctx_option():
     assert captured_kwargs["options"]["num_ctx"] == 8192
 
 
+@pytest.mark.parametrize("level", ["low", "medium", "high"])
+async def test_stream_chat_think_level_passed_through_for_thinking_models(level):
+    """A conversation-level ``thinking_level`` of 'low'/'medium'/'high' (see
+    Conversation.thinking_level) is mirrored onto ChatOptions.think and must
+    reach Ollama verbatim — ollama-py types `think` as
+    ``bool | Literal["low", "medium", "high"]`` (ollama/_types.py), so these
+    map straight onto the SDK's own accepted values."""
+    from app.schemas.chat import ChatOptions
+
+    provider = OllamaProvider()
+    provider._model_meta["qwen3:1.7b"] = (40960, ["completion", "thinking"])
+
+    captured_kwargs: dict = {}
+
+    async def _fake_chat(**kwargs):
+        captured_kwargs.update(kwargs)
+        return _FakeStream()
+
+    mock_client = MagicMock()
+    mock_client.chat = AsyncMock(side_effect=_fake_chat)
+
+    with patch.object(provider, "_get_client", return_value=mock_client):
+        async for _ in provider.stream_chat(
+            messages=[Message(role="user", content="hi")],
+            model="qwen3:1.7b",
+            options=ChatOptions(think=level),
+        ):
+            pass
+
+    assert captured_kwargs.get("think") == level
+
+
+async def test_stream_chat_think_off_disables_thinking_for_capable_model():
+    """thinking_level='off' must force-disable thinking even for a model
+    that would otherwise get think=True by default."""
+    from app.schemas.chat import ChatOptions
+
+    provider = OllamaProvider()
+    provider._model_meta["qwen3:1.7b"] = (40960, ["completion", "thinking"])
+
+    captured_kwargs: dict = {}
+
+    async def _fake_chat(**kwargs):
+        captured_kwargs.update(kwargs)
+        return _FakeStream()
+
+    mock_client = MagicMock()
+    mock_client.chat = AsyncMock(side_effect=_fake_chat)
+
+    with patch.object(provider, "_get_client", return_value=mock_client):
+        async for _ in provider.stream_chat(
+            messages=[Message(role="user", content="hi")],
+            model="qwen3:1.7b",
+            options=ChatOptions(think="off"),
+        ):
+            pass
+
+    assert captured_kwargs.get("think") is False
+
+
+async def test_stream_chat_think_level_ignored_for_non_thinking_model():
+    """An explicit thinking_level is silently ignored for a model that
+    doesn't advertise the 'thinking' capability — same safety net as the
+    implicit-default path, since Ollama 400s on an unsupported think value."""
+    from app.schemas.chat import ChatOptions
+
+    provider = OllamaProvider()
+    provider._model_meta["llama3.2:3b"] = (131072, ["completion", "tools"])
+
+    captured_kwargs: dict = {}
+
+    async def _fake_chat(**kwargs):
+        captured_kwargs.update(kwargs)
+        return _FakeStream()
+
+    mock_client = MagicMock()
+    mock_client.chat = AsyncMock(side_effect=_fake_chat)
+
+    with patch.object(provider, "_get_client", return_value=mock_client):
+        async for _ in provider.stream_chat(
+            messages=[Message(role="user", content="hi")],
+            model="llama3.2:3b",
+            options=ChatOptions(think="high"),
+        ):
+            pass
+
+    assert "think" not in captured_kwargs
+
+
 async def test_model_meta_failures_are_not_cached():
     """A transient show() failure (e.g. Ollama briefly down) must not be
     cached, or thinking/capability detection stays disabled until restart."""

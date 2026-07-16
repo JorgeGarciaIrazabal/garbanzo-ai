@@ -82,6 +82,7 @@ class ConversationService:
         model: str | None = None,
         initial_message: str | None = None,
         system_prompt: str | None = None,
+        thinking_level: str | None = None,
     ) -> Conversation:
         conversation_id = str(uuid.uuid4())
         model = model or get_settings().default_model
@@ -95,6 +96,7 @@ class ConversationService:
             title=title,
             model=model,
             system_prompt=system_prompt,
+            thinking_level=thinking_level,
         )
 
         self.db.add(conversation)
@@ -271,6 +273,8 @@ class ConversationService:
         set_enabled_tools: bool = False,
         clear_enabled_tools: bool = False,
         is_pinned: bool | None = None,
+        thinking_level: str | None = None,
+        set_thinking_level: bool = False,
     ) -> Conversation | None:
         conversation = await self.get(conversation_id, user_id, include_messages=False)
         if not conversation:
@@ -299,6 +303,15 @@ class ConversationService:
             conversation.enabled_tools = None
         elif set_enabled_tools:
             conversation.enabled_tools = enabled_tools
+
+        # thinking_level also needs three-way semantics — unlike use_memory
+        # etc. above, NULL is itself a meaningful target value ("use the
+        # provider default"), so "not provided" can't be represented by
+        # ``None`` alone the way it is for those booleans. The caller
+        # (endpoint) sets ``set_thinking_level`` only when the field was
+        # actually present in the request payload (``model_fields_set``).
+        if set_thinking_level:
+            conversation.thinking_level = thinking_level
 
         await self.db.commit()
         await self.db.refresh(conversation)
@@ -377,6 +390,7 @@ class ConversationService:
             use_memory=source.use_memory,
             use_knowledge_base=source.use_knowledge_base,
             enabled_tools=source.enabled_tools,
+            thinking_level=source.thinking_level,
         )
         self.db.add(new_conv)
 

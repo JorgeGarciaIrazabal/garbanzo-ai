@@ -199,9 +199,20 @@ class OllamaProvider(LLMProvider):
             # call. Only set when the model advertises the capability —
             # current Ollama rejects think=True for non-thinking models
             # with a 400 instead of ignoring it.
+            #
+            # ``opts.think`` (mirrored from Conversation.thinking_level) lets
+            # a caller override the auto-on default: "off" force-disables
+            # thinking, "low"/"medium"/"high" request that reasoning depth —
+            # ollama-py types `think` as `bool | Literal["low","medium","high"]`
+            # (see ollama/_types.py), so these map straight through. When
+            # unset (None) we keep the historical default of enabling
+            # thinking for any capable model.
             _, capabilities = await self._get_model_meta(model)
             if "thinking" in capabilities:
-                chat_kwargs["think"] = True
+                if opts.think is not None:
+                    chat_kwargs["think"] = False if opts.think == "off" else opts.think
+                else:
+                    chat_kwargs["think"] = True
             if tools:
                 chat_kwargs["tools"] = tools
 
