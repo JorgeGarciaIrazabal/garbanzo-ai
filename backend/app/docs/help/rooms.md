@@ -1,0 +1,42 @@
+# Rooms (group chats with people and agents)
+
+A room is a shared chat where several people and several AI agents talk
+together in real time.
+
+## How do I create a room?
+Open the rooms list and press **New room**, give it a name, and create it.
+You own rooms you create.
+
+## How do I invite people?
+In the room, open **Members & agents** and use **Invite member** with their
+account email. Members see the room in their own rooms list. Remove members
+from the same panel (owner only).
+
+## How do I add an AI agent?
+In **Members & agents**, press **Add agent**. Pick its name, model, an
+optional persona (system prompt), which tools it may use, and how it
+responds:
+- **Always respond** — replies to every message
+- **Auto — jump in when relevant (LLM)** — a judge model decides when it
+  should speak
+- **On @mention only** — replies only when named
+- **Round-robin (take turns)** — agents alternate
+
+An agent can also be a **Moderator**: it summarizes, breaks deadlocks, and
+keeps discussion on track.
+
+## How do I talk to a specific agent?
+Mention it by name. Agents see other participants' messages labeled with
+their names and reply as themselves.
+
+## How do I mute a room?
+From the room's menu choose **Mute** and pick a duration (or forever).
+Messages still arrive and count as unread — you just get no notifications.
+Muted rooms show a badge in the list.
+
+## How do I export a room?
+Use the room's export action to download the full transcript.
+
+## How do I delete a room?
+Room owners can delete a room from its menu (**Delete room**). This removes
+the room and its history for everyone.

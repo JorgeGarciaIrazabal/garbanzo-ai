@@ -48,7 +48,7 @@ Inject a compact, clearly-scoped context block (current datetime, timezone, coar
 The assistant should answer "how do I pin a conversation?" from curated app docs, via the existing native-tools mechanism (`native_tools.py`) rather than an MCP server. Second iteration: let it *do* things ("create a room with Ana and a research agent") with a confirmation step.
 
 **Iteration 1 — explain:**
-- [ ] `easy` (laborious) **Write the app user guide** — One markdown file per feature area (chat, rooms, memories, KB, styles, notifications, scheduled actions, talk mode…) in `backend/app/docs/` or similar. Short, task-oriented, "how do I X" phrasing. Good bulk task for a cheap model + human skim.
+- [x] `easy` (laborious) **Write the app user guide** — One markdown file per feature area (chat, rooms, memories, KB, styles, notifications, scheduled actions, talk mode…) in `backend/app/docs/` or similar. Short, task-oriented, "how do I X" phrasing. Good bulk task for a cheap model + human skim. *(13 files in `backend/app/docs/help/`, grounded in actual UI labels — worth a human skim.)*
 - [ ] `medium` **Native tool `app_help(query)`** — Add to `native_tools.py`: embed the docs with the existing `embedding_provider` (or plain keyword scoring to start — decide by testing quality), return top chunks. Docs are static, so embed once at startup and cache in memory; no DB tables needed.
 - [ ] `easy` **Prompt nudge** — Mention in the base system prompt that an app-help tool exists, so models actually call it when asked about the app.
 - [ ] `easy` **Keep docs honest** — Add a line to CLAUDE.md: when a user-facing feature changes, update its help doc in the same PR.
