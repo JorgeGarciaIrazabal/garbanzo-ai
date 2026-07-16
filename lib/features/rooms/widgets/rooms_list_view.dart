@@ -4,6 +4,7 @@ import 'package:garbanzo_ai/core/widgets/brand_mark.dart';
 import 'package:garbanzo_ai/core/widgets/animated_dialog.dart';
 import 'package:garbanzo_ai/core/widgets/skeleton.dart';
 import 'package:garbanzo_ai/features/rooms/models/room_models.dart';
+import 'package:garbanzo_ai/features/rooms/widgets/mute_room_sheet.dart';
 
 /// Visual list of rooms styled to match the conversation list.
 ///
@@ -16,6 +17,7 @@ class RoomsListView extends StatelessWidget {
     required this.onSelect,
     required this.onDelete,
     this.onCreate,
+    this.onMute,
     this.selectedId,
     this.loading = false,
     this.error,
@@ -27,6 +29,11 @@ class RoomsListView extends StatelessWidget {
   final ValueChanged<Room> onSelect;
   final ValueChanged<Room> onDelete;
   final VoidCallback? onCreate;
+
+  /// Applies a mute choice (`8h` / `1w` / `forever` / `unmute`) to a room.
+  /// Long-press / right-click only opens the mute sheet when this is set.
+  final void Function(Room room, String duration)? onMute;
+
   final bool loading;
   final String? error;
 
@@ -64,9 +71,23 @@ class RoomsListView extends StatelessWidget {
           textTheme: theme.textTheme,
           onTap: () => onSelect(room),
           onDelete: () => _confirmDelete(context, room),
+          onMuteMenu: onMute == null
+              ? null
+              : () => _showMuteSheet(context, room),
         );
       },
     );
+  }
+
+  Future<void> _showMuteSheet(BuildContext context, Room room) async {
+    final apply = onMute;
+    if (apply == null) return;
+    final duration = await showMuteRoomSheet(
+      context: context,
+      roomName: room.name,
+      mutedUntil: room.mutedUntil,
+    );
+    if (duration != null) apply(room, duration);
   }
 
   Future<void> _confirmDelete(BuildContext context, Room room) async {
@@ -103,6 +124,7 @@ class _RoomTile extends StatelessWidget {
     required this.textTheme,
     required this.onTap,
     required this.onDelete,
+    this.onMuteMenu,
   });
 
   final Room room;
@@ -113,8 +135,12 @@ class _RoomTile extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback onDelete;
 
+  /// Opens the mute sheet — long-press on touch, right-click on desktop.
+  final VoidCallback? onMuteMenu;
+
   @override
   Widget build(BuildContext context) {
+    final muted = room.isMuted;
     final unselectedIcon = isSelected
         ? colorScheme.onPrimaryContainer.withValues(alpha: 0.7)
         : colorScheme.onSurfaceVariant.withValues(alpha: 0.6);
@@ -125,6 +151,9 @@ class _RoomTile extends StatelessWidget {
       color: isSelected ? colorScheme.primaryContainer : Colors.transparent,
       child: InkWell(
         onTap: onTap,
+        // InkWell carries both gestures natively — no wrapper needed.
+        onLongPress: onMuteMenu,
+        onSecondaryTap: onMuteMenu,
         child: Container(
           padding: EdgeInsets.symmetric(
             horizontal: compact ? 12 : 16,
@@ -166,6 +195,20 @@ class _RoomTile extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
+                        if (muted) ...[
+                          const SizedBox(width: 6),
+                          Icon(
+                            key: const ValueKey('room_muted_glyph'),
+                            Icons.notifications_off,
+                            size: 14,
+                            semanticLabel: 'Muted',
+                            color:
+                                (isSelected
+                                        ? colorScheme.onPrimaryContainer
+                                        : colorScheme.onSurfaceVariant)
+                                    .withValues(alpha: 0.8),
+                          ),
+                        ],
                         if (room.agentCount > 0) ...[
                           const SizedBox(width: 6),
                           _CountBadge(

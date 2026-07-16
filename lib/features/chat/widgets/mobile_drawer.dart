@@ -268,6 +268,7 @@ class _MobileDrawerBodyState extends State<_MobileDrawerBody> {
                 compact: true,
                 onSelect: (room) => _selectRoom(room.id),
                 onDelete: (room) => _deleteRoom(room.id),
+                onMute: (room, duration) => provider.setMute(room.id, duration),
               ),
             ),
           ],

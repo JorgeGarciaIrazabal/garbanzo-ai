@@ -16,6 +16,7 @@ import 'package:garbanzo_ai/features/rooms/models/room_models.dart';
 import 'package:garbanzo_ai/features/rooms/providers/room_provider.dart';
 import 'package:garbanzo_ai/features/rooms/services/room_socket_service.dart';
 import 'package:garbanzo_ai/features/rooms/widgets/add_agent_dialog.dart';
+import 'package:garbanzo_ai/features/rooms/widgets/mute_room_sheet.dart';
 import 'package:garbanzo_ai/features/rooms/widgets/room_message_bubble.dart';
 
 /// Room chat rendered inside the main chat shell's content pane — the shell
@@ -249,6 +250,25 @@ class _RoomChatViewState extends State<RoomChatView>
             ],
           ),
           actions: [
+            Builder(
+              builder: (buttonContext) {
+                final muted = room?.isMuted ?? false;
+                return IconButton(
+                  key: const ValueKey('room_mute_button'),
+                  tooltip: muted
+                      ? muteStatusLabel(room?.mutedUntil)
+                      : 'Mute notifications',
+                  icon: Icon(
+                    muted
+                        ? Icons.notifications_off
+                        : Icons.notifications_none_outlined,
+                  ),
+                  onPressed: room == null
+                      ? null
+                      : () => _showMuteSheet(buttonContext, provider, room),
+                );
+              },
+            ),
             IconButton(
               tooltip: 'Members & agents',
               icon: const Icon(Icons.group_outlined),
@@ -312,6 +332,19 @@ class _RoomChatViewState extends State<RoomChatView>
         '${room.memberCount} $memberWord · ${room.agentCount} $agentWord';
     if (onlineCount > 0) return '$base · $onlineCount online';
     return base;
+  }
+
+  Future<void> _showMuteSheet(
+    BuildContext context,
+    RoomProvider provider,
+    Room room,
+  ) async {
+    final duration = await showMuteRoomSheet(
+      context: context,
+      roomName: room.name,
+      mutedUntil: room.mutedUntil,
+    );
+    if (duration != null) await provider.setMute(room.id, duration);
   }
 
   void _showPanel(BuildContext context) {

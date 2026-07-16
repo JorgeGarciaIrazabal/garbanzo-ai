@@ -60,6 +60,25 @@ class RoomAgent {
   );
 }
 
+/// Whether a `muted_until` value is still in effect.
+///
+/// Mirrors the backend's `room_chat_service._is_muted`: NULL means "not
+/// muted", anything in the past has expired, and the forever-sentinel is just
+/// a timestamp far enough out that this one comparison covers it too. Keep
+/// mute checks going through here so the sentinel never leaks into UI code.
+bool isMuteActive(DateTime? mutedUntil, {DateTime? now}) =>
+    mutedUntil != null && mutedUntil.isAfter(now ?? DateTime.now());
+
+/// Whether [mutedUntil] is the "muted forever" sentinel rather than a real
+/// expiry the UI should print.
+///
+/// The backend encodes "forever" as a far-future timestamp instead of a
+/// separate flag — `room_service.MUTE_FOREVER`, `9999-12-31T23:59:59Z`.
+/// Compares on year alone so tz normalization or sub-second drift on the wire
+/// can't turn "Always" into a literal year-9999 date.
+bool isMuteForever(DateTime? mutedUntil) =>
+    mutedUntil != null && mutedUntil.toUtc().year >= 9999;
+
 @immutable
 class RoomMember {
   final String roomId;
@@ -73,6 +92,11 @@ class RoomMember {
   final String role; // 'owner' | 'member'
   final DateTime joinedAt;
 
+  /// When this member's room notifications stop being muted, or null when they
+  /// were never muted. May hold the forever-sentinel — read [isMuted] /
+  /// [isMutedForever] instead of comparing this directly.
+  final DateTime? mutedUntil;
+
   const RoomMember({
     required this.roomId,
     required this.userId,
@@ -80,6 +104,7 @@ class RoomMember {
     this.profilePictureB64,
     required this.role,
     required this.joinedAt,
+    this.mutedUntil,
   });
 
   /// Display name for the member: [fullName] when present, else the email.
@@ -88,6 +113,24 @@ class RoomMember {
     return (name != null && name.isNotEmpty) ? name : userId;
   }
 
+  /// Whether room notifications are muted for this member right now.
+  bool get isMuted => isMuteActive(mutedUntil);
+
+  /// Whether the mute is indefinite ("Always") rather than a timed one.
+  bool get isMutedForever => isMuteForever(mutedUntil);
+
+  /// Copy with a new [mutedUntil] — used to keep this member's mute state in
+  /// sync with `Room.mutedUntil` after a `setMute` round trip.
+  RoomMember withMutedUntil(DateTime? mutedUntil) => RoomMember(
+    roomId: roomId,
+    userId: userId,
+    fullName: fullName,
+    profilePictureB64: profilePictureB64,
+    role: role,
+    joinedAt: joinedAt,
+    mutedUntil: mutedUntil,
+  );
+
   factory RoomMember.fromJson(Map<String, dynamic> j) => RoomMember(
     roomId: j['room_id'] as String,
     userId: j['user_id'] as String,
@@ -95,6 +138,9 @@ class RoomMember {
     profilePictureB64: j['profile_picture_b64'] as String?,
     role: j['role'] as String,
     joinedAt: DateTime.parse(j['joined_at'] as String),
+    mutedUntil: j['muted_until'] == null
+        ? null
+        : DateTime.parse(j['muted_until'] as String),
   );
 }
 
@@ -114,6 +160,18 @@ class Room {
   final List<RoomMember> members;
   final List<RoomAgent> agents;
 
+  /// The *viewer's own* mute state for this room (`RoomOut.muted_until`).
+  ///
+  /// `GET /rooms` and `/rooms/search` (`RoomOut`) populate this directly from
+  /// the backend, so the room list can badge muted rooms without opening
+  /// each one. `GET /rooms/{id}` (`RoomDetailOut`) does not set this field
+  /// itself — it carries the full `members` list instead — so
+  /// `RoomProvider.openRoom` backfills it from `memberFor(viewerEmail)` right
+  /// after fetching, and `setMute` keeps both in sync afterwards. UI code
+  /// should always read [mutedUntil] / [isMuted] here rather than reaching
+  /// into [members] for the local user's own mute state.
+  final DateTime? mutedUntil;
+
   const Room({
     required this.id,
     required this.name,
@@ -128,7 +186,53 @@ class Room {
     required this.agentCount,
     this.members = const [],
     this.agents = const [],
+    this.mutedUntil,
   });
+
+  /// Whether room notifications are muted for the viewer right now.
+  bool get isMuted => isMuteActive(mutedUntil);
+
+  /// The membership row for [email], or null when absent.
+  ///
+  /// Note [members] is only populated by the room *detail* payload — the list
+  /// endpoint (`GET /rooms`) returns `RoomOut`, which carries counts but no
+  /// members — so this returns null for rooms that only came from the list.
+  RoomMember? memberFor(String? email) {
+    if (email == null) return null;
+    for (final m in members) {
+      if (m.userId == email) return m;
+    }
+    return null;
+  }
+
+  /// Copy with a new viewer [mutedUntil], keeping the matching entry in
+  /// [members] (if any, and if [viewerEmail] is known) consistent with it —
+  /// so `Room.mutedUntil` and `RoomMember.mutedUntil` never disagree about
+  /// the same user after a `setMute` round trip.
+  Room withViewerMutedUntil(String? viewerEmail, DateTime? mutedUntil) {
+    final updatedMembers = viewerEmail == null
+        ? members
+        : [
+            for (final m in members)
+              m.userId == viewerEmail ? m.withMutedUntil(mutedUntil) : m,
+          ];
+    return Room(
+      id: id,
+      name: name,
+      description: description,
+      ownerId: ownerId,
+      isPublic: isPublic,
+      maxAgentTurnDepth: maxAgentTurnDepth,
+      mode: mode,
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+      memberCount: memberCount,
+      agentCount: agentCount,
+      members: updatedMembers,
+      agents: agents,
+      mutedUntil: mutedUntil,
+    );
+  }
 
   factory Room.fromJson(Map<String, dynamic> j) {
     final members =
@@ -155,6 +259,9 @@ class Room {
       agentCount: j['agent_count'] as int? ?? agents.length,
       members: members,
       agents: agents,
+      mutedUntil: j['muted_until'] == null
+          ? null
+          : DateTime.parse(j['muted_until'] as String),
     );
   }
 }

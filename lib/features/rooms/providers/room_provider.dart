@@ -117,6 +117,43 @@ class RoomProvider extends ChangeNotifier {
     }
   }
 
+  // -------------------------------------------------------------------- Mute
+  //
+  // `Room.mutedUntil` is the source of truth (see its doc comment): the list
+  // endpoints populate it server-side, and `openRoom` backfills it from the
+  // detail payload's `members` below since `RoomDetailOut` doesn't set it
+  // itself. Nothing here needs a side cache anymore.
+
+  /// Mute or unmute the local user's notifications for [roomId].
+  ///
+  /// [duration] is one of `8h`, `1w`, `forever`, `unmute`. State is taken from
+  /// the server's response rather than guessed locally — the backend computes
+  /// the expiry (`now + 8h`, the forever-sentinel, …), so an optimistic write
+  /// would have to duplicate that arithmetic and could still drift from the
+  /// stored value. One round trip, no room refetch: both the listed `Room`
+  /// and `_currentRoom` are updated in place so the bell reflects it
+  /// immediately.
+  Future<void> setMute(String roomId, String duration) async {
+    try {
+      final member = await _service.setMute(roomId, duration);
+      final me = AuthService.instance.cachedUser?.email;
+      _rooms = [
+        for (final r in _rooms)
+          r.id == roomId ? r.withViewerMutedUntil(me, member.mutedUntil) : r,
+      ];
+      if (_currentRoom?.id == roomId) {
+        _currentRoom = _currentRoom!.withViewerMutedUntil(
+          me,
+          member.mutedUntil,
+        );
+      }
+      _error = null;
+    } catch (e) {
+      _error = e.toString();
+    }
+    notifyListeners();
+  }
+
   // ------------------------------------------------------------------ Listing
 
   Future<void> loadRooms() async {
@@ -166,7 +203,16 @@ class RoomProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
     try {
-      _currentRoom = await _service.getRoom(roomId);
+      final room = await _service.getRoom(roomId);
+      // RoomDetailOut doesn't set the top-level `muted_until` itself — derive
+      // the viewer's own mute state from the `members` list it does carry, so
+      // `Room.mutedUntil`/`isMuted` stay meaningful on the freshly opened room
+      // too (not just on rooms that came from the list).
+      final me = AuthService.instance.cachedUser?.email;
+      _currentRoom = room.withViewerMutedUntil(
+        me,
+        room.memberFor(me)?.mutedUntil,
+      );
       _messages = await _service.listMessages(roomId);
       final socket = _socketFactory(roomId);
       _socket = socket;

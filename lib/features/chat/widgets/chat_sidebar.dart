@@ -214,6 +214,7 @@ class _RoomsTab extends StatelessWidget {
             onSelect: (room) => onSelectRoom(room.id),
             onDelete: (room) => onDeleteRoom(room.id),
             onCreate: () => _create(context),
+            onMute: (room, duration) => provider.setMute(room.id, duration),
           ),
         ),
       ],

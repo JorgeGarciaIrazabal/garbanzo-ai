@@ -105,6 +105,21 @@ class RoomService {
     }
   }
 
+  /// Mute or unmute the current user's notifications for [roomId].
+  ///
+  /// [duration] is one of `8h`, `1w`, `forever`, `unmute` — validated
+  /// server-side by the `RoomMuteUpdate` schema.
+  Future<RoomMember> setMute(String roomId, String duration) async {
+    final resp = await _api.patch(
+      '/api/v1/rooms/$roomId/members/me/mute',
+      data: {'duration': duration},
+    );
+    if (resp.statusCode != 200) {
+      throw Exception('Failed to update mute: ${resp.statusCode} ${resp.data}');
+    }
+    return RoomMember.fromJson(resp.data as Map<String, dynamic>);
+  }
+
   Future<RoomAgent> addAgent(
     String roomId, {
     required String name,

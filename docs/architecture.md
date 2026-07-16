@@ -205,6 +205,32 @@ FCM push notification with a truncated preview.
 3. Agent responses stream over the same socket with `type="chunk"`; terminal messages have `role="assistant"`
 4. REST fallback at `POST /rooms/{id}/chat` exists for smoke-testing but returns non-streaming JSON
 
+### Room notification muting
+
+`PATCH /rooms/{id}/members/me/mute` (`{"duration": "8h"|"1w"|"forever"|"unmute"}`)
+sets `RoomMember.muted_until`; the backend skips push for members whose mute is
+still in effect. NULL means not muted and a far-future sentinel
+(`room_service.MUTE_FOREVER`, year 9999) means "forever", so one comparison —
+`muted_until > now` — covers both. The frontend mirrors this in
+`isMuteActive()` / `RoomMember.isMuted` (`rooms/models/room_models.dart`) and
+renders the sentinel as "Always", never as a date.
+
+Triggers: long-press / right-click a room in `RoomsListView`, or the bell in
+the room header — both open `showMuteRoomSheet`.
+
+`Room.mutedUntil` (the viewer's own state) is the frontend's single source of
+truth — `Room.isMuted` reads it directly, no side cache. `GET /rooms` and
+`/rooms/search` (`RoomOut`) populate it server-side (`viewer_email` matched
+against the eager-loaded members), so the list can badge muted rooms without
+opening each one. `GET /rooms/{id}` (`RoomDetailOut`) does not set this field
+itself — it carries the full `members` list instead — so `RoomProvider.openRoom`
+backfills `Room.mutedUntil` from `memberFor(viewerEmail)` right after
+fetching. `RoomProvider.setMute` takes the PATCH response's `RoomMemberOut` and
+writes it onto both the listed `Room` and `_currentRoom` via
+`Room.withViewerMutedUntil`, which also keeps the matching entry in
+`Room.members` in sync — so `Room.mutedUntil` and `RoomMember.mutedUntil`
+never disagree about the local user after a mute/unmute round trip.
+
 ## State Management (Flutter)
 
 Two main providers per `ChatPage` tree:
@@ -217,7 +243,9 @@ Additional providers:
 - **`SearchProvider`** — conversation search results
 - **`SystemPromptProvider`** — system prompt template library + user default
 - **`NotificationProvider`** — in-app notifications + unread count
-- **`RoomProvider`** — room list, room details, room messages
+- **`RoomProvider`** — room list, room details, room messages; mute state lives
+  on `Room`/`RoomMember` themselves (see "Room notification muting" above), not
+  in the provider
 - **`AdminProvider`** — user admin portal (users list, MCP server management)
 - **`KnowledgeBaseProvider`** — document uploads + semantic search
 - **`UsageProvider`** — token usage summary
