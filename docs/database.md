@@ -51,6 +51,17 @@ half-migrated schema.
 - `UserMemory` stores extracted/manual user memories with `content`, `source_conversation_id`, `is_active`.
 - `KnowledgeDocument` / `KnowledgeChunk` store uploaded documents and vector embeddings for RAG.
 - `Room`, `RoomMember`, `RoomAgent`, `RoomMessage` support multi-person/agent chat rooms.
+- `Friendship` (Idea 5) — one row per relationship, directional at request
+  time (`requester_email` → `addressee_email`), status
+  `pending`/`accepted`/`blocked` (plain VARCHAR, validated at the API
+  boundary). Decline/remove DELETE the row so either side can retry;
+  blocked rows persist and are invisible in listings. A unique index on the
+  (requester, addressee) pair plus service-level reverse-direction handling
+  (a request answering an existing reverse pending accepts it) keep at most
+  one row per pair. `GET /friends/search` only searches accepted friends —
+  never the users table — so the API can't be used for account enumeration
+  (the one deliberate disclosure is exact-match existence when sending a
+  request).
 - `RoomAgent.enabled_tools` (JSONB) mirrors `Conversation.enabled_tools`: `null` = all, `[]` = none, `["srv:tool"]` = subset.
 - `RoomMember.muted_until` (nullable timestamptz) suppresses push + in-app
   notifications for that member while `now() < muted_until`; messages still

@@ -19,6 +19,7 @@ when you add or change an endpoint, update the matching row in the same commit.
 | **MCP (Tools)** | `GET /mcp/tools` |
 | **Notifications** | `GET /notifications`, `GET /notifications/unread-count`, `POST /notifications/read-all`, `PATCH /notifications/{id}/read`, `DELETE /notifications/{id}`, `GET /notifications/preferences`, `PATCH /notifications/preferences` |
 | **Devices** | `POST /devices/register`, `DELETE /devices/register` |
+| **Friends** | `POST /friends/requests`, `POST /friends/requests/{id}/accept`, `POST /friends/requests/{id}/decline`, `GET /friends` (friends + incoming + outgoing), `GET /friends/search?q=` (accepted friends only), `DELETE /friends/{email}` |
 | **Scheduled Actions** | `POST /scheduled-actions`, `GET /scheduled-actions`, `GET /scheduled-actions/{id}`, `PATCH /scheduled-actions/{id}`, `DELETE /scheduled-actions/{id}` |
 | **Styles** | `POST /styles`, `GET /styles`, `GET /styles/{id}`, `PATCH /styles/{id}`, `DELETE /styles/{id}` |
 | **Usage** | `GET /usage/summary` |

@@ -1,6 +1,7 @@
 from app.models.available_model import AvailableModel
 from app.models.conversation import Conversation
 from app.models.device_token import DeviceToken
+from app.models.friendship import Friendship
 from app.models.knowledge_base import KnowledgeChunk, KnowledgeDocument
 from app.models.mcp_server import MCPServer
 from app.models.memory import UserMemory
@@ -22,6 +23,7 @@ __all__ = [
     "Style",
     "MCPServer",
     "DeviceToken",
+    "Friendship",
     "Notification",
     "NotificationPreferences",
     "ScheduledAction",
