@@ -33,6 +33,28 @@ abstract class ChatMessage with _$ChatMessage {
   bool get isSystem => role == 'system';
   bool get isToolCall => role == 'tool_call';
   bool get isToolResult => role == 'tool_result';
+
+  /// The action proposal carried by a proposal tool's result, if any —
+  /// `{type, summary, payload}` as produced by the backend's proposal tools
+  /// (create_room, set_conversation_style). Lives inside the persisted
+  /// tool_result meta so it survives reloads; the streaming path builds the
+  /// same shape.
+  Map<String, dynamic>? get actionProposal {
+    final tr = metadata?['tool_result'];
+    if (tr is! Map) return null;
+    final result = tr['result'];
+    if (result is! Map) return null;
+    final proposal = result['proposal'];
+    if (proposal is! Map) return null;
+    return Map<String, dynamic>.from(proposal);
+  }
+
+  /// The tool_call_id of a tool_result message (used to key proposal
+  /// confirm/dismiss decisions).
+  String? get toolCallId {
+    final tr = metadata?['tool_result'];
+    return tr is Map ? tr['tool_call_id'] as String? : null;
+  }
 }
 
 /// A single tool invocation requested by the assistant.
@@ -89,6 +111,11 @@ abstract class ChatResponseChunk with _$ChatResponseChunk {
   bool get isToolCall => type == 'tool_call';
   bool get isToolResult => type == 'tool_result';
   bool get isToolExecution => type == 'tool_execution';
+
+  /// Structured proposal from a proposal tool. The card itself renders from
+  /// the tool_result message (which carries the same proposal and persists);
+  /// this chunk type exists as an explicit stream-level signal.
+  bool get isActionProposal => type == 'action_proposal';
 
   /// Live tool-progress payload ({tool_call_id, tool_name, status,
   /// duration_ms?}) carried by `tool_execution` chunks.

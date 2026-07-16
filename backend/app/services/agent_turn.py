@@ -301,6 +301,23 @@ async def run_agent_turn(
                     metadata={"tool_result": result_meta},
                 )
 
+                # Proposal tools (create_room, set_conversation_style) return
+                # a proposal instead of acting; surface it as its own chunk so
+                # the client renders a Confirm/Cancel card without digging
+                # through tool results. The proposal also persists inside the
+                # tool_result message meta, which is what reloads render from.
+                if isinstance(tool_result, dict) and tool_result.get("proposal"):
+                    yield ChatChunk(
+                        content="",
+                        is_finished=False,
+                        metadata={
+                            "action_proposal": {
+                                **tool_result["proposal"],
+                                "tool_call_id": call.get("id"),
+                            }
+                        },
+                    )
+
                 llm_messages.append(LLMMessage(role="tool", content=result_text))
 
             await sink.commit()

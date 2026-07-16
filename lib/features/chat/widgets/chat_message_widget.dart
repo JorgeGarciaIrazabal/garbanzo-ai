@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
 import 'package:garbanzo_ai/features/chat/models/chat_message.dart';
 import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
+import 'package:garbanzo_ai/features/chat/widgets/action_proposal_card.dart';
 import 'package:garbanzo_ai/features/chat/widgets/input/pulsing_dot.dart';
 import 'package:garbanzo_ai/features/chat/widgets/message/attachment_display.dart';
 import 'package:garbanzo_ai/features/chat/widgets/message/branch_button.dart';
@@ -59,6 +60,12 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
 
   @override
   Widget build(BuildContext context) {
+    // A proposal tool's result renders as a Confirm/Cancel card — the user
+    // decides whether the proposed action (create room, change style) runs.
+    if (widget.message.isToolResult && widget.message.actionProposal != null) {
+      return ActionProposalCard(message: widget.message);
+    }
+
     // Tool invocations and results render as their own collapsible bubbles.
     if (widget.message.isToolCall || widget.message.isToolResult) {
       return ToolBubbleWidget(

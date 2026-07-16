@@ -1,7 +1,14 @@
 """Tests for the proposal-returning native tools (create_room, set_conversation_style)."""
 
+from collections.abc import AsyncIterator
+
 import pytest
 
+from app.schemas.chat import ChatOptions
+from app.services.chat_service import ChatService
+from app.services.conversation_service import ConversationService
+from app.services.llm_provider import ChatChunk, LLMProvider, ModelInfo, ProviderRegistry
+from app.services.llm_provider import Message as LLMMessage
 from app.services.native_tools import (
     ALL_NATIVE_TOOLS,
     CREATE_ROOM_TOOL,
@@ -90,6 +97,106 @@ class TestCreateRoomProposal:
             {"name": "R", "agents": [{"name": "A", "model": "m", "response_mode": "sometimes"}]},
         )
         assert result["ok"] is False
+
+
+class _ScriptedProvider(LLMProvider):
+    """First iteration calls create_room; second gives the final answer."""
+
+    def __init__(self, tool_args: dict):
+        self.iteration = 0
+        self.tool_args = tool_args
+
+    @property
+    def name(self) -> str:
+        return "proposal-scripted"
+
+    async def stream_chat(
+        self,
+        messages: list[LLMMessage],
+        model: str,
+        options: ChatOptions | None = None,
+        cancel_event=None,
+        tools=None,
+    ) -> AsyncIterator[ChatChunk]:
+        self.iteration += 1
+        if self.iteration == 1:
+            yield ChatChunk(
+                content="",
+                is_finished=False,
+                tool_calls=[
+                    {"id": "call-1", "name": CREATE_ROOM_TOOL, "arguments": self.tool_args}
+                ],
+            )
+            yield ChatChunk(content="", is_finished=True, metadata={"has_tool_calls": True})
+        else:
+            yield ChatChunk(content="please confirm", is_finished=False)
+            yield ChatChunk(content="", is_finished=True, metadata={})
+
+    async def chat(self, messages, model, options=None, tools=None) -> str:  # pragma: no cover
+        return ""
+
+    async def list_models(self) -> list[ModelInfo]:  # pragma: no cover
+        return []
+
+    async def health_check(self) -> bool:  # pragma: no cover
+        return True
+
+
+class TestActionProposalChunk:
+    async def test_proposal_tool_call_emits_action_proposal_chunk(
+        self, db_session, test_user_email
+    ):
+        """A create_room tool call must surface an action_proposal chunk
+        (IDEAS.md 4.6) alongside the persisted tool_result."""
+        provider = _ScriptedProvider({"name": "Research"})
+        ProviderRegistry.register(provider)
+        service = ChatService(db_session, provider_name=provider.name)
+        conv = await ConversationService(db_session).create(
+            user_id=test_user_email, title="Proposal test"
+        )
+        await db_session.commit()
+
+        chunks = []
+        async for c in service.send_message(
+            conversation_id=conv.id,
+            user_id=test_user_email,
+            content="make a room",
+        ):
+            chunks.append(c)
+
+        proposals = [
+            c.metadata["action_proposal"]
+            for c in chunks
+            if c.metadata and c.metadata.get("action_proposal")
+        ]
+        assert len(proposals) == 1
+        assert proposals[0]["type"] == CREATE_ROOM_TOOL
+        assert proposals[0]["tool_call_id"] == "call-1"
+        assert proposals[0]["payload"]["name"] == "Research"
+        # The regular tool_result chunk (and thus its persisted message,
+        # which reloads render the card from) still flows.
+        assert any(c.metadata and c.metadata.get("tool_result") for c in chunks)
+
+    async def test_direct_tools_emit_no_proposal_chunk(self, db_session, test_user_email):
+        """A failed/direct tool result (no 'proposal' key) must not fabricate
+        a proposal chunk."""
+        provider = _ScriptedProvider({"name": ""})  # invalid → ok:False result
+        ProviderRegistry.register(provider)
+        service = ChatService(db_session, provider_name=provider.name)
+        conv = await ConversationService(db_session).create(
+            user_id=test_user_email, title="No proposal"
+        )
+        await db_session.commit()
+
+        chunks = []
+        async for c in service.send_message(
+            conversation_id=conv.id,
+            user_id=test_user_email,
+            content="make a room",
+        ):
+            chunks.append(c)
+
+        assert not any(c.metadata and c.metadata.get("action_proposal") for c in chunks)
 
 
 class TestSetStyleProposal:

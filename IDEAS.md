@@ -55,7 +55,7 @@ The assistant should answer "how do I pin a conversation?" from curated app docs
 
 **Iteration 2 — act:**
 - [x] `med-hard` **Action tools design** — Define a small, safe set of native tools: `create_room(name, member_emails, agents)`, `create_scheduled_action(...)` (exists), `save_memory(...)` (exists), `set_conversation_style(...)`. Each returns a structured "proposal" rather than executing directly.
-- [ ] `med-hard` **Confirmation UX** — New SSE chunk type (`action_proposal`) rendered as a card in `ChatMessageWidget` with Confirm/Cancel; on confirm the frontend calls the real REST endpoint it already knows. Keeps the LLM out of the execution path and reuses existing auth.
+- [x] `med-hard` **Confirmation UX** — New SSE chunk type (`action_proposal`) rendered as a card in `ChatMessageWidget` with Confirm/Cancel; on confirm the frontend calls the real REST endpoint it already knows. Keeps the LLM out of the execution path and reuses existing auth. *(Card renders from the persisted tool_result meta so it survives reloads; decisions keyed by tool_call_id in SharedPreferences prevent re-confirming after reload.)*
 - [ ] `medium` **Deep links after action** — Confirmed action responses include a route (`/rooms/{id}`) the frontend can offer to navigate to.
 
 ## 5. Friends

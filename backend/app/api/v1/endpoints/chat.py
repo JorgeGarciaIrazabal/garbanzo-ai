@@ -335,6 +335,13 @@ async def _sse_stream(
                     type="tool_execution",
                     metadata=chunk.metadata,
                 )
+            elif chunk.metadata and chunk.metadata.get("action_proposal"):
+                # A proposal tool's structured proposal — the client renders
+                # a Confirm/Cancel card from it.
+                response = ChatResponseChunk(
+                    type="action_proposal",
+                    metadata=chunk.metadata,
+                )
             elif chunk.is_thinking:
                 response = ChatResponseChunk(type="thinking", content=chunk.content)
             else:

@@ -190,6 +190,10 @@ pages/               LoginPage, RegisterPage
    - `thinking` — reasoning / thought blocks
    - `tool_call` — MCP tool invocation requested by the assistant
    - `tool_result` — result returned from an MCP tool call
+   - `action_proposal` — structured proposal from a proposal tool
+     (create_room / set_conversation_style); the client renders a
+     Confirm/Cancel card from the tool_result message meta (which persists),
+     and on confirm executes via its normal REST services
    - `done` — terminal event with metadata
    - `error` — failure metadata
 5. `ChatProvider` accumulates content, upserts the assistant message live, renders tool call UI inline, then reloads conversation on `done`

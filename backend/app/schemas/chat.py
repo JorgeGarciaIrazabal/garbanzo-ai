@@ -165,6 +165,9 @@ class ChatResponseChunk(BaseModel):
         # Live tool-progress marker (started / finished + duration). Already
         # emitted by the chat streamer; declared here so validation passes.
         "tool_execution",
+        # Structured action proposal from a proposal tool (create_room,
+        # set_conversation_style) — rendered as a Confirm/Cancel card.
+        "action_proposal",
         # Session handshake emitted by the micro-apps agent relay so the
         # client learns the opencode session id early enough to abort it.
         "session",

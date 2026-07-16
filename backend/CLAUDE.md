@@ -23,7 +23,7 @@ demand: `../docs/architecture.md` (layout, flows, startup), `../docs/api.md`
 ## Conventions
 
 - Auth: depend on `get_current_user` (validates `Authorization: Bearer <token>`).
-- Streaming: SSE chunks (`chunk`/`thinking`/`tool_call`/`tool_result`/`done`/`error`).
+- Streaming: SSE chunks (`chunk`/`thinking`/`tool_call`/`tool_result`/`tool_execution`/`action_proposal`/`done`/`error`).
 - Async everywhere: `AsyncSession`, `await` DB calls.
 - New LLM provider: implement the `LLMProvider` ABC, register in `ProviderRegistry`.
 
