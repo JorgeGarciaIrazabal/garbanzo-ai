@@ -10,7 +10,7 @@ Difficulty legend (pick the model per task, not per feature):
 | `med-hard` | Cross-cutting, stateful UI, or careful prompt/tool design | Opus |
 | `hard` | Novel UX, tricky Flutter internals, multi-step agentic behavior | Fable |
 
-Recommended build order: **8 → 3 → 1 → 5 → 2 → 7 → 6 → 4** (roughly: quick wins first, then the friends foundation that ideas 6 and 7 depend on, then the big UX items).
+Work task by task in order, use subagent with right model to execute on each of the subtasks and commit/push after each task is completed
 
 ---
 
