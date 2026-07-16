@@ -1,6 +1,9 @@
 import 'dart:typed_data';
+import 'dart:ui' show PlatformDispatcher;
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
+import 'package:flutter_timezone/flutter_timezone.dart';
 
 import 'package:garbanzo_ai/core/api_client.dart';
 
@@ -120,6 +123,47 @@ class AuthService {
     }
   }
 
+  /// Report the device's IANA timezone and locale to the backend when they
+  /// differ from what the server has stored — they feed the dynamic
+  /// `<context>` block the backend injects into every chat prompt so
+  /// "today" / "this weekend" resolve in the user's local time.
+  ///
+  /// Fire-and-forget from session start and login; failures are swallowed —
+  /// a stale timezone only means the assistant's sense of local time lags
+  /// until the next app start.
+  Future<void> syncDeviceContext() async {
+    try {
+      final user = _cachedUser ?? await getCurrentUser();
+      if (user == null) return;
+      final tz = (await FlutterTimezone.getLocalTimezone()).identifier;
+      final locale = PlatformDispatcher.instance.locale.toLanguageTag();
+      final body = deviceContextPatch(user: user, timezone: tz, locale: locale);
+      if (body.isEmpty) return;
+      final res = await _client.patch('/api/v1/auth/me', data: body);
+      if (res.statusCode == 200 && res.data is Map<String, dynamic>) {
+        _cachedUser = UserInfo.fromJson(res.data as Map<String, dynamic>);
+      }
+    } catch (_) {
+      // Best-effort: never let a timezone report break login/startup.
+    }
+  }
+
+  /// The PATCH body [syncDeviceContext] sends: only the fields that are
+  /// non-empty on the device and differ from what the server already has,
+  /// so the common case (nothing moved) is no request at all.
+  @visibleForTesting
+  static Map<String, dynamic> deviceContextPatch({
+    required UserInfo user,
+    required String timezone,
+    required String locale,
+  }) {
+    return <String, dynamic>{
+      if (timezone.isNotEmpty && timezone != user.timezone)
+        'timezone': timezone,
+      if (locale.isNotEmpty && locale != user.locale) 'locale': locale,
+    };
+  }
+
   Future<AuthResult> login(String email, String password) async {
     try {
       final res = await _client.post(
@@ -225,6 +269,8 @@ class UserInfo {
   final bool isDisabled;
   final String? defaultModel;
   final String? profilePictureB64;
+  final String? timezone;
+  final String? locale;
 
   const UserInfo({
     required this.email,
@@ -234,6 +280,8 @@ class UserInfo {
     this.isDisabled = false,
     this.defaultModel,
     this.profilePictureB64,
+    this.timezone,
+    this.locale,
   });
 
   factory UserInfo.fromJson(Map<String, dynamic> json) {
@@ -250,6 +298,8 @@ class UserInfo {
       isDisabled: json['is_disabled'] as bool? ?? false,
       defaultModel: json['default_model'] as String?,
       profilePictureB64: json['profile_picture_b64'] as String?,
+      timezone: json['timezone'] as String?,
+      locale: json['locale'] as String?,
     );
   }
 
@@ -261,5 +311,7 @@ class UserInfo {
     'is_disabled': isDisabled,
     'default_model': defaultModel,
     'profile_picture_b64': profilePictureB64,
+    'timezone': timezone,
+    'locale': locale,
   };
 }

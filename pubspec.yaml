@@ -65,6 +65,7 @@ dependencies:
   go_router: ^17.3.0
   flutter_web_plugins:
     sdk: flutter
+  flutter_timezone: ^5.1.0
 
 dev_dependencies:
   flutter_test:

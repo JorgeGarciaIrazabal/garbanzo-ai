@@ -6,6 +6,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
   audioplayers_windows
   file_selector_windows
   firebase_core
+  flutter_timezone
   irondash_engine_context
   record_windows
   super_native_extensions

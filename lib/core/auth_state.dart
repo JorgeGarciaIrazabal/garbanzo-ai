@@ -36,6 +36,7 @@ class AuthState extends ChangeNotifier {
     _ready = true;
     if (_loggedIn) {
       unawaited(PushService.instance.registerDevice());
+      unawaited(AuthService.instance.syncDeviceContext());
     }
     notifyListeners();
   }
@@ -45,8 +46,13 @@ class AuthState extends ChangeNotifier {
     _loggedIn = true;
     _ready = true;
     // Fire-and-forget: populate cached user (including is_admin) without
-    // blocking the UI transition.
-    unawaited(AuthService.instance.getCurrentUser());
+    // blocking the UI transition, then report the device timezone/locale
+    // (syncDeviceContext reuses the just-cached user, so no double fetch).
+    unawaited(
+      AuthService.instance.getCurrentUser().then(
+        (_) => AuthService.instance.syncDeviceContext(),
+      ),
+    );
     unawaited(PushService.instance.registerDevice());
     // If a push notification tapped a room while logged out, navigate now.
     final pending = PushService.instance.pendingRoomId;

@@ -11,6 +11,8 @@ void main() {
         'is_admin': true,
         'is_disabled': false,
         'default_model': 'qwen3.6',
+        'timezone': 'America/New_York',
+        'locale': 'en-US',
       });
       expect(user.email, 'jane@example.com');
       expect(user.fullName, 'Jane Doe');
@@ -20,6 +22,8 @@ void main() {
       expect(user.isAdmin, isTrue);
       expect(user.isDisabled, isFalse);
       expect(user.defaultModel, 'qwen3.6');
+      expect(user.timezone, 'America/New_York');
+      expect(user.locale, 'en-US');
     });
 
     test('falls back to safe defaults for missing fields', () {
@@ -52,6 +56,50 @@ void main() {
       expect(json['is_admin'], isTrue);
       expect(json['is_disabled'], isFalse);
       expect(json['default_model'], isNull);
+    });
+  });
+
+  group('AuthService.deviceContextPatch', () {
+    const user = UserInfo(
+      email: 'a@b.c',
+      timezone: 'America/New_York',
+      locale: 'en-US',
+    );
+
+    test('empty when device matches what the server has', () {
+      final body = AuthService.deviceContextPatch(
+        user: user,
+        timezone: 'America/New_York',
+        locale: 'en-US',
+      );
+      expect(body, isEmpty);
+    });
+
+    test('sends only the field that changed', () {
+      final body = AuthService.deviceContextPatch(
+        user: user,
+        timezone: 'Europe/Madrid',
+        locale: 'en-US',
+      );
+      expect(body, {'timezone': 'Europe/Madrid'});
+    });
+
+    test('sends both when the server has neither', () {
+      final body = AuthService.deviceContextPatch(
+        user: const UserInfo(email: 'a@b.c'),
+        timezone: 'Europe/Madrid',
+        locale: 'es-ES',
+      );
+      expect(body, {'timezone': 'Europe/Madrid', 'locale': 'es-ES'});
+    });
+
+    test('never sends empty device values over stored ones', () {
+      final body = AuthService.deviceContextPatch(
+        user: user,
+        timezone: '',
+        locale: '',
+      );
+      expect(body, isEmpty);
     });
   });
 }
