@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -32,6 +33,11 @@ class _ActionProposalCardState extends State<ActionProposalCard> {
   _Decision _decision = _Decision.pending;
   String? _resultNote;
 
+  /// Route to what the confirmed action created (e.g. `/rooms/<id>`), shown
+  /// as an "Open" deep link. Persisted with the decision so the link is
+  /// still there after a reload.
+  String? _route;
+
   Map<String, dynamic> get _proposal =>
       widget.message.actionProposal ?? const {};
   String get _type => (_proposal['type'] as String?) ?? '';
@@ -58,10 +64,12 @@ class _ActionProposalCardState extends State<ActionProposalCard> {
     final prefs = await SharedPreferences.getInstance();
     final stored = prefs.getString(key);
     if (!mounted || stored == null) return;
+    // Stored either as 'dismissed', 'confirmed', or 'confirmed:<route>'.
+    final confirmed = stored.startsWith('confirmed');
+    final sep = stored.indexOf(':');
     setState(() {
-      _decision = stored == 'confirmed'
-          ? _Decision.confirmed
-          : _Decision.dismissed;
+      _decision = confirmed ? _Decision.confirmed : _Decision.dismissed;
+      _route = (confirmed && sep > 0) ? stored.substring(sep + 1) : null;
     });
   }
 
@@ -127,6 +135,11 @@ class _ActionProposalCardState extends State<ActionProposalCard> {
     _ => 'Confirm action?',
   };
 
+  String get _openLabel => switch (_type) {
+    'create_room' => 'Open room',
+    _ => 'Open',
+  };
+
   List<Widget> _details(ThemeData theme) {
     final lines = <String>[];
     if (_type == 'create_room') {
@@ -160,10 +173,26 @@ class _ActionProposalCardState extends State<ActionProposalCard> {
           child: CircularProgressIndicator(strokeWidth: 2),
         );
       case _Decision.confirmed:
-        return _statusRow(
-          Icons.check_circle_outline,
-          _resultNote ?? 'Done',
-          colorScheme.primary,
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              child: _statusRow(
+                Icons.check_circle_outline,
+                _resultNote ?? 'Done',
+                colorScheme.primary,
+              ),
+            ),
+            if (_route != null) ...[
+              const SizedBox(width: 12),
+              OutlinedButton.icon(
+                key: const ValueKey('action_proposal_open'),
+                onPressed: () => context.go(_route!),
+                icon: const Icon(Icons.arrow_forward, size: 16),
+                label: Text(_openLabel),
+              ),
+            ],
+          ],
         );
       case _Decision.dismissed:
         return _statusRow(
@@ -239,7 +268,7 @@ class _ActionProposalCardState extends State<ActionProposalCard> {
         _decision = _Decision.confirmed;
         _resultNote = note;
       });
-      await _storeDecision('confirmed');
+      await _storeDecision(_route == null ? 'confirmed' : 'confirmed:$_route');
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -270,6 +299,7 @@ class _ActionProposalCardState extends State<ActionProposalCard> {
         isModerator: (a['is_moderator'] as bool?) ?? false,
       );
     }
+    _route = '/rooms/${room.id}';
     return "Room '${room.name}' created";
   }
 

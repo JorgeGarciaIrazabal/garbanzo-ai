@@ -102,6 +102,21 @@ void main() {
 
     expect(find.text('Done'), findsOneWidget);
     expect(find.byKey(const ValueKey('action_proposal_confirm')), findsNothing);
+    // Confirmed without a stored route → no dangling Open button.
+    expect(find.byKey(const ValueKey('action_proposal_open')), findsNothing);
+  });
+
+  testWidgets('a stored confirmed decision keeps the deep link', (tester) async {
+    SharedPreferences.setMockInitialValues({
+      'action_proposal_decision_call-1': 'confirmed:/rooms/r42',
+    });
+    await tester.pumpWidget(_wrap(ActionProposalCard(message: _proposalMessage())));
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('Done'), findsOneWidget);
+    expect(find.byKey(const ValueKey('action_proposal_open')), findsOneWidget);
+    expect(find.text('Open room'), findsOneWidget);
   });
 
   testWidgets(
