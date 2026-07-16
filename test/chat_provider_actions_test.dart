@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:garbanzo_ai/features/chat/models/chat_attachment.dart';
 import 'package:garbanzo_ai/features/chat/models/chat_message.dart';
 import 'package:garbanzo_ai/features/chat/models/conversation.dart';
+import 'package:garbanzo_ai/features/chat/models/thinking_level.dart';
 import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
 import 'package:garbanzo_ai/features/chat/services/chat_service.dart';
 
@@ -86,6 +87,8 @@ class _FakeChatService extends ChatService {
     List<String>? enabledTools,
     bool clearEnabledTools = false,
     bool? isPinned,
+    ThinkingLevel? thinkingLevel,
+    bool setThinkingLevel = false,
   }) async {
     updateCalls.add((conversationId: conversationId, isPinned: isPinned));
     final updated = conversationsById[conversationId]!.copyWith(

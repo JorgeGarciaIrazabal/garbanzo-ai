@@ -3,11 +3,10 @@ import 'package:provider/provider.dart';
 
 import 'package:garbanzo_ai/core/responsive.dart';
 import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
-import 'package:garbanzo_ai/features/chat/providers/model_provider.dart';
 import 'package:garbanzo_ai/features/chat/talk/talk_mode_page.dart';
 import 'package:garbanzo_ai/features/chat/widgets/mobile_drawer.dart';
 import 'package:garbanzo_ai/features/chat/widgets/mobile_search_sheet.dart';
-import 'package:garbanzo_ai/features/chat/widgets/model_selector_widget.dart';
+import 'package:garbanzo_ai/features/chat/widgets/style_picker.dart';
 import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
 
 /// App bar for the chat page: conversation title, model selector, and
@@ -34,7 +33,6 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
   @override
   Widget build(BuildContext context) {
     final chatProvider = context.watch<ChatProvider>();
-    final modelProvider = context.watch<ModelProvider>();
     final showSidebar = context.isWide;
 
     return AppBar(
@@ -78,19 +76,9 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
                   settings: context.read<SettingsProvider>(),
                 ),
         ),
-        Padding(
-          padding: const EdgeInsets.only(right: 8),
-          child: ModelSelectorWidget(
-            models: modelProvider.availableModels,
-            selectedId: modelProvider.selectedModelId,
-            onSelect: (id) {
-              modelProvider.selectModel(id);
-              if (chatProvider.currentConversation != null) {
-                chatProvider.updateConversation(model: id);
-              }
-            },
-            isEnabled: !chatProvider.isSending,
-          ),
+        const Padding(
+          padding: EdgeInsets.only(right: 8),
+          child: StylePickerButton(),
         ),
         // Closed micro-app panel: offer a way back in without re-running
         // the tool (on narrow screens closing it is otherwise a dead end).

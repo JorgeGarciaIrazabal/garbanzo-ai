@@ -100,12 +100,13 @@ core/
   responsive.dart    Breakpoint helpers for desktop / tablet / mobile UI
 features/chat/
   models/            ChatMessage, Conversation, ChatAttachment, ModelInfo,
-                     ChatResponseChunk, SystemPromptTemplate, SearchResult
+                     ChatResponseChunk, SystemPromptTemplate, SearchResult,
+                     Style, ThinkingLevel
                      ( all use freezed + json_serializable )
   providers/         ChatProvider, ModelProvider, SearchProvider,
-                     SystemPromptProvider
+                     SystemPromptProvider, StyleProvider
   services/          chat_service.dart (CRUD + SSE streaming),
-                     audio_service.dart (STT/TTS)
+                     audio_service.dart (STT/TTS), style_service.dart
   utils/             text_cleaner.dart (strips markdown/emojis before TTS)
   talk/              Talk Mode — full-screen hands-free voice call over
                      ChatProvider: talk_mode_page.dart, talk_mode_controller.dart
@@ -113,7 +114,9 @@ features/chat/
                      (energy VAD), talk_recorder.dart (mic + amplitude stream),
                      talk_tts_queue.dart (sentence-streamed playback)
   widgets/           ChatPage, ChatInputWidget, ChatMessageWidget,
-                     ConversationListWidget, ModelSelectorWidget,
+                     ConversationListWidget, StylePicker (StylePickerButton
+                     + popover/bottom-sheet panel; replaced the old
+                     ModelSelectorWidget dropdown),
                      SearchWidget, SearchResultsWidget, SystemPromptBanner,
                      SystemPromptEditorDialog, ContextWindowIndicator,
                      ContextSummaryWidget, MemoryToggleWidget,
@@ -233,9 +236,10 @@ never disagree about the local user after a mute/unmute round trip.
 
 ## State Management (Flutter)
 
-Two main providers per `ChatPage` tree:
+Main providers per `ChatPage` tree:
 - **`ModelProvider`** — available models + selected model. Kept separate so model selection survives conversation switches.
-- **`ChatProvider`** — conversations list, current conversation + messages, streaming state. Receives `onModelChanged` callback from `ModelProvider`.
+- **`StyleProvider`** — saved styles (model + thinking level + prompt template bundles, `/api/v1/styles`) plus the *pending* thinking level / system prompt the style picker composes for the next new conversation. Same survives-switches rationale as `ModelProvider`. On load it seeds the pendings from the default style (`is_default`); marking a style default also persists its model as the account default model so `ModelProvider` restores it at login.
+- **`ChatProvider`** — conversations list, current conversation + messages, streaming state. A `ChangeNotifierProxyProvider2` in `main.dart` pushes `ModelProvider.selectedModelId` and `StyleProvider`'s pending thinking/prompt into it; new conversations are created with those values. Applying a style to a live conversation is a plain conversation PATCH (model + `thinking_level` + `system_prompt`) — there is no dedicated backend endpoint.
 
 Additional providers:
 - **`MemoryProvider`** — user memories CRUD

@@ -2,6 +2,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 
 import 'package:garbanzo_ai/core/mute_util.dart';
 import 'package:garbanzo_ai/features/chat/models/chat_message.dart';
+import 'package:garbanzo_ai/features/chat/models/thinking_level.dart';
 
 part 'conversation.freezed.dart';
 part 'conversation.g.dart';
@@ -23,6 +24,10 @@ abstract class Conversation with _$Conversation {
     @Default(false) bool isPinned,
     String? contextSummary,
     String? systemPrompt,
+    // Reasoning depth for thinking-capable models; null = provider default
+    // (thinking auto-enables when the model supports it).
+    @JsonKey(unknownEnumValue: JsonKey.nullForUndefinedEnumValue)
+    ThinkingLevel? thinkingLevel,
     List<String>? enabledTools,
     List<ChatMessage>? messages,
     // NULL = not muted. A far-future sentinel value means "muted forever" —

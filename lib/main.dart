@@ -14,6 +14,7 @@ import 'package:garbanzo_ai/core/theme.dart';
 import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/model_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/search_provider.dart';
+import 'package:garbanzo_ai/features/chat/providers/style_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/system_prompt_provider.dart';
 import 'package:garbanzo_ai/features/knowledge_base/providers/knowledge_base_provider.dart';
 import 'package:garbanzo_ai/features/memory/providers/memory_provider.dart';
@@ -125,10 +126,20 @@ class _AppProviders extends StatelessWidget {
       key: ValueKey(epoch),
       providers: [
         ChangeNotifierProvider(create: (_) => ModelProvider()),
-        ChangeNotifierProxyProvider<ModelProvider, ChatProvider>(
+        ChangeNotifierProvider(create: (_) => StyleProvider()),
+        // Model selection and the style picker's pending thinking/prompt
+        // live outside ChatProvider so they survive conversation switches;
+        // the proxy pushes the latest values in for new-conversation creates.
+        ChangeNotifierProxyProvider2<
+          ModelProvider,
+          StyleProvider,
+          ChatProvider
+        >(
           create: (_) => ChatProvider(),
-          update: (_, model, chat) =>
-              chat!..selectedModelId = model.selectedModelId,
+          update: (_, model, style, chat) => chat!
+            ..selectedModelId = model.selectedModelId
+            ..pendingThinkingLevel = style.pendingThinkingLevel
+            ..pendingSystemPrompt = style.pendingSystemPrompt,
         ),
         ChangeNotifierProvider(create: (_) => MemoryProvider()),
         ChangeNotifierProvider(create: (_) => SystemPromptProvider()),

@@ -10,6 +10,7 @@ import 'package:garbanzo_ai/features/chat/models/chat_attachment.dart';
 import 'package:garbanzo_ai/features/chat/models/chat_message.dart';
 import 'package:garbanzo_ai/features/chat/models/conversation.dart';
 import 'package:garbanzo_ai/features/chat/models/model_info.dart';
+import 'package:garbanzo_ai/features/chat/models/thinking_level.dart';
 
 /// Service for interacting with the chat API.
 ///
@@ -34,6 +35,7 @@ class ChatService {
     String model = 'llama3.2',
     String? initialMessage,
     String? systemPrompt,
+    ThinkingLevel? thinkingLevel,
   }) async {
     final response = await _api.post(
       '/api/v1/chat/conversations',
@@ -42,6 +44,7 @@ class ChatService {
         'model': model,
         'initial_message': ?initialMessage,
         'system_prompt': ?systemPrompt,
+        'thinking_level': ?thinkingLevel?.name,
       },
     );
 
@@ -94,6 +97,8 @@ class ChatService {
     List<String>? enabledTools,
     bool clearEnabledTools = false,
     bool? isPinned,
+    ThinkingLevel? thinkingLevel,
+    bool setThinkingLevel = false,
   }) async {
     // clearSystemPrompt=true sends "" to the backend to reset to user default.
     final effectivePrompt = clearSystemPrompt ? '' : systemPrompt;
@@ -110,6 +115,10 @@ class ChatService {
         if (clearEnabledTools) 'enabled_tools': null,
         if (!clearEnabledTools && enabledTools != null)
           'enabled_tools': enabledTools,
+        // Three-way semantics: key absent = unchanged, null = reset to the
+        // provider default ("Auto"), a value = set that level.
+        if (setThinkingLevel || thinkingLevel != null)
+          'thinking_level': thinkingLevel?.name,
       },
     );
 

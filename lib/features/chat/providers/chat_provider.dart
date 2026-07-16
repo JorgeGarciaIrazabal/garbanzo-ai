@@ -8,6 +8,7 @@ import 'package:garbanzo_ai/features/microapps/providers/microapp_panel_controll
 import 'package:garbanzo_ai/features/chat/models/chat_attachment.dart';
 import 'package:garbanzo_ai/features/chat/models/chat_message.dart';
 import 'package:garbanzo_ai/features/chat/models/conversation.dart';
+import 'package:garbanzo_ai/features/chat/models/thinking_level.dart';
 import 'package:garbanzo_ai/features/chat/providers/conversation_list_controller.dart';
 import 'package:garbanzo_ai/features/chat/services/chat_service.dart';
 
@@ -43,6 +44,21 @@ class ChatProvider extends ChangeNotifier {
   set selectedModelId(String? id) => _selectedModelIdValue = id;
 
   String? _selectedModelId() => _selectedModelIdValue;
+
+  ThinkingLevel? _pendingThinkingLevelValue;
+
+  /// Thinking level composed in the style picker for the *next* new
+  /// conversation; pushed in from [StyleProvider] by the ProxyProvider (same
+  /// pattern as [selectedModelId]). No notify — it only affects future
+  /// creates.
+  set pendingThinkingLevel(ThinkingLevel? level) =>
+      _pendingThinkingLevelValue = level;
+
+  String? _pendingSystemPromptValue;
+
+  /// System prompt (resolved template content) for the *next* new
+  /// conversation; pushed in from [StyleProvider] like [selectedModelId].
+  set pendingSystemPrompt(String? prompt) => _pendingSystemPromptValue = prompt;
 
   /// Drives the live micro-app panel beside the chat. Opened when the model
   /// calls the `house_designer` tool (see the tool_result branch below) or by
@@ -169,6 +185,7 @@ class ChatProvider extends ChangeNotifier {
     String? model,
     String? initialMessage,
     String? systemPrompt,
+    ThinkingLevel? thinkingLevel,
     List<ChatAttachment> initialAttachments = const [],
   }) async {
     _error = null;
@@ -187,7 +204,8 @@ class ChatProvider extends ChangeNotifier {
       final conversation = await _chatService.createConversation(
         title: derivedTitle,
         model: selectedModel,
-        systemPrompt: systemPrompt,
+        systemPrompt: systemPrompt ?? _pendingSystemPromptValue,
+        thinkingLevel: thinkingLevel ?? _pendingThinkingLevelValue,
       );
 
       _currentConversation = conversation;
@@ -222,6 +240,8 @@ class ChatProvider extends ChangeNotifier {
     List<String>? enabledTools,
     bool clearEnabledTools = false,
     bool? isPinned,
+    ThinkingLevel? thinkingLevel,
+    bool setThinkingLevel = false,
   }) async {
     if (_currentConversation == null) return;
 
@@ -240,6 +260,8 @@ class ChatProvider extends ChangeNotifier {
         enabledTools: enabledTools,
         clearEnabledTools: clearEnabledTools,
         isPinned: isPinned,
+        thinkingLevel: thinkingLevel,
+        setThinkingLevel: setThinkingLevel,
       );
       _currentConversation = updated;
       await conversationList.load();

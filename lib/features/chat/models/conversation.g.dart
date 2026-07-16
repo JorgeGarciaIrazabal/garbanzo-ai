@@ -19,6 +19,11 @@ _Conversation _$ConversationFromJson(Map<String, dynamic> json) =>
       isPinned: json['is_pinned'] as bool? ?? false,
       contextSummary: json['context_summary'] as String?,
       systemPrompt: json['system_prompt'] as String?,
+      thinkingLevel: $enumDecodeNullable(
+        _$ThinkingLevelEnumMap,
+        json['thinking_level'],
+        unknownValue: JsonKey.nullForUndefinedEnumValue,
+      ),
       enabledTools: (json['enabled_tools'] as List<dynamic>?)
           ?.map((e) => e as String)
           .toList(),
@@ -43,10 +48,18 @@ Map<String, dynamic> _$ConversationToJson(_Conversation instance) =>
       'is_pinned': instance.isPinned,
       'context_summary': instance.contextSummary,
       'system_prompt': instance.systemPrompt,
+      'thinking_level': _$ThinkingLevelEnumMap[instance.thinkingLevel],
       'enabled_tools': instance.enabledTools,
       'messages': instance.messages,
       'muted_until': instance.mutedUntil?.toIso8601String(),
     };
+
+const _$ThinkingLevelEnumMap = {
+  ThinkingLevel.off: 'off',
+  ThinkingLevel.low: 'low',
+  ThinkingLevel.medium: 'medium',
+  ThinkingLevel.high: 'high',
+};
 
 _ConversationList _$ConversationListFromJson(Map<String, dynamic> json) =>
     _ConversationList(
