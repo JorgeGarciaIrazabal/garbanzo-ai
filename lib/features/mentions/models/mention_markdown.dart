@@ -5,6 +5,31 @@
 /// non-whitespace. Trailing punctuation stays outside the bold so "@Ana,"
 /// renders as "**@Ana**,". Already-emphasized tokens (`**@Ana**`) don't
 /// match — the leading `*` isn't whitespace.
+/// Returns the subset of [toolNames] mentioned as `#name` tokens in [text]
+/// (word-start tokens only, source order, deduplicated).
+List<String> mentionedToolNames(String text, Iterable<String> toolNames) {
+  final seen = <String>{};
+  return [
+    for (final name in toolNames)
+      if (seen.add(name) &&
+          RegExp(
+            '(^|\\s)#${RegExp.escape(name)}(\$|[^\\w])',
+            multiLine: true,
+          ).hasMatch(text))
+        name,
+  ];
+}
+
+/// Appends the tool-nudge hint for `#tool` mentions to an outgoing chat
+/// message, so the model is told explicitly which tools the user pointed
+/// at. Returns [text] unchanged when [mentioned] is empty.
+String appendToolHint(String text, List<String> mentioned) {
+  if (mentioned.isEmpty) return text;
+  final names = mentioned.map((n) => '`$n`').join(', ');
+  final plural = mentioned.length > 1 ? 's' : '';
+  return '$text\n\n(Please use the $names tool$plural for this.)';
+}
+
 String boldMentionTokens(String text, {String trigger = '@'}) {
   final pattern = RegExp(
     '(^|\\s)(${RegExp.escape(trigger)}\\S+)',

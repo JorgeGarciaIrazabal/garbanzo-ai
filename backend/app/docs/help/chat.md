@@ -8,6 +8,13 @@ desktop, the drawer on mobile).
 Type in the input bar and press Enter (or the send button). While the
 assistant is replying you can press the stop button to cancel generation.
 
+## What do / and # do in the input bar?
+Typing `/` at the start of a word suggests your prompt templates — picking
+one pastes its content into the field, ready to edit and send. Typing `#`
+suggests available tools; picking one inserts a `#tool_name` mention that
+nudges the assistant to use that tool for your request. Use the arrow keys
+and Enter (or tap) to pick a suggestion; Esc dismisses it.
+
 ## How do I attach images or files?
 Use the paperclip (**Attach photos or files**) next to the input bar. Images
 are sent to vision-capable models; documents (PDF, text, etc.) have their

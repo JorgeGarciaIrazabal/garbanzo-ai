@@ -6,11 +6,18 @@ import 'package:provider/provider.dart';
 import 'package:garbanzo_ai/core/log.dart';
 import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
 import 'package:garbanzo_ai/features/chat/models/chat_attachment.dart';
+import 'package:garbanzo_ai/features/chat/providers/system_prompt_provider.dart';
 import 'package:garbanzo_ai/features/chat/widgets/input/attach_menu_button.dart';
 import 'package:garbanzo_ai/features/chat/widgets/input/attachment_preview.dart';
 import 'package:garbanzo_ai/features/chat/widgets/input/message_composer.dart';
 import 'package:garbanzo_ai/features/chat/widgets/input/pulsing_dot.dart';
 import 'package:garbanzo_ai/features/chat/widgets/input/voice_recording_helper.dart';
+import 'package:garbanzo_ai/features/mentions/models/mention_candidate.dart';
+import 'package:garbanzo_ai/features/mentions/models/mention_markdown.dart';
+import 'package:garbanzo_ai/features/mentions/models/mention_sources.dart';
+import 'package:garbanzo_ai/features/mentions/widgets/mention_autocomplete.dart';
+import 'package:garbanzo_ai/features/mentions/widgets/mention_text_controller.dart';
+import 'package:garbanzo_ai/features/tools/providers/tool_provider.dart';
 
 /// Widget for the chat text input field with optional file attachments.
 ///
@@ -42,7 +49,11 @@ class ChatInputWidget extends StatefulWidget {
 }
 
 class _ChatInputWidgetState extends State<ChatInputWidget> {
-  final TextEditingController _controller = TextEditingController();
+  // '#' tool mentions stay as styled tokens; '/' template picks replace the
+  // token with the template's content, so '/' needs no token styling.
+  final TextEditingController _controller = MentionTextController(
+    triggers: {'#'},
+  );
   final FocusNode _focusNode = FocusNode();
   final GlobalKey<MessageComposerState> _composerKey = GlobalKey();
   final List<ChatAttachment> _attachments = [];
@@ -75,9 +86,39 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
 
   void _handleSend(String text) {
     final attachments = List<ChatAttachment>.from(_attachments);
-    widget.onSend(text, attachments);
+    // #tool mentions nudge the model with an explicit hint on the request.
+    final tools = context.read<ToolProvider>().tools;
+    final withHint = appendToolHint(
+      text,
+      mentionedToolNames(text, tools.map((t) => t.name)),
+    );
+    widget.onSend(withHint, attachments);
     setState(() => _attachments.clear());
   }
+
+  // -- Mention sources ---------------------------------------------------------
+
+  /// `/` suggestions: prompt templates. Picking one expands to the
+  /// template's *content* (snippet-style) rather than a token, ready to
+  /// edit and send.
+  List<MentionCandidate> _templateCandidates() {
+    final templates = context.read<SystemPromptProvider>().templates;
+    return [
+      for (final t in templates)
+        if (t.content.trim().isNotEmpty)
+          MentionCandidate(
+            kind: MentionKind.template,
+            id: t.id,
+            label: t.name,
+            sublabel: t.description,
+            insertText: t.content.trim(),
+          ),
+    ];
+  }
+
+  /// `#` suggestions: available tools, inserted as `#tool_name` tokens.
+  List<MentionCandidate> _toolCandidates() =>
+      toolMentionCandidates(context.read<ToolProvider>().tools);
 
   // -- Voice recording -------------------------------------------------------
 
@@ -218,84 +259,89 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
     final colorScheme = theme.colorScheme;
     final isMobile = MediaQuery.of(context).size.width < 600;
 
-    return MessageComposer(
-      key: _composerKey,
+    return MentionAutocomplete(
       controller: _controller,
       focusNode: _focusNode,
-      onSend: _handleSend,
-      onStop: widget.onStop,
-      isLoading: widget.isLoading,
-      hintText: widget.hintText,
-      hasExtraContent: _attachments.isNotEmpty,
-      above: _attachments.isEmpty
-          ? null
-          : AttachmentPreviewBar(
-              attachments: _attachments,
-              onRemove: _removeAttachment,
-              colorScheme: colorScheme,
-              textTheme: theme.textTheme,
-            ),
-      leading: AttachMenuButton(
-        buttonKey: const ValueKey('attach_button'),
-        enabled: !widget.isLoading,
-        existingNames: () => _attachments.map((a) => a.name).toSet(),
-        onAdded: (added) => setState(() => _attachments.addAll(added)),
-      ),
-      overlay: !_isRecording
-          ? null
-          : Container(
-              decoration: BoxDecoration(
-                color: colorScheme.errorContainer.withValues(alpha: 0.9),
-                borderRadius: BorderRadius.circular(isMobile ? 16 : 20),
-                border: Border.all(
-                  color: colorScheme.error.withValues(alpha: 0.5),
+      sources: {'/': _templateCandidates, '#': _toolCandidates},
+      child: MessageComposer(
+        key: _composerKey,
+        controller: _controller,
+        focusNode: _focusNode,
+        onSend: _handleSend,
+        onStop: widget.onStop,
+        isLoading: widget.isLoading,
+        hintText: widget.hintText,
+        hasExtraContent: _attachments.isNotEmpty,
+        above: _attachments.isEmpty
+            ? null
+            : AttachmentPreviewBar(
+                attachments: _attachments,
+                onRemove: _removeAttachment,
+                colorScheme: colorScheme,
+                textTheme: theme.textTheme,
+              ),
+        leading: AttachMenuButton(
+          buttonKey: const ValueKey('attach_button'),
+          enabled: !widget.isLoading,
+          existingNames: () => _attachments.map((a) => a.name).toSet(),
+          onAdded: (added) => setState(() => _attachments.addAll(added)),
+        ),
+        overlay: !_isRecording
+            ? null
+            : Container(
+                decoration: BoxDecoration(
+                  color: colorScheme.errorContainer.withValues(alpha: 0.9),
+                  borderRadius: BorderRadius.circular(isMobile ? 16 : 20),
+                  border: Border.all(
+                    color: colorScheme.error.withValues(alpha: 0.5),
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    PulsingDot(color: colorScheme.error),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Recording ${_formatDuration(_recordingDuration)}',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: colorScheme.onErrorContainer,
+                        fontWeight: FontWeight.w500,
+                        fontSize: isMobile ? 12 : null,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  PulsingDot(color: colorScheme.error),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Recording ${_formatDuration(_recordingDuration)}',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: colorScheme.onErrorContainer,
-                      fontWeight: FontWeight.w500,
-                      fontSize: isMobile ? 12 : null,
-                    ),
-                  ),
-                ],
+        idleTrailingBuilder: (_) => _isTranscribing
+            ? SizedBox(
+                width: isMobile ? 32 : 40,
+                height: isMobile ? 32 : 40,
+                child: const Padding(
+                  padding: EdgeInsets.all(6),
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              )
+            : IconButton(
+                key: const ValueKey('voice_button'),
+                onPressed: _toggleRecording,
+                icon: Icon(
+                  _isRecording ? Icons.stop : Icons.mic,
+                  size: isMobile ? 20 : 22,
+                ),
+                tooltip: _isRecording ? 'Stop recording' : 'Voice input',
+                style: IconButton.styleFrom(
+                  foregroundColor: _isRecording
+                      ? colorScheme.error
+                      : colorScheme.onSurfaceVariant,
+                  minimumSize: Size(isMobile ? 32 : 40, isMobile ? 32 : 40),
+                  padding: EdgeInsets.zero,
+                ),
+                constraints: BoxConstraints(
+                  minWidth: isMobile ? 32 : 40,
+                  minHeight: isMobile ? 32 : 40,
+                ),
               ),
-            ),
-      idleTrailingBuilder: (_) => _isTranscribing
-          ? SizedBox(
-              width: isMobile ? 32 : 40,
-              height: isMobile ? 32 : 40,
-              child: const Padding(
-                padding: EdgeInsets.all(6),
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            )
-          : IconButton(
-              key: const ValueKey('voice_button'),
-              onPressed: _toggleRecording,
-              icon: Icon(
-                _isRecording ? Icons.stop : Icons.mic,
-                size: isMobile ? 20 : 22,
-              ),
-              tooltip: _isRecording ? 'Stop recording' : 'Voice input',
-              style: IconButton.styleFrom(
-                foregroundColor: _isRecording
-                    ? colorScheme.error
-                    : colorScheme.onSurfaceVariant,
-                minimumSize: Size(isMobile ? 32 : 40, isMobile ? 32 : 40),
-                padding: EdgeInsets.zero,
-              ),
-              constraints: BoxConstraints(
-                minWidth: isMobile ? 32 : 40,
-                minHeight: isMobile ? 32 : 40,
-              ),
-            ),
+      ),
     );
   }
 }

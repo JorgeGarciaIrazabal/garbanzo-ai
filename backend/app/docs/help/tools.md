@@ -28,6 +28,11 @@ Yes — ask in chat ("create a room with Ana and a research agent", "use a
 different model for this chat"). You'll get a confirmation card; the action
 runs only after you confirm it.
 
+## How do I ask for a specific tool?
+Type `#` in the chat input bar and pick the tool from the suggestions —
+sending a `#tool_name` mention tells the assistant explicitly to use that
+tool. Smaller models especially benefit from the nudge.
+
 ## Why didn't the model use a tool?
 Only tool-capable models can call tools (wrench badge in the model picker).
 Explicitly asking ("use the … tool") usually helps.
