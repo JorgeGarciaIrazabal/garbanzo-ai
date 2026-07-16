@@ -1,10 +1,3 @@
-/// Bolds mention tokens (`@name`) in a markdown source string so message
-/// bubbles render them highlighted without a custom markdown extension.
-///
-/// A token is a trigger char at start-of-text/after-whitespace followed by
-/// non-whitespace. Trailing punctuation stays outside the bold so "@Ana,"
-/// renders as "**@Ana**,". Already-emphasized tokens (`**@Ana**`) don't
-/// match — the leading `*` isn't whitespace.
 /// Returns the subset of [toolNames] mentioned as `#name` tokens in [text]
 /// (word-start tokens only, source order, deduplicated).
 List<String> mentionedToolNames(String text, Iterable<String> toolNames) {
@@ -30,6 +23,13 @@ String appendToolHint(String text, List<String> mentioned) {
   return '$text\n\n(Please use the $names tool$plural for this.)';
 }
 
+/// Bolds mention tokens (`@name`) in a markdown source string so message
+/// bubbles render them highlighted without a custom markdown extension.
+///
+/// A token is a trigger char at start-of-text/after-whitespace followed by
+/// non-whitespace. Trailing punctuation stays outside the bold so "@Ana,"
+/// renders as "**@Ana**,". Already-emphasized tokens (`**@Ana**`) don't
+/// match — the leading `*` isn't whitespace.
 String boldMentionTokens(String text, {String trigger = '@'}) {
   final pattern = RegExp(
     '(^|\\s)(${RegExp.escape(trigger)}\\S+)',
