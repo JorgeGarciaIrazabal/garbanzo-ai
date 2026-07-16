@@ -299,6 +299,14 @@ void _testPicker(
   });
 }
 
+/// Finds a capability badge inside one model row. The filter chips use the
+/// same icons by design, so a bare `byIcon` would also match the control above
+/// the list and say nothing about what the row shows.
+Finder _badge(String modelId, IconData icon) => find.descendant(
+  of: find.byKey(ValueKey('model_row_$modelId')),
+  matching: find.byIcon(icon),
+);
+
 Future<void> _openPicker(WidgetTester tester) async {
   await tester.tap(find.byKey(const ValueKey('style_picker_button')));
   await tester.pump();
@@ -658,9 +666,13 @@ void main() {
         );
         expect(find.byKey(const ValueKey('model_row_qwen3')), findsOneWidget);
         // qwen3 advertises thinking+tools; gemma3-vision advertises vision.
-        expect(find.byIcon(Icons.psychology_outlined), findsWidgets);
-        expect(find.byIcon(Icons.build_outlined), findsWidgets);
-        expect(find.byIcon(Icons.visibility_outlined), findsOneWidget);
+        expect(_badge('qwen3', Icons.psychology_outlined), findsOneWidget);
+        expect(_badge('qwen3', Icons.build_outlined), findsOneWidget);
+        expect(_badge('gemma3-vision', Icons.visibility_outlined),
+            findsOneWidget);
+        // Reported false / unreported earns no badge.
+        expect(_badge('qwen3', Icons.visibility_outlined), findsNothing);
+        expect(_badge('llama3.2', Icons.psychology_outlined), findsNothing);
 
         await tester.enterText(
           find.byKey(const ValueKey('style_search_field')),
@@ -677,6 +689,235 @@ void main() {
         expect(find.byKey(const ValueKey('model_row_llama3.2')), findsNothing);
       },
     );
+
+    _testPicker('capability filter narrows the list to matching models', (
+      tester,
+    ) async {
+      _setScreenSize(tester, const Size(390, 844));
+      await tester.pumpWidget(
+        _wrap(
+          chat: _FakeChatProvider(),
+          models: _FakeModelProvider(
+            models: [
+              _model('qwen3', thinking: true, tools: true, vision: false),
+              _model('llama3.2', tools: true, vision: false),
+              _model('gemma3-vision', vision: true, tools: false),
+            ],
+            selectedId: 'qwen3',
+          ),
+          styles: _FakeStyleProvider(),
+          prompts: _FakeSystemPromptProvider(),
+        ),
+      );
+      await _openPicker(tester);
+      expect(tester.takeException(), isNull, reason: 'panel build');
+
+      await tester.tap(find.byKey(const ValueKey('capability_filter_vision')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(tester.takeException(), isNull);
+      expect(
+        find.byKey(const ValueKey('model_row_gemma3-vision')),
+        findsOneWidget,
+      );
+      // Both explicitly report vision: false.
+      expect(find.byKey(const ValueKey('model_row_qwen3')), findsNothing);
+      expect(find.byKey(const ValueKey('model_row_llama3.2')), findsNothing);
+    });
+
+    _testPicker('multiple capability filters must all match', (tester) async {
+      _setScreenSize(tester, const Size(390, 844));
+      await tester.pumpWidget(
+        _wrap(
+          chat: _FakeChatProvider(),
+          models: _FakeModelProvider(
+            models: [
+              _model('qwen3', thinking: true, tools: true, vision: false),
+              _model('llama3.2', thinking: false, tools: true, vision: false),
+            ],
+            selectedId: 'qwen3',
+          ),
+          styles: _FakeStyleProvider(),
+          prompts: _FakeSystemPromptProvider(),
+        ),
+      );
+      await _openPicker(tester);
+
+      await tester.tap(find.byKey(const ValueKey('capability_filter_tools')));
+      await tester.pump();
+      // Tools alone keeps both.
+      expect(find.byKey(const ValueKey('model_row_qwen3')), findsOneWidget);
+      expect(find.byKey(const ValueKey('model_row_llama3.2')), findsOneWidget);
+
+      await tester.tap(
+        find.byKey(const ValueKey('capability_filter_thinking')),
+      );
+      await tester.pump();
+
+      expect(tester.takeException(), isNull);
+      expect(find.byKey(const ValueKey('model_row_qwen3')), findsOneWidget);
+      expect(find.byKey(const ValueKey('model_row_llama3.2')), findsNothing);
+
+      // Toggling off restores it.
+      await tester.tap(
+        find.byKey(const ValueKey('capability_filter_thinking')),
+      );
+      await tester.pump();
+      expect(find.byKey(const ValueKey('model_row_llama3.2')), findsOneWidget);
+    });
+
+    _testPicker('capability filter composes with the text search', (
+      tester,
+    ) async {
+      _setScreenSize(tester, const Size(390, 844));
+      await tester.pumpWidget(
+        _wrap(
+          chat: _FakeChatProvider(),
+          models: _FakeModelProvider(
+            models: [
+              _model('qwen3-vl', tools: true, vision: true),
+              _model('qwen3', tools: true, vision: false),
+              _model('gemma3-vision', tools: false, vision: true),
+            ],
+            selectedId: 'qwen3',
+          ),
+          styles: _FakeStyleProvider(),
+          prompts: _FakeSystemPromptProvider(),
+        ),
+      );
+      await _openPicker(tester);
+
+      await tester.tap(find.byKey(const ValueKey('capability_filter_vision')));
+      await tester.pump();
+      await tester.enterText(
+        find.byKey(const ValueKey('style_search_field')),
+        'qwen',
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(tester.takeException(), isNull);
+      // Only the model passing BOTH the query and the filter survives.
+      expect(find.byKey(const ValueKey('model_row_qwen3-vl')), findsOneWidget);
+      // Matches the query but not the filter.
+      expect(find.byKey(const ValueKey('model_row_qwen3')), findsNothing);
+      // Matches the filter but not the query.
+      expect(
+        find.byKey(const ValueKey('model_row_gemma3-vision')),
+        findsNothing,
+      );
+    });
+
+    _testPicker(
+      'a model with an unknown capability is kept under that filter and '
+      'marked, not silently hidden',
+      (tester) async {
+        _setScreenSize(tester, const Size(390, 844));
+        await tester.pumpWidget(
+          _wrap(
+            chat: _FakeChatProvider(),
+            models: _FakeModelProvider(
+              // cloud-model reports nothing; no-vision explicitly says no.
+              models: [
+                _model('cloud-model'),
+                _model('no-vision', vision: false),
+                _model('sees', vision: true),
+              ],
+              selectedId: 'sees',
+            ),
+            styles: _FakeStyleProvider(),
+            prompts: _FakeSystemPromptProvider(),
+          ),
+        );
+        await _openPicker(tester);
+
+        // No filter yet: an unknown flag earns no badge at all.
+        expect(_badge('cloud-model', Icons.visibility_outlined), findsNothing);
+        expect(_badge('sees', Icons.visibility_outlined), findsOneWidget);
+
+        await tester.tap(
+          find.byKey(const ValueKey('capability_filter_vision')),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 400));
+
+        expect(tester.takeException(), isNull);
+        expect(find.byKey(const ValueKey('model_row_sees')), findsOneWidget);
+        expect(
+          find.byKey(const ValueKey('model_row_cloud-model')),
+          findsOneWidget,
+          reason: 'unknown != false; a failed lookup must not hide a model',
+        );
+        expect(find.byKey(const ValueKey('model_row_no-vision')), findsNothing);
+        // The kept unknown is marked so the row does not read as a confirmed
+        // vision model, and the marker is visibly weaker than a real badge.
+        expect(
+          _badge('cloud-model', Icons.visibility_outlined),
+          findsOneWidget,
+        );
+        expect(
+          find.byTooltip('Vision unknown for this model'),
+          findsOneWidget,
+        );
+        final unknown = tester.widget<Icon>(
+          _badge('cloud-model', Icons.visibility_outlined),
+        );
+        final confirmed = tester.widget<Icon>(
+          _badge('sees', Icons.visibility_outlined),
+        );
+        expect(unknown.color!.a, lessThan(confirmed.color!.a));
+      },
+    );
+
+    _testPicker('the empty state names the filter, not the search', (
+      tester,
+    ) async {
+      _setScreenSize(tester, const Size(390, 844));
+      await tester.pumpWidget(
+        _wrap(
+          chat: _FakeChatProvider(),
+          models: _FakeModelProvider(
+            models: [_model('no-vision', vision: false, tools: true)],
+            selectedId: 'no-vision',
+          ),
+          styles: _FakeStyleProvider(),
+          prompts: _FakeSystemPromptProvider(),
+        ),
+      );
+      await _openPicker(tester);
+
+      await tester.tap(find.byKey(const ValueKey('capability_filter_vision')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(tester.takeException(), isNull);
+      expect(
+        find.text('No models have the selected capabilities.'),
+        findsOneWidget,
+      );
+      expect(find.text('No models match your search.'), findsNothing);
+
+      // With both narrowing, the copy accounts for both.
+      await tester.enterText(
+        find.byKey(const ValueKey('style_search_field')),
+        'zzz',
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(
+        find.text('No models match your search and the selected capabilities.'),
+        findsOneWidget,
+      );
+
+      // Search alone keeps the original copy.
+      await tester.tap(find.byKey(const ValueKey('capability_filter_vision')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(find.text('No models match your search.'), findsOneWidget);
+    });
 
     _testPicker('selecting a model applies it to the active conversation', (
       tester,
@@ -926,6 +1167,38 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
       expect(find.text('Chat style'), findsNothing);
+    });
+
+    _testPicker('capability filter works in the popover too', (tester) async {
+      _setScreenSize(tester, const Size(1280, 800));
+      await tester.pumpWidget(
+        _wrap(
+          chat: _FakeChatProvider(),
+          models: _FakeModelProvider(
+            models: [
+              _model('qwen3', tools: true, vision: false),
+              _model('gemma3-vision', vision: true),
+            ],
+            selectedId: 'qwen3',
+          ),
+          // No saved styles: Customize starts expanded.
+          styles: _FakeStyleProvider(),
+          prompts: _FakeSystemPromptProvider(),
+        ),
+      );
+      await _openPicker(tester);
+
+      expect(find.byKey(const ValueKey('capability_filter')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('capability_filter_vision')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(tester.takeException(), isNull);
+      expect(
+        find.byKey(const ValueKey('model_row_gemma3-vision')),
+        findsOneWidget,
+      );
+      expect(find.byKey(const ValueKey('model_row_qwen3')), findsNothing);
     });
   });
 

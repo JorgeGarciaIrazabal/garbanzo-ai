@@ -21,6 +21,38 @@ import 'package:garbanzo_ai/features/chat/providers/system_prompt_provider.dart'
 /// panel as an anchored popover on wide layouts and a bottom sheet on narrow
 /// ones (the `mute_sheet` idiom).
 
+/// The capability vocabulary, shared by the model rows' badges and the
+/// capability filter so a filter chip reads as exactly the same thing the
+/// rows show. Any new flag the models endpoint grows slots in here once and
+/// appears in both places.
+enum _Capability {
+  vision(Icons.visibility_outlined, 'Vision'),
+  tools(Icons.build_outlined, 'Tools'),
+  thinking(Icons.psychology_outlined, 'Thinking');
+
+  const _Capability(this.icon, this.label);
+
+  final IconData icon;
+  final String label;
+
+  /// Tri-state: true/false as reported by the provider, null when it reported
+  /// nothing (capability lookup failed, or a provider that doesn't advertise
+  /// them at all).
+  bool? of(ModelInfo model) => switch (this) {
+    _Capability.vision => model.supportsVision,
+    _Capability.tools => model.supportsTools,
+    _Capability.thinking => model.supportsThinking,
+  };
+
+  /// Whether [model] survives a filter on this capability. Only a confirmed
+  /// `false` is excluded: an unknown flag means we never learned the answer,
+  /// and hiding a model over a failed lookup would silently strip it from the
+  /// only list the user can pick from. Unknowns are kept and marked (see
+  /// [_CapabilityBadges]) so the row reads as "maybe" rather than a false
+  /// positive.
+  bool allows(ModelInfo model) => of(model) != false;
+}
+
 /// Trims to null so "unset", empty, and whitespace prompts all compare equal.
 String? _normalize(String? s) {
   final t = s?.trim();
@@ -308,6 +340,10 @@ class StylePickerPanel extends StatefulWidget {
 class _StylePickerPanelState extends State<StylePickerPanel> {
   final TextEditingController _searchController = TextEditingController();
   String _query = '';
+
+  /// Capabilities the model list is filtered on. Composes with [_query]
+  /// (both must pass) rather than replacing it; empty means no filtering.
+  final Set<_Capability> _filters = {};
   bool? _customizeExpanded;
 
   @override
@@ -501,16 +537,28 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
       systemPrompt: effectivePrompt,
     );
 
-    final filteredModels = _query.isEmpty
-        ? models
-        : models
-              .where(
-                (m) =>
-                    m.id.toLowerCase().contains(_query) ||
-                    m.name.toLowerCase().contains(_query) ||
-                    (m.description?.toLowerCase().contains(_query) ?? false),
-              )
-              .toList();
+    bool matchesQuery(ModelInfo m) =>
+        _query.isEmpty ||
+        m.id.toLowerCase().contains(_query) ||
+        m.name.toLowerCase().contains(_query) ||
+        (m.description?.toLowerCase().contains(_query) ?? false);
+
+    // Text search and capability filters compose: a model must pass both, and
+    // several filters are an AND (pick a model that can do all of these).
+    final filteredModels = models
+        .where((m) => matchesQuery(m) && _filters.every((c) => c.allows(m)))
+        .toList();
+
+    // The empty state has to name whichever of the two narrowed the list to
+    // nothing, or a filter-emptied list reads as a broken search.
+    final emptyMessage = switch ((_query.isNotEmpty, _filters.isNotEmpty)) {
+      (true, true) =>
+        'No models match your search and the selected '
+            'capabilities.',
+      (true, false) => 'No models match your search.',
+      (false, true) => 'No models have the selected capabilities.',
+      (false, false) => 'No models available.',
+    };
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -628,9 +676,23 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
                               ),
                             ),
                             const SizedBox(height: 8),
+                            // Filtering is a pure view operation, so unlike
+                            // the controls below it stays usable while a
+                            // message is streaming.
+                            _CapabilityFilter(
+                              selected: _filters,
+                              onToggle: (c) => setState(
+                                () => _filters.contains(c)
+                                    ? _filters.remove(c)
+                                    : _filters.add(c),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
                             _ModelList(
                               models: filteredModels,
                               selectedId: effectiveModelId,
+                              filters: _filters,
+                              emptyMessage: emptyMessage,
                               enabled: !busy,
                               onSelect: _selectModel,
                             ),
@@ -913,12 +975,21 @@ class _ModelList extends StatelessWidget {
   const _ModelList({
     required this.models,
     required this.selectedId,
+    required this.filters,
+    required this.emptyMessage,
     required this.enabled,
     required this.onSelect,
   });
 
   final List<ModelInfo> models;
   final String? selectedId;
+
+  /// Capabilities currently filtered on; forwarded to the badges so rows kept
+  /// on an unknown flag say so.
+  final Set<_Capability> filters;
+
+  /// Names whatever emptied the list (search text, filters, or both).
+  final String emptyMessage;
   final bool enabled;
   final ValueChanged<String> onSelect;
 
@@ -937,7 +1008,7 @@ class _ModelList extends StatelessWidget {
           ? Padding(
               padding: const EdgeInsets.all(16),
               child: Text(
-                'No models match your search.',
+                emptyMessage,
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: colorScheme.onSurfaceVariant,
                 ),
@@ -1001,7 +1072,7 @@ class _ModelList extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(width: 8),
-                          _CapabilityBadges(model: model),
+                          _CapabilityBadges(model: model, filters: filters),
                         ],
                       ),
                     ),
@@ -1013,40 +1084,97 @@ class _ModelList extends StatelessWidget {
   }
 }
 
-/// Tiny icon badges for provider-reported capabilities. Flags are tri-state
-/// (null = unknown), so a badge only shows when the capability is confirmed;
-/// any new flags the models endpoint grows slot in as another `(flag, icon,
-/// label)` entry here.
+/// Tiny icon badges for provider-reported capabilities, drawn from the shared
+/// [_Capability] vocabulary. Flags are tri-state (null = unknown), so a solid
+/// badge only shows when the capability is confirmed.
+///
+/// An unknown flag additionally gets a faded badge while that capability is
+/// being filtered on: such a model is deliberately kept in the list (see
+/// [_Capability.allows]), and without the marker the row would look like the
+/// filter had let through a model that plainly lacks the capability.
 class _CapabilityBadges extends StatelessWidget {
-  const _CapabilityBadges({required this.model});
+  const _CapabilityBadges({required this.model, this.filters = const {}});
 
   final ModelInfo model;
+  final Set<_Capability> filters;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final badges = <(bool?, IconData, String)>[
-      (model.supportsVision, Icons.visibility_outlined, 'Vision'),
-      (model.supportsTools, Icons.build_outlined, 'Tools'),
-      (model.supportsThinking, Icons.psychology_outlined, 'Thinking'),
-    ];
 
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        for (final (flag, icon, label) in badges)
-          if (flag == true)
-            Padding(
-              padding: const EdgeInsets.only(left: 6),
-              child: Tooltip(
-                message: label,
-                child: Icon(
-                  icon,
-                  size: 16,
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              ),
+        for (final capability in _Capability.values)
+          if (capability.of(model) == true)
+            _Badge(
+              capability: capability,
+              color: colorScheme.onSurfaceVariant,
+              tooltip: capability.label,
+            )
+          else if (capability.of(model) == null && filters.contains(capability))
+            _Badge(
+              capability: capability,
+              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.38),
+              tooltip: '${capability.label} unknown for this model',
             ),
+      ],
+    );
+  }
+}
+
+class _Badge extends StatelessWidget {
+  const _Badge({
+    required this.capability,
+    required this.color,
+    required this.tooltip,
+  });
+
+  final _Capability capability;
+  final Color color;
+  final String tooltip;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 6),
+      child: Tooltip(
+        message: tooltip,
+        child: Icon(capability.icon, size: 16, color: color),
+      ),
+    );
+  }
+}
+
+/// Capability filter for the model list: one chip per badge, same icon and
+/// label, so the control reads as "the things you see on the rows".
+class _CapabilityFilter extends StatelessWidget {
+  const _CapabilityFilter({required this.selected, required this.onToggle});
+
+  final Set<_Capability> selected;
+  final ValueChanged<_Capability> onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    // Wrapping chips rather than a SegmentedButton, which clips at 360dp —
+    // same reason as the thinking control below.
+    return Wrap(
+      key: const ValueKey('capability_filter'),
+      spacing: 6,
+      runSpacing: 4,
+      children: [
+        for (final capability in _Capability.values)
+          FilterChip(
+            key: ValueKey('capability_filter_${capability.name}'),
+            // The icon is the vocabulary link to the row badges, so it stays
+            // put instead of being swapped out for a selected checkmark.
+            showCheckmark: false,
+            avatar: Icon(capability.icon, size: 16),
+            label: Text(capability.label),
+            selected: selected.contains(capability),
+            visualDensity: VisualDensity.compact,
+            onSelected: (_) => onToggle(capability),
+          ),
       ],
     );
   }

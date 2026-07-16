@@ -31,7 +31,7 @@ Replace the plain model dropdown with a **Style** concept: a style = model + thi
 - [x] `easy-med` **Backend: saved styles** — New `Style` model (name, model_id, thinking_level, system_prompt_template_id, is_default) + CRUD endpoints. Alternatively extend `SystemPromptTemplate` with model/thinking columns — decide during planning; a separate table is cleaner.
 - [x] `med-hard` **Frontend: Style picker UI** — Redesign `ModelSelectorWidget` into a popover/bottom-sheet: saved styles as cards at top, then expandable "Customize" with model list (search + capability badges: vision/tools/thinking), thinking-level segmented control, and prompt template picker. Must feel great on both desktop and mobile — do a `frontend-design` pass first.
 - [x] `easy` **Frontend: style chip in the app bar** — Show the active style name/emoji next to the conversation title; tap to open the picker. Persist last-used style for new conversations.
-- [ ] `medium` **Model capability metadata** — Extend `AvailableModel` / `GET /chat/models` with capability flags (supports_thinking, supports_tools, supports_vision) populated by the admin sync so the picker can badge and filter.
+- [x] `medium` **Model capability metadata** — Extend `AvailableModel` / `GET /chat/models` with capability flags (supports_thinking, supports_tools, supports_vision) populated by the admin sync so the picker can badge and filter. *(Implemented live from `ollama show` in `OllamaProvider.list_models` rather than cached on `AvailableModel` — live-and-correct beats cached-and-stale.)*
 
 ## 3. Dynamic context: location + timestamp
 
