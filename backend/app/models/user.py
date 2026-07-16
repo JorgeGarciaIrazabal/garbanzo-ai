@@ -30,6 +30,9 @@ class User(Base):
     # until a client reports one. Feeds the dynamic <context> block.
     timezone: Mapped[str | None] = mapped_column(String(64), nullable=True)
     locale: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    # Opt-in coarse location ("City, Country" — never raw coordinates) for
+    # the dynamic <context> block. NULL = sharing is off.
+    location: Mapped[str | None] = mapped_column(String(128), nullable=True)
     is_admin: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,

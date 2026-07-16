@@ -95,6 +95,11 @@ class Settings(BaseSettings):
     test_user_email: str = ""
     test_user_password: str = ""
 
+    # Reverse geocoding for the opt-in coarse location (dynamic <context>
+    # block). Public Nominatim by default; point at a self-hosted instance
+    # to keep coordinates entirely on-prem.
+    nominatim_url: str = "https://nominatim.openstreetmap.org"
+
     # Voice services
     faster_whisper_url: str = "http://localhost:8010"  # only used if stt_mode=remote
     stt_mode: str = "local"  # "local" (in-process) or "remote" (Docker)

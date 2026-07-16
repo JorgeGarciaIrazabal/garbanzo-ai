@@ -2,6 +2,8 @@
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <!-- Coarse only: the opt-in location share is city-level by design. -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
     <application
         android:label="Garbanzo AI"
         android:name="${applicationName}"

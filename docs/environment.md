@@ -42,6 +42,10 @@ KB_TOP_K=5
 KB_MAX_FILE_SIZE_MB=25
 KB_BACKGROUND_EMBEDDING=true
 
+# Reverse geocoding for opt-in coarse location (dynamic <context> block).
+# Default is the public instance; self-host to keep coordinates on-prem.
+NOMINATIM_URL=https://nominatim.openstreetmap.org
+
 # Firebase Cloud Messaging (push notifications)
 FIREBASE_CREDENTIALS_PATH=firebase-service-account.json
 

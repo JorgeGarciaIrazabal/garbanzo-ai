@@ -66,6 +66,7 @@ dependencies:
   flutter_web_plugins:
     sdk: flutter
   flutter_timezone: ^5.1.0
+  geolocator: ^14.0.2
 
 dev_dependencies:
   flutter_test:

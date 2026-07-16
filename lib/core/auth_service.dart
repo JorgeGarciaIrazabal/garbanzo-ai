@@ -123,6 +123,50 @@ class AuthService {
     }
   }
 
+  /// Resolve coordinates to a coarse "City, Country" server-side and store
+  /// only that — the coordinates themselves are never persisted anywhere.
+  Future<AuthResult> setLocationFromCoordinates({
+    required double latitude,
+    required double longitude,
+  }) async {
+    try {
+      final res = await _client.post(
+        '/api/v1/auth/me/location',
+        data: {'latitude': latitude, 'longitude': longitude},
+      );
+      if (res.statusCode == 200 && res.data is Map<String, dynamic>) {
+        _cachedUser = UserInfo.fromJson(res.data as Map<String, dynamic>);
+        return AuthResult.success();
+      }
+      return AuthResult.failure('Could not resolve your location');
+    } on DioException catch (e) {
+      return AuthResult.failure(_dioErrorMessage(e));
+    } catch (_) {
+      return AuthResult.failure('Could not resolve your location');
+    }
+  }
+
+  /// Set (or clear, with null) the stored coarse location directly — the
+  /// manual-entry path for platforms without geolocation, and the "off"
+  /// switch for location sharing.
+  Future<AuthResult> setManualLocation(String? location) async {
+    try {
+      final res = await _client.patch(
+        '/api/v1/auth/me',
+        data: {'location': location?.trim()},
+      );
+      if (res.statusCode == 200 && res.data is Map<String, dynamic>) {
+        _cachedUser = UserInfo.fromJson(res.data as Map<String, dynamic>);
+        return AuthResult.success();
+      }
+      return AuthResult.failure('Failed to update location');
+    } on DioException catch (e) {
+      return AuthResult.failure(_dioErrorMessage(e));
+    } catch (_) {
+      return AuthResult.failure('Failed to update location');
+    }
+  }
+
   /// Report the device's IANA timezone and locale to the backend when they
   /// differ from what the server has stored — they feed the dynamic
   /// `<context>` block the backend injects into every chat prompt so
@@ -271,6 +315,7 @@ class UserInfo {
   final String? profilePictureB64;
   final String? timezone;
   final String? locale;
+  final String? location;
 
   const UserInfo({
     required this.email,
@@ -282,6 +327,7 @@ class UserInfo {
     this.profilePictureB64,
     this.timezone,
     this.locale,
+    this.location,
   });
 
   factory UserInfo.fromJson(Map<String, dynamic> json) {
@@ -300,6 +346,7 @@ class UserInfo {
       profilePictureB64: json['profile_picture_b64'] as String?,
       timezone: json['timezone'] as String?,
       locale: json['locale'] as String?,
+      location: json['location'] as String?,
     );
   }
 
@@ -313,5 +360,6 @@ class UserInfo {
     'profile_picture_b64': profilePictureB64,
     'timezone': timezone,
     'locale': locale,
+    'location': location,
   };
 }

@@ -15,7 +15,8 @@ from app.core.security import (
 )
 from app.db.session import get_db
 from app.schemas.auth import LoginRequest, RefreshRequest, TokenResponse
-from app.schemas.user import PasswordUpdate, UserCreate, UserOut, UserUpdate
+from app.schemas.user import CoordinatesIn, PasswordUpdate, UserCreate, UserOut, UserUpdate
+from app.services.geocoding import reverse_geocode_city
 from app.services.image_utils import downscale_image_b64
 from app.services.user_service import UserService
 
@@ -40,6 +41,7 @@ def _to_user_out(user: Any) -> UserOut:
         profile_picture_b64=getattr(user, "profile_picture_b64", None),
         timezone=getattr(user, "timezone", None),
         locale=getattr(user, "locale", None),
+        location=getattr(user, "location", None),
     )
 
 
@@ -178,13 +180,46 @@ async def update_me(
         default_model=raw.get("default_model"),
         timezone=raw.get("timezone"),
         locale=raw.get("locale"),
+        location=raw.get("location"),
         update_full_name="full_name" in raw,
         update_email=update_email,
         update_default_model="default_model" in raw,
         update_timezone="timezone" in raw,
         update_locale="locale" in raw,
+        update_location="location" in raw,
     )
 
+    return _to_user_out(user)
+
+
+@router.post("/me/location", response_model=UserOut)
+async def resolve_and_set_location(
+    payload: CoordinatesIn,
+    current_user: Annotated[dict[str, Any], Depends(get_current_user)],
+    users: Annotated[UserService, Depends(get_user_service)],
+) -> UserOut:
+    """Resolve coordinates to a coarse "City, Country" and store only that.
+
+    The coordinates are consumed transiently for one reverse-geocode lookup
+    (see ``services/geocoding.py``); they are never persisted or logged. 502
+    when the lookup can't produce a city, so the client's toggle can report
+    failure instead of silently storing nothing.
+    """
+    user = await users.get_by_email(current_user["email"])
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    city = await reverse_geocode_city(payload.latitude, payload.longitude)
+    if not city:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Could not resolve a city for these coordinates",
+        )
+
+    await users.update_profile(user, location=city, update_location=True)
     return _to_user_out(user)
 
 

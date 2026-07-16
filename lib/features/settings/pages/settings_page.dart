@@ -11,6 +11,7 @@ import 'package:garbanzo_ai/features/chat/services/audio_service.dart';
 import 'package:garbanzo_ai/features/chat/widgets/system_prompt_editor_dialog.dart';
 import 'package:garbanzo_ai/features/notifications/providers/notification_provider.dart';
 import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
+import 'package:garbanzo_ai/features/settings/widgets/location_section.dart';
 import 'package:garbanzo_ai/features/settings/widgets/profile_section.dart';
 
 /// Dedicated settings screen. Navigation target for `/settings`.
@@ -134,10 +135,16 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget _buildSection(_Section section) {
     switch (section) {
       case _Section.profile:
-        return ProfileSection(
-          user: _user,
-          onUserChanged: _refreshUser,
-          onLogout: () => context.read<AuthState>().logout(),
+        return Column(
+          children: [
+            ProfileSection(
+              user: _user,
+              onUserChanged: _refreshUser,
+              onLogout: () => context.read<AuthState>().logout(),
+            ),
+            const SizedBox(height: 16),
+            LocationSection(user: _user, onUserChanged: _refreshUser),
+          ],
         );
       case _Section.appearance:
         return _appearanceSection();

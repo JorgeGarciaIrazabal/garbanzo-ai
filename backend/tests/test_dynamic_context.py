@@ -54,6 +54,29 @@ class TestBlockFormat:
         assert "location" not in block
 
 
+class TestGeocodingFormat:
+    async def test_city_and_country(self):
+        from app.services.geocoding import format_city
+
+        assert format_city({"address": {"city": "Madrid", "country": "Spain"}}) == "Madrid, Spain"
+
+    async def test_town_fallback(self):
+        from app.services.geocoding import format_city
+
+        assert format_city({"address": {"town": "Ronda", "country": "Spain"}}) == "Ronda, Spain"
+
+    async def test_country_only(self):
+        from app.services.geocoding import format_city
+
+        assert format_city({"address": {"country": "Spain"}}) == "Spain"
+
+    async def test_nothing_useful_returns_none(self):
+        from app.services.geocoding import format_city
+
+        assert format_city({}) is None
+        assert format_city({"address": {}}) is None
+
+
 class TestSystemPromptComposition:
     async def _make_service(self, db_session):
         svc = ChatService(db_session)

@@ -423,6 +423,7 @@ class ChatService:
             conversation_system_prompt=conversation.system_prompt,
             dynamic_context=build_dynamic_context_block(
                 timezone=user.timezone if user else None,
+                location=user.location if user else None,
             ),
         )
 

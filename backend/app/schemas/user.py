@@ -27,6 +27,7 @@ class UserOut(BaseModel):
     profile_picture_b64: str | None = None
     timezone: str | None = None
     locale: str | None = None
+    location: str | None = None
 
     model_config = {"from_attributes": True}
 
@@ -43,6 +44,16 @@ class UserUpdate(BaseModel):
     default_model: str | None = Field(None, max_length=100)
     timezone: str | None = Field(None, max_length=64)
     locale: str | None = Field(None, max_length=32)
+    # Manual coarse location ("Madrid, Spain"); explicit null clears it,
+    # turning location sharing off. Whitespace-only collapses to null.
+    location: str | None = Field(None, max_length=128)
+
+    @field_validator("location")
+    @classmethod
+    def normalize_location(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        return v.strip() or None
 
     @field_validator("timezone")
     @classmethod
@@ -59,6 +70,17 @@ class UserUpdate(BaseModel):
         except Exception as e:
             raise ValueError(f"Unknown IANA timezone: {v!r}") from e
         return v
+
+
+class CoordinatesIn(BaseModel):
+    """One-shot coordinates for ``POST /auth/me/location``.
+
+    Consumed transiently for the reverse-geocode lookup; only the resolved
+    city string is ever persisted or logged.
+    """
+
+    latitude: float = Field(..., ge=-90, le=90)
+    longitude: float = Field(..., ge=-180, le=180)
 
 
 class PasswordUpdate(BaseModel):

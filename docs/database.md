@@ -33,6 +33,13 @@ half-migrated schema.
   boundary (`UserUpdate.validate_timezone`); plain VARCHAR in the DB since
   the IANA registry evolves. `NULL` = never reported → the block carries
   only server UTC time.
+- `User.location` (nullable VARCHAR) is the opt-in coarse location for the
+  same `<context>` block — always a human-readable "City, Country" string,
+  never coordinates. Set either by `POST /auth/me/location` (client sends
+  coordinates once; `services/geocoding.py` reverse-geocodes city-level via
+  Nominatim, `NOMINATIM_URL` env, and only the result is stored) or manually
+  via `PATCH /auth/me`. `NULL` = sharing off (the settings toggle's default
+  and its "off" state) → no location line in the prompt.
 - `Conversation.model` defaults to `"llama3.2"` — must match a model ID returned by `GET /api/v1/chat/models`.
 - `Conversation.use_memory` (boolean) controls whether user memories are injected into LLM context.
 - `Conversation.use_knowledge_base` (boolean) controls whether KB chunks are injected.

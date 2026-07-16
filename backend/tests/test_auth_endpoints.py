@@ -249,6 +249,87 @@ class TestUpdateProfile:
         finally:
             self._teardown()
 
+    async def test_update_location_manual_and_clear(self, db_session):
+        await self._setup(db_session)
+        try:
+            async with await _client() as c:
+                resp = await c.patch(
+                    "/api/v1/auth/me",
+                    json={"location": "  Madrid, Spain  "},
+                    headers={"Authorization": "Bearer x"},
+                )
+                assert resp.status_code == 200, resp.text
+                assert resp.json()["location"] == "Madrid, Spain"
+
+                resp = await c.patch(
+                    "/api/v1/auth/me",
+                    json={"location": None},
+                    headers={"Authorization": "Bearer x"},
+                )
+                assert resp.status_code == 200
+                assert resp.json()["location"] is None
+        finally:
+            self._teardown()
+
+    async def test_set_location_from_coordinates(self, db_session, monkeypatch):
+        from app.api.v1.endpoints import auth as auth_module
+
+        captured: dict = {}
+
+        async def _fake_geocode(lat, lon):
+            captured["coords"] = (lat, lon)
+            return "Madrid, Spain"
+
+        monkeypatch.setattr(auth_module, "reverse_geocode_city", _fake_geocode)
+        await self._setup(db_session)
+        try:
+            async with await _client() as c:
+                resp = await c.post(
+                    "/api/v1/auth/me/location",
+                    json={"latitude": 40.4168, "longitude": -3.7038},
+                    headers={"Authorization": "Bearer x"},
+                )
+            assert resp.status_code == 200, resp.text
+            body = resp.json()
+            assert body["location"] == "Madrid, Spain"
+            # Only the resolved city string is stored — never coordinates.
+            assert "40.4168" not in str(body)
+            assert captured["coords"] == (40.4168, -3.7038)
+        finally:
+            self._teardown()
+
+    async def test_set_location_502_when_geocode_fails(self, db_session, monkeypatch):
+        from app.api.v1.endpoints import auth as auth_module
+
+        async def _fake_geocode(lat, lon):
+            return None
+
+        monkeypatch.setattr(auth_module, "reverse_geocode_city", _fake_geocode)
+        await self._setup(db_session)
+        try:
+            async with await _client() as c:
+                resp = await c.post(
+                    "/api/v1/auth/me/location",
+                    json={"latitude": 0.0, "longitude": 0.0},
+                    headers={"Authorization": "Bearer x"},
+                )
+            assert resp.status_code == 502
+        finally:
+            self._teardown()
+
+    async def test_set_location_rejects_out_of_range_coordinates(self, db_session):
+        await self._setup(db_session)
+        try:
+            async with await _client() as c:
+                resp = await c.post(
+                    "/api/v1/auth/me/location",
+                    json={"latitude": 123.0, "longitude": 0.0},
+                    headers={"Authorization": "Bearer x"},
+                )
+            assert resp.status_code == 422
+        finally:
+            self._teardown()
+
     async def test_update_email_rejects_duplicate(self, db_session):
         db_session.add(
             User(
