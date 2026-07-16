@@ -91,7 +91,7 @@ WhatsApp-style: mute a room for 8 hours, 1 week, or forever. Per-member setting,
 
 ## Proposed additions (not in the original list)
 
-- [ ] `easy-med` **8. Conversation-level mute / focus** — Same mute mechanism for the disconnect-mid-stream FCM pushes on regular conversations; cheap once idea 7 lands. *(Do first with 7 — smallest full-stack slice, good warm-up.)*
+- [x] `easy-med` **8. Conversation-level mute / focus** — Same mute mechanism for the disconnect-mid-stream FCM pushes on regular conversations; cheap once idea 7 lands. *(Do first with 7 — smallest full-stack slice, good warm-up.)* *(Verified already implemented with 7: `Conversation.muted_until`, `PATCH /conversations/{id}/mute`, push suppression in `_make_push_callback`, mute sheet in the conversation list.)*
 - [ ] `medium` **9. Shared styles/prompts with friends** — Once friends (5) and styles (2) exist, let users share a style or prompt template to a friend (copy-on-accept, no live sync). Natural glue between two features.
 - [ ] `med-hard` **10. Room unread counts + read receipts** — `last_read_message_id` per RoomMember, unread badges in the sidebar, optional "seen" indicators. Pairs with muting to make rooms feel like a real messenger.
 - [ ] `medium` **11. Onboarding tour powered by the help docs** — First-login checklist/coach-marks generated from the same app-guide docs as idea 4, so there's one source of truth for "how the app works".
