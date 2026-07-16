@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:garbanzo_ai/core/guarded_state.dart';
 import 'package:garbanzo_ai/features/chat/models/style.dart';
@@ -17,11 +18,17 @@ import 'package:garbanzo_ai/features/chat/services/system_prompt_service.dart';
 /// no pending slot here: applying a style routes it through
 /// [ModelProvider.selectModel], the existing mechanism.
 class StyleProvider extends ChangeNotifier with GuardedStateMixin {
-  StyleProvider() {
+  StyleProvider({StyleService? styleService})
+    : _service = styleService ?? StyleService.instance {
     refresh();
   }
 
-  final StyleService _service = StyleService.instance;
+  final StyleService _service;
+
+  /// SharedPreferences key for the id of the last saved style the user
+  /// explicitly applied. Falls back to seeding new-conversation pendings
+  /// when no style is marked default (see [_seedPendingFromDefault]).
+  static const _keyLastUsedStyleId = 'style_last_used_style_id';
 
   List<Style> _styles = [];
   List<Style> get styles => List.unmodifiable(_styles);
@@ -67,28 +74,48 @@ class StyleProvider extends ChangeNotifier with GuardedStateMixin {
     });
   }
 
-  /// Seed the new-conversation pendings from the default style, once, so a
-  /// user who marked a style "Use for new chats" gets its thinking level and
-  /// prompt without opening the picker. The style's model is persisted as the
-  /// account default model when the default is set (see the picker), so
-  /// [ModelProvider] already handles that side.
+  /// Seed the new-conversation pendings from the default style — or, absent
+  /// one, from the last saved style the user explicitly applied — once, so a
+  /// returning user gets a familiar thinking level and prompt without
+  /// opening the picker. An explicit default always wins over last-used: it
+  /// is the stronger, deliberate signal. Either way the style's *model* is
+  /// not seeded here — a default style's model is persisted as the account
+  /// default model when the default is set (see the picker), so
+  /// [ModelProvider] already handles that side, and last-used intentionally
+  /// only follows the existing default-style seeding contract.
   Future<void> _seedPendingFromDefault() async {
     if (_pendingTouched) return;
-    final def = defaultStyle;
-    if (def == null) return;
-    _pendingThinkingLevel = def.thinkingLevel;
+    final seed = defaultStyle ?? await _lastUsedStyle();
+    if (seed == null) return;
+    _pendingThinkingLevel = seed.thinkingLevel;
     _pendingSystemPrompt = null;
-    if (def.systemPromptTemplateId != null) {
+    if (seed.systemPromptTemplateId != null) {
       try {
         final templates = await SystemPromptService.instance.listTemplates();
         _pendingSystemPrompt = templates
-            .where((t) => t.id == def.systemPromptTemplateId)
+            .where((t) => t.id == seed.systemPromptTemplateId)
             .firstOrNull
             ?.content;
       } catch (_) {
         // Best-effort: a failed template fetch only loses the prompt seed.
       }
     }
+  }
+
+  /// Marks [styleId] as the most recently applied saved style. Persisted in
+  /// SharedPreferences (local-only, mirrors [SettingsProvider]'s prefs) so it
+  /// survives app restarts.
+  Future<void> recordLastUsed(String styleId) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyLastUsedStyleId, styleId);
+  }
+
+  /// The last-used style, if its id is still among the user's saved styles.
+  Future<Style?> _lastUsedStyle() async {
+    final prefs = await SharedPreferences.getInstance();
+    final id = prefs.getString(_keyLastUsedStyleId);
+    if (id == null) return null;
+    return _styles.where((s) => s.id == id).firstOrNull;
   }
 
   Future<Style?> createStyle({

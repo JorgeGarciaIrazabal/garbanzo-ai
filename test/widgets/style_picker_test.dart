@@ -12,8 +12,10 @@ import 'package:garbanzo_ai/features/chat/providers/model_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/style_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/system_prompt_provider.dart';
 import 'package:garbanzo_ai/features/chat/services/chat_service.dart';
+import 'package:garbanzo_ai/features/chat/services/style_service.dart';
 import 'package:garbanzo_ai/features/chat/widgets/style_picker.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // ============================================================================
 // Fakes — each overrides exactly what the picker actually reads/calls, so a
@@ -154,6 +156,19 @@ class _FakeStyleProvider extends StyleProvider {
   }
 }
 
+/// Fake [StyleService] for exercising the real [StyleProvider] (not the
+/// picker-facing [_FakeStyleProvider] above) so the last-used/default
+/// seeding logic in `_seedPendingFromDefault` runs against canned data
+/// instead of a live backend.
+class _FakeStyleService extends StyleService {
+  _FakeStyleService(this._styles) : super.forTesting();
+
+  final List<Style> _styles;
+
+  @override
+  Future<List<Style>> listStyles() async => _styles;
+}
+
 class _FakeSystemPromptProvider extends SystemPromptProvider {
   _FakeSystemPromptProvider({List<SystemPromptTemplate> templates = const []})
     : _fakeTemplates = templates;
@@ -290,7 +305,25 @@ Future<void> _openPicker(WidgetTester tester) async {
   await tester.pump(const Duration(milliseconds: 600));
 }
 
+/// Polls until a [StyleProvider]'s constructor-triggered `refresh()` (and
+/// the seeding it does once styles load) has settled.
+Future<void> _waitForLoad(StyleProvider provider) async {
+  while (provider.isLoading) {
+    await Future<void>.delayed(const Duration(milliseconds: 1));
+  }
+}
+
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUp(() {
+    // recordLastUsed / the real StyleProvider's last-used seeding both read
+    // SharedPreferences; mock it so every test (not just the persistence
+    // group below) gets a clean in-memory store instead of a missing-plugin
+    // exception.
+    SharedPreferences.setMockInitialValues({});
+  });
+
   group('StylePickerButton', () {
     _testPicker('shows the effective model name without exceptions', (
       tester,
@@ -343,6 +376,144 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.byKey(const ValueKey('style_picker_button')), findsNothing);
     });
+
+    _testPicker(
+      'shows the style name (not the model) when the conversation matches '
+      'a saved style',
+      (tester) async {
+        _setScreenSize(tester, const Size(390, 844));
+        await tester.pumpWidget(
+          _wrap(
+            chat: _FakeChatProvider(
+              conversation: _conversation(
+                model: 'llama3.2',
+                thinkingLevel: ThinkingLevel.high,
+              ),
+            ),
+            models: _FakeModelProvider(
+              models: _defaultModels,
+              selectedId: 'qwen3',
+            ),
+            styles: _FakeStyleProvider(
+              styles: [
+                _style(
+                  's1',
+                  'Deep work',
+                  modelId: 'llama3.2',
+                  thinkingLevel: ThinkingLevel.high,
+                ),
+              ],
+            ),
+            prompts: _FakeSystemPromptProvider(),
+          ),
+        );
+        expect(tester.takeException(), isNull);
+        expect(find.text('Deep work'), findsOneWidget);
+        expect(find.text('llama3.2'), findsNothing);
+        // Monogram avatar in place of the plain sparkle icon.
+        expect(find.text('D'), findsOneWidget);
+        expect(find.byIcon(Icons.auto_awesome), findsNothing);
+      },
+    );
+
+    _testPicker(
+      'falls back to the model name when settings match no saved style',
+      (tester) async {
+        _setScreenSize(tester, const Size(390, 844));
+        await tester.pumpWidget(
+          _wrap(
+            chat: _FakeChatProvider(
+              conversation: _conversation(model: 'llama3.2'),
+            ),
+            models: _FakeModelProvider(
+              models: _defaultModels,
+              selectedId: 'qwen3',
+            ),
+            // Same style, but a different thinking level than the
+            // conversation's — no match.
+            styles: _FakeStyleProvider(
+              styles: [
+                _style(
+                  's1',
+                  'Deep work',
+                  modelId: 'llama3.2',
+                  thinkingLevel: ThinkingLevel.high,
+                ),
+              ],
+            ),
+            prompts: _FakeSystemPromptProvider(),
+          ),
+        );
+        expect(tester.takeException(), isNull);
+        expect(find.text('llama3.2'), findsOneWidget);
+        expect(find.text('Deep work'), findsNothing);
+        expect(find.byIcon(Icons.auto_awesome), findsOneWidget);
+      },
+    );
+
+    _testPicker(
+      'matches a style whose prompt template resolves to the conversation '
+      'prompt content',
+      (tester) async {
+        _setScreenSize(tester, const Size(390, 844));
+        await tester.pumpWidget(
+          _wrap(
+            chat: _FakeChatProvider(
+              conversation: _conversation(
+                model: 'qwen3',
+                systemPrompt: 'content of Architect',
+              ),
+            ),
+            models: _FakeModelProvider(
+              models: _defaultModels,
+              selectedId: 'qwen3',
+            ),
+            styles: _FakeStyleProvider(
+              styles: [_style('s1', 'Architect mode', templateId: 't1')],
+            ),
+            prompts: _FakeSystemPromptProvider(
+              templates: [_template('t1', 'Architect')],
+            ),
+          ),
+        );
+        expect(tester.takeException(), isNull);
+        expect(find.text('Architect mode'), findsOneWidget);
+      },
+    );
+
+    _testPicker(
+      'outside a conversation, matches against the pending thinking/prompt '
+      'the picker composed',
+      (tester) async {
+        _setScreenSize(tester, const Size(390, 844));
+        final styles = _FakeStyleProvider(
+          styles: [
+            _style(
+              's1',
+              'Deep work',
+              modelId: 'qwen3',
+              thinkingLevel: ThinkingLevel.high,
+            ),
+          ],
+        );
+        // No active conversation: pending state (as the picker would set
+        // via setPendingThinkingLevel) stands in for the conversation's.
+        styles.setPendingThinkingLevel(ThinkingLevel.high);
+        await tester.pumpWidget(
+          _wrap(
+            chat: _FakeChatProvider(),
+            models: _FakeModelProvider(
+              models: _defaultModels,
+              selectedId: 'qwen3',
+            ),
+            styles: styles,
+            prompts: _FakeSystemPromptProvider(),
+          ),
+        );
+        expect(tester.takeException(), isNull);
+        expect(find.text('Deep work'), findsOneWidget);
+      },
+    );
   });
 
   group('StylePicker panel (mobile bottom sheet)', () {
@@ -423,6 +594,9 @@ void main() {
       expect(chat.updates.single['systemPrompt'], 'content of Architect');
       // Applying closes the sheet.
       expect(find.text('Chat style'), findsNothing);
+      // Persisted so it can seed pendings on the next app start too.
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('style_last_used_style_id'), 's1');
     });
 
     _testPicker('a style whose model is missing warns instead of applying', (
@@ -454,6 +628,9 @@ void main() {
       expect(chat.updates, isEmpty);
       expect(models.selections, isEmpty);
       expect(find.text('uninstalled:7b is not installed'), findsOneWidget);
+      // Bailing out before applying must not record the style as last-used.
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('style_last_used_style_id'), isNull);
     });
 
     _testPicker(
@@ -739,7 +916,11 @@ void main() {
 
       expect(tester.takeException(), isNull);
       expect(find.text('Chat style'), findsOneWidget);
-      expect(find.text('Deep work'), findsOneWidget);
+      // The style's settings match the effective (no-conversation) state, so
+      // it shows twice: once as the pill label, once as its card in the
+      // panel below.
+      expect(find.text('Deep work'), findsNWidgets(2));
+      expect(find.byKey(const ValueKey('style_card_s1')), findsOneWidget);
       // Popovers get an explicit close affordance (sheets have drag handles).
       await tester.tap(find.byIcon(Icons.close));
       await tester.pump();
@@ -766,6 +947,84 @@ void main() {
       expect(service.createArgs!['thinkingLevel'], ThinkingLevel.high);
       expect(service.createArgs!['systemPrompt'], 'be brief');
     });
+  });
+
+  group('StyleProvider last-used persistence', () {
+    // These use the real StyleProvider (not the picker-facing
+    // _FakeStyleProvider) with a fake StyleService, so the actual
+    // _seedPendingFromDefault logic runs.
+    test(
+      'seeds pendings from the last-used style when there is no default',
+      () async {
+        final style = _style(
+          's1',
+          'Deep work',
+          thinkingLevel: ThinkingLevel.high,
+        );
+        final first = StyleProvider(styleService: _FakeStyleService([style]));
+        await _waitForLoad(first);
+        await first.recordLastUsed('s1');
+
+        // Simulate the next app start: a fresh provider loads styles again
+        // and should seed from the persisted last-used id.
+        final restarted = StyleProvider(
+          styleService: _FakeStyleService([style]),
+        );
+        await _waitForLoad(restarted);
+
+        expect(restarted.pendingThinkingLevel, ThinkingLevel.high);
+      },
+    );
+
+    test('an explicit default style wins over last-used', () async {
+      final defaultStyle = _style(
+        'default',
+        'Default',
+        thinkingLevel: ThinkingLevel.low,
+        isDefault: true,
+      );
+      final lastUsed = _style(
+        'last',
+        'Last used',
+        thinkingLevel: ThinkingLevel.high,
+      );
+      final seed = _FakeStyleService([defaultStyle, lastUsed]);
+      final first = StyleProvider(styleService: seed);
+      await _waitForLoad(first);
+      await first.recordLastUsed('last');
+
+      final restarted = StyleProvider(
+        styleService: _FakeStyleService([defaultStyle, lastUsed]),
+      );
+      await _waitForLoad(restarted);
+
+      // Default (low), not last-used (high), wins.
+      expect(restarted.pendingThinkingLevel, ThinkingLevel.low);
+    });
+
+    test(
+      'does not stomp pendings the user already composed in the picker',
+      () async {
+        final style = _style(
+          's1',
+          'Deep work',
+          thinkingLevel: ThinkingLevel.high,
+        );
+        final provider = StyleProvider(
+          styleService: _FakeStyleService([style]),
+        );
+        await _waitForLoad(provider);
+        await provider.recordLastUsed('s1');
+
+        // The user composes something in the picker before any further
+        // refresh happens (e.g. after saving a new style).
+        provider.setPendingThinkingLevel(ThinkingLevel.medium);
+        await provider.refresh();
+        await _waitForLoad(provider);
+
+        expect(provider.pendingThinkingLevel, ThinkingLevel.medium);
+      },
+    );
   });
 }
 

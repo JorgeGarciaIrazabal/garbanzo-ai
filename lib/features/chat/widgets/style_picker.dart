@@ -27,13 +27,49 @@ String? _normalize(String? s) {
   return (t == null || t.isEmpty) ? null : t;
 }
 
+/// Resolves a system-prompt-template id to its (normalized) content, or null
+/// for "no template" / a template that no longer exists. Shared by the panel
+/// (effective-prompt resolution, template dropdown fallback) and the app-bar
+/// pill (active-style matching), so a conversation prompt that happens to
+/// equal a template's content is recognized consistently everywhere.
+String? _resolveTemplateContent(
+  List<SystemPromptTemplate> templates,
+  String? templateId,
+) {
+  if (templateId == null) return null;
+  return _normalize(
+    templates.where((t) => t.id == templateId).firstOrNull?.content,
+  );
+}
+
+/// A saved style is "active" for the given effective settings when all three
+/// of its settings (model, thinking level, resolved prompt) match. There is
+/// no backend notion of "the active style" — a conversation only stores the
+/// resolved model/thinking/prompt, not which style (if any) produced them —
+/// so this is derived on the fly. Reused by the app-bar pill (to show the
+/// style name instead of the bare model) and the picker's saved-style cards
+/// (to highlight the currently-applied one).
+bool _styleMatches(
+  Style style,
+  List<SystemPromptTemplate> templates, {
+  required String? modelId,
+  required ThinkingLevel? thinkingLevel,
+  required String? systemPrompt,
+}) {
+  return style.modelId == modelId &&
+      style.thinkingLevel == thinkingLevel &&
+      _resolveTemplateContent(templates, style.systemPromptTemplateId) ==
+          systemPrompt;
+}
+
 // ============================================================================
 // Trigger button (app bar)
 // ============================================================================
 
-/// Compact app-bar pill showing the effective model (and a thinking marker),
-/// opening the style picker on tap. Hidden while the model list is empty,
-/// matching the old dropdown's behavior.
+/// Compact app-bar pill showing the active style name — or, when the
+/// effective settings match no saved style, the effective model (and a
+/// thinking marker) exactly as before. Opens the style picker on tap. Hidden
+/// while the model list is empty, matching the old dropdown's behavior.
 class StylePickerButton extends StatelessWidget {
   const StylePickerButton({super.key});
 
@@ -44,6 +80,7 @@ class StylePickerButton extends StatelessWidget {
     final chat = context.watch<ChatProvider>();
     final modelP = context.watch<ModelProvider>();
     final styleP = context.watch<StyleProvider>();
+    final promptP = context.watch<SystemPromptProvider>();
 
     final models = modelP.availableModels;
     if (models.isEmpty) return const SizedBox.shrink();
@@ -54,10 +91,35 @@ class StylePickerButton extends StatelessWidget {
     // the next conversation will use.
     final effectiveId = conv?.model ?? modelP.selectedModelId;
     final effectiveModel = models.where((m) => m.id == effectiveId).firstOrNull;
-    final label = effectiveModel?.name ?? effectiveId ?? 'Model';
     final thinking = conv != null
         ? conv.thinkingLevel
         : styleP.pendingThinkingLevel;
+    final prompt = _normalize(
+      conv != null ? conv.systemPrompt : styleP.pendingSystemPrompt,
+    );
+    // No backend column tracks "the active style" — it's derived by matching
+    // the effective model/thinking/prompt against saved styles, same logic
+    // the panel uses to highlight a style's card.
+    final activeStyle = styleP.styles
+        .where(
+          (s) => _styleMatches(
+            s,
+            promptP.templates,
+            modelId: effectiveId,
+            thinkingLevel: thinking,
+            systemPrompt: prompt,
+          ),
+        )
+        .firstOrNull;
+    final label =
+        activeStyle?.name ?? effectiveModel?.name ?? effectiveId ?? 'Model';
+    final monogram = activeStyle == null
+        ? null
+        : (activeStyle.name.isEmpty
+              ? '?'
+              : String.fromCharCode(
+                  activeStyle.name.runes.first,
+                ).toUpperCase());
     final thinkingActive = thinking != null && thinking != ThinkingLevel.off;
     final enabled = !chat.isSending;
     final fg = enabled
@@ -82,11 +144,31 @@ class StylePickerButton extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                Icons.auto_awesome,
-                size: 14,
-                color: enabled ? colorScheme.primary : fg,
-              ),
+              // A matched style gets the same monogram treatment as its card
+              // in the picker, so the pill reads as "this style" rather than
+              // just another label; otherwise the plain sparkle icon.
+              if (monogram != null)
+                CircleAvatar(
+                  radius: 8,
+                  backgroundColor: enabled
+                      ? colorScheme.primary
+                      : colorScheme.primary.withValues(alpha: 0.5),
+                  child: Text(
+                    monogram,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      fontSize: 9,
+                      height: 1,
+                      fontWeight: FontWeight.w700,
+                      color: colorScheme.onPrimary,
+                    ),
+                  ),
+                )
+              else
+                Icon(
+                  Icons.auto_awesome,
+                  size: 14,
+                  color: enabled ? colorScheme.primary : fg,
+                ),
               const SizedBox(width: 6),
               ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 160),
@@ -242,18 +324,6 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
     super.dispose();
   }
 
-  // ---- effective state ------------------------------------------------
-
-  String? _templateContent(
-    List<SystemPromptTemplate> templates,
-    String? templateId,
-  ) {
-    if (templateId == null) return null;
-    return _normalize(
-      templates.where((t) => t.id == templateId).firstOrNull?.content,
-    );
-  }
-
   // ---- apply actions ---------------------------------------------------
 
   Future<void> _applyStyle(Style style) async {
@@ -268,13 +338,21 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
       );
       return;
     }
+    // Captured before any `await` below so popping afterward never touches
+    // a possibly-stale BuildContext.
+    final navigator = Navigator.of(context);
 
-    final content = _templateContent(templates, style.systemPromptTemplateId);
+    final content = _resolveTemplateContent(
+      templates,
+      style.systemPromptTemplateId,
+    );
     modelP.selectModel(style.modelId);
     styleP.setPendingThinkingLevel(style.thinkingLevel);
     styleP.setPendingSystemPrompt(content);
+    // Persisted locally so this style also seeds new-conversation pendings
+    // on the next app start when no style is marked default.
+    await styleP.recordLastUsed(style.id);
 
-    final navigator = Navigator.of(context);
     if (chat.currentConversation != null) {
       await chat.updateConversation(
         model: style.modelId,
@@ -309,7 +387,7 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
   Future<void> _setTemplate(String? templateId) async {
     final chat = context.read<ChatProvider>();
     final templates = context.read<SystemPromptProvider>().templates;
-    final content = _templateContent(templates, templateId);
+    final content = _resolveTemplateContent(templates, templateId);
     context.read<StyleProvider>().setPendingSystemPrompt(content);
     if (chat.currentConversation != null) {
       await chat.updateConversation(
@@ -415,11 +493,13 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
     final customizeExpanded = _customizeExpanded ?? styles.isEmpty;
     final busy = chat.isSending;
 
-    bool styleIsActive(Style s) =>
-        s.modelId == effectiveModelId &&
-        s.thinkingLevel == effectiveThinking &&
-        _templateContent(templates, s.systemPromptTemplateId) ==
-            effectivePrompt;
+    bool styleIsActive(Style s) => _styleMatches(
+      s,
+      templates,
+      modelId: effectiveModelId,
+      thinkingLevel: effectiveThinking,
+      systemPrompt: effectivePrompt,
+    );
 
     final filteredModels = _query.isEmpty
         ? models
