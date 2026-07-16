@@ -1,5 +1,10 @@
+import 'dart:convert';
+
+import 'package:dio/dio.dart';
 import 'package:garbanzo_ai/core/api_client.dart';
+import 'package:garbanzo_ai/features/chat/models/chat_message.dart';
 import 'package:garbanzo_ai/features/chat/models/system_prompt_template.dart';
+import 'package:garbanzo_ai/features/chat/services/chat_service.dart';
 
 /// Client for the `/api/v1/system-prompts` endpoints.
 class SystemPromptService {
@@ -82,5 +87,39 @@ class SystemPromptService {
       return data['default_system_prompt'] as String?;
     }
     throw Exception('Failed to save user default (${response.statusCode})');
+  }
+
+  /// Stream an AI-generated system prompt via SSE.
+  ///
+  /// [intent] is the natural-language description. When [existingPrompt] and
+  /// [feedback] are provided, the LLM refines the draft instead of generating
+  /// from scratch. [model] optionally overrides the LLM model.
+  Stream<ChatResponseChunk> generate({
+    required String intent,
+    String? existingPrompt,
+    String? feedback,
+    String? model,
+  }) async* {
+    final response = await _api.streamPost(
+      '/api/v1/system-prompts/generate',
+      data: {
+        'intent': intent,
+        'existing_prompt': ?existingPrompt,
+        'feedback': ?feedback,
+        'model': ?model,
+      },
+    );
+
+    final byteStream = (response.data as ResponseBody).stream;
+
+    if (response.statusCode != 200) {
+      final errorBody = await byteStream
+          .cast<List<int>>()
+          .transform(utf8.decoder)
+          .join();
+      throw Exception('Generate failed: ${response.statusCode} - $errorBody');
+    }
+
+    yield* parseSseChunks(byteStream.cast<List<int>>().transform(utf8.decoder));
   }
 }

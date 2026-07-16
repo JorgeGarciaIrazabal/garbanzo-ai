@@ -2,12 +2,16 @@
 
 import logging
 import uuid
+from collections.abc import AsyncIterator
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import get_settings
 from app.models.system_prompt import SystemPromptTemplate
 from app.models.user import User
+from app.schemas.chat import ChatOptions
+from app.services.llm_provider import ChatChunk, Message, ProviderRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -198,6 +202,82 @@ class SystemPromptService:
         user.default_system_prompt = prompt or None
         await self.db.commit()
         return user.default_system_prompt
+
+    # ---- AI-assisted generation -------------------------------------------
+
+    _META_PROMPT_INITIAL = """\
+You are a system-prompt engineer. The user describes what they want an AI assistant to do, and you write the system prompt that will shape its behavior.
+
+Write a single, self-contained system prompt with the following structure (omit any section if the user's intent doesn't call for it):
+
+1. **Persona**: One sentence defining who the assistant is.
+2. **Tone**: How it should sound (concise, formal, playful, etc.).
+3. **Constraints**: Rules, boundaries, or things to avoid.
+4. **Output format**: If the user wants a specific response style (bullet points, code only, tables, etc.).
+
+Guidelines:
+- Write the prompt directly (second person "You are …"), not as a description of the prompt.
+- Do NOT wrap the output in code fences or quotation marks.
+- Do NOT include a preamble like "Here is the prompt:" — output only the prompt text.
+- Keep it under 500 words unless the intent demands more detail.
+- Be specific and concrete; avoid vague instructions like "be helpful".
+
+User's intent:
+{intent}
+"""
+
+    _META_PROMPT_REFINE = """\
+You are a system-prompt engineer. The user has an existing system prompt and wants to refine it based on feedback.
+
+Apply the feedback while preserving the overall structure and intent. Output ONLY the revised system prompt — no preamble, no code fences, no explanation.
+
+Current system prompt:
+{existing_prompt}
+
+User's feedback:
+{feedback}
+"""
+
+    async def generate_system_prompt(
+        self,
+        intent: str,
+        existing_prompt: str | None = None,
+        feedback: str | None = None,
+        model: str | None = None,
+    ) -> AsyncIterator[ChatChunk]:
+        """Stream an AI-generated system prompt using the LLM provider.
+
+        When ``existing_prompt`` + ``feedback`` are provided, the LLM revises
+        the existing prompt rather than generating from scratch.
+        """
+        provider = ProviderRegistry.get(get_settings().llm_provider)
+        if provider is None:
+            raise RuntimeError("No LLM provider registered")
+        llm_model = model or get_settings().default_model
+
+        if existing_prompt and feedback:
+            meta_prompt = self._META_PROMPT_REFINE.format(
+                existing_prompt=existing_prompt,
+                feedback=feedback,
+            )
+        elif existing_prompt and feedback is None:
+            # Existing prompt without feedback — treat as a continuation/refine
+            # with implicit "improve this" feedback.
+            meta_prompt = self._META_PROMPT_REFINE.format(
+                existing_prompt=existing_prompt,
+                feedback="Improve this system prompt while keeping its intent.",
+            )
+        else:
+            meta_prompt = self._META_PROMPT_INITIAL.format(intent=intent)
+
+        messages = [Message(role="system", content=meta_prompt)]
+
+        async for chunk in provider.stream_chat(
+            messages=messages,
+            model=llm_model,
+            options=ChatOptions(temperature=0.7),
+        ):
+            yield chunk
 
 
 async def seed_builtin_templates_task() -> None:

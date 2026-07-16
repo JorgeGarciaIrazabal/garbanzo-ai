@@ -1,9 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'package:garbanzo_ai/core/widgets/animated_dialog.dart';
+import 'package:garbanzo_ai/features/chat/models/chat_message.dart';
 import 'package:garbanzo_ai/features/chat/models/system_prompt_template.dart';
+import 'package:garbanzo_ai/features/chat/providers/model_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/system_prompt_provider.dart';
+import 'package:garbanzo_ai/features/chat/services/system_prompt_service.dart';
 
 /// Result returned from [SystemPromptEditorDialog].
 ///
@@ -63,9 +68,21 @@ class SystemPromptEditorDialog extends StatefulWidget {
       _SystemPromptEditorDialogState();
 }
 
+/// States for the AI generation panel.
+enum _AiState { idle, generating, done, error }
+
 class _SystemPromptEditorDialogState extends State<SystemPromptEditorDialog> {
   late final TextEditingController _controller;
   String? _selectedTemplateId;
+
+  // AI generation state
+  final SystemPromptService _promptService = SystemPromptService.instance;
+  _AiState _aiState = _AiState.idle;
+  bool _aiPanelOpen = false;
+  final TextEditingController _intentController = TextEditingController();
+  final TextEditingController _feedbackController = TextEditingController();
+  String? _aiError;
+  StreamSubscription<ChatResponseChunk>? _streamSub;
 
   @override
   void initState() {
@@ -75,7 +92,10 @@ class _SystemPromptEditorDialogState extends State<SystemPromptEditorDialog> {
 
   @override
   void dispose() {
+    _streamSub?.cancel();
     _controller.dispose();
+    _intentController.dispose();
+    _feedbackController.dispose();
     super.dispose();
   }
 
@@ -83,6 +103,91 @@ class _SystemPromptEditorDialogState extends State<SystemPromptEditorDialog> {
     setState(() {
       _controller.text = template.content;
       _selectedTemplateId = template.id;
+    });
+  }
+
+  String? get _currentModel => context.read<ModelProvider>().selectedModelId;
+
+  void _startGenerate() {
+    final intent = _intentController.text.trim();
+    if (intent.isEmpty) return;
+
+    final existing = _controller.text.trim();
+    final feedback = _feedbackController.text.trim();
+
+    setState(() {
+      _aiState = _AiState.generating;
+      _aiError = null;
+    });
+
+    // Clear the text field to show the streamed draft fresh.
+    _controller.clear();
+
+    final stream = _promptService.generate(
+      intent: intent,
+      existingPrompt: existing.isEmpty ? null : existing,
+      feedback: feedback.isEmpty ? null : feedback,
+      model: _currentModel,
+    );
+
+    _streamSub?.cancel();
+    _streamSub = stream.listen(
+      (chunk) {
+        if (chunk.isChunk && chunk.content != null) {
+          _controller.text += chunk.content!;
+          _controller.selection = TextSelection.fromPosition(
+            TextPosition(offset: _controller.text.length),
+          );
+          setState(() {});
+        } else if (chunk.isDone) {
+          setState(() => _aiState = _AiState.done);
+        } else if (chunk.isError) {
+          setState(() {
+            _aiState = _AiState.error;
+            _aiError = chunk.error ?? 'Generation failed';
+          });
+        }
+      },
+      onError: (e) {
+        if (mounted) {
+          setState(() {
+            _aiState = _AiState.error;
+            _aiError = e.toString();
+          });
+        }
+      },
+      onDone: () {
+        if (mounted && _aiState == _AiState.generating) {
+          setState(() => _aiState = _AiState.done);
+        }
+      },
+    );
+  }
+
+  void _cancelGeneration() {
+    _streamSub?.cancel();
+    _streamSub = null;
+    setState(() => _aiState = _AiState.idle);
+  }
+
+  void _acceptAiDraft() {
+    _streamSub?.cancel();
+    _streamSub = null;
+    setState(() {
+      _aiState = _AiState.idle;
+      _aiPanelOpen = false;
+      _feedbackController.clear();
+    });
+  }
+
+  void _discardAiDraft() {
+    _streamSub?.cancel();
+    _streamSub = null;
+    _controller.text = widget.initialContent ?? '';
+    setState(() {
+      _aiState = _AiState.idle;
+      _aiPanelOpen = false;
+      _feedbackController.clear();
     });
   }
 
@@ -158,112 +263,181 @@ class _SystemPromptEditorDialogState extends State<SystemPromptEditorDialog> {
     final promptProvider = context.watch<SystemPromptProvider>();
     final builtins = promptProvider.builtinTemplates;
     final customs = promptProvider.customTemplates;
+    final isGenerating = _aiState == _AiState.generating;
 
     return AlertDialog(
       title: Text(widget.title),
       content: SizedBox(
         width: 560,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (widget.subtitle != null) ...[
-              Text(
-                widget.subtitle!,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 12),
-            ],
-            Row(
-              children: [
-                Expanded(
-                  child: Text('Templates', style: theme.textTheme.titleSmall),
-                ),
-                if (promptProvider.isLoading)
-                  const SizedBox(
-                    width: 14,
-                    height: 14,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (widget.subtitle != null) ...[
+                Text(
+                  widget.subtitle!,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
                   ),
+                ),
+                const SizedBox(height: 12),
               ],
-            ),
-            const SizedBox(height: 6),
-            SizedBox(
-              height: 40,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
+              Row(
                 children: [
-                  for (final tpl in builtins)
-                    _TemplateChip(
-                      template: tpl,
-                      selected: _selectedTemplateId == tpl.id,
-                      onSelected: () => _applyTemplate(tpl),
-                    ),
-                  if (customs.isNotEmpty)
-                    Container(
-                      width: 1,
-                      height: 24,
-                      margin: const EdgeInsets.symmetric(horizontal: 8),
-                      color: theme.dividerColor,
-                    ),
-                  for (final tpl in customs)
-                    _TemplateChip(
-                      template: tpl,
-                      selected: _selectedTemplateId == tpl.id,
-                      onSelected: () => _applyTemplate(tpl),
-                      onDelete: () async {
-                        final ok = await showAnimatedDialog<bool>(
-                          context: context,
-                          builder: (ctx) => AlertDialog(
-                            title: Text('Delete "${tpl.name}"?'),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.of(ctx).pop(false),
-                                child: const Text('Cancel'),
-                              ),
-                              FilledButton(
-                                onPressed: () => Navigator.of(ctx).pop(true),
-                                child: const Text('Delete'),
-                              ),
-                            ],
-                          ),
-                        );
-                        if (ok == true) {
-                          await promptProvider.deleteTemplate(tpl.id);
-                        }
-                      },
+                  Expanded(
+                    child: Text('Templates', style: theme.textTheme.titleSmall),
+                  ),
+                  if (promptProvider.isLoading)
+                    const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2),
                     ),
                 ],
               ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _controller,
-              maxLines: 10,
-              minLines: 6,
-              decoration: const InputDecoration(
-                labelText: 'System prompt',
-                hintText:
-                    "e.g. You are a concise, no-nonsense assistant. Give short "
-                    "factual answers with examples.",
-                border: OutlineInputBorder(),
-                alignLabelWithHint: true,
+              const SizedBox(height: 6),
+              SizedBox(
+                height: 40,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  children: [
+                    for (final tpl in builtins)
+                      _TemplateChip(
+                        template: tpl,
+                        selected: _selectedTemplateId == tpl.id,
+                        onSelected: () => _applyTemplate(tpl),
+                      ),
+                    if (customs.isNotEmpty)
+                      Container(
+                        width: 1,
+                        height: 24,
+                        margin: const EdgeInsets.symmetric(horizontal: 8),
+                        color: theme.dividerColor,
+                      ),
+                    for (final tpl in customs)
+                      _TemplateChip(
+                        template: tpl,
+                        selected: _selectedTemplateId == tpl.id,
+                        onSelected: () => _applyTemplate(tpl),
+                        onDelete: () async {
+                          final ok = await showAnimatedDialog<bool>(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              title: Text('Delete "${tpl.name}"?'),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.of(ctx).pop(false),
+                                  child: const Text('Cancel'),
+                                ),
+                                FilledButton(
+                                  onPressed: () => Navigator.of(ctx).pop(true),
+                                  child: const Text('Delete'),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (ok == true) {
+                            await promptProvider.deleteTemplate(tpl.id);
+                          }
+                        },
+                      ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                onPressed: _controller.text.trim().isEmpty
-                    ? null
-                    : _saveToLibrary,
-                icon: const Icon(Icons.bookmark_add_outlined, size: 18),
-                label: const Text('Save to library'),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _controller,
+                maxLines: 10,
+                minLines: 6,
+                decoration: const InputDecoration(
+                  labelText: 'System prompt',
+                  hintText:
+                      "e.g. You are a concise, no-nonsense assistant. Give short "
+                      "factual answers with examples.",
+                  border: OutlineInputBorder(),
+                  alignLabelWithHint: true,
+                ),
+                readOnly: isGenerating,
               ),
-            ),
-          ],
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  if (!isGenerating) ...[
+                    TextButton.icon(
+                      onPressed: _aiPanelOpen
+                          ? null
+                          : () {
+                              setState(() => _aiPanelOpen = true);
+                            },
+                      icon: const Icon(Icons.auto_fix_high, size: 18),
+                      label: const Text('Create with AI'),
+                    ),
+                    const SizedBox(width: 4),
+                  ],
+                  if (isGenerating) ...[
+                    TextButton.icon(
+                      onPressed: _cancelGeneration,
+                      icon: const Icon(Icons.stop, size: 18),
+                      label: const Text('Stop'),
+                    ),
+                    const SizedBox(width: 8),
+                    const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Generating…',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ] else
+                    Flexible(
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton.icon(
+                          onPressed: _controller.text.trim().isEmpty
+                              ? null
+                              : _saveToLibrary,
+                          icon: const Icon(
+                            Icons.bookmark_add_outlined,
+                            size: 18,
+                          ),
+                          label: const Text('Save to library'),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              if (_aiError != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  _aiError!,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.error,
+                  ),
+                ),
+              ],
+              if (_aiPanelOpen || _aiState == _AiState.done) ...[
+                const SizedBox(height: 8),
+                _AiGeneratePanel(
+                  intentController: _intentController,
+                  feedbackController: _feedbackController,
+                  state: _aiState,
+                  isFirstGeneration:
+                      _aiState == _AiState.idle ||
+                      (_aiState == _AiState.done &&
+                          _feedbackController.text.isEmpty),
+                  onStart: _startGenerate,
+                  onAccept: _acceptAiDraft,
+                  onDiscard: _discardAiDraft,
+                ),
+              ],
+            ],
+          ),
         ),
       ),
       actions: [
@@ -280,12 +454,123 @@ class _SystemPromptEditorDialogState extends State<SystemPromptEditorDialog> {
           child: const Text('Cancel'),
         ),
         FilledButton(
-          onPressed: () => Navigator.of(
-            context,
-          ).pop(SystemPromptEditorResult(content: _controller.text.trim())),
+          onPressed: isGenerating
+              ? null
+              : () => Navigator.of(context).pop(
+                  SystemPromptEditorResult(content: _controller.text.trim()),
+                ),
           child: const Text('Apply'),
         ),
       ],
+    );
+  }
+}
+
+class _AiGeneratePanel extends StatelessWidget {
+  const _AiGeneratePanel({
+    required this.intentController,
+    required this.feedbackController,
+    required this.state,
+    required this.isFirstGeneration,
+    required this.onStart,
+    required this.onAccept,
+    required this.onDiscard,
+  });
+
+  final TextEditingController intentController;
+  final TextEditingController feedbackController;
+  final _AiState state;
+  final bool isFirstGeneration;
+  final VoidCallback onStart;
+  final VoidCallback onAccept;
+  final VoidCallback onDiscard;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isGenerating = state == _AiState.generating;
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: theme.dividerColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.auto_fix_high,
+                size: 18,
+                color: theme.colorScheme.primary,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                isFirstGeneration ? 'Create with AI' : 'Refine draft',
+                style: theme.textTheme.titleSmall,
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          if (isFirstGeneration) ...[
+            Text(
+              'Describe what you want the prompt to do:',
+              style: theme.textTheme.bodySmall,
+            ),
+            const SizedBox(height: 4),
+            TextField(
+              controller: intentController,
+              enabled: !isGenerating,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                hintText:
+                    'e.g. A sarcastic coding mentor that keeps answers short',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+            ),
+          ] else ...[
+            Text('Feedback to apply:', style: theme.textTheme.bodySmall),
+            const SizedBox(height: 4),
+            TextField(
+              controller: feedbackController,
+              enabled: !isGenerating,
+              maxLines: 2,
+              decoration: const InputDecoration(
+                hintText: 'e.g. Make it friendlier',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+            ),
+          ],
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              FilledButton.icon(
+                onPressed: isGenerating ? null : onStart,
+                icon: const Icon(Icons.play_arrow, size: 18),
+                label: Text(isFirstGeneration ? 'Generate' : 'Refine'),
+              ),
+              if (!isFirstGeneration) ...[
+                const SizedBox(width: 8),
+                OutlinedButton(
+                  onPressed: isGenerating ? null : onAccept,
+                  child: const Text('Accept'),
+                ),
+                const SizedBox(width: 8),
+                OutlinedButton(
+                  onPressed: isGenerating ? null : onDiscard,
+                  child: const Text('Discard'),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

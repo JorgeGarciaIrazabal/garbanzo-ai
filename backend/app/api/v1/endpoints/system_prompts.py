@@ -3,11 +3,15 @@
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.rate_limit import rate_limit
 from app.core.security import get_current_user
 from app.db.session import get_db
+from app.schemas.chat import ChatResponseChunk
 from app.schemas.system_prompt import (
+    SystemPromptGenerateRequest,
     SystemPromptTemplateCreate,
     SystemPromptTemplateOut,
     SystemPromptTemplateUpdate,
@@ -21,6 +25,13 @@ router = APIRouter()
 
 def get_service(db: Annotated[AsyncSession, Depends(get_db)]) -> SystemPromptService:
     return SystemPromptService(db)
+
+
+_SSE_HEADERS = {
+    "Cache-Control": "no-cache",
+    "Connection": "keep-alive",
+    "X-Accel-Buffering": "no",
+}
 
 
 # ---- Templates --------------------------------------------------------------
@@ -138,3 +149,58 @@ async def set_user_default(
         prompt=value,
     )
     return UserDefaultPromptOut(default_system_prompt=prompt)
+
+
+# ---- AI-assisted generation -------------------------------------------------
+
+
+async def _generate_sse_stream(
+    service: SystemPromptService,
+    request: SystemPromptGenerateRequest,
+) -> Any:
+    """Serialize the provider's ChatChunks into SSE frames."""
+    try:
+        async for chunk in service.generate_system_prompt(
+            intent=request.intent,
+            existing_prompt=request.existing_prompt,
+            feedback=request.feedback,
+            model=request.model,
+        ):
+            if chunk.metadata and chunk.metadata.get("error"):
+                response = ChatResponseChunk(
+                    type="error", error=chunk.content, metadata=chunk.metadata
+                )
+            elif chunk.is_finished:
+                response = ChatResponseChunk(type="done", metadata=chunk.metadata)
+            elif chunk.is_thinking:
+                response = ChatResponseChunk(type="thinking", content=chunk.content)
+            else:
+                response = ChatResponseChunk(type="chunk", content=chunk.content)
+            yield f"data: {response.model_dump_json()}\n\n"
+    except Exception as e:
+        error_response = ChatResponseChunk(type="error", error=str(e), metadata={"error": True})
+        yield f"data: {error_response.model_dump_json()}\n\n"
+
+
+@router.post(
+    "/generate",
+    summary="Generate or refine a system prompt via the LLM (SSE stream)",
+    response_class=StreamingResponse,
+    dependencies=[Depends(rate_limit("system_prompt_generate"))],
+)
+async def generate_system_prompt(
+    data: SystemPromptGenerateRequest,
+    current_user: Annotated[dict[str, Any], Depends(get_current_user)],
+    service: Annotated[SystemPromptService, Depends(get_service)],
+) -> StreamingResponse:
+    """Stream an AI-drafted system prompt as SSE chunks.
+
+    Send ``intent`` for a fresh draft, or ``existing_prompt`` + ``feedback``
+    to refine an existing draft. The SSE chunk shape matches the chat
+    endpoint (``chunk``, ``thinking``, ``done``, ``error``).
+    """
+    return StreamingResponse(
+        _generate_sse_stream(service, data),
+        media_type="text/event-stream",
+        headers=_SSE_HEADERS,
+    )

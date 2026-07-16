@@ -117,6 +117,7 @@ class Settings(BaseSettings):
     rate_limit_chat_per_minute: int = 20
     rate_limit_tts_per_minute: int = 30
     rate_limit_stt_per_minute: int = 30
+    rate_limit_system_prompt_generate_per_minute: int = 10
 
     # CORS
     cors_origins: str = "http://localhost:3000,http://localhost:8000"

@@ -18,10 +18,10 @@ Recommended build order: **8 → 3 → 1 → 5 → 2 → 7 → 6 → 4** (roughl
 
 Add a "✨ Create with AI" flow to the existing system prompt editor. The user describes what they want ("a sarcastic coding mentor that keeps answers short") and the LLM drafts a well-structured prompt; the user can then iterate ("make it friendlier") before saving. Reuses `SystemPromptTemplate` + `SystemPromptEditorDialog` — no new storage needed.
 
-- [ ] `easy-med` **Backend: generate endpoint** — `POST /api/v1/system-prompts/generate` taking `{intent, existing_prompt?, feedback?}`; calls the LLM with a meta-prompt that outputs only the prompt text. Support the same SSE streaming shape as chat so the draft streams into the editor.
-- [ ] `easy` **Meta-prompt engineering** — Write and test the meta-prompt: produce prompts with persona, tone, constraints, and output-format sections; when `existing_prompt` + `feedback` are given, revise instead of regenerate.
-- [ ] `medium` **Frontend: AI flow in SystemPromptEditorDialog** — "Create with AI" button → intent text field → streamed draft preview → Accept / Refine (feedback field) / Discard. Refine loops back to the endpoint with the current draft.
-- [ ] `easy` **Rate-limit + model choice** — Route generation through the user's currently selected model; apply the existing `rate_limit.py` throttling.
+- [x] `easy-med` **Backend: generate endpoint** — `POST /api/v1/system-prompts/generate` taking `{intent, existing_prompt?, feedback?}`; calls the LLM with a meta-prompt that outputs only the prompt text. Support the same SSE streaming shape as chat so the draft streams into the editor.
+- [x] `easy` **Meta-prompt engineering** — Write and test the meta-prompt: produce prompts with persona, tone, constraints, and output-format sections; when `existing_prompt` + `feedback` are given, revise instead of regenerate.
+- [x] `medium` **Frontend: AI flow in SystemPromptEditorDialog** — "Create with AI" button → intent text field → streamed draft preview → Accept / Refine (feedback field) / Discard. Refine loops back to the endpoint with the current draft.
+- [x] `easy` **Rate-limit + model choice** — Route generation through the user's currently selected model; apply the existing `rate_limit.py` throttling.
 
 ## 2. "Styles" — unified model / thinking / prompt selector
 
@@ -96,3 +96,12 @@ WhatsApp-style: mute a room for 8 hours, 1 week, or forever. Per-member setting,
 - [ ] `med-hard` **10. Room unread counts + read receipts** — `last_read_message_id` per RoomMember, unread badges in the sidebar, optional "seen" indicators. Pairs with muting to make rooms feel like a real messenger.
 - [ ] `medium` **11. Onboarding tour powered by the help docs** — First-login checklist/coach-marks generated from the same app-guide docs as idea 4, so there's one source of truth for "how the app works".
 - [ ] `easy` **12. `/help` command in chat** — Before idea 4's tool exists, a client-side `/help <question>` that stuffs the relevant doc into context — a one-day version to validate the docs are good.
+
+
+New ideas:
+
+- stt and tts languaje should be configurable, allow select multiple like english and spanish, or auto (default). The system should be able to auto identify that based on the conversation and it should allow to change languajes on the go.
+
+- add support to summit bugs and features (visible by admin)
+
+- talk/call button should be in the text input bar (similar to how it is in chatGPT) with a good UI/UX

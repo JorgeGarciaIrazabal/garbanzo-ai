@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:garbanzo_ai/features/chat/models/conversation.dart';
+import 'package:garbanzo_ai/features/chat/models/model_info.dart';
 import 'package:garbanzo_ai/features/chat/models/system_prompt_template.dart';
 import 'package:garbanzo_ai/features/chat/widgets/system_prompt_editor_dialog.dart';
 import 'package:garbanzo_ai/features/chat/widgets/system_prompt_banner.dart';
 import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
+import 'package:garbanzo_ai/features/chat/providers/model_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/system_prompt_provider.dart';
 import 'package:provider/provider.dart';
 
@@ -28,6 +30,17 @@ class _FakeSystemPromptProvider extends SystemPromptProvider {
 
   @override
   List<SystemPromptTemplate> get templates => List.unmodifiable(_templates);
+}
+
+class _FakeModelProvider extends ModelProvider {
+  _FakeModelProvider(this._selectedModelId);
+  final String? _selectedModelId;
+
+  @override
+  String? get selectedModelId => _selectedModelId;
+
+  @override
+  List<ModelInfo> get availableModels => const [];
 }
 
 void main() {
@@ -61,8 +74,15 @@ void main() {
       // own route, so it can only see the provider if show() re-exposes it.
       await tester.pumpWidget(
         MaterialApp(
-          home: ChangeNotifierProvider<SystemPromptProvider>.value(
-            value: _FakeSystemPromptProvider(null, const []),
+          home: MultiProvider(
+            providers: [
+              ChangeNotifierProvider<SystemPromptProvider>.value(
+                value: _FakeSystemPromptProvider(null, const []),
+              ),
+              ChangeNotifierProvider<ModelProvider>.value(
+                value: _FakeModelProvider('test-model'),
+              ),
+            ],
             child: Scaffold(
               body: Builder(
                 builder: (context) => ElevatedButton(
@@ -83,6 +103,77 @@ void main() {
 
       expect(tester.takeException(), isNull);
       expect(find.text('Edit system prompt'), findsOneWidget);
+    });
+
+    testWidgets('shows "Create with AI" button', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MultiProvider(
+            providers: [
+              ChangeNotifierProvider<SystemPromptProvider>.value(
+                value: _FakeSystemPromptProvider(null, const []),
+              ),
+              ChangeNotifierProvider<ModelProvider>.value(
+                value: _FakeModelProvider('test-model'),
+              ),
+            ],
+            child: Scaffold(
+              body: Builder(
+                builder: (context) => ElevatedButton(
+                  onPressed: () => SystemPromptEditorDialog.show(context),
+                  child: const Text('open'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('open'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('Create with AI'), findsOneWidget);
+    });
+
+    testWidgets('tapping "Create with AI" opens the generation panel',
+        (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MultiProvider(
+            providers: [
+              ChangeNotifierProvider<SystemPromptProvider>.value(
+                value: _FakeSystemPromptProvider(null, const []),
+              ),
+              ChangeNotifierProvider<ModelProvider>.value(
+                value: _FakeModelProvider('test-model'),
+              ),
+            ],
+            child: Scaffold(
+              body: Builder(
+                builder: (context) => ElevatedButton(
+                  onPressed: () => SystemPromptEditorDialog.show(context),
+                  child: const Text('open'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('open'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      await tester.tap(find.text('Create with AI'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(
+        find.text('Describe what you want the prompt to do:'),
+        findsOneWidget,
+      );
+      expect(find.text('Generate'), findsOneWidget);
     });
   });
 
