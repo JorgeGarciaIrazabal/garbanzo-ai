@@ -29,6 +29,21 @@ def test_parse_mention_no_mentions():
     assert RoomChatService.parse_mentions("just thinking out loud", ["Alice"]) == set()
 
 
+def test_parse_mention_multiword_name():
+    """The composer autocomplete inserts display names verbatim, which may
+    contain spaces or dots — the plain token pattern can't see those."""
+    names = ["Code Reviewer", "Dr. Watson"]
+    assert RoomChatService.parse_mentions("ask @Code Reviewer to look", names) == {"Code Reviewer"}
+    assert RoomChatService.parse_mentions("@dr. watson thoughts?", names) == {"Dr. Watson"}
+
+
+def test_parse_mention_name_boundary():
+    """@Ana must not match inside @Anabel."""
+    names = ["Ana"]
+    assert RoomChatService.parse_mentions("hi @Anabel", names) == set()
+    assert RoomChatService.parse_mentions("hi @Ana!", names) == {"Ana"}
+
+
 def _agent(id, name, mode="mention", turn=0, active=True):
     return SimpleNamespace(
         id=id,

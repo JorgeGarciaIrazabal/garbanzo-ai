@@ -156,7 +156,10 @@ class RoomChatService:
         """Return the set of agent names mentioned in ``content``.
 
         Matches are case-insensitive. ``@all`` expands to every name in
-        ``agent_names``.
+        ``agent_names``. Besides simple ``@word`` tokens, each agent name is
+        also matched literally after an ``@`` — agent names may contain
+        spaces or dots (the composer autocomplete inserts them verbatim),
+        which the token pattern alone can't see.
         """
         mentions = set()
         lowered = {n.lower(): n for n in agent_names}
@@ -166,6 +169,16 @@ class RoomChatService:
                 mentions.update(agent_names)
             elif token in lowered:
                 mentions.add(lowered[token])
+
+        remaining = [n for n in agent_names if n not in mentions]
+        if remaining:
+            content_lower = content.lower()
+            for name in remaining:
+                # Word-boundary check after the name so "@Ana" doesn't hit
+                # inside "@Anabel".
+                pattern = re.compile(rf"@{re.escape(name.lower())}(?![a-z0-9_\-])")
+                if pattern.search(content_lower):
+                    mentions.add(name)
         return mentions
 
     async def _load_room(self, room_id: str) -> Room | None:
