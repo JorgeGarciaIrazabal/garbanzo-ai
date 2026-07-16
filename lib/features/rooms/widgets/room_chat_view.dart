@@ -18,6 +18,10 @@ import 'package:garbanzo_ai/features/chat/widgets/input/attachment_preview.dart'
 import 'package:garbanzo_ai/features/chat/widgets/input/message_composer.dart';
 import 'package:garbanzo_ai/features/friends/providers/friends_provider.dart';
 import 'package:garbanzo_ai/features/friends/widgets/friend_picker_field.dart';
+import 'package:garbanzo_ai/features/mentions/models/mention_candidate.dart';
+import 'package:garbanzo_ai/features/mentions/models/mention_sources.dart';
+import 'package:garbanzo_ai/features/mentions/widgets/mention_autocomplete.dart';
+import 'package:garbanzo_ai/features/mentions/widgets/mention_text_controller.dart';
 import 'package:garbanzo_ai/features/rooms/models/room_models.dart';
 import 'package:garbanzo_ai/features/rooms/providers/room_provider.dart';
 import 'package:garbanzo_ai/features/rooms/services/room_socket_service.dart';
@@ -55,6 +59,8 @@ class _RoomChatViewState extends State<RoomChatView>
     with WidgetsBindingObserver {
   final _scroll = SmartScrollController();
   final List<ChatAttachment> _attachments = [];
+  final _composerController = MentionTextController(triggers: {'@'});
+  final _composerFocus = FocusNode();
   RoomProvider? _providerRef;
 
   /// Monotonic mount counter: a disposed view must never close a socket a
@@ -113,6 +119,8 @@ class _RoomChatViewState extends State<RoomChatView>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _providerRef?.streamingMessage.removeListener(_onStreamingUpdate);
+    _composerController.dispose();
+    _composerFocus.dispose();
     _scroll.dispose();
     final provider = _providerRef;
     final roomId = widget.roomId;
@@ -129,6 +137,24 @@ class _RoomChatViewState extends State<RoomChatView>
 
   void _onStreamingUpdate() {
     if (mounted) _scroll.followStreaming();
+  }
+
+  /// `@` candidates for the composer: `@all`, then members and agents of
+  /// the open room. Evaluated on each keystroke so it tracks live room
+  /// state (agents added mid-session, etc.).
+  List<MentionCandidate> _mentionCandidates() {
+    final room = _providerRef?.currentRoom;
+    if (room == null) return const [];
+    return [
+      const MentionCandidate(
+        kind: MentionKind.member,
+        id: 'all',
+        label: 'all',
+        sublabel: 'Everyone and all agents',
+        insertText: '@all',
+      ),
+      ...roomMentionCandidates(room),
+    ];
   }
 
   @override
@@ -192,34 +218,42 @@ class _RoomChatViewState extends State<RoomChatView>
                       ),
               ),
               _TypingStrip(typingUsers: provider.typingUsers, room: room),
-              MessageComposer(
-                enabled: room != null,
-                hintText: 'Message the room… (use @AgentName or @all)',
-                onSend: (text) {
-                  provider.sendMessage(
-                    text,
-                    attachments: List.of(_attachments),
-                  );
-                  setState(() => _attachments.clear());
-                },
-                onChanged: provider.handleComposerChanged,
-                onBlur: provider.handleComposerBlur,
-                hasExtraContent: _attachments.isNotEmpty,
-                above: _attachments.isEmpty
-                    ? null
-                    : AttachmentPreviewBar(
-                        attachments: _attachments,
-                        onRemove: (i) =>
-                            setState(() => _attachments.removeAt(i)),
-                        colorScheme: colorScheme,
-                        textTheme: theme.textTheme,
-                      ),
-                leading: AttachMenuButton(
-                  buttonKey: const ValueKey('room_attach_button'),
+              MentionAutocomplete(
+                controller: _composerController,
+                focusNode: _composerFocus,
+                sources: {'@': _mentionCandidates},
+                child: MessageComposer(
+                  controller: _composerController,
+                  focusNode: _composerFocus,
                   enabled: room != null,
-                  existingNames: () => _attachments.map((a) => a.name).toSet(),
-                  onAdded: (added) =>
-                      setState(() => _attachments.addAll(added)),
+                  hintText: 'Message the room… (use @AgentName or @all)',
+                  onSend: (text) {
+                    provider.sendMessage(
+                      text,
+                      attachments: List.of(_attachments),
+                    );
+                    setState(() => _attachments.clear());
+                  },
+                  onChanged: provider.handleComposerChanged,
+                  onBlur: provider.handleComposerBlur,
+                  hasExtraContent: _attachments.isNotEmpty,
+                  above: _attachments.isEmpty
+                      ? null
+                      : AttachmentPreviewBar(
+                          attachments: _attachments,
+                          onRemove: (i) =>
+                              setState(() => _attachments.removeAt(i)),
+                          colorScheme: colorScheme,
+                          textTheme: theme.textTheme,
+                        ),
+                  leading: AttachMenuButton(
+                    buttonKey: const ValueKey('room_attach_button'),
+                    enabled: room != null,
+                    existingNames: () =>
+                        _attachments.map((a) => a.name).toSet(),
+                    onAdded: (added) =>
+                        setState(() => _attachments.addAll(added)),
+                  ),
                 ),
               ),
             ],

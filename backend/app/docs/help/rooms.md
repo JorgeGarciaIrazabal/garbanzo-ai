@@ -28,8 +28,11 @@ An agent can also be a **Moderator**: it summarizes, breaks deadlocks, and
 keeps discussion on track.
 
 ## How do I talk to a specific agent?
-Mention it by name. Agents see other participants' messages labeled with
-their names and reply as themselves.
+Mention it by name. Typing `@` in the composer opens suggestions — members,
+agents, and `@all` — that filter as you type; pick one with the arrow keys
+and Enter, or by tapping. Mentions show highlighted in messages. Agents see
+other participants' messages labeled with their names and reply as
+themselves.
 
 ## How do I mute a room?
 From the room's menu choose **Mute** and pick a duration (or forever).

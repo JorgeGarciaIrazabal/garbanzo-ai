@@ -156,7 +156,8 @@ features/mentions/
   models/            MentionCandidate, mention_sources (pure client-side
                      candidate builders + filter for @/// # autocomplete;
                      no backend endpoint — lists are small, fetch-and-filter),
-                     mention_query (trigger scan at cursor + token insertion)
+                     mention_query (trigger scan at cursor + token insertion),
+                     mention_markdown (bolds @tokens for bubble rendering)
   widgets/           MentionAutocomplete (wraps a composer; suggestion panel
                      anchored above it — not the cursor — with ↑↓⏎/Esc/tap),
                      MentionTextController (renders @/#// tokens styled)

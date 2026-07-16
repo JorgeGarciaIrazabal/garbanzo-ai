@@ -60,11 +60,40 @@ class _MentionAutocompleteState extends State<MentionAutocomplete> {
 
   bool get _isOpen => _overlay != null;
 
+  // Composers (MessageComposer) put their own onKeyEvent on the focus node,
+  // and the primary node's handler runs before any ancestor Focus — so an
+  // open panel would lose Enter to "send". Post-frame (after the composer
+  // installed its handler) we wrap it: mention keys first, then theirs.
+  FocusOnKeyEventCallback? _wrappedHandler;
+  FocusNode? _wrappedNode;
+
   @override
   void initState() {
     super.initState();
     widget.controller.addListener(_recompute);
     widget.focusNode.addListener(_onFocusChange);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _installKeyWrapper());
+  }
+
+  void _installKeyWrapper() {
+    if (!mounted || _wrappedNode == widget.focusNode) return;
+    _uninstallKeyWrapper();
+    final node = widget.focusNode;
+    final prev = node.onKeyEvent;
+    node.onKeyEvent = (n, event) {
+      final result = _onKeyEvent(n, event);
+      return result != KeyEventResult.ignored
+          ? result
+          : (prev?.call(n, event) ?? KeyEventResult.ignored);
+    };
+    _wrappedNode = node;
+    _wrappedHandler = prev;
+  }
+
+  void _uninstallKeyWrapper() {
+    _wrappedNode?.onKeyEvent = _wrappedHandler;
+    _wrappedNode = null;
+    _wrappedHandler = null;
   }
 
   @override
@@ -77,6 +106,7 @@ class _MentionAutocompleteState extends State<MentionAutocomplete> {
     if (oldWidget.focusNode != widget.focusNode) {
       oldWidget.focusNode.removeListener(_onFocusChange);
       widget.focusNode.addListener(_onFocusChange);
+      WidgetsBinding.instance.addPostFrameCallback((_) => _installKeyWrapper());
     }
   }
 
@@ -84,6 +114,7 @@ class _MentionAutocompleteState extends State<MentionAutocomplete> {
   void dispose() {
     widget.controller.removeListener(_recompute);
     widget.focusNode.removeListener(_onFocusChange);
+    _uninstallKeyWrapper();
     _hide();
     _scroll.dispose();
     super.dispose();

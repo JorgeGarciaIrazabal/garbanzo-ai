@@ -9,6 +9,7 @@ import 'package:garbanzo_ai/features/chat/widgets/message/reveal_on_hover.dart';
 import 'package:garbanzo_ai/features/chat/widgets/message/speak_button.dart';
 import 'package:garbanzo_ai/features/chat/widgets/message/thinking_content.dart';
 import 'package:garbanzo_ai/features/chat/widgets/tool_bubble_widget.dart';
+import 'package:garbanzo_ai/features/mentions/models/mention_markdown.dart';
 import 'package:garbanzo_ai/core/widgets/user_avatar.dart';
 import 'package:garbanzo_ai/features/rooms/models/room_models.dart';
 
@@ -312,6 +313,7 @@ class _RoomMessageBubbleState extends State<RoomMessageBubble> {
                         ),
                       // Same markdown path as the 1:1 chat user bubble, so
                       // formatting behaves identically on both surfaces.
+                      // @mentions are pre-bolded so they stand out.
                       if (message.content.isEmpty)
                         if (message.attachments.isEmpty)
                           Text('…', style: TextStyle(color: variant.fgColor))
@@ -319,7 +321,7 @@ class _RoomMessageBubbleState extends State<RoomMessageBubble> {
                           const SizedBox.shrink()
                       else
                         MessageContent(
-                          content: message.content,
+                          content: boldMentionTokens(message.content),
                           isUser: true,
                           colorScheme: colorScheme,
                           textTheme: theme.textTheme,
