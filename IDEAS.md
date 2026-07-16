@@ -41,7 +41,7 @@ Inject a compact, clearly-scoped context block (current datetime, timezone, coar
 - [x] `easy` **Frontend: send timezone** — Include IANA timezone (and locale) in the chat request or persist on the `User` at login. Timezone needs no permission prompt.
 - [x] `easy-med` **Frontend: optional location** — Settings toggle (default off) to share coarse location: city-level via `geolocator` + reverse-geocode once, cached; never raw coordinates in the prompt. Handle web/desktop/Android permission differences.
 - [x] `easy` **Rooms parity** — Inject the same context block in `agent_turn.py` so room agents also know the time. *(Landed in `room_chat_service._build_llm_history`, where room system prompts are actually assembled; UTC-only — a single member's timezone/location doesn't fit a multi-human room.)*
-- [ ] `easy` **Tests** — Backend test asserting the block is present, correctly formatted, and absent when the user disabled location.
+- [x] `easy` **Tests** — Backend test asserting the block is present, correctly formatted, and absent when the user disabled location.
 
 ## 4. Native "app help" skill (and later, in-app actions)
 

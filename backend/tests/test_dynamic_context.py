@@ -1,11 +1,23 @@
 """Tests for the dynamic <context> block (time / timezone / location)."""
 
+from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 
 import pytest
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy import select
 
+from app.api.v1.endpoints.chat import get_chat_service
+from app.core.config import Settings, get_settings
+from app.core.security import get_current_user
+from app.db.session import get_db
+from app.main import app
+from app.models.user import User
+from app.schemas.chat import ChatOptions
 from app.services.chat_context import build_dynamic_context_block
 from app.services.chat_service import ChatService
+from app.services.llm_provider import ChatChunk, LLMProvider, ModelInfo, ProviderRegistry
+from app.services.llm_provider import Message as LLMMessage
 
 pytestmark = pytest.mark.asyncio
 
@@ -109,6 +121,133 @@ class TestRoomsParity:
         assert "Current UTC time:" in messages[0].content
         assert "local time" not in messages[0].content
         assert "location" not in messages[0].content
+
+
+@pytest.fixture(autouse=True)
+def _no_background_title(monkeypatch):
+    """Same rationale as test_conversation_thinking_level.py: keep the
+    first-exchange auto-title task off the real DATABASE_URL engine."""
+    monkeypatch.setattr(ChatService, "_spawn_title_generation", lambda *a, **k: None)
+
+
+_TEST_SETTINGS = Settings(
+    secret_key="test-secret-key-do-not-use-in-prod",
+    database_url="sqlite+aiosqlite:///:memory:",
+    access_token_expire_minutes=30,
+)
+
+OWNER = "test@example.com"  # seeded by conftest
+
+
+class _RecordingProvider(LLMProvider):
+    """Streams one reply and records the messages each call received."""
+
+    def __init__(self):
+        self.received_messages: list[list[LLMMessage]] = []
+
+    @property
+    def name(self) -> str:
+        return "ctx-recording"
+
+    async def stream_chat(
+        self,
+        messages: list[LLMMessage],
+        model: str,
+        options: ChatOptions | None = None,
+        cancel_event=None,
+        tools=None,
+    ) -> AsyncIterator[ChatChunk]:
+        self.received_messages.append(messages)
+        yield ChatChunk(content="hi", is_finished=False)
+        yield ChatChunk(content="", is_finished=True, metadata={"tokens_generated": 1})
+
+    async def chat(self, messages, model, options=None, tools=None) -> str:
+        return ""
+
+    async def list_models(self) -> list[ModelInfo]:
+        return []
+
+    async def health_check(self) -> bool:
+        return True
+
+
+class TestChatTurnEndToEnd:
+    """The block as the provider actually receives it on a real chat turn."""
+
+    def _install(self, db_session, provider):
+        async def _override_db():
+            yield db_session
+
+        async def _override_user():
+            return {"email": OWNER, "token_payload": {}}
+
+        app.dependency_overrides[get_db] = _override_db
+        app.dependency_overrides[get_settings] = lambda: _TEST_SETTINGS
+        app.dependency_overrides[get_current_user] = _override_user
+        ProviderRegistry.register(provider)
+        app.dependency_overrides[get_chat_service] = lambda: ChatService(
+            db_session, provider_name=provider.name
+        )
+
+    def _clear(self):
+        for dep in (get_db, get_settings, get_current_user, get_chat_service):
+            app.dependency_overrides.pop(dep, None)
+
+    async def _set_user_context(self, db_session, timezone, location):
+        user = (await db_session.execute(select(User).where(User.email == OWNER))).scalar_one()
+        user.timezone = timezone
+        user.location = location
+        await db_session.commit()
+
+    async def _send_turn(self, db_session, provider) -> str:
+        """POST one message and return the system prompt the provider saw."""
+        self._install(db_session, provider)
+        try:
+            client = AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
+            async with client as c:
+                resp = await c.post(
+                    "/api/v1/chat/conversations",
+                    json={"title": "Ctx"},
+                )
+                assert resp.status_code == 201, resp.text
+                conv = resp.json()
+                resp = await c.post(
+                    f"/api/v1/chat/conversations/{conv['id']}/chat",
+                    json={"message": "hi"},
+                    headers={"Accept": "text/event-stream"},
+                )
+                assert resp.status_code == 200
+        finally:
+            self._clear()
+
+        assert len(provider.received_messages) == 1
+        messages = provider.received_messages[0]
+        assert messages[0].role == "system"
+        return messages[0].content
+
+    async def test_block_present_with_timezone_and_location(self, db_session):
+        await self._set_user_context(db_session, "Europe/Madrid", "Madrid, Spain")
+        prompt = await self._send_turn(db_session, _RecordingProvider())
+        assert "<context>" in prompt and "</context>" in prompt
+        assert "Current UTC time:" in prompt
+        assert "(Europe/Madrid)" in prompt
+        assert "User's approximate location: Madrid, Spain" in prompt
+
+    async def test_location_line_absent_when_sharing_disabled(self, db_session):
+        """location=NULL is the settings toggle's off state — the block still
+        carries the times but must not mention location at all."""
+        await self._set_user_context(db_session, "Europe/Madrid", None)
+        prompt = await self._send_turn(db_session, _RecordingProvider())
+        assert "<context>" in prompt
+        assert "User's local time:" in prompt
+        assert "location" not in prompt
+
+    async def test_utc_only_when_user_never_reported_anything(self, db_session):
+        await self._set_user_context(db_session, None, None)
+        prompt = await self._send_turn(db_session, _RecordingProvider())
+        assert "Current UTC time:" in prompt
+        assert "local time" not in prompt
+        assert "location" not in prompt
 
 
 class TestSystemPromptComposition:
