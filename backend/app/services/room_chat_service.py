@@ -40,6 +40,7 @@ from app.schemas.room import (
     RoomWSMessage,
 )
 from app.services.agent_turn import run_agent_turn
+from app.services.chat_context import build_dynamic_context_block
 from app.services.document_parser import extract_attachment_text
 from app.services.image_utils import downscale_image_b64
 from app.services.llm_provider import (
@@ -812,6 +813,12 @@ class RoomChatService:
                 "and keep the conversation on track."
             )
         sys_parts.append(room_desc)
+
+        # Same dynamic <context> block as one-on-one chat, but UTC time only:
+        # a room has several humans, so any single member's timezone would be
+        # wrong for the rest — and echoing one member's location back through
+        # agent replies would leak it to the whole room.
+        sys_parts.append(build_dynamic_context_block())
 
         llm_messages: list[LLMMessage] = [LLMMessage(role="system", content="\n\n".join(sys_parts))]
 

@@ -77,6 +77,40 @@ class TestGeocodingFormat:
         assert format_city({"address": {}}) is None
 
 
+class TestRoomsParity:
+    async def test_room_agent_system_prompt_carries_context_block(self, db_session):
+        """Room agents get the same <context> block — but UTC-only: a room
+        has several humans, so no single member's timezone/location fits."""
+        import uuid
+
+        from app.models.room import RoomAgent
+        from app.services.room_chat_service import RoomChatService
+        from app.services.room_service import RoomService
+
+        service = RoomService(db_session)
+        room = await service.create(owner_id="test@example.com", name="Ctx room")
+        db_session.add(
+            RoomAgent(
+                id=str(uuid.uuid4()),
+                room_id=room.id,
+                name="Echo",
+                provider="fake",
+                model="fake-model",
+                response_mode="always",
+            )
+        )
+        await db_session.commit()
+        room = await service.get(room.id)
+
+        messages = RoomChatService(db_session)._build_llm_history(room, room.agents[0], [])
+
+        assert messages[0].role == "system"
+        assert "<context>" in messages[0].content
+        assert "Current UTC time:" in messages[0].content
+        assert "local time" not in messages[0].content
+        assert "location" not in messages[0].content
+
+
 class TestSystemPromptComposition:
     async def _make_service(self, db_session):
         svc = ChatService(db_session)
