@@ -158,6 +158,50 @@ class TestAcceptDecline:
         assert resp.status_code == 201
 
 
+class TestFriendNotifications:
+    async def _notifications(self, db, user: str):
+        from app.services.notification_service import NotificationService
+
+        return await NotificationService(db).list_for_user(user)
+
+    async def test_request_notifies_addressee(self, db_session):
+        await _seed_user(db_session, "ana@example.com")
+        resp = await _request(
+            db_session, ME, "post", "/api/v1/friends/requests", json={"email": "ana@example.com"}
+        )
+        assert resp.status_code == 201
+        notes = await self._notifications(db_session, "ana@example.com")
+        assert len(notes) == 1
+        assert notes[0].channel == "friend_updates"
+        assert ME in notes[0].body
+
+    async def test_accept_notifies_requester(self, db_session):
+        await _seed_user(db_session, "ana@example.com")
+        resp = await _request(
+            db_session, "ana@example.com", "post", "/api/v1/friends/requests", json={"email": ME}
+        )
+        request_id = resp.json()["id"]
+        await _request(db_session, ME, "post", f"/api/v1/friends/requests/{request_id}/accept")
+
+        notes = await self._notifications(db_session, "ana@example.com")
+        assert any(n.title == "Friend request accepted" and ME in n.body for n in notes)
+
+    async def test_disabled_channel_suppresses_notification(self, db_session):
+        from app.services.notification_service import NotificationService
+
+        await _seed_user(db_session, "ana@example.com")
+        await NotificationService(db_session).update_preferences(
+            "ana@example.com", friend_updates_enabled=False
+        )
+        await db_session.commit()
+
+        resp = await _request(
+            db_session, ME, "post", "/api/v1/friends/requests", json={"email": "ana@example.com"}
+        )
+        assert resp.status_code == 201
+        assert await self._notifications(db_session, "ana@example.com") == []
+
+
 class TestListSearchRemove:
     async def _befriend(self, db_session, email: str, full_name: str | None = None) -> None:
         await _seed_user(db_session, email, full_name)

@@ -440,6 +440,14 @@ class _SettingsPageState extends State<SettingsPage> {
                 onChanged: (v) =>
                     provider.updatePreferences(systemAlertsEnabled: v),
               ),
+              const Divider(height: 1),
+              SwitchListTile(
+                title: const Text('Friend updates'),
+                subtitle: const Text('Friend requests and accepts'),
+                value: prefs.friendUpdatesEnabled,
+                onChanged: (v) =>
+                    provider.updatePreferences(friendUpdatesEnabled: v),
+              ),
             ],
           ),
         );

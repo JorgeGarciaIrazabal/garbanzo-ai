@@ -277,6 +277,14 @@ class _NotificationTiles extends StatelessWidget {
                     provider.updatePreferences(systemAlertsEnabled: value),
                 dense: true,
               ),
+              SwitchListTile(
+                title: const Text('Friend updates'),
+                subtitle: const Text('Friend requests and accepts'),
+                value: prefs.friendUpdatesEnabled,
+                onChanged: (value) =>
+                    provider.updatePreferences(friendUpdatesEnabled: value),
+                dense: true,
+              ),
             ],
           ],
         );

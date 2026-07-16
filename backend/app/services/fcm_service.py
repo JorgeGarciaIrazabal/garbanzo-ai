@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 _app: firebase_admin.App | None = None
 
-VALID_CHANNELS = {"chat_responses", "reminders", "system_alerts"}
+VALID_CHANNELS = {"chat_responses", "reminders", "system_alerts", "friend_updates"}
 
 
 def init_firebase() -> None:

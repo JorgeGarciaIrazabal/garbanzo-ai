@@ -496,6 +496,10 @@ _NOTIFICATION_TOOL_DESCRIPTOR: dict[str, Any] = {
                     "type": "boolean",
                     "description": "Toggle for system alert notifications (update_preferences only).",
                 },
+                "friend_updates_enabled": {
+                    "type": "boolean",
+                    "description": "Toggle for friend request/accept notifications (update_preferences only).",
+                },
             },
             "required": ["action"],
         },
@@ -562,6 +566,7 @@ async def _execute_notifications(
             chat_responses_enabled=args.get("chat_responses_enabled"),
             reminders_enabled=args.get("reminders_enabled"),
             system_alerts_enabled=args.get("system_alerts_enabled"),
+            friend_updates_enabled=args.get("friend_updates_enabled"),
         )
         return {"ok": True, "action": "update_preferences", "preferences": _prefs_to_dict(prefs)}
 
@@ -587,6 +592,7 @@ def _prefs_to_dict(p: Any) -> dict[str, Any]:
         "chat_responses_enabled": p.chat_responses_enabled,
         "reminders_enabled": p.reminders_enabled,
         "system_alerts_enabled": p.system_alerts_enabled,
+        "friend_updates_enabled": p.friend_updates_enabled,
     }
 
 

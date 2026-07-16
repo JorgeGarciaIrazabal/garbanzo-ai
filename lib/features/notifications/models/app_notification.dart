@@ -48,21 +48,25 @@ class NotificationPreferences {
     required this.chatResponsesEnabled,
     required this.remindersEnabled,
     required this.systemAlertsEnabled,
+    required this.friendUpdatesEnabled,
   });
 
   final bool chatResponsesEnabled;
   final bool remindersEnabled;
   final bool systemAlertsEnabled;
+  final bool friendUpdatesEnabled;
 
   NotificationPreferences copyWith({
     bool? chatResponsesEnabled,
     bool? remindersEnabled,
     bool? systemAlertsEnabled,
+    bool? friendUpdatesEnabled,
   }) {
     return NotificationPreferences(
       chatResponsesEnabled: chatResponsesEnabled ?? this.chatResponsesEnabled,
       remindersEnabled: remindersEnabled ?? this.remindersEnabled,
       systemAlertsEnabled: systemAlertsEnabled ?? this.systemAlertsEnabled,
+      friendUpdatesEnabled: friendUpdatesEnabled ?? this.friendUpdatesEnabled,
     );
   }
 
@@ -71,6 +75,7 @@ class NotificationPreferences {
       chatResponsesEnabled: json['chat_responses_enabled'] as bool? ?? true,
       remindersEnabled: json['reminders_enabled'] as bool? ?? true,
       systemAlertsEnabled: json['system_alerts_enabled'] as bool? ?? true,
+      friendUpdatesEnabled: json['friend_updates_enabled'] as bool? ?? true,
     );
   }
 }

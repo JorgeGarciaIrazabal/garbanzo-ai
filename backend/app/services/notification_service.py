@@ -125,6 +125,7 @@ class NotificationService:
         chat_responses_enabled: bool | None = None,
         reminders_enabled: bool | None = None,
         system_alerts_enabled: bool | None = None,
+        friend_updates_enabled: bool | None = None,
     ) -> NotificationPreferences:
         prefs = await self.get_preferences(user_id)
         if chat_responses_enabled is not None:
@@ -133,6 +134,8 @@ class NotificationService:
             prefs.reminders_enabled = reminders_enabled
         if system_alerts_enabled is not None:
             prefs.system_alerts_enabled = system_alerts_enabled
+        if friend_updates_enabled is not None:
+            prefs.friend_updates_enabled = friend_updates_enabled
         await self.db.commit()
         await self.db.refresh(prefs)
         return prefs
@@ -146,4 +149,6 @@ class NotificationService:
             return prefs.reminders_enabled
         if channel == "system_alerts":
             return prefs.system_alerts_enabled
+        if channel == "friend_updates":
+            return prefs.friend_updates_enabled
         return True

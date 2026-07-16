@@ -63,7 +63,7 @@ The assistant should answer "how do I pin a conversation?" from curated app docs
 A lightweight social graph so rooms stop requiring raw email entry. Friend requests by email, accept/decline, and a friends list that powers autocompletion everywhere (idea 6) and future sharing features.
 
 - [x] `medium` **Backend: Friendship model + endpoints** — `Friendship(requester_email, addressee_email, status: pending|accepted|blocked, created_at)` + migration. Endpoints: `POST /friends/requests`, `POST /friends/requests/{id}/accept|decline`, `GET /friends`, `DELETE /friends/{email}`, `GET /friends/search?q=` (only among accepted friends).
-- [ ] `easy-med` **Notifications integration** — Friend request / accepted events through the existing `notification_service` + FCM, with a new `NotificationPreferences` category.
+- [x] `easy-med` **Notifications integration** — Friend request / accepted events through the existing `notification_service` + FCM, with a new `NotificationPreferences` category.
 - [ ] `medium` **Frontend: Friends page** — List with pending (incoming/outgoing) and accepted sections; add-by-email field; accept/decline/remove actions. New `FriendsProvider` + service following the existing feature-folder pattern.
 - [ ] `easy-med` **Rooms: add members from friends** — In `CreateRoomDialog` and member management, replace the raw email field with a friend picker (search + chips). Keep a "by email" fallback for non-friends.
 - [ ] `easy` **Privacy guard** — Searching users by email only confirms existence on exact match (no enumeration); block list respected everywhere.

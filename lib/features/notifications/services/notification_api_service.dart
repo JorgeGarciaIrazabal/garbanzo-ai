@@ -72,6 +72,7 @@ class NotificationApiService {
     bool? chatResponsesEnabled,
     bool? remindersEnabled,
     bool? systemAlertsEnabled,
+    bool? friendUpdatesEnabled,
   }) async {
     final payload = <String, dynamic>{};
     if (chatResponsesEnabled != null) {
@@ -82,6 +83,9 @@ class NotificationApiService {
     }
     if (systemAlertsEnabled != null) {
       payload['system_alerts_enabled'] = systemAlertsEnabled;
+    }
+    if (friendUpdatesEnabled != null) {
+      payload['friend_updates_enabled'] = friendUpdatesEnabled;
     }
     final response = await _api.patch(
       '/api/v1/notifications/preferences',

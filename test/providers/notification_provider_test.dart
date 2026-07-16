@@ -22,6 +22,7 @@ const _prefs = NotificationPreferences(
   chatResponsesEnabled: true,
   remindersEnabled: true,
   systemAlertsEnabled: false,
+  friendUpdatesEnabled: true,
 );
 
 void main() {

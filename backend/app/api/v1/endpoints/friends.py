@@ -1,5 +1,6 @@
 """API endpoints for the friends graph (Idea 5: "Friends")."""
 
+import contextlib
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -13,9 +14,24 @@ from app.schemas.friendship import (
     FriendshipOut,
     FriendsListOut,
 )
+from app.services import fcm_service
 from app.services.friendship_service import FriendshipService
 
 router = APIRouter()
+
+
+async def _notify(db: AsyncSession, recipient: str, title: str, body: str) -> None:
+    """Best-effort friend-update notification (in-app + push). Never lets a
+    delivery failure break the request that triggered it."""
+    with contextlib.suppress(Exception):
+        await fcm_service.send_to_user(
+            db,
+            recipient,
+            title=title,
+            body=body,
+            channel="friend_updates",
+            data={"type": "friend_update"},
+        )
 
 
 def get_service(db: Annotated[AsyncSession, Depends(get_db)]) -> FriendshipService:
@@ -32,11 +48,29 @@ async def send_request(
     data: FriendRequestCreate,
     current_user: Annotated[dict[str, Any], Depends(get_current_user)],
     service: Annotated[FriendshipService, Depends(get_service)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> FriendshipOut:
+    me = current_user["email"]
     try:
-        friendship = await service.send_request(current_user["email"], data.email)
+        friendship = await service.send_request(me, data.email)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+    if friendship.status == "pending":
+        await _notify(
+            db,
+            friendship.addressee_email,
+            "Friend request",
+            f"{me} wants to be your friend",
+        )
+    else:
+        # Reverse-pending auto-accept: tell the original requester.
+        await _notify(
+            db,
+            friendship.requester_email,
+            "Friend request accepted",
+            f"{me} accepted your friend request",
+        )
     return FriendshipOut.model_validate(friendship)
 
 
@@ -49,6 +83,7 @@ async def accept_request(
     request_id: str,
     current_user: Annotated[dict[str, Any], Depends(get_current_user)],
     service: Annotated[FriendshipService, Depends(get_service)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> FriendshipOut:
     friendship = await service.accept(request_id, current_user["email"])
     if friendship is None:
@@ -56,6 +91,12 @@ async def accept_request(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Friend request not found",
         )
+    await _notify(
+        db,
+        friendship.requester_email,
+        "Friend request accepted",
+        f"{current_user['email']} accepted your friend request",
+    )
     return FriendshipOut.model_validate(friendship)
 
 

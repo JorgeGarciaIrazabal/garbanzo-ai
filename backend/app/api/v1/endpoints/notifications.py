@@ -128,5 +128,6 @@ async def update_preferences(
         chat_responses_enabled=data.chat_responses_enabled,
         reminders_enabled=data.reminders_enabled,
         system_alerts_enabled=data.system_alerts_enabled,
+        friend_updates_enabled=data.friend_updates_enabled,
     )
     return NotificationPreferencesResponse.model_validate(prefs)

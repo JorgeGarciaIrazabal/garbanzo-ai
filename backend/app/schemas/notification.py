@@ -3,7 +3,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-NotificationChannel = Literal["chat_responses", "reminders", "system_alerts"]
+NotificationChannel = Literal["chat_responses", "reminders", "system_alerts", "friend_updates"]
 
 
 class NotificationResponse(BaseModel):
@@ -33,9 +33,11 @@ class NotificationPreferencesResponse(BaseModel):
     chat_responses_enabled: bool
     reminders_enabled: bool
     system_alerts_enabled: bool
+    friend_updates_enabled: bool
 
 
 class NotificationPreferencesUpdate(BaseModel):
     chat_responses_enabled: bool | None = Field(None)
     reminders_enabled: bool | None = Field(None)
     system_alerts_enabled: bool | None = Field(None)
+    friend_updates_enabled: bool | None = Field(None)

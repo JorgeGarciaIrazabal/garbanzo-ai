@@ -123,6 +123,7 @@ class NotificationProvider extends ChangeNotifier with GuardedStateMixin {
     bool? chatResponsesEnabled,
     bool? remindersEnabled,
     bool? systemAlertsEnabled,
+    bool? friendUpdatesEnabled,
   }) async {
     final current = _preferences;
     if (current == null) await loadPreferences();
@@ -133,6 +134,7 @@ class NotificationProvider extends ChangeNotifier with GuardedStateMixin {
         chatResponsesEnabled: chatResponsesEnabled,
         remindersEnabled: remindersEnabled,
         systemAlertsEnabled: systemAlertsEnabled,
+        friendUpdatesEnabled: friendUpdatesEnabled,
       );
       notifyListeners();
     }
@@ -142,6 +144,7 @@ class NotificationProvider extends ChangeNotifier with GuardedStateMixin {
         chatResponsesEnabled: chatResponsesEnabled,
         remindersEnabled: remindersEnabled,
         systemAlertsEnabled: systemAlertsEnabled,
+        friendUpdatesEnabled: friendUpdatesEnabled,
       );
       notifyListeners();
     } catch (e) {
