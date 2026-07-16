@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:garbanzo_ai/core/widgets/brand_mark.dart';
 
 import 'package:garbanzo_ai/core/widgets/animated_dialog.dart';
+import 'package:garbanzo_ai/core/widgets/mute_sheet.dart';
 import 'package:garbanzo_ai/core/widgets/skeleton.dart';
 import 'package:garbanzo_ai/features/rooms/models/room_models.dart';
-import 'package:garbanzo_ai/features/rooms/widgets/mute_room_sheet.dart';
 
 /// Visual list of rooms styled to match the conversation list.
 ///
@@ -82,9 +82,9 @@ class RoomsListView extends StatelessWidget {
   Future<void> _showMuteSheet(BuildContext context, Room room) async {
     final apply = onMute;
     if (apply == null) return;
-    final duration = await showMuteRoomSheet(
+    final duration = await showMuteSheet(
       context: context,
-      roomName: room.name,
+      name: room.name,
       mutedUntil: room.mutedUntil,
     );
     if (duration != null) apply(room, duration);

@@ -124,6 +124,24 @@ class ChatService {
     await _api.delete('/api/v1/chat/conversations/$conversationId/chat');
   }
 
+  /// Mute or unmute notifications for the current user's conversation.
+  ///
+  /// [duration] is one of `8h`, `1w`, `forever`, `unmute` — validated
+  /// server-side by the shared `MuteUpdate` schema (same request shape as the
+  /// room mute endpoint).
+  Future<Conversation> setMute(String conversationId, String duration) async {
+    final response = await _api.patch(
+      '/api/v1/chat/conversations/$conversationId/mute',
+      data: {'duration': duration},
+    );
+
+    if (response.statusCode == 200) {
+      return Conversation.fromJson(response.data as Map<String, dynamic>);
+    }
+
+    throw _handleError(response);
+  }
+
   Future<void> deleteConversation(String conversationId) async {
     final response = await _api.delete(
       '/api/v1/chat/conversations/$conversationId',

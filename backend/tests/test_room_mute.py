@@ -19,8 +19,9 @@ from app.core.security import get_current_user, hash_password
 from app.db.session import get_db
 from app.main import app
 from app.models.user import User
-from app.services.room_chat_service import RoomChatService, _is_muted
-from app.services.room_service import MUTE_FOREVER, RoomService
+from app.services.mute_util import MUTE_FOREVER, is_muted
+from app.services.room_chat_service import RoomChatService
+from app.services.room_service import RoomService
 
 _TEST_SETTINGS = Settings(
     secret_key="test-secret-key-do-not-use-in-prod",
@@ -74,7 +75,7 @@ async def _create_room(client: AsyncClient, **overrides) -> dict:
 def _as_aware(dt: datetime) -> datetime:
     """SQLite (used in tests) round-trips ``DateTime(timezone=True)`` values as
     naive datetimes even though production Postgres preserves the offset —
-    treat a naive value as UTC, same as ``room_chat_service._is_muted`` does.
+    treat a naive value as UTC, same as ``mute_util.is_muted`` does.
     """
     return dt if dt.tzinfo is not None else dt.replace(tzinfo=UTC)
 
@@ -242,23 +243,23 @@ async def test_search_rooms_returns_null_muted_until_for_non_member_public_room(
         _clear_overrides()
 
 
-# -------------------------------------------------------------- _is_muted
+# -------------------------------------------------------------- is_muted
 
 
 def test_is_muted_naive_and_aware_future():
     now = datetime.now(UTC)
-    assert _is_muted(now + timedelta(hours=1), now) is True
+    assert is_muted(now + timedelta(hours=1), now) is True
     # Naive datetime (as SQLite round-trips DateTime(timezone=True)) still works.
-    assert _is_muted((now + timedelta(hours=1)).replace(tzinfo=None), now) is True
+    assert is_muted((now + timedelta(hours=1)).replace(tzinfo=None), now) is True
 
 
 def test_is_muted_past_is_false():
     now = datetime.now(UTC)
-    assert _is_muted(now - timedelta(hours=1), now) is False
+    assert is_muted(now - timedelta(hours=1), now) is False
 
 
 def test_is_muted_none_is_false():
-    assert _is_muted(None, datetime.now(UTC)) is False
+    assert is_muted(None, datetime.now(UTC)) is False
 
 
 # ------------------------------------------------- RoomService.set_mute unit

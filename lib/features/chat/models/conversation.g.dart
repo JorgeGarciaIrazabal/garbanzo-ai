@@ -25,6 +25,9 @@ _Conversation _$ConversationFromJson(Map<String, dynamic> json) =>
       messages: (json['messages'] as List<dynamic>?)
           ?.map((e) => ChatMessage.fromJson(e as Map<String, dynamic>))
           .toList(),
+      mutedUntil: json['muted_until'] == null
+          ? null
+          : DateTime.parse(json['muted_until'] as String),
     );
 
 Map<String, dynamic> _$ConversationToJson(_Conversation instance) =>
@@ -42,6 +45,7 @@ Map<String, dynamic> _$ConversationToJson(_Conversation instance) =>
       'system_prompt': instance.systemPrompt,
       'enabled_tools': instance.enabledTools,
       'messages': instance.messages,
+      'muted_until': instance.mutedUntil?.toIso8601String(),
     };
 
 _ConversationList _$ConversationListFromJson(Map<String, dynamic> json) =>

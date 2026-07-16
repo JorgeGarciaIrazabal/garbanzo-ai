@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
+import 'package:garbanzo_ai/core/mute_util.dart';
 import 'package:garbanzo_ai/features/rooms/models/room_models.dart';
 import 'package:garbanzo_ai/features/rooms/providers/room_provider.dart';
 import 'package:garbanzo_ai/features/rooms/services/room_service.dart';
-import 'package:garbanzo_ai/features/rooms/widgets/mute_room_sheet.dart';
 import 'package:garbanzo_ai/features/rooms/widgets/rooms_list_view.dart';
 
 class _MockRoomService extends Mock implements RoomService {}
@@ -13,7 +13,7 @@ class _MockRoomService extends Mock implements RoomService {}
 final _now = DateTime.utc(2026, 7, 11);
 
 /// The far-future value the backend stores for "muted forever"
-/// (`room_service.MUTE_FOREVER`).
+/// (`mute_util.MUTE_FOREVER`).
 final _foreverSentinel = DateTime.utc(9999, 12, 31, 23, 59, 59);
 
 RoomMember _member({DateTime? mutedUntil}) => RoomMember(

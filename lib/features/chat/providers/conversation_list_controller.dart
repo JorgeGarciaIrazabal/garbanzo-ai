@@ -87,6 +87,29 @@ class ConversationListController extends ChangeNotifier {
     }
   }
 
+  /// Mute or unmute a conversation. [duration] is one of `8h`, `1w`,
+  /// `forever`, `unmute`. Returns the updated conversation so the caller can
+  /// sync its own copy (e.g. the currently open conversation), or null when
+  /// the request failed.
+  ///
+  /// State comes from the server's response rather than being guessed
+  /// locally — the backend computes the expiry, so an optimistic write would
+  /// have to duplicate that arithmetic and could still drift from the stored
+  /// value (mirrors `RoomProvider.setMute`).
+  Future<Conversation?> setMute(String conversationId, String duration) async {
+    _error = null;
+    try {
+      final updated = await _chatService.setMute(conversationId, duration);
+      replaceEntry(updated);
+      return updated;
+    } catch (e) {
+      _error = 'Failed to update mute: $e';
+      logDebug(_error!);
+      notifyListeners();
+      return null;
+    }
+  }
+
   // Deletion is optimistic with an undo window: the conversation leaves the
   // UI immediately, but the API call fires only after the window expires.
   // Undo within the window cancels the deletion entirely.

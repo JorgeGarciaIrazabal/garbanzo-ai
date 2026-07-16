@@ -87,19 +87,6 @@ class RoomMemberUpdate(BaseModel):
     role: MemberRole
 
 
-MuteDuration = Literal["8h", "1w", "forever", "unmute"]
-
-
-class RoomMuteUpdate(BaseModel):
-    """Mute or unmute room notifications for the current user.
-
-    ``8h`` / ``1w`` set ``muted_until`` to now + duration, ``forever`` sets the
-    far-future sentinel (see ``room_service.MUTE_FOREVER``), ``unmute`` clears it.
-    """
-
-    duration: MuteDuration
-
-
 class RoomMemberOut(BaseModel):
     room_id: str
     user_id: str
@@ -111,7 +98,7 @@ class RoomMemberOut(BaseModel):
     full_name: str | None = None
     profile_picture_b64: str | None = None
     # NULL = not muted. A far-future sentinel value means "muted forever" —
-    # see ``room_service.MUTE_FOREVER``. Frontend just compares to "now" to
+    # see ``mute_util.MUTE_FOREVER``. Frontend just compares to "now" to
     # decide whether to render the muted-bell state.
     muted_until: datetime | None = None
 
@@ -197,7 +184,7 @@ class RoomOut(BaseModel):
     # sidebar can show a muted-bell badge without opening each room). NULL
     # when ``viewer_email`` is omitted or the viewer isn't a member.
     # NULL vs a far-future sentinel means the same thing as on
-    # ``RoomMemberOut.muted_until`` (see ``room_service.MUTE_FOREVER``).
+    # ``RoomMemberOut.muted_until`` (see ``mute_util.MUTE_FOREVER``).
     muted_until: datetime | None = None
 
     model_config = {"from_attributes": True}

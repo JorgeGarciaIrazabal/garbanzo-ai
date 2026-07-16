@@ -82,10 +82,10 @@ Typing `@` in a room suggests friends and agents; `/` in chat suggests skills/pr
 
 WhatsApp-style: mute a room for 8 hours, 1 week, or forever. Per-member setting, checked at send time.
 
-- [ ] `easy` **Backend: `muted_until` on RoomMember** — Nullable timestamp (far-future sentinel or separate `muted_forever` bool) + `ADD COLUMN IF NOT EXISTS` migration + `PATCH /rooms/{id}/members/me/mute` endpoint.
-- [ ] `easy` **Backend: respect mute** — In `notification_service` / room FCM path, skip push + in-app notification when muted (messages still appear in the room; unread badge choice: keep counting, like WhatsApp).
-- [ ] `easy-med` **Frontend: mute UI** — Bell icon in room header + long-press/context-menu on the room list entry → sheet with 8 hours / 1 week / Always options and "Unmute". Show a muted-bell glyph on muted rooms in the sidebar.
-- [ ] `easy` **Auto-expiry** — No job needed: compare `muted_until` to `now()` at notification time.
+- [x] `easy` **Backend: `muted_until` on RoomMember** — Nullable timestamp (far-future sentinel or separate `muted_forever` bool) + `ADD COLUMN IF NOT EXISTS` migration + `PATCH /rooms/{id}/members/me/mute` endpoint.
+- [x] `easy` **Backend: respect mute** — In `notification_service` / room FCM path, skip push + in-app notification when muted (messages still appear in the room; unread badge choice: keep counting, like WhatsApp).
+- [x] `easy-med` **Frontend: mute UI** — Bell icon in room header + long-press/context-menu on the room list entry → sheet with 8 hours / 1 week / Always options and "Unmute". Show a muted-bell glyph on muted rooms in the sidebar.
+- [x] `easy` **Auto-expiry** — No job needed: compare `muted_until` to `now()` at notification time.
 
 ---
 

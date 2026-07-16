@@ -7,6 +7,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 
+import 'package:garbanzo_ai/core/mute_util.dart';
 import 'package:garbanzo_ai/features/chat/models/chat_attachment.dart';
 
 @immutable
@@ -59,25 +60,6 @@ class RoomAgent {
     createdAt: DateTime.parse(j['created_at'] as String),
   );
 }
-
-/// Whether a `muted_until` value is still in effect.
-///
-/// Mirrors the backend's `room_chat_service._is_muted`: NULL means "not
-/// muted", anything in the past has expired, and the forever-sentinel is just
-/// a timestamp far enough out that this one comparison covers it too. Keep
-/// mute checks going through here so the sentinel never leaks into UI code.
-bool isMuteActive(DateTime? mutedUntil, {DateTime? now}) =>
-    mutedUntil != null && mutedUntil.isAfter(now ?? DateTime.now());
-
-/// Whether [mutedUntil] is the "muted forever" sentinel rather than a real
-/// expiry the UI should print.
-///
-/// The backend encodes "forever" as a far-future timestamp instead of a
-/// separate flag — `room_service.MUTE_FOREVER`, `9999-12-31T23:59:59Z`.
-/// Compares on year alone so tz normalization or sub-second drift on the wire
-/// can't turn "Always" into a literal year-9999 date.
-bool isMuteForever(DateTime? mutedUntil) =>
-    mutedUntil != null && mutedUntil.toUtc().year >= 9999;
 
 @immutable
 class RoomMember {

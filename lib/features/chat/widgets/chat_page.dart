@@ -358,6 +358,7 @@ class _ChatPageContentState extends State<_ChatPageContent>
       onDelete: (id) => _deleteWithUndo(chatProvider, id),
       onNewChat: _newChat,
       onTogglePin: (id) => chatProvider.togglePin(id),
+      onMuteConversation: (id, duration) => chatProvider.setMute(id, duration),
       initialTab: 1,
       selectedRoomId: widget.roomId,
       onSelectRoom: _selectRoom,
@@ -496,6 +497,8 @@ class _ChatPageContentState extends State<_ChatPageContent>
                             _deleteWithUndo(chatProvider, id),
                         onNewChat: _newChat,
                         onTogglePin: (id) => chatProvider.togglePin(id),
+                        onMuteConversation: (id, duration) =>
+                            chatProvider.setMute(id, duration),
                         isLoadingConversations:
                             chatProvider.isLoadingConversations,
                         selectedRoomId: widget.roomId,

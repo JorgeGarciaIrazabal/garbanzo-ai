@@ -55,6 +55,8 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
                 onDelete: onDeleteConversation,
                 onNewChat: () => chatProvider.clearCurrentConversation(),
                 onTogglePin: (id) => chatProvider.togglePin(id),
+                onMuteConversation: (id, duration) =>
+                    chatProvider.setMute(id, duration),
               ),
             ),
       actions: [

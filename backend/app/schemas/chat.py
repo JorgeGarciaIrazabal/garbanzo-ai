@@ -279,6 +279,14 @@ class ConversationOut(BaseModel):
         ),
     )
     is_pinned: bool = Field(default=False, description="Whether this conversation is pinned")
+    # NULL = not muted. A far-future sentinel value means "muted forever" —
+    # see ``mute_util.MUTE_FOREVER``. Frontend just compares to "now" to
+    # decide whether to render the muted-bell state (mirrors
+    # ``RoomMemberOut.muted_until`` / ``RoomOut.muted_until``).
+    muted_until: datetime | None = Field(
+        None,
+        description="When notification muting expires, or null when not muted",
+    )
 
     model_config = {"from_attributes": True}
 
@@ -308,6 +316,7 @@ class ConversationOut(BaseModel):
             system_prompt=getattr(conv, "system_prompt", None),
             enabled_tools=getattr(conv, "enabled_tools", None),
             is_pinned=getattr(conv, "is_pinned", False),
+            muted_until=getattr(conv, "muted_until", None),
         )
 
 
@@ -349,6 +358,7 @@ class ConversationDetailOut(ConversationOut):
             system_prompt=getattr(conv, "system_prompt", None),
             enabled_tools=getattr(conv, "enabled_tools", None),
             is_pinned=getattr(conv, "is_pinned", False),
+            muted_until=getattr(conv, "muted_until", None),
         )
 
 

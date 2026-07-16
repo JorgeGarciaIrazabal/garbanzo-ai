@@ -258,6 +258,16 @@ class ChatProvider extends ChangeNotifier {
     }
   }
 
+  /// Mute or unmute [conversationId]. [duration] is one of `8h`, `1w`,
+  /// `forever`, `unmute`.
+  Future<void> setMute(String conversationId, String duration) async {
+    final updated = await conversationList.setMute(conversationId, duration);
+    if (updated != null && _currentConversation?.id == conversationId) {
+      _currentConversation = updated;
+      notifyListeners();
+    }
+  }
+
   Future<void> deleteConversation(String conversationId) async {
     _error = null;
     _actionEpoch++;

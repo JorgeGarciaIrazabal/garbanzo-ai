@@ -55,6 +55,7 @@ from app.services.mcp_service import (
     split_tool_key,
     tool_key,
 )
+from app.services.mute_util import is_muted
 from app.services.room_connection_manager import room_manager
 
 MAX_TOOL_ITERATIONS = 5
@@ -63,21 +64,6 @@ logger = logging.getLogger(__name__)
 
 
 _MENTION_PATTERN = re.compile(r"@([A-Za-z0-9_\-]+|all)", re.IGNORECASE)
-
-
-def _is_muted(muted_until: datetime | None, now: datetime) -> bool:
-    """Whether a ``RoomMember.muted_until`` value is still in effect.
-
-    ``now`` is always tz-aware (UTC). ``muted_until`` is normally tz-aware too
-    (``DateTime(timezone=True)``), but SQLite — used in tests — round-trips
-    ``DateTime(timezone=True)`` values as naive datetimes, so a naive value is
-    treated as UTC rather than raising on comparison.
-    """
-    if muted_until is None:
-        return False
-    if muted_until.tzinfo is None:
-        muted_until = muted_until.replace(tzinfo=UTC)
-    return muted_until > now
 
 
 @dataclass
@@ -908,7 +894,7 @@ class RoomChatService:
                 continue
             if room_manager.is_user_online(room.id, target):
                 continue
-            if _is_muted(member.muted_until, now):
+            if is_muted(member.muted_until, now):
                 continue
             try:
                 async with async_session_maker() as session:

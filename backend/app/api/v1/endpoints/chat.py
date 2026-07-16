@@ -28,6 +28,7 @@ from app.schemas.chat import (
     ModelList,
     RegenerateRequest,
 )
+from app.schemas.mute import MuteUpdate
 from app.services.chat_service import ChatService
 from app.services.conversation_service import _build_snippet
 
@@ -221,6 +222,32 @@ async def update_conversation(
     return ConversationOut.from_model(conversation)
 
 
+@router.patch(
+    "/conversations/{conversation_id}/mute",
+    response_model=ConversationOut,
+    summary="Mute or unmute notifications for a conversation",
+)
+async def mute_conversation(
+    conversation_id: str,
+    data: MuteUpdate,
+    current_user: Annotated[dict[str, Any], Depends(get_current_user)],
+    service: Annotated[ChatService, Depends(get_chat_service)],
+) -> ConversationOut:
+    conversation = await service.conversations.set_mute(
+        conversation_id=conversation_id,
+        user_id=current_user["email"],
+        duration=data.duration,
+    )
+
+    if not conversation:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Conversation not found",
+        )
+
+    return ConversationOut.from_model(conversation)
+
+
 @router.delete(
     "/conversations/{conversation_id}",
     status_code=status.HTTP_204_NO_CONTENT,
@@ -321,20 +348,37 @@ async def _sse_stream(
 
 
 def _make_push_callback(user_id: str, conversation_id: str) -> Callable[[str], Awaitable[None]]:
-    """Build a callback that sends an FCM push with the accumulated response."""
+    """Build a callback that sends an FCM push with the accumulated response.
+
+    Respects the conversation's own mute state (``Conversation.muted_until``,
+    Idea 8 — mirrors ``RoomMember.muted_until``/Idea 7): the assistant reply is
+    already persisted independently of this callback, so muting only
+    suppresses the push + in-app notification, never the message itself.
+    """
 
     async def _push(accumulated: str) -> None:
         if not accumulated.strip():
             return
         try:
+            from datetime import UTC, datetime
+
             from app.db.session import async_session_maker
+            from app.services.conversation_service import ConversationService
             from app.services.fcm_service import send_to_user
+            from app.services.mute_util import is_muted
 
             body = accumulated.strip()
             if len(body) > 160:
                 body = body[:157] + "..."
 
             async with async_session_maker() as session:
+                conversation = await ConversationService(session).get(
+                    conversation_id, user_id, include_messages=False
+                )
+                if conversation is not None and is_muted(
+                    conversation.muted_until, datetime.now(UTC)
+                ):
+                    return
                 await send_to_user(
                     session,
                     user_id,

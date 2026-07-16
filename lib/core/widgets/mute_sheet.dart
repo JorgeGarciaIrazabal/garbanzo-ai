@@ -1,38 +1,36 @@
 import 'package:flutter/material.dart';
 
-import 'package:garbanzo_ai/features/rooms/models/room_models.dart';
+import 'package:garbanzo_ai/core/mute_util.dart';
 
-/// Mute durations understood by `PATCH /rooms/{id}/members/me/mute`.
-const muteDuration8h = '8h';
-const muteDuration1w = '1w';
-const muteDurationForever = 'forever';
-const muteDurationUnmute = 'unmute';
-
-/// Bottom sheet offering the room mute options.
+/// Bottom sheet offering mute duration options.
 ///
 /// Resolves to the chosen duration string (`8h` / `1w` / `forever` /
-/// `unmute`), or null when dismissed. "Unmute" is only offered while the room
-/// is actually muted.
+/// `unmute`), or null when dismissed. "Unmute" is only offered while the
+/// target is actually muted.
 ///
-/// Follows the room panel's sheet style in `room_chat_view.dart`
+/// Shared by rooms (`PATCH /rooms/{id}/members/me/mute`) and conversations
+/// (`PATCH /chat/conversations/{id}/mute`) — both mute mechanisms present the
+/// exact same choice, so there is only one sheet implementation.
+///
+/// [name] is the room name or conversation title shown as the sheet
+/// subtitle when not muted. Follows the room panel's sheet style
 /// (`showModalBottomSheet` + `showDragHandle`).
-Future<String?> showMuteRoomSheet({
+Future<String?> showMuteSheet({
   required BuildContext context,
-  required String roomName,
+  required String name,
   required DateTime? mutedUntil,
 }) {
   return showModalBottomSheet<String>(
     context: context,
     showDragHandle: true,
-    builder: (ctx) =>
-        _MuteRoomSheet(roomName: roomName, mutedUntil: mutedUntil),
+    builder: (ctx) => _MuteSheet(name: name, mutedUntil: mutedUntil),
   );
 }
 
-class _MuteRoomSheet extends StatelessWidget {
-  const _MuteRoomSheet({required this.roomName, required this.mutedUntil});
+class _MuteSheet extends StatelessWidget {
+  const _MuteSheet({required this.name, required this.mutedUntil});
 
-  final String roomName;
+  final String name;
   final DateTime? mutedUntil;
 
   @override
@@ -57,7 +55,7 @@ class _MuteRoomSheet extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  muted ? muteStatusLabel(mutedUntil) : roomName,
+                  muted ? muteStatusLabel(mutedUntil) : name,
                   style: theme.textTheme.labelSmall?.copyWith(
                     color: colorScheme.onSurfaceVariant,
                   ),
@@ -124,44 +122,3 @@ class _MuteOption extends StatelessWidget {
     );
   }
 }
-
-/// Human-readable mute status, e.g. "Muted until 14:30" / "Muted always".
-///
-/// Never prints the forever-sentinel's literal year-9999 date. [now] is
-/// injectable so tests can pin the "is it today?" decision.
-String muteStatusLabel(DateTime? mutedUntil, {DateTime? now}) {
-  if (!isMuteActive(mutedUntil, now: now)) return 'Not muted';
-  if (isMuteForever(mutedUntil)) return 'Muted always';
-  return 'Muted until ${_formatUntil(mutedUntil!, now ?? DateTime.now())}';
-}
-
-/// Local-time formatting consistent with `room_message_bubble._formatTime`;
-/// a date prefix is added once the expiry is off today (an "8h" mute can land
-/// tomorrow, a "1w" one always does).
-String _formatUntil(DateTime until, DateTime now) {
-  final local = until.toLocal();
-  final time = '${_two(local.hour)}:${_two(local.minute)}';
-  final sameDay =
-      local.year == now.year &&
-      local.month == now.month &&
-      local.day == now.day;
-  if (sameDay) return time;
-  return '${_months[local.month - 1]} ${local.day}, $time';
-}
-
-const _months = [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'May',
-  'Jun',
-  'Jul',
-  'Aug',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Dec',
-];
-
-String _two(int n) => n.toString().padLeft(2, '0');

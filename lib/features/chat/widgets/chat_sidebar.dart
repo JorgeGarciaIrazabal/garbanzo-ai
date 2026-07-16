@@ -22,6 +22,7 @@ class ChatSidebar extends StatefulWidget {
     required this.onDeleteConversation,
     required this.onNewChat,
     required this.onTogglePin,
+    this.onMuteConversation,
     required this.isLoadingConversations,
     required this.onSelectRoom,
     required this.onDeleteRoom,
@@ -35,6 +36,12 @@ class ChatSidebar extends StatefulWidget {
   final ValueChanged<String> onDeleteConversation;
   final VoidCallback onNewChat;
   final ValueChanged<String> onTogglePin;
+
+  /// Applies a mute choice (`8h` / `1w` / `forever` / `unmute`) to a
+  /// conversation by id.
+  final void Function(String conversationId, String duration)?
+  onMuteConversation;
+
   final bool isLoadingConversations;
   final ValueChanged<String> onSelectRoom;
   final ValueChanged<String> onDeleteRoom;
@@ -96,6 +103,13 @@ class _ChatSidebarState extends State<ChatSidebar> {
                     onDelete: widget.onDeleteConversation,
                     onNewChat: widget.onNewChat,
                     onTogglePin: widget.onTogglePin,
+                    onMute: widget.onMuteConversation == null
+                        ? null
+                        : (conversation, duration) =>
+                              widget.onMuteConversation!(
+                                conversation.id,
+                                duration,
+                              ),
                     isLoading: widget.isLoadingConversations,
                     embedded: true,
                   )

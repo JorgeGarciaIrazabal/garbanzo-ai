@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import get_current_user
 from app.db.session import get_db
+from app.schemas.mute import MuteUpdate
 from app.schemas.room import (
     RoomAgentCreate,
     RoomAgentOut,
@@ -24,7 +25,6 @@ from app.schemas.room import (
     RoomMemberOut,
     RoomMessageList,
     RoomMessageOut,
-    RoomMuteUpdate,
     RoomOut,
     RoomUpdate,
 )
@@ -260,7 +260,7 @@ async def remove_member(
 )
 async def mute_room(
     room_id: str,
-    data: RoomMuteUpdate,
+    data: MuteUpdate,
     current_user: Annotated[dict[str, Any], Depends(get_current_user)],
     service: Annotated[RoomService, Depends(_service)],
 ) -> RoomMemberOut:

@@ -55,6 +55,18 @@ class Conversation(Base):
             '[] = no tools, ["srv:tool"] = subset.'
         ),
     )
+    muted_until: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment=(
+            "Notifications (push + in-app) are suppressed while now() < muted_until. "
+            "NULL = not muted. 'Mute forever' uses a far-future sentinel "
+            "(see MUTE_FOREVER in mute_util.py) rather than a separate bool, so "
+            "callers only ever need one comparison. Mirrors RoomMember.muted_until, "
+            "except a conversation has exactly one owner, so this lives directly "
+            "on Conversation instead of a per-member join table."
+        ),
+    )
 
     # Relationships
     user: Mapped["User"] = relationship(back_populates="conversations")

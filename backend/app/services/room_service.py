@@ -5,7 +5,6 @@ from __future__ import annotations
 import logging
 import uuid
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import desc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,19 +12,9 @@ from sqlalchemy.orm import selectinload
 
 from app.models.room import Room, RoomAgent, RoomMember, RoomMessage
 from app.models.user import User
+from app.services.mute_util import resolve_mute_until
 
 logger = logging.getLogger(__name__)
-
-# "Mute forever" sentinel: a timestamp far enough in the future that it will
-# never naturally elapse, instead of a separate ``muted_forever`` boolean
-# column. Every call site — the notification skip-check, the frontend badge —
-# only ever needs one comparison: ``muted_until > now()``.
-MUTE_FOREVER = datetime(9999, 12, 31, 23, 59, 59, tzinfo=UTC)
-
-_MUTE_DURATIONS: dict[str, timedelta] = {
-    "8h": timedelta(hours=8),
-    "1w": timedelta(weeks=1),
-}
 
 
 class RoomPermissionError(Exception):
@@ -335,7 +324,7 @@ class RoomService:
         """Mute or unmute room notifications for ``user_id``.
 
         ``duration`` is one of ``"8h"``, ``"1w"``, ``"forever"``, ``"unmute"``
-        (validated by the ``RoomMuteUpdate`` schema at the API boundary).
+        (validated by the ``MuteUpdate`` schema at the API boundary).
         """
         member = (
             await self.db.execute(
@@ -347,12 +336,7 @@ class RoomService:
         if member is None:
             raise RoomNotFoundError("Not a room member")
 
-        if duration == "unmute":
-            member.muted_until = None
-        elif duration == "forever":
-            member.muted_until = MUTE_FOREVER
-        else:
-            member.muted_until = datetime.now(UTC) + _MUTE_DURATIONS[duration]
+        member.muted_until = resolve_mute_until(duration)
 
         await self.db.commit()
         await self.db.refresh(member)

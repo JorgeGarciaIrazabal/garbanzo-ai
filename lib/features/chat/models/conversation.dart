@@ -1,5 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import 'package:garbanzo_ai/core/mute_util.dart';
 import 'package:garbanzo_ai/features/chat/models/chat_message.dart';
 
 part 'conversation.freezed.dart';
@@ -24,10 +25,21 @@ abstract class Conversation with _$Conversation {
     String? systemPrompt,
     List<String>? enabledTools,
     List<ChatMessage>? messages,
+    // NULL = not muted. A far-future sentinel value means "muted forever" —
+    // see the backend's `mute_util.MUTE_FOREVER`. Read [isMuted] /
+    // [isMutedForever] instead of comparing this directly (mirrors
+    // `Room.mutedUntil` / `RoomMember.mutedUntil`).
+    DateTime? mutedUntil,
   }) = _Conversation;
 
   factory Conversation.fromJson(Map<String, dynamic> json) =>
       _$ConversationFromJson(json);
+
+  /// Whether notifications are muted for this conversation right now.
+  bool get isMuted => isMuteActive(mutedUntil);
+
+  /// Whether the mute is indefinite ("Always") rather than a timed one.
+  bool get isMutedForever => isMuteForever(mutedUntil);
 
   String get displayTitle {
     if (title != null && title!.isNotEmpty) {

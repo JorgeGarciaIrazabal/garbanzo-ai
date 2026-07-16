@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'package:garbanzo_ai/core/auth_service.dart';
+import 'package:garbanzo_ai/core/mute_util.dart';
 import 'package:garbanzo_ai/core/reading_column.dart';
 import 'package:garbanzo_ai/core/smart_scroll_controller.dart';
 import 'package:garbanzo_ai/core/widgets/animated_dialog.dart';
 import 'package:garbanzo_ai/core/widgets/fade_slide_in.dart';
+import 'package:garbanzo_ai/core/widgets/mute_sheet.dart';
 import 'package:garbanzo_ai/core/widgets/skeleton.dart';
 import 'package:garbanzo_ai/core/widgets/user_avatar.dart';
 import 'package:garbanzo_ai/features/chat/models/chat_attachment.dart';
@@ -16,7 +18,6 @@ import 'package:garbanzo_ai/features/rooms/models/room_models.dart';
 import 'package:garbanzo_ai/features/rooms/providers/room_provider.dart';
 import 'package:garbanzo_ai/features/rooms/services/room_socket_service.dart';
 import 'package:garbanzo_ai/features/rooms/widgets/add_agent_dialog.dart';
-import 'package:garbanzo_ai/features/rooms/widgets/mute_room_sheet.dart';
 import 'package:garbanzo_ai/features/rooms/widgets/room_message_bubble.dart';
 
 /// Room chat rendered inside the main chat shell's content pane — the shell
@@ -339,9 +340,9 @@ class _RoomChatViewState extends State<RoomChatView>
     RoomProvider provider,
     Room room,
   ) async {
-    final duration = await showMuteRoomSheet(
+    final duration = await showMuteSheet(
       context: context,
-      roomName: room.name,
+      name: room.name,
       mutedUntil: room.mutedUntil,
     );
     if (duration != null) await provider.setMute(room.id, duration);

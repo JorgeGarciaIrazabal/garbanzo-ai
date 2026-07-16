@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'package:garbanzo_ai/core/widgets/animated_dialog.dart';
+import 'package:garbanzo_ai/core/widgets/mute_sheet.dart';
 import 'package:garbanzo_ai/core/widgets/skeleton.dart';
 import 'package:garbanzo_ai/features/chat/models/conversation.dart';
 import 'package:garbanzo_ai/features/chat/providers/search_provider.dart';
@@ -18,6 +19,7 @@ class ConversationListWidget extends StatelessWidget {
     required this.onDelete,
     required this.onNewChat,
     this.onTogglePin,
+    this.onMute,
     this.isLoading = false,
     this.embedded = false,
   });
@@ -28,6 +30,12 @@ class ConversationListWidget extends StatelessWidget {
   final ValueChanged<String> onDelete;
   final VoidCallback onNewChat;
   final ValueChanged<String>? onTogglePin;
+
+  /// Applies a mute choice (`8h` / `1w` / `forever` / `unmute`) to a
+  /// conversation. Long-press / right-click only opens the mute sheet when
+  /// this is set.
+  final void Function(Conversation conversation, String duration)? onMute;
+
   final bool isLoading;
 
   /// When true, drop the outer width / border chrome — caller is responsible
@@ -95,6 +103,9 @@ class ConversationListWidget extends StatelessWidget {
                     onTogglePin: onTogglePin == null
                         ? null
                         : () => onTogglePin!(conversation.id),
+                    onMuteMenu: onMute == null
+                        ? null
+                        : () => _showMuteSheet(context, conversation),
                     colorScheme: colorScheme,
                     textTheme: theme.textTheme,
                   );
@@ -120,6 +131,20 @@ class ConversationListWidget extends StatelessWidget {
       ),
       child: body,
     );
+  }
+
+  Future<void> _showMuteSheet(
+    BuildContext context,
+    Conversation conversation,
+  ) async {
+    final apply = onMute;
+    if (apply == null) return;
+    final duration = await showMuteSheet(
+      context: context,
+      name: conversation.displayTitle,
+      mutedUntil: conversation.mutedUntil,
+    );
+    if (duration != null) apply(conversation, duration);
   }
 
   Future<void> _confirmDelete(
@@ -193,6 +218,7 @@ class _ConversationListItem extends StatelessWidget {
     required this.colorScheme,
     required this.textTheme,
     this.onTogglePin,
+    this.onMuteMenu,
   });
 
   final Conversation conversation;
@@ -200,6 +226,10 @@ class _ConversationListItem extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback onDelete;
   final VoidCallback? onTogglePin;
+
+  /// Opens the mute sheet — long-press on touch, right-click on desktop.
+  final VoidCallback? onMuteMenu;
+
   final ColorScheme colorScheme;
   final TextTheme textTheme;
 
@@ -213,6 +243,9 @@ class _ConversationListItem extends StatelessWidget {
       color: isSelected ? colorScheme.primaryContainer : Colors.transparent,
       child: InkWell(
         onTap: onTap,
+        // InkWell carries both gestures natively — no wrapper needed.
+        onLongPress: onMuteMenu,
+        onSecondaryTap: onMuteMenu,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
@@ -238,18 +271,34 @@ class _ConversationListItem extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      conversation.displayTitle,
-                      style: textTheme.bodyMedium?.copyWith(
-                        fontWeight: isSelected
-                            ? FontWeight.w600
-                            : FontWeight.normal,
-                        color: isSelected
-                            ? colorScheme.onPrimaryContainer
-                            : colorScheme.onSurface,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            conversation.displayTitle,
+                            style: textTheme.bodyMedium?.copyWith(
+                              fontWeight: isSelected
+                                  ? FontWeight.w600
+                                  : FontWeight.normal,
+                              color: isSelected
+                                  ? colorScheme.onPrimaryContainer
+                                  : colorScheme.onSurface,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (conversation.isMuted) ...[
+                          const SizedBox(width: 6),
+                          Icon(
+                            key: const ValueKey('conversation_muted_glyph'),
+                            Icons.notifications_off,
+                            size: 14,
+                            semanticLabel: 'Muted',
+                            color: unselectedIcon,
+                          ),
+                        ],
+                      ],
                     ),
                     const SizedBox(height: 2),
                     Text(

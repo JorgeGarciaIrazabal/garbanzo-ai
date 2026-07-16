@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import 'package:garbanzo_ai/core/widgets/mute_sheet.dart';
 import 'package:garbanzo_ai/features/rooms/providers/room_provider.dart';
 import 'package:garbanzo_ai/features/rooms/widgets/create_room_dialog.dart';
 import 'package:garbanzo_ai/features/rooms/widgets/rooms_list_view.dart';
@@ -23,6 +24,7 @@ void showMobileConversationDrawer({
   required ValueChanged<String> onDelete,
   required VoidCallback onNewChat,
   ValueChanged<String>? onTogglePin,
+  void Function(String conversationId, String duration)? onMuteConversation,
   ValueChanged<String>? onSelectRoom,
   ValueChanged<String>? onDeleteRoom,
   String? selectedRoomId,
@@ -44,6 +46,7 @@ void showMobileConversationDrawer({
           onDelete: onDelete,
           onNewChat: onNewChat,
           onTogglePin: onTogglePin,
+          onMuteConversation: onMuteConversation,
           onSelectRoom: onSelectRoom,
           onDeleteRoom: onDeleteRoom,
           selectedRoomId: selectedRoomId,
@@ -63,6 +66,7 @@ class _MobileDrawerBody extends StatefulWidget {
     required this.onDelete,
     required this.onNewChat,
     required this.onTogglePin,
+    required this.onMuteConversation,
     required this.onSelectRoom,
     required this.onDeleteRoom,
     required this.selectedRoomId,
@@ -76,6 +80,8 @@ class _MobileDrawerBody extends StatefulWidget {
   final ValueChanged<String> onDelete;
   final VoidCallback onNewChat;
   final ValueChanged<String>? onTogglePin;
+  final void Function(String conversationId, String duration)?
+  onMuteConversation;
   final ValueChanged<String>? onSelectRoom;
   final ValueChanged<String>? onDeleteRoom;
   final String? selectedRoomId;
@@ -121,6 +127,20 @@ class _MobileDrawerBodyState extends State<_MobileDrawerBody> {
     } else {
       context.read<RoomProvider>().deleteRoom(roomId);
     }
+  }
+
+  Future<void> _showMuteSheet(
+    BuildContext context,
+    Conversation conversation,
+  ) async {
+    final apply = widget.onMuteConversation;
+    if (apply == null) return;
+    final duration = await showMuteSheet(
+      context: context,
+      name: conversation.displayTitle,
+      mutedUntil: conversation.mutedUntil,
+    );
+    if (duration != null) apply(conversation.id, duration);
   }
 
   @override
@@ -192,10 +212,25 @@ class _MobileDrawerBodyState extends State<_MobileDrawerBody> {
                       ? Theme.of(context).colorScheme.primary
                       : null,
                 ),
-                title: Text(
-                  conversation.displayTitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                title: Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        conversation.displayTitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (conversation.isMuted) ...[
+                      const SizedBox(width: 6),
+                      const Icon(
+                        key: ValueKey('conversation_muted_glyph'),
+                        Icons.notifications_off,
+                        size: 14,
+                        semanticLabel: 'Muted',
+                      ),
+                    ],
+                  ],
                 ),
                 subtitle: Text(
                   '${conversation.messageCount} messages',
@@ -206,6 +241,9 @@ class _MobileDrawerBodyState extends State<_MobileDrawerBody> {
                   widget.onSelect(conversation.id);
                   Navigator.pop(context);
                 },
+                onLongPress: widget.onMuteConversation == null
+                    ? null
+                    : () => _showMuteSheet(context, conversation),
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [

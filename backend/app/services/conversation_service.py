@@ -13,6 +13,7 @@ from sqlalchemy.orm import selectinload
 from app.core.config import get_settings
 from app.models.conversation import Conversation
 from app.models.message import Message
+from app.services.mute_util import resolve_mute_until
 
 logger = logging.getLogger(__name__)
 
@@ -302,6 +303,31 @@ class ConversationService:
         await self.db.commit()
         await self.db.refresh(conversation)
 
+        return conversation
+
+    async def set_mute(
+        self,
+        conversation_id: str,
+        user_id: str,
+        duration: str,
+    ) -> Conversation | None:
+        """Mute or unmute notifications for ``user_id``'s conversation.
+
+        ``duration`` is one of ``"8h"``, ``"1w"``, ``"forever"``, ``"unmute"``
+        (validated by the ``MuteUpdate`` schema at the API boundary). Returns
+        ``None`` if the conversation doesn't exist / isn't owned by
+        ``user_id`` (a room needs a separate per-member row since it has many
+        members; a conversation has exactly one owner, so the column lives
+        directly on ``Conversation``).
+        """
+        conversation = await self.get(conversation_id, user_id, include_messages=False)
+        if conversation is None:
+            return None
+
+        conversation.muted_until = resolve_mute_until(duration)
+
+        await self.db.commit()
+        await self.db.refresh(conversation)
         return conversation
 
     async def delete(
