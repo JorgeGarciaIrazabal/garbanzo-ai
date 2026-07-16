@@ -5,10 +5,10 @@ Difficulty legend (pick the model per task, not per feature):
 | Tag | Meaning | Suggested model |
 |-----|---------|-----------------|
 | `easy` | Mechanical, well-trodden pattern in this repo, low ambiguity | Haiku / small model |
-| `easy-med` | Mostly mechanical but touches 2+ layers or needs a migration | Haiku or Sonnet |
+| `easy-med` | Mostly mechanical but touches 2+ layers or needs a migration | Sonnet |
 | `medium` | New endpoint/widget with some design decisions, single feature area | Sonnet |
-| `med-hard` | Cross-cutting, stateful UI, or careful prompt/tool design | Sonnet or Opus |
-| `hard` | Novel UX, tricky Flutter internals, multi-step agentic behavior | Opus / Fable |
+| `med-hard` | Cross-cutting, stateful UI, or careful prompt/tool design | Opus |
+| `hard` | Novel UX, tricky Flutter internals, multi-step agentic behavior | Fable |
 
 Recommended build order: **8 → 3 → 1 → 5 → 2 → 7 → 6 → 4** (roughly: quick wins first, then the friends foundation that ideas 6 and 7 depend on, then the big UX items).
 
@@ -98,10 +98,31 @@ WhatsApp-style: mute a room for 8 hours, 1 week, or forever. Per-member setting,
 - [ ] `easy` **12. `/help` command in chat** — Before idea 4's tool exists, a client-side `/help <question>` that stuffs the relevant doc into context — a one-day version to validate the docs are good.
 
 
-New ideas:
+## 13. Configurable, auto-detecting STT/TTS language
 
-- stt and tts languaje should be configurable, allow select multiple like english and spanish, or auto (default). The system should be able to auto identify that based on the conversation and it should allow to change languajes on the go.
+Let users pick which languages they speak (e.g. English + Spanish) or leave it on **Auto**, and have Talk Mode follow along — detecting the spoken language per turn and replying in kind, with a manual override available mid-conversation. Today `STTService` (`backend/app/services/stt_service.py`) always forces a single language from `settings.stt_language`, so faster-whisper's built-in auto-detect (triggered by passing `language=None`) is never actually used; Kokoro TTS (`tts_service.py`) only ships English voices (`_VOICES`), with the reply language implicitly fixed by whichever voice ID is configured.
 
-- add support to summit bugs and features (visible by admin)
+- [ ] `easy-med` **Backend: STT auto-detect + per-request language** — Add an optional `language` field (ISO code or `"auto"`) to `POST /transcribe`; when `"auto"`/omitted, call `WhisperModel.transcribe(language=None, ...)` instead of always injecting `settings.stt_language`, and surface the detected code via the existing `TranscriptionResponse.language` field. Thread the same optional param through `RemoteSTTService`.
+- [ ] `easy` **Backend/frontend: multi-language preference** — Add a `preferred_languages` list (e.g. `["en", "es"]`) + `auto` toggle, following the pattern of today's `ttsVoice`/`ttsSpeed` settings in `SettingsProvider` (`lib/features/settings/providers/settings_provider.dart`), which currently live only in `SharedPreferences`. Decide whether this needs a `User` column to sync cross-device or can stay local-only like the existing TTS prefs.
+- [ ] `medium` **TTS: non-English voices** — `tts_service.py` already derives Kokoro's `lang_code` from the voice ID's first letter; add Kokoro's other language packs to `_VOICES` with a correct `language` field, and auto-pick the voice from the detected/preferred language instead of the hardcoded default when the user hasn't pinned one.
+- [ ] `med-hard` **Talk Mode: language follows the conversation** — In `TalkModeController`/`talk_mode_page.dart` (currently language-agnostic), when STT reports a detected language different from the active TTS voice's language and the user is in Auto mode, switch the reply voice to match (bounded to `preferred_languages`); add a small in-call control to override the language manually without leaving the call.
+- [ ] `easy` **Settings UI** — Language multi-select + Auto toggle alongside the existing voice/speed controls.
 
-- talk/call button should be in the text input bar (similar to how it is in chatGPT) with a good UI/UX
+## 14. In-app bug/feature submission (admin-visible)
+
+Let users submit bug reports or feature requests from inside the app; admins triage them from a new admin page, following the same admin-managed pattern as `MCPServer`/`AvailableModel` today. No existing model fits directly — `ScheduledAction` (`backend/app/models/scheduled_action.py`) is the closest structural template (simple user-owned table keyed off `user_id → users.email`, with a matching endpoint/service/schema split).
+
+- [ ] `easy-med` **Backend: Report model + endpoints** — New `Report` model (`id`, `user_id` FK `users.email` CASCADE, `type: bug|feature`, `title`, `description`, `status: open|in_progress|closed`, `created_at`/`updated_at`) + `NNN_add_reports_table.sql` migration. Endpoints: `POST /reports` + `GET /reports/mine` for any authed user; `GET /admin/reports` + `PATCH /admin/reports/{id}` gated by the existing `get_current_admin_user` dependency used throughout `admin.py`.
+- [ ] `easy` **Docs** — Add the new endpoints to `docs/api.md` and the model to `docs/database.md` in the same commit, per the root `CLAUDE.md` doc-maintenance rule.
+- [ ] `medium` **Frontend: submission form** — Type toggle (bug/feature) + title + description, reachable from the Settings drawer alongside `pages_section.dart`/`profile_section.dart`.
+- [ ] `medium` **Frontend: admin triage view** — New admin page listing reports with status filter/update, alongside the existing Users/MCP Servers/Models admin pages, gated the same way (`AuthService.instance.cachedUser?.isAdmin`).
+- [ ] `easy-med` **Notifications (optional)** — Notify admins via the existing `notification_service` when a new report lands.
+
+## 15. Talk/call button in the text input bar
+
+ChatGPT puts its voice-call entry point right in the composer; this app currently only exposes Talk Mode via a button in the chat app bar (`chat_app_bar.dart`, `ValueKey('talk_mode_button')`, `Icons.graphic_eq`), separate from the composer's own dictation mic (`ValueKey('voice_button')` in `lib/features/chat/widgets/input/message_composer.dart`, wired to `VoiceRecordingHelper` for inline speech-to-text). Move/add the call entry point into the composer so it's discoverable right where the user is typing.
+
+- [ ] `easy` **Frontend: add call button to `MessageComposer`** — Add a button beside the existing dictation mic that opens `TalkModePage.open(...)` (same call currently wired from `chat_app_bar.dart`), disabled while sending, matching today's guard.
+- [ ] `easy` **Resolve the app-bar duplicate** — Decide whether to remove the existing `chat_app_bar.dart` talk button once it's in the composer, or keep both for different layout widths.
+- [ ] `medium` **UI/UX pass** — Icon and placement so it doesn't collide with the dictation mic and send button; consider a call-style icon (`Icons.call`/waveform) vs. today's `Icons.graphic_eq`, and how it collapses on narrow/mobile vs. desktop widths. Good candidate for a `frontend-design` pass given the explicit "good UI/UX" ask.
+- [ ] `easy` **Rooms parity (out of scope for now)** — Rooms currently have no dedicated compose bar or voice affordance at all; note this as a follow-up rather than solving it here.
