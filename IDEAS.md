@@ -54,7 +54,7 @@ The assistant should answer "how do I pin a conversation?" from curated app docs
 - [x] `easy` **Keep docs honest** — Add a line to CLAUDE.md: when a user-facing feature changes, update its help doc in the same PR.
 
 **Iteration 2 — act:**
-- [ ] `med-hard` **Action tools design** — Define a small, safe set of native tools: `create_room(name, member_emails, agents)`, `create_scheduled_action(...)` (exists), `save_memory(...)` (exists), `set_conversation_style(...)`. Each returns a structured "proposal" rather than executing directly.
+- [x] `med-hard` **Action tools design** — Define a small, safe set of native tools: `create_room(name, member_emails, agents)`, `create_scheduled_action(...)` (exists), `save_memory(...)` (exists), `set_conversation_style(...)`. Each returns a structured "proposal" rather than executing directly.
 - [ ] `med-hard` **Confirmation UX** — New SSE chunk type (`action_proposal`) rendered as a card in `ChatMessageWidget` with Confirm/Cancel; on confirm the frontend calls the real REST endpoint it already knows. Keeps the LLM out of the execution path and reuses existing auth.
 - [ ] `medium` **Deep links after action** — Confirmed action responses include a route (`/rooms/{id}`) the frontend can offer to navigate to.
 

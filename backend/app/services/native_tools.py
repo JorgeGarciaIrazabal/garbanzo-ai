@@ -13,6 +13,7 @@ registration needed.
 from __future__ import annotations
 
 import logging
+import re
 from datetime import datetime
 from typing import Any
 
@@ -35,8 +36,24 @@ SCHEDULED_ACTION_TOOL = "scheduled_actions"
 MEMORY_TOOL = "memories"
 NOTIFICATION_TOOL = "notifications"
 APP_HELP_TOOL = "app_help"
+CREATE_ROOM_TOOL = "create_room"
+SET_STYLE_TOOL = "set_conversation_style"
 
-ALL_NATIVE_TOOLS = (SCHEDULED_ACTION_TOOL, MEMORY_TOOL, NOTIFICATION_TOOL, APP_HELP_TOOL)
+ALL_NATIVE_TOOLS = (
+    SCHEDULED_ACTION_TOOL,
+    MEMORY_TOOL,
+    NOTIFICATION_TOOL,
+    APP_HELP_TOOL,
+    CREATE_ROOM_TOOL,
+    SET_STYLE_TOOL,
+)
+
+# Tools that return an action *proposal* instead of executing. The LLM never
+# performs these actions: the executor validates the arguments and returns a
+# structured proposal; the frontend renders it as a Confirm/Cancel card and,
+# on confirm, calls the same REST endpoints it uses everywhere else (reusing
+# auth and keeping the model out of the execution path).
+PROPOSAL_TOOLS = (CREATE_ROOM_TOOL, SET_STYLE_TOOL)
 
 # Appended to the system prompt when app_help is available. Models reliably
 # call tools they were told exist; without the nudge, "how do I…" questions
@@ -636,6 +653,224 @@ async def _execute_app_help(
 
 
 # ---------------------------------------------------------------------------
+# Action-proposal tools (create_room, set_conversation_style)
+# ---------------------------------------------------------------------------
+
+_PROPOSAL_NOTE = (
+    "This is a PROPOSAL only — nothing has been created or changed yet. The "
+    "app is showing the user a confirmation card. Briefly summarize the "
+    "proposal and ask them to confirm it there; do not claim the action "
+    "happened."
+)
+
+_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+_RESPONSE_MODES = ("always", "mention", "auto", "round_robin")
+_THINKING_LEVELS = ("off", "low", "medium", "high")
+
+
+def _proposal_result(kind: str, summary: str, payload: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "ok": True,
+        "proposal": {"type": kind, "summary": summary, "payload": payload},
+        "note": _PROPOSAL_NOTE,
+    }
+
+
+_CREATE_ROOM_DESCRIPTOR: dict[str, Any] = {
+    "type": "function",
+    "function": {
+        "name": CREATE_ROOM_TOOL,
+        "description": (
+            "Propose creating a multi-participant room (group chat with "
+            "people and/or AI agents). Use when the user asks to set up a "
+            "room, e.g. 'create a room with Ana and a research agent'. This "
+            "does NOT create the room: it returns a proposal the user must "
+            "confirm in the app. Members are existing account emails; each "
+            "agent needs a name and a model."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "Room name (required).",
+                },
+                "description": {
+                    "type": "string",
+                    "description": "Optional short room description.",
+                },
+                "member_emails": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Emails of people to invite (optional).",
+                },
+                "agents": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": {"type": "string"},
+                            "model": {"type": "string"},
+                            "system_prompt": {
+                                "type": "string",
+                                "description": "Optional persona for the agent.",
+                            },
+                            "response_mode": {
+                                "type": "string",
+                                "enum": list(_RESPONSE_MODES),
+                                "description": "When the agent replies (default: mention).",
+                            },
+                            "is_moderator": {"type": "boolean"},
+                        },
+                        "required": ["name", "model"],
+                    },
+                    "description": "AI agents to add to the room (optional).",
+                },
+            },
+            "required": ["name"],
+        },
+    },
+}
+
+
+async def _execute_create_room(
+    *,
+    args: dict[str, Any],
+    db: AsyncSession,
+    user_id: str,
+) -> dict[str, Any]:
+    """Validate and return a create-room proposal. Never touches the DB."""
+    name = (args.get("name") or "").strip()
+    if not name:
+        return {"ok": False, "error": "name is required."}
+    if len(name) > 200:
+        return {"ok": False, "error": "name must be at most 200 characters."}
+
+    member_emails = args.get("member_emails") or []
+    if not isinstance(member_emails, list):
+        return {"ok": False, "error": "member_emails must be a list of emails."}
+    member_emails = [str(e).strip().lower() for e in member_emails if str(e).strip()]
+    invalid = [e for e in member_emails if not _EMAIL_RE.match(e)]
+    if invalid:
+        return {"ok": False, "error": f"Invalid member emails: {', '.join(invalid)}"}
+
+    agents_in = args.get("agents") or []
+    if not isinstance(agents_in, list):
+        return {"ok": False, "error": "agents must be a list."}
+    agents: list[dict[str, Any]] = []
+    for raw in agents_in:
+        if not isinstance(raw, dict):
+            return {"ok": False, "error": "Each agent must be an object."}
+        agent_name = (raw.get("name") or "").strip()
+        model = (raw.get("model") or "").strip()
+        if not agent_name or not model:
+            return {"ok": False, "error": "Each agent needs a name and a model."}
+        response_mode = raw.get("response_mode") or "mention"
+        if response_mode not in _RESPONSE_MODES:
+            return {
+                "ok": False,
+                "error": f"response_mode must be one of {', '.join(_RESPONSE_MODES)}.",
+            }
+        agents.append(
+            {
+                "name": agent_name,
+                "model": model,
+                "system_prompt": raw.get("system_prompt"),
+                "response_mode": response_mode,
+                "is_moderator": bool(raw.get("is_moderator", False)),
+            }
+        )
+
+    parts = [f"Create room '{name}'"]
+    if member_emails:
+        parts.append(f"with {', '.join(member_emails)}")
+    if agents:
+        parts.append("and agent(s) " + ", ".join(f"{a['name']} ({a['model']})" for a in agents))
+    payload = {
+        "name": name,
+        "description": (args.get("description") or "").strip() or None,
+        "member_emails": member_emails,
+        "agents": agents,
+    }
+    return _proposal_result(CREATE_ROOM_TOOL, " ".join(parts), payload)
+
+
+_SET_STYLE_DESCRIPTOR: dict[str, Any] = {
+    "type": "function",
+    "function": {
+        "name": SET_STYLE_TOOL,
+        "description": (
+            "Propose changing this conversation's style: the model, the "
+            "thinking level, and/or the system prompt. Use when the user "
+            "asks to switch model ('use qwen for this chat'), change "
+            "reasoning depth ('think harder'), or set a persona for the "
+            "conversation. This does NOT apply the change: it returns a "
+            "proposal the user must confirm in the app."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "model": {
+                    "type": "string",
+                    "description": "Model ID to switch this conversation to.",
+                },
+                "thinking_level": {
+                    "type": "string",
+                    "enum": list(_THINKING_LEVELS),
+                    "description": "Reasoning depth for thinking-capable models.",
+                },
+                "system_prompt": {
+                    "type": "string",
+                    "description": "System prompt for this conversation.",
+                },
+            },
+        },
+    },
+}
+
+
+async def _execute_set_style(
+    *,
+    args: dict[str, Any],
+    db: AsyncSession,
+    user_id: str,
+) -> dict[str, Any]:
+    """Validate and return a conversation-style proposal for the current
+    conversation (the frontend knows which one it is showing)."""
+    model = (args.get("model") or "").strip() or None
+    thinking_level = args.get("thinking_level")
+    system_prompt = (args.get("system_prompt") or "").strip() or None
+
+    if thinking_level is not None and thinking_level not in _THINKING_LEVELS:
+        return {
+            "ok": False,
+            "error": f"thinking_level must be one of {', '.join(_THINKING_LEVELS)}.",
+        }
+    if model is None and thinking_level is None and system_prompt is None:
+        return {
+            "ok": False,
+            "error": "Provide at least one of model, thinking_level, or system_prompt.",
+        }
+
+    changes = []
+    if model:
+        changes.append(f"model → {model}")
+    if thinking_level:
+        changes.append(f"thinking → {thinking_level}")
+    if system_prompt:
+        changes.append("a new system prompt")
+    payload = {
+        "model": model,
+        "thinking_level": thinking_level,
+        "system_prompt": system_prompt,
+    }
+    return _proposal_result(
+        SET_STYLE_TOOL, "Set conversation style: " + ", ".join(changes), payload
+    )
+
+
+# ---------------------------------------------------------------------------
 # Registry
 # ---------------------------------------------------------------------------
 
@@ -644,6 +879,8 @@ _NATIVE_TOOL_REGISTRY: dict[str, tuple[dict[str, Any], Any]] = {
     MEMORY_TOOL: (_MEMORY_TOOL_DESCRIPTOR, _execute_memories),
     NOTIFICATION_TOOL: (_NOTIFICATION_TOOL_DESCRIPTOR, _execute_notifications),
     APP_HELP_TOOL: (_APP_HELP_DESCRIPTOR, _execute_app_help),
+    CREATE_ROOM_TOOL: (_CREATE_ROOM_DESCRIPTOR, _execute_create_room),
+    SET_STYLE_TOOL: (_SET_STYLE_DESCRIPTOR, _execute_set_style),
 }
 
 
