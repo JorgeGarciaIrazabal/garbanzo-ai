@@ -219,6 +219,36 @@ class TestUpdateProfile:
         finally:
             self._teardown()
 
+    async def test_update_timezone_and_locale(self, db_session):
+        await self._setup(db_session)
+        try:
+            async with await _client() as c:
+                resp = await c.patch(
+                    "/api/v1/auth/me",
+                    json={"timezone": "America/New_York", "locale": "en-US"},
+                    headers={"Authorization": "Bearer x"},
+                )
+            assert resp.status_code == 200, resp.text
+            body = resp.json()
+            assert body["timezone"] == "America/New_York"
+            assert body["locale"] == "en-US"
+        finally:
+            self._teardown()
+
+    async def test_update_timezone_rejects_unknown_zone(self, db_session):
+        """The value lands in every system prompt — garbage stops at the API."""
+        await self._setup(db_session)
+        try:
+            async with await _client() as c:
+                resp = await c.patch(
+                    "/api/v1/auth/me",
+                    json={"timezone": "Mars/Olympus_Mons"},
+                    headers={"Authorization": "Bearer x"},
+                )
+            assert resp.status_code == 422
+        finally:
+            self._teardown()
+
     async def test_update_email_rejects_duplicate(self, db_session):
         db_session.add(
             User(

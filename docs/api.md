@@ -6,7 +6,7 @@ when you add or change an endpoint, update the matching row in the same commit.
 
 | Group | Endpoints |
 |-------|-----------|
-| **Auth** | `POST /auth/login`, `POST /auth/register`, `GET /auth/me` |
+| **Auth** | `POST /auth/login`, `POST /auth/register` (disabled, 403), `POST /auth/refresh`, `GET /auth/me`, `PATCH /auth/me` (profile incl. `timezone`/`locale`), `POST /auth/me/password`, `POST /auth/me/avatar`, `DELETE /auth/me/avatar` |
 | **Admin** | `POST /admin/users`, `GET /admin/users`, `PATCH /admin/users/{email}`, `GET /admin/mcp-servers`, `POST /admin/mcp-servers`, `PATCH /admin/mcp-servers/{id}`, `DELETE /admin/mcp-servers/{id}`, `POST /admin/mcp-servers/{id}/test-connection`, `GET /admin/models`, `POST /admin/models/sync`, `PATCH /admin/models` |
 | **Chat** | `GET/POST /chat/conversations`, `GET /chat/conversations/search`, `GET /chat/conversations/{id}`, `PATCH /chat/conversations/{id}`, `PATCH /chat/conversations/{id}/mute`, `DELETE /chat/conversations/{id}`, `POST /chat/conversations/{id}/chat` (SSE stream), `POST /chat/conversations/{id}/messages/{mid}/regenerate`, `POST /chat/conversations/{id}/messages/{mid}/edit`, `POST /chat/conversations/{id}/messages/{mid}/branch`, `DELETE /chat/conversations/{id}/chat` (cancel stream), `GET /chat/models`, `GET /chat/health/llm` |
 | **System Prompts** | `GET /system-prompts/templates`, `POST /system-prompts/templates`, `PATCH /system-prompts/templates/{id}`, `DELETE /system-prompts/templates/{id}`, `GET /system-prompts/user-default`, `PUT /system-prompts/user-default`, `POST /system-prompts/generate` (SSE stream) |

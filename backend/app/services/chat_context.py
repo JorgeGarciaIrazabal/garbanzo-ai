@@ -8,7 +8,9 @@ DB writes, no provider calls.
 
 import json
 import logging
+from datetime import UTC, datetime
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from app.core.config import get_settings
 from app.models.message import Message
@@ -19,6 +21,43 @@ from app.services.system_prompt_service import SystemPromptService
 from app.services.token_counter import get_token_counter
 
 logger = logging.getLogger(__name__)
+
+
+def build_dynamic_context_block(
+    timezone: str | None = None,
+    location: str | None = None,
+    now: datetime | None = None,
+) -> str:
+    """The per-turn ``<context>`` block: current time, and — when the user
+    shared them — their local time/timezone and coarse location.
+
+    Deliberately framed as background the model should only draw on when the
+    request actually needs it ("today", "near me"), so it doesn't start
+    volunteering the date. A module-level function rather than a builder
+    method so the rooms turn path can inject the identical block.
+
+    ``now`` is injectable for tests; production callers leave it None.
+    """
+    now = now or datetime.now(UTC)
+    lines = [
+        "<context>",
+        "Background information, provided automatically on every message. "
+        "Use it only when the user's request actually depends on it (dates, "
+        "times, places); never volunteer or mention it otherwise.",
+        f"Current UTC time: {now.strftime('%A %Y-%m-%d %H:%M')} UTC",
+    ]
+    if timezone:
+        try:
+            local = now.astimezone(ZoneInfo(timezone))
+            lines.append(f"User's local time: {local.strftime('%A %Y-%m-%d %H:%M')} ({timezone})")
+        except Exception:
+            # Validated at the API boundary, so only a zone the server's
+            # zoneinfo since dropped lands here — skip the line, keep the turn.
+            logger.warning("Unknown user timezone %r; omitting local time", timezone)
+    if location:
+        lines.append(f"User's approximate location: {location}")
+    lines.append("</context>")
+    return "\n".join(lines)
 
 
 def _maybe_parse_inline_tool_calls(content: str) -> list[dict[str, Any]] | None:
@@ -95,6 +134,7 @@ class ChatContextBuilder:
         context_summary: str | None = None,
         context_summary_until_id: str | None = None,
         conversation_system_prompt: str | None = None,
+        dynamic_context: str | None = None,
     ) -> tuple[list[LLMMessage], dict[str, int]]:
         """Build message history with an optional system prompt prepended.
 
@@ -130,6 +170,7 @@ class ChatContextBuilder:
             use_knowledge_base=use_knowledge_base,
             rag_query=last_user_query,
             conversation_system_prompt=conversation_system_prompt,
+            dynamic_context=dynamic_context,
         )
 
         if system_prompt:
@@ -183,6 +224,7 @@ class ChatContextBuilder:
         use_knowledge_base: bool = True,
         rag_query: str | None = None,
         conversation_system_prompt: str | None = None,
+        dynamic_context: str | None = None,
     ) -> tuple[str, dict[str, int]]:
         """Build the system prompt from (conversation || user default) + memories.
 
@@ -192,6 +234,9 @@ class ChatContextBuilder:
           3. A generic fallback only if memories will be injected.
 
         Memories (when enabled and present) are appended after the base prompt.
+        ``dynamic_context`` (see :func:`build_dynamic_context_block`) is
+        appended last, and — unlike memories/KB — stands on its own without
+        forcing the generic fallback prompt in.
 
         Returns ``(prompt, stats)`` where stats counts the context actually
         injected ({"memories_used": n, "kb_chunks_used": n}) so the client
@@ -296,7 +341,7 @@ class ChatContextBuilder:
                 logger.warning("Failed to load KB context for system prompt: %s", e)
 
         if not base_prompt and not memory_block and not kb_block:
-            return "", stats
+            return dynamic_context or "", stats
 
         if not base_prompt and (memory_block or kb_block):
             base_prompt = "You are a helpful AI assistant."
@@ -306,4 +351,6 @@ class ChatContextBuilder:
             sections.append(memory_block)
         if kb_block:
             sections.append(kb_block)
+        if dynamic_context:
+            sections.append(dynamic_context)
         return "\n\n".join(sections), stats

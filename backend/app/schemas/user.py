@@ -1,4 +1,5 @@
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
@@ -24,6 +25,8 @@ class UserOut(BaseModel):
     is_disabled: bool = False
     default_model: str | None = None
     profile_picture_b64: str | None = None
+    timezone: str | None = None
+    locale: str | None = None
 
     model_config = {"from_attributes": True}
 
@@ -38,6 +41,24 @@ class UserUpdate(BaseModel):
     full_name: str | None = Field(None, max_length=100)
     email: EmailStr | None = None
     default_model: str | None = Field(None, max_length=100)
+    timezone: str | None = Field(None, max_length=64)
+    locale: str | None = Field(None, max_length=32)
+
+    @field_validator("timezone")
+    @classmethod
+    def validate_timezone(cls, v: str | None) -> str | None:
+        """Reject zone names the server's zoneinfo doesn't know.
+
+        The value ends up inside every system prompt, so garbage must be
+        stopped here rather than silently skipped at render time.
+        """
+        if v is None:
+            return v
+        try:
+            ZoneInfo(v)
+        except Exception as e:
+            raise ValueError(f"Unknown IANA timezone: {v!r}") from e
+        return v
 
 
 class PasswordUpdate(BaseModel):

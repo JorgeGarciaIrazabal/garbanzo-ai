@@ -37,7 +37,7 @@ Replace the plain model dropdown with a **Style** concept: a style = model + thi
 
 Inject a compact, clearly-scoped context block (current datetime, timezone, coarse location) into the system prompt on every request so answers about "today", "near me", "this weekend" just work — with wording that tells the model to use it only when relevant.
 
-- [ ] `easy` **Backend: context block injection** — In `chat_context.py`, append a `<context>` block with server-side UTC time + user's local time/timezone. Frame it as "background info; only use when relevant to the request".
+- [x] `easy` **Backend: context block injection** — In `chat_context.py`, append a `<context>` block with server-side UTC time + user's local time/timezone. Frame it as "background info; only use when relevant to the request".
 - [ ] `easy` **Frontend: send timezone** — Include IANA timezone (and locale) in the chat request or persist on the `User` at login. Timezone needs no permission prompt.
 - [ ] `easy-med` **Frontend: optional location** — Settings toggle (default off) to share coarse location: city-level via `geolocator` + reverse-geocode once, cached; never raw coordinates in the prompt. Handle web/desktop/Android permission differences.
 - [ ] `easy` **Rooms parity** — Inject the same context block in `agent_turn.py` so room agents also know the time.

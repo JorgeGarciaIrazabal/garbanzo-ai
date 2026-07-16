@@ -10,9 +10,10 @@ from sqlalchemy import delete, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.message import Message
+from app.models.user import User
 from app.schemas.chat import AttachmentIn, ChatOptions, ModelInfo
 from app.services.agent_turn import ProgressEmit, TurnResult, run_agent_turn
-from app.services.chat_context import ChatContextBuilder
+from app.services.chat_context import ChatContextBuilder, build_dynamic_context_block
 from app.services.chat_title import generate_and_persist_title
 from app.services.conversation_service import ConversationService
 from app.services.conversation_turn_sink import ConversationTurnSink
@@ -408,6 +409,10 @@ class ChatService:
 
         await self._maybe_summarize_context(conversation, existing_messages)
 
+        # Usually a no-op hit on the session's identity map — the user row
+        # rode in with the conversation's auth check earlier in the request.
+        user = await self.db.get(User, conversation.user_id)
+
         llm_messages, context_stats = await self._context.build_history_with_system_prompt(
             conversation.messages,
             conversation.user_id,
@@ -416,6 +421,9 @@ class ChatService:
             context_summary=conversation.context_summary,
             context_summary_until_id=conversation.context_summary_until_id,
             conversation_system_prompt=conversation.system_prompt,
+            dynamic_context=build_dynamic_context_block(
+                timezone=user.timezone if user else None,
+            ),
         )
 
         provider = self._get_provider()

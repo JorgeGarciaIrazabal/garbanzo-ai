@@ -38,6 +38,8 @@ def _to_user_out(user: Any) -> UserOut:
         is_disabled=getattr(user, "is_disabled", False),
         default_model=getattr(user, "default_model", None),
         profile_picture_b64=getattr(user, "profile_picture_b64", None),
+        timezone=getattr(user, "timezone", None),
+        locale=getattr(user, "locale", None),
     )
 
 
@@ -174,9 +176,13 @@ async def update_me(
         full_name=raw.get("full_name"),
         email=new_email,
         default_model=raw.get("default_model"),
+        timezone=raw.get("timezone"),
+        locale=raw.get("locale"),
         update_full_name="full_name" in raw,
         update_email=update_email,
         update_default_model="default_model" in raw,
+        update_timezone="timezone" in raw,
+        update_locale="locale" in raw,
     )
 
     return _to_user_out(user)

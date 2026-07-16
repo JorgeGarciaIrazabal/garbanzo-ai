@@ -26,6 +26,10 @@ class User(Base):
     default_system_prompt: Mapped[str | None] = mapped_column(Text, nullable=True)
     default_model: Mapped[str | None] = mapped_column(String(100), nullable=True)
     profile_picture_b64: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # IANA zone name / BCP 47 locale reported by the client at login; NULL
+    # until a client reports one. Feeds the dynamic <context> block.
+    timezone: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    locale: Mapped[str | None] = mapped_column(String(32), nullable=True)
     is_admin: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,

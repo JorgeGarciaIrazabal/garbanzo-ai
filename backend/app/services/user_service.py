@@ -30,10 +30,14 @@ class UserService:
         email: str | None = None,
         default_model: str | None = None,
         profile_picture_b64: str | None = None,
+        timezone: str | None = None,
+        locale: str | None = None,
         update_full_name: bool = False,
         update_email: bool = False,
         update_default_model: bool = False,
         update_profile_picture: bool = False,
+        update_timezone: bool = False,
+        update_locale: bool = False,
     ) -> User:
         """Apply a partial update to the authenticated user's profile.
 
@@ -47,6 +51,10 @@ class UserService:
             user.default_model = default_model
         if update_profile_picture:
             user.profile_picture_b64 = profile_picture_b64
+        if update_timezone:
+            user.timezone = timezone
+        if update_locale:
+            user.locale = locale
         if update_email and email is not None and email != user.email:
             user.email = email
         await self.db.flush()

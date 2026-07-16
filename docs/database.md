@@ -22,7 +22,17 @@ half-migrated schema.
 
 ## Model Notes
 
-- `User` uses `email` as the primary key. Fields: `email`, `hashed_password`, `full_name`, `is_admin`, `is_disabled`, `default_system_prompt`, `default_model`, `created_at`.
+- `User` uses `email` as the primary key. Fields: `email`, `hashed_password`, `full_name`, `is_admin`, `is_disabled`, `default_system_prompt`, `default_model`, `profile_picture_b64`, `timezone`, `locale`, `created_at`.
+- `User.timezone` (nullable IANA zone name) / `User.locale` (nullable BCP 47
+  tag) are reported by the client via `PATCH /auth/me` and feed the dynamic
+  `<context>` block (`chat_context.build_dynamic_context_block`) injected
+  into every chat turn's system prompt so "today"/"this weekend" resolve in
+  the user's local time. Persisted on the user rather than sent per-request
+  so server-initiated turns (room agents, scheduled actions) know the
+  timezone too. Validated against the server's `zoneinfo` at the API
+  boundary (`UserUpdate.validate_timezone`); plain VARCHAR in the DB since
+  the IANA registry evolves. `NULL` = never reported → the block carries
+  only server UTC time.
 - `Conversation.model` defaults to `"llama3.2"` — must match a model ID returned by `GET /api/v1/chat/models`.
 - `Conversation.use_memory` (boolean) controls whether user memories are injected into LLM context.
 - `Conversation.use_knowledge_base` (boolean) controls whether KB chunks are injected.
