@@ -106,6 +106,42 @@ class _SystemPromptEditorDialogState extends State<SystemPromptEditorDialog> {
     });
   }
 
+  /// The selected template, or null if nothing is selected or the selection no
+  /// longer exists (deleted here, or dropped by a provider refresh).
+  SystemPromptTemplate? _selectedTemplate(List<SystemPromptTemplate> all) {
+    if (_selectedTemplateId == null) return null;
+    for (final tpl in all) {
+      if (tpl.id == _selectedTemplateId) return tpl;
+    }
+    return null;
+  }
+
+  Future<void> _deleteTemplate(SystemPromptTemplate template) async {
+    final provider = context.read<SystemPromptProvider>();
+    final ok = await showAnimatedDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Delete "${template.name}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    await provider.deleteTemplate(template.id);
+    if (!mounted) return;
+    if (_selectedTemplateId == template.id) {
+      setState(() => _selectedTemplateId = null);
+    }
+  }
+
   String? get _currentModel => context.read<ModelProvider>().selectedModelId;
 
   void _startGenerate() {
@@ -263,6 +299,7 @@ class _SystemPromptEditorDialogState extends State<SystemPromptEditorDialog> {
     final promptProvider = context.watch<SystemPromptProvider>();
     final builtins = promptProvider.builtinTemplates;
     final customs = promptProvider.customTemplates;
+    final selected = _selectedTemplate([...builtins, ...customs]);
     final isGenerating = _aiState == _AiState.generating;
 
     return AlertDialog(
@@ -297,53 +334,71 @@ class _SystemPromptEditorDialogState extends State<SystemPromptEditorDialog> {
                 ],
               ),
               const SizedBox(height: 6),
-              SizedBox(
-                height: 40,
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  children: [
-                    for (final tpl in builtins)
-                      _TemplateChip(
-                        template: tpl,
-                        selected: _selectedTemplateId == tpl.id,
-                        onSelected: () => _applyTemplate(tpl),
+              Row(
+                children: [
+                  Expanded(
+                    child: DropdownButtonFormField<String?>(
+                      // DropdownButton asserts that exactly one item matches
+                      // the current value, so every item needs a distinct
+                      // value and the selection must survive a template being
+                      // deleted underneath us — hence _selectedTemplate.
+                      initialValue: selected?.id,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Template',
+                        isDense: true,
+                        border: OutlineInputBorder(),
                       ),
-                    if (customs.isNotEmpty)
-                      Container(
-                        width: 1,
-                        height: 24,
-                        margin: const EdgeInsets.symmetric(horizontal: 8),
-                        color: theme.dividerColor,
-                      ),
-                    for (final tpl in customs)
-                      _TemplateChip(
-                        template: tpl,
-                        selected: _selectedTemplateId == tpl.id,
-                        onSelected: () => _applyTemplate(tpl),
-                        onDelete: () async {
-                          final ok = await showAnimatedDialog<bool>(
-                            context: context,
-                            builder: (ctx) => AlertDialog(
-                              title: Text('Delete "${tpl.name}"?'),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.of(ctx).pop(false),
-                                  child: const Text('Cancel'),
+                      items: [
+                        const DropdownMenuItem<String?>(
+                          value: null,
+                          child: Text('— None —'),
+                        ),
+                        for (final tpl in [...builtins, ...customs])
+                          DropdownMenuItem<String?>(
+                            value: tpl.id,
+                            child: Row(
+                              children: [
+                                Icon(
+                                  tpl.isBuiltin
+                                      ? Icons.auto_awesome
+                                      : Icons.bookmark,
+                                  size: 16,
                                 ),
-                                FilledButton(
-                                  onPressed: () => Navigator.of(ctx).pop(true),
-                                  child: const Text('Delete'),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    tpl.name,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
                               ],
                             ),
-                          );
-                          if (ok == true) {
-                            await promptProvider.deleteTemplate(tpl.id);
-                          }
-                        },
-                      ),
-                  ],
-                ),
+                          ),
+                      ],
+                      onChanged: (id) {
+                        if (id == null) {
+                          setState(() => _selectedTemplateId = null);
+                          return;
+                        }
+                        _applyTemplate(
+                          [
+                            ...builtins,
+                            ...customs,
+                          ].firstWhere((t) => t.id == id),
+                        );
+                      },
+                    ),
+                  ),
+                  // Deleting from inside a menu item doesn't work: the item's
+                  // tap handler closes the menu out from under the dialog.
+                  if (selected != null && !selected.isBuiltin)
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline),
+                      tooltip: 'Delete "${selected.name}"',
+                      onPressed: () => _deleteTemplate(selected),
+                    ),
+                ],
               ),
               const SizedBox(height: 12),
               TextField(
@@ -570,39 +625,6 @@ class _AiGeneratePanel extends StatelessWidget {
             ],
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _TemplateChip extends StatelessWidget {
-  const _TemplateChip({
-    required this.template,
-    required this.selected,
-    required this.onSelected,
-    this.onDelete,
-  });
-
-  final SystemPromptTemplate template;
-  final bool selected;
-  final VoidCallback onSelected;
-  final VoidCallback? onDelete;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: InputChip(
-        selected: selected,
-        label: Text(template.name),
-        avatar: Icon(
-          template.isBuiltin ? Icons.auto_awesome : Icons.bookmark,
-          size: 16,
-        ),
-        onPressed: onSelected,
-        onDeleted: onDelete,
-        deleteIcon: onDelete == null ? null : const Icon(Icons.close, size: 16),
-        tooltip: template.description,
       ),
     );
   }

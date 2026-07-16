@@ -43,6 +43,70 @@ class _FakeModelProvider extends ModelProvider {
   List<ModelInfo> get availableModels => const [];
 }
 
+/// The template dropdown reads the builtin/custom getters, not `templates`,
+/// so the picker tests need a fake that overrides those directly.
+class _FakeTemplateProvider extends SystemPromptProvider {
+  _FakeTemplateProvider({
+    List<SystemPromptTemplate> builtins = const [],
+    List<SystemPromptTemplate> customs = const [],
+  }) : _builtins = builtins,
+       _customs = customs;
+
+  final List<SystemPromptTemplate> _builtins;
+  List<SystemPromptTemplate> _customs;
+
+  @override
+  List<SystemPromptTemplate> get builtinTemplates => _builtins;
+
+  @override
+  List<SystemPromptTemplate> get customTemplates => _customs;
+
+  @override
+  bool get isLoading => false;
+
+  @override
+  Future<bool> deleteTemplate(String id) async {
+    _customs = _customs.where((t) => t.id != id).toList();
+    notifyListeners();
+    return true;
+  }
+}
+
+SystemPromptTemplate _template(String id, String name, {bool builtin = false}) =>
+    SystemPromptTemplate(
+      id: id,
+      name: name,
+      content: 'content of $name',
+      isBuiltin: builtin,
+      createdAt: DateTime(2026),
+    );
+
+Future<void> _openEditor(WidgetTester tester, SystemPromptProvider p) async {
+  await tester.pumpWidget(
+    MaterialApp(
+      home: MultiProvider(
+        providers: [
+          ChangeNotifierProvider<SystemPromptProvider>.value(value: p),
+          ChangeNotifierProvider<ModelProvider>.value(
+            value: _FakeModelProvider('test-model'),
+          ),
+        ],
+        child: Scaffold(
+          body: Builder(
+            builder: (context) => ElevatedButton(
+              onPressed: () => SystemPromptEditorDialog.show(context),
+              child: const Text('open'),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.tap(find.text('open'));
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 300));
+}
+
 void main() {
   group('SystemPromptEditorResult semantics', () {
     test('default constructor → cancelled', () {
@@ -174,6 +238,53 @@ void main() {
         findsOneWidget,
       );
       expect(find.text('Generate'), findsOneWidget);
+    });
+  });
+
+  group('SystemPromptEditorDialog template picker', () {
+    testWidgets('builds and selects with both builtin and custom templates', (
+      tester,
+    ) async {
+      await _openEditor(
+        tester,
+        _FakeTemplateProvider(
+          builtins: [_template('b1', 'Builtin One', builtin: true)],
+          customs: [_template('c1', 'Custom One')],
+        ),
+      );
+      expect(tester.takeException(), isNull, reason: 'dialog build');
+
+      await tester.tap(find.text('— None —'));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull, reason: 'opening the menu');
+
+      await tester.tap(find.text('Builtin One').last);
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull, reason: 'selecting a template');
+      expect(find.text('content of Builtin One'), findsOneWidget);
+    });
+
+    testWidgets('deleting the selected custom template resets to none', (
+      tester,
+    ) async {
+      await _openEditor(
+        tester,
+        _FakeTemplateProvider(customs: [_template('c1', 'Custom One')]),
+      );
+
+      await tester.tap(find.text('— None —'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Custom One').last);
+      await tester.pumpAndSettle();
+
+      // The delete affordance only appears for a selected custom template.
+      await tester.tap(find.byIcon(Icons.delete_outline));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Delete'));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull, reason: 'after delete');
+      expect(find.text('— None —'), findsOneWidget);
     });
   });
 
