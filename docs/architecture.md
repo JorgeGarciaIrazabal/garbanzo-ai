@@ -152,6 +152,10 @@ features/friends/
   models/            Friend, FriendRequest, FriendsList
   widgets/           FriendPickerField (chips + suggestions; used by rooms
                      create/invite dialogs, raw-email fallback)
+features/mentions/
+  models/            MentionCandidate, mention_sources (pure client-side
+                     candidate builders + filter for @/// # autocomplete;
+                     no backend endpoint — lists are small, fetch-and-filter)
 features/usage/
   pages/             UsagePage
   providers/         UsageProvider
