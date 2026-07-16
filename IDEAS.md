@@ -51,7 +51,7 @@ The assistant should answer "how do I pin a conversation?" from curated app docs
 - [x] `easy` (laborious) **Write the app user guide** — One markdown file per feature area (chat, rooms, memories, KB, styles, notifications, scheduled actions, talk mode…) in `backend/app/docs/` or similar. Short, task-oriented, "how do I X" phrasing. Good bulk task for a cheap model + human skim. *(13 files in `backend/app/docs/help/`, grounded in actual UI labels — worth a human skim.)*
 - [x] `medium` **Native tool `app_help(query)`** — Add to `native_tools.py`: embed the docs with the existing `embedding_provider` (or plain keyword scoring to start — decide by testing quality), return top chunks. Docs are static, so embed once at startup and cache in memory; no DB tables needed. *(Keyword scoring won: 12/12 realistic queries hit the right section, zero model dependency. Parsed lazily, cached in memory.)*
 - [x] `easy` **Prompt nudge** — Mention in the base system prompt that an app-help tool exists, so models actually call it when asked about the app.
-- [ ] `easy` **Keep docs honest** — Add a line to CLAUDE.md: when a user-facing feature changes, update its help doc in the same PR.
+- [x] `easy` **Keep docs honest** — Add a line to CLAUDE.md: when a user-facing feature changes, update its help doc in the same PR.
 
 **Iteration 2 — act:**
 - [ ] `med-hard` **Action tools design** — Define a small, safe set of native tools: `create_room(name, member_emails, agents)`, `create_scheduled_action(...)` (exists), `save_memory(...)` (exists), `set_conversation_style(...)`. Each returns a structured "proposal" rather than executing directly.

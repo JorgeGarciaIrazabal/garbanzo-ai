@@ -87,6 +87,7 @@ following, update the owning doc **in the same commit**:
 | Model or column with non-obvious semantics | `docs/database.md` (+ SQL migration) |
 | New env var | `docs/environment.md` (+ `deploy/.env.example` if prod) |
 | Service, provider, flow, or layout change | `docs/architecture.md` |
+| User-facing feature added/changed/removed | its guide in `backend/app/docs/help/` (the in-app `app_help` tool answers from these) |
 | New package-level convention or gotcha | that package's `CLAUDE.md` |
 | Non-obvious workflow that took trial and error | new skill in `.claude/skills/` |
 | New essential dev command | this file's commands block (recipes are otherwise self-documenting via `just`) |
