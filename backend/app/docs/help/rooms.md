@@ -8,9 +8,11 @@ Open the rooms list and press **New room**, give it a name, and create it.
 You own rooms you create.
 
 ## How do I invite people?
-In the room, open **Members & agents** and use **Invite member** with their
-account email. Members see the room in their own rooms list. Remove members
-from the same panel (owner only).
+When creating a room, or later from **Members & agents** → **Invite
+members**, pick from your friends (suggestions appear as you type) or enter
+any account email directly. Members see the room in their own rooms list.
+Remove members from the same panel (owner only). See the Friends guide for
+adding friends.
 
 ## How do I add an AI agent?
 In **Members & agents**, press **Add agent**. Pick its name, model, an

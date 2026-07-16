@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -14,6 +16,8 @@ import 'package:garbanzo_ai/features/chat/models/chat_attachment.dart';
 import 'package:garbanzo_ai/features/chat/widgets/input/attach_menu_button.dart';
 import 'package:garbanzo_ai/features/chat/widgets/input/attachment_preview.dart';
 import 'package:garbanzo_ai/features/chat/widgets/input/message_composer.dart';
+import 'package:garbanzo_ai/features/friends/providers/friends_provider.dart';
+import 'package:garbanzo_ai/features/friends/widgets/friend_picker_field.dart';
 import 'package:garbanzo_ai/features/rooms/models/room_models.dart';
 import 'package:garbanzo_ai/features/rooms/providers/room_provider.dart';
 import 'package:garbanzo_ai/features/rooms/services/room_socket_service.dart';
@@ -600,7 +604,7 @@ class _MembersAgentsPanel extends StatelessWidget {
         TextButton.icon(
           onPressed: () => _showInviteDialog(context, provider),
           icon: const Icon(Icons.person_add),
-          label: const Text('Invite member'),
+          label: const Text('Invite members'),
         ),
         const Divider(height: 32),
         Text('Agents', style: theme.textTheme.titleMedium),
@@ -738,15 +742,27 @@ class _MembersAgentsPanel extends StatelessWidget {
     BuildContext context,
     RoomProvider provider,
   ) async {
-    final emailCtrl = TextEditingController();
+    final pickerKey = GlobalKey<FriendPickerFieldState>();
+    final memberEmails =
+        provider.currentRoom?.members.map((m) => m.userId).toSet() ?? {};
+    // Fresh friends for the picker suggestions; best-effort.
+    unawaited(context.read<FriendsProvider>().refresh());
+
     await showAnimatedDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Invite member'),
-        content: TextField(
-          controller: emailCtrl,
-          decoration: const InputDecoration(labelText: 'Email'),
-          autofocus: true,
+        title: const Text('Invite members'),
+        content: SizedBox(
+          width: 420,
+          child: Consumer<FriendsProvider>(
+            builder: (_, friends, _) => FriendPickerField(
+              key: pickerKey,
+              friends: friends.friends,
+              label: 'Friends or any email',
+              excludeEmails: memberEmails,
+              onChanged: (_) {},
+            ),
+          ),
         ),
         actions: [
           TextButton(
@@ -755,10 +771,13 @@ class _MembersAgentsPanel extends StatelessWidget {
           ),
           FilledButton(
             onPressed: () async {
-              final email = emailCtrl.text.trim();
-              if (email.isEmpty) return;
+              pickerKey.currentState?.commitPendingText();
+              final emails = pickerKey.currentState?.selectedEmails ?? const [];
+              if (emails.isEmpty) return;
               try {
-                await provider.addMember(email);
+                for (final email in emails) {
+                  await provider.addMember(email);
+                }
                 if (ctx.mounted) Navigator.of(ctx).pop();
               } catch (e) {
                 if (ctx.mounted) {

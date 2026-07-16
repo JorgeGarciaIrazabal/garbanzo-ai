@@ -150,6 +150,8 @@ features/friends/
   providers/         FriendsProvider
   services/          friends_service.dart
   models/            Friend, FriendRequest, FriendsList
+  widgets/           FriendPickerField (chips + suggestions; used by rooms
+                     create/invite dialogs, raw-email fallback)
 features/usage/
   pages/             UsagePage
   providers/         UsageProvider

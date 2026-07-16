@@ -1,6 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import 'package:garbanzo_ai/core/widgets/animated_dialog.dart';
+import 'package:garbanzo_ai/features/friends/providers/friends_provider.dart';
+import 'package:garbanzo_ai/features/friends/widgets/friend_picker_field.dart';
 import 'package:garbanzo_ai/features/rooms/models/room_models.dart';
 import 'package:garbanzo_ai/features/rooms/providers/room_provider.dart';
 
@@ -10,7 +15,10 @@ Future<Room?> showCreateRoomDialog(
 ) async {
   final nameCtrl = TextEditingController();
   final descCtrl = TextEditingController();
-  final emailsCtrl = TextEditingController();
+  final pickerKey = GlobalKey<FriendPickerFieldState>();
+
+  // Fresh friends for the picker suggestions; best-effort.
+  unawaited(context.read<FriendsProvider>().refresh());
 
   return showAnimatedDialog<Room>(
     context: context,
@@ -37,11 +45,12 @@ Future<Room?> showCreateRoomDialog(
               ),
             ),
             const SizedBox(height: 12),
-            TextField(
-              controller: emailsCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Invite people (comma-separated emails)',
-                hintText: 'alice@example.com, bob@example.com',
+            Consumer<FriendsProvider>(
+              builder: (_, friends, _) => FriendPickerField(
+                key: pickerKey,
+                friends: friends.friends,
+                label: 'Invite people',
+                onChanged: (_) {},
               ),
             ),
             const SizedBox(height: 8),
@@ -64,11 +73,8 @@ Future<Room?> showCreateRoomDialog(
           onPressed: () async {
             final name = nameCtrl.text.trim();
             if (name.isEmpty) return;
-            final emails = emailsCtrl.text
-                .split(',')
-                .map((e) => e.trim())
-                .where((e) => e.isNotEmpty)
-                .toList();
+            pickerKey.currentState?.commitPendingText();
+            final emails = pickerKey.currentState?.selectedEmails ?? const [];
             try {
               final room = await provider.createRoom(
                 name: name,
