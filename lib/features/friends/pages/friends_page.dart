@@ -56,6 +56,34 @@ class _FriendsPageState extends State<FriendsPage> {
     }
   }
 
+  void _confirmBlock(String email) {
+    showAnimatedDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Block User'),
+        content: Text(
+          'Block $email? Any friendship or pending request between you is '
+          'removed, and neither of you can send new requests or add the '
+          'other to rooms. You can unblock them later.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () async {
+              Navigator.of(context).pop();
+              await _provider.block(email);
+            },
+            child: const Text('Block'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _confirmRemove(Friend friend) {
     showAnimatedDialog(
       context: context,
@@ -154,6 +182,10 @@ class _FriendsPageState extends State<FriendsPage> {
                     )
                   else
                     ...provider.friends.map(_buildFriendTile),
+                  if (provider.blocked.isNotEmpty) ...[
+                    _sectionHeader(context, 'Blocked', provider.blocked.length),
+                    ...provider.blocked.map(_buildBlockedTile),
+                  ],
                 ],
               ],
             ),
@@ -265,6 +297,13 @@ class _FriendsPageState extends State<FriendsPage> {
               tooltip: 'Decline',
               onPressed: () => _provider.decline(request),
             ),
+            PopupMenuButton<String>(
+              tooltip: 'More',
+              onSelected: (_) => _confirmBlock(request.requesterEmail),
+              itemBuilder: (_) => const [
+                PopupMenuItem(value: 'block', child: Text('Block sender')),
+              ],
+            ),
           ],
         ),
       ),
@@ -296,10 +335,31 @@ class _FriendsPageState extends State<FriendsPage> {
         subtitle: friend.fullName != null && friend.fullName!.isNotEmpty
             ? Text(friend.email)
             : null,
-        trailing: IconButton(
-          icon: const Icon(Icons.person_remove_outlined),
-          tooltip: 'Remove friend',
-          onPressed: () => _confirmRemove(friend),
+        trailing: PopupMenuButton<String>(
+          tooltip: 'Friend actions',
+          onSelected: (action) => action == 'remove'
+              ? _confirmRemove(friend)
+              : _confirmBlock(friend.email),
+          itemBuilder: (_) => const [
+            PopupMenuItem(value: 'remove', child: Text('Remove friend')),
+            PopupMenuItem(value: 'block', child: Text('Block')),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBlockedTile(Friend user) {
+    return Card(
+      child: ListTile(
+        leading: const Icon(Icons.block),
+        title: Text(user.displayName),
+        subtitle: user.fullName != null && user.fullName!.isNotEmpty
+            ? Text(user.email)
+            : null,
+        trailing: TextButton(
+          onPressed: () => _provider.unblock(user.email),
+          child: const Text('Unblock'),
         ),
       ),
     );

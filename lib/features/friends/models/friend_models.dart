@@ -51,11 +51,15 @@ class FriendsList {
     this.friends = const [],
     this.incomingRequests = const [],
     this.outgoingRequests = const [],
+    this.blocked = const [],
   });
 
   final List<Friend> friends;
   final List<FriendRequest> incomingRequests;
   final List<FriendRequest> outgoingRequests;
+
+  /// Users this viewer has blocked (blocks against the viewer never appear).
+  final List<Friend> blocked;
 
   factory FriendsList.fromJson(Map<String, dynamic> json) => FriendsList(
     friends: ((json['friends'] as List?) ?? const [])
@@ -69,6 +73,10 @@ class FriendsList {
     outgoingRequests: ((json['outgoing_requests'] as List?) ?? const [])
         .whereType<Map<String, dynamic>>()
         .map(FriendRequest.fromJson)
+        .toList(),
+    blocked: ((json['blocked'] as List?) ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .map(Friend.fromJson)
         .toList(),
   );
 }

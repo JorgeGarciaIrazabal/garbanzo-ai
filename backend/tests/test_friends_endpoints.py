@@ -262,3 +262,133 @@ class TestListSearchRemove:
     async def test_remove_unknown_404(self, db_session):
         resp = await _request(db_session, ME, "delete", "/api/v1/friends/ghost@example.com")
         assert resp.status_code == 404
+
+
+class TestBlocking:
+    ANA = "ana@example.com"
+
+    async def _block(self, db_session, viewer: str, target: str):
+        return await _request(db_session, viewer, "post", f"/api/v1/friends/{target}/block")
+
+    async def test_block_replaces_friendship_and_hides_both_sides(self, db_session):
+        await _seed_user(db_session, self.ANA, "Ana")
+        # Become friends first.
+        resp = await _request(
+            db_session, self.ANA, "post", "/api/v1/friends/requests", json={"email": ME}
+        )
+        request_id = resp.json()["id"]
+        await _request(db_session, ME, "post", f"/api/v1/friends/requests/{request_id}/accept")
+
+        resp = await self._block(db_session, ME, self.ANA)
+        assert resp.status_code == 204
+
+        # Blocker sees the entry only under `blocked`.
+        body = (await _request(db_session, ME, "get", "/api/v1/friends")).json()
+        assert body["friends"] == []
+        assert [b["email"] for b in body["blocked"]] == [self.ANA]
+
+        # The blocked side sees nothing at all.
+        body = (await _request(db_session, self.ANA, "get", "/api/v1/friends")).json()
+        assert body["friends"] == []
+        assert body["blocked"] == []
+
+    async def test_blocked_user_cannot_send_request(self, db_session):
+        await _seed_user(db_session, self.ANA)
+        await self._block(db_session, ME, self.ANA)
+
+        resp = await _request(
+            db_session, self.ANA, "post", "/api/v1/friends/requests", json={"email": ME}
+        )
+        assert resp.status_code == 400
+        # Generic message: must not disclose the block.
+        assert "block" not in resp.json()["detail"].lower()
+
+    async def test_unblock_allows_requests_again(self, db_session):
+        await _seed_user(db_session, self.ANA)
+        await self._block(db_session, ME, self.ANA)
+
+        resp = await _request(db_session, ME, "delete", f"/api/v1/friends/{self.ANA}/block")
+        assert resp.status_code == 204
+
+        resp = await _request(
+            db_session, ME, "post", "/api/v1/friends/requests", json={"email": self.ANA}
+        )
+        assert resp.status_code == 201
+
+    async def test_only_blocker_can_unblock(self, db_session):
+        await _seed_user(db_session, self.ANA)
+        await self._block(db_session, ME, self.ANA)
+
+        resp = await _request(db_session, self.ANA, "delete", f"/api/v1/friends/{ME}/block")
+        assert resp.status_code == 404
+
+    async def test_block_back_does_not_steal_the_block(self, db_session):
+        """If Ana blocked me first, my own block call succeeds (204, no
+        disclosure) but must not flip ownership so that Ana loses hers."""
+        await _seed_user(db_session, self.ANA)
+        await self._block(db_session, self.ANA, ME)
+
+        resp = await self._block(db_session, ME, self.ANA)
+        assert resp.status_code == 204
+
+        # Ana still owns the block: it lists under her `blocked`, not mine.
+        body = (await _request(db_session, self.ANA, "get", "/api/v1/friends")).json()
+        assert [b["email"] for b in body["blocked"]] == [ME]
+        body = (await _request(db_session, ME, "get", "/api/v1/friends")).json()
+        assert body["blocked"] == []
+
+    async def test_remove_friend_does_not_touch_blocked_row(self, db_session):
+        await _seed_user(db_session, self.ANA)
+        await self._block(db_session, ME, self.ANA)
+
+        resp = await _request(db_session, ME, "delete", f"/api/v1/friends/{self.ANA}")
+        assert resp.status_code == 404
+        body = (await _request(db_session, ME, "get", "/api/v1/friends")).json()
+        assert [b["email"] for b in body["blocked"]] == [self.ANA]
+
+    async def test_blocked_pair_cannot_share_a_room(self, db_session):
+        await _seed_user(db_session, self.ANA)
+        await self._block(db_session, ME, self.ANA)
+
+        # Room creation with a blocked invitee fails.
+        resp = await _request(
+            db_session,
+            ME,
+            "post",
+            "/api/v1/rooms",
+            json={"name": "Test room", "member_emails": [self.ANA]},
+        )
+        assert resp.status_code == 403
+        assert "block" not in resp.text.lower()
+
+        # Adding a blocked user to an existing room fails too — in either
+        # direction (the blocked side can't pull the blocker in).
+        resp = await _request(db_session, ME, "post", "/api/v1/rooms", json={"name": "Mine"})
+        room_id = resp.json()["id"]
+        resp = await _request(
+            db_session,
+            ME,
+            "post",
+            f"/api/v1/rooms/{room_id}/members",
+            json={"user_id": self.ANA},
+        )
+        assert resp.status_code == 403
+
+        resp = await _request(db_session, self.ANA, "post", "/api/v1/rooms", json={"name": "Hers"})
+        room_id = resp.json()["id"]
+        resp = await _request(
+            db_session,
+            self.ANA,
+            "post",
+            f"/api/v1/rooms/{room_id}/members",
+            json={"user_id": ME},
+        )
+        assert resp.status_code == 403
+
+    async def test_block_unknown_email_400(self, db_session):
+        resp = await self._block(db_session, ME, "ghost@example.com")
+        assert resp.status_code == 400
+
+    async def test_block_self_400(self, db_session):
+        resp = await self._block(db_session, ME, ME)
+        assert resp.status_code == 400

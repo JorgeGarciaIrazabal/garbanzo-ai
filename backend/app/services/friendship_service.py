@@ -101,10 +101,61 @@ class FriendshipService:
         await self.db.flush()
         return True
 
+    async def block(self, viewer: str, other_email: str) -> Friendship:
+        """Block ``other_email``: any existing relationship (friendship or
+        pending request, either direction) is replaced by a blocked row with
+        the viewer as requester — that orientation records who did the
+        blocking, so only they can undo it."""
+        viewer = viewer.lower().strip()
+        other_email = other_email.lower().strip()
+        if viewer == other_email:
+            raise ValueError("You cannot block yourself.")
+
+        user = await self.db.get(User, other_email)
+        if user is None:
+            # Same deliberate exact-match disclosure as send_request.
+            raise ValueError("No account with that email.")
+
+        row = await self._pair_row(viewer, other_email)
+        if row is not None:
+            if row.status == "blocked" and row.requester_email != viewer:
+                # They blocked the viewer first; don't let this call flip
+                # ownership of the block (and don't disclose it exists).
+                return row
+            row.status = "blocked"
+            row.requester_email = viewer
+            row.addressee_email = other_email
+        else:
+            row = Friendship(
+                id=str(uuid.uuid4()),
+                requester_email=viewer,
+                addressee_email=other_email,
+                status="blocked",
+            )
+            self.db.add(row)
+        await self.db.flush()
+        return row
+
+    async def unblock(self, viewer: str, other_email: str) -> bool:
+        """Remove the viewer's own block on ``other_email``."""
+        row = await self._pair_row(viewer, other_email.lower().strip())
+        if row is None or row.status != "blocked" or row.requester_email != viewer:
+            return False
+        await self.db.delete(row)
+        await self.db.flush()
+        return True
+
+    async def is_blocked(self, a: str, b: str) -> bool:
+        """Whether a block exists between the two users, either direction."""
+        row = await self._pair_row(a.lower().strip(), b.lower().strip())
+        return row is not None and row.status == "blocked"
+
     async def list_relationships(
         self, viewer: str
-    ) -> tuple[list[FriendEntry], list[Friendship], list[Friendship]]:
-        """Return (accepted friends, incoming pending, outgoing pending)."""
+    ) -> tuple[list[FriendEntry], list[Friendship], list[Friendship], list[FriendEntry]]:
+        """Return (accepted friends, incoming pending, outgoing pending,
+        users the viewer has blocked). Blocks *against* the viewer are never
+        surfaced anywhere."""
         rows = (
             await self.db.execute(
                 select(Friendship, User)
@@ -129,6 +180,7 @@ class FriendshipService:
         friends: list[FriendEntry] = []
         incoming: list[Friendship] = []
         outgoing: list[Friendship] = []
+        blocked: list[FriendEntry] = []
         for friendship, other in rows:
             if friendship.status == "accepted":
                 friends.append(
@@ -144,13 +196,24 @@ class FriendshipService:
                     incoming.append(friendship)
                 else:
                     outgoing.append(friendship)
-            # blocked rows are invisible in listings by design
-        return friends, incoming, outgoing
+            elif friendship.requester_email == viewer:
+                # Blocked, and the viewer is the blocker (block() keeps the
+                # blocker as requester). Blocks against the viewer stay
+                # invisible by design.
+                blocked.append(
+                    FriendEntry(
+                        email=other.email,
+                        full_name=other.full_name,
+                        friendship_id=friendship.id,
+                        since=friendship.created_at,
+                    )
+                )
+        return friends, incoming, outgoing, blocked
 
     async def search(self, viewer: str, query: str) -> list[FriendEntry]:
         """Search only among the viewer's accepted friends (no enumeration
         of the wider user table — the privacy guard)."""
-        friends, _in, _out = await self.list_relationships(viewer)
+        friends, _in, _out, _blocked = await self.list_relationships(viewer)
         q = query.lower().strip()
         if not q:
             return friends

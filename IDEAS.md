@@ -66,7 +66,7 @@ A lightweight social graph so rooms stop requiring raw email entry. Friend reque
 - [x] `easy-med` **Notifications integration** — Friend request / accepted events through the existing `notification_service` + FCM, with a new `NotificationPreferences` category.
 - [x] `medium` **Frontend: Friends page** — List with pending (incoming/outgoing) and accepted sections; add-by-email field; accept/decline/remove actions. New `FriendsProvider` + service following the existing feature-folder pattern.
 - [x] `easy-med` **Rooms: add members from friends** — In `CreateRoomDialog` and member management, replace the raw email field with a friend picker (search + chips). Keep a "by email" fallback for non-friends.
-- [ ] `easy` **Privacy guard** — Searching users by email only confirms existence on exact match (no enumeration); block list respected everywhere.
+- [x] `easy` **Privacy guard** — Searching users by email only confirms existence on exact match (no enumeration); block list respected everywhere. *(Added block/unblock endpoints + UI so the block list is real: blocks replace any relationship, stop requests both ways non-disclosingly, and rooms refuse to co-place a blocked pair.)*
 
 ## 6. Mention autocompletion (@friends, @agents, /skills, #tools)
 

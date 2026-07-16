@@ -127,19 +127,24 @@ async def list_friends(
     current_user: Annotated[dict[str, Any], Depends(get_current_user)],
     service: Annotated[FriendshipService, Depends(get_service)],
 ) -> FriendsListOut:
-    friends, incoming, outgoing = await service.list_relationships(current_user["email"])
-    return FriendsListOut(
-        friends=[
+    friends, incoming, outgoing, blocked = await service.list_relationships(current_user["email"])
+
+    def _out(entries: list) -> list[FriendOut]:
+        return [
             FriendOut(
                 email=f.email,
                 full_name=f.full_name,
                 friendship_id=f.friendship_id,
                 since=f.since,
             )
-            for f in friends
-        ],
+            for f in entries
+        ]
+
+    return FriendsListOut(
+        friends=_out(friends),
         incoming_requests=[FriendshipOut.model_validate(r) for r in incoming],
         outgoing_requests=[FriendshipOut.model_validate(r) for r in outgoing],
+        blocked=_out(blocked),
     )
 
 
@@ -163,6 +168,42 @@ async def search_friends(
         )
         for f in results
     ]
+
+
+@router.post(
+    "/{email}/block",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Block a user (replaces any friendship or pending request)",
+)
+async def block_user(
+    email: str,
+    current_user: Annotated[dict[str, Any], Depends(get_current_user)],
+    service: Annotated[FriendshipService, Depends(get_service)],
+) -> None:
+    # 204 on purpose: returning the row would disclose a pre-existing block
+    # by the other party (its requester orientation names the blocker).
+    try:
+        await service.block(current_user["email"], email)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.delete(
+    "/{email}/block",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Unblock a user you blocked",
+)
+async def unblock_user(
+    email: str,
+    current_user: Annotated[dict[str, Any], Depends(get_current_user)],
+    service: Annotated[FriendshipService, Depends(get_service)],
+) -> None:
+    ok = await service.unblock(current_user["email"], email)
+    if not ok:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Block not found",
+        )
 
 
 @router.delete(

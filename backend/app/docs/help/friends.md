@@ -27,6 +27,13 @@ you can send a new request later.
 Sending a request to someone who already asked you accepts theirs
 automatically — you become friends right away.
 
+## How do I block someone?
+On the Friends page, open the menu next to a friend (or an incoming
+request) and choose **Block**. Blocking removes any friendship or pending
+request between you, and neither of you can send new requests or add the
+other to rooms. The other person is not told they were blocked. Blocked
+users appear in a **Blocked** section where you can **Unblock** them.
+
 ## Do I get notified about friend activity?
 Yes — new requests and acceptances arrive as notifications on the
 **Friend updates** channel. Turn it off in Settings → Notifications

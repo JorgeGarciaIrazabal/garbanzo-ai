@@ -35,3 +35,6 @@ class FriendsListOut(BaseModel):
     friends: list[FriendOut]
     incoming_requests: list[FriendshipOut]
     outgoing_requests: list[FriendshipOut]
+
+    # Users the viewer blocked. Blocks *against* the viewer never appear.
+    blocked: list[FriendOut] = []

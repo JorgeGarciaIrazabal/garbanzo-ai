@@ -55,7 +55,12 @@ half-migrated schema.
   time (`requester_email` → `addressee_email`), status
   `pending`/`accepted`/`blocked` (plain VARCHAR, validated at the API
   boundary). Decline/remove DELETE the row so either side can retry;
-  blocked rows persist and are invisible in listings. A unique index on the
+  blocked rows persist; `block()` reorients the row so `requester_email` is
+  always the blocker (only they see it in `GET /friends` `blocked` and only
+  they can unblock — the blocked side never learns a block exists). Rooms
+  respect blocks: a blocked pair can't be put in a room together by either
+  party (`RoomService._blocked_pair_exists`, generic 403). A unique index on
+  the
   (requester, addressee) pair plus service-level reverse-direction handling
   (a request answering an existing reverse pending accepts it) keep at most
   one row per pair. `GET /friends/search` only searches accepted friends —

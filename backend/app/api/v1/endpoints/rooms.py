@@ -86,6 +86,8 @@ async def create_room(
             status.HTTP_400_BAD_REQUEST,
             detail=f"Unknown user email(s): {', '.join(e.emails)}",
         ) from e
+    except RoomPermissionError as e:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail=str(e)) from e
     return RoomDetailOut.from_model(room)
 
 

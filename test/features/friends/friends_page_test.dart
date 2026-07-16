@@ -118,7 +118,9 @@ void main() {
     await tester.pumpWidget(app());
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('Remove friend'));
+    await tester.tap(find.byTooltip('Friend actions'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Remove friend'));
     await tester.pumpAndSettle();
     expect(find.text('Remove Friend'), findsOneWidget);
 
@@ -126,6 +128,47 @@ void main() {
     await tester.pumpAndSettle();
 
     verify(() => service.remove('ana@example.com')).called(1);
+  });
+
+  testWidgets('blocking a friend asks for confirmation first', (tester) async {
+    when(() => service.list()).thenAnswer(
+      (_) async => const FriendsList(friends: [_friend]),
+    );
+    when(() => service.block('ana@example.com')).thenAnswer((_) async {});
+
+    await tester.pumpWidget(app());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Friend actions'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Block'));
+    await tester.pumpAndSettle();
+    expect(find.text('Block User'), findsOneWidget);
+
+    await tester.tap(find.text('Block').last); // dialog action button
+    await tester.pumpAndSettle();
+
+    verify(() => service.block('ana@example.com')).called(1);
+  });
+
+  testWidgets('blocked section lists users with an unblock action', (
+    tester,
+  ) async {
+    when(() => service.list()).thenAnswer(
+      (_) async => const FriendsList(
+        blocked: [Friend(email: 'evil@example.com', friendshipId: 'f9')],
+      ),
+    );
+    when(() => service.unblock('evil@example.com')).thenAnswer((_) async {});
+
+    await tester.pumpWidget(app());
+    await tester.pumpAndSettle();
+
+    expect(find.text('Blocked (1)'), findsOneWidget);
+    await tester.tap(find.text('Unblock'));
+    await tester.pumpAndSettle();
+
+    verify(() => service.unblock('evil@example.com')).called(1);
   });
 
   testWidgets('shows a dismissible error banner on load failure',

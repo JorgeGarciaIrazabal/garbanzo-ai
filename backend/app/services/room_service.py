@@ -10,6 +10,7 @@ from sqlalchemy import desc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.models.friendship import Friendship
 from app.models.room import Room, RoomAgent, RoomMember, RoomMessage
 from app.models.user import User
 from app.services.mute_util import resolve_mute_until
@@ -84,6 +85,13 @@ class RoomService:
             missing = [e for e in invitees if e not in existing]
             if missing:
                 raise UnknownUserError(missing)
+
+        # Friend-graph privacy guard: a block between the owner and an
+        # invitee makes that invitee unaddable, with a message that doesn't
+        # disclose the block (or who placed it).
+        for email in invitees:
+            if await self._blocked_pair_exists(owner_id, email):
+                raise RoomPermissionError(f"Unable to add {email} to the room.")
 
         self.db.add(room)
         self.db.add(RoomMember(room_id=room_id, user_id=owner_id, role="owner"))
@@ -270,10 +278,29 @@ class RoomService:
 
     # ----------------------------------------------------------------- Members
 
+    async def _blocked_pair_exists(self, a: str, b: str) -> bool:
+        """Whether a friend-graph block exists between two users (either
+        direction). Rooms respect blocks without caring who placed them."""
+        row = (
+            await self.db.execute(
+                select(Friendship.id).where(
+                    Friendship.status == "blocked",
+                    or_(
+                        (Friendship.requester_email == a) & (Friendship.addressee_email == b),
+                        (Friendship.requester_email == b) & (Friendship.addressee_email == a),
+                    ),
+                )
+            )
+        ).scalar_one_or_none()
+        return row is not None
+
     async def add_member(
         self, room_id: str, user_id: str, new_user_id: str, role: str = "member"
     ) -> RoomMember:
         await self._require_owner(room_id, user_id)
+        if await self._blocked_pair_exists(user_id, new_user_id):
+            # Same non-disclosing message as at room creation.
+            raise RoomPermissionError(f"Unable to add {new_user_id} to the room.")
         existing = (
             await self.db.execute(
                 select(RoomMember).where(

@@ -132,6 +132,35 @@ void main() {
     });
   });
 
+  group('block / unblock', () {
+    test('block calls the service and the list gains the blocked entry',
+        () async {
+      when(() => service.block('ana@example.com')).thenAnswer((_) async {});
+
+      final p = provider();
+      await Future<void>.delayed(Duration.zero);
+      when(() => service.list()).thenAnswer(
+        (_) async => const FriendsList(blocked: [_friend]),
+      );
+
+      expect(await p.block('ana@example.com'), isTrue);
+      expect(p.blocked.single.email, 'ana@example.com');
+      p.dispose();
+    });
+
+    test('unblock failure returns false and sets error', () async {
+      when(() => service.unblock('ana@example.com'))
+          .thenThrow(Exception('API Error (404): Block not found'));
+
+      final p = provider();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(await p.unblock('ana@example.com'), isFalse);
+      expect(p.error, isNotNull);
+      p.dispose();
+    });
+  });
+
   group('models', () {
     test('FriendsList.fromJson parses the backend shape', () {
       final list = FriendsList.fromJson({

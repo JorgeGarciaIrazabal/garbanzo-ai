@@ -22,6 +22,7 @@ class FriendsProvider extends ChangeNotifier with GuardedStateMixin {
   List<Friend> get friends => _list.friends;
   List<FriendRequest> get incomingRequests => _list.incomingRequests;
   List<FriendRequest> get outgoingRequests => _list.outgoingRequests;
+  List<Friend> get blocked => _list.blocked;
 
   Future<void> refresh() async {
     await runGuarded('Failed to load friends', () async {
@@ -63,6 +64,26 @@ class FriendsProvider extends ChangeNotifier with GuardedStateMixin {
   Future<bool> remove(String email) async {
     final ok = await runGuarded('Failed to remove friend', () async {
       await _service.remove(email);
+      _list = await _service.list();
+      return true;
+    }, trackLoading: false);
+    return ok ?? false;
+  }
+
+  /// Blocks [email] — replaces any friendship or pending request between
+  /// the two users and stops new ones (plus room invites) both ways.
+  Future<bool> block(String email) async {
+    final ok = await runGuarded('Failed to block user', () async {
+      await _service.block(email);
+      _list = await _service.list();
+      return true;
+    }, trackLoading: false);
+    return ok ?? false;
+  }
+
+  Future<bool> unblock(String email) async {
+    final ok = await runGuarded('Failed to unblock user', () async {
+      await _service.unblock(email);
       _list = await _service.list();
       return true;
     }, trackLoading: false);
