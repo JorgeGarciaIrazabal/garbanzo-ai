@@ -43,7 +43,13 @@ half-migrated schema.
   column, so every reader — the notification skip-check in
   `room_chat_service._notify_offline_members`, the frontend badge — only ever
   needs one comparison against "now". No background job expires mutes; the
-  timestamp is compared lazily at notification time.
+  timestamp is compared lazily at notification time. The viewer's own
+  `muted_until` also surfaces on the list/search response (`RoomOut`, not just
+  `RoomDetailOut.members[].muted_until`) so the room-list sidebar can badge
+  muted rooms without fetching each room's full member list — populated by
+  `RoomOut.from_model(room, viewer_email=...)` scanning the (already
+  eager-loaded) `room.members` for the caller's own row; `None` when
+  `viewer_email` is omitted or the viewer isn't a member.
 - `ScheduledAction` stores user-defined cron or one-shot prompts.
 - `Notification` / `NotificationPreferences` support in-app + FCM push notifications.
 - `DeviceToken` stores FCM tokens per user per platform.

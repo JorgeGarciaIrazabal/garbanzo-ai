@@ -100,7 +100,7 @@ async def list_rooms(
         current_user["email"], page=page, page_size=page_size
     )
     return RoomList(
-        items=[RoomOut.from_model(r) for r in rooms],
+        items=[RoomOut.from_model(r, viewer_email=current_user["email"]) for r in rooms],
         total=total,
         page=page,
         page_size=page_size,
@@ -124,7 +124,7 @@ async def search_rooms(
         page_size=page_size,
     )
     return RoomList(
-        items=[RoomOut.from_model(h.room) for h in hits],
+        items=[RoomOut.from_model(h.room, viewer_email=current_user["email"]) for h in hits],
         total=total,
         page=page,
         page_size=page_size,

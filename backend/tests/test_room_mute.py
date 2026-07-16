@@ -177,6 +177,71 @@ async def test_mute_endpoint_rejects_unknown_duration(db_session):
         _clear_overrides()
 
 
+# --------------------------------------------------- GET /rooms surfaces mute
+
+
+@pytest.mark.asyncio
+async def test_list_rooms_returns_muted_until_for_muted_viewer(db_session):
+    switch = _UserSwitch()
+    _install_overrides(db_session, switch)
+    try:
+        async with _client() as c:
+            room = await _create_room(c, name="Muted room")
+            resp = await c.patch(
+                f"/api/v1/rooms/{room['id']}/members/me/mute", json={"duration": "1w"}
+            )
+            assert resp.json()["muted_until"] is not None
+
+            resp = await c.get("/api/v1/rooms")
+        assert resp.status_code == 200
+        items = resp.json()["items"]
+        listed = next(r for r in items if r["id"] == room["id"])
+        assert listed["muted_until"] is not None
+    finally:
+        _clear_overrides()
+
+
+@pytest.mark.asyncio
+async def test_list_rooms_returns_null_muted_until_for_unmuted_viewer(db_session):
+    switch = _UserSwitch()
+    _install_overrides(db_session, switch)
+    try:
+        async with _client() as c:
+            room = await _create_room(c, name="Unmuted room")
+            resp = await c.get("/api/v1/rooms")
+        assert resp.status_code == 200
+        items = resp.json()["items"]
+        listed = next(r for r in items if r["id"] == room["id"])
+        assert listed["muted_until"] is None
+    finally:
+        _clear_overrides()
+
+
+@pytest.mark.asyncio
+async def test_search_rooms_returns_null_muted_until_for_non_member_public_room(db_session):
+    """A non-member viewing a public room via search must not see any member's
+    mute state — the viewer isn't in ``room.members`` at all, so it's None."""
+    await _seed_users(db_session, MEMBER)
+    switch = _UserSwitch()
+    _install_overrides(db_session, switch)
+    try:
+        async with _client() as c:
+            room = await _create_room(c, name="Public room", is_public=True)
+            resp = await c.patch(
+                f"/api/v1/rooms/{room['id']}/members/me/mute", json={"duration": "forever"}
+            )
+            assert resp.json()["muted_until"] is not None
+
+            switch.email = MEMBER
+            resp = await c.get("/api/v1/rooms/search", params={"q": "Public", "scope": "public"})
+        assert resp.status_code == 200
+        items = resp.json()["items"]
+        listed = next(r for r in items if r["id"] == room["id"])
+        assert listed["muted_until"] is None
+    finally:
+        _clear_overrides()
+
+
 # -------------------------------------------------------------- _is_muted
 
 

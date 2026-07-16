@@ -192,11 +192,24 @@ class RoomOut(BaseModel):
     updated_at: datetime
     member_count: int = 0
     agent_count: int = 0
+    # The *viewer's own* mute state, only populated when ``from_model`` is
+    # given ``viewer_email`` (the room-list/search endpoints do this so the
+    # sidebar can show a muted-bell badge without opening each room). NULL
+    # when ``viewer_email`` is omitted or the viewer isn't a member.
+    # NULL vs a far-future sentinel means the same thing as on
+    # ``RoomMemberOut.muted_until`` (see ``room_service.MUTE_FOREVER``).
+    muted_until: datetime | None = None
 
     model_config = {"from_attributes": True}
 
     @classmethod
-    def from_model(cls, room: Any) -> "RoomOut":
+    def from_model(cls, room: Any, viewer_email: str | None = None) -> "RoomOut":
+        muted_until: datetime | None = None
+        if viewer_email is not None and room.members is not None:
+            for member in room.members:
+                if member.user_id == viewer_email:
+                    muted_until = member.muted_until
+                    break
         return cls(
             id=room.id,
             name=room.name,
@@ -209,6 +222,7 @@ class RoomOut(BaseModel):
             updated_at=room.updated_at,
             member_count=len(room.members) if room.members is not None else 0,
             agent_count=len(room.agents) if room.agents is not None else 0,
+            muted_until=muted_until,
         )
 
 
