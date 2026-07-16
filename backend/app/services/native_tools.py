@@ -38,6 +38,16 @@ APP_HELP_TOOL = "app_help"
 
 ALL_NATIVE_TOOLS = (SCHEDULED_ACTION_TOOL, MEMORY_TOOL, NOTIFICATION_TOOL, APP_HELP_TOOL)
 
+# Appended to the system prompt when app_help is available. Models reliably
+# call tools they were told exist; without the nudge, "how do I…" questions
+# about the app get hallucinated UI instead of a lookup.
+APP_HELP_NUDGE = (
+    "You are running inside the Garbanzo AI app. When the user asks how to "
+    "use the app — how to do something in it, where a feature or setting "
+    "lives, or what a feature is — call the app_help tool and answer from "
+    "what it returns instead of guessing."
+)
+
 
 # ---------------------------------------------------------------------------
 # Scheduled Actions tool

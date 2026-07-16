@@ -43,6 +43,8 @@ from app.services.microapp_chat_tool import (
 )
 from app.services.microapp_workspace import manager as microapp_manager
 from app.services.native_tools import (
+    APP_HELP_NUDGE,
+    APP_HELP_TOOL,
     NATIVE_GARBO_SERVER_ID,
     execute_native_tool,
     native_tool_descriptors,
@@ -413,6 +415,17 @@ class ChatService:
         # rode in with the conversation's auth check earlier in the request.
         user = await self.db.get(User, conversation.user_id)
 
+        # Resolved before prompt assembly so the system prompt only nudges
+        # toward tools that are actually available this turn.
+        ollama_tools, tool_lookup = await self._resolve_tools_for_conversation(conversation)
+
+        dynamic_context = build_dynamic_context_block(
+            timezone=user.timezone if user else None,
+            location=user.location if user else None,
+        )
+        if APP_HELP_TOOL in tool_lookup:
+            dynamic_context += f"\n\n{APP_HELP_NUDGE}"
+
         llm_messages, context_stats = await self._context.build_history_with_system_prompt(
             conversation.messages,
             conversation.user_id,
@@ -421,10 +434,7 @@ class ChatService:
             context_summary=conversation.context_summary,
             context_summary_until_id=conversation.context_summary_until_id,
             conversation_system_prompt=conversation.system_prompt,
-            dynamic_context=build_dynamic_context_block(
-                timezone=user.timezone if user else None,
-                location=user.location if user else None,
-            ),
+            dynamic_context=dynamic_context,
         )
 
         provider = self._get_provider()
@@ -438,8 +448,6 @@ class ChatService:
         ChatService._active_streams[conversation_id] = cancel_event
 
         try:
-            ollama_tools, tool_lookup = await self._resolve_tools_for_conversation(conversation)
-
             # What personal context informed this reply — stamped onto the
             # finish chunk (and thus the persisted message meta) alongside
             # the context_length the engine allocates.

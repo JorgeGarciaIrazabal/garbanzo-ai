@@ -199,8 +199,12 @@ class TestChatTurnEndToEnd:
         user.location = location
         await db_session.commit()
 
-    async def _send_turn(self, db_session, provider) -> str:
-        """POST one message and return the system prompt the provider saw."""
+    async def _send_turn(self, db_session, provider, conversation_patch=None) -> str:
+        """POST one message and return the system prompt the provider saw.
+
+        ``conversation_patch`` is applied via PATCH after creation — the
+        create schema deliberately doesn't accept fields like enabled_tools.
+        """
         self._install(db_session, provider)
         try:
             client = AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
@@ -211,6 +215,12 @@ class TestChatTurnEndToEnd:
                 )
                 assert resp.status_code == 201, resp.text
                 conv = resp.json()
+                if conversation_patch:
+                    resp = await c.patch(
+                        f"/api/v1/chat/conversations/{conv['id']}",
+                        json=conversation_patch,
+                    )
+                    assert resp.status_code == 200, resp.text
                 resp = await c.post(
                     f"/api/v1/chat/conversations/{conv['id']}/chat",
                     json={"message": "hi"},
@@ -248,6 +258,20 @@ class TestChatTurnEndToEnd:
         assert "Current UTC time:" in prompt
         assert "local time" not in prompt
         assert "location" not in prompt
+
+    async def test_app_help_nudge_present_when_tools_enabled(self, db_session):
+        """Default conversations (all tools) tell the model app_help exists
+        (IDEAS.md idea 4.3); it must ride along with the context block."""
+        prompt = await self._send_turn(db_session, _RecordingProvider())
+        assert "app_help" in prompt
+
+    async def test_app_help_nudge_absent_when_tools_disabled(self, db_session):
+        """enabled_tools=[] opts out of all tools — nudging toward a tool
+        the model cannot call would only produce failed calls."""
+        prompt = await self._send_turn(
+            db_session, _RecordingProvider(), conversation_patch={"enabled_tools": []}
+        )
+        assert "app_help" not in prompt
 
 
 class TestSystemPromptComposition:
