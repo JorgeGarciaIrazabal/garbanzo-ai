@@ -5,6 +5,12 @@ from pydantic import BaseModel, Field
 
 from app.core.config import get_settings
 
+# Reasoning depth for thinking-capable models. Shared across every schema
+# that carries a thinking level (Conversation, Style, ...) so the accepted
+# value set can't drift between them — see 017_conversation_thinking_level.sql
+# for why these four values and no Postgres enum/CHECK constraint.
+ThinkingLevel = Literal["off", "low", "medium", "high"]
+
 # ============================================================================
 # Attachment Schemas
 # ============================================================================
@@ -99,7 +105,7 @@ class ChatOptions(BaseModel):
             "not by clients. For Ollama this maps to options.num_ctx."
         ),
     )
-    think: Literal["off", "low", "medium", "high"] | None = Field(
+    think: ThinkingLevel | None = Field(
         default=None,
         description=(
             "Reasoning depth for thinking-capable models. Normally set by "
@@ -220,7 +226,7 @@ class ConversationCreate(BaseModel):
         None,
         description="Per-conversation system prompt (overrides the user default)",
     )
-    thinking_level: Literal["off", "low", "medium", "high"] | None = Field(
+    thinking_level: ThinkingLevel | None = Field(
         None,
         description=(
             "Reasoning depth for thinking-capable models. None = provider "
@@ -269,7 +275,7 @@ class ConversationUpdate(BaseModel):
         None,
         description="Pin/unpin this conversation in the sidebar",
     )
-    thinking_level: Literal["off", "low", "medium", "high"] | None = Field(
+    thinking_level: ThinkingLevel | None = Field(
         None,
         description=(
             "Reasoning depth for thinking-capable models. Not sent in the "
@@ -307,7 +313,7 @@ class ConversationOut(BaseModel):
         ),
     )
     is_pinned: bool = Field(default=False, description="Whether this conversation is pinned")
-    thinking_level: Literal["off", "low", "medium", "high"] | None = Field(
+    thinking_level: ThinkingLevel | None = Field(
         None,
         description=(
             "Reasoning depth for thinking-capable models, or null for the "

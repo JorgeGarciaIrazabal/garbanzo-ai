@@ -75,4 +75,20 @@ half-migrated schema.
 - `MCPServer` stores registered MCP server configs (managed by admin).
 - `AvailableModel` stores admin-controlled per-model visibility (`model_id`, `is_enabled`).
 - `SystemPromptTemplate` stores built-in and user-created prompt templates.
+- `Style` (Idea 2: "Styles", subtask 2) is a saved, reusable bundle of
+  `model_id` + `thinking_level` + `system_prompt_template_id` a user can name
+  ("Deep Work", "Quick Answers") and reuse across conversations — the picker
+  UI and per-conversation "apply a style" wiring are later subtasks; this
+  table is CRUD-only so far. `thinking_level` reuses the exact
+  `off`/`low`/`medium`/`high` representation as `Conversation.thinking_level`
+  above (shared Pydantic `ThinkingLevel` literal in `app/schemas/chat.py`, not
+  redefined). `system_prompt_template_id` is nullable with `ON DELETE SET
+  NULL` (018_styles.sql): deleting the referenced template only clears that
+  half of the bundle — it never cascades to delete the style itself, since
+  the model/thinking-level choices remain meaningful on their own (mirrors
+  `UserMemory.source_conversation_id`). `is_default` marks the style used to
+  seed new conversations; at most one per user is enforced by a partial
+  unique index (`ix_styles_one_default_per_user`), with `StyleService`
+  unsetting any prior default before setting a new one so callers don't hit
+  the constraint in normal use.
 - Conversations use soft delete (`is_deleted=True`), not hard delete.

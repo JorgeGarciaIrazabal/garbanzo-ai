@@ -8,6 +8,7 @@ from app.models.message import Message
 from app.models.notification import Notification, NotificationPreferences
 from app.models.room import Room, RoomAgent, RoomMember, RoomMessage
 from app.models.scheduled_action import ScheduledAction
+from app.models.style import Style
 from app.models.system_prompt import SystemPromptTemplate
 from app.models.user import User
 
@@ -18,6 +19,7 @@ __all__ = [
     "Message",
     "UserMemory",
     "SystemPromptTemplate",
+    "Style",
     "MCPServer",
     "DeviceToken",
     "Notification",

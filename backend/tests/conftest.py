@@ -3,7 +3,7 @@
 import pytest
 import pytest_asyncio
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import JSON
+from sqlalchemy import JSON, event
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
@@ -30,6 +30,7 @@ from app.models.room import (  # noqa: F401 — register models
     RoomMessage,
 )
 from app.models.scheduled_action import ScheduledAction  # noqa: F401 — register model
+from app.models.style import Style  # noqa: F401 — register model
 from app.models.system_prompt import SystemPromptTemplate  # noqa: F401 — register model
 from app.models.user import User  # noqa: F401 — register model
 
@@ -82,6 +83,18 @@ async def db_session():
     Tables are created fresh for every test so tests stay isolated.
     """
     engine = create_async_engine(TEST_DATABASE_URL, echo=False)
+
+    # SQLite ignores FK constraint actions (CASCADE / SET NULL) unless
+    # foreign key enforcement is turned on per-connection — it's off by
+    # default for backward compatibility. Postgres (dev/prod) always
+    # enforces them, so this makes the in-memory test DB match: models
+    # relying on ON DELETE SET NULL (e.g. Style.system_prompt_template_id)
+    # would otherwise silently keep a dangling id in tests.
+    @event.listens_for(engine.sync_engine, "connect")
+    def _enable_sqlite_fk(dbapi_connection, connection_record):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
 
     # Temporarily swap JSONB columns to JSON for table creation.
     _patch_jsonb_columns()
