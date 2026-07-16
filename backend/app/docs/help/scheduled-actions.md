@@ -1,7 +1,7 @@
 # Scheduled Actions
 
 Have the assistant do something for you later, once or on a schedule — e.g.
-"summarize my unread notifications every weekday at 9".
+a daily summary of your notifications every morning, or a weekly reminder.
 
 ## How do I create one?
 Open the **Scheduled actions** page and press **New scheduled action**.

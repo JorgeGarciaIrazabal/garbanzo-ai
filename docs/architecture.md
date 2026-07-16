@@ -59,7 +59,9 @@ services/      chat_service.py (turn orchestration + tool loop)
                microapp_workspace.py, microapp_agent.py, microapp_chat_tool.py,
                microapp_registry.py (opencode-driven micro-apps workspace)
                native_tools.py (in-process chat tools: scheduled actions,
-               memories, notifications — no MCP server needed)
+               memories, notifications, app_help — no MCP server needed)
+               app_help.py (keyword retrieval over app/docs/help/ guides
+               for the app_help tool; parsed once, cached in memory)
                fcm_service.py, device_service.py, notification_service.py
                image_utils.py (image attachment resize/encoding)
 db/            base.py, session.py (AsyncSession, init_db), migrations.py

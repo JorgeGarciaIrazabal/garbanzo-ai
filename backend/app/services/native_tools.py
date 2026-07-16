@@ -18,6 +18,7 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.services.app_help import search_help
 from app.services.memory_service import MemoryService
 from app.services.notification_service import NotificationService
 from app.services.scheduled_action_service import ScheduledActionService
@@ -33,8 +34,9 @@ NATIVE_GARBO_SERVER_ID = "__garbo__"
 SCHEDULED_ACTION_TOOL = "scheduled_actions"
 MEMORY_TOOL = "memories"
 NOTIFICATION_TOOL = "notifications"
+APP_HELP_TOOL = "app_help"
 
-ALL_NATIVE_TOOLS = (SCHEDULED_ACTION_TOOL, MEMORY_TOOL, NOTIFICATION_TOOL)
+ALL_NATIVE_TOOLS = (SCHEDULED_ACTION_TOOL, MEMORY_TOOL, NOTIFICATION_TOOL, APP_HELP_TOOL)
 
 
 # ---------------------------------------------------------------------------
@@ -562,6 +564,68 @@ def _prefs_to_dict(p: Any) -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
+# App help tool
+# ---------------------------------------------------------------------------
+
+_APP_HELP_DESCRIPTOR: dict[str, Any] = {
+    "type": "function",
+    "function": {
+        "name": APP_HELP_TOOL,
+        "description": (
+            "Look up how to use THIS app (Garbanzo AI) in its built-in user "
+            "guide. Use whenever the user asks how to do something in the app, "
+            "where a feature or setting lives, or what a feature is — chat, "
+            "styles, system prompts, memories, knowledge base, rooms, talk "
+            "mode, notifications, scheduled actions, tools, micro-apps, "
+            "settings, usage, admin. Returns the most relevant guide "
+            "sections; answer from them and say so if nothing relevant comes "
+            "back — do not invent UI. "
+            "Examples: 'how do I pin a conversation?', 'where do I change the "
+            "voice?', 'what are rooms?', 'how do I stop it using my documents?'."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": (
+                        "The user's question about the app, e.g. 'how do I "
+                        "mute a room'. Keep the feature words — they drive "
+                        "the search."
+                    ),
+                },
+            },
+            "required": ["query"],
+        },
+    },
+}
+
+
+async def _execute_app_help(
+    *,
+    args: dict[str, Any],
+    db: AsyncSession,
+    user_id: str,
+) -> dict[str, Any]:
+    """Search the built-in user guide. Read-only; db/user unused."""
+    query = (args.get("query") or "").strip()
+    if not query:
+        return {"ok": False, "error": "query is required."}
+    results = search_help(query)
+    if not results:
+        return {
+            "ok": True,
+            "query": query,
+            "results": [],
+            "note": (
+                "No guide section matched. Tell the user the guide doesn't "
+                "cover this rather than guessing."
+            ),
+        }
+    return {"ok": True, "query": query, "results": results}
+
+
+# ---------------------------------------------------------------------------
 # Registry
 # ---------------------------------------------------------------------------
 
@@ -569,6 +633,7 @@ _NATIVE_TOOL_REGISTRY: dict[str, tuple[dict[str, Any], Any]] = {
     SCHEDULED_ACTION_TOOL: (_SCHEDULED_ACTIONS_DESCRIPTOR, _execute_scheduled_actions),
     MEMORY_TOOL: (_MEMORY_TOOL_DESCRIPTOR, _execute_memories),
     NOTIFICATION_TOOL: (_NOTIFICATION_TOOL_DESCRIPTOR, _execute_notifications),
+    APP_HELP_TOOL: (_APP_HELP_DESCRIPTOR, _execute_app_help),
 }
 
 

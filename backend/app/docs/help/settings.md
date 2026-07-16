@@ -3,10 +3,10 @@
 Open Settings from the gear icon. Sections: Profile, Appearance, Models,
 Voice, Memory, Notifications.
 
-## How do I change my name, email, or avatar?
+## How do I change my name, email, or profile picture?
 Profile → **Edit profile** for name/email (changing email signs you out —
 log back in with the new one), **Change password** for the password, and
-tap the avatar to upload or remove a photo.
+tap the avatar to upload, replace, or delete your profile picture.
 
 ## How do I share my location with the assistant?
 Profile → **Share coarse location** (off by default). It stores only your
