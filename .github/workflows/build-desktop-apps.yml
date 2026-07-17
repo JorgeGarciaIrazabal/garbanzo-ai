@@ -18,15 +18,36 @@ jobs:
         with:
           fetch-depth: 0
 
+      # actions/checkout doesn't always materialize the annotated tag OBJECT on
+      # tag-triggered runs, so `git tag -l --format='%(contents)'` can return
+      # empty even though the tag is annotated on the remote. Re-fetch the tag
+      # explicitly to guarantee the tag object (with its message) is present.
+      - name: Fetch tag object
+        run: git fetch --force origin tag "${GITHUB_REF_NAME}"
+
       - id: extract
         run: |
-          # Get the annotated tag message (not the lightweight tag).
-          TAG_MSG=$(git tag -l --format='%(contents)' "${GITHUB_REF_NAME}")
-          # Extract the API_URL line.
-          API_URL=$(echo "$TAG_MSG" | grep -oP 'API_URL: \K.*' || true)
+          set -eu
+          # Get the annotated tag message. Try three sources in order; the
+          # cat-file fallback reads the raw tag object directly.
+          TAG_MSG="$(git for-each-ref "refs/tags/${GITHUB_REF_NAME}" --format='%(contents)' || true)"
+          if [ -z "$TAG_MSG" ]; then
+            echo "for-each-ref returned empty; trying git tag -l"
+            TAG_MSG="$(git tag -l --format='%(contents)' "${GITHUB_REF_NAME}" || true)"
+          fi
+          if [ -z "$TAG_MSG" ]; then
+            echo "git tag -l returned empty; trying git cat-file tag"
+            # cat-file prints the raw tag object; strip the header (everything
+            # up to the first blank line) to get just the message body.
+            TAG_MSG="$(git cat-file tag "${GITHUB_REF_NAME}" | sed '1,/^$/d' || true)"
+          fi
+          echo "::group::Raw tag message for ${GITHUB_REF_NAME}"
+          printf '%s\n' "$TAG_MSG"
+          echo "::endgroup::"
+          # Extract the API_URL line. Tolerant of trailing whitespace/newlines.
+          API_URL="$(printf '%s\n' "$TAG_MSG" | grep -Eo 'API_URL:[[:space:]]*[^[:space:]]+' | head -n1 | sed -E 's/^API_URL:[[:space:]]*//')"
           if [ -z "$API_URL" ]; then
             echo "WARNING: No API_URL found in tag annotation — desktop apps will use debug defaults."
-            API_URL=""
           fi
           echo "api_url=$API_URL" >> "$GITHUB_OUTPUT"
           echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
