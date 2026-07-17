@@ -36,3 +36,8 @@ supported language works. See Talk Mode for the in-call override.
 ## How do I manage what the assistant remembers?
 Memory settings link to the Memories page; per-conversation injection is
 controlled from the chat itself (see Memories).
+
+## How do I report a bug or request a feature?
+Settings drawer → **Report a bug or idea**. Pick Bug or Feature, add a
+title and description, and submit — it goes straight to the admins, who
+triage reports from the Admin page.

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:garbanzo_ai/core/auth_service.dart';
+import 'package:garbanzo_ai/features/reports/widgets/submit_report_dialog.dart';
 
 /// Navigation list to every feature page. One place to find everything,
 /// instead of page links scattered between toggle sections.
@@ -61,6 +62,17 @@ class PagesSection extends StatelessWidget {
           subtitle: const Text('Charts by model, conversation, day'),
           dense: true,
           onTap: () => _open(context, '/usage'),
+        ),
+        ListTile(
+          key: const ValueKey('report_issue_tile'),
+          leading: const Icon(Icons.feedback_outlined),
+          title: const Text('Report a bug or idea'),
+          subtitle: const Text('Send feedback straight to the admins'),
+          dense: true,
+          onTap: () {
+            Navigator.of(context).pop(); // close the drawer first
+            SubmitReportDialog.show(context);
+          },
         ),
         if (isAdmin)
           ListTile(
