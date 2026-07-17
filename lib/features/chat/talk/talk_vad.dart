@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 /// Voice-activity events emitted by [TalkVad].
 enum VadEvent {
   /// No state change on this sample.
@@ -28,6 +30,7 @@ class TalkVad {
   TalkVad({
     this.startMarginDb = 7,
     this.endMarginDb = 4,
+    this.floorMinDb = -55,
     this.silenceDuration = const Duration(milliseconds: 900),
     this.minSpeechDuration = const Duration(milliseconds: 300),
     double initialNoiseFloorDb = -50,
@@ -38,6 +41,13 @@ class TalkVad {
 
   /// dB above the noise floor below which a sample counts toward silence.
   final double endMarginDb;
+
+  /// Lowest value the learned floor may take. Digitally-silent capture reads
+  /// −160 dB (e.g. the `record` package on Android when its noise suppressor
+  /// gates the mic between utterances); without a clamp, calibrating on such
+  /// samples latches the floor so far down that real post-speech ambient never
+  /// falls within [endMarginDb] of it and speech never ends.
+  final double floorMinDb;
 
   /// How long the level must stay near the floor to end speech.
   final Duration silenceDuration;
@@ -64,7 +74,8 @@ class TalkVad {
       if (_calibrated < _calibrationSamples) {
         // Calibrate: snap the floor to the observed ambient (average of the
         // first few readings) without allowing a speech-start yet.
-        _noiseFloor = _calibrated == 0 ? db : (_noiseFloor + db) / 2;
+        final measured = _calibrated == 0 ? db : (_noiseFloor + db) / 2;
+        _noiseFloor = math.max(measured, floorMinDb);
         _calibrated++;
         return VadEvent.none;
       }
@@ -98,7 +109,10 @@ class TalkVad {
   /// so a brief loud blip doesn't inflate the floor and latch out real speech.
   void _adaptNoiseFloor(double db) {
     final alpha = db < _noiseFloor ? 0.3 : 0.05;
-    _noiseFloor += (db - _noiseFloor) * alpha;
+    _noiseFloor = math.max(
+      _noiseFloor + (db - _noiseFloor) * alpha,
+      floorMinDb,
+    );
   }
 
   /// Enter the speaking state directly, as if speech had just started at

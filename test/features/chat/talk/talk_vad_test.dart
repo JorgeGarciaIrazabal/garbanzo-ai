@@ -97,6 +97,30 @@ void main() {
       expect(vad.update(-50, at(600)), VadEvent.speechEnd);
     });
 
+    test('digitally-silent calibration cannot latch the floor at −160', () {
+      // The record package (Android) reports −160 peak dB while its noise
+      // suppressor gates the mic. Without the clamp the floor calibrates to
+      // ≈−160 and real ambient never counts as silence → speech never ends.
+      final vad = TalkVad();
+      calibrate(vad, db: -160);
+      expect(vad.noiseFloorDb, -55); // clamped, not −160
+      expect(vad.update(-20, at(100)), VadEvent.speechStart);
+      expect(vad.update(-20, at(500)), VadEvent.none);
+      // Post-speech ambient well above −160 still reads as silence.
+      expect(vad.update(-60, at(600)), VadEvent.none);
+      expect(vad.update(-60, at(1600)), VadEvent.speechEnd);
+    });
+
+    test('adaptation cannot drag the floor below the clamp', () {
+      final vad = TalkVad();
+      calibrate(vad);
+      for (var i = 0; i < 50; i++) {
+        vad.update(-160, at(i * 100)); // gated-silence ambient
+      }
+      expect(vad.noiseFloorDb, -55);
+      expect(vad.update(-45, at(6000)), VadEvent.speechStart);
+    });
+
     test('reset clears speech state but keeps the learned floor', () {
       final vad = TalkVad();
       for (var i = 0; i < 80; i++) {

@@ -1,6 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <!-- Lets the recorder enable hardware echo cancellation / noise
+         suppression, which Talk Mode's voice barge-in depends on. -->
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <!-- Coarse only: the opt-in location share is city-level by design. -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>

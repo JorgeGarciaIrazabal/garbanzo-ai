@@ -250,6 +250,7 @@ class TalkModeController extends ChangeNotifier {
   /// armed during `thinking` (nothing is playing yet, so ambient noise
   /// shouldn't cancel the request).
   void _onDb(double db) {
+    _maybeLogDb(db);
     switch (_phase) {
       case TalkPhase.listening:
         if (_muted) return;
@@ -267,6 +268,23 @@ class TalkModeController extends ChangeNotifier {
       case TalkPhase.error:
         break;
     }
+  }
+
+  DateTime _lastDbLog = DateTime.fromMillisecondsSinceEpoch(0);
+
+  /// Throttled trace of the amplitude stream vs. the learned floor. Amplitude
+  /// scale differs per recorder backend (Linux reports RMS dBFS, the `record`
+  /// package reports peak dB and −160 for gated silence), so this is the
+  /// ground truth for tuning VAD/barge thresholds on a real device.
+  void _maybeLogDb(double db) {
+    final now = DateTime.now();
+    if (now.difference(_lastDbLog) < const Duration(seconds: 2)) return;
+    _lastDbLog = now;
+    logDebug(
+      'TalkMode: db=${db.toStringAsFixed(1)} '
+      'floor=${_vad.noiseFloorDb.toStringAsFixed(1)} '
+      'phase=${_phase.name} speaking=${_vad.isSpeaking}',
+    );
   }
 
   /// Interrupt the AI once the user has been loud for a sustained stretch,
@@ -296,8 +314,14 @@ class TalkModeController extends ChangeNotifier {
     }
 
     if (transcript == null || transcript.isEmpty) {
-      // Nothing heard — resume listening so the call keeps going.
-      await _resumeListeningOrIdle();
+      // Nothing heard. Say so instead of silently looping — an inaudible
+      // capture (mic/VAD trouble) should be visible, not look like a hang.
+      // Recoverable: the call auto-resumes listening after a short pause.
+      if (_callActive) {
+        _fail('Didn’t catch that — try again', recoverable: true);
+      } else {
+        _setPhase(TalkPhase.idle);
+      }
       return;
     }
 
