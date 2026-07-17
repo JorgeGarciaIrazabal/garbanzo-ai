@@ -183,6 +183,20 @@ Connection closed while receiving data …* and the live reply is lost.
   is the in-repo reference for reconnect-with-backoff; reuse its pattern if
   retry is added.
 
+**Fix (partial, data-loss half only):** `run_agent_turn` (`agent_turn.py`)
+now catches `asyncio.CancelledError` and persists+commits whatever content
+had accumulated before reraising — previously `except Exception` never
+caught it (`CancelledError` is a `BaseException`), so a disconnect silently
+discarded the whole reply regardless of how much had streamed. `ChatProvider`'s
+stream `onError` now also reloads the conversation from the server (mirroring
+`onDone`), so the recovered content replaces the raw error instead of the
+user needing to manually regenerate. *(Tests:
+`test_agent_turn.py::test_cancellation_persists_partial_content`,
+`chat_provider_streaming_test.dart` "stream error reloads…".)* **Not** done:
+true reconnect-with-backoff, app-lifecycle handling, and an SSE resume
+protocol (`id:`/`Last-Event-ID`) so generation *after* the disconnect is
+detected also reaches the client live instead of only surfacing via reload/push.
+
 ---
 
 ### B-02 `medium` — Notification taps never navigate (all notification types)

@@ -333,6 +333,29 @@ async def run_agent_turn(
             },
         )
 
+    except asyncio.CancelledError:
+        # The client disconnected mid-stream (e.g. Android backgrounding the
+        # app tears down the socket within seconds). asyncio.CancelledError
+        # is a BaseException, not Exception, so it always used to skip the
+        # block below and silently drop whatever the model had produced so
+        # far — persist it here instead so the reply survives the
+        # disconnect, then reraise so the caller still observes the
+        # cancellation (e.g. to trigger a "response ready" push).
+        if full_response:
+            msg_meta: dict[str, Any] = {}
+            combined_thinking = "\n\n".join(
+                [*pending_thinking, thinking_content] if thinking_content else pending_thinking
+            )
+            if combined_thinking:
+                msg_meta["thinking"] = combined_thinking
+            try:
+                await sink.persist_assistant(full_response, msg_meta or None)
+                await sink.commit()
+                result.content = full_response
+                result.thinking = combined_thinking
+            except Exception:
+                logger.exception("Failed to persist partial turn after disconnect")
+        raise
     except Exception as e:
         logger.exception("Error in agent turn streaming")
         result.error = True

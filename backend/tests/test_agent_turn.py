@@ -5,6 +5,7 @@ emitter) that interleave into the turn's output while it runs, before the
 tool_result / tool_execution-finished markers.
 """
 
+import asyncio
 from collections.abc import AsyncIterator
 
 import pytest
@@ -131,6 +132,81 @@ async def test_tool_progress_interleaves_before_result(monkeypatch):
         "exec:finished",
         "outer:tool_result",
     ]
+
+
+class _CancellingProvider:
+    """Streams a couple of chunks, then simulates a client disconnect."""
+
+    @property
+    def name(self) -> str:
+        return "cancelling"
+
+    async def stream_chat(
+        self, messages, model, options=None, cancel_event=None, tools=None
+    ) -> AsyncIterator[ChatChunk]:
+        yield ChatChunk(content="Hello ")
+        yield ChatChunk(content="there")
+        raise asyncio.CancelledError()
+
+    async def chat(self, *a, **k) -> str:  # pragma: no cover
+        return ""
+
+    async def list_models(self) -> list[ModelInfo]:  # pragma: no cover
+        return []
+
+    async def health_check(self) -> bool:  # pragma: no cover
+        return True
+
+
+class _RecordingSink:
+    def __init__(self):
+        self.persisted: list[tuple[str, dict | None]] = []
+        self.committed = False
+        self.rolled_back = False
+
+    async def persist_assistant(self, content, meta):
+        self.persisted.append((content, meta))
+
+    async def persist_tool_call(self, tool_calls):
+        pass
+
+    async def persist_tool_result(self, content, meta):
+        pass
+
+    async def commit(self):
+        self.committed = True
+
+    async def rollback(self):
+        self.rolled_back = True
+
+
+async def test_cancellation_persists_partial_content(monkeypatch):
+    """A client disconnect (CancelledError) must not silently drop the reply.
+
+    B-01: Android backgrounding tears down the socket mid-stream. Before this
+    fix, CancelledError (a BaseException, not Exception) skipped the
+    persist-on-error branch entirely and the accumulated content vanished.
+    """
+    monkeypatch.setattr(
+        "app.services.agent_turn.resolve_context_length",
+        lambda provider, model: _async_return(4096),
+    )
+
+    sink = _RecordingSink()
+
+    with pytest.raises(asyncio.CancelledError):
+        async for _ in run_agent_turn(
+            provider=_CancellingProvider(),
+            model="fake",
+            llm_messages=[LLMMessage(role="user", content="hi")],
+            sink=sink,
+            options=ChatOptions(),
+        ):
+            pass
+
+    assert sink.persisted == [("Hello there", None)]
+    assert sink.committed is True
+    assert sink.rolled_back is False
 
 
 async def _async_return(value):

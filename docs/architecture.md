@@ -228,8 +228,16 @@ Each server event: `data: {"type":"chunk","content":"...","metadata":null}\n\n`
 Terminal event: `data: {"type":"done","content":null,"metadata":{...}}\n\n`
 Client parses lines, strips `data: ` prefix, skips `[DONE]` sentinel.
 
-On client disconnect mid-stream, the backend accumulates content and sends an
-FCM push notification with a truncated preview.
+On client disconnect mid-stream (B-01, e.g. Android backgrounding tears down
+the socket), `run_agent_turn` (`agent_turn.py`) catches the resulting
+`asyncio.CancelledError` and persists+commits whatever content had
+accumulated before reraising — the reply is no longer silently dropped. The
+SSE endpoint's own `CancelledError` handler (`_sse_stream` in `chat.py`) then
+sends an FCM push notification with a truncated preview of that same content.
+On the frontend, `ChatProvider`'s stream `onError` (not just `onDone`)
+reloads the conversation from the server, so whatever the backend managed to
+persist replaces the raw error instead of the user needing to manually
+regenerate.
 
 ## WebSocket Rooms (Multi-Agent)
 

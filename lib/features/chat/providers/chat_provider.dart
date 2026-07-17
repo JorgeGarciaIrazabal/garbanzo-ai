@@ -583,6 +583,11 @@ class ChatProvider extends ChangeNotifier {
         logDebug('Stream error: $e');
         _clearStreamingState();
         notifyListeners();
+        // The connection can drop mid-generation (e.g. Android backgrounding
+        // tears down the socket) after the backend already persisted a
+        // partial or complete reply. Reload so that content replaces the
+        // error instead of the reply looking lost, forcing a manual regenerate.
+        _reloadCurrentConversation();
       },
       onDone: () {
         // Real end of the SSE stream — finalize and reconcile with server.

@@ -25,6 +25,10 @@ class _FakeChatService extends ChatService {
     messages: const [],
   );
 
+  // Set by tests that want a later reload (post-error, post-done) to surface
+  // content the backend persisted independently of the live stream.
+  Conversation? reloadedConversation;
+
   @override
   Future<ConversationList> listConversations(
       {int page = 1, int pageSize = 50}) async {
@@ -34,7 +38,7 @@ class _FakeChatService extends ChatService {
 
   @override
   Future<Conversation> getConversation(String conversationId) async {
-    return _conversation;
+    return reloadedConversation ?? _conversation;
   }
 
   @override
@@ -134,6 +138,43 @@ void main() {
       // flagged as interrupted.
       expect(provider.messages.last.content, 'partial answ');
       expect(provider.messages.last.metadata?['stopped'], isTrue);
+    });
+
+    test(
+        'stream error reloads the conversation to recover server-persisted '
+        'content (B-01)', () async {
+      final service = _FakeChatService();
+      final provider = await _providerWithOpenConversation(service);
+
+      // Simulates the backend having persisted a reply (e.g. up to the
+      // point of a client disconnect) despite the stream itself erroring.
+      service.reloadedConversation = Conversation(
+        id: 'conv-1',
+        title: 'Test',
+        model: 'llama3.2',
+        createdAt: DateTime.utc(2026),
+        updatedAt: DateTime.utc(2026),
+        messages: [
+          ChatMessage(
+            id: 'm1',
+            role: 'assistant',
+            content: 'Recovered from disconnect',
+            createdAt: DateTime.utc(2026),
+          ),
+        ],
+      );
+
+      await provider.sendMessage('hi');
+      service.controller
+          .addError(Exception('Connection closed while receiving data'));
+      await Future<void>.delayed(Duration.zero);
+
+      expect(provider.error, contains('Streaming error'));
+      expect(provider.isSending, isFalse);
+      expect(
+        provider.messages.any((m) => m.content == 'Recovered from disconnect'),
+        isTrue,
+      );
     });
 
     test('undo within the window restores the conversation without API call',
