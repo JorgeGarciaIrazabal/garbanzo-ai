@@ -222,6 +222,30 @@ pages/               LoginPage, RegisterPage
 7. **Edit** — `POST /chat/conversations/{id}/messages/{mid}/edit` updates a user message and truncates all later messages, then re-streams
 8. **Branch** — `POST /chat/conversations/{id}/messages/{mid}/branch` creates a new conversation from a given message ID
 
+### Windowed message loading (B-03)
+
+A conversation's full history used to be fetched and re-parsed on every load
+and after every single turn — slow for long-running conversations. Now:
+
+- `ChatProvider.loadConversation()` requests only the most recent 60
+  messages via `GET /conversations/{id}?message_limit=N`, which returns
+  `has_more_messages` alongside the window.
+- Scrolling to the top of the message list
+  (`_maybeLoadOlderMessages` in `chat_page.dart`) pages earlier messages in
+  via `GET /conversations/{id}/messages?before=<oldest loaded id>`,
+  prepending them and compensating the scroll offset so the view doesn't jump.
+- The post-turn reload (`_reloadCurrentConversation`, runs in the stream's
+  `onDone`) requests `max(60, however many messages are already displayed)`
+  instead of the entire history — cheap for an active conversation, and
+  never truncates history the user already scrolled up to see.
+- Internal server-side callers that need the full history (regenerate,
+  edit, branch, context building) are unaffected — they keep using
+  `ConversationService.get(..., include_messages=True)` directly; only the
+  read-only `GET /conversations/{id}` REST endpoint is windowed.
+- Pagination orders by `Message.seq` (see `docs/database.md`), not
+  `created_at`, since rows from the same DB transaction can share a
+  timestamp.
+
 ## SSE Streaming Protocol
 
 Each server event: `data: {"type":"chunk","content":"...","metadata":null}\n\n`

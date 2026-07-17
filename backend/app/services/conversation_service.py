@@ -136,6 +136,68 @@ class ConversationService:
         result = await self.db.execute(query)
         return result.scalar_one_or_none()
 
+    async def get_recent_messages(
+        self, conversation_id: str, limit: int = 50
+    ) -> tuple[list[Message], int, bool]:
+        """Return the most recent ``limit`` messages (chronological order),
+        the conversation's total message count, and whether older messages
+        exist beyond this page.
+
+        B-03: ``GET /conversations/{id}`` used to always load and serialize
+        every message, which is slow for long-running conversations. This
+        powers an opt-in windowed load instead; the older-message page is
+        fetched separately via ``get_messages_before``. Internal callers that
+        need the full history (regenerate, edit, branch, context building)
+        keep using ``get(..., include_messages=True)`` — unaffected by this.
+        """
+        total_result = await self.db.execute(
+            select(func.count()).where(Message.conversation_id == conversation_id)
+        )
+        total = total_result.scalar() or 0
+
+        result = await self.db.execute(
+            select(Message)
+            .where(Message.conversation_id == conversation_id)
+            .order_by(desc(Message.seq))
+            .limit(limit)
+        )
+        recent = list(result.scalars().all())
+        recent.reverse()
+        return recent, total, total > len(recent)
+
+    async def get_messages_before(
+        self, conversation_id: str, before_message_id: str, limit: int = 50
+    ) -> tuple[list[Message], bool]:
+        """Return up to ``limit`` messages older than ``before_message_id``
+        (chronological order) plus whether even older messages remain.
+
+        Pairs with ``get_recent_messages`` to page a long conversation's
+        history in from the top as the user scrolls up (B-03).
+        """
+        anchor_seq = await self.db.scalar(
+            select(Message.seq).where(
+                Message.id == before_message_id,
+                Message.conversation_id == conversation_id,
+            )
+        )
+        if anchor_seq is None:
+            return [], False
+
+        result = await self.db.execute(
+            select(Message)
+            .where(
+                Message.conversation_id == conversation_id,
+                Message.seq < anchor_seq,
+            )
+            .order_by(desc(Message.seq))
+            .limit(limit + 1)
+        )
+        rows = list(result.scalars().all())
+        has_more = len(rows) > limit
+        page = rows[:limit]
+        page.reverse()
+        return page, has_more
+
     async def list(
         self,
         user_id: str,
@@ -403,6 +465,7 @@ class ConversationService:
                     content=msg.content,
                     meta=msg.meta,
                     created_at=msg.created_at,
+                    seq=msg.seq,
                 )
             )
 

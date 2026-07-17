@@ -30,6 +30,10 @@ abstract class Conversation with _$Conversation {
     ThinkingLevel? thinkingLevel,
     List<String>? enabledTools,
     List<ChatMessage>? messages,
+    // True when `messages` is a windowed page (server was asked for a
+    // `message_limit`) and older messages exist — page them in via
+    // ChatService.getOlderMessages (B-03).
+    @Default(false) bool hasMoreMessages,
     // NULL = not muted. A far-future sentinel value means "muted forever" —
     // see the backend's `mute_util.MUTE_FOREVER`. Read [isMuted] /
     // [isMutedForever] instead of comparing this directly (mirrors

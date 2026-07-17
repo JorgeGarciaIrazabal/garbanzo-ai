@@ -25,8 +25,10 @@ from app.schemas.chat import (
     ConversationUpdate,
     EditMessageRequest,
     MatchedMessage,
+    MessagePage,
     ModelList,
     RegenerateRequest,
+    message_out,
 )
 from app.schemas.mute import MuteUpdate
 from app.services.chat_service import ChatService
@@ -163,11 +165,25 @@ async def get_conversation(
     conversation_id: str,
     current_user: Annotated[dict[str, Any], Depends(get_current_user)],
     service: Annotated[ChatService, Depends(get_chat_service)],
+    message_limit: Annotated[
+        int | None,
+        Query(
+            ge=1,
+            le=500,
+            description=(
+                "Return only the most recent N messages (chronological "
+                "order) instead of the full history — much faster for long "
+                "conversations (B-03). Page older ones in via "
+                "GET .../messages?before=<oldest loaded message id>. "
+                "Omit for the full, unpaginated history (unchanged default)."
+            ),
+        ),
+    ] = None,
 ) -> ConversationDetailOut:
     conversation = await service.conversations.get(
         conversation_id=conversation_id,
         user_id=current_user["email"],
-        include_messages=True,
+        include_messages=message_limit is None,
     )
 
     if not conversation:
@@ -176,7 +192,56 @@ async def get_conversation(
             detail="Conversation not found",
         )
 
-    return ConversationDetailOut.from_model(conversation)
+    if message_limit is None:
+        return ConversationDetailOut.from_model(conversation)
+
+    messages, total, has_more = await service.conversations.get_recent_messages(
+        conversation_id, limit=message_limit
+    )
+    return ConversationDetailOut.from_model_page(
+        conversation,
+        messages,
+        total_message_count=total,
+        has_more_messages=has_more,
+    )
+
+
+@router.get(
+    "/conversations/{conversation_id}/messages",
+    response_model=MessagePage,
+    summary="Page in older messages",
+)
+async def get_conversation_messages(
+    conversation_id: str,
+    current_user: Annotated[dict[str, Any], Depends(get_current_user)],
+    service: Annotated[ChatService, Depends(get_chat_service)],
+    before: Annotated[str, Query(description="Return messages older than this message id")],
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+) -> MessagePage:
+    """Page in messages older than ``before`` (B-03: scroll-to-top paging).
+
+    Pairs with ``GET /conversations/{id}?message_limit=N``, which returns the
+    most recent window plus ``has_more_messages`` — the client passes the
+    oldest loaded message's id as ``before`` to fetch the next page up.
+    """
+    conversation = await service.conversations.get(
+        conversation_id=conversation_id,
+        user_id=current_user["email"],
+        include_messages=False,
+    )
+    if not conversation:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Conversation not found",
+        )
+
+    messages, has_more = await service.conversations.get_messages_before(
+        conversation_id, before, limit
+    )
+    return MessagePage(
+        messages=[message_out(m) for m in messages],
+        has_more=has_more,
+    )
 
 
 @router.patch(

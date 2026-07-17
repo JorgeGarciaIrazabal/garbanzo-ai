@@ -74,13 +74,45 @@ class ChatService {
     throw _handleError(response);
   }
 
-  Future<Conversation> getConversation(String conversationId) async {
+  /// Fetch a conversation. Pass [messageLimit] to load only the most recent
+  /// N messages instead of the full history (B-03) — much faster for long
+  /// conversations; page older ones in with [getOlderMessages].
+  Future<Conversation> getConversation(
+    String conversationId, {
+    int? messageLimit,
+  }) async {
     final response = await _api.get(
       '/api/v1/chat/conversations/$conversationId',
+      queryParameters: messageLimit != null
+          ? {'message_limit': messageLimit.toString()}
+          : null,
     );
 
     if (response.statusCode == 200) {
       return Conversation.fromJson(response.data as Map<String, dynamic>);
+    }
+
+    throw _handleError(response);
+  }
+
+  /// Page in messages older than [beforeMessageId] (B-03: scroll-to-top).
+  /// Returns `(messages, hasMore)`.
+  Future<(List<ChatMessage>, bool)> getOlderMessages(
+    String conversationId,
+    String beforeMessageId, {
+    int limit = 50,
+  }) async {
+    final response = await _api.get(
+      '/api/v1/chat/conversations/$conversationId/messages',
+      queryParameters: {'before': beforeMessageId, 'limit': limit.toString()},
+    );
+
+    if (response.statusCode == 200) {
+      final data = response.data as Map<String, dynamic>;
+      final messages = (data['messages'] as List)
+          .map((m) => ChatMessage.fromJson(m as Map<String, dynamic>))
+          .toList();
+      return (messages, data['has_more'] as bool);
     }
 
     throw _handleError(response);

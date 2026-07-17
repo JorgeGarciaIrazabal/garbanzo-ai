@@ -1,7 +1,8 @@
+import time
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, ForeignKey, String, Text, func
+from sqlalchemy import BigInteger, DateTime, ForeignKey, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -36,6 +37,18 @@ class Message(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
+    )
+    seq: Mapped[int] = mapped_column(
+        BigInteger,
+        default=time.time_ns,
+        nullable=False,
+        comment=(
+            "App-assigned monotonic insertion order, used to paginate a "
+            "conversation's messages (B-03). created_at alone ties for rows "
+            "persisted in the same DB transaction (Postgres now() is "
+            "transaction-start time), which is the common case for an agent "
+            "turn's assistant/tool_call/tool_result rows."
+        ),
     )
 
     # Relationships

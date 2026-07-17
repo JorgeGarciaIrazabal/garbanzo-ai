@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -218,11 +219,44 @@ class _ChatPageContentState extends State<_ChatPageContent>
     return position.maxScrollExtent - position.pixels <= _nearBottomThreshold;
   }
 
+  // B-03: page in older messages once the user scrolls near the top,
+  // instead of loading a whole multi-hundred-message history up front.
+  static const _nearTopThreshold = 300.0;
+
   void _onScroll() {
     final show = !_isNearBottom;
     if (show != _showJumpToBottom) {
       setState(() => _showJumpToBottom = show);
     }
+    _maybeLoadOlderMessages();
+  }
+
+  void _maybeLoadOlderMessages() {
+    if (!_scrollController.hasClients) return;
+    final position = _scrollController.position;
+    if (position.pixels > _nearTopThreshold) return;
+
+    final provider = context.read<ChatProvider>();
+    if (!provider.hasMoreMessages || provider.loadingOlderMessages) return;
+
+    // Prepending messages shifts everything currently on screen down by the
+    // height of what got inserted above it — jump the scroll offset by that
+    // same delta after the frame so the view doesn't visibly yank.
+    final previousMaxExtent = position.maxScrollExtent;
+    final previousPixels = position.pixels;
+    unawaited(
+      provider.loadOlderMessages().then((_) {
+        if (!mounted || !_scrollController.hasClients) return;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted || !_scrollController.hasClients) return;
+          final delta =
+              _scrollController.position.maxScrollExtent - previousMaxExtent;
+          if (delta > 0) {
+            _scrollController.jumpTo(previousPixels + delta);
+          }
+        });
+      }),
+    );
   }
 
   void _onStreamingUpdate() {
@@ -727,8 +761,12 @@ class _ChatPageContentState extends State<_ChatPageContent>
     final hasSummary = summary != null && summary.isNotEmpty;
     final hasBanner =
         showSystemPrompt && chatProvider.currentConversation != null;
+    // B-03: a spinner above the oldest loaded message while an older page
+    // fetched via scroll-to-top (see _maybeLoadOlderMessages) is in flight.
+    final showLoadingOlder = chatProvider.loadingOlderMessages;
 
     var itemOffset = 0;
+    if (showLoadingOlder) itemOffset++;
     if (hasBanner) itemOffset++;
     if (hasSummary) itemOffset++;
 
@@ -766,6 +804,21 @@ class _ChatPageContentState extends State<_ChatPageContent>
       itemCount: items.length + itemOffset,
       itemBuilder: (context, index) {
         var leadingIdx = 0;
+        if (showLoadingOlder) {
+          if (index == leadingIdx) {
+            return const Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Center(
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            );
+          }
+          leadingIdx++;
+        }
         if (hasBanner) {
           if (index == leadingIdx) return centered(const SystemPromptBanner());
           leadingIdx++;

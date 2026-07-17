@@ -1331,7 +1331,10 @@ class _RecordingChatService extends ChatService {
   }
 
   @override
-  Future<Conversation> getConversation(String conversationId) async =>
+  Future<Conversation> getConversation(
+    String conversationId, {
+    int? messageLimit,
+  }) async =>
       _conversation(model: createArgs?['model'] as String? ?? 'qwen3');
 
   @override

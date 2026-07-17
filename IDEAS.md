@@ -133,6 +133,7 @@ New idea
 
 - on desktop applications, users should be able to include a folder in a chat. Of course we need to make sure the agent to never be able to read outside of that folder
 - in a chat or room, the agent can be delegated to start a opencode workflow to perform more complex tasks (similat to what we do wiht the small apps but more generic) The llm should be able auto decide to start this agent for very complex tasks.
+- auto upgrade wihtin the desktop app. check if there is a new version in the github releases and auto upgrade it
 
 
 ----
@@ -297,3 +298,39 @@ calls) takes a long time; the lag repeats after every sent message.
   messages — no load-more-on-scroll-top. Search has explicit prev/next
   page buttons. `SmartScrollController` has `isNearBottom` detection but no
   load-from-top trigger.
+
+**Fix:** Windowed message loading, mirroring the pattern this doc noted was
+missing on the frontend even where rooms had backend pagination:
+
+- New `Message.seq` column (migration 024) — an app-assigned monotonic
+  insertion order. `created_at` can't be trusted as a pagination cursor:
+  rows persisted in the same DB transaction (an agent turn's
+  assistant/tool_call/tool_result rows) share an identical value, since
+  Postgres `now()` is transaction-start time, not per-statement time — a
+  real correctness bug found while implementing this, not just a
+  performance one (sorting by `created_at` alone could show a tool_result
+  before its own tool_call).
+- `GET /conversations/{id}?message_limit=N` returns only the most recent N
+  messages + `has_more_messages`; `GET /conversations/{id}/messages?before=`
+  pages older ones in. Internal callers needing full history (regenerate,
+  edit, branch, context building) are untouched — only the read-only detail
+  endpoint is windowed.
+- `ChatProvider.loadConversation` requests a 60-message window;
+  `_reloadCurrentConversation` (runs after every turn) requests
+  `max(60, messages already displayed)` instead of everything, so it stays
+  cheap for an active conversation and never truncates history the user
+  scrolled up to see.
+- `chat_page.dart` triggers `loadOlderMessages()` on scroll-to-top and
+  compensates the scroll offset so prepending older messages doesn't yank
+  the view.
+- **Deliberately not done:** removing the tool_result `content`/`meta.result`
+  duplication. Traced during this fix — it isn't safe to drop: the frontend's
+  live-streaming tool bubble reads the structured result from
+  `meta['result']`, while `content` holds different things depending on path
+  (tool name during streaming, full result text after reload); removing the
+  duplication cleanly would need to touch the SSE chunk schema too, with real
+  regression risk to tool-call rendering. Left as a documented follow-up
+  rather than rushed.
+- *(Tests: `test_conversation_pagination.py`,
+  `test_conversation_pagination_endpoints.py`,
+  `chat_provider_pagination_test.dart`.)*

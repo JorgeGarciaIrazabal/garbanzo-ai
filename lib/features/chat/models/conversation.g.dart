@@ -30,6 +30,7 @@ _Conversation _$ConversationFromJson(Map<String, dynamic> json) =>
       messages: (json['messages'] as List<dynamic>?)
           ?.map((e) => ChatMessage.fromJson(e as Map<String, dynamic>))
           .toList(),
+      hasMoreMessages: json['has_more_messages'] as bool? ?? false,
       mutedUntil: json['muted_until'] == null
           ? null
           : DateTime.parse(json['muted_until'] as String),
@@ -51,6 +52,7 @@ Map<String, dynamic> _$ConversationToJson(_Conversation instance) =>
       'thinking_level': _$ThinkingLevelEnumMap[instance.thinkingLevel],
       'enabled_tools': instance.enabledTools,
       'messages': instance.messages,
+      'has_more_messages': instance.hasMoreMessages,
       'muted_until': instance.mutedUntil?.toIso8601String(),
     };
 

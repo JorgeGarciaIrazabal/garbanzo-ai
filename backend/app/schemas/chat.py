@@ -365,30 +365,44 @@ class ConversationOut(BaseModel):
         )
 
 
+def message_out(msg: "Any") -> ChatMessageOut:
+    """Build a ``ChatMessageOut`` from an ORM ``Message`` row."""
+    return ChatMessageOut(
+        id=msg.id,
+        role=msg.role,
+        content=msg.content,
+        created_at=msg.created_at,
+        meta=msg.meta,
+    )
+
+
 class ConversationDetailOut(ConversationOut):
     """Conversation with full message history."""
 
     messages: list[ChatMessageOut] = Field(
         default_factory=list,
-        description="All messages in the conversation",
+        description=(
+            "Messages in the conversation — all of them, unless "
+            "`message_limit` was passed, in which case only the most recent "
+            "window (see `has_more_messages`)."
+        ),
     )
     context_summary: str | None = Field(
         None, description="Summary of earlier messages trimmed from context"
+    )
+    has_more_messages: bool = Field(
+        default=False,
+        description=(
+            "True when `messages` is a windowed page (via `message_limit`) "
+            "and older messages exist. Page them in with "
+            "GET /conversations/{id}/messages?before=<oldest message id>."
+        ),
     )
 
     @classmethod
     def from_model(cls, conv: "Any") -> "ConversationDetailOut":
         """Build from an ORM ``Conversation`` with eagerly-loaded messages."""
-        messages = [
-            ChatMessageOut(
-                id=msg.id,
-                role=msg.role,  # type: ignore[arg-type]
-                content=msg.content,
-                created_at=msg.created_at,
-                meta=msg.meta,
-            )
-            for msg in conv.messages
-        ]
+        messages = [message_out(msg) for msg in conv.messages]
         return cls(
             id=conv.id,
             title=conv.title,
@@ -407,6 +421,44 @@ class ConversationDetailOut(ConversationOut):
             thinking_level=getattr(conv, "thinking_level", None),
         )
 
+    @classmethod
+    def from_model_page(
+        cls,
+        conv: "Any",
+        messages: list["Any"],
+        *,
+        total_message_count: int,
+        has_more_messages: bool,
+    ) -> "ConversationDetailOut":
+        """Build from an ORM ``Conversation`` plus an explicitly-provided
+        (already windowed) message list, instead of reading ``conv.messages``.
+
+        B-03: used for the paginated recent-messages path, where only a
+        window of messages is loaded. Deliberately never touches the
+        ``conv.messages`` relationship — assigning a partial list to it would
+        trip its ``cascade="all, delete-orphan"`` collection-replace
+        semantics and delete the rows left out of the window.
+        """
+        out_messages = [message_out(msg) for msg in messages]
+        return cls(
+            id=conv.id,
+            title=conv.title,
+            model=conv.model,
+            created_at=conv.created_at,
+            updated_at=conv.updated_at,
+            message_count=total_message_count,
+            messages=out_messages,
+            has_more_messages=has_more_messages,
+            use_memory=getattr(conv, "use_memory", True),
+            use_knowledge_base=getattr(conv, "use_knowledge_base", True),
+            context_summary=getattr(conv, "context_summary", None),
+            system_prompt=getattr(conv, "system_prompt", None),
+            enabled_tools=getattr(conv, "enabled_tools", None),
+            is_pinned=getattr(conv, "is_pinned", False),
+            muted_until=getattr(conv, "muted_until", None),
+            thinking_level=getattr(conv, "thinking_level", None),
+        )
+
 
 class ConversationList(BaseModel):
     """List of conversations with pagination."""
@@ -415,6 +467,13 @@ class ConversationList(BaseModel):
     total: int = Field(..., description="Total number of conversations")
     page: int = Field(default=1, description="Current page number")
     page_size: int = Field(default=20, description="Items per page")
+
+
+class MessagePage(BaseModel):
+    """A page of older messages, oldest-first (B-03: scroll-to-top paging)."""
+
+    messages: list[ChatMessageOut] = Field(..., description="The page of messages")
+    has_more: bool = Field(..., description="Whether even older messages remain beyond this page")
 
 
 # ============================================================================

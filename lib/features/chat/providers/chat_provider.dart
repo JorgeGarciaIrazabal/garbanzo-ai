@@ -75,6 +75,17 @@ class ChatProvider extends ChangeNotifier {
   List<ChatMessage> _messages = [];
   List<ChatMessage> get messages => List.unmodifiable(_messages);
 
+  // Initial/reload window size (B-03): a full multi-hundred-message history
+  // is slow to transfer and parse, so only this many recent messages are
+  // fetched up front. Older ones page in on demand via loadOlderMessages.
+  static const int _messageWindow = 60;
+
+  /// Whether older messages exist beyond what's currently loaded.
+  bool get hasMoreMessages => _currentConversation?.hasMoreMessages ?? false;
+
+  bool _loadingOlderMessages = false;
+  bool get loadingOlderMessages => _loadingOlderMessages;
+
   bool _isSending = false;
   bool get isSending => _isSending;
 
@@ -169,13 +180,48 @@ class ChatProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final conversation = await _chatService.getConversation(conversationId);
+      final conversation = await _chatService.getConversation(
+        conversationId,
+        messageLimit: _messageWindow,
+      );
       _currentConversation = conversation;
       _messages = _hydrateAttachments(conversation.messages ?? []);
     } catch (e) {
       _error = 'Failed to load conversation: $e';
       logDebug(_error!);
     } finally {
+      notifyListeners();
+    }
+  }
+
+  /// Pages in messages older than the oldest one currently loaded (B-03),
+  /// e.g. triggered when the user scrolls to the top of the message list.
+  Future<void> loadOlderMessages() async {
+    final conversation = _currentConversation;
+    if (conversation == null ||
+        !conversation.hasMoreMessages ||
+        _loadingOlderMessages ||
+        _messages.isEmpty) {
+      return;
+    }
+
+    _loadingOlderMessages = true;
+    notifyListeners();
+
+    final oldestId = _messages.first.id;
+    try {
+      final (older, hasMore) = await _chatService.getOlderMessages(
+        conversation.id,
+        oldestId,
+      );
+      if (_currentConversation?.id == conversation.id) {
+        _messages = [..._hydrateAttachments(older), ..._messages];
+        _currentConversation = conversation.copyWith(hasMoreMessages: hasMore);
+      }
+    } catch (e) {
+      logDebug('Failed to load older messages: $e');
+    } finally {
+      _loadingOlderMessages = false;
       notifyListeners();
     }
   }
@@ -772,7 +818,17 @@ class ChatProvider extends ChangeNotifier {
     if (id == null) return;
     final epoch = _actionEpoch;
     try {
-      final conversation = await _chatService.getConversation(id);
+      // Request at least as many messages as are already displayed (which
+      // grows if the user paged older ones in via loadOlderMessages) so this
+      // reload — which runs after every single turn — never truncates
+      // already-visible history back down to the initial window (B-03).
+      final limit = _messages.length < _messageWindow
+          ? _messageWindow
+          : _messages.length;
+      final conversation = await _chatService.getConversation(
+        id,
+        messageLimit: limit,
+      );
       if (epoch != _actionEpoch || _currentConversation?.id != id) {
         return; // stale — a newer action owns the state now
       }

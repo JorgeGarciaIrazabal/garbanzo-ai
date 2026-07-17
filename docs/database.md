@@ -48,6 +48,12 @@ half-migrated schema.
 - `Conversation.enabled_tools` (JSONB) stores per-conversation tool whitelists: `null` = all enabled (MCP + native), `[]` = none, `["srv:tool"]` = subset. Native garbo tools use key `"__garbo__:<tool_name>"` (e.g. `"__garbo__:scheduled_actions"`).
 - `Message.meta` is JSONB and stores token counts, generation timing, thinking block content.
 - `Message.role` can be: `user`, `assistant`, `system`, `tool_call`, `tool_result`.
+- `Message.seq` (B-03) is an app-assigned monotonic insertion order
+  (`time.time_ns()` at construction), used to paginate a conversation's
+  messages. `created_at` alone can't serve as a pagination cursor — rows
+  persisted within the same DB transaction (an agent turn's
+  assistant/tool_call/tool_result rows) share an identical value, since
+  Postgres `now()` is transaction-start time, not per-statement time.
 - `UserMemory` stores extracted/manual user memories with `content`, `source_conversation_id`, `is_active`.
 - `KnowledgeDocument` / `KnowledgeChunk` store uploaded documents and vector embeddings for RAG.
 - `Room`, `RoomMember`, `RoomAgent`, `RoomMessage` support multi-person/agent chat rooms.

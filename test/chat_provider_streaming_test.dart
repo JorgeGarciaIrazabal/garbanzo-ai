@@ -37,7 +37,10 @@ class _FakeChatService extends ChatService {
   }
 
   @override
-  Future<Conversation> getConversation(String conversationId) async {
+  Future<Conversation> getConversation(
+    String conversationId, {
+    int? messageLimit,
+  }) async {
     return reloadedConversation ?? _conversation;
   }
 
