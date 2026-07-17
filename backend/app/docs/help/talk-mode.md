@@ -15,7 +15,9 @@ screen.
 
 ## Can I interrupt the assistant?
 Yes — just start talking while it's speaking (barge-in). Playback stops and
-your new speech becomes the next message.
+your new speech becomes the next message. How easily this triggers is set by
+Settings → Voice → **Voice interruption** (Off / Low / Normal / High); with
+it off, tap the screen to interrupt instead.
 
 ## How do I mute or end the call?
 Use the on-screen **Mute** button to stop listening temporarily and

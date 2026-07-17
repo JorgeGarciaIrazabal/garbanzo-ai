@@ -27,6 +27,12 @@ for spoken replies. Used by the speak button and Talk Mode. Voices are
 available in English, Spanish, French, Hindi, Italian, and Brazilian
 Portuguese — each entry in the picker shows its language.
 
+## How do I stop Talk Mode interrupting itself (or ignoring me)?
+Voice → **Voice interruption** controls barge-in — talking over the
+assistant to interrupt it in Talk Mode. Raise the sensitivity if it ignores
+you; lower it (or turn it Off) if background noise or the assistant's own
+voice keeps cutting the reply short. Off leaves tap-to-interrupt working.
+
 ## How do I make Talk Mode reply in my language?
 Voice → **Automatic language switching** (on by default): spoken replies
 follow the language you speak. Under **My languages**, select the languages

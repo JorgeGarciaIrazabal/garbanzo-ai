@@ -31,6 +31,7 @@ void main() {
       expect(p.showSystemPrompt, isFalse);
       expect(p.preferredLanguages, isEmpty);
       expect(p.autoLanguage, isTrue);
+      expect(p.bargeInSensitivity, BargeInSensitivity.normal);
       expect(p.loaded, isTrue);
     });
 
@@ -57,6 +58,7 @@ void main() {
         'settings_show_system_prompt': true,
         'settings_preferred_languages': ['en', 'es'],
         'settings_auto_language': false,
+        'settings_barge_in_sensitivity': 'low',
       });
       final p = await _makeLoaded();
       expect(p.ttsVoice, 'af_bella');
@@ -68,6 +70,15 @@ void main() {
       expect(p.showSystemPrompt, isTrue);
       expect(p.preferredLanguages, ['en', 'es']);
       expect(p.autoLanguage, isFalse);
+      expect(p.bargeInSensitivity, BargeInSensitivity.low);
+    });
+
+    test('unknown barge-in sensitivity string falls back to default', () async {
+      SharedPreferences.setMockInitialValues({
+        'settings_barge_in_sensitivity': 'extreme',
+      });
+      final p = await _makeLoaded();
+      expect(p.bargeInSensitivity, SettingsProvider.defaultBargeInSensitivity);
     });
 
     test('unknown theme mode string falls back to default', () async {
@@ -139,6 +150,15 @@ void main() {
 
       final prefs = await SharedPreferences.getInstance();
       expect(prefs.getStringList('settings_preferred_languages'), ['en', 'es']);
+    });
+
+    test('setBargeInSensitivity persists the choice', () async {
+      final p = await _makeLoaded();
+      await p.setBargeInSensitivity(BargeInSensitivity.off);
+      expect(p.bargeInSensitivity, BargeInSensitivity.off);
+
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('settings_barge_in_sensitivity'), 'off');
     });
 
     test('setAutoLanguage persists the choice', () async {

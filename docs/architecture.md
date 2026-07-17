@@ -118,8 +118,10 @@ features/chat/
                      (state machine + call loop + voice barge-in + reply-language
                      follow: STT-detected language → TTS voice swap, bounded to
                      preferred languages, with an in-call override), talk_vad.dart
-                     (energy VAD), talk_recorder.dart (mic + amplitude stream),
-                     talk_tts_queue.dart (sentence-streamed playback)
+                     (energy VAD), talk_barge_in.dart (talk-over-the-AI detector:
+                     margin + absolute gate + echo-adaptive floor; sensitivity is
+                     a Voice setting), talk_recorder.dart (mic + amplitude
+                     stream), talk_tts_queue.dart (sentence-streamed playback)
   widgets/           ChatPage, ChatInputWidget, ChatMessageWidget,
                      ConversationListWidget, StylePicker (StylePickerButton
                      + popover/bottom-sheet panel; replaced the old

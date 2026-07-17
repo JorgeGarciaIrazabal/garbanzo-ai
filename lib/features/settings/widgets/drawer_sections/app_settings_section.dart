@@ -224,6 +224,34 @@ class _VoiceSettingsTilesState extends State<VoiceSettingsTiles> {
           onChanged: (value) => settings.setAutoSubmitStt(value),
           dense: true,
         ),
+        // Voice barge-in sensitivity: how easily talking over the AI
+        // interrupts it in Talk Mode. Off keeps tap-to-interrupt only.
+        ListTile(
+          title: const Text('Voice interruption'),
+          subtitle: const Text('Talk over the AI to interrupt (Talk Mode)'),
+          dense: true,
+          trailing: DropdownButton<BargeInSensitivity>(
+            key: const ValueKey('barge_in_sensitivity'),
+            value: settings.bargeInSensitivity,
+            underline: const SizedBox.shrink(),
+            isDense: true,
+            items: [
+              for (final level in BargeInSensitivity.values)
+                DropdownMenuItem(
+                  value: level,
+                  child: Text(switch (level) {
+                    BargeInSensitivity.off => 'Off',
+                    BargeInSensitivity.low => 'Low sensitivity',
+                    BargeInSensitivity.normal => 'Normal',
+                    BargeInSensitivity.high => 'High sensitivity',
+                  }, style: theme.textTheme.bodySmall),
+                ),
+            ],
+            onChanged: (value) {
+              if (value != null) settings.setBargeInSensitivity(value);
+            },
+          ),
+        ),
         SwitchListTile(
           key: const ValueKey('auto_language_switch'),
           title: const Text('Automatic language switching'),

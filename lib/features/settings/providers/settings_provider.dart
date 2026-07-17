@@ -5,6 +5,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Theme mode options for the app.
 enum AppThemeMode { light, dark, system }
 
+/// How easily talking over the AI interrupts it in Talk Mode.
+/// [off] disables voice barge-in entirely (tap-to-interrupt still works).
+enum BargeInSensitivity { off, low, normal, high }
+
 /// App-wide user preferences backed by SharedPreferences.
 ///
 /// Covers TTS voice/speed, auto-play TTS, auto-submit STT settings,
@@ -26,12 +30,14 @@ class SettingsProvider extends ChangeNotifier {
   static const _keyOnboardingDismissed = 'settings_onboarding_dismissed';
   static const _keyPreferredLanguages = 'settings_preferred_languages';
   static const _keyAutoLanguage = 'settings_auto_language';
+  static const _keyBargeInSensitivity = 'settings_barge_in_sensitivity';
 
   // Defaults
   static const defaultVoice = 'af_heart';
   static const defaultSpeed = 1.0;
   static const defaultThemeMode = AppThemeMode.system;
   static const defaultAutoLanguage = true;
+  static const defaultBargeInSensitivity = BargeInSensitivity.normal;
 
   String _ttsVoice = defaultVoice;
   double _ttsSpeed = defaultSpeed;
@@ -46,6 +52,7 @@ class SettingsProvider extends ChangeNotifier {
   // re-pick on a new device and doesn't need server-side persistence.
   List<String> _preferredLanguages = const [];
   bool _autoLanguage = defaultAutoLanguage;
+  BargeInSensitivity _bargeInSensitivity = defaultBargeInSensitivity;
   bool _loaded = false;
 
   /// True while the full-screen Talk Mode call is open. Transient (not
@@ -65,6 +72,7 @@ class SettingsProvider extends ChangeNotifier {
   bool get onboardingDismissed => _onboardingDismissed;
   List<String> get preferredLanguages => List.unmodifiable(_preferredLanguages);
   bool get autoLanguage => _autoLanguage;
+  BargeInSensitivity get bargeInSensitivity => _bargeInSensitivity;
   bool get loaded => _loaded;
 
   /// Converts AppThemeMode to Flutter's ThemeMode.
@@ -92,6 +100,11 @@ class SettingsProvider extends ChangeNotifier {
     _preferredLanguages =
         prefs.getStringList(_keyPreferredLanguages) ?? const [];
     _autoLanguage = prefs.getBool(_keyAutoLanguage) ?? defaultAutoLanguage;
+    _bargeInSensitivity =
+        BargeInSensitivity.values.asNameMap()[prefs.getString(
+          _keyBargeInSensitivity,
+        )] ??
+        defaultBargeInSensitivity;
     _loaded = true;
     notifyListeners();
   }
@@ -180,6 +193,14 @@ class SettingsProvider extends ChangeNotifier {
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList(_keyPreferredLanguages, normalized);
+  }
+
+  Future<void> setBargeInSensitivity(BargeInSensitivity value) async {
+    if (_bargeInSensitivity == value) return;
+    _bargeInSensitivity = value;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyBargeInSensitivity, value.name);
   }
 
   Future<void> setAutoLanguage(bool value) async {

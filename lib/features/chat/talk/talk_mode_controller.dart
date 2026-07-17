@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import 'package:garbanzo_ai/core/log.dart';
 import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
+import 'package:garbanzo_ai/features/chat/talk/talk_barge_in.dart';
 import 'package:garbanzo_ai/features/chat/talk/talk_recorder.dart';
 import 'package:garbanzo_ai/features/chat/talk/talk_tts_queue.dart';
 import 'package:garbanzo_ai/features/chat/talk/talk_vad.dart';
@@ -67,13 +68,28 @@ class TalkModeController extends ChangeNotifier {
   /// user talks over the AI. Tap-to-interrupt works regardless.
   final bool _voiceBargeIn;
 
-  // Barge-in: interrupt when the user talks over the AI. The threshold is
-  // relative to the learned ambient floor (like speech detection) but with a
-  // wider margin so the AI's own playback echo doesn't self-trigger — the user
-  // has to speak up over the AI. Requires several consecutive loud samples.
-  static const double _bargeMarginDb = 14;
-  static const int _bargeSustainSamples = 3; // ~300 ms at a 100 ms interval
-  int _bargeLoud = 0;
+  // Barge-in detector, re-armed per reply from the user's sensitivity
+  // setting. Null while no reply is playing or when sensitivity is Off.
+  TalkBargeIn? _barge;
+
+  /// Detector parameters for each sensitivity level, or null for Off. Higher
+  /// sensitivity = narrower margin and a shorter loud stretch to trigger.
+  @visibleForTesting
+  static TalkBargeIn? bargeForSensitivity(BargeInSensitivity sensitivity) =>
+      switch (sensitivity) {
+        BargeInSensitivity.off => null,
+        BargeInSensitivity.low => TalkBargeIn(
+          marginDb: 22,
+          windowSize: 10,
+          requiredLoud: 8,
+        ),
+        BargeInSensitivity.normal => TalkBargeIn(),
+        BargeInSensitivity.high => TalkBargeIn(
+          marginDb: 14,
+          windowSize: 5,
+          requiredLoud: 3,
+        ),
+      };
 
   TalkTtsQueue? _tts;
 
@@ -170,9 +186,13 @@ class TalkModeController extends ChangeNotifier {
   Timer? _retryTimer;
 
   /// Whether talking over the AI can interrupt it (needs echo cancellation —
-  /// see the class doc). Drives the status hint while speaking.
+  /// see the class doc — and sensitivity not set to Off). Drives the status
+  /// hint while speaking.
   bool get bargeInAvailable =>
-      _voiceBargeIn && !_muted && _recorder.echoCancellationActive;
+      _voiceBargeIn &&
+      !_muted &&
+      _settings.bargeInSensitivity != BargeInSensitivity.off &&
+      _recorder.echoCancellationActive;
 
   /// Human-readable status line for the UI.
   String get statusText => switch (_phase) {
@@ -287,16 +307,11 @@ class TalkModeController extends ChangeNotifier {
     );
   }
 
-  /// Interrupt the AI once the user has been loud for a sustained stretch,
-  /// measured relative to the ambient floor the VAD learned while listening.
+  /// Interrupt the AI once the user has been loud for a sustained stretch —
+  /// see [TalkBargeIn] for the margins, gate, and echo adaptation involved.
   void _detectBargeIn(double db) {
-    if (db > _vad.noiseFloorDb + _bargeMarginDb) {
-      if (++_bargeLoud >= _bargeSustainSamples) {
-        _bargeLoud = 0;
-        unawaited(_interrupt(carryOverCapture: true));
-      }
-    } else {
-      _bargeLoud = 0;
+    if (_barge?.update(db) ?? false) {
+      unawaited(_interrupt(carryOverCapture: true));
     }
   }
 
@@ -338,7 +353,8 @@ class TalkModeController extends ChangeNotifier {
     _spokenUpTo = 0;
     _streamFinished = false;
     _awaitingReply = true;
-    _bargeLoud = 0;
+    _barge = bargeForSensitivity(_settings.bargeInSensitivity)
+      ?..arm(_vad.noiseFloorDb);
     _assistantText = '';
     _tts = TalkTtsQueue(
       voice: _settings.ttsVoice,
@@ -350,7 +366,10 @@ class TalkModeController extends ChangeNotifier {
     // Keep the mic open during the reply for voice barge-in — but only when
     // echo cancellation is active, otherwise the AI's own playback would
     // self-trigger an interrupt.
-    if (_voiceBargeIn && !_muted && _recorder.echoCancellationActive) {
+    if (_barge != null &&
+        _voiceBargeIn &&
+        !_muted &&
+        _recorder.echoCancellationActive) {
       unawaited(
         _recorder
             .start(onDb: _onDb)

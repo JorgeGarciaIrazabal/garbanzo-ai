@@ -1,7 +1,33 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:garbanzo_ai/features/chat/talk/talk_mode_controller.dart';
+import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
 
 void main() {
+  group('TalkModeController.bargeForSensitivity', () {
+    test('off yields no detector', () {
+      expect(
+        TalkModeController.bargeForSensitivity(BargeInSensitivity.off),
+        isNull,
+      );
+    });
+
+    test('higher sensitivity means a lower bar and a shorter stretch', () {
+      final low = TalkModeController.bargeForSensitivity(
+        BargeInSensitivity.low,
+      )!;
+      final normal = TalkModeController.bargeForSensitivity(
+        BargeInSensitivity.normal,
+      )!;
+      final high = TalkModeController.bargeForSensitivity(
+        BargeInSensitivity.high,
+      )!;
+      expect(high.marginDb, lessThan(normal.marginDb));
+      expect(normal.marginDb, lessThan(low.marginDb));
+      expect(high.requiredLoud, lessThan(normal.requiredLoud));
+      expect(normal.requiredLoud, lessThan(low.requiredLoud));
+    });
+  });
+
   group('TalkModeController.lastSentenceBoundary', () {
     test('returns the offset when no complete sentence yet', () {
       // No terminator+whitespace after the cursor.
