@@ -347,6 +347,14 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
   final Set<_Capability> _filters = {};
   bool? _customizeExpanded;
 
+  /// When set, the customize section edits this saved style with the local
+  /// `_edit*` composition below instead of the live conversation/pendings —
+  /// so re-shaping a style never touches the current chat.
+  Style? _editing;
+  String? _editModelId;
+  ThinkingLevel? _editThinking;
+  String? _editTemplateId;
+
   @override
   void initState() {
     super.initState();
@@ -403,6 +411,10 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
   }
 
   Future<void> _selectModel(String modelId) async {
+    if (_editing != null) {
+      setState(() => _editModelId = modelId);
+      return;
+    }
     final chat = context.read<ChatProvider>();
     context.read<ModelProvider>().selectModel(modelId);
     if (chat.currentConversation != null) {
@@ -411,6 +423,10 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
   }
 
   Future<void> _setThinking(ThinkingLevel? level) async {
+    if (_editing != null) {
+      setState(() => _editThinking = level);
+      return;
+    }
     final chat = context.read<ChatProvider>();
     context.read<StyleProvider>().setPendingThinkingLevel(level);
     if (chat.currentConversation != null) {
@@ -422,6 +438,10 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
   }
 
   Future<void> _setTemplate(String? templateId) async {
+    if (_editing != null) {
+      setState(() => _editTemplateId = templateId);
+      return;
+    }
     final chat = context.read<ChatProvider>();
     final templates = context.read<SystemPromptProvider>().templates;
     final content = _resolveTemplateContent(templates, templateId);
@@ -433,6 +453,18 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
       );
     }
   }
+
+  void _startEditing(Style style) {
+    setState(() {
+      _editing = style;
+      _editModelId = style.modelId;
+      _editThinking = style.thinkingLevel;
+      _editTemplateId = style.systemPromptTemplateId;
+      _customizeExpanded = true;
+    });
+  }
+
+  void _cancelEditing() => setState(() => _editing = null);
 
   Future<void> _setDefault(Style style, bool isDefault) async {
     final styleP = context.read<StyleProvider>();
@@ -462,7 +494,8 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
       ),
     );
     if (confirmed != true || !mounted) return;
-    await context.read<StyleProvider>().deleteStyle(style.id);
+    final ok = await context.read<StyleProvider>().deleteStyle(style.id);
+    if (ok && _editing?.id == style.id) _cancelEditing();
   }
 
   Future<void> _saveStyle({
@@ -470,13 +503,30 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
     required ThinkingLevel? thinkingLevel,
     required String? templateId,
   }) async {
+    final editing = _editing;
     final result = await showDialog<({String name, bool isDefault})>(
       context: context,
-      builder: (_) => const _SaveStyleDialog(),
+      builder: (_) => _SaveStyleDialog(existing: editing),
     );
     if (result == null || !mounted) return;
     final styleP = context.read<StyleProvider>();
     final modelP = context.read<ModelProvider>();
+    if (editing != null) {
+      final updated = await styleP.updateStyle(
+        editing.id,
+        name: result.name,
+        modelId: modelId,
+        thinkingLevel: thinkingLevel,
+        setThinkingLevel: true,
+        systemPromptTemplateId: templateId,
+        setTemplateId: true,
+        isDefault: result.isDefault,
+      );
+      if (updated == null) return;
+      if (updated.isDefault) await modelP.setDefaultModel(updated.modelId);
+      if (mounted) _cancelEditing();
+      return;
+    }
     final created = await styleP.createStyle(
       name: result.name,
       modelId: modelId,
@@ -506,9 +556,6 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
     final styles = styleP.styles;
 
     final effectiveModelId = conv?.model ?? modelP.selectedModelId;
-    final effectiveModel = models
-        .where((m) => m.id == effectiveModelId)
-        .firstOrNull;
     final effectiveThinking = conv != null
         ? conv.thinkingLevel
         : styleP.pendingThinkingLevel;
@@ -525,6 +572,19 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
               ?.id;
     final hasCustomPrompt =
         effectivePrompt != null && selectedTemplateId == null;
+
+    // What the customize controls show: the live conversation/pendings, or —
+    // while editing a saved style — the local edit composition.
+    final editing = _editing;
+    final composeModelId = editing != null ? _editModelId : effectiveModelId;
+    final composeModel = models
+        .where((m) => m.id == composeModelId)
+        .firstOrNull;
+    final composeThinking = editing != null ? _editThinking : effectiveThinking;
+    final composeTemplateId = editing != null
+        ? _editTemplateId
+        : selectedTemplateId;
+    final composeHasCustomPrompt = editing == null && hasCustomPrompt;
 
     // With no saved styles yet, composing is the only thing to do here.
     final customizeExpanded = _customizeExpanded ?? styles.isEmpty;
@@ -630,6 +690,7 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
                         enabled: !busy,
                         onTap: () => _applyStyle(s),
                         onSetDefault: (v) => _setDefault(s, v),
+                        onEdit: () => _startEditing(s),
                         onDelete: () => _deleteStyle(s),
                       ),
                     ),
@@ -639,12 +700,12 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
                   key: const ValueKey('customize_tile'),
                   expanded: customizeExpanded,
                   summary: _compositionSummary(
-                    effectiveModel?.name ?? effectiveModelId,
-                    effectiveThinking,
-                    hasCustomPrompt
+                    composeModel?.name ?? composeModelId,
+                    composeThinking,
+                    composeHasCustomPrompt
                         ? 'Custom prompt'
                         : templates
-                              .where((t) => t.id == selectedTemplateId)
+                              .where((t) => t.id == composeTemplateId)
                               .firstOrNull
                               ?.name,
                   ),
@@ -660,6 +721,35 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
                       : Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
+                            if (editing != null) ...[
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.edit_outlined,
+                                    size: 16,
+                                    color: colorScheme.primary,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'Editing "${editing.name}"',
+                                      style: theme.textTheme.labelMedium
+                                          ?.copyWith(
+                                            color: colorScheme.primary,
+                                          ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  IconButton(
+                                    key: const ValueKey('cancel_edit_style'),
+                                    tooltip: 'Stop editing',
+                                    icon: const Icon(Icons.close, size: 16),
+                                    onPressed: _cancelEditing,
+                                  ),
+                                ],
+                              ),
+                            ],
                             const SizedBox(height: 8),
                             TextField(
                               key: const ValueKey('style_search_field'),
@@ -691,7 +781,7 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
                             const SizedBox(height: 8),
                             _ModelList(
                               models: filteredModels,
-                              selectedId: effectiveModelId,
+                              selectedId: composeModelId,
                               filters: _filters,
                               emptyMessage: emptyMessage,
                               enabled: !busy,
@@ -699,19 +789,19 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
                             ),
                             const SizedBox(height: 16),
                             _ThinkingControl(
-                              value: effectiveThinking,
+                              value: composeThinking,
                               enabled:
                                   !busy &&
-                                  effectiveModel?.supportsThinking != false,
+                                  composeModel?.supportsThinking != false,
                               supported:
-                                  effectiveModel?.supportsThinking != false,
+                                  composeModel?.supportsThinking != false,
                               onChanged: _setThinking,
                             ),
                             const SizedBox(height: 16),
                             _TemplatePicker(
                               templates: templates,
-                              selectedId: selectedTemplateId,
-                              hasCustomPrompt: hasCustomPrompt,
+                              selectedId: composeTemplateId,
+                              hasCustomPrompt: composeHasCustomPrompt,
                               enabled: !busy,
                               onChanged: _setTemplate,
                             ),
@@ -720,15 +810,23 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
                               alignment: Alignment.centerRight,
                               child: FilledButton.tonalIcon(
                                 key: const ValueKey('save_style_button'),
-                                onPressed: (busy || effectiveModelId == null)
+                                onPressed: (busy || composeModelId == null)
                                     ? null
                                     : () => _saveStyle(
-                                        modelId: effectiveModelId,
-                                        thinkingLevel: effectiveThinking,
-                                        templateId: selectedTemplateId,
+                                        modelId: composeModelId,
+                                        thinkingLevel: composeThinking,
+                                        templateId: composeTemplateId,
                                       ),
-                                icon: const Icon(Icons.bookmark_add_outlined),
-                                label: const Text('Save style'),
+                                icon: Icon(
+                                  editing != null
+                                      ? Icons.save_outlined
+                                      : Icons.bookmark_add_outlined,
+                                ),
+                                label: Text(
+                                  editing != null
+                                      ? 'Save changes'
+                                      : 'Save style',
+                                ),
                               ),
                             ),
                           ],
@@ -769,6 +867,7 @@ class _StyleCard extends StatelessWidget {
     required this.enabled,
     required this.onTap,
     required this.onSetDefault,
+    required this.onEdit,
     required this.onDelete,
   });
 
@@ -781,6 +880,7 @@ class _StyleCard extends StatelessWidget {
   final bool enabled;
   final VoidCallback onTap;
   final ValueChanged<bool> onSetDefault;
+  final VoidCallback onEdit;
   final VoidCallback onDelete;
 
   @override
@@ -887,6 +987,8 @@ class _StyleCard extends StatelessWidget {
                     switch (action) {
                       case 'default':
                         onSetDefault(!style.isDefault);
+                      case 'edit':
+                        onEdit();
                       case 'share':
                         showShareWithFriendDialog(
                           context,
@@ -907,6 +1009,7 @@ class _StyleCard extends StatelessWidget {
                             : 'Use for new chats',
                       ),
                     ),
+                    const PopupMenuItem(value: 'edit', child: Text('Edit…')),
                     const PopupMenuItem(
                       value: 'share',
                       child: Text('Share with a friend…'),
@@ -1371,7 +1474,10 @@ class _TemplatePicker extends StatelessWidget {
 // ============================================================================
 
 class _SaveStyleDialog extends StatefulWidget {
-  const _SaveStyleDialog();
+  const _SaveStyleDialog({this.existing});
+
+  /// When set, the dialog edits this style: name/default pre-filled.
+  final Style? existing;
 
   @override
   State<_SaveStyleDialog> createState() => _SaveStyleDialogState();
@@ -1380,6 +1486,16 @@ class _SaveStyleDialog extends StatefulWidget {
 class _SaveStyleDialogState extends State<_SaveStyleDialog> {
   final TextEditingController _nameController = TextEditingController();
   bool _isDefault = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final existing = widget.existing;
+    if (existing != null) {
+      _nameController.text = existing.name;
+      _isDefault = existing.isDefault;
+    }
+  }
 
   @override
   void dispose() {
@@ -1396,7 +1512,7 @@ class _SaveStyleDialogState extends State<_SaveStyleDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Save style'),
+      title: Text(widget.existing == null ? 'Save style' : 'Edit style'),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [

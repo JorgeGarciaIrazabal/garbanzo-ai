@@ -111,6 +111,7 @@ class _FakeStyleProvider extends StyleProvider {
 
   List<Style> _fakeStyles;
   final List<Map<String, Object?>> created = [];
+  final List<Map<String, Object?>> updated = [];
 
   @override
   List<Style> get styles => List.unmodifiable(_fakeStyles);
@@ -153,6 +154,48 @@ class _FakeStyleProvider extends StyleProvider {
     _fakeStyles = _fakeStyles.where((s) => s.id != styleId).toList();
     notifyListeners();
     return true;
+  }
+
+  @override
+  Future<Style?> updateStyle(
+    String styleId, {
+    String? name,
+    String? modelId,
+    ThinkingLevel? thinkingLevel,
+    bool setThinkingLevel = false,
+    String? systemPromptTemplateId,
+    bool setTemplateId = false,
+    bool? isDefault,
+  }) async {
+    updated.add({
+      'styleId': styleId,
+      'name': name,
+      'modelId': modelId,
+      'thinkingLevel': thinkingLevel,
+      'setThinkingLevel': setThinkingLevel,
+      'systemPromptTemplateId': systemPromptTemplateId,
+      'setTemplateId': setTemplateId,
+      'isDefault': isDefault,
+    });
+    _fakeStyles = _fakeStyles
+        .map(
+          (s) => s.id == styleId
+              ? s.copyWith(
+                  name: name ?? s.name,
+                  modelId: modelId ?? s.modelId,
+                  thinkingLevel: setThinkingLevel
+                      ? thinkingLevel
+                      : s.thinkingLevel,
+                  systemPromptTemplateId: setTemplateId
+                      ? systemPromptTemplateId
+                      : s.systemPromptTemplateId,
+                  isDefault: isDefault ?? s.isDefault,
+                )
+              : s,
+        )
+        .toList();
+    notifyListeners();
+    return _fakeStyles.firstWhere((s) => s.id == styleId);
   }
 }
 
@@ -1134,6 +1177,84 @@ void main() {
       expect(styles.created.single['isDefault'], false);
       // The new style now renders as a card.
       expect(find.byKey(const ValueKey('style_card_new-1')), findsOneWidget);
+    });
+
+    _testPicker('editing a saved style updates it without touching the chat', (
+      tester,
+    ) async {
+      _setScreenSize(tester, const Size(390, 844));
+      final chat = _FakeChatProvider(conversation: _conversation());
+      final models = _FakeModelProvider(
+        models: _defaultModels,
+        selectedId: 'qwen3',
+      );
+      final styles = _FakeStyleProvider(
+        styles: [
+          _style(
+            's1',
+            'Deep work',
+            modelId: 'llama3.2',
+            thinkingLevel: ThinkingLevel.high,
+          ),
+        ],
+      );
+      await tester.pumpWidget(
+        _wrap(
+          chat: chat,
+          models: models,
+          styles: styles,
+          prompts: _FakeSystemPromptProvider(),
+        ),
+      );
+      await _openPicker(tester);
+
+      await tester.tap(
+        find.descendant(
+          of: find.byKey(const ValueKey('style_card_s1')),
+          matching: find.byTooltip('Style options'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Edit…'));
+      await tester.pumpAndSettle();
+
+      // Customize expands in edit mode, seeded from the style.
+      expect(find.text('Editing "Deep work"'), findsOneWidget);
+
+      // Recomposing the model only changes the edit state, not the live chat.
+      await tester.ensureVisible(find.byKey(const ValueKey('model_row_qwen3')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('model_row_qwen3')));
+      await tester.pump();
+      expect(models.selections, isEmpty);
+      expect(chat.updates, isEmpty);
+
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('save_style_button')),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Save changes'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('save_style_button')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      // The dialog is the edit variant, pre-filled with the style's name.
+      expect(find.text('Edit style'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('save_style_confirm')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(tester.takeException(), isNull);
+      expect(styles.created, isEmpty);
+      expect(styles.updated, hasLength(1));
+      final u = styles.updated.single;
+      expect(u['styleId'], 's1');
+      expect(u['name'], 'Deep work');
+      expect(u['modelId'], 'qwen3');
+      expect(u['thinkingLevel'], ThinkingLevel.high);
+      expect(u['setThinkingLevel'], true);
+      // Edit mode ends after saving.
+      expect(find.text('Editing "Deep work"'), findsNothing);
     });
   });
 

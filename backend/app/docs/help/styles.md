@@ -29,6 +29,13 @@ On the style's card, choose **Use for new chats**. New conversations start
 with that style's thinking level and prompt; its model becomes your default
 model. Without a default, your most recently applied style seeds new chats.
 
+## How do I edit a style?
+Open the style card's menu and choose **Edit…**. The Customize section
+expands pre-filled with the style's model, thinking level, and template —
+recompose freely (the current chat is untouched while editing), then press
+**Save changes** to update it; the name and default flag can be changed in
+the dialog. The × next to "Editing …" cancels without saving.
+
 ## How do I delete a style?
 Open the style card's menu and choose Delete. This removes the saved preset
 only — no conversations are affected.

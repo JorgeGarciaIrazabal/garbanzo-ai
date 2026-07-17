@@ -145,20 +145,44 @@ class StyleProvider extends ChangeNotifier with GuardedStateMixin {
     }, trackLoading: false);
   }
 
-  /// Make [styleId] the default for new conversations (or clear the flag).
-  Future<Style?> setDefault(String styleId, {bool isDefault = true}) async {
+  /// Partial update, forwarding the service's three-way `set*` semantics for
+  /// thinking level and template (absent = unchanged, null+flag = clear).
+  Future<Style?> updateStyle(
+    String styleId, {
+    String? name,
+    String? modelId,
+    ThinkingLevel? thinkingLevel,
+    bool setThinkingLevel = false,
+    String? systemPromptTemplateId,
+    bool setTemplateId = false,
+    bool? isDefault,
+  }) async {
     return runGuarded('Failed to update style', () async {
-      final updated = await _service.updateStyle(styleId, isDefault: isDefault);
+      final updated = await _service.updateStyle(
+        styleId,
+        name: name,
+        modelId: modelId,
+        thinkingLevel: thinkingLevel,
+        setThinkingLevel: setThinkingLevel,
+        systemPromptTemplateId: systemPromptTemplateId,
+        setTemplateId: setTemplateId,
+        isDefault: isDefault,
+      );
       _styles = _styles
           .map(
             (s) => s.id == updated.id
                 ? updated
+                // The backend unsets any previous default.
                 : (updated.isDefault ? s.copyWith(isDefault: false) : s),
           )
           .toList();
       return updated;
     }, trackLoading: false);
   }
+
+  /// Make [styleId] the default for new conversations (or clear the flag).
+  Future<Style?> setDefault(String styleId, {bool isDefault = true}) =>
+      updateStyle(styleId, isDefault: isDefault);
 
   Future<bool> deleteStyle(String styleId) async {
     final ok = await runGuarded('Failed to delete style', () async {
