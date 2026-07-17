@@ -6,6 +6,8 @@ import 'package:provider/provider.dart';
 import 'package:garbanzo_ai/core/log.dart';
 import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
 import 'package:garbanzo_ai/features/chat/models/chat_attachment.dart';
+import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
+import 'package:garbanzo_ai/features/chat/talk/talk_mode_page.dart';
 import 'package:garbanzo_ai/features/chat/providers/system_prompt_provider.dart';
 import 'package:garbanzo_ai/features/chat/widgets/input/attach_menu_button.dart';
 import 'package:garbanzo_ai/features/chat/widgets/input/attachment_preview.dart';
@@ -312,8 +314,15 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
                   ],
                 ),
               ),
-        idleTrailingBuilder: (_) => _isTranscribing
-            ? SizedBox(
+        // Dictation mic + call-style Talk Mode entry, side by side (idea 15).
+        // Both give way to the send button once there's text, and to the stop
+        // button while streaming — which also covers the old "disabled while
+        // sending" guard on the app bar's talk button this replaces.
+        idleTrailingBuilder: (_) => Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (_isTranscribing)
+              SizedBox(
                 width: isMobile ? 32 : 40,
                 height: isMobile ? 32 : 40,
                 child: const Padding(
@@ -321,7 +330,8 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
                   child: CircularProgressIndicator(strokeWidth: 2),
                 ),
               )
-            : IconButton(
+            else
+              IconButton(
                 key: const ValueKey('voice_button'),
                 onPressed: _toggleRecording,
                 icon: Icon(
@@ -341,6 +351,31 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
                   minHeight: isMobile ? 32 : 40,
                 ),
               ),
+            SizedBox(width: isMobile ? 2 : 4),
+            IconButton.filledTonal(
+              key: const ValueKey('talk_mode_button'),
+              // Disabled mid-dictation so a stray tap can't open a call over
+              // an in-progress recording/transcription.
+              onPressed: _isRecording || _isTranscribing
+                  ? null
+                  : () => TalkModePage.open(
+                      context,
+                      chat: context.read<ChatProvider>(),
+                      settings: context.read<SettingsProvider>(),
+                    ),
+              icon: Icon(Icons.graphic_eq, size: isMobile ? 20 : 22),
+              tooltip: 'Start a voice call',
+              style: IconButton.styleFrom(
+                minimumSize: Size(isMobile ? 32 : 40, isMobile ? 32 : 40),
+                padding: EdgeInsets.zero,
+              ),
+              constraints: BoxConstraints(
+                minWidth: isMobile ? 32 : 40,
+                minHeight: isMobile ? 32 : 40,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

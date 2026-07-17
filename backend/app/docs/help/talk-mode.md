@@ -4,8 +4,9 @@ Talk Mode is a full-screen, call-style voice conversation: you speak, the
 assistant answers out loud, no buttons needed between turns.
 
 ## How do I start Talk Mode?
-Press the **Talk** button next to the chat input. The conversation continues
-in the same chat — everything said is transcribed into it.
+Press the waveform **call** button in the chat composer, right next to the
+dictation mic. The conversation continues in the same chat — everything
+said is transcribed into it.
 
 ## How does a turn work?
 Speak naturally; when you pause, your speech is transcribed and sent. The
