@@ -11,8 +11,10 @@ import 'package:garbanzo_ai/features/chat/services/audio_service.dart';
 import 'package:garbanzo_ai/features/chat/widgets/system_prompt_editor_dialog.dart';
 import 'package:garbanzo_ai/features/notifications/providers/notification_provider.dart';
 import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
+import 'package:garbanzo_ai/core/platform_info.dart';
 import 'package:garbanzo_ai/features/settings/widgets/location_section.dart';
 import 'package:garbanzo_ai/features/settings/widgets/profile_section.dart';
+import 'package:garbanzo_ai/features/settings/widgets/update_section.dart';
 
 /// Dedicated settings screen. Navigation target for `/settings`.
 ///
@@ -26,10 +28,23 @@ class SettingsPage extends StatefulWidget {
   State<SettingsPage> createState() => _SettingsPageState();
 }
 
-enum _Section { profile, appearance, models, voice, memory, notifications }
+enum _Section {
+  profile,
+  appearance,
+  models,
+  voice,
+  memory,
+  notifications,
+  updates,
+}
 
 class _SettingsPageState extends State<SettingsPage> {
   _Section _selected = _Section.profile;
+
+  /// Software update is desktop-only (self-upgrade of the installed bundle).
+  List<_Section> get _sections => _Section.values
+      .where((s) => s != _Section.updates || PlatformInfo.isDesktop)
+      .toList();
   UserInfo? _user;
   List<VoiceOption> _voices = const [];
   bool _loadingVoices = true;
@@ -86,7 +101,7 @@ class _SettingsPageState extends State<SettingsPage> {
           child: Material(
             color: theme.colorScheme.surfaceContainerLowest,
             child: ListView(
-              children: _Section.values
+              children: _sections
                   .map(
                     (s) => ListTile(
                       leading: Icon(_iconFor(s)),
@@ -116,7 +131,7 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget _buildNarrow(ThemeData theme) {
     return ListView(
       padding: const EdgeInsets.all(16),
-      children: _Section.values.map((s) {
+      children: _sections.map((s) {
         return Padding(
           padding: const EdgeInsets.only(bottom: 24),
           child: Column(
@@ -156,6 +171,8 @@ class _SettingsPageState extends State<SettingsPage> {
         return _memorySection();
       case _Section.notifications:
         return _notificationsSection();
+      case _Section.updates:
+        return const UpdateSection();
     }
   }
 
@@ -469,6 +486,8 @@ class _SettingsPageState extends State<SettingsPage> {
         return Icons.bookmark_outline;
       case _Section.notifications:
         return Icons.notifications_outlined;
+      case _Section.updates:
+        return Icons.system_update_alt_outlined;
     }
   }
 
@@ -486,6 +505,8 @@ class _SettingsPageState extends State<SettingsPage> {
         return 'Memory';
       case _Section.notifications:
         return 'Notifications';
+      case _Section.updates:
+        return 'Software update';
     }
   }
 }

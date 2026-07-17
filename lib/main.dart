@@ -23,6 +23,8 @@ import 'package:garbanzo_ai/features/notifications/providers/notification_provid
 import 'package:garbanzo_ai/features/notifications/services/push_service.dart';
 import 'package:garbanzo_ai/features/rooms/providers/room_provider.dart';
 import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
+import 'package:garbanzo_ai/features/settings/providers/update_provider.dart';
+import 'package:garbanzo_ai/features/settings/widgets/update_banner.dart';
 import 'package:garbanzo_ai/features/tools/providers/tool_provider.dart';
 
 void main() {
@@ -95,6 +97,8 @@ class _GarbanzoAppState extends State<GarbanzoApp> {
       providers: [
         ChangeNotifierProvider.value(value: _authState),
         ChangeNotifierProvider(create: (_) => SettingsProvider()),
+        // Desktop auto-update: silent check at startup (no-op off-desktop).
+        ChangeNotifierProvider(create: (_) => UpdateProvider()..silentCheck()),
       ],
       child: Consumer<SettingsProvider>(
         builder: (context, settings, child) {
@@ -106,7 +110,8 @@ class _GarbanzoAppState extends State<GarbanzoApp> {
                 ? settings.flutterThemeMode
                 : ThemeMode.system,
             routerConfig: _router,
-            builder: (context, child) => _AppProviders(child: child!),
+            builder: (context, child) =>
+                _AppProviders(child: UpdateBanner(child: child!)),
           );
         },
       ),

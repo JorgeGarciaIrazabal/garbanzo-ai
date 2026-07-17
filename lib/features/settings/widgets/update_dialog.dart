@@ -1,0 +1,111 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+import 'package:garbanzo_ai/features/settings/providers/update_provider.dart';
+
+/// Changelog + "Download & install" dialog for an available update.
+Future<void> showUpdateDialog(BuildContext context) {
+  final provider = context.read<UpdateProvider>();
+  return showDialog<void>(
+    context: context,
+    barrierDismissible: false,
+    builder: (_) => ChangeNotifierProvider.value(
+      value: provider,
+      child: const UpdateDialog(),
+    ),
+  );
+}
+
+class UpdateDialog extends StatelessWidget {
+  const UpdateDialog({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final provider = context.watch<UpdateProvider>();
+    final result = provider.result;
+    final theme = Theme.of(context);
+    if (result == null) return const SizedBox.shrink();
+    final release = result.release;
+
+    return AlertDialog(
+      title: Text('Update to v${release.version}'),
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 480, maxHeight: 420),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'You have v${result.currentVersion}. The app restarts after '
+              'installing.',
+              style: theme.textTheme.bodySmall,
+            ),
+            const SizedBox(height: 12),
+            if (release.body != null && release.body!.trim().isNotEmpty)
+              Flexible(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surfaceContainerLow,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  padding: const EdgeInsets.all(12),
+                  child: Markdown(
+                    data: release.body!,
+                    shrinkWrap: true,
+                    padding: EdgeInsets.zero,
+                  ),
+                ),
+              ),
+            if (provider.status == UpdateStatus.downloading ||
+                provider.status == UpdateStatus.installing) ...[
+              const SizedBox(height: 16),
+              LinearProgressIndicator(value: provider.downloadProgress),
+              const SizedBox(height: 8),
+              Text(
+                provider.status == UpdateStatus.installing
+                    ? 'Installing… the app will restart.'
+                    : 'Downloading…',
+                style: theme.textTheme.bodySmall,
+              ),
+            ],
+            if (provider.status == UpdateStatus.error &&
+                provider.errorMessage != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                provider.errorMessage!,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.error,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: release.htmlUrl.isEmpty
+              ? null
+              : () => launchUrl(Uri.parse(release.htmlUrl)),
+          child: const Text('Release page'),
+        ),
+        TextButton(
+          onPressed: provider.busy ? null : () => Navigator.of(context).pop(),
+          child: const Text('Close'),
+        ),
+        FilledButton(
+          key: const ValueKey('update_install_button'),
+          onPressed: provider.busy || result.asset == null
+              ? null
+              : provider.downloadAndInstall,
+          child: Text(
+            result.asset == null
+                ? 'No build for this platform'
+                : 'Download & install',
+          ),
+        ),
+      ],
+    );
+  }
+}
