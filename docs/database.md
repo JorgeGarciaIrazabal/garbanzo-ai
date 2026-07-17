@@ -120,6 +120,11 @@ half-migrated schema.
   /chat/models` with more capability flags (`supports_tools`,
   `supports_vision`) alongside it.
 - `ScheduledAction` stores user-defined cron or one-shot prompts.
+- `Report` (026, idea 14) stores in-app bug reports / feature requests:
+  `type` is `bug|feature`, `status` flows `open → in_progress → closed` and is
+  admin-controlled (`PATCH /admin/reports/{id}`); values are enforced by
+  Pydantic literals, not DB enums, matching how other string states are
+  handled. User-owned via `user_id → users.email` CASCADE.
 - `Notification` / `NotificationPreferences` support in-app + FCM push notifications.
 - `DeviceToken` stores FCM tokens per user per platform.
 - `MCPServer` stores registered MCP server configs (managed by admin).

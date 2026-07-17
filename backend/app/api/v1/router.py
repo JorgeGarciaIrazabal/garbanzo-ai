@@ -12,6 +12,7 @@ from app.api.v1.endpoints import (
     memories,
     microapps,
     notifications,
+    reports,
     rooms,
     rooms_ws,
     scheduled_actions,
@@ -37,6 +38,7 @@ api_router.include_router(mcp.router, prefix="/mcp", tags=["mcp"])
 api_router.include_router(memories.router, prefix="/memories", tags=["memories"])
 api_router.include_router(microapps.router, prefix="/microapps", tags=["microapps"])
 api_router.include_router(notifications.router, prefix="/notifications", tags=["notifications"])
+api_router.include_router(reports.router, prefix="/reports", tags=["reports"])
 api_router.include_router(
     scheduled_actions.router,
     prefix="/scheduled-actions",

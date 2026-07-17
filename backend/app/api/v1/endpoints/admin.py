@@ -5,7 +5,7 @@ All routes on this router require an authenticated admin user.
 
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -26,9 +26,11 @@ from app.schemas.mcp import (
     MCPServerTestResult,
     MCPServerUpdate,
 )
+from app.schemas.report import ReportOut, ReportStatus, ReportStatusUpdate
 from app.services.chat_service import ChatService
 from app.services.mcp_service import MCPService
 from app.services.model_management_service import ModelManagementService
+from app.services.report_service import ReportService
 from app.services.user_service import UserService
 
 router = APIRouter(dependencies=[Depends(get_current_admin_user)])
@@ -46,6 +48,10 @@ def get_model_management_service(
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> ModelManagementService:
     return ModelManagementService(db)
+
+
+def get_report_service(db: Annotated[AsyncSession, Depends(get_db)]) -> ReportService:
+    return ReportService(db)
 
 
 # ============================================================================
@@ -290,6 +296,40 @@ async def sync_models(
         )
         for m in merged
     ]
+
+
+# ============================================================================
+# Reports (bug/feature triage)
+# ============================================================================
+
+
+@router.get(
+    "/reports",
+    response_model=list[ReportOut],
+    summary="List all user-submitted reports, optionally filtered by status",
+)
+async def list_reports(
+    service: Annotated[ReportService, Depends(get_report_service)],
+    status_filter: Annotated[ReportStatus | None, Query(alias="status")] = None,
+) -> list[ReportOut]:
+    reports = await service.list_all(status=status_filter)
+    return [ReportOut.model_validate(r) for r in reports]
+
+
+@router.patch(
+    "/reports/{report_id}",
+    response_model=ReportOut,
+    summary="Update a report's triage status",
+)
+async def update_report(
+    report_id: str,
+    data: ReportStatusUpdate,
+    service: Annotated[ReportService, Depends(get_report_service)],
+) -> ReportOut:
+    report = await service.update_status(report_id, data.status)
+    if report is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Report not found")
+    return ReportOut.model_validate(report)
 
 
 @router.patch(

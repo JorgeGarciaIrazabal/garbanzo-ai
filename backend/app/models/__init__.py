@@ -7,6 +7,7 @@ from app.models.mcp_server import MCPServer
 from app.models.memory import UserMemory
 from app.models.message import Message
 from app.models.notification import Notification, NotificationPreferences
+from app.models.report import Report
 from app.models.room import Room, RoomAgent, RoomMember, RoomMessage
 from app.models.scheduled_action import ScheduledAction
 from app.models.shared_item import SharedItem
@@ -28,6 +29,7 @@ __all__ = [
     "SharedItem",
     "Notification",
     "NotificationPreferences",
+    "Report",
     "ScheduledAction",
     "KnowledgeDocument",
     "KnowledgeChunk",
