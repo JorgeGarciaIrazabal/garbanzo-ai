@@ -165,6 +165,37 @@ async def test_admin_patch_unknown_report_404(db_session):
         _clear_overrides()
 
 
+async def test_new_report_notifies_admins_but_not_the_submitter(db_session):
+    from app.services.notification_service import NotificationService
+
+    db_session.add(
+        User(email="admin@example.com", hashed_password=hash_password("x"), is_admin=True)
+    )
+    db_session.add(
+        User(email="submitter-admin@example.com", hashed_password=hash_password("x"), is_admin=True)
+    )
+    await db_session.commit()
+
+    _install_overrides(db_session, email="submitter-admin@example.com")
+    try:
+        async with _client() as c:
+            resp = await c.post(
+                "/api/v1/reports",
+                json={"type": "bug", "title": "Broken", "description": "d"},
+            )
+        assert resp.status_code == 201
+    finally:
+        _clear_overrides()
+
+    notif_svc = NotificationService(db_session)
+    admin_notifs = await notif_svc.list_for_user("admin@example.com")
+    assert len(admin_notifs) == 1
+    assert "Broken" in admin_notifs[0].title
+    assert admin_notifs[0].channel == "system_alerts"
+    # The submitting admin isn't notified about their own report.
+    assert await notif_svc.list_for_user("submitter-admin@example.com") == []
+
+
 async def test_admin_patch_rejects_bad_status(db_session):
     await _seed_user(db_session, "admin@example.com")
     _install_overrides(db_session, email="admin@example.com", admin=True)
