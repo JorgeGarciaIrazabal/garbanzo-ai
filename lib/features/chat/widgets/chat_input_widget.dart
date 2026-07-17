@@ -32,7 +32,6 @@ class ChatInputWidget extends StatefulWidget {
     required this.onSend,
     this.onStop,
     this.isLoading = false,
-    this.hintText = 'Type a message...',
     this.initialAttachments,
   });
 
@@ -42,7 +41,6 @@ class ChatInputWidget extends StatefulWidget {
   final VoidCallback? onStop;
 
   final bool isLoading;
-  final String hintText;
 
   /// Pre-loaded attachments (e.g., from drag-and-drop).
   final List<ChatAttachment>? initialAttachments;
@@ -272,7 +270,6 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
         onSend: _handleSend,
         onStop: widget.onStop,
         isLoading: widget.isLoading,
-        hintText: widget.hintText,
         hasExtraContent: _attachments.isNotEmpty,
         above: _attachments.isEmpty
             ? null

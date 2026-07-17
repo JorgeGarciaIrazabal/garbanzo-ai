@@ -27,11 +27,12 @@ class UpdateDialog extends StatelessWidget {
     final provider = context.watch<UpdateProvider>();
     final result = provider.result;
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context)!;
     if (result == null) return const SizedBox.shrink();
     final release = result.release;
 
     return AlertDialog(
-      title: Text('Update to v${release.version}'),
+      title: Text(l10n.updateToVersion(release.version)),
       content: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 480, maxHeight: 420),
         child: Column(
@@ -39,8 +40,7 @@ class UpdateDialog extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'You have v${result.currentVersion}. The app restarts after '
-              'installing.',
+              l10n.messageUpdateRestartAfterInstall(result.currentVersion),
               style: theme.textTheme.bodySmall,
             ),
             const SizedBox(height: 12),
@@ -66,8 +66,8 @@ class UpdateDialog extends StatelessWidget {
               const SizedBox(height: 8),
               Text(
                 provider.status == UpdateStatus.installing
-                    ? 'Installing… the app will restart.'
-                    : 'Downloading…',
+                    ? l10n.messageInstallAppRestart
+                    : l10n.messageDownloadingUpdate,
                 style: theme.textTheme.bodySmall,
               ),
             ],
@@ -89,11 +89,11 @@ class UpdateDialog extends StatelessWidget {
           onPressed: release.htmlUrl.isEmpty
               ? null
               : () => launchUrl(Uri.parse(release.htmlUrl)),
-          child: Text(AppLocalizations.of(context)!.releasePage),
+          child: Text(l10n.releasePage),
         ),
         TextButton(
           onPressed: provider.busy ? null : () => Navigator.of(context).pop(),
-          child: Text(AppLocalizations.of(context)!.labelClose),
+          child: Text(l10n.labelClose),
         ),
         FilledButton(
           key: const ValueKey('update_install_button'),
@@ -102,8 +102,8 @@ class UpdateDialog extends StatelessWidget {
               : provider.downloadAndInstall,
           child: Text(
             result.asset == null
-                ? 'No build for this platform'
-                : 'Download & install',
+                ? l10n.messageNoBuildForPlatform
+                : l10n.downloadInstall,
           ),
         ),
       ],

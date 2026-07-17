@@ -51,9 +51,10 @@ class _LocationSectionState extends State<LocationSection> {
             title: Text(AppLocalizations.of(context)!.titleShareCoarseLocation),
             subtitle: Text(
               _sharing
-                  ? 'The assistant knows you are near $location'
-                  : 'City-level only, so "near me" questions work. '
-                        'Precise coordinates are never stored.',
+                  ? AppLocalizations.of(
+                      context,
+                    )!.messageAssistantKnowsLocation('$location')
+                  : AppLocalizations.of(context)!.messageCityLevelOnlyHint,
             ),
             value: _sharing,
             onChanged: _busy ? null : (on) => on ? _enable() : _disable(),
@@ -69,7 +70,7 @@ class _LocationSectionState extends State<LocationSection> {
               ),
               trailing: IconButton(
                 key: const ValueKey('location_refresh_button'),
-                tooltip: 'Re-detect from device location',
+                tooltip: AppLocalizations.of(context)!.tooltipRedetectLocation,
                 icon: const Icon(Icons.my_location),
                 onPressed: _busy ? null : _enable,
               ),
@@ -99,7 +100,10 @@ class _LocationSectionState extends State<LocationSection> {
       if (result.success) {
         widget.onUserChanged();
       } else {
-        _showError(result.error ?? 'Could not resolve your location');
+        _showError(
+          result.error ??
+              AppLocalizations.of(context)!.messageCouldNotResolveLocation,
+        );
         await _enterManually();
       }
     } finally {
@@ -115,7 +119,10 @@ class _LocationSectionState extends State<LocationSection> {
       if (result.success) {
         widget.onUserChanged();
       } else {
-        _showError(result.error ?? 'Failed to update location');
+        _showError(
+          result.error ??
+              AppLocalizations.of(context)!.messageFailedToResolveLocation,
+        );
       }
     } finally {
       if (mounted) setState(() => _busy = false);

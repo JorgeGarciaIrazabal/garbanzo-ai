@@ -3507,5 +3507,45 @@
   "hintSystemPromptExample": "e.g. You are a concise, no-nonsense assistant. Give short factual answers with examples.",
   "@hintSystemPromptExample": {
     "description": "Placeholder hint for the system prompt text field."
+  },
+  "messageCityLevelOnlyHint": "City-level only, so \"near me\" questions work. Precise coordinates are never stored.",
+  "@messageCityLevelOnlyHint": {
+    "description": "Subtitle shown when coarse location sharing is off."
+  },
+  "messageNotifyAssistantBackground": "Notify when assistant replies while app is in background",
+  "@messageNotifyAssistantBackground": {
+    "description": "Subtitle for the chat-responses notification toggle."
+  },
+  "messageUpdatesCheckedAtStart": "Updates are checked when the app starts",
+  "@messageUpdatesCheckedAtStart": {
+    "description": "Idle status label in the update section."
+  },
+  "messageUpToDate": "You are up to date",
+  "@messageUpToDate": {
+    "description": "Status label when no update is available."
+  },
+  "messageInstallAppRestart": "Installing — the app will restart",
+  "@messageInstallAppRestart": {
+    "description": "Status label while an update is being installed."
+  },
+  "messageUpdateCheckFailed": "Update check failed",
+  "@messageUpdateCheckFailed": {
+    "description": "Status label when an update check errored."
+  },
+  "messageNoBuildForPlatform": "No build for this platform",
+  "@messageNoBuildForPlatform": {
+    "description": "Install button label when no downloadable asset exists."
+  },
+  "tooltipRedetectLocation": "Re-detect from device location",
+  "@tooltipRedetectLocation": {
+    "description": "Tooltip for the re-detect location button."
+  },
+  "hintTypeAMessage": "Type a message…",
+  "@hintTypeAMessage": {
+    "description": "Placeholder hint in the message input field."
+  },
+  "messageRoomEmptyHint": "Type a message to get started. Use @AgentName to call an agent, or @all to mention everyone.",
+  "@messageRoomEmptyHint": {
+    "description": "Empty-state hint in a room chat view."
   }
 }

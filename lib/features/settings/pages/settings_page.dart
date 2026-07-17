@@ -106,7 +106,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   .map(
                     (s) => ListTile(
                       leading: Icon(_iconFor(s)),
-                      title: Text(_labelFor(s)),
+                      title: Text(_labelFor(context, s)),
                       selected: _selected == s,
                       onTap: () => setState(() => _selected = s),
                     ),
@@ -138,7 +138,7 @@ class _SettingsPageState extends State<SettingsPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _SectionHeader(icon: _iconFor(s), title: _labelFor(s)),
+              _SectionHeader(icon: _iconFor(s), title: _labelFor(context, s)),
               const SizedBox(height: 12),
               _buildSection(s),
             ],
@@ -186,7 +186,10 @@ class _SettingsPageState extends State<SettingsPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Theme', style: Theme.of(context).textTheme.titleSmall),
+            Text(
+              AppLocalizations.of(context)!.titleTheme,
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
             const SizedBox(height: 12),
             SegmentedButton<AppThemeMode>(
               segments: [
@@ -249,8 +252,8 @@ class _SettingsPageState extends State<SettingsPage> {
               title: Text(
                 AppLocalizations.of(context)!.titleShowSystemPromptInThread,
               ),
-              subtitle: const Text(
-                'Display the active system prompt above the conversation',
+              subtitle: Text(
+                AppLocalizations.of(context)!.titleDisplaySystemPrompt,
               ),
               value: settings.showSystemPrompt,
               onChanged: settings.setShowSystemPrompt,
@@ -445,8 +448,7 @@ class _SettingsPageState extends State<SettingsPage> {
             leading: Icon(Icons.info_outline),
             title: Text(AppLocalizations.of(context)!.titleSavedMemories),
             subtitle: Text(
-              'Memories are managed from the chat screen via the memory page. '
-              'Open the chat to review, edit, or delete them.',
+              AppLocalizations.of(context)!.messageSavedMemoriesHint,
             ),
           ),
         ],
@@ -476,8 +478,10 @@ class _SettingsPageState extends State<SettingsPage> {
             children: [
               SwitchListTile(
                 title: Text(AppLocalizations.of(context)!.titleChatResponses),
-                subtitle: const Text(
-                  'Notify when assistant replies while app is in background',
+                subtitle: Text(
+                  AppLocalizations.of(
+                    context,
+                  )!.messageNotifyAssistantBackground,
                 ),
                 value: prefs.chatResponsesEnabled,
                 onChanged: (v) =>
@@ -543,22 +547,23 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
-  String _labelFor(_Section s) {
+  String _labelFor(BuildContext context, _Section s) {
+    final l10n = AppLocalizations.of(context)!;
     switch (s) {
       case _Section.profile:
-        return 'Profile';
+        return l10n.titleProfile;
       case _Section.appearance:
-        return 'Appearance';
+        return l10n.titleAppearance;
       case _Section.models:
-        return 'Models';
+        return l10n.titleModels;
       case _Section.voice:
-        return 'Voice';
+        return l10n.titleVoice;
       case _Section.memory:
-        return 'Memory';
+        return l10n.titleMemory;
       case _Section.notifications:
-        return 'Notifications';
+        return l10n.titleNotifications;
       case _Section.updates:
-        return 'Software update';
+        return l10n.titleSoftwareUpdate;
     }
   }
 }

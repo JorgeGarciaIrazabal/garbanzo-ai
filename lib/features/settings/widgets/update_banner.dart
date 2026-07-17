@@ -39,7 +39,9 @@ class UpdateBanner extends StatelessWidget {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Garbanzo AI v$version is available',
+                      AppLocalizations.of(
+                        context,
+                      )!.messageUpdateAvailable(version),
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: theme.colorScheme.onPrimaryContainer,
                       ),

@@ -4538,6 +4538,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'e.g. You are a concise, no-nonsense assistant. Give short factual answers with examples.'**
   String get hintSystemPromptExample;
+
+  /// Subtitle shown when coarse location sharing is off.
+  ///
+  /// In en, this message translates to:
+  /// **'City-level only, so \"near me\" questions work. Precise coordinates are never stored.'**
+  String get messageCityLevelOnlyHint;
+
+  /// Subtitle for the chat-responses notification toggle.
+  ///
+  /// In en, this message translates to:
+  /// **'Notify when assistant replies while app is in background'**
+  String get messageNotifyAssistantBackground;
+
+  /// Idle status label in the update section.
+  ///
+  /// In en, this message translates to:
+  /// **'Updates are checked when the app starts'**
+  String get messageUpdatesCheckedAtStart;
+
+  /// Status label when no update is available.
+  ///
+  /// In en, this message translates to:
+  /// **'You are up to date'**
+  String get messageUpToDate;
+
+  /// Status label while an update is being installed.
+  ///
+  /// In en, this message translates to:
+  /// **'Installing — the app will restart'**
+  String get messageInstallAppRestart;
+
+  /// Status label when an update check errored.
+  ///
+  /// In en, this message translates to:
+  /// **'Update check failed'**
+  String get messageUpdateCheckFailed;
+
+  /// Install button label when no downloadable asset exists.
+  ///
+  /// In en, this message translates to:
+  /// **'No build for this platform'**
+  String get messageNoBuildForPlatform;
+
+  /// Tooltip for the re-detect location button.
+  ///
+  /// In en, this message translates to:
+  /// **'Re-detect from device location'**
+  String get tooltipRedetectLocation;
+
+  /// Placeholder hint in the message input field.
+  ///
+  /// In en, this message translates to:
+  /// **'Type a message…'**
+  String get hintTypeAMessage;
+
+  /// Empty-state hint in a room chat view.
+  ///
+  /// In en, this message translates to:
+  /// **'Type a message to get started. Use @AgentName to call an agent, or @all to mention everyone.'**
+  String get messageRoomEmptyHint;
 }
 
 class _AppLocalizationsDelegate

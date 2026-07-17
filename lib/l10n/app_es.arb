@@ -2237,5 +2237,45 @@
   "hintSystemPromptExample": "p. ej. Eres un asistente conciso y directo. Da respuestas breves y fácticas con ejemplos.",
   "@hintSystemPromptExample": {
     "description": "Placeholder hint for the system prompt text field."
+  },
+  "messageCityLevelOnlyHint": "Solo a nivel de ciudad, para que las preguntas \"cerca de mí\" funcionen. Las coordenadas precisas nunca se guardan.",
+  "@messageCityLevelOnlyHint": {
+    "description": "Subtitle shown when coarse location sharing is off."
+  },
+  "messageNotifyAssistantBackground": "Notificar cuando el asistente responde con la app en segundo plano",
+  "@messageNotifyAssistantBackground": {
+    "description": "Subtitle for the chat-responses notification toggle."
+  },
+  "messageUpdatesCheckedAtStart": "Las actualizaciones se comprueban al iniciar la app",
+  "@messageUpdatesCheckedAtStart": {
+    "description": "Idle status label in the update section."
+  },
+  "messageUpToDate": "Estás actualizado",
+  "@messageUpToDate": {
+    "description": "Status label when no update is available."
+  },
+  "messageInstallAppRestart": "Instalando — la app se reiniciará",
+  "@messageInstallAppRestart": {
+    "description": "Status label while an update is being installed."
+  },
+  "messageUpdateCheckFailed": "La comprobación de actualizaciones falló",
+  "@messageUpdateCheckFailed": {
+    "description": "Status label when an update check errored."
+  },
+  "messageNoBuildForPlatform": "Sin build para esta plataforma",
+  "@messageNoBuildForPlatform": {
+    "description": "Install button label when no downloadable asset exists."
+  },
+  "tooltipRedetectLocation": "Redetectar desde la ubicación del dispositivo",
+  "@tooltipRedetectLocation": {
+    "description": "Tooltip for the re-detect location button."
+  },
+  "hintTypeAMessage": "Escribe un mensaje…",
+  "@hintTypeAMessage": {
+    "description": "Placeholder hint in the message input field."
+  },
+  "messageRoomEmptyHint": "Escribe un mensaje para empezar. Usa @AgentName para llamar a un agente, o @all para mencionar a todos.",
+  "@messageRoomEmptyHint": {
+    "description": "Empty-state hint in a room chat view."
   }
 }

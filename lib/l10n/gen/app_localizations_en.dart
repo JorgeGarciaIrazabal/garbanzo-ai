@@ -2524,4 +2524,38 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get hintSystemPromptExample =>
       'e.g. You are a concise, no-nonsense assistant. Give short factual answers with examples.';
+
+  @override
+  String get messageCityLevelOnlyHint =>
+      'City-level only, so \"near me\" questions work. Precise coordinates are never stored.';
+
+  @override
+  String get messageNotifyAssistantBackground =>
+      'Notify when assistant replies while app is in background';
+
+  @override
+  String get messageUpdatesCheckedAtStart =>
+      'Updates are checked when the app starts';
+
+  @override
+  String get messageUpToDate => 'You are up to date';
+
+  @override
+  String get messageInstallAppRestart => 'Installing — the app will restart';
+
+  @override
+  String get messageUpdateCheckFailed => 'Update check failed';
+
+  @override
+  String get messageNoBuildForPlatform => 'No build for this platform';
+
+  @override
+  String get tooltipRedetectLocation => 'Re-detect from device location';
+
+  @override
+  String get hintTypeAMessage => 'Type a message…';
+
+  @override
+  String get messageRoomEmptyHint =>
+      'Type a message to get started. Use @AgentName to call an agent, or @all to mention everyone.';
 }

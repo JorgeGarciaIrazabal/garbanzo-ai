@@ -553,8 +553,7 @@ class _EmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              'Type a message to get started. Use @AgentName to call an '
-              'agent, or @all to mention everyone.',
+              AppLocalizations.of(context)!.messageRoomEmptyHint,
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: cs.onSurfaceVariant,
               ),

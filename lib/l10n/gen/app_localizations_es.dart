@@ -2559,4 +2559,40 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get hintSystemPromptExample =>
       'p. ej. Eres un asistente conciso y directo. Da respuestas breves y fácticas con ejemplos.';
+
+  @override
+  String get messageCityLevelOnlyHint =>
+      'Solo a nivel de ciudad, para que las preguntas \"cerca de mí\" funcionen. Las coordenadas precisas nunca se guardan.';
+
+  @override
+  String get messageNotifyAssistantBackground =>
+      'Notificar cuando el asistente responde con la app en segundo plano';
+
+  @override
+  String get messageUpdatesCheckedAtStart =>
+      'Las actualizaciones se comprueban al iniciar la app';
+
+  @override
+  String get messageUpToDate => 'Estás actualizado';
+
+  @override
+  String get messageInstallAppRestart => 'Instalando — la app se reiniciará';
+
+  @override
+  String get messageUpdateCheckFailed =>
+      'La comprobación de actualizaciones falló';
+
+  @override
+  String get messageNoBuildForPlatform => 'Sin build para esta plataforma';
+
+  @override
+  String get tooltipRedetectLocation =>
+      'Redetectar desde la ubicación del dispositivo';
+
+  @override
+  String get hintTypeAMessage => 'Escribe un mensaje…';
+
+  @override
+  String get messageRoomEmptyHint =>
+      'Escribe un mensaje para empezar. Usa @AgentName para llamar a un agente, o @all para mencionar a todos.';
 }

@@ -100,8 +100,8 @@ class _ChatTiles extends StatelessWidget {
           title: Text(
             AppLocalizations.of(context)!.titleShowSystemPromptInThread,
           ),
-          subtitle: const Text(
-            'Display the active system prompt above the conversation',
+          subtitle: Text(
+            AppLocalizations.of(context)!.titleDisplaySystemPrompt,
           ),
           value: settings.showSystemPrompt,
           onChanged: (value) => settings.setShowSystemPrompt(value),
@@ -378,8 +378,10 @@ class _NotificationTiles extends StatelessWidget {
             else ...[
               SwitchListTile(
                 title: Text(AppLocalizations.of(context)!.titleChatResponses),
-                subtitle: const Text(
-                  'Notify when assistant replies while app is in background',
+                subtitle: Text(
+                  AppLocalizations.of(
+                    context,
+                  )!.messageNotifyAssistantBackground,
                 ),
                 value: prefs.chatResponsesEnabled,
                 onChanged: (value) =>

@@ -15,6 +15,7 @@ class UpdateSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final provider = context.watch<UpdateProvider>();
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context)!;
     final result = provider.result;
 
     return Card(
@@ -22,7 +23,7 @@ class UpdateSection extends StatelessWidget {
         children: [
           ListTile(
             leading: const Icon(Icons.info_outline),
-            title: Text(AppLocalizations.of(context)!.titleCurrentVersion),
+            title: Text(l10n.titleCurrentVersion),
             subtitle: FutureBuilder<PackageInfo>(
               future: PackageInfo.fromPlatform(),
               builder: (context, snapshot) =>
@@ -39,14 +40,14 @@ class UpdateSection extends StatelessWidget {
               UpdateStatus.error => Icons.error_outline,
               _ => Icons.update,
             }),
-            title: Text(_statusLabel(provider)),
+            title: Text(_statusLabel(l10n, provider)),
             subtitle: provider.status == UpdateStatus.error
                 ? Text(
-                    provider.errorMessage ?? 'Unknown error',
+                    provider.errorMessage ?? l10n.messageUnknownError,
                     style: TextStyle(color: theme.colorScheme.error),
                   )
                 : (result?.hasUpdate ?? false)
-                ? Text('Latest release: v${result!.release.version}')
+                ? Text(l10n.latestReleaseVersion(result!.release.version))
                 : null,
             trailing: provider.status == UpdateStatus.checking
                 ? const SizedBox(
@@ -67,7 +68,7 @@ class UpdateSection extends StatelessWidget {
                       provider.busy || provider.status == UpdateStatus.checking
                       ? null
                       : provider.checkNow,
-                  child: Text(AppLocalizations.of(context)!.checkNow),
+                  child: Text(l10n.checkNow),
                 ),
                 if (result?.hasUpdate ?? false) ...[
                   const SizedBox(width: 8),
@@ -76,7 +77,7 @@ class UpdateSection extends StatelessWidget {
                     onPressed: provider.busy
                         ? null
                         : () => showUpdateDialog(context),
-                    child: Text(AppLocalizations.of(context)!.downloadInstall),
+                    child: Text(l10n.downloadInstall),
                   ),
                 ],
               ],
@@ -87,22 +88,22 @@ class UpdateSection extends StatelessWidget {
     );
   }
 
-  String _statusLabel(UpdateProvider provider) {
+  String _statusLabel(AppLocalizations l10n, UpdateProvider provider) {
     switch (provider.status) {
       case UpdateStatus.idle:
-        return 'Updates are checked when the app starts';
+        return l10n.messageUpdatesCheckedAtStart;
       case UpdateStatus.checking:
-        return 'Checking for updates…';
+        return l10n.messageCheckingForUpdates;
       case UpdateStatus.upToDate:
-        return 'You are up to date';
+        return l10n.messageUpToDate;
       case UpdateStatus.available:
-        return 'A newer version is available';
+        return l10n.messageNewerVersionAvailable;
       case UpdateStatus.downloading:
-        return 'Downloading update…';
+        return l10n.messageDownloadingUpdate;
       case UpdateStatus.installing:
-        return 'Installing — the app will restart';
+        return l10n.messageInstallAppRestart;
       case UpdateStatus.error:
-        return 'Update check failed';
+        return l10n.messageUpdateCheckFailed;
     }
   }
 }

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:garbanzo_ai/core/reading_column.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// Shared chrome for posting a message: a framed multi-line text field with
 /// Enter-to-send / Shift+Enter-for-newline handling, plus a send/stop button.
@@ -25,20 +26,20 @@ import 'package:garbanzo_ai/core/reading_column.dart';
 class MessageComposer extends StatefulWidget {
   const MessageComposer({
     super.key,
+    required this.controller,
+    required this.focusNode,
     required this.onSend,
-    this.controller,
-    this.focusNode,
     this.onStop,
-    this.isLoading = false,
-    this.enabled = true,
-    this.hintText = 'Type a message...',
-    this.hasExtraContent = false,
-    this.leading,
-    this.overlay,
-    this.above,
-    this.idleTrailingBuilder,
     this.onChanged,
     this.onBlur,
+    this.isLoading = false,
+    this.enabled = true,
+    this.hintText,
+    this.hasExtraContent = false,
+    this.above,
+    this.leading,
+    this.overlay,
+    this.idleTrailingBuilder,
   });
 
   final ValueChanged<String> onSend;
@@ -61,7 +62,7 @@ class MessageComposer extends StatefulWidget {
 
   /// Disables the whole composer (e.g. room not loaded yet).
   final bool enabled;
-  final String hintText;
+  final String? hintText;
 
   /// Whether there's send-worthy content outside the text field itself
   /// (e.g. attachments), so the send button enables even with empty text.
@@ -254,7 +255,11 @@ class MessageComposerState extends State<MessageComposer> {
                               minLines: 1,
                               textCapitalization: TextCapitalization.sentences,
                               decoration: InputDecoration(
-                                hintText: widget.hintText,
+                                hintText:
+                                    widget.hintText ??
+                                    AppLocalizations.of(
+                                      context,
+                                    )!.hintTypeAMessage,
                                 contentPadding: EdgeInsets.symmetric(
                                   horizontal: isMobile ? 10 : 12,
                                   vertical: isMobile ? 8 : 10,
