@@ -143,6 +143,85 @@ class _SystemPromptEditorDialogState extends State<SystemPromptEditorDialog> {
     }
   }
 
+  /// Edit a custom template in place: name, description, and content,
+  /// pre-seeded from the saved version (not the possibly-diverged editor).
+  Future<void> _editTemplate(SystemPromptTemplate template) async {
+    final provider = context.read<SystemPromptProvider>();
+    final nameController = TextEditingController(text: template.name);
+    final descController = TextEditingController(
+      text: template.description ?? '',
+    );
+    final contentController = TextEditingController(text: template.content);
+
+    final saved = await showAnimatedDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Edit "${template.name}"'),
+        content: SizedBox(
+          width: 480,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                decoration: const InputDecoration(
+                  labelText: 'Name',
+                  border: OutlineInputBorder(),
+                ),
+                autofocus: true,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: descController,
+                decoration: const InputDecoration(
+                  labelText: 'Description (optional)',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 2,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: contentController,
+                decoration: const InputDecoration(
+                  labelText: 'Prompt content',
+                  border: OutlineInputBorder(),
+                  alignLabelWithHint: true,
+                ),
+                minLines: 4,
+                maxLines: 8,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    if (saved != true || !mounted) return;
+
+    final name = nameController.text.trim();
+    final content = contentController.text.trim();
+    if (name.isEmpty || content.isEmpty) return;
+    final updated = await provider.updateTemplate(
+      template.id,
+      name: name,
+      content: content,
+      description: descController.text.trim(),
+    );
+    // If the edited template is the one applied to the editor, follow it.
+    if (updated != null && mounted && _selectedTemplateId == template.id) {
+      setState(() => _controller.text = updated.content);
+    }
+  }
+
   String? get _currentModel => context.read<ModelProvider>().selectedModelId;
 
   void _startGenerate() {
@@ -403,6 +482,11 @@ class _SystemPromptEditorDialogState extends State<SystemPromptEditorDialog> {
                         itemId: selected.id,
                         itemName: selected.name,
                       ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.edit_outlined),
+                      tooltip: 'Edit "${selected.name}"',
+                      onPressed: () => _editTemplate(selected),
                     ),
                     IconButton(
                       icon: const Icon(Icons.delete_outline),

@@ -70,6 +70,28 @@ class _FakeTemplateProvider extends SystemPromptProvider {
     notifyListeners();
     return true;
   }
+
+  @override
+  Future<SystemPromptTemplate?> updateTemplate(
+    String templateId, {
+    String? name,
+    String? content,
+    String? description,
+  }) async {
+    _customs = _customs
+        .map(
+          (t) => t.id == templateId
+              ? t.copyWith(
+                  name: name ?? t.name,
+                  content: content ?? t.content,
+                  description: description,
+                )
+              : t,
+        )
+        .toList();
+    notifyListeners();
+    return _customs.firstWhere((t) => t.id == templateId);
+  }
 }
 
 SystemPromptTemplate _template(String id, String name, {bool builtin = false}) =>
@@ -285,6 +307,38 @@ void main() {
 
       expect(tester.takeException(), isNull, reason: 'after delete');
       expect(find.text('— None —'), findsOneWidget);
+    });
+
+    testWidgets('editing the selected custom template updates the editor', (
+      tester,
+    ) async {
+      await _openEditor(
+        tester,
+        _FakeTemplateProvider(customs: [_template('c1', 'Custom One')]),
+      );
+
+      await tester.tap(find.text('— None —'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Custom One').last);
+      await tester.pumpAndSettle();
+
+      // The edit affordance only appears for a selected custom template.
+      await tester.tap(find.byIcon(Icons.edit_outlined));
+      await tester.pumpAndSettle();
+      expect(find.text('Edit "Custom One"'), findsOneWidget);
+
+      // Fields are pre-seeded from the saved template; the main editor holds
+      // the same text, so take the dialog's (topmost) field.
+      await tester.enterText(
+        find.widgetWithText(TextField, 'content of Custom One').last,
+        'sharper content',
+      );
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull, reason: 'after edit');
+      // The applied template follows the edit into the main editor.
+      expect(find.text('sharper content'), findsOneWidget);
     });
   });
 
