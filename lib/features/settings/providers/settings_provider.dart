@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -7,7 +8,8 @@ enum AppThemeMode { light, dark, system }
 /// App-wide user preferences backed by SharedPreferences.
 ///
 /// Covers TTS voice/speed, auto-play TTS, auto-submit STT settings,
-/// and theme mode (light/dark/system).
+/// theme mode (light/dark/system), and spoken-language preferences
+/// (preferredLanguages/autoLanguage — idea 13).
 /// New settings sections can be added here as the app grows.
 class SettingsProvider extends ChangeNotifier {
   SettingsProvider() {
@@ -22,11 +24,14 @@ class SettingsProvider extends ChangeNotifier {
   static const _keyShowMessageMetadata = 'settings_show_message_metadata';
   static const _keyShowSystemPrompt = 'settings_show_system_prompt';
   static const _keyOnboardingDismissed = 'settings_onboarding_dismissed';
+  static const _keyPreferredLanguages = 'settings_preferred_languages';
+  static const _keyAutoLanguage = 'settings_auto_language';
 
   // Defaults
   static const defaultVoice = 'af_heart';
   static const defaultSpeed = 1.0;
   static const defaultThemeMode = AppThemeMode.system;
+  static const defaultAutoLanguage = true;
 
   String _ttsVoice = defaultVoice;
   double _ttsSpeed = defaultSpeed;
@@ -36,6 +41,11 @@ class SettingsProvider extends ChangeNotifier {
   bool _showMessageMetadata = false;
   bool _showSystemPrompt = false;
   bool _onboardingDismissed = false;
+  // Local-only, like ttsVoice/ttsSpeed above — no User column to sync
+  // cross-device (idea 13.2): a spoken-language preference is cheap to
+  // re-pick on a new device and doesn't need server-side persistence.
+  List<String> _preferredLanguages = const [];
+  bool _autoLanguage = defaultAutoLanguage;
   bool _loaded = false;
 
   /// True while the full-screen Talk Mode call is open. Transient (not
@@ -53,6 +63,8 @@ class SettingsProvider extends ChangeNotifier {
   bool get showMessageMetadata => _showMessageMetadata;
   bool get showSystemPrompt => _showSystemPrompt;
   bool get onboardingDismissed => _onboardingDismissed;
+  List<String> get preferredLanguages => List.unmodifiable(_preferredLanguages);
+  bool get autoLanguage => _autoLanguage;
   bool get loaded => _loaded;
 
   /// Converts AppThemeMode to Flutter's ThemeMode.
@@ -77,6 +89,9 @@ class SettingsProvider extends ChangeNotifier {
     _showMessageMetadata = prefs.getBool(_keyShowMessageMetadata) ?? false;
     _showSystemPrompt = prefs.getBool(_keyShowSystemPrompt) ?? false;
     _onboardingDismissed = prefs.getBool(_keyOnboardingDismissed) ?? false;
+    _preferredLanguages =
+        prefs.getStringList(_keyPreferredLanguages) ?? const [];
+    _autoLanguage = prefs.getBool(_keyAutoLanguage) ?? defaultAutoLanguage;
     _loaded = true;
     notifyListeners();
   }
@@ -156,5 +171,22 @@ class SettingsProvider extends ChangeNotifier {
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_keyShowSystemPrompt, value);
+  }
+
+  Future<void> setPreferredLanguages(List<String> languages) async {
+    final normalized = List<String>.unmodifiable(languages);
+    if (listEquals(_preferredLanguages, normalized)) return;
+    _preferredLanguages = normalized;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_keyPreferredLanguages, normalized);
+  }
+
+  Future<void> setAutoLanguage(bool value) async {
+    if (_autoLanguage == value) return;
+    _autoLanguage = value;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyAutoLanguage, value);
   }
 }

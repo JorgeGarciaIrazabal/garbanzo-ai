@@ -29,6 +29,8 @@ void main() {
       expect(p.themeMode, SettingsProvider.defaultThemeMode);
       expect(p.showMessageMetadata, isFalse);
       expect(p.showSystemPrompt, isFalse);
+      expect(p.preferredLanguages, isEmpty);
+      expect(p.autoLanguage, isTrue);
       expect(p.loaded, isTrue);
     });
 
@@ -53,6 +55,8 @@ void main() {
         'settings_theme_mode': 'dark',
         'settings_show_message_metadata': true,
         'settings_show_system_prompt': true,
+        'settings_preferred_languages': ['en', 'es'],
+        'settings_auto_language': false,
       });
       final p = await _makeLoaded();
       expect(p.ttsVoice, 'af_bella');
@@ -62,6 +66,8 @@ void main() {
       expect(p.themeMode, AppThemeMode.dark);
       expect(p.showMessageMetadata, isTrue);
       expect(p.showSystemPrompt, isTrue);
+      expect(p.preferredLanguages, ['en', 'es']);
+      expect(p.autoLanguage, isFalse);
     });
 
     test('unknown theme mode string falls back to default', () async {
@@ -113,6 +119,35 @@ void main() {
 
       final prefs = await SharedPreferences.getInstance();
       expect(prefs.getString('settings_tts_voice'), 'af_bella');
+    });
+
+    test('setPreferredLanguages persists and notifies once per real change',
+        () async {
+      final p = await _makeLoaded();
+      var notifications = 0;
+      p.addListener(() => notifications++);
+
+      await p.setPreferredLanguages(const []); // same as default
+      expect(notifications, 0);
+
+      await p.setPreferredLanguages(['en', 'es']);
+      expect(notifications, 1);
+      expect(p.preferredLanguages, ['en', 'es']);
+
+      await p.setPreferredLanguages(['en', 'es']); // unchanged (order+content)
+      expect(notifications, 1);
+
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getStringList('settings_preferred_languages'), ['en', 'es']);
+    });
+
+    test('setAutoLanguage persists the choice', () async {
+      final p = await _makeLoaded();
+      await p.setAutoLanguage(false);
+      expect(p.autoLanguage, isFalse);
+
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getBool('settings_auto_language'), isFalse);
     });
   });
 }
