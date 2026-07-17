@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/search_provider.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 class SearchWidget extends StatefulWidget {
   final ValueChanged<String>? onChanged;
@@ -43,7 +44,7 @@ class _SearchWidgetState extends State<SearchWidget> {
             controller: _controller,
             autofocus: widget.autofocus,
             decoration: InputDecoration(
-              hintText: 'Search conversations...',
+              hintText: AppLocalizations.of(context)!.hintSearchConversations,
               prefixIcon: const Icon(Icons.search),
               suffixIcon: _controller.text.isNotEmpty
                   ? IconButton(

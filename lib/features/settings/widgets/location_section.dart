@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 
 import 'package:garbanzo_ai/core/auth_service.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// Opt-in coarse location sharing (settings → Profile).
 ///
@@ -47,7 +48,7 @@ class _LocationSectionState extends State<LocationSection> {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.location_on_outlined),
-            title: const Text('Share coarse location'),
+            title: Text(AppLocalizations.of(context)!.titleShareCoarseLocation),
             subtitle: Text(
               _sharing
                   ? 'The assistant knows you are near $location'
@@ -63,7 +64,9 @@ class _LocationSectionState extends State<LocationSection> {
               key: const ValueKey('location_edit_tile'),
               leading: const Icon(Icons.edit_location_alt_outlined),
               title: Text(location ?? ''),
-              subtitle: const Text('Tap to update or correct'),
+              subtitle: Text(
+                AppLocalizations.of(context)!.titleTapToUpdateOrCorrect,
+              ),
               trailing: IconButton(
                 key: const ValueKey('location_refresh_button'),
                 tooltip: 'Re-detect from device location',
@@ -149,25 +152,25 @@ class _LocationSectionState extends State<LocationSection> {
     final city = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Set your location'),
+        title: Text(AppLocalizations.of(context)!.titleSetYourLocation),
         content: TextField(
           key: const ValueKey('location_manual_field'),
           controller: controller,
           autofocus: true,
-          decoration: const InputDecoration(
-            labelText: 'City',
-            hintText: 'e.g. Madrid, Spain',
+          decoration: InputDecoration(
+            labelText: AppLocalizations.of(context)!.labelCity,
+            hintText: AppLocalizations.of(context)!.hintEGMadridSpain,
           ),
           onSubmitted: (v) => Navigator.of(dialogContext).pop(v),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context)!.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(controller.text),
-            child: const Text('Save'),
+            child: Text(AppLocalizations.of(context)!.save),
           ),
         ],
       ),

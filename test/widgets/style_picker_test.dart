@@ -16,6 +16,7 @@ import 'package:garbanzo_ai/features/chat/services/style_service.dart';
 import 'package:garbanzo_ai/features/chat/widgets/style_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 // ============================================================================
 // Fakes — each overrides exactly what the picker actually reads/calls, so a
@@ -304,7 +305,10 @@ Widget _wrap({
   // Providers live below the navigator like on the real chat page, so these
   // tests exercise showStylePicker's provider re-exposure across routes.
   return MaterialApp(
-    home: MultiProvider(
+    
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
+home: MultiProvider(
       providers: [
         ChangeNotifierProvider<ChatProvider>.value(value: chat),
         ChangeNotifierProvider<ModelProvider>.value(value: models),

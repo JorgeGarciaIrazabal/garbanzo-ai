@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:garbanzo_ai/features/chat/models/chat_attachment.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// Full-screen image viewer with zoom, pan, and dismiss gestures.
 class ImageViewer extends StatefulWidget {
@@ -80,7 +81,7 @@ class _ImageViewerState extends State<ImageViewer>
               onPressed: _dismiss,
               icon: const Icon(Icons.close, color: Colors.white, size: 28),
               padding: const EdgeInsets.all(8),
-              tooltip: 'Close',
+              tooltip: AppLocalizations.of(context)!.labelClose,
             ),
           ),
           // Image info overlay

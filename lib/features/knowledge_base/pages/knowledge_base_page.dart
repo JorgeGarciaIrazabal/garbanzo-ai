@@ -9,6 +9,7 @@ import 'package:garbanzo_ai/core/widgets/animated_dialog.dart';
 import 'package:garbanzo_ai/core/widgets/skeleton.dart';
 import 'package:garbanzo_ai/features/knowledge_base/models/knowledge_document.dart';
 import 'package:garbanzo_ai/features/knowledge_base/providers/knowledge_base_provider.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 class KnowledgeBasePage extends StatefulWidget {
   const KnowledgeBasePage({super.key});
@@ -117,17 +118,17 @@ class _KnowledgeBasePageState extends State<KnowledgeBasePage> {
     final confirmed = await showAnimatedDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete document'),
+        title: Text(AppLocalizations.of(context)!.titleDeleteDocument),
         content: Text('Remove "${doc.filename}" from your knowledge base?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context)!.cancel),
           ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Delete'),
+            child: Text(AppLocalizations.of(context)!.delete),
           ),
         ],
       ),
@@ -142,12 +143,12 @@ class _KnowledgeBasePageState extends State<KnowledgeBasePage> {
     final provider = context.watch<KnowledgeBaseProvider>();
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Knowledge Base'),
+        title: Text(AppLocalizations.of(context)!.titleKnowledgeBasePage),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: provider.refresh,
-            tooltip: 'Refresh',
+            tooltip: AppLocalizations.of(context)!.tooltipRefresh,
           ),
         ],
       ),
@@ -176,7 +177,7 @@ class _KnowledgeBasePageState extends State<KnowledgeBasePage> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: provider.isLoading ? null : _pickAndUpload,
         icon: const Icon(Icons.upload_file),
-        label: const Text('Upload'),
+        label: Text(AppLocalizations.of(context)!.labelUpload),
       ),
     );
   }
@@ -196,7 +197,10 @@ class _EmptyState extends StatelessWidget {
           children: [
             const BrandMark(size: 72),
             const SizedBox(height: 16),
-            Text('No documents yet', style: theme.textTheme.titleLarge),
+            Text(
+              AppLocalizations.of(context)!.noDocumentsYet,
+              style: theme.textTheme.titleLarge,
+            ),
             const SizedBox(height: 8),
             Text(
               'Upload PDFs, spreadsheets, or text files to make them available '
@@ -231,7 +235,7 @@ class _DocumentTile extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.delete_outline),
             onPressed: onDelete,
-            tooltip: 'Delete',
+            tooltip: AppLocalizations.of(context)!.delete,
           ),
         ],
       ),

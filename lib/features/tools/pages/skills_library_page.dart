@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import 'package:garbanzo_ai/features/tools/models/mcp_tool.dart';
 import 'package:garbanzo_ai/features/tools/providers/tool_provider.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// Full-page view of every MCP tool available to the current user, grouped
 /// by originating server.
@@ -70,7 +71,7 @@ class _SkillsLibraryContentState extends State<_SkillsLibraryContent> {
             const SizedBox(height: 8),
             FilledButton(
               onPressed: () => provider.load(force: true),
-              child: const Text('Retry'),
+              child: Text(AppLocalizations.of(context)!.labelRetry),
             ),
           ],
         ),
@@ -106,7 +107,7 @@ class _SkillsLibraryContentState extends State<_SkillsLibraryContent> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Skills library'),
+        title: Text(AppLocalizations.of(context)!.titleSkillsLibrary),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(56),
           child: Padding(
@@ -114,7 +115,7 @@ class _SkillsLibraryContentState extends State<_SkillsLibraryContent> {
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                hintText: 'Search tools…',
+                hintText: AppLocalizations.of(context)!.hintSearchTools,
                 isDense: true,
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: _query.isEmpty
@@ -218,12 +219,18 @@ class _ToolTile extends StatelessWidget {
                         ),
                       ),
                       IconButton(
-                        tooltip: 'Copy',
+                        tooltip: AppLocalizations.of(context)!.tooltipCopy,
                         icon: const Icon(Icons.copy),
                         onPressed: () {
                           Clipboard.setData(ClipboardData(text: prettyInput));
                           ScaffoldMessenger.of(ctx).showSnackBar(
-                            const SnackBar(content: Text('Schema copied')),
+                            SnackBar(
+                              content: Text(
+                                AppLocalizations.of(
+                                  context,
+                                )!.messageSchemaCopied,
+                              ),
+                            ),
                           );
                         },
                       ),
@@ -262,7 +269,7 @@ class _ToolTile extends StatelessWidget {
           : Text(tool.description!),
       trailing: TextButton.icon(
         icon: const Icon(Icons.code, size: 16),
-        label: const Text('Show schema'),
+        label: Text(AppLocalizations.of(context)!.labelShowSchema),
         onPressed: () => _showSchema(context),
       ),
       dense: true,

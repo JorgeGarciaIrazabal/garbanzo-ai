@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import 'package:garbanzo_ai/core/widgets/animated_dialog.dart';
 import 'package:garbanzo_ai/features/friends/providers/friends_provider.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// Picker dialog for sharing a style or prompt template with a friend
 /// (Idea 9). Lists accepted friends; tapping one sends the share
@@ -71,7 +72,7 @@ Future<void> showShareWithFriendDialog(
       actions: [
         TextButton(
           onPressed: () => Navigator.of(ctx).pop(),
-          child: const Text('Cancel'),
+          child: Text(AppLocalizations.of(context)!.cancel),
         ),
       ],
     ),

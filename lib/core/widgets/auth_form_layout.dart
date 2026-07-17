@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
+
 /// Shared scaffold wrapper for auth pages (login & register).
 ///
 /// Centres the content, constrains width, and displays an icon + heading
@@ -20,6 +22,7 @@ class AuthFormLayout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
@@ -46,7 +49,7 @@ class AuthFormLayout extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Garbanzo AI',
+                    l10n.appTitle,
                     style: theme.textTheme.titleMedium?.copyWith(
                       color: colorScheme.outline,
                     ),
@@ -161,6 +164,7 @@ class _PasswordFieldState extends State<PasswordField> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return TextFormField(
       controller: widget.controller,
       obscureText: _obscure,
@@ -173,15 +177,15 @@ class _PasswordFieldState extends State<PasswordField> {
         prefixIcon: const Icon(Icons.lock_outlined),
         suffixIcon: IconButton(
           key: const ValueKey('password_visibility_toggle'),
-          tooltip: _obscure ? 'Show password' : 'Hide password',
+          tooltip: _obscure ? l10n.showPassword : l10n.hidePassword,
           icon: Icon(_obscure ? Icons.visibility_off : Icons.visibility),
           onPressed: () => setState(() => _obscure = !_obscure),
         ),
       ),
       validator: (v) {
-        if (v == null || v.isEmpty) return 'Enter your password';
+        if (v == null || v.isEmpty) return l10n.validatorEnterPassword;
         if (widget.minLength != null && v.length < widget.minLength!) {
-          return 'Password must be at least ${widget.minLength} characters';
+          return l10n.validatorPasswordMinLength(widget.minLength.toString());
         }
         return null;
       },

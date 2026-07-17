@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:garbanzo_ai/core/widgets/animated_dialog.dart';
 import 'package:garbanzo_ai/features/admin/models/mcp_server.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// Result returned from [MCPServerDialog].
 class MCPServerDialogResult {
@@ -168,9 +169,9 @@ class _MCPServerDialogState extends State<MCPServerDialog> {
             children: [
               TextFormField(
                 controller: _nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Name',
-                  hintText: 'e.g. filesystem',
+                decoration: InputDecoration(
+                  labelText: AppLocalizations.of(context)!.labelName,
+                  hintText: AppLocalizations.of(context)!.hintEGFilesystem,
                 ),
                 validator: (v) {
                   if (v == null || v.trim().isEmpty) {
@@ -182,28 +183,30 @@ class _MCPServerDialogState extends State<MCPServerDialog> {
               const SizedBox(height: 12),
               TextFormField(
                 controller: _descriptionController,
-                decoration: const InputDecoration(labelText: 'Description'),
+                decoration: InputDecoration(
+                  labelText: AppLocalizations.of(context)!.labelDescription,
+                ),
                 maxLines: 2,
               ),
               const SizedBox(height: 16),
               Row(
                 children: [
-                  const Text('Transport'),
+                  Text(AppLocalizations.of(context)!.transport),
                   const SizedBox(width: 12),
                   Expanded(
                     child: SegmentedButton<McpTransport>(
-                      segments: const [
+                      segments: [
                         ButtonSegment(
                           value: McpTransport.http,
-                          label: Text('HTTP'),
+                          label: Text(AppLocalizations.of(context)!.labelHttp),
                         ),
                         ButtonSegment(
                           value: McpTransport.sse,
-                          label: Text('SSE'),
+                          label: Text(AppLocalizations.of(context)!.labelSse),
                         ),
                         ButtonSegment(
                           value: McpTransport.stdio,
-                          label: Text('stdio'),
+                          label: Text(AppLocalizations.of(context)!.labelStdio),
                         ),
                       ],
                       selected: {_transport},
@@ -218,8 +221,8 @@ class _MCPServerDialogState extends State<MCPServerDialog> {
               if (!isStdio)
                 TextFormField(
                   controller: _urlController,
-                  decoration: const InputDecoration(
-                    labelText: 'URL',
+                  decoration: InputDecoration(
+                    labelText: AppLocalizations.of(context)!.labelUrl,
                     hintText: 'https://example.com/mcp',
                   ),
                   validator: (v) {
@@ -233,9 +236,9 @@ class _MCPServerDialogState extends State<MCPServerDialog> {
               if (isStdio) ...[
                 TextFormField(
                   controller: _commandController,
-                  decoration: const InputDecoration(
-                    labelText: 'Command',
-                    hintText: '/usr/bin/python3',
+                  decoration: InputDecoration(
+                    labelText: AppLocalizations.of(context)!.labelCommand,
+                    hintText: AppLocalizations.of(context)!.hintUsrBinPython3,
                   ),
                   validator: (v) {
                     if (!isStdio) return null;
@@ -248,8 +251,10 @@ class _MCPServerDialogState extends State<MCPServerDialog> {
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: _argsController,
-                  decoration: const InputDecoration(
-                    labelText: 'Args (one per line)',
+                  decoration: InputDecoration(
+                    labelText: AppLocalizations.of(
+                      context,
+                    )!.labelArgsOnePerLine,
                     hintText: '-m\nmcp_server',
                   ),
                   maxLines: 4,
@@ -257,8 +262,10 @@ class _MCPServerDialogState extends State<MCPServerDialog> {
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: _envController,
-                  decoration: const InputDecoration(
-                    labelText: 'Env (KEY=VALUE, one per line)',
+                  decoration: InputDecoration(
+                    labelText: AppLocalizations.of(
+                      context,
+                    )!.labelEnvKeyValueOnePerLine,
                     hintText: 'API_KEY=abc\nDEBUG=1',
                   ),
                   maxLines: 4,
@@ -267,18 +274,18 @@ class _MCPServerDialogState extends State<MCPServerDialog> {
               const SizedBox(height: 12),
               TextFormField(
                 controller: _authHeaderController,
-                decoration: const InputDecoration(
-                  labelText: 'Auth header',
-                  hintText: 'Bearer …',
+                decoration: InputDecoration(
+                  labelText: AppLocalizations.of(context)!.labelAuthHeader,
+                  hintText: AppLocalizations.of(context)!.hintBearer,
                 ),
               ),
               const SizedBox(height: 12),
               SwitchListTile(
                 value: _enabled,
                 onChanged: (v) => setState(() => _enabled = v),
-                title: const Text('Enabled'),
-                subtitle: const Text(
-                  'Disabled servers are ignored by the agent',
+                title: Text(AppLocalizations.of(context)!.labelEnabled),
+                subtitle: Text(
+                  AppLocalizations.of(context)!.messageDisabledServersIgnored,
                 ),
                 contentPadding: EdgeInsets.zero,
                 dense: true,
@@ -290,7 +297,7 @@ class _MCPServerDialogState extends State<MCPServerDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
+          child: Text(AppLocalizations.of(context)!.cancel),
         ),
         FilledButton(
           onPressed: _submit,

@@ -6,6 +6,7 @@ import 'package:garbanzo_ai/features/chat/widgets/conversation_list_widget.dart'
 import 'package:garbanzo_ai/features/rooms/providers/room_provider.dart';
 import 'package:garbanzo_ai/features/rooms/widgets/create_room_dialog.dart';
 import 'package:garbanzo_ai/features/rooms/widgets/rooms_list_view.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// Sidebar shown on wide layouts. Contains a Chats / Rooms tab switcher so
 /// rooms feel like first-class peers of conversations.
@@ -142,16 +143,16 @@ class _Tabs extends StatelessWidget {
             const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
           ),
         ),
-        segments: const [
+        segments: [
           ButtonSegment(
             value: 0,
             icon: Icon(Icons.chat_bubble_outline, size: 16),
-            label: Text('Chats'),
+            label: Text(AppLocalizations.of(context)!.labelChats),
           ),
           ButtonSegment(
             value: 1,
             icon: Icon(Icons.group_outlined, size: 16),
-            label: Text('Rooms'),
+            label: Text(AppLocalizations.of(context)!.labelRooms),
           ),
         ],
         selected: {value},
@@ -201,7 +202,7 @@ class _RoomsTab extends StatelessWidget {
                 child: FilledButton.icon(
                   onPressed: () => _create(context),
                   icon: const Icon(Icons.group_add, size: 18),
-                  label: const Text('New Room'),
+                  label: Text(AppLocalizations.of(context)!.labelNewRoom),
                   style: FilledButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
@@ -209,7 +210,7 @@ class _RoomsTab extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               IconButton(
-                tooltip: 'Refresh',
+                tooltip: AppLocalizations.of(context)!.tooltipRefresh,
                 onPressed: provider.loading ? null : () => provider.loadRooms(),
                 icon: const Icon(Icons.refresh, size: 20),
               ),

@@ -89,7 +89,7 @@ class _SettingsPageState extends State<SettingsPage> {
     final wide = MediaQuery.of(context).size.width >= 720;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
+      appBar: AppBar(title: Text(AppLocalizations.of(context)!.settings)),
       body: wide ? _buildWide(theme) : _buildNarrow(theme),
     );
   }
@@ -189,20 +189,20 @@ class _SettingsPageState extends State<SettingsPage> {
             Text('Theme', style: Theme.of(context).textTheme.titleSmall),
             const SizedBox(height: 12),
             SegmentedButton<AppThemeMode>(
-              segments: const [
+              segments: [
                 ButtonSegment(
                   value: AppThemeMode.light,
-                  label: Text('Light'),
+                  label: Text(AppLocalizations.of(context)!.labelLight),
                   icon: Icon(Icons.light_mode),
                 ),
                 ButtonSegment(
                   value: AppThemeMode.dark,
-                  label: Text('Dark'),
+                  label: Text(AppLocalizations.of(context)!.labelDark),
                   icon: Icon(Icons.dark_mode),
                 ),
                 ButtonSegment(
                   value: AppThemeMode.system,
-                  label: Text('System'),
+                  label: Text(AppLocalizations.of(context)!.labelSystem),
                   icon: Icon(Icons.brightness_auto),
                 ),
               ],
@@ -233,14 +233,22 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
             const Divider(height: 32),
             SwitchListTile(
-              title: const Text('Show message metadata'),
-              subtitle: const Text('Display token counts and response time'),
+              title: Text(
+                AppLocalizations.of(context)!.titleShowMessageMetadata,
+              ),
+              subtitle: Text(
+                AppLocalizations.of(
+                  context,
+                )!.titleDisplayTokenCountsAndResponseTime,
+              ),
               value: settings.showMessageMetadata,
               onChanged: settings.setShowMessageMetadata,
               contentPadding: EdgeInsets.zero,
             ),
             SwitchListTile(
-              title: const Text('Show system prompt in thread'),
+              title: Text(
+                AppLocalizations.of(context)!.titleShowSystemPromptInThread,
+              ),
               subtitle: const Text(
                 'Display the active system prompt above the conversation',
               ),
@@ -269,7 +277,7 @@ class _SettingsPageState extends State<SettingsPage> {
       final result = await SystemPromptEditorDialog.show(
         context,
         initialContent: userDefaultPrompt,
-        title: 'Global default system prompt',
+        title: AppLocalizations.of(context)!.titleGlobalDefaultSystemPrompt,
         subtitle:
             'Applied to every new conversation unless overridden per-chat.',
       );
@@ -285,7 +293,7 @@ class _SettingsPageState extends State<SettingsPage> {
       child: Column(
         children: [
           ListTile(
-            title: const Text('Default model'),
+            title: Text(AppLocalizations.of(context)!.titleDefaultModel),
             subtitle: Text(
               defaultModel == null || defaultModel.isEmpty
                   ? 'Server fallback (usually llama3.2)'
@@ -303,11 +311,11 @@ class _SettingsPageState extends State<SettingsPage> {
                         ? defaultModel
                         : null,
                     underline: const SizedBox.shrink(),
-                    hint: const Text('Auto'),
+                    hint: Text(AppLocalizations.of(context)!.messageAuto),
                     items: [
-                      const DropdownMenuItem<String?>(
+                      DropdownMenuItem<String?>(
                         value: null,
-                        child: Text('Auto'),
+                        child: Text(AppLocalizations.of(context)!.messageAuto),
                       ),
                       ...models.map(
                         (m) => DropdownMenuItem<String?>(
@@ -327,7 +335,9 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           const Divider(height: 1),
           ListTile(
-            title: const Text('Global default system prompt'),
+            title: Text(
+              AppLocalizations.of(context)!.titleGlobalDefaultSystemPrompt,
+            ),
             subtitle: Text(
               (userDefaultPrompt == null || userDefaultPrompt.isEmpty)
                   ? 'Not set — using built-in defaults'
@@ -340,8 +350,10 @@ class _SettingsPageState extends State<SettingsPage> {
           const Divider(height: 1),
           ListTile(
             leading: const Icon(Icons.bar_chart),
-            title: const Text('Token usage'),
-            subtitle: const Text('Charts by model, conversation, day'),
+            title: Text(AppLocalizations.of(context)!.titleTokenUsage),
+            subtitle: Text(
+              AppLocalizations.of(context)!.titleChartsByModelConversationDay,
+            ),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => context.push('/usage'),
           ),
@@ -357,7 +369,7 @@ class _SettingsPageState extends State<SettingsPage> {
       child: Column(
         children: [
           ListTile(
-            title: const Text('Voice'),
+            title: Text(AppLocalizations.of(context)!.titleVoice),
             trailing: _loadingVoices
                 ? const SizedBox(
                     width: 16,
@@ -387,7 +399,7 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           const Divider(height: 1),
           ListTile(
-            title: const Text('Speed'),
+            title: Text(AppLocalizations.of(context)!.titleSpeed),
             subtitle: Slider(
               value: settings.ttsSpeed,
               min: 0.5,
@@ -400,16 +412,22 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           const Divider(height: 1),
           SwitchListTile(
-            title: const Text('Auto-play responses'),
-            subtitle: const Text('Read aloud new assistant messages'),
+            title: Text(AppLocalizations.of(context)!.titleAutoPlayResponses),
+            subtitle: Text(
+              AppLocalizations.of(context)!.titleReadAloudNewAssistantMessages,
+            ),
             value: settings.autoPlayTts,
             onChanged: settings.setAutoPlayTts,
           ),
           const Divider(height: 1),
           SwitchListTile(
-            title: const Text('Auto-send after transcription'),
-            subtitle: const Text(
-              'Automatically send when voice input finishes',
+            title: Text(
+              AppLocalizations.of(context)!.titleAutoSendAfterTranscription,
+            ),
+            subtitle: Text(
+              AppLocalizations.of(
+                context,
+              )!.titleAutomaticallySendWhenVoiceInputFinishes,
             ),
             value: settings.autoSubmitStt,
             onChanged: settings.setAutoSubmitStt,
@@ -422,10 +440,10 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget _memorySection() {
     return Card(
       child: Column(
-        children: const [
+        children: [
           ListTile(
             leading: Icon(Icons.info_outline),
-            title: Text('Saved memories'),
+            title: Text(AppLocalizations.of(context)!.titleSavedMemories),
             subtitle: Text(
               'Memories are managed from the chat screen via the memory page. '
               'Open the chat to review, edit, or delete them.',
@@ -457,7 +475,7 @@ class _SettingsPageState extends State<SettingsPage> {
           child: Column(
             children: [
               SwitchListTile(
-                title: const Text('Chat responses'),
+                title: Text(AppLocalizations.of(context)!.titleChatResponses),
                 subtitle: const Text(
                   'Notify when assistant replies while app is in background',
                 ),
@@ -467,24 +485,34 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               const Divider(height: 1),
               SwitchListTile(
-                title: const Text('Reminders'),
-                subtitle: const Text('Scheduled reminders and check-ins'),
+                title: Text(AppLocalizations.of(context)!.titleReminders),
+                subtitle: Text(
+                  AppLocalizations.of(
+                    context,
+                  )!.titleScheduledRemindersAndCheckIns,
+                ),
                 value: prefs.remindersEnabled,
                 onChanged: (v) =>
                     provider.updatePreferences(remindersEnabled: v),
               ),
               const Divider(height: 1),
               SwitchListTile(
-                title: const Text('System alerts'),
-                subtitle: const Text('Account and system notifications'),
+                title: Text(AppLocalizations.of(context)!.titleSystemAlerts),
+                subtitle: Text(
+                  AppLocalizations.of(
+                    context,
+                  )!.titleAccountAndSystemNotifications,
+                ),
                 value: prefs.systemAlertsEnabled,
                 onChanged: (v) =>
                     provider.updatePreferences(systemAlertsEnabled: v),
               ),
               const Divider(height: 1),
               SwitchListTile(
-                title: const Text('Friend updates'),
-                subtitle: const Text('Friend requests and accepts'),
+                title: Text(AppLocalizations.of(context)!.titleFriendUpdates),
+                subtitle: Text(
+                  AppLocalizations.of(context)!.titleFriendRequestsAndAccepts,
+                ),
                 value: prefs.friendUpdatesEnabled,
                 onChanged: (v) =>
                     provider.updatePreferences(friendUpdatesEnabled: v),

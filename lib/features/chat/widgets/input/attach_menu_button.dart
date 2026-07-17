@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:garbanzo_ai/features/chat/models/chat_attachment.dart';
 import 'package:garbanzo_ai/features/chat/widgets/input/file_picker_helper.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// Attach button for the message composer. Instead of jumping straight into
 /// the file picker, it offers the available sources:
@@ -45,17 +46,17 @@ class _AttachMenuButtonState extends State<AttachMenuButton> {
     if (FilePickerHelper.isMobilePlatform)
       _AttachOption(
         icon: Icons.photo_camera_outlined,
-        label: 'Take photo',
+        label: AppLocalizations.of(context)!.titleTakePhoto,
         pick: FilePickerHelper.takePhoto,
       ),
     _AttachOption(
       icon: Icons.photo_library_outlined,
-      label: 'Photos',
+      label: AppLocalizations.of(context)!.titlePhotos,
       pick: FilePickerHelper.pickImages,
     ),
     _AttachOption(
       icon: Icons.folder_outlined,
-      label: 'Files',
+      label: AppLocalizations.of(context)!.titleFiles,
       pick: FilePickerHelper.pickFiles,
     ),
   ];
@@ -71,7 +72,11 @@ class _AttachMenuButtonState extends State<AttachMenuButton> {
     if (result.rejected.isNotEmpty) {
       messenger.showSnackBar(
         SnackBar(
-          content: Text('Files too large:\n${result.rejected.join('\n')}'),
+          content: Text(
+            AppLocalizations.of(
+              context,
+            )!.messageFilesTooLarge(result.rejected.join('\n')),
+          ),
           backgroundColor: Theme.of(context).colorScheme.error,
           behavior: SnackBarBehavior.floating,
         ),
@@ -109,7 +114,7 @@ class _AttachMenuButtonState extends State<AttachMenuButton> {
       key: widget.buttonKey,
       onPressed: onPressed,
       icon: const Icon(Icons.attach_file, size: 22),
-      tooltip: 'Attach photos or files',
+      tooltip: AppLocalizations.of(context)!.messageAttachPhotosOrFiles,
       style: IconButton.styleFrom(
         foregroundColor: colorScheme.onSurfaceVariant,
         minimumSize: const Size(32, 32),

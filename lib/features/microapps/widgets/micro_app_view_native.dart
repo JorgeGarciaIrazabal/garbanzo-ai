@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 Widget microAppPlatformView({required String url, required int reloadCounter}) {
   if (defaultTargetPlatform == TargetPlatform.android ||
@@ -83,7 +84,7 @@ class _OpenInBrowserCard extends StatelessWidget {
             const SizedBox(height: 12),
             OutlinedButton.icon(
               icon: const Icon(Icons.copy, size: 18),
-              label: const Text('Copy URL'),
+              label: Text(AppLocalizations.of(context)!.labelCopyUrl),
               onPressed: () => Clipboard.setData(ClipboardData(text: url)),
             ),
           ],

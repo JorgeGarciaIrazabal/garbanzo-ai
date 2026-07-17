@@ -7,6 +7,7 @@ import 'package:garbanzo_ai/features/friends/services/friends_service.dart';
 import 'package:garbanzo_ai/features/friends/services/shares_service.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:provider/provider.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 class MockFriendsService extends Mock implements FriendsService {}
 
@@ -40,7 +41,10 @@ void main() {
   });
 
   Widget app() => MaterialApp(
-    home: ChangeNotifierProvider(
+    
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
+home: ChangeNotifierProvider(
       create: (_) => FriendsProvider(service: service, sharesService: shares),
       child: const FriendsPage(),
     ),

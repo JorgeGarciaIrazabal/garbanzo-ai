@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'package:garbanzo_ai/features/admin/providers/admin_provider.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// Tab rendering the list of LLM models with enable/disable toggles.
 class ModelsTab extends StatefulWidget {
@@ -23,7 +24,9 @@ class _ModelsTabState extends State<ModelsTab> {
   Future<void> _handleSync() async {
     final provider = context.read<AdminProvider>();
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Syncing models from provider…')),
+      SnackBar(
+        content: Text(AppLocalizations.of(context)!.messageSyncingModels),
+      ),
     );
     await provider.syncModels();
     if (!mounted) return;
@@ -62,7 +65,7 @@ class _ModelsTabState extends State<ModelsTab> {
             const SizedBox(height: 8),
             FilledButton(
               onPressed: provider.loadModels,
-              child: const Text('Retry'),
+              child: Text(AppLocalizations.of(context)!.labelRetry),
             ),
           ],
         ),
@@ -74,10 +77,13 @@ class _ModelsTabState extends State<ModelsTab> {
           children: [
             Icon(Icons.memory, color: colorScheme.outline, size: 48),
             const SizedBox(height: 8),
-            Text('No models synced yet', style: theme.textTheme.titleMedium),
+            Text(
+              AppLocalizations.of(context)!.noModelsSyncedYet,
+              style: theme.textTheme.titleMedium,
+            ),
             const SizedBox(height: 4),
             Text(
-              'Tap the sync button to discover models from the provider.',
+              AppLocalizations.of(context)!.messageTapSyncToDiscoverModels,
               style: theme.textTheme.bodySmall,
             ),
           ],
@@ -119,7 +125,7 @@ class _ModelsTabState extends State<ModelsTab> {
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
-                        'NEW',
+                        AppLocalizations.of(context)!.labelNewBadge,
                         style: theme.textTheme.labelSmall?.copyWith(
                           color: colorScheme.onTertiaryContainer,
                           fontWeight: FontWeight.w600,
@@ -162,7 +168,7 @@ class _ModelsTabState extends State<ModelsTab> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _handleSync,
         icon: const Icon(Icons.sync),
-        label: const Text('Sync'),
+        label: Text(AppLocalizations.of(context)!.labelSync),
       ),
     );
   }

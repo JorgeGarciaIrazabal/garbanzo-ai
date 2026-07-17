@@ -9,6 +9,7 @@ import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/model_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/system_prompt_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// Minimal fake ChatProvider that only exposes what SystemPromptBanner reads.
 class _FakeChatProvider extends ChatProvider {
@@ -106,7 +107,10 @@ SystemPromptTemplate _template(String id, String name, {bool builtin = false}) =
 Future<void> _openEditor(WidgetTester tester, SystemPromptProvider p) async {
   await tester.pumpWidget(
     MaterialApp(
-      home: MultiProvider(
+      
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
+home: MultiProvider(
         providers: [
           ChangeNotifierProvider<SystemPromptProvider>.value(value: p),
           ChangeNotifierProvider<ModelProvider>.value(
@@ -160,7 +164,10 @@ void main() {
       // own route, so it can only see the provider if show() re-exposes it.
       await tester.pumpWidget(
         MaterialApp(
-          home: MultiProvider(
+          
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
+home: MultiProvider(
             providers: [
               ChangeNotifierProvider<SystemPromptProvider>.value(
                 value: _FakeSystemPromptProvider(null, const []),
@@ -194,7 +201,10 @@ void main() {
     testWidgets('shows "Create with AI" button', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
-          home: MultiProvider(
+          
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
+home: MultiProvider(
             providers: [
               ChangeNotifierProvider<SystemPromptProvider>.value(
                 value: _FakeSystemPromptProvider(null, const []),
@@ -226,7 +236,10 @@ void main() {
         (tester) async {
       await tester.pumpWidget(
         MaterialApp(
-          home: MultiProvider(
+          
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
+home: MultiProvider(
             providers: [
               ChangeNotifierProvider<SystemPromptProvider>.value(
                 value: _FakeSystemPromptProvider(null, const []),
@@ -357,7 +370,10 @@ void main() {
           ),
         ],
         child: const MaterialApp(
-          home: Scaffold(body: SystemPromptBanner()),
+          
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
+home: Scaffold(body: SystemPromptBanner()),
         ),
       );
     }

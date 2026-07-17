@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:garbanzo_ai/core/widgets/animated_dialog.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// Result returned from [CreateUserDialog].
 class CreateUserDialogResult {
@@ -66,7 +67,7 @@ class _CreateUserDialogState extends State<CreateUserDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Create user'),
+      title: Text(AppLocalizations.of(context)!.titleCreateUser),
       scrollable: true,
       content: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 480),
@@ -80,9 +81,11 @@ class _CreateUserDialogState extends State<CreateUserDialog> {
                 key: const ValueKey('full_name_field'),
                 controller: _fullNameController,
                 textInputAction: TextInputAction.next,
-                decoration: const InputDecoration(
-                  labelText: 'Full name (optional)',
-                  hintText: 'Jane Doe',
+                decoration: InputDecoration(
+                  labelText: AppLocalizations.of(
+                    context,
+                  )!.labelFullNameOptional,
+                  hintText: AppLocalizations.of(context)!.hintJaneDoe,
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.person_outlined),
                 ),
@@ -93,9 +96,9 @@ class _CreateUserDialogState extends State<CreateUserDialog> {
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
                 textInputAction: TextInputAction.next,
-                decoration: const InputDecoration(
-                  labelText: 'Email',
-                  hintText: 'you@example.com',
+                decoration: InputDecoration(
+                  labelText: AppLocalizations.of(context)!.labelEmail,
+                  hintText: AppLocalizations.of(context)!.hintYouExampleCom,
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.email_outlined),
                 ),
@@ -112,8 +115,10 @@ class _CreateUserDialogState extends State<CreateUserDialog> {
                 obscureText: _obscurePassword,
                 textInputAction: TextInputAction.done,
                 decoration: InputDecoration(
-                  labelText: 'Password',
-                  hintText: 'At least 6 characters',
+                  labelText: AppLocalizations.of(context)!.labelPassword,
+                  hintText: AppLocalizations.of(
+                    context,
+                  )!.hintAtLeast6Characters,
                   border: const OutlineInputBorder(),
                   prefixIcon: const Icon(Icons.lock_outlined),
                   suffixIcon: IconButton(
@@ -141,9 +146,9 @@ class _CreateUserDialogState extends State<CreateUserDialog> {
               SwitchListTile(
                 value: _isAdmin,
                 onChanged: (v) => setState(() => _isAdmin = v),
-                title: const Text('Admin privileges'),
-                subtitle: const Text(
-                  'Allow this user to manage users and MCP servers',
+                title: Text(AppLocalizations.of(context)!.titleAdminPrivileges),
+                subtitle: Text(
+                  AppLocalizations.of(context)!.messageAllowAdminPrivileges,
                 ),
                 contentPadding: EdgeInsets.zero,
                 dense: true,
@@ -155,12 +160,12 @@ class _CreateUserDialogState extends State<CreateUserDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
+          child: Text(AppLocalizations.of(context)!.cancel),
         ),
         FilledButton(
           key: const ValueKey('create_user_submit'),
           onPressed: _submit,
-          child: const Text('Create'),
+          child: Text(AppLocalizations.of(context)!.create),
         ),
       ],
     );

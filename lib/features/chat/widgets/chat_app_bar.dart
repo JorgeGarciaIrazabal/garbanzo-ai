@@ -6,6 +6,7 @@ import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
 import 'package:garbanzo_ai/features/chat/widgets/mobile_drawer.dart';
 import 'package:garbanzo_ai/features/chat/widgets/mobile_search_sheet.dart';
 import 'package:garbanzo_ai/features/chat/widgets/style_picker.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// App bar for the chat page: conversation title, model selector, and
 /// settings drawer trigger.
@@ -96,7 +97,7 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
                 ),
         IconButton(
           icon: const Icon(Icons.settings),
-          tooltip: 'Settings',
+          tooltip: AppLocalizations.of(context)!.settings,
           onPressed: onOpenSettings,
         ),
         const SizedBox(width: 8),

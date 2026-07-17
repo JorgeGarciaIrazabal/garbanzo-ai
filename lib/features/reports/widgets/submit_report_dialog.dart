@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:garbanzo_ai/features/reports/models/report.dart';
 import 'package:garbanzo_ai/features/reports/services/reports_service.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// Dialog for submitting a bug report or feature request (idea 14).
 ///
@@ -72,7 +73,11 @@ class _SubmitReportDialogState extends State<SubmitReportDialog> {
       if (mounted) {
         // Root messenger — outlives both this dialog and the drawer.
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Thanks! Your report was submitted.')),
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(context)!.messageThanksYourReportWasSubmitted,
+            ),
+          ),
         );
         Navigator.of(context).pop();
       }
@@ -90,7 +95,7 @@ class _SubmitReportDialogState extends State<SubmitReportDialog> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return AlertDialog(
-      title: const Text('Report a bug or request a feature'),
+      title: Text(AppLocalizations.of(context)!.titleReportABugOrRequestA),
       content: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 420),
         child: Column(
@@ -98,15 +103,15 @@ class _SubmitReportDialogState extends State<SubmitReportDialog> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             SegmentedButton<String>(
-              segments: const [
+              segments: [
                 ButtonSegment(
-                  value: 'bug',
-                  label: Text('Bug'),
+                  value: AppLocalizations.of(context)!.hintBug,
+                  label: Text(AppLocalizations.of(context)!.labelBug),
                   icon: Icon(Icons.bug_report_outlined),
                 ),
                 ButtonSegment(
                   value: 'feature',
-                  label: Text('Feature'),
+                  label: Text(AppLocalizations.of(context)!.labelFeature),
                   icon: Icon(Icons.lightbulb_outline),
                 ),
               ],
@@ -120,9 +125,9 @@ class _SubmitReportDialogState extends State<SubmitReportDialog> {
               controller: _title,
               enabled: !_sending,
               maxLength: 200,
-              decoration: const InputDecoration(
-                labelText: 'Title',
-                hintText: 'One-line summary',
+              decoration: InputDecoration(
+                labelText: AppLocalizations.of(context)!.labelTitle,
+                hintText: AppLocalizations.of(context)!.hintOneLineSummary,
                 border: OutlineInputBorder(),
                 counterText: '',
               ),
@@ -136,7 +141,7 @@ class _SubmitReportDialogState extends State<SubmitReportDialog> {
               maxLines: 8,
               maxLength: 10000,
               decoration: InputDecoration(
-                labelText: 'Description',
+                labelText: AppLocalizations.of(context)!.labelDescription,
                 hintText: _type == 'bug'
                     ? 'What happened, and what did you expect?'
                     : 'What would you like the app to do?',
@@ -155,7 +160,7 @@ class _SubmitReportDialogState extends State<SubmitReportDialog> {
       actions: [
         TextButton(
           onPressed: _sending ? null : () => Navigator.of(context).pop(false),
-          child: const Text('Cancel'),
+          child: Text(AppLocalizations.of(context)!.cancel),
         ),
         FilledButton(
           key: const ValueKey('report_submit_button'),
@@ -166,7 +171,7 @@ class _SubmitReportDialogState extends State<SubmitReportDialog> {
                   height: 16,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : const Text('Submit'),
+              : Text(AppLocalizations.of(context)!.submit),
         ),
       ],
     );

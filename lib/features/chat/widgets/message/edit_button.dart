@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:garbanzo_ai/core/widgets/animated_dialog.dart';
 import 'package:garbanzo_ai/features/chat/widgets/message/message_action_button.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// Compact "Edit" button for user messages.
 ///
@@ -25,7 +26,7 @@ class EditMessageButton extends StatelessWidget {
       context: context,
       builder: (ctx) {
         return AlertDialog(
-          title: const Text('Edit message'),
+          title: Text(AppLocalizations.of(context)!.titleEditMessage),
           content: ConstrainedBox(
             constraints: const BoxConstraints(minWidth: 420, maxWidth: 600),
             child: TextField(
@@ -39,11 +40,11 @@ class EditMessageButton extends StatelessWidget {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
+              child: Text(AppLocalizations.of(context)!.cancel),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(ctx, controller.text.trim()),
-              child: const Text('Save & rerun'),
+              child: Text(AppLocalizations.of(context)!.saveAndRerun),
             ),
           ],
         );
@@ -58,8 +59,8 @@ class EditMessageButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return MessageActionButton(
       icon: Icons.edit_outlined,
-      label: 'Edit',
-      tooltip: 'Edit this message and rerun the conversation from here',
+      label: AppLocalizations.of(context)!.tooltipEdit,
+      tooltip: AppLocalizations.of(context)!.messageEditThisMessage,
       onTap: enabled ? () => _openDialog(context) : null,
     );
   }

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/system_prompt_provider.dart';
 import 'package:garbanzo_ai/features/chat/widgets/system_prompt_editor_dialog.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// Collapsible banner shown at the top of a conversation thread that
 /// displays the active system prompt (per-conversation override or the
@@ -48,8 +49,10 @@ class _SystemPromptBannerState extends State<SystemPromptBanner> {
       final result = await SystemPromptEditorDialog.show(
         context,
         initialContent: convPrompt,
-        title: 'Conversation system prompt',
-        subtitle: 'Overrides your global default for this conversation only.',
+        title: AppLocalizations.of(context)!.titleConversationSystemPrompt,
+        subtitle: AppLocalizations.of(
+          context,
+        )!.titleOverridesYourGlobalDefaultForThis,
       );
       if (result == null || result.isCancelled) return;
       if (result.isClear) {
@@ -84,7 +87,7 @@ class _SystemPromptBannerState extends State<SystemPromptBanner> {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    'System prompt',
+                    AppLocalizations.of(context)!.labelSystemPrompt,
                     style: theme.textTheme.labelLarge?.copyWith(
                       color: colorScheme.primary,
                       fontWeight: FontWeight.w600,
@@ -110,7 +113,7 @@ class _SystemPromptBannerState extends State<SystemPromptBanner> {
                   const Spacer(),
                   IconButton(
                     icon: const Icon(Icons.edit, size: 18),
-                    tooltip: 'Edit',
+                    tooltip: AppLocalizations.of(context)!.tooltipEdit,
                     onPressed: edit,
                     visualDensity: VisualDensity.compact,
                   ),

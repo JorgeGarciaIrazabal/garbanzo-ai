@@ -6,6 +6,7 @@ import 'package:garbanzo_ai/features/admin/widgets/mcp_servers_tab.dart';
 import 'package:garbanzo_ai/features/admin/widgets/models_tab.dart';
 import 'package:garbanzo_ai/features/admin/widgets/reports_tab.dart';
 import 'package:garbanzo_ai/features/admin/widgets/users_tab.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// Admin portal with tabs for user management, model visibility, and MCP
 /// server configuration.
@@ -33,14 +34,26 @@ class _AdminPageContent extends StatelessWidget {
       length: 4,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Admin'),
-          bottom: const TabBar(
+          title: Text(AppLocalizations.of(context)!.titleAdmin),
+          bottom: TabBar(
             isScrollable: true,
             tabs: [
-              Tab(icon: Icon(Icons.people_outline), text: 'Users'),
-              Tab(icon: Icon(Icons.memory), text: 'Models'),
-              Tab(icon: Icon(Icons.extension_outlined), text: 'MCP Servers'),
-              Tab(icon: Icon(Icons.feedback_outlined), text: 'Reports'),
+              Tab(
+                icon: Icon(Icons.people_outline),
+                text: AppLocalizations.of(context)!.tabUsers,
+              ),
+              Tab(
+                icon: Icon(Icons.memory),
+                text: AppLocalizations.of(context)!.titleModels,
+              ),
+              Tab(
+                icon: Icon(Icons.extension_outlined),
+                text: AppLocalizations.of(context)!.tabMcpServers,
+              ),
+              Tab(
+                icon: Icon(Icons.feedback_outlined),
+                text: AppLocalizations.of(context)!.tabReports,
+              ),
             ],
           ),
         ),

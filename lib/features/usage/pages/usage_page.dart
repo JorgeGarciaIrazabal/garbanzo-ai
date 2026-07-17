@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import 'package:garbanzo_ai/features/usage/models/usage_summary.dart';
 import 'package:garbanzo_ai/features/usage/providers/usage_provider.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 class UsagePage extends StatelessWidget {
   const UsagePage({super.key});
@@ -27,23 +28,35 @@ class _UsageView extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Token usage'),
+        title: Text(AppLocalizations.of(context)!.titleTokenUsage),
         actions: [
           PopupMenuButton<int>(
             icon: const Icon(Icons.calendar_today_outlined),
             tooltip: 'Time range',
             onSelected: (value) => provider.load(days: value),
             initialValue: provider.days,
-            itemBuilder: (context) => const [
-              PopupMenuItem(value: 7, child: Text('Last 7 days')),
-              PopupMenuItem(value: 30, child: Text('Last 30 days')),
-              PopupMenuItem(value: 90, child: Text('Last 90 days')),
-              PopupMenuItem(value: 365, child: Text('Last 12 months')),
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                value: 7,
+                child: Text(AppLocalizations.of(context)!.last7Days),
+              ),
+              PopupMenuItem(
+                value: 30,
+                child: Text(AppLocalizations.of(context)!.last30Days),
+              ),
+              PopupMenuItem(
+                value: 90,
+                child: Text(AppLocalizations.of(context)!.last90Days),
+              ),
+              PopupMenuItem(
+                value: 365,
+                child: Text(AppLocalizations.of(context)!.last12Months),
+              ),
             ],
           ),
           IconButton(
             icon: const Icon(Icons.refresh),
-            tooltip: 'Refresh',
+            tooltip: AppLocalizations.of(context)!.tooltipRefresh,
             onPressed: provider.isLoading ? null : () => provider.load(),
           ),
         ],
@@ -70,7 +83,7 @@ class _UsageView extends StatelessWidget {
                     const SizedBox(height: 12),
                     FilledButton(
                       onPressed: () => provider.load(),
-                      child: const Text('Retry'),
+                      child: Text(AppLocalizations.of(context)!.labelRetry),
                     ),
                   ],
                 ),
@@ -163,7 +176,7 @@ class _TotalsRow extends StatelessWidget {
             icon: Icons.token_outlined,
           ),
           _StatCard(
-            label: 'Prompt',
+            label: AppLocalizations.of(context)!.labelPrompt,
             value: _formatNumber(summary.totalTokensPrompt),
             icon: Icons.arrow_upward,
           ),
@@ -173,7 +186,7 @@ class _TotalsRow extends StatelessWidget {
             icon: Icons.arrow_downward,
           ),
           _StatCard(
-            label: 'Messages',
+            label: AppLocalizations.of(context)!.labelMessages,
             value: _formatNumber(summary.totalMessages),
             icon: Icons.chat_outlined,
           ),
@@ -252,7 +265,10 @@ class _DailyChart extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(32),
           child: Center(
-            child: Text('No daily data', style: theme.textTheme.bodySmall),
+            child: Text(
+              AppLocalizations.of(context)!.noDailyData,
+              style: theme.textTheme.bodySmall,
+            ),
           ),
         ),
       );

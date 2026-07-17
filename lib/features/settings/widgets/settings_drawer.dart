@@ -10,6 +10,7 @@ import 'package:garbanzo_ai/features/settings/widgets/drawer_sections/app_settin
 import 'package:garbanzo_ai/features/settings/widgets/drawer_sections/conversation_section.dart';
 import 'package:garbanzo_ai/features/settings/widgets/drawer_sections/pages_section.dart';
 import 'package:garbanzo_ai/features/settings/widgets/drawer_sections/section_header.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// Right-side drawer, organized into three groups:
 ///   1. Pages — navigation to every feature page
@@ -40,11 +41,14 @@ class SettingsDrawer extends StatelessWidget {
                 children: [
                   Icon(Icons.settings, color: colorScheme.primary),
                   const SizedBox(width: 8),
-                  Text('Settings', style: theme.textTheme.titleLarge),
+                  Text(
+                    AppLocalizations.of(context)!.settings,
+                    style: theme.textTheme.titleLarge,
+                  ),
                   const Spacer(),
                   IconButton(
                     icon: const Icon(Icons.close),
-                    tooltip: 'Close settings',
+                    tooltip: AppLocalizations.of(context)!.tooltipCloseSettings,
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                 ],
@@ -58,8 +62,12 @@ class SettingsDrawer extends StatelessWidget {
             const Divider(height: 1),
             ListTile(
               leading: const Icon(Icons.open_in_new),
-              title: const Text('Open full settings'),
-              subtitle: const Text('Profile, appearance, models, and more'),
+              title: Text(AppLocalizations.of(context)!.titleOpenFullSettings),
+              subtitle: Text(
+                AppLocalizations.of(
+                  context,
+                )!.titleProfileAppearanceModelsAndMore,
+              ),
               dense: true,
               onTap: () {
                 Navigator.of(context).pop();
@@ -67,19 +75,27 @@ class SettingsDrawer extends StatelessWidget {
               },
             ),
             const Divider(height: 1),
-            const Expanded(
+            Expanded(
               child: SingleChildScrollView(
                 padding: EdgeInsets.symmetric(vertical: 8),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    GroupHeader(title: 'Pages'),
+                    GroupHeader(
+                      title: AppLocalizations.of(context)!.titlePages,
+                    ),
                     PagesSection(),
                     Divider(height: 24),
-                    GroupHeader(title: 'This conversation'),
+                    GroupHeader(
+                      title: AppLocalizations.of(
+                        context,
+                      )!.titleThisConversation,
+                    ),
                     ConversationSection(),
                     Divider(height: 24),
-                    GroupHeader(title: 'App settings'),
+                    GroupHeader(
+                      title: AppLocalizations.of(context)!.titleAppSettings,
+                    ),
                     AppSettingsSection(),
                   ],
                 ),
@@ -127,7 +143,7 @@ class _AccountTile extends StatelessWidget {
       },
       trailing: IconButton(
         icon: Icon(Icons.logout, color: colorScheme.error),
-        tooltip: 'Sign out',
+        tooltip: AppLocalizations.of(context)!.titleSignOut,
         onPressed: () => context.read<AuthState>().logout(),
       ),
     );
@@ -170,7 +186,7 @@ class _NotificationsTile extends StatelessWidget {
             ),
         ],
       ),
-      title: const Text('Notifications'),
+      title: Text(AppLocalizations.of(context)!.titleNotifications),
       trailing: const Icon(Icons.chevron_right),
       dense: true,
       onTap: () {

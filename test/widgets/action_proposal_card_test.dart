@@ -6,6 +6,7 @@ import 'package:garbanzo_ai/features/chat/providers/model_provider.dart';
 import 'package:garbanzo_ai/features/chat/widgets/action_proposal_card.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 ChatMessage _proposalMessage({
   String type = 'create_room',
@@ -49,7 +50,10 @@ Widget _wrap(Widget child) => MultiProvider(
     ChangeNotifierProvider<ChatProvider>(create: (_) => ChatProvider()),
     ChangeNotifierProvider<ModelProvider>(create: (_) => ModelProvider()),
   ],
-  child: MaterialApp(home: Scaffold(body: child)),
+  child: MaterialApp(
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
+home: Scaffold(body: child)),
 );
 
 void main() {

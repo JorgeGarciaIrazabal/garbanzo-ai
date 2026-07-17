@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:garbanzo_ai/features/reports/models/report.dart';
 import 'package:garbanzo_ai/features/reports/widgets/submit_report_dialog.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 void main() {
   Report fakeReport({String type = 'bug'}) => Report(
@@ -29,7 +30,10 @@ void main() {
   }) async {
     await tester.pumpWidget(
       MaterialApp(
-        home: Scaffold(
+        
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
+home: Scaffold(
           body: Builder(
             builder: (context) => TextButton(
               onPressed: () => showDialog<void>(

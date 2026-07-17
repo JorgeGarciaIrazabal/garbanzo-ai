@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
 import 'package:garbanzo_ai/core/mute_util.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 import 'package:garbanzo_ai/features/rooms/models/room_models.dart';
 import 'package:garbanzo_ai/features/rooms/providers/room_provider.dart';
 import 'package:garbanzo_ai/features/rooms/services/room_service.dart';
@@ -279,6 +280,8 @@ void main() {
       void Function(Room, String)? onMute,
     }) =>
         MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: RoomsListView(
               rooms: rooms,

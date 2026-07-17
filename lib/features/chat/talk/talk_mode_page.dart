@@ -6,6 +6,7 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
 import 'package:garbanzo_ai/features/chat/talk/talk_mode_controller.dart';
 import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// Full-screen, hands-free voice conversation surface (Talk Mode).
 ///
@@ -103,7 +104,7 @@ class _TalkModePageState extends State<TalkModePage> {
                 if (isError) ...[
                   const SizedBox(height: 6),
                   Text(
-                    'Tap the circle to retry',
+                    AppLocalizations.of(context)!.messageTapCircleToRetry,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: scheme.onSurfaceVariant,
                     ),
@@ -248,7 +249,10 @@ class _ControlBar extends StatelessWidget {
             onSelected: (code) =>
                 onLanguageSelected(code == 'auto' ? null : code),
             itemBuilder: (context) => [
-              const PopupMenuItem(value: 'auto', child: Text('Auto')),
+              PopupMenuItem(
+                value: AppLocalizations.of(context)!.labelThinkingAuto,
+                child: Text(AppLocalizations.of(context)!.messageAuto),
+              ),
               const PopupMenuDivider(),
               for (final entry in TalkModeController.supportedLanguages.entries)
                 PopupMenuItem(value: entry.key, child: Text(entry.value)),
@@ -274,7 +278,7 @@ class _ControlBar extends StatelessWidget {
               foregroundColor: scheme.onError,
             ),
             icon: const Icon(Icons.call_end),
-            tooltip: 'End call',
+            tooltip: AppLocalizations.of(context)!.messageEndCall,
             onPressed: onHangUp,
           ),
         ],

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:garbanzo_ai/features/chat/widgets/message/message_action_button.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// Compact icon button to toggle metadata visibility.
 class MetadataIconToggle extends StatelessWidget {
@@ -106,7 +107,7 @@ class MetadataDetails extends StatelessWidget {
           if (memoriesUsed != null)
             MetadataItem(
               icon: Icons.psychology_outlined,
-              label: 'Memories',
+              label: AppLocalizations.of(context)!.titleMemories,
               value: _formatNumber(memoriesUsed),
               colorScheme: colorScheme,
             ),

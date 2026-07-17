@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:garbanzo_ai/features/memory/models/memory.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// Individual memory tile displaying content, source, and status.
 class MemoryItemTile extends StatelessWidget {
@@ -114,7 +115,7 @@ class MemoryItemTile extends StatelessWidget {
                     IconButton(
                       icon: const Icon(Icons.edit),
                       onPressed: onEdit,
-                      tooltip: 'Edit memory',
+                      tooltip: AppLocalizations.of(context)!.tooltipEditMemory,
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
                       iconSize: 20,
@@ -135,7 +136,9 @@ class MemoryItemTile extends StatelessWidget {
                     IconButton(
                       icon: const Icon(Icons.delete_outline),
                       onPressed: onDelete,
-                      tooltip: 'Delete memory',
+                      tooltip: AppLocalizations.of(
+                        context,
+                      )!.tooltipDeleteMemory,
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
                       iconSize: 20,

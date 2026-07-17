@@ -8,6 +8,7 @@ import 'package:garbanzo_ai/features/chat/models/thinking_level.dart';
 import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/model_provider.dart';
 import 'package:garbanzo_ai/features/rooms/services/room_service.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// Confirm/Cancel card for an action proposal returned by a proposal tool
 /// (create_room, set_conversation_style).
@@ -238,13 +239,13 @@ class _ActionProposalCardState extends State<ActionProposalCard> {
         FilledButton(
           key: const ValueKey('action_proposal_confirm'),
           onPressed: _confirm,
-          child: const Text('Confirm'),
+          child: Text(AppLocalizations.of(context)!.confirm),
         ),
         const SizedBox(width: 8),
         TextButton(
           key: const ValueKey('action_proposal_cancel'),
           onPressed: _dismiss,
-          child: const Text('Cancel'),
+          child: Text(AppLocalizations.of(context)!.cancel),
         ),
       ],
     );

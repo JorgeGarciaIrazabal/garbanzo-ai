@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import 'package:garbanzo_ai/features/notifications/providers/notification_provider.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// AppBar bell icon with an unread badge that opens the notifications page.
 class NotificationBell extends StatelessWidget {
@@ -18,7 +19,7 @@ class NotificationBell extends StatelessWidget {
       children: [
         IconButton(
           icon: const Icon(Icons.notifications_outlined),
-          tooltip: 'Notifications',
+          tooltip: AppLocalizations.of(context)!.titleNotifications,
           // NotificationProvider is app-level, so the notifications route
           // shares this bell's provider (badge and page stay in sync).
           onPressed: () => context.push('/notifications'),

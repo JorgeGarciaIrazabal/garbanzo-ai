@@ -6,6 +6,7 @@ import 'package:garbanzo_ai/core/widgets/skeleton.dart';
 import 'package:garbanzo_ai/features/memory/models/memory.dart';
 import 'package:garbanzo_ai/features/memory/providers/memory_provider.dart';
 import 'package:garbanzo_ai/features/memory/widgets/memory_list_widget.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// Main page for viewing, editing, and managing memories.
 class MemoryPage extends StatefulWidget {
@@ -34,11 +35,11 @@ class _MemoryPageState extends State<MemoryPage> {
     showAnimatedDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Create Memory'),
+        title: Text(AppLocalizations.of(context)!.titleCreateMemoryAction),
         content: TextField(
           controller: controller,
-          decoration: const InputDecoration(
-            hintText: 'Enter memory content',
+          decoration: InputDecoration(
+            hintText: AppLocalizations.of(context)!.hintEnterMemoryContent,
             border: OutlineInputBorder(),
           ),
           maxLines: 3,
@@ -47,7 +48,7 @@ class _MemoryPageState extends State<MemoryPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context)!.cancel),
           ),
           FilledButton(
             onPressed: () async {
@@ -56,7 +57,7 @@ class _MemoryPageState extends State<MemoryPage> {
               Navigator.of(context).pop();
               await _provider.createMemory(content: content);
             },
-            child: const Text('Create'),
+            child: Text(AppLocalizations.of(context)!.create),
           ),
         ],
       ),
@@ -69,11 +70,11 @@ class _MemoryPageState extends State<MemoryPage> {
     showAnimatedDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Edit Memory'),
+        title: Text(AppLocalizations.of(context)!.titleEditMemoryAction),
         content: TextField(
           controller: controller,
-          decoration: const InputDecoration(
-            hintText: 'Enter memory content',
+          decoration: InputDecoration(
+            hintText: AppLocalizations.of(context)!.hintEnterMemoryContent,
             border: OutlineInputBorder(),
           ),
           maxLines: 3,
@@ -82,7 +83,7 @@ class _MemoryPageState extends State<MemoryPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context)!.cancel),
           ),
           FilledButton(
             onPressed: () async {
@@ -94,7 +95,7 @@ class _MemoryPageState extends State<MemoryPage> {
                 content: content,
               );
             },
-            child: const Text('Save'),
+            child: Text(AppLocalizations.of(context)!.save),
           ),
         ],
       ),
@@ -105,14 +106,14 @@ class _MemoryPageState extends State<MemoryPage> {
     showAnimatedDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Memory'),
+        title: Text(AppLocalizations.of(context)!.titleDeleteMemoryAction),
         content: Text(
           'Are you sure you want to delete this memory?\n\n"${memory.content}"',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context)!.cancel),
           ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
@@ -120,7 +121,7 @@ class _MemoryPageState extends State<MemoryPage> {
               Navigator.of(context).pop();
               await _provider.deactivateMemory(memory.id);
             },
-            child: const Text('Delete'),
+            child: Text(AppLocalizations.of(context)!.delete),
           ),
         ],
       ),
@@ -132,12 +133,12 @@ class _MemoryPageState extends State<MemoryPage> {
     final provider = context.watch<MemoryProvider>();
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Memories'),
+        title: Text(AppLocalizations.of(context)!.titleMemories),
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
             onPressed: provider.isLoading ? null : _showCreateMemoryDialog,
-            tooltip: 'Create new memory',
+            tooltip: AppLocalizations.of(context)!.messageCreateNewMemory,
           ),
         ],
       ),
@@ -171,7 +172,7 @@ class _MemoryPageState extends State<MemoryPage> {
                       content: Text(provider.error!),
                       backgroundColor: Colors.red,
                       action: SnackBarAction(
-                        label: 'Dismiss',
+                        label: AppLocalizations.of(context)!.labelDismiss,
                         textColor: Colors.white,
                         onPressed: () => provider.clearError(),
                       ),
@@ -181,7 +182,7 @@ class _MemoryPageState extends State<MemoryPage> {
             ),
       floatingActionButton: FloatingActionButton(
         onPressed: provider.isLoading ? null : _showCreateMemoryDialog,
-        tooltip: 'Create memory',
+        tooltip: AppLocalizations.of(context)!.messageCreateMemory,
         child: const Icon(Icons.add),
       ),
     );

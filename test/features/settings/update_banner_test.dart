@@ -12,6 +12,7 @@ import 'package:garbanzo_ai/features/settings/services/update_installer.dart';
 import 'package:garbanzo_ai/features/settings/services/update_service.dart';
 import 'package:garbanzo_ai/features/settings/widgets/update_banner.dart';
 import 'package:garbanzo_ai/features/settings/widgets/update_dialog.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 UpdateService _serviceWithUpdate() => UpdateService(
   apiGet: (_) async => Response(
@@ -46,7 +47,10 @@ Widget _app(UpdateProvider provider) {
   return ChangeNotifierProvider.value(
     value: provider,
     child: MaterialApp.router(
-      routerConfig: router,
+      
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
+routerConfig: router,
       builder: (context, child) => UpdateBanner(child: child!),
     ),
   );

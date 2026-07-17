@@ -5,6 +5,7 @@ import 'package:garbanzo_ai/core/widgets/animated_dialog.dart';
 import 'package:garbanzo_ai/core/widgets/mute_sheet.dart';
 import 'package:garbanzo_ai/core/widgets/skeleton.dart';
 import 'package:garbanzo_ai/features/rooms/models/room_models.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// Visual list of rooms styled to match the conversation list.
 ///
@@ -94,19 +95,19 @@ class RoomsListView extends StatelessWidget {
     final ok = await showAnimatedDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete room?'),
+        title: Text(AppLocalizations.of(context)!.titleDeleteRoom),
         content: Text('Delete "${room.name}"? This cannot be undone.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context)!.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.of(ctx).pop(true),
             style: FilledButton.styleFrom(
               backgroundColor: Theme.of(ctx).colorScheme.error,
             ),
-            child: const Text('Delete'),
+            child: Text(AppLocalizations.of(context)!.delete),
           ),
         ],
       ),
@@ -201,7 +202,9 @@ class _RoomTile extends StatelessWidget {
                             key: const ValueKey('room_muted_glyph'),
                             Icons.notifications_off,
                             size: 14,
-                            semanticLabel: 'Muted',
+                            semanticLabel: AppLocalizations.of(
+                              context,
+                            )!.messageRoomMuted,
                             color:
                                 (isSelected
                                         ? colorScheme.onPrimaryContainer
@@ -241,7 +244,7 @@ class _RoomTile extends StatelessWidget {
               ),
               IconButton(
                 onPressed: onDelete,
-                tooltip: 'Delete room',
+                tooltip: AppLocalizations.of(context)!.messageDeleteRoom,
                 icon: const Icon(Icons.delete_outline, size: 18),
                 color: unselectedIcon,
                 visualDensity: VisualDensity.compact,
@@ -362,7 +365,7 @@ class _EmptyState extends StatelessWidget {
               FilledButton.tonalIcon(
                 onPressed: onCreate,
                 icon: const Icon(Icons.group_add, size: 18),
-                label: const Text('Create a room'),
+                label: Text(AppLocalizations.of(context)!.labelCreateARoom),
               ),
             ],
           ],

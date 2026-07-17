@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:garbanzo_ai/features/chat/models/chat_message.dart';
 import 'package:garbanzo_ai/features/chat/widgets/tool_bubble_widget.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 ChatMessage _callMsg({String name = 'read_file'}) => ChatMessage(
       id: 'tc-1',
@@ -47,7 +48,10 @@ ChatMessage _errorResultMsg() => ChatMessage(
       },
     );
 
-Widget _wrap(Widget child) => MaterialApp(home: Scaffold(body: child));
+Widget _wrap(Widget child) => MaterialApp(
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
+home: Scaffold(body: child));
 
 void main() {
   group('ToolBubbleWidget — compact layout', () {

@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:garbanzo_ai/features/chat/models/chat_message.dart';
 import 'package:garbanzo_ai/features/chat/widgets/tool_activity_group.dart';
 import 'package:garbanzo_ai/features/chat/widgets/tool_bubble_widget.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 ChatMessage _call(String name, {String id = 'c'}) => ChatMessage(
       id: id,
@@ -30,7 +31,10 @@ ChatMessage _result(String name, {String id = 'r'}) => ChatMessage(
       },
     );
 
-Widget _wrap(Widget child) => MaterialApp(home: Scaffold(body: child));
+Widget _wrap(Widget child) => MaterialApp(
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
+home: Scaffold(body: child));
 
 void main() {
   group('ToolActivityGroup', () {

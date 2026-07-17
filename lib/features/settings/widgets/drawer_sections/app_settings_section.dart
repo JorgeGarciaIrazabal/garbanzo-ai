@@ -5,6 +5,7 @@ import 'package:garbanzo_ai/features/chat/services/audio_service.dart';
 import 'package:garbanzo_ai/features/notifications/providers/notification_provider.dart';
 import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
 import 'package:garbanzo_ai/features/settings/widgets/drawer_sections/section_header.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// App-wide preferences: appearance, chat display, voice, notifications.
 class AppSettingsSection extends StatelessWidget {
@@ -36,24 +37,27 @@ class _AppearanceTiles extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SectionHeader(icon: Icons.palette_outlined, title: 'Appearance'),
+        SectionHeader(
+          icon: Icons.palette_outlined,
+          title: AppLocalizations.of(context)!.titleAppearance,
+        ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: SegmentedButton<AppThemeMode>(
-            segments: const [
+            segments: [
               ButtonSegment<AppThemeMode>(
                 value: AppThemeMode.light,
-                label: Text('Light'),
+                label: Text(AppLocalizations.of(context)!.labelLight),
                 icon: Icon(Icons.light_mode),
               ),
               ButtonSegment<AppThemeMode>(
                 value: AppThemeMode.dark,
-                label: Text('Dark'),
+                label: Text(AppLocalizations.of(context)!.labelDark),
                 icon: Icon(Icons.dark_mode),
               ),
               ButtonSegment<AppThemeMode>(
                 value: AppThemeMode.system,
-                label: Text('System'),
+                label: Text(AppLocalizations.of(context)!.labelSystem),
                 icon: Icon(Icons.brightness_auto),
               ),
             ],
@@ -77,16 +81,25 @@ class _ChatTiles extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SectionHeader(icon: Icons.chat_bubble_outline, title: 'Chat'),
+        SectionHeader(
+          icon: Icons.chat_bubble_outline,
+          title: AppLocalizations.of(context)!.titleChat,
+        ),
         SwitchListTile(
-          title: const Text('Show message metadata'),
-          subtitle: const Text('Display token counts and response time'),
+          title: Text(AppLocalizations.of(context)!.titleShowMessageMetadata),
+          subtitle: Text(
+            AppLocalizations.of(
+              context,
+            )!.titleDisplayTokenCountsAndResponseTime,
+          ),
           value: settings.showMessageMetadata,
           onChanged: (value) => settings.setShowMessageMetadata(value),
           dense: true,
         ),
         SwitchListTile(
-          title: const Text('Show system prompt in thread'),
+          title: Text(
+            AppLocalizations.of(context)!.titleShowSystemPromptInThread,
+          ),
           subtitle: const Text(
             'Display the active system prompt above the conversation',
           ),
@@ -159,10 +172,13 @@ class _VoiceSettingsTilesState extends State<VoiceSettingsTiles> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SectionHeader(icon: Icons.record_voice_over, title: 'Voice'),
+        SectionHeader(
+          icon: Icons.record_voice_over,
+          title: AppLocalizations.of(context)!.titleVoice,
+        ),
         // Voice selector
         ListTile(
-          title: const Text('Voice'),
+          title: Text(AppLocalizations.of(context)!.titleVoice),
           dense: true,
           trailing: _loadingVoices
               ? const SizedBox(
@@ -194,7 +210,7 @@ class _VoiceSettingsTilesState extends State<VoiceSettingsTiles> {
         ),
         // Speed slider
         ListTile(
-          title: const Text('Speed'),
+          title: Text(AppLocalizations.of(context)!.titleSpeed),
           subtitle: Slider(
             value: settings.ttsSpeed,
             min: 0.5,
@@ -211,15 +227,23 @@ class _VoiceSettingsTilesState extends State<VoiceSettingsTiles> {
         ),
         // Auto-play toggle
         SwitchListTile(
-          title: const Text('Auto-play responses'),
-          subtitle: const Text('Read aloud new assistant messages'),
+          title: Text(AppLocalizations.of(context)!.titleAutoPlayResponses),
+          subtitle: Text(
+            AppLocalizations.of(context)!.titleReadAloudNewAssistantMessages,
+          ),
           value: settings.autoPlayTts,
           onChanged: (value) => settings.setAutoPlayTts(value),
           dense: true,
         ),
         SwitchListTile(
-          title: const Text('Auto-send after transcription'),
-          subtitle: const Text('Automatically send when voice input finishes'),
+          title: Text(
+            AppLocalizations.of(context)!.titleAutoSendAfterTranscription,
+          ),
+          subtitle: Text(
+            AppLocalizations.of(
+              context,
+            )!.titleAutomaticallySendWhenVoiceInputFinishes,
+          ),
           value: settings.autoSubmitStt,
           onChanged: (value) => settings.setAutoSubmitStt(value),
           dense: true,
@@ -227,8 +251,10 @@ class _VoiceSettingsTilesState extends State<VoiceSettingsTiles> {
         // Voice barge-in sensitivity: how easily talking over the AI
         // interrupts it in Talk Mode. Off keeps tap-to-interrupt only.
         ListTile(
-          title: const Text('Voice interruption'),
-          subtitle: const Text('Talk over the AI to interrupt (Talk Mode)'),
+          title: Text(AppLocalizations.of(context)!.titleVoiceInterruption),
+          subtitle: Text(
+            AppLocalizations.of(context)!.titleTalkOverTheAiToInterrupt,
+          ),
           dense: true,
           trailing: DropdownButton<BargeInSensitivity>(
             key: const ValueKey('barge_in_sensitivity'),
@@ -254,8 +280,12 @@ class _VoiceSettingsTilesState extends State<VoiceSettingsTiles> {
         ),
         SwitchListTile(
           key: const ValueKey('auto_language_switch'),
-          title: const Text('Automatic language switching'),
-          subtitle: const Text('Reply in the language you speak (Talk Mode)'),
+          title: Text(
+            AppLocalizations.of(context)!.titleAutomaticLanguageSwitching,
+          ),
+          subtitle: Text(
+            AppLocalizations.of(context)!.titleReplyInTheLanguageYouSpeak,
+          ),
           value: settings.autoLanguage,
           onChanged: (value) => settings.setAutoLanguage(value),
           dense: true,
@@ -264,11 +294,13 @@ class _VoiceSettingsTilesState extends State<VoiceSettingsTiles> {
         // backend voice catalog so they always match what TTS can speak.
         if (settings.autoLanguage && !_loadingVoices && _voices.isNotEmpty)
           ListTile(
-            title: const Text('My languages'),
+            title: Text(AppLocalizations.of(context)!.titleMyLanguages),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Only switch between these — none means any'),
+                Text(
+                  AppLocalizations.of(context)!.onlySwitchBetweenTheseNoneMeans,
+                ),
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
@@ -324,12 +356,12 @@ class _NotificationTiles extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SectionHeader(
+            SectionHeader(
               icon: Icons.notifications_outlined,
-              title: 'Notifications',
+              title: AppLocalizations.of(context)!.titleNotifications,
             ),
             if (prefs == null)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 child: Row(
                   children: [
@@ -339,13 +371,13 @@ class _NotificationTiles extends StatelessWidget {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     ),
                     SizedBox(width: 8),
-                    Text('Loading preferences…'),
+                    Text(AppLocalizations.of(context)!.loadingPreferences),
                   ],
                 ),
               )
             else ...[
               SwitchListTile(
-                title: const Text('Chat responses'),
+                title: Text(AppLocalizations.of(context)!.titleChatResponses),
                 subtitle: const Text(
                   'Notify when assistant replies while app is in background',
                 ),
@@ -355,24 +387,34 @@ class _NotificationTiles extends StatelessWidget {
                 dense: true,
               ),
               SwitchListTile(
-                title: const Text('Reminders'),
-                subtitle: const Text('Scheduled reminders and check-ins'),
+                title: Text(AppLocalizations.of(context)!.titleReminders),
+                subtitle: Text(
+                  AppLocalizations.of(
+                    context,
+                  )!.titleScheduledRemindersAndCheckIns,
+                ),
                 value: prefs.remindersEnabled,
                 onChanged: (value) =>
                     provider.updatePreferences(remindersEnabled: value),
                 dense: true,
               ),
               SwitchListTile(
-                title: const Text('System alerts'),
-                subtitle: const Text('Account and system notifications'),
+                title: Text(AppLocalizations.of(context)!.titleSystemAlerts),
+                subtitle: Text(
+                  AppLocalizations.of(
+                    context,
+                  )!.titleAccountAndSystemNotifications,
+                ),
                 value: prefs.systemAlertsEnabled,
                 onChanged: (value) =>
                     provider.updatePreferences(systemAlertsEnabled: value),
                 dense: true,
               ),
               SwitchListTile(
-                title: const Text('Friend updates'),
-                subtitle: const Text('Friend requests and accepts'),
+                title: Text(AppLocalizations.of(context)!.titleFriendUpdates),
+                subtitle: Text(
+                  AppLocalizations.of(context)!.titleFriendRequestsAndAccepts,
+                ),
                 value: prefs.friendUpdatesEnabled,
                 onChanged: (value) =>
                     provider.updatePreferences(friendUpdatesEnabled: value),

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:garbanzo_ai/core/router.dart';
 import 'package:garbanzo_ai/features/settings/providers/update_provider.dart';
 import 'package:garbanzo_ai/features/settings/widgets/update_dialog.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// Wraps the app with a slim top banner when a newer desktop build exists:
 /// "v1.0.4 is available — Update / Later". Renders nothing off-desktop
@@ -48,7 +49,7 @@ class UpdateBanner extends StatelessWidget {
                   TextButton(
                     key: const ValueKey('update_banner_later'),
                     onPressed: provider.snooze,
-                    child: const Text('Later'),
+                    child: Text(AppLocalizations.of(context)!.later),
                   ),
                   FilledButton(
                     key: const ValueKey('update_banner_update'),
@@ -61,7 +62,7 @@ class UpdateBanner extends StatelessWidget {
                         rootNavigatorKey.currentContext ?? context,
                       );
                     },
-                    child: const Text('Update'),
+                    child: Text(AppLocalizations.of(context)!.update),
                   ),
                 ],
               ),

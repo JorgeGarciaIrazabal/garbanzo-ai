@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import 'package:garbanzo_ai/core/widgets/animated_dialog.dart';
 import 'package:garbanzo_ai/features/memory/providers/memory_provider.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// A button that allows users to save selected text or entire message content as a memory.
 ///
@@ -40,7 +41,7 @@ class RememberThisButton extends StatelessWidget {
             ),
             const SizedBox(width: 4),
             Text(
-              'Remember',
+              AppLocalizations.of(context)!.labelRemember,
               style: TextStyle(
                 fontSize: textSize,
                 color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
@@ -57,25 +58,27 @@ class RememberThisButton extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final memoryProvider = context.read<MemoryProvider>();
 
+    final l10n = AppLocalizations.of(context)!;
+
     showAnimatedDialog(
       context: context,
       builder: (dialogContext) => ChangeNotifierProvider.value(
         value: memoryProvider,
         child: AlertDialog(
-          title: const Text('Remember This'),
+          title: Text(l10n.titleRememberThis),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Save this content as a memory for future reference:',
+                l10n.messageRememberDescription,
                 style: Theme.of(dialogContext).textTheme.bodySmall,
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: controller,
-                decoration: const InputDecoration(
-                  hintText: 'Memory content',
+                decoration: InputDecoration(
+                  hintText: l10n.hintMemoryContent,
                   border: OutlineInputBorder(),
                   alignLabelWithHint: true,
                 ),
@@ -88,7 +91,7 @@ class RememberThisButton extends StatelessWidget {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Cancel'),
+              child: Text(l10n.cancel),
             ),
             Consumer<MemoryProvider>(
               builder: (context, provider, child) {
@@ -111,9 +114,7 @@ class RememberThisButton extends StatelessWidget {
                             if (context.mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
-                                  content: const Text(
-                                    'Memory saved successfully',
-                                  ),
+                                  content: Text(l10n.messageMemorySaved),
                                   backgroundColor: colorScheme.primary,
                                   behavior: SnackBarBehavior.floating,
                                 ),
@@ -123,7 +124,11 @@ class RememberThisButton extends StatelessWidget {
                             if (context.mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
-                                  content: Text('Failed to save memory: $e'),
+                                  content: Text(
+                                    l10n.messageFailedToSaveMemory(
+                                      e.toString(),
+                                    ),
+                                  ),
                                   backgroundColor: colorScheme.error,
                                   behavior: SnackBarBehavior.floating,
                                 ),
@@ -137,7 +142,7 @@ class RememberThisButton extends StatelessWidget {
                           height: 16,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Text('Save'),
+                      : Text(l10n.save),
                 );
               },
             ),

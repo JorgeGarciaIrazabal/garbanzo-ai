@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:garbanzo_ai/core/auth_service.dart';
 import 'package:garbanzo_ai/features/reports/widgets/submit_report_dialog.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// Navigation list to every feature page. One place to find everything,
 /// instead of page links scattered between toggle sections.
@@ -23,51 +24,67 @@ class PagesSection extends StatelessWidget {
       children: [
         ListTile(
           leading: const Icon(Icons.psychology_outlined),
-          title: const Text('Memories'),
-          subtitle: const Text('What the assistant has learned about you'),
+          title: Text(AppLocalizations.of(context)!.titleMemories),
+          subtitle: Text(
+            AppLocalizations.of(context)!.titleWhatTheAssistantHasLearnedAbout,
+          ),
           dense: true,
           onTap: () => _open(context, '/memory'),
         ),
         ListTile(
           leading: const Icon(Icons.menu_book_outlined),
-          title: const Text('Knowledge base'),
-          subtitle: const Text('Upload documents for retrieval across chats'),
+          title: Text(AppLocalizations.of(context)!.titleKnowledgeBase),
+          subtitle: Text(
+            AppLocalizations.of(
+              context,
+            )!.titleUploadDocumentsForRetrievalAcrossChats,
+          ),
           dense: true,
           onTap: () => _open(context, '/kb'),
         ),
         ListTile(
           leading: const Icon(Icons.auto_awesome),
-          title: const Text('Skills library'),
-          subtitle: const Text('Browse available MCP tools'),
+          title: Text(AppLocalizations.of(context)!.titleSkillsLibrary),
+          subtitle: Text(
+            AppLocalizations.of(context)!.titleBrowseAvailableMcpTools,
+          ),
           dense: true,
           onTap: () => _open(context, '/skills'),
         ),
         ListTile(
           leading: const Icon(Icons.people_outline),
-          title: const Text('Friends'),
-          subtitle: const Text('Send requests and manage your friends'),
+          title: Text(AppLocalizations.of(context)!.titleFriends),
+          subtitle: Text(
+            AppLocalizations.of(context)!.titleSendRequestsAndManageYourFriends,
+          ),
           dense: true,
           onTap: () => _open(context, '/friends'),
         ),
         ListTile(
           leading: const Icon(Icons.schedule),
-          title: const Text('Scheduled actions'),
-          subtitle: const Text('Reminders and recurring prompts'),
+          title: Text(AppLocalizations.of(context)!.titleScheduledActions),
+          subtitle: Text(
+            AppLocalizations.of(context)!.titleRemindersAndRecurringPrompts,
+          ),
           dense: true,
           onTap: () => _open(context, '/scheduled-actions'),
         ),
         ListTile(
           leading: const Icon(Icons.bar_chart),
-          title: const Text('Token usage'),
-          subtitle: const Text('Charts by model, conversation, day'),
+          title: Text(AppLocalizations.of(context)!.titleTokenUsage),
+          subtitle: Text(
+            AppLocalizations.of(context)!.titleChartsByModelConversationDay,
+          ),
           dense: true,
           onTap: () => _open(context, '/usage'),
         ),
         ListTile(
           key: const ValueKey('report_issue_tile'),
           leading: const Icon(Icons.feedback_outlined),
-          title: const Text('Report a bug or idea'),
-          subtitle: const Text('Send feedback straight to the admins'),
+          title: Text(AppLocalizations.of(context)!.titleReportABugOrIdea),
+          subtitle: Text(
+            AppLocalizations.of(context)!.titleSendFeedbackStraightToTheAdmins,
+          ),
           dense: true,
           onTap: () {
             Navigator.of(context).pop(); // close the drawer first
@@ -77,8 +94,10 @@ class PagesSection extends StatelessWidget {
         if (isAdmin)
           ListTile(
             leading: const Icon(Icons.admin_panel_settings_outlined),
-            title: const Text('Admin'),
-            subtitle: const Text('Users, models, MCP servers, reports'),
+            title: Text(AppLocalizations.of(context)!.titleAdmin),
+            subtitle: Text(
+              AppLocalizations.of(context)!.messageAdminPanelSubtitle,
+            ),
             dense: true,
             onTap: () => _open(context, '/admin'),
           ),

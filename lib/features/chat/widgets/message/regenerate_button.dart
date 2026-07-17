@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:garbanzo_ai/features/chat/widgets/message/message_action_button.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// Compact "Regenerate" button for the last assistant message.
 class RegenerateButton extends StatelessWidget {
@@ -17,8 +18,8 @@ class RegenerateButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return MessageActionButton(
       icon: Icons.refresh,
-      label: 'Regenerate',
-      tooltip: 'Delete this response and generate a new one',
+      label: AppLocalizations.of(context)!.messageRegenerateTitle,
+      tooltip: AppLocalizations.of(context)!.messageDeleteResponseRegenerate,
       onTap: enabled ? onPressed : null,
     );
   }

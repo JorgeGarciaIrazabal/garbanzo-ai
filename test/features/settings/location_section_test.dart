@@ -2,9 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:garbanzo_ai/core/auth_service.dart';
 import 'package:garbanzo_ai/features/settings/widgets/location_section.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 Widget _wrap(UserInfo? user) => MaterialApp(
-  home: Scaffold(
+  
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
+home: Scaffold(
     body: LocationSection(user: user, onUserChanged: () {}),
   ),
 );

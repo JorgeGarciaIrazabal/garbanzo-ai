@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import 'package:garbanzo_ai/features/settings/providers/update_provider.dart';
 import 'package:garbanzo_ai/features/settings/widgets/update_dialog.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// "Software update" settings section (desktop only): current vs latest
 /// version, changelog access, and Check now / Download & install actions.
@@ -21,7 +22,7 @@ class UpdateSection extends StatelessWidget {
         children: [
           ListTile(
             leading: const Icon(Icons.info_outline),
-            title: const Text('Current version'),
+            title: Text(AppLocalizations.of(context)!.titleCurrentVersion),
             subtitle: FutureBuilder<PackageInfo>(
               future: PackageInfo.fromPlatform(),
               builder: (context, snapshot) =>
@@ -66,7 +67,7 @@ class UpdateSection extends StatelessWidget {
                       provider.busy || provider.status == UpdateStatus.checking
                       ? null
                       : provider.checkNow,
-                  child: const Text('Check now'),
+                  child: Text(AppLocalizations.of(context)!.checkNow),
                 ),
                 if (result?.hasUpdate ?? false) ...[
                   const SizedBox(width: 8),
@@ -75,7 +76,7 @@ class UpdateSection extends StatelessWidget {
                     onPressed: provider.busy
                         ? null
                         : () => showUpdateDialog(context),
-                    child: const Text('Download & install'),
+                    child: Text(AppLocalizations.of(context)!.downloadInstall),
                   ),
                 ],
               ],

@@ -7,6 +7,7 @@ import 'package:garbanzo_ai/features/notifications/services/notification_api_ser
 import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:provider/provider.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 class MockNotificationApiService extends Mock
     implements NotificationApiService {}
@@ -43,7 +44,10 @@ void main() {
 
     return ChangeNotifierProvider(
       create: (_) => NotificationProvider(service: service),
-      child: MaterialApp.router(routerConfig: router),
+      child: MaterialApp.router(
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
+routerConfig: router),
     );
   }
 

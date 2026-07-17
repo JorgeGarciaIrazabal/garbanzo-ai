@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import 'package:garbanzo_ai/features/chat/models/chat_message.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// A single entry on the tool-activity rail — either an MCP tool invocation
 /// (`role: tool_call`) or the server's response (`role: tool_result`).
@@ -93,7 +94,9 @@ class _ToolBubbleWidgetState extends State<ToolBubbleWidget> {
         if (n is String && n.isNotEmpty) return n;
       }
     }
-    return message.content.isNotEmpty ? message.content : 'tool';
+    return message.content.isNotEmpty
+        ? message.content
+        : AppLocalizations.of(context)!.messageTool;
   }
 
   String _pretty(Object? value) {

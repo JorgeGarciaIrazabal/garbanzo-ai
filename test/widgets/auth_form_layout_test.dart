@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:garbanzo_ai/core/widgets/auth_form_layout.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 void main() {
   group('PasswordField', () {
@@ -9,7 +10,10 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-          home: Scaffold(
+          
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
+home: Scaffold(
             body: Form(
               child: PasswordField(controller: controller),
             ),
@@ -39,7 +43,10 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-          home: Scaffold(
+          
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
+home: Scaffold(
             body: Form(
               child: PasswordField(
                 controller: controller,
@@ -63,7 +70,10 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-          home: Scaffold(
+          
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
+home: Scaffold(
             body: Form(
               key: formKey,
               child: PasswordField(controller: controller),
@@ -83,7 +93,10 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-          home: Scaffold(
+          
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
+home: Scaffold(
             body: Form(
               key: formKey,
               child: PasswordField(
@@ -106,7 +119,10 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-          home: Scaffold(
+          
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
+home: Scaffold(
             body: Form(
               key: formKey,
               child: PasswordField(
@@ -126,7 +142,10 @@ void main() {
     testWidgets('shows label when not loading', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
-          home: Scaffold(
+          
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
+home: Scaffold(
             body: AuthSubmitButton(
               label: 'Sign in',
               isLoading: false,
@@ -144,7 +163,10 @@ void main() {
       var tapped = 0;
       await tester.pumpWidget(
         MaterialApp(
-          home: Scaffold(
+          
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
+home: Scaffold(
             body: AuthSubmitButton(
               label: 'Sign in',
               isLoading: true,
@@ -166,7 +188,10 @@ void main() {
       var tapped = 0;
       await tester.pumpWidget(
         MaterialApp(
-          home: Scaffold(
+          
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
+home: Scaffold(
             body: AuthSubmitButton(
               label: 'Go',
               isLoading: false,
@@ -185,7 +210,10 @@ void main() {
     testWidgets('displays the message', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(body: AuthErrorBanner(message: 'Something went wrong')),
+          
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
+home: Scaffold(body: AuthErrorBanner(message: 'Something went wrong')),
         ),
       );
       expect(find.text('Something went wrong'), findsOneWidget);
@@ -198,7 +226,10 @@ void main() {
       final formKey = GlobalKey<FormState>();
       await tester.pumpWidget(
         MaterialApp(
-          home: AuthFormLayout(
+          
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
+home: AuthFormLayout(
             icon: Icons.person,
             heading: 'Welcome',
             formKey: formKey,

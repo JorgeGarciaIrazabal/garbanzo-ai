@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:garbanzo_ai/core/widgets/animated_dialog.dart';
 import 'package:garbanzo_ai/features/scheduled_actions/models/scheduled_action.dart';
 import 'package:garbanzo_ai/features/scheduled_actions/providers/scheduled_actions_provider.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 class ScheduledActionsPage extends StatelessWidget {
   const ScheduledActionsPage({super.key});
@@ -27,10 +28,10 @@ class _ScheduledActionsView extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Scheduled actions'),
+        title: Text(AppLocalizations.of(context)!.titleScheduledActions),
         actions: [
           IconButton(
-            tooltip: 'Refresh',
+            tooltip: AppLocalizations.of(context)!.tooltipRefresh,
             icon: const Icon(Icons.refresh),
             onPressed: provider.loading ? null : provider.load,
           ),
@@ -39,7 +40,7 @@ class _ScheduledActionsView extends StatelessWidget {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showCreateDialog(context),
         icon: const Icon(Icons.add),
-        label: const Text('New'),
+        label: Text(AppLocalizations.of(context)!.tooltipNew),
       ),
       body: Stack(
         children: [
@@ -247,12 +248,12 @@ class _ActionTile extends StatelessWidget {
             ),
             IconButton(
               icon: const Icon(Icons.edit_outlined),
-              tooltip: 'Edit',
+              tooltip: AppLocalizations.of(context)!.tooltipEdit,
               onPressed: () => _showEditDialog(context, action),
             ),
             IconButton(
               icon: const Icon(Icons.delete_outline),
-              tooltip: 'Delete',
+              tooltip: AppLocalizations.of(context)!.delete,
               onPressed: () => _confirmDelete(context, action),
             ),
           ],
@@ -269,19 +270,19 @@ class _ActionTile extends StatelessWidget {
     final confirmed = await showAnimatedDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete scheduled action'),
+        title: Text(AppLocalizations.of(context)!.titleDeleteScheduledAction),
         content: Text(
           'Remove "${action.title ?? action.prompt}"? This cannot be undone.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context)!.cancel),
           ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Delete'),
+            child: Text(AppLocalizations.of(context)!.delete),
           ),
         ],
       ),
@@ -422,31 +423,33 @@ class _ScheduledActionEditorState extends State<_ScheduledActionEditor> {
             children: [
               TextField(
                 controller: _titleController,
-                decoration: const InputDecoration(
-                  labelText: 'Title (optional)',
+                decoration: InputDecoration(
+                  labelText: AppLocalizations.of(context)!.labelTitleOptional,
                   hintText: 'e.g. "Morning standup"',
                 ),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: _promptController,
-                decoration: const InputDecoration(
-                  labelText: 'Prompt',
-                  hintText: 'What should the assistant do?',
+                decoration: InputDecoration(
+                  labelText: AppLocalizations.of(context)!.labelPrompt,
+                  hintText: AppLocalizations.of(
+                    context,
+                  )!.hintWhatShouldTheAssistantDo,
                 ),
                 maxLines: 3,
               ),
               const SizedBox(height: 16),
               SegmentedButton<_Mode>(
-                segments: const [
+                segments: [
                   ButtonSegment(
                     value: _Mode.recurring,
-                    label: Text('Recurring'),
+                    label: Text(AppLocalizations.of(context)!.labelRecurring),
                     icon: Icon(Icons.repeat),
                   ),
                   ButtonSegment(
                     value: _Mode.oneOff,
-                    label: Text('One-off'),
+                    label: Text(AppLocalizations.of(context)!.labelOneOff),
                     icon: Icon(Icons.alarm),
                   ),
                 ],
@@ -457,8 +460,10 @@ class _ScheduledActionEditorState extends State<_ScheduledActionEditor> {
               if (_mode == _Mode.recurring)
                 TextField(
                   controller: _cronController,
-                  decoration: const InputDecoration(
-                    labelText: 'Cron expression',
+                  decoration: InputDecoration(
+                    labelText: AppLocalizations.of(
+                      context,
+                    )!.labelCronExpression,
                     hintText: 'e.g. "0 9 * * mon-fri"',
                     helperText: 'min hour day month weekday',
                   ),
@@ -467,8 +472,8 @@ class _ScheduledActionEditorState extends State<_ScheduledActionEditor> {
                 InkWell(
                   onTap: _pickRunAt,
                   child: InputDecorator(
-                    decoration: const InputDecoration(
-                      labelText: 'Run at',
+                    decoration: InputDecoration(
+                      labelText: AppLocalizations.of(context)!.labelRunAt,
                       suffixIcon: Icon(Icons.event),
                     ),
                     child: Text(
@@ -485,7 +490,7 @@ class _ScheduledActionEditorState extends State<_ScheduledActionEditor> {
       actions: [
         TextButton(
           onPressed: _submitting ? null : () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
+          child: Text(AppLocalizations.of(context)!.cancel),
         ),
         FilledButton(
           onPressed: _submitting ? null : _submit,

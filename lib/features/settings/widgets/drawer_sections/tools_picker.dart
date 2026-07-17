@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
 import 'package:garbanzo_ai/features/tools/providers/tool_provider.dart';
 import 'package:garbanzo_ai/features/settings/widgets/drawer_sections/section_header.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// Per-conversation tool-selection UI. Shows nothing until a conversation is
 /// active. Semantics:
@@ -23,11 +24,16 @@ class ToolsPicker extends StatelessWidget {
     if (conversation == null) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
-          SectionHeader(icon: Icons.build_outlined, title: 'Tools'),
+        children: [
+          SectionHeader(
+            icon: Icons.build_outlined,
+            title: AppLocalizations.of(context)!.labelTools,
+          ),
           ListTile(
-            title: Text('Tools'),
-            subtitle: Text('Start a conversation to pick tools'),
+            title: Text(AppLocalizations.of(context)!.labelTools),
+            subtitle: Text(
+              AppLocalizations.of(context)!.titleStartAConversationToPickTools,
+            ),
             enabled: false,
             dense: true,
           ),
@@ -71,9 +77,12 @@ class ToolsPicker extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SectionHeader(icon: Icons.build_outlined, title: 'Tools'),
+            SectionHeader(
+              icon: Icons.build_outlined,
+              title: AppLocalizations.of(context)!.labelTools,
+            ),
             if (toolProvider.isLoading && tools.isEmpty)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 child: Row(
                   children: [
@@ -83,7 +92,7 @@ class ToolsPicker extends StatelessWidget {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     ),
                     SizedBox(width: 8),
-                    Text('Loading tools…'),
+                    Text(AppLocalizations.of(context)!.loadingTools),
                   ],
                 ),
               )
@@ -116,7 +125,7 @@ class ToolsPicker extends StatelessWidget {
               )
             else ...[
               SwitchListTile(
-                title: const Text('All tools'),
+                title: Text(AppLocalizations.of(context)!.titleAllTools),
                 subtitle: Text(
                   allInherited
                       ? 'Every available tool is enabled'

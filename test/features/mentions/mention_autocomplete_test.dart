@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:garbanzo_ai/features/mentions/models/mention_candidate.dart';
 import 'package:garbanzo_ai/features/mentions/widgets/mention_autocomplete.dart';
 import 'package:garbanzo_ai/features/mentions/widgets/mention_text_controller.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 const _people = [
   MentionCandidate(
@@ -54,7 +55,10 @@ void main() {
   });
 
   Widget app() => MaterialApp(
-    home: Scaffold(
+    
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
+home: Scaffold(
       body: Align(
         alignment: Alignment.bottomCenter,
         child: MentionAutocomplete(
@@ -207,7 +211,10 @@ void main() {
       late BuildContext ctx;
       await tester.pumpWidget(
         MaterialApp(
-          home: Builder(
+          
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
+home: Builder(
             builder: (c) {
               ctx = c;
               return const SizedBox();

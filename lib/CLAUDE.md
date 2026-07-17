@@ -42,6 +42,10 @@ provider map, chat/SSE flow, rooms WebSocket) and `../docs/api.md` (endpoints).
   Appearance.
 - When adding a user-facing string, add the key to `app_en.arb` (with a `@key`
   description) and its Spanish translation to `app_es.arb`.
+- Reuse existing keys for common labels (`cancel`, `save`, `delete`, `create`,
+  etc.) instead of duplicating entries.
+- Keep provider/service error strings in English; localize them at the widget
+  layer where `BuildContext` is available.
 
 ## Gotchas
 

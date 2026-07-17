@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
+
 import 'package:garbanzo_ai/core/api_client.dart';
 import 'package:garbanzo_ai/core/auth_service.dart';
 import 'package:garbanzo_ai/core/auth_state.dart';
@@ -76,7 +78,7 @@ class _LoginPageState extends State<LoginPage> {
 
     return AuthFormLayout(
       icon: Icons.account_circle,
-      heading: 'Sign in',
+      heading: AppLocalizations.of(context)!.headingSignIn,
       formKey: _formKey,
       children: [
         Center(
@@ -114,9 +116,9 @@ class _LoginPageState extends State<LoginPage> {
           controller: _emailController,
           keyboardType: TextInputType.emailAddress,
           textInputAction: TextInputAction.next,
-          decoration: const InputDecoration(
-            labelText: 'Email',
-            hintText: 'you@example.com',
+          decoration: InputDecoration(
+            labelText: AppLocalizations.of(context)!.labelEmail,
+            hintText: AppLocalizations.of(context)!.hintYouExampleCom,
             border: OutlineInputBorder(),
             prefixIcon: Icon(Icons.email_outlined),
           ),
@@ -136,7 +138,7 @@ class _LoginPageState extends State<LoginPage> {
         const SizedBox(height: 24),
         AuthSubmitButton(
           key: const ValueKey('login_button'),
-          label: 'Sign in',
+          label: AppLocalizations.of(context)!.headingSignIn,
           isLoading: _loading,
           onPressed: _submit,
         ),

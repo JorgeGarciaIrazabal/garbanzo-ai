@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:garbanzo_ai/features/chat/widgets/message/message_action_button.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// Copy button for copying message content to clipboard.
 class CopyButton extends StatefulWidget {
@@ -30,7 +31,7 @@ class _CopyButtonState extends State<CopyButton> {
     return MessageActionButton(
       icon: _copied ? Icons.check : Icons.copy,
       label: _copied ? 'Copied!' : 'Copy',
-      tooltip: 'Copy message to clipboard',
+      tooltip: AppLocalizations.of(context)!.tooltipCopyMessage,
       highlighted: _copied,
       onTap: _copy,
     );

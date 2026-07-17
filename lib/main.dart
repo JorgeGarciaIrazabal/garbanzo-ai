@@ -104,7 +104,8 @@ class _GarbanzoAppState extends State<GarbanzoApp> {
       child: Consumer<SettingsProvider>(
         builder: (context, settings, child) {
           return MaterialApp.router(
-            title: 'Garbanzo AI',
+            onGenerateTitle: (context) =>
+                AppLocalizations.of(context)!.appTitle,
             locale: settings.flutterLocale,
             localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,

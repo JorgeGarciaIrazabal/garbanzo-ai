@@ -28,6 +28,7 @@ import 'package:garbanzo_ai/features/rooms/providers/room_provider.dart';
 import 'package:garbanzo_ai/features/rooms/services/room_socket_service.dart';
 import 'package:garbanzo_ai/features/rooms/widgets/add_agent_dialog.dart';
 import 'package:garbanzo_ai/features/rooms/widgets/room_message_bubble.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// Room chat rendered inside the main chat shell's content pane — the shell
 /// keeps its sidebar, so switching between chats and rooms never leaves the
@@ -147,10 +148,10 @@ class _RoomChatViewState extends State<RoomChatView>
     final room = _providerRef?.currentRoom;
     if (room == null) return const [];
     return [
-      const MentionCandidate(
+      MentionCandidate(
         kind: MentionKind.member,
         id: 'all',
-        label: 'all',
+        label: AppLocalizations.of(context)!.labelAllLowercase,
         sublabel: 'Everyone and all agents',
         insertText: '@all',
       ),
@@ -227,7 +228,9 @@ class _RoomChatViewState extends State<RoomChatView>
                   controller: _composerController,
                   focusNode: _composerFocus,
                   enabled: room != null,
-                  hintText: 'Message the room… (use @AgentName or @all)',
+                  hintText: AppLocalizations.of(
+                    context,
+                  )!.hintMessageTheRoomUseAgentnameOr,
                   onSend: (text) {
                     provider.sendMessage(
                       text,
@@ -316,7 +319,7 @@ class _RoomChatViewState extends State<RoomChatView>
             ),
             IconButton(
               icon: const Icon(Icons.settings),
-              tooltip: 'Settings',
+              tooltip: AppLocalizations.of(context)!.settings,
               onPressed: widget.onOpenSettings,
             ),
             const SizedBox(width: 8),
@@ -447,7 +450,7 @@ class _ConnectionBanner extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'Connection lost.',
+                  AppLocalizations.of(context)!.messageConnectionLost,
                   style: TextStyle(color: cs.onErrorContainer, fontSize: 13),
                 ),
               ),
@@ -457,7 +460,7 @@ class _ConnectionBanner extends StatelessWidget {
                   foregroundColor: cs.onErrorContainer,
                   visualDensity: VisualDensity.compact,
                 ),
-                child: const Text('Try again'),
+                child: Text(AppLocalizations.of(context)!.tryAgain),
               ),
             ],
           ),
@@ -588,7 +591,7 @@ class _ErrorBanner extends StatelessWidget {
           ),
           IconButton(
             icon: Icon(Icons.refresh, size: 18, color: cs.onErrorContainer),
-            tooltip: 'Retry',
+            tooltip: AppLocalizations.of(context)!.labelRetry,
             onPressed: onDismiss,
             visualDensity: VisualDensity.compact,
           ),
@@ -613,7 +616,10 @@ class _MembersAgentsPanel extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
       shrinkWrap: true,
       children: [
-        Text('Members', style: theme.textTheme.titleMedium),
+        Text(
+          AppLocalizations.of(context)!.titleRoomMembers,
+          style: theme.textTheme.titleMedium,
+        ),
         const SizedBox(height: 4),
         for (final m in room.members)
           ListTile(
@@ -639,10 +645,13 @@ class _MembersAgentsPanel extends StatelessWidget {
         TextButton.icon(
           onPressed: () => _showInviteDialog(context, provider),
           icon: const Icon(Icons.person_add),
-          label: const Text('Invite members'),
+          label: Text(AppLocalizations.of(context)!.labelInviteMembers),
         ),
         const Divider(height: 32),
-        Text('Agents', style: theme.textTheme.titleMedium),
+        Text(
+          AppLocalizations.of(context)!.titleRoomAgents,
+          style: theme.textTheme.titleMedium,
+        ),
         const SizedBox(height: 4),
         for (final a in room.agents)
           ListTile(
@@ -660,7 +669,7 @@ class _MembersAgentsPanel extends StatelessWidget {
               children: [
                 IconButton(
                   icon: const Icon(Icons.edit_outlined),
-                  tooltip: 'Edit agent',
+                  tooltip: AppLocalizations.of(context)!.editAgentTitle,
                   onPressed: () =>
                       showAddAgentDialog(context, provider, existing: a),
                 ),
@@ -675,7 +684,7 @@ class _MembersAgentsPanel extends StatelessWidget {
         TextButton.icon(
           onPressed: () => showAddAgentDialog(context, provider),
           icon: const Icon(Icons.smart_toy_outlined),
-          label: const Text('Add agent'),
+          label: Text(AppLocalizations.of(context)!.addAgentTitle),
         ),
       ],
     );
@@ -721,19 +730,19 @@ class _MembersAgentsPanel extends StatelessWidget {
     final ok = await showAnimatedDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Remove member?'),
+        title: Text(AppLocalizations.of(context)!.titleRemoveMember),
         content: Text('Remove ${member.userId} from this room?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context)!.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.of(ctx).pop(true),
             style: FilledButton.styleFrom(
               backgroundColor: Theme.of(ctx).colorScheme.error,
             ),
-            child: const Text('Remove'),
+            child: Text(AppLocalizations.of(context)!.remove),
           ),
         ],
       ),
@@ -758,19 +767,19 @@ class _MembersAgentsPanel extends StatelessWidget {
     final ok = await showAnimatedDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete agent?'),
+        title: Text(AppLocalizations.of(context)!.titleDeleteAgent),
         content: Text('Delete agent ${agent.name}? This cannot be undone.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context)!.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.of(ctx).pop(true),
             style: FilledButton.styleFrom(
               backgroundColor: Theme.of(ctx).colorScheme.error,
             ),
-            child: const Text('Delete'),
+            child: Text(AppLocalizations.of(context)!.delete),
           ),
         ],
       ),
@@ -800,7 +809,7 @@ class _MembersAgentsPanel extends StatelessWidget {
     await showAnimatedDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Invite members'),
+        title: Text(AppLocalizations.of(context)!.labelInviteMembers),
         content: SizedBox(
           width: 420,
           child: Consumer<FriendsProvider>(
@@ -816,7 +825,7 @@ class _MembersAgentsPanel extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context)!.cancel),
           ),
           FilledButton(
             onPressed: () async {
@@ -836,7 +845,7 @@ class _MembersAgentsPanel extends StatelessWidget {
                 }
               }
             },
-            child: const Text('Invite'),
+            child: Text(AppLocalizations.of(context)!.invite),
           ),
         ],
       ),

@@ -5,6 +5,7 @@ import 'package:garbanzo_ai/core/auth_service.dart';
 import 'package:garbanzo_ai/core/widgets/user_avatar.dart';
 import 'package:garbanzo_ai/features/admin/providers/admin_provider.dart';
 import 'package:garbanzo_ai/features/admin/widgets/create_user_dialog.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// Tab rendering the list of registered users with admin/disabled toggles.
 class UsersTab extends StatefulWidget {
@@ -75,7 +76,7 @@ class _UsersTabState extends State<UsersTab> {
             const SizedBox(height: 8),
             FilledButton(
               onPressed: provider.loadUsers,
-              child: const Text('Retry'),
+              child: Text(AppLocalizations.of(context)!.labelRetry),
             ),
           ],
         ),
@@ -116,7 +117,7 @@ class _UsersTabState extends State<UsersTab> {
                     children: [
                       if (user.isAdmin)
                         Chip(
-                          label: const Text('Admin'),
+                          label: Text(AppLocalizations.of(context)!.titleAdmin),
                           visualDensity: VisualDensity.compact,
                           backgroundColor: colorScheme.primaryContainer,
                           labelStyle: TextStyle(
@@ -126,7 +127,9 @@ class _UsersTabState extends State<UsersTab> {
                         ),
                       if (user.isDisabled)
                         Chip(
-                          label: const Text('Disabled'),
+                          label: Text(
+                            AppLocalizations.of(context)!.labelDisabled,
+                          ),
                           visualDensity: VisualDensity.compact,
                           backgroundColor: colorScheme.errorContainer,
                           labelStyle: TextStyle(
@@ -136,7 +139,7 @@ class _UsersTabState extends State<UsersTab> {
                         ),
                       if (isSelf)
                         Chip(
-                          label: const Text('You'),
+                          label: Text(AppLocalizations.of(context)!.titleYou),
                           visualDensity: VisualDensity.compact,
                           labelStyle: const TextStyle(fontSize: 11),
                         ),
@@ -148,7 +151,7 @@ class _UsersTabState extends State<UsersTab> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   _LabeledSwitch(
-                    label: 'Admin',
+                    label: AppLocalizations.of(context)!.titleAdmin,
                     value: user.isAdmin,
                     disabled: isSelf,
                     onChanged: (v) {
@@ -157,7 +160,7 @@ class _UsersTabState extends State<UsersTab> {
                   ),
                   const SizedBox(width: 8),
                   _LabeledSwitch(
-                    label: 'Disabled',
+                    label: AppLocalizations.of(context)!.labelDisabled,
                     value: user.isDisabled,
                     disabled: isSelf,
                     onChanged: (v) {

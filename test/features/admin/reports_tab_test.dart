@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:garbanzo_ai/features/admin/widgets/reports_tab.dart';
 import 'package:garbanzo_ai/features/reports/models/report.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 void main() {
   Report report(String id, {String status = 'open', String type = 'bug'}) =>
@@ -24,7 +25,10 @@ void main() {
   }) async {
     await tester.pumpWidget(
       MaterialApp(
-        home: Scaffold(
+        
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
+home: Scaffold(
           body: ReportsTab(load: load, updateStatus: updateStatus),
         ),
       ),

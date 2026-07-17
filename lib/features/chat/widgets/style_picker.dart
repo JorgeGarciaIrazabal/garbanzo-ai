@@ -12,6 +12,7 @@ import 'package:garbanzo_ai/features/chat/providers/model_provider.dart';
 import 'package:garbanzo_ai/features/friends/widgets/share_with_friend_dialog.dart';
 import 'package:garbanzo_ai/features/chat/providers/style_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/system_prompt_provider.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// The style picker: replaces the plain model dropdown with a "chat style"
 /// surface — saved styles (model + thinking level + system prompt bundles)
@@ -166,7 +167,7 @@ class StylePickerButton extends StatelessWidget {
     final wide = context.isWide;
 
     return Tooltip(
-      message: 'Chat style',
+      message: AppLocalizations.of(context)!.chatStyle,
       child: InkWell(
         key: const ValueKey('style_picker_button'),
         borderRadius: BorderRadius.circular(20),
@@ -532,15 +533,17 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text('Delete "${style.name}"?'),
-        content: const Text('This removes the saved style, not any chats.'),
+        content: Text(
+          AppLocalizations.of(context)!.messageThisRemovesTheSavedStyleNot,
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context)!.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Delete'),
+            child: Text(AppLocalizations.of(context)!.delete),
           ),
         ],
       ),
@@ -667,12 +670,14 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
     // The empty state has to name whichever of the two narrowed the list to
     // nothing, or a filter-emptied list reads as a broken search.
     final emptyMessage = switch ((_query.isNotEmpty, _filters.isNotEmpty)) {
-      (true, true) =>
-        'No models match your search and the selected '
-            'capabilities.',
-      (true, false) => 'No models match your search.',
-      (false, true) => 'No models have the selected capabilities.',
-      (false, false) => 'No models available.',
+      (true, true) => AppLocalizations.of(
+        context,
+      )!.messageNoModelsMatchSearchAndCapabilities,
+      (true, false) => AppLocalizations.of(context)!.messageNoModelsMatchSearch,
+      (false, true) => AppLocalizations.of(
+        context,
+      )!.messageNoModelsHaveCapabilities,
+      (false, false) => AppLocalizations.of(context)!.messageNoModelsAvailable,
     };
 
     return Column(
@@ -684,11 +689,14 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
           child: Row(
             children: [
               Expanded(
-                child: Text('Chat style', style: theme.textTheme.titleMedium),
+                child: Text(
+                  AppLocalizations.of(context)!.chatStyle,
+                  style: theme.textTheme.titleMedium,
+                ),
               ),
               if (widget.showCloseButton)
                 IconButton(
-                  tooltip: 'Close',
+                  tooltip: AppLocalizations.of(context)!.labelClose,
                   icon: const Icon(Icons.close, size: 20),
                   onPressed: () => Navigator.of(context).pop(),
                 )
@@ -700,16 +708,19 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
           child: SegmentedButton<_PickerSection>(
-            segments: const [
+            segments: [
               ButtonSegment(
                 value: _PickerSection.styles,
                 icon: Icon(Icons.auto_awesome_outlined, size: 18),
-                label: Text('Styles'),
+                label: Text(AppLocalizations.of(context)!.labelStyles),
               ),
               ButtonSegment(
                 value: _PickerSection.customize,
                 icon: Icon(Icons.tune, size: 18),
-                label: Text('Customize', key: ValueKey('customize_tile')),
+                label: Text(
+                  AppLocalizations.of(context)!.labelCustomize,
+                  key: ValueKey('customize_tile'),
+                ),
               ),
             ],
             selected: {section},
@@ -754,10 +765,9 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'No saved styles yet. Compose a model, '
-                                  'thinking level, and prompt in Customize, '
-                                  'then save the combination to switch in '
-                                  'one tap.',
+                                  AppLocalizations.of(
+                                    context,
+                                  )!.messageNoSavedStylesYet,
                                   style: theme.textTheme.bodySmall?.copyWith(
                                     color: colorScheme.onSurfaceVariant,
                                   ),
@@ -769,7 +779,9 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
                                     );
                                     _scrollToTop();
                                   },
-                                  child: const Text('Compose a style'),
+                                  child: Text(
+                                    AppLocalizations.of(context)!.composeAStyle,
+                                  ),
                                 ),
                               ],
                             ),
@@ -816,7 +828,9 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
-                                  'Editing "${editing.name}"',
+                                  AppLocalizations.of(
+                                    context,
+                                  )!.messageEditing(editing.name),
                                   style: theme.textTheme.labelMedium?.copyWith(
                                     color: colorScheme.primary,
                                   ),
@@ -825,7 +839,9 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
                               ),
                               IconButton(
                                 key: const ValueKey('cancel_edit_style'),
-                                tooltip: 'Stop editing',
+                                tooltip: AppLocalizations.of(
+                                  context,
+                                )!.tooltipStopEditing,
                                 icon: const Icon(Icons.close, size: 16),
                                 onPressed: _cancelEditing,
                               ),
@@ -837,7 +853,9 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
                           key: const ValueKey('style_search_field'),
                           controller: _searchController,
                           decoration: InputDecoration(
-                            hintText: 'Search models',
+                            hintText: AppLocalizations.of(
+                              context,
+                            )!.hintSearchModels,
                             prefixIcon: const Icon(Icons.search, size: 20),
                             isDense: context.isNarrow,
                             suffixIcon: _query.isEmpty
@@ -1013,7 +1031,9 @@ class _StyleCard extends StatelessWidget {
                           if (style.isDefault) ...[
                             const SizedBox(width: 6),
                             Tooltip(
-                              message: 'Used for new chats',
+                              message: AppLocalizations.of(
+                                context,
+                              )!.usedForNewChats,
                               child: Icon(
                                 Icons.star_rounded,
                                 size: 16,
@@ -1045,7 +1065,7 @@ class _StyleCard extends StatelessWidget {
                     ),
                   ),
                 PopupMenuButton<String>(
-                  tooltip: 'Style options',
+                  tooltip: AppLocalizations.of(context)!.tooltipStyleOptions,
                   iconSize: 18,
                   onSelected: (action) {
                     switch (action) {
@@ -1073,12 +1093,20 @@ class _StyleCard extends StatelessWidget {
                             : 'Use for new chats',
                       ),
                     ),
-                    const PopupMenuItem(value: 'edit', child: Text('Edit…')),
-                    const PopupMenuItem(
-                      value: 'share',
-                      child: Text('Share with a friend…'),
+                    PopupMenuItem(
+                      value: AppLocalizations.of(context)!.edit,
+                      child: Text(AppLocalizations.of(context)!.editEllipsis),
                     ),
-                    const PopupMenuItem(value: 'delete', child: Text('Delete')),
+                    PopupMenuItem(
+                      value: 'share',
+                      child: Text(
+                        AppLocalizations.of(context)!.shareWithAFriend,
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: AppLocalizations.of(context)!.deleteLowercase,
+                      child: Text(AppLocalizations.of(context)!.delete),
+                    ),
                   ],
                 ),
               ],
@@ -1337,12 +1365,17 @@ class _ThinkingControl extends StatelessWidget {
           padding: const EdgeInsets.only(left: 4, bottom: 6),
           child: Row(
             children: [
-              Text('Thinking', style: theme.textTheme.titleSmall),
+              Text(
+                AppLocalizations.of(context)!.labelThinking,
+                style: theme.textTheme.titleSmall,
+              ),
               if (!supported) ...[
                 const SizedBox(width: 8),
                 Flexible(
                   child: Text(
-                    'Not supported by this model',
+                    AppLocalizations.of(
+                      context,
+                    )!.messageNotSupportedByThisModel,
                     style: theme.textTheme.labelSmall?.copyWith(
                       color: colorScheme.onSurfaceVariant,
                     ),
@@ -1423,7 +1456,10 @@ class _TemplatePicker extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.only(left: 4, bottom: 6),
-          child: Text('Prompt', style: theme.textTheme.titleSmall),
+          child: Text(
+            AppLocalizations.of(context)!.labelPrompt,
+            style: theme.textTheme.titleSmall,
+          ),
         ),
         // A plain DropdownButton (not the FormField flavor) so the shown
         // value is always the one derived from live state above — a template
@@ -1443,9 +1479,9 @@ class _TemplatePicker extends StatelessWidget {
               isExpanded: true,
               isDense: context.isNarrow,
               items: [
-                const DropdownMenuItem(
+                DropdownMenuItem(
                   value: _none,
-                  child: Text('No template'),
+                  child: Text(AppLocalizations.of(context)!.noTemplate),
                 ),
                 for (final t in templates)
                   DropdownMenuItem(
@@ -1532,7 +1568,11 @@ class _SaveStyleDialogState extends State<_SaveStyleDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text(widget.existing == null ? 'Save style' : 'Edit style'),
+      title: Text(
+        widget.existing == null
+            ? AppLocalizations.of(context)!.titleSaveStyle
+            : AppLocalizations.of(context)!.titleEditStyle,
+      ),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -1543,9 +1583,9 @@ class _SaveStyleDialogState extends State<_SaveStyleDialog> {
             textInputAction: TextInputAction.done,
             onSubmitted: (_) => _submit(),
             onChanged: (_) => setState(() {}),
-            decoration: const InputDecoration(
-              labelText: 'Name',
-              hintText: 'Deep work, Quick answers…',
+            decoration: InputDecoration(
+              labelText: AppLocalizations.of(context)!.labelName,
+              hintText: AppLocalizations.of(context)!.hintDeepWorkQuickAnswers,
             ),
           ),
           const SizedBox(height: 8),
@@ -1554,7 +1594,7 @@ class _SaveStyleDialogState extends State<_SaveStyleDialog> {
             onChanged: (v) => setState(() => _isDefault = v ?? false),
             contentPadding: EdgeInsets.zero,
             controlAffinity: ListTileControlAffinity.leading,
-            title: const Text('Use for new chats'),
+            title: Text(AppLocalizations.of(context)!.titleUseForNewChats),
             dense: true,
           ),
         ],
@@ -1562,12 +1602,12 @@ class _SaveStyleDialogState extends State<_SaveStyleDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
+          child: Text(AppLocalizations.of(context)!.cancel),
         ),
         FilledButton(
           key: const ValueKey('save_style_confirm'),
           onPressed: _nameController.text.trim().isEmpty ? null : _submit,
-          child: const Text('Save'),
+          child: Text(AppLocalizations.of(context)!.save),
         ),
       ],
     );

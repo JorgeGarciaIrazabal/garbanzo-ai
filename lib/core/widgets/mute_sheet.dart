@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:garbanzo_ai/core/mute_util.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// Bottom sheet offering mute duration options.
 ///
@@ -69,26 +70,26 @@ class _MuteSheet extends StatelessWidget {
           _MuteOption(
             key: const ValueKey('mute_option_8h'),
             icon: Icons.schedule,
-            label: '8 hours',
+            label: AppLocalizations.of(context)!.labelEightHours,
             onTap: () => Navigator.of(context).pop(muteDuration8h),
           ),
           _MuteOption(
             key: const ValueKey('mute_option_1w'),
             icon: Icons.date_range,
-            label: '1 week',
+            label: AppLocalizations.of(context)!.labelOneWeek,
             onTap: () => Navigator.of(context).pop(muteDuration1w),
           ),
           _MuteOption(
             key: const ValueKey('mute_option_forever'),
             icon: Icons.notifications_off_outlined,
-            label: 'Always',
+            label: AppLocalizations.of(context)!.labelAlways,
             onTap: () => Navigator.of(context).pop(muteDurationForever),
           ),
           if (muted)
             _MuteOption(
               key: const ValueKey('mute_option_unmute'),
               icon: Icons.notifications_active_outlined,
-              label: 'Unmute',
+              label: AppLocalizations.of(context)!.messageUnmute,
               color: colorScheme.primary,
               onTap: () => Navigator.of(context).pop(muteDurationUnmute),
             ),

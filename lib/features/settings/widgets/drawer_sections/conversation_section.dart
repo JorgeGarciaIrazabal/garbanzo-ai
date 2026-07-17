@@ -7,6 +7,7 @@ import 'package:garbanzo_ai/features/chat/providers/system_prompt_provider.dart'
 import 'package:garbanzo_ai/features/chat/widgets/system_prompt_editor_dialog.dart';
 import 'package:garbanzo_ai/features/settings/widgets/drawer_sections/section_header.dart';
 import 'package:garbanzo_ai/features/settings/widgets/drawer_sections/tools_picker.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// Everything scoped to the active conversation: model, system prompt,
 /// memory/knowledge-base toggles, and the tool whitelist.
@@ -52,9 +53,12 @@ class _ModelTile extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SectionHeader(icon: Icons.smart_toy, title: 'Model'),
+        SectionHeader(
+          icon: Icons.smart_toy,
+          title: AppLocalizations.of(context)!.titleModel,
+        ),
         ListTile(
-          title: const Text('LLM Model'),
+          title: Text(AppLocalizations.of(context)!.titleLlmModel),
           subtitle: Text(
             selectedName ?? selectedId ?? 'No model selected',
             style: theme.textTheme.bodySmall,
@@ -114,8 +118,10 @@ class _SystemPromptTiles extends StatelessWidget {
       final result = await SystemPromptEditorDialog.show(
         context,
         initialContent: convPrompt,
-        title: 'Conversation system prompt',
-        subtitle: 'Overrides your global default for this conversation only.',
+        title: AppLocalizations.of(context)!.titleConversationSystemPrompt,
+        subtitle: AppLocalizations.of(
+          context,
+        )!.titleOverridesYourGlobalDefaultForThis,
       );
       if (result == null || result.isCancelled) return;
       if (result.isClear) {
@@ -129,7 +135,7 @@ class _SystemPromptTiles extends StatelessWidget {
       final result = await SystemPromptEditorDialog.show(
         context,
         initialContent: userDefault,
-        title: 'Global default system prompt',
+        title: AppLocalizations.of(context)!.titleGlobalDefaultSystemPrompt,
         subtitle:
             'Applied to every new conversation unless overridden per-chat.',
       );
@@ -146,16 +152,16 @@ class _SystemPromptTiles extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SectionHeader(
+        SectionHeader(
           icon: Icons.assignment_outlined,
-          title: 'System Prompt',
+          title: AppLocalizations.of(context)!.titleSystemPrompt,
         ),
         // Per-conversation
         ListTile(
           leading: const Icon(Icons.chat_bubble_outline),
-          title: const Text('This conversation'),
+          title: Text(AppLocalizations.of(context)!.titleThisConversation),
           subtitle: conversation == null
-              ? const Text('Start a conversation to set a prompt')
+              ? Text(AppLocalizations.of(context)!.startAConversationToSetA)
               : Text(
                   convPrompt == null || convPrompt.isEmpty
                       ? 'Using: $effectiveSource'
@@ -172,7 +178,7 @@ class _SystemPromptTiles extends StatelessWidget {
         // Global default
         ListTile(
           leading: const Icon(Icons.public),
-          title: const Text('Global default'),
+          title: Text(AppLocalizations.of(context)!.titleGlobalDefault),
           subtitle: Text(
             (userDefault == null || userDefault.isEmpty)
                 ? 'Not set — using built-in defaults'
@@ -210,10 +216,13 @@ class _ContextToggles extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SectionHeader(icon: Icons.tune, title: 'Personal context'),
+        SectionHeader(
+          icon: Icons.tune,
+          title: AppLocalizations.of(context)!.titlePersonalContext,
+        ),
         if (conversation != null) ...[
           SwitchListTile(
-            title: const Text('Use memory'),
+            title: Text(AppLocalizations.of(context)!.titleUseMemory),
             subtitle: const Text(
               'Inject saved memories into this conversation',
             ),
@@ -224,7 +233,7 @@ class _ContextToggles extends StatelessWidget {
             dense: true,
           ),
           SwitchListTile(
-            title: const Text('Use knowledge base'),
+            title: Text(AppLocalizations.of(context)!.titleUseKnowledgeBase),
             subtitle: const Text(
               'Inject relevant document excerpts into this conversation',
             ),
@@ -235,9 +244,13 @@ class _ContextToggles extends StatelessWidget {
             dense: true,
           ),
         ] else
-          const ListTile(
-            title: Text('Memory & knowledge base'),
-            subtitle: Text('Start a conversation to toggle injection'),
+          ListTile(
+            title: Text(AppLocalizations.of(context)!.titleMemoryKnowledgeBase),
+            subtitle: Text(
+              AppLocalizations.of(
+                context,
+              )!.titleStartAConversationToToggleInjection,
+            ),
             dense: true,
             enabled: false,
           ),

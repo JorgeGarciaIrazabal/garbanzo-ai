@@ -20,6 +20,7 @@ import 'package:garbanzo_ai/features/mentions/models/mention_sources.dart';
 import 'package:garbanzo_ai/features/mentions/widgets/mention_autocomplete.dart';
 import 'package:garbanzo_ai/features/mentions/widgets/mention_text_controller.dart';
 import 'package:garbanzo_ai/features/tools/providers/tool_provider.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// Widget for the chat text input field with optional file attachments.
 ///
@@ -219,14 +220,13 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
         if (raw.contains('SocketException') ||
             raw.contains('Connection') ||
             raw.contains('timed out')) {
-          message =
-              'Could not reach the server — check your connection and try again.';
+          message = AppLocalizations.of(context)!.messageCouldNotReachServer;
         } else if (raw.contains('500') ||
             raw.contains('503') ||
             raw.contains('unavailable')) {
-          message = 'Speech-to-text is currently unavailable on the server.';
+          message = AppLocalizations.of(context)!.messageSttUnavailable;
         } else {
-          message = 'Transcription failed — please try again.';
+          message = AppLocalizations.of(context)!.messageTranscriptionFailed;
         }
         ScaffoldMessenger.of(
           context,
@@ -304,7 +304,9 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
                     PulsingDot(color: colorScheme.error),
                     const SizedBox(width: 6),
                     Text(
-                      'Recording ${_formatDuration(_recordingDuration)}',
+                      AppLocalizations.of(
+                        context,
+                      )!.messageRecording(_formatDuration(_recordingDuration)),
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: colorScheme.onErrorContainer,
                         fontWeight: FontWeight.w500,

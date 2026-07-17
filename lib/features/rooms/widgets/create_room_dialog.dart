@@ -8,6 +8,7 @@ import 'package:garbanzo_ai/features/friends/providers/friends_provider.dart';
 import 'package:garbanzo_ai/features/friends/widgets/friend_picker_field.dart';
 import 'package:garbanzo_ai/features/rooms/models/room_models.dart';
 import 'package:garbanzo_ai/features/rooms/providers/room_provider.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 Future<Room?> showCreateRoomDialog(
   BuildContext context,
@@ -23,7 +24,7 @@ Future<Room?> showCreateRoomDialog(
   return showAnimatedDialog<Room>(
     context: context,
     builder: (ctx) => AlertDialog(
-      title: const Text('New room'),
+      title: Text(AppLocalizations.of(context)!.titleNewRoom),
       content: SizedBox(
         width: 420,
         child: Column(
@@ -31,17 +32,19 @@ Future<Room?> showCreateRoomDialog(
           children: [
             TextField(
               controller: nameCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Name',
-                hintText: 'e.g. Product brainstorm',
+              decoration: InputDecoration(
+                labelText: AppLocalizations.of(context)!.labelName,
+                hintText: AppLocalizations.of(context)!.hintEGProductBrainstorm,
               ),
               autofocus: true,
             ),
             const SizedBox(height: 12),
             TextField(
               controller: descCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Description (optional)',
+              decoration: InputDecoration(
+                labelText: AppLocalizations.of(
+                  context,
+                )!.labelDescriptionOptional,
               ),
             ),
             const SizedBox(height: 12),
@@ -67,7 +70,7 @@ Future<Room?> showCreateRoomDialog(
       actions: [
         TextButton(
           onPressed: () => Navigator.of(ctx).pop(),
-          child: const Text('Cancel'),
+          child: Text(AppLocalizations.of(context)!.cancel),
         ),
         FilledButton(
           onPressed: () async {
@@ -92,7 +95,7 @@ Future<Room?> showCreateRoomDialog(
               }
             }
           },
-          child: const Text('Create'),
+          child: Text(AppLocalizations.of(context)!.create),
         ),
       ],
     ),

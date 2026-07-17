@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:garbanzo_ai/features/friends/models/friend_models.dart';
 import 'package:garbanzo_ai/features/friends/widgets/friend_picker_field.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 const _friends = [
   Friend(email: 'ana@example.com', friendshipId: 'f1', fullName: 'Ana Lopez'),
@@ -19,7 +20,10 @@ void main() {
     key = GlobalKey<FriendPickerFieldState>();
     lastSelection = [];
     return MaterialApp(
-      home: Scaffold(
+      
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
+home: Scaffold(
         body: FriendPickerField(
           key: key,
           friends: friends,

@@ -7,6 +7,7 @@ import 'package:garbanzo_ai/features/notifications/models/app_notification.dart'
 import 'package:garbanzo_ai/core/widgets/skeleton.dart';
 import 'package:garbanzo_ai/features/notifications/providers/notification_provider.dart';
 import 'package:garbanzo_ai/features/notifications/services/push_service.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 class NotificationsPage extends StatefulWidget {
   const NotificationsPage({super.key});
@@ -28,7 +29,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Notifications'),
+        title: Text(AppLocalizations.of(context)!.titleNotifications),
         actions: [
           Consumer<NotificationProvider>(
             builder: (context, provider, _) {
@@ -36,7 +37,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
               return TextButton.icon(
                 onPressed: provider.markAllRead,
                 icon: const Icon(Icons.mark_email_read_outlined),
-                label: const Text('Mark all read'),
+                label: Text(AppLocalizations.of(context)!.labelMarkAllRead),
               );
             },
           ),

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
+
 /// The circular garbanzo brand mark (cropped from the app icon).
 ///
 /// Used consistently across empty states (empty chat, rooms, knowledge base,
@@ -11,6 +13,7 @@ class BrandMark extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final dpr = MediaQuery.of(context).devicePixelRatio;
     return ClipOval(
       child: Image.asset(
@@ -18,7 +21,7 @@ class BrandMark extends StatelessWidget {
         width: size,
         height: size,
         fit: BoxFit.cover,
-        semanticLabel: 'Garbanzo AI',
+        semanticLabel: l10n.appTitle,
         cacheWidth: (size * dpr).round(),
       ),
     );

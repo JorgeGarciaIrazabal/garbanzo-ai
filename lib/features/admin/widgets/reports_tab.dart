@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:garbanzo_ai/features/reports/models/report.dart';
 import 'package:garbanzo_ai/features/reports/services/reports_service.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// Admin triage tab for user-submitted bug/feature reports (idea 14).
 ///
@@ -108,7 +109,10 @@ class _ReportsTabState extends State<ReportsTab> {
               child: Text(_error!, textAlign: TextAlign.center),
             ),
             const SizedBox(height: 8),
-            FilledButton(onPressed: _load, child: const Text('Retry')),
+            FilledButton(
+              onPressed: _load,
+              child: Text(AppLocalizations.of(context)!.labelRetry),
+            ),
           ],
         ),
       );
@@ -150,7 +154,10 @@ class _ReportsTabState extends State<ReportsTab> {
           child: SegmentedButton<String>(
             key: const ValueKey('reports_status_filter'),
             segments: [
-              const ButtonSegment(value: 'all', label: Text('All')),
+              ButtonSegment(
+                value: AppLocalizations.of(context)!.labelAllLowercase,
+                label: Text(AppLocalizations.of(context)!.labelAll),
+              ),
               for (final e in ReportsTab.statusLabels.entries)
                 ButtonSegment(value: e.key, label: Text(e.value)),
             ],
@@ -203,7 +210,7 @@ class _ReportTile extends StatelessWidget {
       ),
       trailing: PopupMenuButton<String>(
         key: ValueKey('report_status_menu_${report.id}'),
-        tooltip: 'Set status',
+        tooltip: AppLocalizations.of(context)!.tooltipSetStatus,
         initialValue: report.status,
         onSelected: onSetStatus,
         itemBuilder: (context) => [

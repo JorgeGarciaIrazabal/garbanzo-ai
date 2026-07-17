@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:garbanzo_ai/core/auth_service.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// Edits full name and email. On successful email change, signs the user out —
 /// the old JWT is bound to the previous email.
@@ -68,9 +69,9 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
       if (!mounted) return;
       Navigator.of(context).pop(true);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
-            'Email updated. Please sign in again with the new address.',
+            AppLocalizations.of(context)!.messageEmailUpdatedSignInAgain,
           ),
         ),
       );
@@ -84,7 +85,7 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Edit profile'),
+      title: Text(AppLocalizations.of(context)!.titleEditProfile),
       content: SingleChildScrollView(
         child: Form(
           key: _formKey,
@@ -93,8 +94,8 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
             children: [
               TextFormField(
                 controller: _name,
-                decoration: const InputDecoration(
-                  labelText: 'Full name',
+                decoration: InputDecoration(
+                  labelText: AppLocalizations.of(context)!.labelFullName,
                   prefixIcon: Icon(Icons.person_outline),
                 ),
                 maxLength: 100,
@@ -102,10 +103,12 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
               const SizedBox(height: 8),
               TextFormField(
                 controller: _email,
-                decoration: const InputDecoration(
-                  labelText: 'Email',
+                decoration: InputDecoration(
+                  labelText: AppLocalizations.of(context)!.labelEmail,
                   prefixIcon: Icon(Icons.email_outlined),
-                  helperText: 'Changing email signs you out',
+                  helperText: AppLocalizations.of(
+                    context,
+                  )!.messageChangingEmailSignsYouOut,
                 ),
                 keyboardType: TextInputType.emailAddress,
                 autocorrect: false,
@@ -130,7 +133,7 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
       actions: [
         TextButton(
           onPressed: _saving ? null : () => Navigator.of(context).pop(false),
-          child: const Text('Cancel'),
+          child: Text(AppLocalizations.of(context)!.cancel),
         ),
         FilledButton(
           onPressed: _saving ? null : _save,
@@ -140,7 +143,7 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
                   height: 18,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : const Text('Save'),
+              : Text(AppLocalizations.of(context)!.save),
         ),
       ],
     );

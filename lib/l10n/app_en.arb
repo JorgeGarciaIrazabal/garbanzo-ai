@@ -9,9 +9,3324 @@
     "description": "Label for the language settings section."
   },
   "languageEnglish": "English",
-  "@languageEnglish": {},
+  "@languageEnglish": {
+    "description": "Language name for English."
+  },
   "languageSpanish": "Español",
-  "@languageSpanish": {},
+  "@languageSpanish": {
+    "description": "Language name for Spanish."
+  },
   "languageSystem": "System default",
-  "@languageSystem": {}
+  "@languageSystem": {
+    "description": "Use the system language setting."
+  },
+  "accept": "Accept",
+  "@accept": {
+    "description": "features/chat/widgets/system_prompt_editor_dialog.dart:713 (Text)"
+  },
+  "active": "Active",
+  "@active": {
+    "description": "features/memory/widgets/memory_item_tile.dart:71 (Active)"
+  },
+  "add": "Add",
+  "@add": {
+    "description": "features/rooms/widgets/add_agent_dialog.dart:264 (Text)"
+  },
+  "addAgentTitle": "Add agent",
+  "@addAgentTitle": {
+    "description": "features/rooms/widgets/room_chat_view.dart:678 (Text); features/rooms/widgets/add_agent_dialog.dart:177 (Text)"
+  },
+  "agents": "Agents",
+  "@agents": {
+    "description": "features/rooms/widgets/room_chat_view.dart:645 (Text)"
+  },
+  "alwaysRespond": "Always respond",
+  "@alwaysRespond": {
+    "description": "features/rooms/widgets/add_agent_dialog.dart:217 (Text)"
+  },
+  "apply": "Apply",
+  "@apply": {
+    "description": "features/chat/widgets/system_prompt_editor_dialog.dart:613 (Text)"
+  },
+  "attachedImageLabel": "Attached image: {name}",
+  "@attachedImageLabel": {
+    "description": "features/chat/widgets/message/attachment_display.dart:118 (Attached)",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "authErrorIncorrectEmailOrPassword": "Incorrect email or password",
+  "@authErrorIncorrectEmailOrPassword": {
+    "description": "pages/login_page.dart:61 (Incorrect)"
+  },
+  "autoJumpInWhenRelevantLlm": "Auto — jump in when relevant (LLM)",
+  "@autoJumpInWhenRelevantLlm": {
+    "description": "features/rooms/widgets/add_agent_dialog.dart:225 (Text)"
+  },
+  "autoLowercase": "auto",
+  "@autoLowercase": {
+    "description": "features/chat/talk/talk_mode_page.dart:251 (Text)"
+  },
+  "autoModel": "Auto",
+  "@autoModel": {
+    "description": "features/settings/pages/settings_page.dart:306 (Text); features/settings/pages/settings_page.dart:310 (Text); features/chat/talk/talk_mode_page.dart:251 (Text); and 1 more"
+  },
+  "block": "Block",
+  "@block": {
+    "description": "features/friends/pages/friends_page.dart:81 (Text); features/friends/pages/friends_page.dart:355 (Text)"
+  },
+  "blockLowercase": "block",
+  "@blockLowercase": {
+    "description": "features/friends/pages/friends_page.dart:314 (Text); features/friends/pages/friends_page.dart:355 (Text)"
+  },
+  "blockSender": "Block sender",
+  "@blockSender": {
+    "description": "features/friends/pages/friends_page.dart:314 (Text)"
+  },
+  "cancel": "Cancel",
+  "@cancel": {
+    "description": "features/reports/widgets/submit_report_dialog.dart:158 (Text); features/memory/pages/memory_page.dart:50 (Text); features/memory/pages/memory_page.dart:85 (Text); and 31 more"
+  },
+  "change": "Change",
+  "@change": {
+    "description": "features/settings/widgets/change_password_dialog.dart:144 (Text)"
+  },
+  "chatStyle": "Chat style",
+  "@chatStyle": {
+    "description": "features/chat/widgets/style_picker.dart:169 (Chat); features/chat/widgets/style_picker.dart:687 (Text)"
+  },
+  "checkNow": "Check now",
+  "@checkNow": {
+    "description": "features/settings/widgets/update_section.dart:69 (Text)"
+  },
+  "clear": "Clear",
+  "@clear": {
+    "description": "features/chat/widgets/system_prompt_editor_dialog.dart:600 (Text)"
+  },
+  "close": "Close",
+  "@close": {
+    "description": "features/settings/widgets/update_dialog.dart:95 (Text)"
+  },
+  "commitAndDeployToGithubPages": "Commit and deploy to GitHub Pages.",
+  "@commitAndDeployToGithubPages": {
+    "description": "features/microapps/widgets/micro_app_panel.dart:163 (Text)"
+  },
+  "composeAStyle": "Compose a style",
+  "@composeAStyle": {
+    "description": "features/chat/widgets/style_picker.dart:772 (Text)"
+  },
+  "confirm": "Confirm",
+  "@confirm": {
+    "description": "features/chat/widgets/action_proposal_card.dart:241 (Text)"
+  },
+  "couldNotUpdate": "Could not update: {error}",
+  "@couldNotUpdate": {
+    "description": "features/admin/widgets/reports_tab.dart:86 (Text)",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "create": "Create",
+  "@create": {
+    "description": "features/memory/pages/memory_page.dart:59 (Text); features/scheduled_actions/pages/scheduled_actions_page.dart:498 (Text); features/rooms/widgets/create_room_dialog.dart:95 (Text); and 2 more"
+  },
+  "delete": "Delete",
+  "@delete": {
+    "description": "features/memory/pages/memory_page.dart:123 (Text); features/scheduled_actions/pages/scheduled_actions_page.dart:284 (Text); features/chat/widgets/system_prompt_editor_dialog.dart:133 (Text); and 7 more"
+  },
+  "deleteAgentConfirmation": "Delete agent {name}? This cannot be undone.",
+  "@deleteAgentConfirmation": {
+    "description": "features/rooms/widgets/room_chat_view.dart:762 (Text)",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteLowercase": "delete",
+  "@deleteLowercase": {
+    "description": "features/chat/widgets/style_picker.dart:1081 (Text)"
+  },
+  "deleteRoomConfirmation": "Delete \"{name}\"? This cannot be undone.",
+  "@deleteRoomConfirmation": {
+    "description": "features/rooms/widgets/rooms_list_view.dart:98 (Text)",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteStyleTitle": "Delete \"{name}\"?",
+  "@deleteStyleTitle": {
+    "description": "features/chat/widgets/style_picker.dart:534 (Text)",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteTemplateTitle": "Delete \"{name}\"?",
+  "@deleteTemplateTitle": {
+    "description": "features/chat/widgets/system_prompt_editor_dialog.dart:125 (Text)",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "discard": "Discard",
+  "@discard": {
+    "description": "features/chat/widgets/system_prompt_editor_dialog.dart:718 (Text)"
+  },
+  "downloadInstall": "Download & install",
+  "@downloadInstall": {
+    "description": "features/settings/widgets/update_section.dart:78 (Text)"
+  },
+  "edit": "edit",
+  "@edit": {
+    "description": "features/chat/widgets/style_picker.dart:1076 (Text)"
+  },
+  "editAgentTitle": "Edit agent",
+  "@editAgentTitle": {
+    "description": "features/rooms/widgets/add_agent_dialog.dart:177 (Text)"
+  },
+  "editEllipsis": "Edit…",
+  "@editEllipsis": {
+    "description": "features/chat/widgets/style_picker.dart:1076 (Text)"
+  },
+  "editTemplateTitle": "Edit \"{name}\"",
+  "@editTemplateTitle": {
+    "description": "features/chat/widgets/system_prompt_editor_dialog.dart:159 (Text)",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "errorWithDetails": "Error: {error}",
+  "@errorWithDetails": {
+    "description": "features/rooms/widgets/rooms_list_view.dart:52 (Text)",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToAcceptRequest": "Failed to accept request",
+  "@failedToAcceptRequest": {
+    "description": "features/friends/providers/friends_provider.dart:54 (Failed)"
+  },
+  "failedToAcceptShare": "Failed to accept share",
+  "@failedToAcceptShare": {
+    "description": "features/friends/providers/friends_provider.dart:121 (Failed)"
+  },
+  "failedToBlockUser": "Failed to block user",
+  "@failedToBlockUser": {
+    "description": "features/friends/providers/friends_provider.dart:85 (Failed)"
+  },
+  "failedToCreateMemory": "Failed to create memory",
+  "@failedToCreateMemory": {
+    "description": "features/memory/providers/memory_provider.dart:50 (Failed)"
+  },
+  "failedToCreateScheduledAction": "Failed to create scheduled action",
+  "@failedToCreateScheduledAction": {
+    "description": "features/scheduled_actions/providers/scheduled_actions_provider.dart:34 (Failed)"
+  },
+  "failedToCreateTemplate": "Failed to create template",
+  "@failedToCreateTemplate": {
+    "description": "features/chat/providers/system_prompt_provider.dart:44 (Failed)"
+  },
+  "failedToDeactivateMemory": "Failed to deactivate memory",
+  "@failedToDeactivateMemory": {
+    "description": "features/memory/providers/memory_provider.dart:90 (Failed)"
+  },
+  "failedToDeclineRequest": "Failed to decline request",
+  "@failedToDeclineRequest": {
+    "description": "features/friends/providers/friends_provider.dart:63 (Failed)"
+  },
+  "failedToDeclineShare": "Failed to decline share",
+  "@failedToDeclineShare": {
+    "description": "features/friends/providers/friends_provider.dart:130 (Failed)"
+  },
+  "failedToDeleteAgent": "Failed to delete agent: {error}",
+  "@failedToDeleteAgent": {
+    "description": "features/rooms/widgets/room_chat_view.dart:785 (Text)",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToDeleteDocument": "Failed to delete document",
+  "@failedToDeleteDocument": {
+    "description": "features/knowledge_base/providers/knowledge_base_provider.dart:41 (Failed)"
+  },
+  "failedToDeleteRoom": "Failed to delete room: {error}",
+  "@failedToDeleteRoom": {
+    "description": "features/chat/widgets/chat_page.dart:376 (Text)",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToDeleteScheduledAction": "Failed to delete scheduled action",
+  "@failedToDeleteScheduledAction": {
+    "description": "features/scheduled_actions/providers/scheduled_actions_provider.dart:85 (Failed)"
+  },
+  "failedToDeleteStyle": "Failed to delete style",
+  "@failedToDeleteStyle": {
+    "description": "features/chat/providers/style_provider.dart:188 (Failed)"
+  },
+  "failedToDeleteTemplate": "Failed to delete template",
+  "@failedToDeleteTemplate": {
+    "description": "features/chat/providers/system_prompt_provider.dart:76 (Failed)"
+  },
+  "failedToEditMessage": "Failed to edit message: {error}",
+  "@failedToEditMessage": {
+    "description": "features/chat/providers/chat_provider.dart:520 (Failed)",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToLoadDocuments": "Failed to load documents",
+  "@failedToLoadDocuments": {
+    "description": "features/knowledge_base/providers/knowledge_base_provider.dart:19 (Failed)"
+  },
+  "failedToLoadFriends": "Failed to load friends",
+  "@failedToLoadFriends": {
+    "description": "features/friends/providers/friends_provider.dart:36 (Failed)"
+  },
+  "failedToLoadMemories": "Failed to load memories",
+  "@failedToLoadMemories": {
+    "description": "features/memory/providers/memory_provider.dart:36 (Failed)"
+  },
+  "failedToLoadModels": "Failed to load models",
+  "@failedToLoadModels": {
+    "description": "features/chat/providers/model_provider.dart:27 (Failed); features/admin/providers/admin_provider.dart:267 (Failed)"
+  },
+  "failedToLoadNotifications": "Failed to load notifications",
+  "@failedToLoadNotifications": {
+    "description": "features/notifications/providers/notification_provider.dart:46 (Failed)"
+  },
+  "failedToLoadScheduledActions": "Failed to load scheduled actions",
+  "@failedToLoadScheduledActions": {
+    "description": "features/scheduled_actions/providers/scheduled_actions_provider.dart:21 (Failed)"
+  },
+  "failedToLoadStyles": "Failed to load styles",
+  "@failedToLoadStyles": {
+    "description": "features/chat/providers/style_provider.dart:71 (Failed)"
+  },
+  "failedToLoadSystemPrompts": "Failed to load system prompts",
+  "@failedToLoadSystemPrompts": {
+    "description": "features/chat/providers/system_prompt_provider.dart:29 (Failed)"
+  },
+  "failedToLoadTools": "Failed to load tools",
+  "@failedToLoadTools": {
+    "description": "features/tools/providers/tool_provider.dart:25 (Failed)"
+  },
+  "failedToLoadUsage": "Failed to load usage",
+  "@failedToLoadUsage": {
+    "description": "features/usage/providers/usage_provider.dart:18 (Failed)"
+  },
+  "failedToRemoveFriend": "Failed to remove friend",
+  "@failedToRemoveFriend": {
+    "description": "features/friends/providers/friends_provider.dart:74 (Failed)"
+  },
+  "failedToRemoveMember": "Failed to remove member: {error}",
+  "@failedToRemoveMember": {
+    "description": "features/rooms/widgets/room_chat_view.dart:748 (Text)",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToRenderDiagram": "Failed to render diagram",
+  "@failedToRenderDiagram": {
+    "description": "features/chat/widgets/mermaid_diagram.dart:187 (Failed)"
+  },
+  "failedToSaveDefaultPrompt": "Failed to save default prompt",
+  "@failedToSaveDefaultPrompt": {
+    "description": "features/chat/providers/system_prompt_provider.dart:85 (Failed)"
+  },
+  "failedToSaveMemory": "Failed to save memory: {error}",
+  "@failedToSaveMemory": {
+    "description": "features/chat/widgets/remember_this_button.dart:126 (Text)",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToSaveStyle": "Failed to save style",
+  "@failedToSaveStyle": {
+    "description": "features/chat/providers/style_provider.dart:128 (Failed)"
+  },
+  "failedToSendFriendRequest": "Failed to send friend request",
+  "@failedToSendFriendRequest": {
+    "description": "features/friends/providers/friends_provider.dart:46 (Failed)"
+  },
+  "failedToSendMessage": "Failed to send message: {error}",
+  "@failedToSendMessage": {
+    "description": "features/chat/providers/chat_provider.dart:454 (Failed)",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToShare": "Failed to share",
+  "@failedToShare": {
+    "description": "features/friends/providers/friends_provider.dart:108 (Failed)"
+  },
+  "failedToUnblockUser": "Failed to unblock user",
+  "@failedToUnblockUser": {
+    "description": "features/friends/providers/friends_provider.dart:94 (Failed)"
+  },
+  "failedToUpdateMemory": "Failed to update memory",
+  "@failedToUpdateMemory": {
+    "description": "features/memory/providers/memory_provider.dart:69 (Failed)"
+  },
+  "failedToUpdateMemorySetting": "Failed to update memory setting: {error}",
+  "@failedToUpdateMemorySetting": {
+    "description": "features/chat/widgets/memory_toggle_widget.dart:33 (Text)",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToUpdateScheduledAction": "Failed to update scheduled action",
+  "@failedToUpdateScheduledAction": {
+    "description": "features/scheduled_actions/providers/scheduled_actions_provider.dart:60 (Failed); features/scheduled_actions/providers/scheduled_actions_provider.dart:78 (Failed)"
+  },
+  "failedToUpdateStyle": "Failed to update style",
+  "@failedToUpdateStyle": {
+    "description": "features/chat/providers/style_provider.dart:160 (Failed)"
+  },
+  "failedToUpdateTemplate": "Failed to update template",
+  "@failedToUpdateTemplate": {
+    "description": "features/chat/providers/system_prompt_provider.dart:61 (Failed)"
+  },
+  "failedToUploadDocument": "Failed to upload document",
+  "@failedToUploadDocument": {
+    "description": "features/knowledge_base/providers/knowledge_base_provider.dart:29 (Failed)"
+  },
+  "feedbackToApply": "Feedback to apply:",
+  "@feedbackToApply": {
+    "description": "features/chat/widgets/system_prompt_editor_dialog.dart:688 (Text)"
+  },
+  "filesTooLarge": "Files too large:\\n{files}",
+  "@filesTooLarge": {
+    "description": "features/chat/widgets/chat_page.dart:473 (Text); features/chat/widgets/input/attach_menu_button.dart:74 (Text)",
+    "placeholders": {
+      "files": {
+        "type": "String"
+      }
+    }
+  },
+  "fromYourKnowledgeBase": "From your knowledge base",
+  "@fromYourKnowledgeBase": {
+    "description": "features/chat/widgets/chat_message_widget.dart:235 (From)"
+  },
+  "headingSignIn": "Sign in",
+  "@headingSignIn": {
+    "description": "pages/login_page.dart:79 (Sign)"
+  },
+  "hintApiKeyAbcNdebug1": "API_KEY=abc\\nDEBUG=1",
+  "@hintApiKeyAbcNdebug1": {
+    "description": "features/admin/widgets/mcp_server_dialog.dart:262 (Text)"
+  },
+  "hintAtLeast6Characters": "At least 6 characters",
+  "@hintAtLeast6Characters": {
+    "description": "features/admin/widgets/create_user_dialog.dart:116 (Text)"
+  },
+  "hintBearer": "Bearer …",
+  "@hintBearer": {
+    "description": "features/admin/widgets/mcp_server_dialog.dart:272 (Text)"
+  },
+  "hintBug": "bug",
+  "@hintBug": {
+    "description": "features/reports/widgets/submit_report_dialog.dart:140 (Text)"
+  },
+  "hintDeepWorkQuickAnswers": "Deep work, Quick answers…",
+  "@hintDeepWorkQuickAnswers": {
+    "description": "features/chat/widgets/style_picker.dart:1548 (Text)"
+  },
+  "hintEG09MonFri": "e.g. \"0 9 * * mon-fri\"",
+  "@hintEG09MonFri": {
+    "description": "features/scheduled_actions/pages/scheduled_actions_page.dart:462 (Text)"
+  },
+  "hintEGFilesystem": "e.g. filesystem",
+  "@hintEGFilesystem": {
+    "description": "features/admin/widgets/mcp_server_dialog.dart:173 (Text)"
+  },
+  "hintEGMadridSpain": "e.g. Madrid, Spain",
+  "@hintEGMadridSpain": {
+    "description": "features/settings/widgets/location_section.dart:159 (Text)"
+  },
+  "hintEGMakeItFriendlier": "e.g. Make it friendlier",
+  "@hintEGMakeItFriendlier": {
+    "description": "features/chat/widgets/system_prompt_editor_dialog.dart:695 (Text)"
+  },
+  "hintEGMorningStandup": "e.g. \"Morning standup\"",
+  "@hintEGMorningStandup": {
+    "description": "features/scheduled_actions/pages/scheduled_actions_page.dart:427 (Text)"
+  },
+  "hintEGProductBrainstorm": "e.g. Product brainstorm",
+  "@hintEGProductBrainstorm": {
+    "description": "features/rooms/widgets/create_room_dialog.dart:36 (Text)"
+  },
+  "hintEnterMemoryContent": "Enter memory content",
+  "@hintEnterMemoryContent": {
+    "description": "features/memory/pages/memory_page.dart:41 (Text); features/memory/pages/memory_page.dart:76 (Text)"
+  },
+  "hintFriendExampleCom": "friend@example.com",
+  "@hintFriendExampleCom": {
+    "description": "features/friends/pages/friends_page.dart:251 (Text)"
+  },
+  "hintJaneDoe": "Jane Doe",
+  "@hintJaneDoe": {
+    "description": "features/admin/widgets/create_user_dialog.dart:85 (Text)"
+  },
+  "hintMemoryContent": "Memory content",
+  "@hintMemoryContent": {
+    "description": "features/chat/widgets/remember_this_button.dart:78 (Text)"
+  },
+  "hintMessageTheRoomUseAgentnameOr": "Message the room… (use @AgentName or @all)",
+  "@hintMessageTheRoomUseAgentnameOr": {
+    "description": "features/rooms/widgets/room_chat_view.dart:230 (Text)"
+  },
+  "hintOneLineSummary": "One-line summary",
+  "@hintOneLineSummary": {
+    "description": "features/reports/widgets/submit_report_dialog.dart:125 (Text)"
+  },
+  "hintSearchConversations": "Search conversations...",
+  "@hintSearchConversations": {
+    "description": "features/chat/widgets/search_widget.dart:46 (Text)"
+  },
+  "hintSearchModels": "Search models",
+  "@hintSearchModels": {
+    "description": "features/chat/widgets/style_picker.dart:840 (Text)"
+  },
+  "hintSearchTools": "Search tools…",
+  "@hintSearchTools": {
+    "description": "features/tools/pages/skills_library_page.dart:117 (Text)"
+  },
+  "hintUsrBinPython3": "/usr/bin/python3",
+  "@hintUsrBinPython3": {
+    "description": "features/admin/widgets/mcp_server_dialog.dart:238 (Text)"
+  },
+  "hintWhatShouldTheAssistantDo": "What should the assistant do?",
+  "@hintWhatShouldTheAssistantDo": {
+    "description": "features/scheduled_actions/pages/scheduled_actions_page.dart:435 (Text)"
+  },
+  "hintYouAreAFriendlyProductStrategist": "You are a friendly product strategist…",
+  "@hintYouAreAFriendlyProductStrategist": {
+    "description": "features/rooms/widgets/add_agent_dialog.dart:202 (Text)"
+  },
+  "hintYouExampleCom": "you@example.com",
+  "@hintYouExampleCom": {
+    "description": "features/admin/widgets/create_user_dialog.dart:98 (Text); pages/login_page.dart:119 (Text)"
+  },
+  "inactive": "Inactive",
+  "@inactive": {
+    "description": "features/memory/widgets/memory_item_tile.dart:71 (Active)"
+  },
+  "invite": "Invite",
+  "@invite": {
+    "description": "features/rooms/widgets/room_chat_view.dart:839 (Text)"
+  },
+  "itemAddedToYourNouns": "\"{name}\" added to your {noun}s",
+  "@itemAddedToYourNouns": {
+    "description": "features/friends/pages/friends_page.dart:382 (Text)",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "noun": {
+        "type": "String"
+      }
+    }
+  },
+  "labelAgentName": "Agent name",
+  "@labelAgentName": {
+    "description": "features/rooms/widgets/add_agent_dialog.dart:186 (Text)"
+  },
+  "labelAll": "All",
+  "@labelAll": {
+    "description": "features/admin/widgets/reports_tab.dart:153 (Text)"
+  },
+  "labelAllLowercase": "all",
+  "@labelAllLowercase": {
+    "description": "features/admin/widgets/reports_tab.dart:153 (Text)"
+  },
+  "labelArgsOnePerLine": "Args (one per line)",
+  "@labelArgsOnePerLine": {
+    "description": "features/admin/widgets/mcp_server_dialog.dart:252 (Text)"
+  },
+  "labelAuthHeader": "Auth header",
+  "@labelAuthHeader": {
+    "description": "features/admin/widgets/mcp_server_dialog.dart:271 (Text)"
+  },
+  "labelBug": "Bug",
+  "@labelBug": {
+    "description": "features/reports/widgets/submit_report_dialog.dart:104 (Text)"
+  },
+  "labelChats": "Chats",
+  "@labelChats": {
+    "description": "features/chat/widgets/mobile_drawer.dart:160 (Text); features/chat/widgets/chat_sidebar.dart:149 (Text)"
+  },
+  "labelCity": "City",
+  "@labelCity": {
+    "description": "features/settings/widgets/location_section.dart:158 (Text)"
+  },
+  "labelCommitMessageOptional": "Commit message (optional)",
+  "@labelCommitMessageOptional": {
+    "description": "features/microapps/widgets/micro_app_panel.dart:168 (Text)"
+  },
+  "labelConfirmNewPassword": "Confirm new password",
+  "@labelConfirmNewPassword": {
+    "description": "features/settings/widgets/change_password_dialog.dart:113 (Text)"
+  },
+  "labelCopyUrl": "Copy URL",
+  "@labelCopyUrl": {
+    "description": "features/microapps/widgets/micro_app_view_native.dart:86 (Text)"
+  },
+  "labelCreateARoom": "Create a room",
+  "@labelCreateARoom": {
+    "description": "features/rooms/widgets/rooms_list_view.dart:365 (Text)"
+  },
+  "labelCreateWithAi": "Create with AI",
+  "@labelCreateWithAi": {
+    "description": "features/chat/widgets/system_prompt_editor_dialog.dart:525 (Text)"
+  },
+  "labelCronExpression": "Cron expression",
+  "@labelCronExpression": {
+    "description": "features/scheduled_actions/pages/scheduled_actions_page.dart:461 (Text)"
+  },
+  "labelCurrentPassword": "Current password",
+  "@labelCurrentPassword": {
+    "description": "features/settings/widgets/change_password_dialog.dart:71 (Text)"
+  },
+  "labelDark": "Dark",
+  "@labelDark": {
+    "description": "features/settings/widgets/drawer_sections/app_settings_section.dart:51 (Text); features/settings/pages/settings_page.dart:200 (Text)"
+  },
+  "labelDescription": "Description",
+  "@labelDescription": {
+    "description": "features/reports/widgets/submit_report_dialog.dart:139 (Text); features/admin/widgets/mcp_server_dialog.dart:185 (Text)"
+  },
+  "labelDescriptionOptional": "Description (optional)",
+  "@labelDescriptionOptional": {
+    "description": "features/chat/widgets/system_prompt_editor_dialog.dart:177 (Text); features/chat/widgets/system_prompt_editor_dialog.dart:337 (Text); features/rooms/widgets/create_room_dialog.dart:44 (Text)"
+  },
+  "labelDisabled": "Disabled",
+  "@labelDisabled": {
+    "description": "features/admin/widgets/users_tab.dart:129 (Text)"
+  },
+  "labelEmail": "Email",
+  "@labelEmail": {
+    "description": "features/settings/widgets/edit_profile_dialog.dart:106 (Text); features/admin/widgets/create_user_dialog.dart:97 (Text); pages/login_page.dart:118 (Text)"
+  },
+  "labelEnvKeyValueOnePerLine": "Env (KEY=VALUE, one per line)",
+  "@labelEnvKeyValueOnePerLine": {
+    "description": "features/admin/widgets/mcp_server_dialog.dart:261 (Text)"
+  },
+  "labelFailedToCreateServer": "Failed to create server",
+  "@labelFailedToCreateServer": {
+    "description": "features/admin/providers/admin_provider.dart:177 (Failed)"
+  },
+  "labelFailedToCreateUser": "Failed to create user",
+  "@labelFailedToCreateUser": {
+    "description": "features/admin/providers/admin_provider.dart:93 (Failed)"
+  },
+  "labelFailedToDeleteServer": "Failed to delete server",
+  "@labelFailedToDeleteServer": {
+    "description": "features/admin/providers/admin_provider.dart:238 (Failed)"
+  },
+  "labelFailedToLoadServers": "Failed to load servers",
+  "@labelFailedToLoadServers": {
+    "description": "features/admin/providers/admin_provider.dart:141 (Failed)"
+  },
+  "labelFailedToLoadUsers": "Failed to load users",
+  "@labelFailedToLoadUsers": {
+    "description": "features/admin/providers/admin_provider.dart:67 (Failed)"
+  },
+  "labelFailedToSyncModels": "Failed to sync models",
+  "@labelFailedToSyncModels": {
+    "description": "features/admin/providers/admin_provider.dart:284 (Failed)"
+  },
+  "labelFailedToTestServer": "Failed to test server",
+  "@labelFailedToTestServer": {
+    "description": "features/admin/providers/admin_provider.dart:249 (Failed)"
+  },
+  "labelFailedToUpdateModel": "Failed to update model",
+  "@labelFailedToUpdateModel": {
+    "description": "features/admin/providers/admin_provider.dart:314 (Failed)"
+  },
+  "labelFailedToUpdateServer": "Failed to update server",
+  "@labelFailedToUpdateServer": {
+    "description": "features/admin/providers/admin_provider.dart:223 (Failed)"
+  },
+  "labelFailedToUpdateUser": "Failed to update user",
+  "@labelFailedToUpdateUser": {
+    "description": "features/admin/providers/admin_provider.dart:124 (Failed)"
+  },
+  "labelFeature": "Feature",
+  "@labelFeature": {
+    "description": "features/reports/widgets/submit_report_dialog.dart:109 (Text)"
+  },
+  "labelFullName": "Full name",
+  "@labelFullName": {
+    "description": "features/settings/widgets/edit_profile_dialog.dart:97 (Text)"
+  },
+  "labelFullNameOptional": "Full name (optional)",
+  "@labelFullNameOptional": {
+    "description": "features/admin/widgets/create_user_dialog.dart:84 (Text)"
+  },
+  "labelGenerate": "Generate",
+  "@labelGenerate": {
+    "description": "features/chat/widgets/system_prompt_editor_dialog.dart:707 (Text)"
+  },
+  "labelHttp": "HTTP",
+  "@labelHttp": {
+    "description": "features/admin/widgets/mcp_server_dialog.dart:198 (Text)"
+  },
+  "labelInviteMembers": "Invite members",
+  "@labelInviteMembers": {
+    "description": "features/rooms/widgets/room_chat_view.dart:642 (Text); features/rooms/widgets/room_chat_view.dart:803 (Text)"
+  },
+  "labelLight": "Light",
+  "@labelLight": {
+    "description": "features/settings/widgets/drawer_sections/app_settings_section.dart:46 (Text); features/settings/pages/settings_page.dart:195 (Text)"
+  },
+  "labelMarkAllRead": "Mark all read",
+  "@labelMarkAllRead": {
+    "description": "features/notifications/pages/notifications_page.dart:39 (Text)"
+  },
+  "labelModel": "Model",
+  "@labelModel": {
+    "description": "features/rooms/widgets/add_agent_dialog.dart:274 (Text); features/rooms/widgets/add_agent_dialog.dart:295 (Text); features/rooms/widgets/add_agent_dialog.dart:318 (Text)"
+  },
+  "labelMonospace": "monospace",
+  "@labelMonospace": {
+    "description": "features/tools/pages/skills_library_page.dart:259 (Text)"
+  },
+  "labelName": "Name",
+  "@labelName": {
+    "description": "features/chat/widgets/system_prompt_editor_dialog.dart:168 (Text); features/chat/widgets/system_prompt_editor_dialog.dart:328 (Text); features/chat/widgets/style_picker.dart:1547 (Text); and 2 more"
+  },
+  "labelNew": "New",
+  "@labelNew": {
+    "description": "features/scheduled_actions/pages/scheduled_actions_page.dart:42 (Text)"
+  },
+  "labelNewChat": "New Chat",
+  "@labelNewChat": {
+    "description": "features/chat/widgets/mobile_drawer.dart:197 (Text); features/chat/widgets/conversation_list_widget.dart:68 (Text)"
+  },
+  "labelNewPassword": "New password",
+  "@labelNewPassword": {
+    "description": "features/settings/widgets/change_password_dialog.dart:90 (Text)"
+  },
+  "labelNewRoom": "New Room",
+  "@labelNewRoom": {
+    "description": "features/chat/widgets/mobile_drawer.dart:294 (Text); features/chat/widgets/chat_sidebar.dart:204 (Text)"
+  },
+  "labelOneOff": "One-off",
+  "@labelOneOff": {
+    "description": "features/scheduled_actions/pages/scheduled_actions_page.dart:449 (Text)"
+  },
+  "labelPassword": "Password",
+  "@labelPassword": {
+    "description": "features/admin/widgets/create_user_dialog.dart:115 (Text)"
+  },
+  "labelPrompt": "Prompt",
+  "@labelPrompt": {
+    "description": "features/scheduled_actions/pages/scheduled_actions_page.dart:434 (Text); features/chat/widgets/style_picker.dart:1426 (Text)"
+  },
+  "labelPromptContent": "Prompt content",
+  "@labelPromptContent": {
+    "description": "features/chat/widgets/system_prompt_editor_dialog.dart:186 (Text)"
+  },
+  "labelPromptTemplate": "Prompt template",
+  "@labelPromptTemplate": {
+    "description": "features/rooms/widgets/add_agent_dialog.dart:392 (Text)"
+  },
+  "labelPublish": "Publish",
+  "@labelPublish": {
+    "description": "features/microapps/widgets/micro_app_panel.dart:148 (Text); features/microapps/widgets/micro_app_panel.dart:180 (Text)"
+  },
+  "labelPublishing": "Publishing…",
+  "@labelPublishing": {
+    "description": "features/microapps/widgets/micro_app_panel.dart:148 (Text)"
+  },
+  "labelRecurring": "Recurring",
+  "@labelRecurring": {
+    "description": "features/scheduled_actions/pages/scheduled_actions_page.dart:444 (Text)"
+  },
+  "labelRefine": "Refine",
+  "@labelRefine": {
+    "description": "features/chat/widgets/system_prompt_editor_dialog.dart:707 (Text)"
+  },
+  "labelRooms": "Rooms",
+  "@labelRooms": {
+    "description": "features/chat/widgets/mobile_drawer.dart:165 (Text); features/chat/widgets/chat_sidebar.dart:154 (Text)"
+  },
+  "labelRunAt": "Run at",
+  "@labelRunAt": {
+    "description": "features/scheduled_actions/pages/scheduled_actions_page.dart:471 (Text)"
+  },
+  "labelSaveToLibrary": "Save to library",
+  "@labelSaveToLibrary": {
+    "description": "features/chat/widgets/system_prompt_editor_dialog.dart:560 (Text)"
+  },
+  "labelSend": "Send",
+  "@labelSend": {
+    "description": "features/friends/pages/friends_page.dart:269 (Text)"
+  },
+  "labelShowSchema": "Show schema",
+  "@labelShowSchema": {
+    "description": "features/tools/pages/skills_library_page.dart:265 (Text)"
+  },
+  "labelSse": "SSE",
+  "@labelSse": {
+    "description": "features/admin/widgets/mcp_server_dialog.dart:202 (Text)"
+  },
+  "labelStop": "Stop",
+  "@labelStop": {
+    "description": "features/chat/widgets/system_prompt_editor_dialog.dart:533 (Text)"
+  },
+  "labelStyles": "Styles",
+  "@labelStyles": {
+    "description": "features/chat/widgets/style_picker.dart:707 (Text)"
+  },
+  "labelSync": "Sync",
+  "@labelSync": {
+    "description": "features/admin/widgets/models_tab.dart:165 (Text)"
+  },
+  "labelSystem": "System",
+  "@labelSystem": {
+    "description": "features/settings/widgets/drawer_sections/app_settings_section.dart:56 (Text); features/settings/pages/settings_page.dart:205 (Text)"
+  },
+  "labelSystemPrompt": "System prompt",
+  "@labelSystemPrompt": {
+    "description": "features/chat/widgets/system_prompt_editor_dialog.dart:505 (Text)"
+  },
+  "labelSystemPromptOptional": "System prompt (optional)",
+  "@labelSystemPromptOptional": {
+    "description": "features/rooms/widgets/add_agent_dialog.dart:201 (Text)"
+  },
+  "labelTemplate": "Template",
+  "@labelTemplate": {
+    "description": "features/chat/widgets/system_prompt_editor_dialog.dart:428 (Text)"
+  },
+  "labelTitle": "Title",
+  "@labelTitle": {
+    "description": "features/reports/widgets/submit_report_dialog.dart:124 (Text)"
+  },
+  "labelTitleOptional": "Title (optional)",
+  "@labelTitleOptional": {
+    "description": "features/scheduled_actions/pages/scheduled_actions_page.dart:426 (Text)"
+  },
+  "labelUpload": "Upload",
+  "@labelUpload": {
+    "description": "features/knowledge_base/pages/knowledge_base_page.dart:179 (Text)"
+  },
+  "labelUrl": "URL",
+  "@labelUrl": {
+    "description": "features/admin/widgets/mcp_server_dialog.dart:222 (Text)"
+  },
+  "labelWhenToRespond": "When to respond",
+  "@labelWhenToRespond": {
+    "description": "features/rooms/widgets/add_agent_dialog.dart:209 (Text)"
+  },
+  "last12Months": "Last 12 months",
+  "@last12Months": {
+    "description": "features/usage/pages/usage_page.dart:41 (Text)"
+  },
+  "last30Days": "Last 30 days",
+  "@last30Days": {
+    "description": "features/usage/pages/usage_page.dart:39 (Text)"
+  },
+  "last7Days": "Last 7 days",
+  "@last7Days": {
+    "description": "features/usage/pages/usage_page.dart:38 (Text)"
+  },
+  "last90Days": "Last 90 days",
+  "@last90Days": {
+    "description": "features/usage/pages/usage_page.dart:40 (Text)"
+  },
+  "later": "Later",
+  "@later": {
+    "description": "features/settings/widgets/update_banner.dart:51 (Text)"
+  },
+  "latestReleaseVersion": "Latest release: v{releaseVersion}",
+  "@latestReleaseVersion": {
+    "description": "features/settings/widgets/update_section.dart:48 (Text)",
+    "placeholders": {
+      "releaseVersion": {
+        "type": "String"
+      }
+    }
+  },
+  "loadingModels": "Loading models…",
+  "@loadingModels": {
+    "description": "features/rooms/widgets/add_agent_dialog.dart:285 (Text)"
+  },
+  "loadingPreferences": "Loading preferences…",
+  "@loadingPreferences": {
+    "description": "features/settings/widgets/drawer_sections/app_settings_section.dart:342 (Text)"
+  },
+  "loadingTools": "Loading tools…",
+  "@loadingTools": {
+    "description": "features/settings/widgets/drawer_sections/tools_picker.dart:86 (Text); features/rooms/widgets/add_agent_dialog.dart:447 (Text)"
+  },
+  "members": "Members",
+  "@members": {
+    "description": "features/rooms/widgets/room_chat_view.dart:616 (Text)"
+  },
+  "memoriesInformedReply": "{count} saved memories about you informed this reply",
+  "@memoriesInformedReply": {
+    "description": "features/chat/widgets/chat_message_widget.dart:359 (line)",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "memory": "Memory",
+  "@memory": {
+    "description": "features/chat/widgets/memory_toggle_widget.dart:63 (Text)"
+  },
+  "messageChangesReverted": "Changes reverted",
+  "@messageChangesReverted": {
+    "description": "features/microapps/widgets/micro_app_panel.dart:231 (Text)"
+  },
+  "messageConversationDeleted": "Conversation deleted",
+  "@messageConversationDeleted": {
+    "description": "features/chat/widgets/chat_page.dart:422 (Text)"
+  },
+  "messageFailed": "Failed: {error}",
+  "@messageFailed": {
+    "description": "features/rooms/widgets/room_chat_view.dart:835 (Text); features/rooms/widgets/create_room_dialog.dart:91 (Text); features/rooms/widgets/add_agent_dialog.dart:167 (Text)",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "messageFailedToRemoveProfilePicture": "Failed to remove profile picture",
+  "@messageFailedToRemoveProfilePicture": {
+    "description": "features/settings/widgets/profile_section.dart:249 (Text)"
+  },
+  "messageFailedToUploadProfilePicture": "Failed to upload profile picture",
+  "@messageFailedToUploadProfilePicture": {
+    "description": "features/settings/widgets/profile_section.dart:230 (Text)"
+  },
+  "messagePasswordUpdated": "Password updated",
+  "@messagePasswordUpdated": {
+    "description": "features/settings/widgets/change_password_dialog.dart:54 (Text)"
+  },
+  "messageProfilePictureRemoved": "Profile picture removed",
+  "@messageProfilePictureRemoved": {
+    "description": "features/settings/widgets/profile_section.dart:243 (Text)"
+  },
+  "messageProfilePictureUpdated": "Profile picture updated",
+  "@messageProfilePictureUpdated": {
+    "description": "features/settings/widgets/profile_section.dart:224 (Text)"
+  },
+  "messageSchemaCopied": "Schema copied",
+  "@messageSchemaCopied": {
+    "description": "features/tools/pages/skills_library_page.dart:226 (Text)"
+  },
+  "messageStartAConversationFirst": "Start a conversation first",
+  "@messageStartAConversationFirst": {
+    "description": "features/chat/widgets/chat_page.dart:447 (Text)"
+  },
+  "messageThanksYourReportWasSubmitted": "Thanks! Your report was submitted.",
+  "@messageThanksYourReportWasSubmitted": {
+    "description": "features/reports/widgets/submit_report_dialog.dart:75 (Text)"
+  },
+  "messageThisRemovesTheSavedStyleNot": "This removes the saved style, not any chats.",
+  "@messageThisRemovesTheSavedStyleNot": {
+    "description": "features/chat/widgets/style_picker.dart:535 (Text)"
+  },
+  "modelIdIsNotInstalled": "{modelId} is not installed",
+  "@modelIdIsNotInstalled": {
+    "description": "features/chat/widgets/style_picker.dart:427 (Text); features/chat/widgets/style_picker.dart:1040 (line)",
+    "placeholders": {
+      "modelId": {
+        "type": "String"
+      }
+    }
+  },
+  "noAppToDisplay": "No app to display",
+  "@noAppToDisplay": {
+    "description": "features/microapps/widgets/micro_app_panel.dart:43 (Text)"
+  },
+  "noDailyData": "No daily data",
+  "@noDailyData": {
+    "description": "features/usage/pages/usage_page.dart:255 (Text)"
+  },
+  "noDocumentsYet": "No documents yet",
+  "@noDocumentsYet": {
+    "description": "features/knowledge_base/pages/knowledge_base_page.dart:199 (Text)"
+  },
+  "noModelsSyncedYet": "No models synced yet",
+  "@noModelsSyncedYet": {
+    "description": "features/admin/widgets/models_tab.dart:77 (Text)"
+  },
+  "noTemplate": "No template",
+  "@noTemplate": {
+    "description": "features/chat/widgets/style_picker.dart:1448 (Text)"
+  },
+  "none": "— None —",
+  "@none": {
+    "description": "features/chat/widgets/system_prompt_editor_dialog.dart:435 (Text); features/rooms/widgets/add_agent_dialog.dart:396 (Text)"
+  },
+  "ok": "OK",
+  "@ok": {
+    "description": "features/microapps/widgets/micro_app_panel.dart:260 (Text)"
+  },
+  "onMentionOnly": "On @mention only",
+  "@onMentionOnly": {
+    "description": "features/rooms/widgets/add_agent_dialog.dart:213 (Text)"
+  },
+  "onlySwitchBetweenTheseNoneMeans": "Only switch between these — none means any",
+  "@onlySwitchBetweenTheseNoneMeans": {
+    "description": "features/settings/widgets/drawer_sections/app_settings_section.dart:271 (Text)"
+  },
+  "pushServiceForegroundMessage": "[PushService] foreground message: {title}",
+  "@pushServiceForegroundMessage": {
+    "description": "features/notifications/services/push_service.dart:50 (PushService)",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "releasePage": "Release page",
+  "@releasePage": {
+    "description": "features/settings/widgets/update_dialog.dart:91 (Text)"
+  },
+  "remove": "Remove",
+  "@remove": {
+    "description": "features/rooms/widgets/room_chat_view.dart:736 (Text); features/friends/pages/friends_page.dart:108 (Text)"
+  },
+  "removeDocumentConfirmation": "Remove \"{filename}\" from your knowledge base?",
+  "@removeDocumentConfirmation": {
+    "description": "features/knowledge_base/pages/knowledge_base_page.dart:121 (Text)",
+    "placeholders": {
+      "filename": {
+        "type": "String"
+      }
+    }
+  },
+  "removeFriend": "Remove friend",
+  "@removeFriend": {
+    "description": "features/friends/pages/friends_page.dart:354 (Text)"
+  },
+  "removeLowercase": "remove",
+  "@removeLowercase": {
+    "description": "features/friends/pages/friends_page.dart:354 (Text)"
+  },
+  "removeMemberFromRoomMessage": "Remove {userId} from this room?",
+  "@removeMemberFromRoomMessage": {
+    "description": "features/rooms/widgets/room_chat_view.dart:725 (Text)",
+    "placeholders": {
+      "userId": {
+        "type": "String"
+      }
+    }
+  },
+  "retry": "Retry",
+  "@retry": {
+    "description": "features/tools/pages/skills_library_page.dart:73 (Text); features/usage/pages/usage_page.dart:73 (Text); features/rooms/widgets/add_agent_dialog.dart:309 (Text); and 4 more"
+  },
+  "revert": "Revert",
+  "@revert": {
+    "description": "features/microapps/widgets/micro_app_panel.dart:220 (Text)"
+  },
+  "roundRobinTakeTurns": "Round-robin (take turns)",
+  "@roundRobinTakeTurns": {
+    "description": "features/rooms/widgets/add_agent_dialog.dart:221 (Text)"
+  },
+  "save": "Save",
+  "@save": {
+    "description": "features/memory/pages/memory_page.dart:97 (Text); features/scheduled_actions/pages/scheduled_actions_page.dart:498 (Text); features/settings/widgets/edit_profile_dialog.dart:143 (Text); and 7 more"
+  },
+  "saveAndRerun": "Save & rerun",
+  "@saveAndRerun": {
+    "description": "features/chat/widgets/message/edit_button.dart:46 (Text)"
+  },
+  "savedToLibrary": "Saved \"{name}\" to your library",
+  "@savedToLibrary": {
+    "description": "features/chat/widgets/system_prompt_editor_dialog.dart:370 (Text)",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "semanticLabelBlockMath": "blockMath",
+  "@semanticLabelBlockMath": {
+    "description": "features/chat/widgets/markdown_widget.dart:691 (Text)"
+  },
+  "semanticLabelInlineMath": "inlineMath",
+  "@semanticLabelInlineMath": {
+    "description": "features/chat/widgets/markdown_widget.dart:669 (Text)"
+  },
+  "semanticLabelMuted": "Muted",
+  "@semanticLabelMuted": {
+    "description": "features/chat/widgets/mobile_drawer.dart:230 (Muted); features/chat/widgets/conversation_list_widget.dart:297 (Muted); features/rooms/widgets/rooms_list_view.dart:204 (Muted)"
+  },
+  "semanticLabelTool": "tool",
+  "@semanticLabelTool": {
+    "description": "features/chat/widgets/tool_bubble_widget.dart:96 (line)"
+  },
+  "settings": "Settings",
+  "@settings": {
+    "description": "features/settings/widgets/settings_drawer.dart:43 (Text); features/settings/pages/settings_page.dart:92 (AppBar)"
+  },
+  "shareItemTitle": "Share \"{itemName}\"",
+  "@shareItemTitle": {
+    "description": "features/friends/widgets/share_with_friend_dialog.dart:25 (Text)",
+    "placeholders": {
+      "itemName": {
+        "type": "String"
+      }
+    }
+  },
+  "shareWithAFriend": "Share with a friend…",
+  "@shareWithAFriend": {
+    "description": "features/chat/widgets/style_picker.dart:1079 (Text)"
+  },
+  "sharedItemFromSender": "from {senderEmail}",
+  "@sharedItemFromSender": {
+    "description": "features/friends/pages/friends_page.dart:370 (Text)",
+    "placeholders": {
+      "senderEmail": {
+        "type": "String"
+      }
+    }
+  },
+  "sharedItemTitle": "\"{name}\" ({noun})",
+  "@sharedItemTitle": {
+    "description": "features/friends/pages/friends_page.dart:369 (Text)",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "noun": {
+        "type": "String"
+      }
+    }
+  },
+  "startAConversationToSetA": "Start a conversation to set a prompt",
+  "@startAConversationToSetA": {
+    "description": "features/settings/widgets/drawer_sections/conversation_section.dart:158 (Text)"
+  },
+  "submit": "Submit",
+  "@submit": {
+    "description": "features/reports/widgets/submit_report_dialog.dart:169 (Text)"
+  },
+  "tabMcpServers": "MCP Servers",
+  "@tabMcpServers": {
+    "description": "features/admin/pages/admin_page.dart:42 (Tab)"
+  },
+  "tabModels": "Models",
+  "@tabModels": {
+    "description": "features/admin/pages/admin_page.dart:41 (Tab)"
+  },
+  "tabReports": "Reports",
+  "@tabReports": {
+    "description": "features/admin/pages/admin_page.dart:43 (Tab)"
+  },
+  "tabUsers": "Users",
+  "@tabUsers": {
+    "description": "features/admin/pages/admin_page.dart:40 (Tab)"
+  },
+  "templates": "Templates",
+  "@templates": {
+    "description": "features/chat/widgets/system_prompt_editor_dialog.dart:406 (Text)"
+  },
+  "testingServer": "Testing {name}…",
+  "@testingServer": {
+    "description": "features/admin/widgets/mcp_servers_tab.dart:101 (Text)",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "thinking": "Thinking",
+  "@thinking": {
+    "description": "features/chat/widgets/style_picker.dart:1340 (Text); features/rooms/widgets/add_agent_dialog.dart:364 (Text)"
+  },
+  "titleAccountAndSystemNotifications": "Account and system notifications",
+  "@titleAccountAndSystemNotifications": {
+    "description": "features/settings/widgets/drawer_sections/app_settings_section.dart:367 (Text); features/settings/pages/settings_page.dart:479 (Text)"
+  },
+  "titleAdmin": "Admin",
+  "@titleAdmin": {
+    "description": "features/settings/widgets/profile_section.dart:78 (Text); features/settings/widgets/drawer_sections/pages_section.dart:80 (Text); features/admin/widgets/users_tab.dart:119 (Text); and 1 more"
+  },
+  "titleAdminPrivileges": "Admin privileges",
+  "@titleAdminPrivileges": {
+    "description": "features/admin/widgets/create_user_dialog.dart:144 (Text)"
+  },
+  "titleAllTools": "All tools",
+  "@titleAllTools": {
+    "description": "features/settings/widgets/drawer_sections/tools_picker.dart:119 (Text); features/rooms/widgets/add_agent_dialog.dart:461 (Text)"
+  },
+  "titleAppSettings": "App settings",
+  "@titleAppSettings": {
+    "description": "features/settings/widgets/settings_drawer.dart:82 (GroupHeader)"
+  },
+  "titleAppearance": "Appearance",
+  "@titleAppearance": {
+    "description": "features/settings/widgets/drawer_sections/app_settings_section.dart:39 (SectionHeader)"
+  },
+  "titleAutoPlayResponses": "Auto-play responses",
+  "@titleAutoPlayResponses": {
+    "description": "features/settings/widgets/drawer_sections/app_settings_section.dart:214 (Text); features/settings/pages/settings_page.dart:403 (Text)"
+  },
+  "titleAutoSendAfterTranscription": "Auto-send after transcription",
+  "@titleAutoSendAfterTranscription": {
+    "description": "features/settings/widgets/drawer_sections/app_settings_section.dart:221 (Text); features/settings/pages/settings_page.dart:410 (Text)"
+  },
+  "titleAutomaticLanguageSwitching": "Automatic language switching",
+  "@titleAutomaticLanguageSwitching": {
+    "description": "features/settings/widgets/drawer_sections/app_settings_section.dart:257 (Text)"
+  },
+  "titleAutomaticallySendWhenVoiceInputFinishes": "Automatically send when voice input finishes",
+  "@titleAutomaticallySendWhenVoiceInputFinishes": {
+    "description": "features/settings/widgets/drawer_sections/app_settings_section.dart:222 (Text)"
+  },
+  "titleBlockUser": "Block User",
+  "@titleBlockUser": {
+    "description": "features/friends/pages/friends_page.dart:64 (Text)"
+  },
+  "titleBrowseAvailableMcpTools": "Browse available MCP tools",
+  "@titleBrowseAvailableMcpTools": {
+    "description": "features/settings/widgets/drawer_sections/pages_section.dart:41 (Text)"
+  },
+  "titleChangePassword": "Change password",
+  "@titleChangePassword": {
+    "description": "features/settings/widgets/change_password_dialog.dart:60 (Text); features/settings/widgets/profile_section.dart:101 (Text)"
+  },
+  "titleChartsByModelConversationDay": "Charts by model, conversation, day",
+  "@titleChartsByModelConversationDay": {
+    "description": "features/settings/widgets/drawer_sections/pages_section.dart:62 (Text); features/settings/pages/settings_page.dart:344 (Text)"
+  },
+  "titleChat": "Chat",
+  "@titleChat": {
+    "description": "features/settings/widgets/drawer_sections/app_settings_section.dart:80 (SectionHeader)"
+  },
+  "titleChatResponses": "Chat responses",
+  "@titleChatResponses": {
+    "description": "features/settings/widgets/drawer_sections/app_settings_section.dart:348 (Text); features/settings/pages/settings_page.dart:460 (Text)"
+  },
+  "titleChoosePhoto": "Choose photo",
+  "@titleChoosePhoto": {
+    "description": "features/settings/widgets/profile_section.dart:133 (Text)"
+  },
+  "titleConversationSystemPrompt": "Conversation system prompt",
+  "@titleConversationSystemPrompt": {
+    "description": "features/settings/widgets/drawer_sections/conversation_section.dart:117 (Conversation); features/chat/widgets/system_prompt_banner.dart:51 (Conversation)"
+  },
+  "titleCreateMemory": "Create Memory",
+  "@titleCreateMemory": {
+    "description": "features/memory/pages/memory_page.dart:37 (Text)"
+  },
+  "titleCreateUser": "Create user",
+  "@titleCreateUser": {
+    "description": "features/admin/widgets/create_user_dialog.dart:69 (Text)"
+  },
+  "titleCurrentVersion": "Current version",
+  "@titleCurrentVersion": {
+    "description": "features/settings/widgets/update_section.dart:24 (Text)"
+  },
+  "titleDefaultModel": "Default model",
+  "@titleDefaultModel": {
+    "description": "features/settings/pages/settings_page.dart:288 (Text)"
+  },
+  "titleDeleteAgent": "Delete agent?",
+  "@titleDeleteAgent": {
+    "description": "features/rooms/widgets/room_chat_view.dart:761 (Text)"
+  },
+  "titleDeleteConversation": "Delete Conversation?",
+  "@titleDeleteConversation": {
+    "description": "features/chat/widgets/conversation_list_widget.dart:157 (Text)"
+  },
+  "titleDeleteDocument": "Delete document",
+  "@titleDeleteDocument": {
+    "description": "features/knowledge_base/pages/knowledge_base_page.dart:120 (Text)"
+  },
+  "titleDeleteMcpServer": "Delete MCP server?",
+  "@titleDeleteMcpServer": {
+    "description": "features/admin/widgets/mcp_servers_tab.dart:72 (Text)"
+  },
+  "titleDeleteMemory": "Delete Memory",
+  "@titleDeleteMemory": {
+    "description": "features/memory/pages/memory_page.dart:108 (Text)"
+  },
+  "titleDeleteRoom": "Delete room?",
+  "@titleDeleteRoom": {
+    "description": "features/rooms/widgets/rooms_list_view.dart:97 (Text)"
+  },
+  "titleDeleteScheduledAction": "Delete scheduled action",
+  "@titleDeleteScheduledAction": {
+    "description": "features/scheduled_actions/pages/scheduled_actions_page.dart:272 (Text)"
+  },
+  "titleDisplayTokenCountsAndResponseTime": "Display token counts and response time",
+  "@titleDisplayTokenCountsAndResponseTime": {
+    "description": "features/settings/widgets/drawer_sections/app_settings_section.dart:83 (Text); features/settings/pages/settings_page.dart:237 (Text)"
+  },
+  "titleEditMcpServer": "Edit MCP server",
+  "@titleEditMcpServer": {
+    "description": "features/admin/widgets/mcp_server_dialog.dart:159 (Text)"
+  },
+  "titleEditMemory": "Edit Memory",
+  "@titleEditMemory": {
+    "description": "features/memory/pages/memory_page.dart:72 (Text)"
+  },
+  "titleEditMessage": "Edit message",
+  "@titleEditMessage": {
+    "description": "features/chat/widgets/message/edit_button.dart:28 (Text)"
+  },
+  "titleEditProfile": "Edit profile",
+  "@titleEditProfile": {
+    "description": "features/settings/widgets/profile_section.dart:88 (Text); features/settings/widgets/edit_profile_dialog.dart:87 (Text)"
+  },
+  "titleEditStyle": "Edit style",
+  "@titleEditStyle": {
+    "description": "Dialog title for editing a saved style."
+  },
+  "titleEnabled": "Enabled",
+  "@titleEnabled": {
+    "description": "features/admin/widgets/mcp_server_dialog.dart:279 (Text)"
+  },
+  "titleFriendRequestsAndAccepts": "Friend requests and accepts",
+  "@titleFriendRequestsAndAccepts": {
+    "description": "features/settings/widgets/drawer_sections/app_settings_section.dart:375 (Text); features/settings/pages/settings_page.dart:487 (Text)"
+  },
+  "titleFriendUpdates": "Friend updates",
+  "@titleFriendUpdates": {
+    "description": "features/settings/widgets/drawer_sections/app_settings_section.dart:374 (Text); features/settings/pages/settings_page.dart:486 (Text)"
+  },
+  "titleFriends": "Friends",
+  "@titleFriends": {
+    "description": "features/settings/widgets/drawer_sections/pages_section.dart:47 (Text); features/friends/pages/friends_page.dart:126 (Text)"
+  },
+  "titleGlobalDefault": "Global default",
+  "@titleGlobalDefault": {
+    "description": "features/settings/widgets/drawer_sections/conversation_section.dart:175 (Text)"
+  },
+  "titleGlobalDefaultSystemPrompt": "Global default system prompt",
+  "@titleGlobalDefaultSystemPrompt": {
+    "description": "features/settings/widgets/drawer_sections/conversation_section.dart:132 (Global); features/settings/pages/settings_page.dart:272 (Global); features/settings/pages/settings_page.dart:330 (Text)"
+  },
+  "titleKnowledgeBase": "Knowledge base",
+  "@titleKnowledgeBase": {
+    "description": "features/settings/widgets/drawer_sections/pages_section.dart:33 (Text)"
+  },
+  "titleKnowledgeBasePage": "Knowledge Base",
+  "@titleKnowledgeBasePage": {
+    "description": "features/knowledge_base/pages/knowledge_base_page.dart:145 (Text)"
+  },
+  "titleLlmModel": "LLM Model",
+  "@titleLlmModel": {
+    "description": "features/settings/widgets/drawer_sections/conversation_section.dart:57 (Text)"
+  },
+  "titleMemories": "Memories",
+  "@titleMemories": {
+    "description": "features/memory/pages/memory_page.dart:135 (Text); features/settings/widgets/drawer_sections/pages_section.dart:26 (Text)"
+  },
+  "titleMemoryKnowledgeBase": "Memory & knowledge base",
+  "@titleMemoryKnowledgeBase": {
+    "description": "features/settings/widgets/drawer_sections/conversation_section.dart:239 (Text)"
+  },
+  "titleModel": "Model",
+  "@titleModel": {
+    "description": "features/settings/widgets/drawer_sections/conversation_section.dart:55 (SectionHeader)"
+  },
+  "titleModerator": "Moderator",
+  "@titleModerator": {
+    "description": "features/rooms/widgets/add_agent_dialog.dart:235 (Text)"
+  },
+  "titleMyLanguages": "My languages",
+  "@titleMyLanguages": {
+    "description": "features/settings/widgets/drawer_sections/app_settings_section.dart:267 (Text)"
+  },
+  "titleNewMcpServer": "New MCP server",
+  "@titleNewMcpServer": {
+    "description": "features/admin/widgets/mcp_server_dialog.dart:159 (Text)"
+  },
+  "titleNewRoom": "New room",
+  "@titleNewRoom": {
+    "description": "features/rooms/widgets/create_room_dialog.dart:26 (Text)"
+  },
+  "titleNotifications": "Notifications",
+  "@titleNotifications": {
+    "description": "features/settings/widgets/settings_drawer.dart:173 (Text); features/settings/widgets/drawer_sections/app_settings_section.dart:329 (Notifications); features/notifications/pages/notifications_page.dart:31 (Text)"
+  },
+  "titleOpenFullSettings": "Open full settings",
+  "@titleOpenFullSettings": {
+    "description": "features/settings/widgets/settings_drawer.dart:61 (Text)"
+  },
+  "titleOverridesYourGlobalDefaultForThis": "Overrides your global default for this conversation only.",
+  "@titleOverridesYourGlobalDefaultForThis": {
+    "description": "features/settings/widgets/drawer_sections/conversation_section.dart:118 (Overrides); features/chat/widgets/system_prompt_banner.dart:52 (Overrides)"
+  },
+  "titlePages": "Pages",
+  "@titlePages": {
+    "description": "features/settings/widgets/settings_drawer.dart:76 (GroupHeader)"
+  },
+  "titlePersonalContext": "Personal context",
+  "@titlePersonalContext": {
+    "description": "features/settings/widgets/drawer_sections/conversation_section.dart:213 (SectionHeader)"
+  },
+  "titleProfileAppearanceModelsAndMore": "Profile, appearance, models, and more",
+  "@titleProfileAppearanceModelsAndMore": {
+    "description": "features/settings/widgets/settings_drawer.dart:62 (Text)"
+  },
+  "titlePublishChanges": "Publish changes",
+  "@titlePublishChanges": {
+    "description": "features/microapps/widgets/micro_app_panel.dart:159 (Text)"
+  },
+  "titleReadAloudNewAssistantMessages": "Read aloud new assistant messages",
+  "@titleReadAloudNewAssistantMessages": {
+    "description": "features/settings/widgets/drawer_sections/app_settings_section.dart:215 (Text); features/settings/pages/settings_page.dart:404 (Text)"
+  },
+  "titleRememberThis": "Remember This",
+  "@titleRememberThis": {
+    "description": "features/chat/widgets/remember_this_button.dart:65 (Text)"
+  },
+  "titleReminders": "Reminders",
+  "@titleReminders": {
+    "description": "features/settings/widgets/drawer_sections/app_settings_section.dart:358 (Text); features/settings/pages/settings_page.dart:470 (Text)"
+  },
+  "titleRemindersAndRecurringPrompts": "Reminders and recurring prompts",
+  "@titleRemindersAndRecurringPrompts": {
+    "description": "features/settings/widgets/drawer_sections/pages_section.dart:55 (Text)"
+  },
+  "titleRemoveFriend": "Remove Friend",
+  "@titleRemoveFriend": {
+    "description": "features/friends/pages/friends_page.dart:92 (Text)"
+  },
+  "titleRemoveMember": "Remove member?",
+  "@titleRemoveMember": {
+    "description": "features/rooms/widgets/room_chat_view.dart:724 (Text)"
+  },
+  "titleReplyInTheLanguageYouSpeak": "Reply in the language you speak (Talk Mode)",
+  "@titleReplyInTheLanguageYouSpeak": {
+    "description": "features/settings/widgets/drawer_sections/app_settings_section.dart:258 (Text)"
+  },
+  "titleReportABugOrIdea": "Report a bug or idea",
+  "@titleReportABugOrIdea": {
+    "description": "features/settings/widgets/drawer_sections/pages_section.dart:69 (Text)"
+  },
+  "titleReportABugOrRequestA": "Report a bug or request a feature",
+  "@titleReportABugOrRequestA": {
+    "description": "features/reports/widgets/submit_report_dialog.dart:93 (Text)"
+  },
+  "titleRequestPending": "request pending",
+  "@titleRequestPending": {
+    "description": "features/friends/pages/friends_page.dart:328 (Text)"
+  },
+  "titleRevertAllChanges": "Revert all changes?",
+  "@titleRevertAllChanges": {
+    "description": "features/microapps/widgets/micro_app_panel.dart:209 (Text)"
+  },
+  "titleSavePromptToLibrary": "Save prompt to library",
+  "@titleSavePromptToLibrary": {
+    "description": "features/chat/widgets/system_prompt_editor_dialog.dart:321 (Text)"
+  },
+  "titleSaveStyle": "Save style",
+  "@titleSaveStyle": {
+    "description": "features/chat/widgets/style_picker.dart:1535 (Text)"
+  },
+  "titleSavedMemories": "Saved memories",
+  "@titleSavedMemories": {
+    "description": "features/settings/pages/settings_page.dart:428 (Text)"
+  },
+  "titleScheduledActions": "Scheduled actions",
+  "@titleScheduledActions": {
+    "description": "features/scheduled_actions/pages/scheduled_actions_page.dart:30 (Text); features/settings/widgets/drawer_sections/pages_section.dart:54 (Text)"
+  },
+  "titleScheduledRemindersAndCheckIns": "Scheduled reminders and check-ins",
+  "@titleScheduledRemindersAndCheckIns": {
+    "description": "features/settings/widgets/drawer_sections/app_settings_section.dart:359 (Text); features/settings/pages/settings_page.dart:471 (Text)"
+  },
+  "titleSendFeedbackStraightToTheAdmins": "Send feedback straight to the admins",
+  "@titleSendFeedbackStraightToTheAdmins": {
+    "description": "features/settings/widgets/drawer_sections/pages_section.dart:70 (Text)"
+  },
+  "titleSendRequestsAndManageYourFriends": "Send requests and manage your friends",
+  "@titleSendRequestsAndManageYourFriends": {
+    "description": "features/settings/widgets/drawer_sections/pages_section.dart:48 (Text)"
+  },
+  "titleSetYourLocation": "Set your location",
+  "@titleSetYourLocation": {
+    "description": "features/settings/widgets/location_section.dart:152 (Text)"
+  },
+  "titleShareCoarseLocation": "Share coarse location",
+  "@titleShareCoarseLocation": {
+    "description": "features/settings/widgets/location_section.dart:50 (Text)"
+  },
+  "titleShowMessageMetadata": "Show message metadata",
+  "@titleShowMessageMetadata": {
+    "description": "features/settings/widgets/drawer_sections/app_settings_section.dart:82 (Text); features/settings/pages/settings_page.dart:236 (Text)"
+  },
+  "titleShowSystemPromptInThread": "Show system prompt in thread",
+  "@titleShowSystemPromptInThread": {
+    "description": "features/settings/widgets/drawer_sections/app_settings_section.dart:89 (Text); features/settings/pages/settings_page.dart:243 (Text)"
+  },
+  "titleSignOut": "Sign out",
+  "@titleSignOut": {
+    "description": "features/settings/widgets/profile_section.dart:112 (Text)"
+  },
+  "titleSkillsLibrary": "Skills library",
+  "@titleSkillsLibrary": {
+    "description": "features/tools/pages/skills_library_page.dart:109 (Text); features/settings/widgets/drawer_sections/pages_section.dart:40 (Text)"
+  },
+  "titleSpeed": "Speed",
+  "@titleSpeed": {
+    "description": "features/settings/widgets/drawer_sections/app_settings_section.dart:197 (Text); features/settings/pages/settings_page.dart:390 (Text)"
+  },
+  "titleStartAConversationToPickTools": "Start a conversation to pick tools",
+  "@titleStartAConversationToPickTools": {
+    "description": "features/settings/widgets/drawer_sections/tools_picker.dart:30 (Text)"
+  },
+  "titleStartAConversationToToggleInjection": "Start a conversation to toggle injection",
+  "@titleStartAConversationToToggleInjection": {
+    "description": "features/settings/widgets/drawer_sections/conversation_section.dart:240 (Text)"
+  },
+  "titleSystemAlerts": "System alerts",
+  "@titleSystemAlerts": {
+    "description": "features/settings/widgets/drawer_sections/app_settings_section.dart:366 (Text); features/settings/pages/settings_page.dart:478 (Text)"
+  },
+  "titleSystemPrompt": "System Prompt",
+  "@titleSystemPrompt": {
+    "description": "features/settings/widgets/drawer_sections/conversation_section.dart:151 (System)"
+  },
+  "titleTakePhoto": "Take photo",
+  "@titleTakePhoto": {
+    "description": "features/settings/widgets/profile_section.dart:142 (Text)"
+  },
+  "titleTalkOverTheAiToInterrupt": "Talk over the AI to interrupt (Talk Mode)",
+  "@titleTalkOverTheAiToInterrupt": {
+    "description": "features/settings/widgets/drawer_sections/app_settings_section.dart:231 (Text)"
+  },
+  "titleTapToUpdateOrCorrect": "Tap to update or correct",
+  "@titleTapToUpdateOrCorrect": {
+    "description": "features/settings/widgets/location_section.dart:66 (Text)"
+  },
+  "titleThisConversation": "This conversation",
+  "@titleThisConversation": {
+    "description": "features/settings/widgets/settings_drawer.dart:79 (GroupHeader); features/settings/widgets/drawer_sections/conversation_section.dart:156 (Text)"
+  },
+  "titleTokenUsage": "Token usage",
+  "@titleTokenUsage": {
+    "description": "features/settings/widgets/drawer_sections/pages_section.dart:61 (Text); features/settings/pages/settings_page.dart:343 (Text); features/usage/pages/usage_page.dart:30 (Text)"
+  },
+  "titleTools": "Tools",
+  "@titleTools": {
+    "description": "features/settings/widgets/drawer_sections/tools_picker.dart:27 (SectionHeader); features/settings/widgets/drawer_sections/tools_picker.dart:29 (Text); features/settings/widgets/drawer_sections/tools_picker.dart:74 (SectionHeader); and 1 more"
+  },
+  "titleUpdateNameAndEmail": "Update name and email",
+  "@titleUpdateNameAndEmail": {
+    "description": "features/settings/widgets/profile_section.dart:89 (Text)"
+  },
+  "titleUploadDocumentsForRetrievalAcrossChats": "Upload documents for retrieval across chats",
+  "@titleUploadDocumentsForRetrievalAcrossChats": {
+    "description": "features/settings/widgets/drawer_sections/pages_section.dart:34 (Text)"
+  },
+  "titleUseForNewChats": "Use for new chats",
+  "@titleUseForNewChats": {
+    "description": "features/chat/widgets/style_picker.dart:1557 (Text)"
+  },
+  "titleUseKnowledgeBase": "Use knowledge base",
+  "@titleUseKnowledgeBase": {
+    "description": "features/settings/widgets/drawer_sections/conversation_section.dart:227 (Text)"
+  },
+  "titleUseMemory": "Use memory",
+  "@titleUseMemory": {
+    "description": "features/settings/widgets/drawer_sections/conversation_section.dart:216 (Text)"
+  },
+  "titleUsersModelsMcpServersReports": "Users, models, MCP servers, reports",
+  "@titleUsersModelsMcpServersReports": {
+    "description": "features/settings/widgets/drawer_sections/pages_section.dart:81 (Text)"
+  },
+  "titleVoice": "Voice",
+  "@titleVoice": {
+    "description": "features/settings/widgets/drawer_sections/app_settings_section.dart:162 (SectionHeader); features/settings/widgets/drawer_sections/app_settings_section.dart:165 (Text); features/settings/pages/settings_page.dart:360 (Text)"
+  },
+  "titleVoiceInterruption": "Voice interruption",
+  "@titleVoiceInterruption": {
+    "description": "features/settings/widgets/drawer_sections/app_settings_section.dart:230 (Text)"
+  },
+  "titleWhatTheAssistantHasLearnedAbout": "What the assistant has learned about you",
+  "@titleWhatTheAssistantHasLearnedAbout": {
+    "description": "features/settings/widgets/drawer_sections/pages_section.dart:27 (Text)"
+  },
+  "titleYou": "You",
+  "@titleYou": {
+    "description": "features/rooms/widgets/room_message_bubble.dart:348 (You); features/admin/widgets/users_tab.dart:139 (Text)"
+  },
+  "transport": "Transport",
+  "@transport": {
+    "description": "features/admin/widgets/mcp_server_dialog.dart:191 (Text)"
+  },
+  "tryAgain": "Try again",
+  "@tryAgain": {
+    "description": "features/rooms/widgets/room_chat_view.dart:460 (Text)"
+  },
+  "ttsSpeedValue": "{speed}x",
+  "@ttsSpeedValue": {
+    "description": "features/settings/pages/settings_page.dart:399 (Text)",
+    "placeholders": {
+      "speed": {
+        "type": "String"
+      }
+    }
+  },
+  "unblock": "Unblock",
+  "@unblock": {
+    "description": "features/friends/pages/friends_page.dart:409 (Text)"
+  },
+  "unexpectedError": "Unexpected error",
+  "@unexpectedError": {
+    "description": "features/chat/widgets/mermaid_diagram.dart:193 (Unexpected)"
+  },
+  "update": "Update",
+  "@update": {
+    "description": "features/settings/widgets/update_banner.dart:64 (Text)"
+  },
+  "updateToVersion": "Update to v{releaseVersion}",
+  "@updateToVersion": {
+    "description": "features/settings/widgets/update_dialog.dart:33 (Text)",
+    "placeholders": {
+      "releaseVersion": {
+        "type": "String"
+      }
+    }
+  },
+  "usedForNewChats": "Used for new chats",
+  "@usedForNewChats": {
+    "description": "features/chat/widgets/style_picker.dart:1016 (Used)"
+  },
+  "userCreatedMessage": "User {email} created",
+  "@userCreatedMessage": {
+    "description": "features/admin/widgets/users_tab.dart:45 (Text)",
+    "placeholders": {
+      "email": {
+        "type": "String"
+      }
+    }
+  },
+  "validationErrorRequired": "Required",
+  "@validationErrorRequired": {
+    "description": "features/settings/widgets/change_password_dialog.dart:83 (Required)"
+  },
+  "wantsToBeYourFriend": "wants to be your friend",
+  "@wantsToBeYourFriend": {
+    "description": "features/friends/pages/friends_page.dart:296 (Text)"
+  },
+  "showPassword": "Show password",
+  "@showPassword": {
+    "description": "Tooltip for password visibility toggle (show)."
+  },
+  "hidePassword": "Hide password",
+  "@hidePassword": {
+    "description": "Tooltip for password visibility toggle (hide)."
+  },
+  "validatorEnterPassword": "Enter your password",
+  "@validatorEnterPassword": {
+    "description": "Validator message when password field is empty."
+  },
+  "validatorPasswordMinLength": "Password must be at least {length} characters",
+  "@validatorPasswordMinLength": {
+    "description": "Validator message when password is too short.",
+    "placeholders": {
+      "length": {
+        "type": "String"
+      }
+    }
+  },
+  "validatorEnterEmail": "Enter your email",
+  "@validatorEnterEmail": {
+    "description": "Validator message when email field is empty."
+  },
+  "validatorEnterValidEmail": "Enter a valid email",
+  "@validatorEnterValidEmail": {
+    "description": "Validator message when email is invalid."
+  },
+  "validatorEnterAnEmail": "Enter an email",
+  "@validatorEnterAnEmail": {
+    "description": "Validator message for create-user email field."
+  },
+  "validatorNameRequired": "Name is required",
+  "@validatorNameRequired": {
+    "description": "Validator message when MCP server name is empty."
+  },
+  "validatorUrlRequired": "URL is required for HTTP/SSE transports",
+  "@validatorUrlRequired": {
+    "description": "Validator message when URL is empty for HTTP/SSE."
+  },
+  "validatorCommandRequired": "Command is required for stdio transport",
+  "@validatorCommandRequired": {
+    "description": "Validator message when command is empty for stdio."
+  },
+  "tooltipRefresh": "Refresh",
+  "@tooltipRefresh": {
+    "description": "Tooltip for refresh icon button."
+  },
+  "tooltipMore": "More",
+  "@tooltipMore": {
+    "description": "Generic more-options tooltip."
+  },
+  "tooltipSetStatus": "Set status",
+  "@tooltipSetStatus": {
+    "description": "Tooltip for report status menu."
+  },
+  "tooltipStyleOptions": "Style options",
+  "@tooltipStyleOptions": {
+    "description": "Tooltip for style card popup menu."
+  },
+  "tooltipTestConnection": "Test connection",
+  "@tooltipTestConnection": {
+    "description": "Tooltip for MCP server test button."
+  },
+  "tooltipEdit": "Edit",
+  "@tooltipEdit": {
+    "description": "Tooltip for edit button."
+  },
+  "tooltipDeleteLongPress": "Delete (long-press)",
+  "@tooltipDeleteLongPress": {
+    "description": "Tooltip for delete button requiring long press."
+  },
+  "tooltipStopEditing": "Stop editing",
+  "@tooltipStopEditing": {
+    "description": "Tooltip for cancel style edit button."
+  },
+  "tooltipClosePanel": "Close panel",
+  "@tooltipClosePanel": {
+    "description": "Tooltip for style picker close button."
+  },
+  "tooltipNew": "New",
+  "@tooltipNew": {
+    "description": "Tooltip for new scheduled action FAB."
+  },
+  "tooltipCloseSettings": "Close settings",
+  "@tooltipCloseSettings": {
+    "description": "Tooltip for settings close button."
+  },
+  "tooltipFriendActions": "Friend actions",
+  "@tooltipFriendActions": {
+    "description": "Tooltip for friend tile popup menu."
+  },
+  "tooltipCancelRequest": "Cancel request",
+  "@tooltipCancelRequest": {
+    "description": "Tooltip for outgoing request cancel button."
+  },
+  "tooltipAcceptShare": "Accept share",
+  "@tooltipAcceptShare": {
+    "description": "Tooltip for accept share button."
+  },
+  "tooltipDeclineShare": "Decline share",
+  "@tooltipDeclineShare": {
+    "description": "Tooltip for decline share button."
+  },
+  "tooltipAccept": "Accept",
+  "@tooltipAccept": {
+    "description": "Tooltip for accept friend request button."
+  },
+  "tooltipDecline": "Decline",
+  "@tooltipDecline": {
+    "description": "Tooltip for decline friend request button."
+  },
+  "labelOff": "Off",
+  "@labelOff": {
+    "description": "Label for thinking level Off."
+  },
+  "labelLow": "Low",
+  "@labelLow": {
+    "description": "Label for thinking level Low."
+  },
+  "labelMedium": "Medium",
+  "@labelMedium": {
+    "description": "Label for thinking level Medium."
+  },
+  "labelHigh": "High",
+  "@labelHigh": {
+    "description": "Label for thinking level High."
+  },
+  "labelThinkingAuto": "auto",
+  "@labelThinkingAuto": {
+    "description": "Lowercase label for thinking level Auto."
+  },
+  "monogramPlaceholder": "?",
+  "@monogramPlaceholder": {
+    "description": "Placeholder for empty-name monogram."
+  },
+  "labelNewBadge": "NEW",
+  "@labelNewBadge": {
+    "description": "New model badge in admin models tab."
+  },
+  "messageNoReportsYet": "No reports yet",
+  "@messageNoReportsYet": {
+    "description": "Empty state for admin reports tab without filter."
+  },
+  "messageNoReportsWithStatus": "No {status} reports",
+  "@messageNoReportsWithStatus": {
+    "description": "Empty state for admin reports tab with status filter.",
+    "placeholders": {
+      "status": {
+        "type": "String"
+      }
+    }
+  },
+  "messageNoMcpServersConfigured": "No MCP servers configured",
+  "@messageNoMcpServersConfigured": {
+    "description": "Empty state for MCP servers tab."
+  },
+  "messageUsePlusButtonToAddOne": "Use the + button to add one.",
+  "@messageUsePlusButtonToAddOne": {
+    "description": "Hint for adding MCP server."
+  },
+  "messageTapSyncToDiscoverModels": "Tap the sync button to discover models from the provider.",
+  "@messageTapSyncToDiscoverModels": {
+    "description": "Hint for syncing models in admin."
+  },
+  "messageUnmute": "Unmute",
+  "@messageUnmute": {
+    "description": "Tooltip for unmute in Talk Mode."
+  },
+  "messageMute": "Mute",
+  "@messageMute": {
+    "description": "Tooltip for mute in Talk Mode."
+  },
+  "messageEndCall": "End call",
+  "@messageEndCall": {
+    "description": "Tooltip for hang-up in Talk Mode."
+  },
+  "messageTapToStart": "Tap to start",
+  "@messageTapToStart": {
+    "description": "Talk Mode idle status hint."
+  },
+  "messageListening": "Listening…",
+  "@messageListening": {
+    "description": "Talk Mode listening status."
+  },
+  "messageTranscribing": "Transcribing…",
+  "@messageTranscribing": {
+    "description": "Talk Mode transcribing status."
+  },
+  "messageThinking": "Thinking…",
+  "@messageThinking": {
+    "description": "Talk Mode thinking status."
+  },
+  "messageSpeakingTapToInterrupt": "Speaking… tap to interrupt",
+  "@messageSpeakingTapToInterrupt": {
+    "description": "Talk Mode speaking without barge-in."
+  },
+  "messageSpeakingTalkOrTapToInterrupt": "Speaking… talk or tap to interrupt",
+  "@messageSpeakingTalkOrTapToInterrupt": {
+    "description": "Talk Mode speaking with barge-in."
+  },
+  "messageTapCircleToRetry": "Tap the circle to retry",
+  "@messageTapCircleToRetry": {
+    "description": "Talk Mode retry hint."
+  },
+  "messageAuto": "Auto",
+  "@messageAuto": {
+    "description": "Talk Mode language menu Auto item."
+  },
+  "messageReplyLanguageAuto": "Reply language: Auto",
+  "@messageReplyLanguageAuto": {
+    "description": "Talk Mode language tooltip when auto."
+  },
+  "messageReplyLanguageNamed": "Reply language: {language}",
+  "@messageReplyLanguageNamed": {
+    "description": "Talk Mode language tooltip when pinned.",
+    "placeholders": {
+      "language": {
+        "type": "String"
+      }
+    }
+  },
+  "labelCouldNotUpdateWithError": "Could not update: {error}",
+  "@labelCouldNotUpdateWithError": {
+    "description": "Report status update failure snackbar.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "messageTestingServer": "Testing {name}…",
+  "@messageTestingServer": {
+    "description": "MCP server test snackbar.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "messageTestOkToolsAvailable": "OK: {count} tools available",
+  "@messageTestOkToolsAvailable": {
+    "description": "MCP server test success snackbar.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "messageTestFailed": "Failed: {error}",
+  "@messageTestFailed": {
+    "description": "MCP server test failure snackbar.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "messageUnknownError": "unknown error",
+  "@messageUnknownError": {
+    "description": "Fallback when test result error is missing."
+  },
+  "messageSyncingModels": "Syncing models from provider…",
+  "@messageSyncingModels": {
+    "description": "Snackbar while models are syncing."
+  },
+  "messageModelsSyncedCount": "{count} models synced",
+  "@messageModelsSyncedCount": {
+    "description": "Snackbar after model sync completes.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "messageUserCreated": "User {email} created",
+  "@messageUserCreated": {
+    "description": "Snackbar after admin creates user.",
+    "placeholders": {
+      "email": {
+        "type": "String"
+      }
+    }
+  },
+  "labelOpen": "Open",
+  "@labelOpen": {
+    "description": "Report status label open."
+  },
+  "labelInProgress": "In progress",
+  "@labelInProgress": {
+    "description": "Report status label in_progress."
+  },
+  "labelClosed": "Closed",
+  "@labelClosed": {
+    "description": "Report status label closed."
+  },
+  "statusOpen": "open",
+  "@statusOpen": {
+    "description": "Report status filter value open (lowercase)."
+  },
+  "statusInProgress": "in_progress",
+  "@statusInProgress": {
+    "description": "Report status filter value in_progress (lowercase)."
+  },
+  "statusClosed": "closed",
+  "@statusClosed": {
+    "description": "Report status filter value closed (lowercase)."
+  },
+  "messageOpenReports": "No open reports",
+  "@messageOpenReports": {
+    "description": "Empty state for open reports filter."
+  },
+  "messageInProgressReports": "No in progress reports",
+  "@messageInProgressReports": {
+    "description": "Empty state for in_progress reports filter."
+  },
+  "messageClosedReports": "No closed reports",
+  "@messageClosedReports": {
+    "description": "Empty state for closed reports filter."
+  },
+  "labelVision": "Vision",
+  "@labelVision": {
+    "description": "Capability badge label."
+  },
+  "labelTools": "Tools",
+  "@labelTools": {
+    "description": "Capability badge label."
+  },
+  "labelThinking": "Thinking",
+  "@labelThinking": {
+    "description": "Capability badge label."
+  },
+  "tooltipVisionUnknown": "Vision unknown for this model",
+  "@tooltipVisionUnknown": {
+    "description": "Tooltip for unknown vision capability."
+  },
+  "tooltipToolsUnknown": "Tools unknown for this model",
+  "@tooltipToolsUnknown": {
+    "description": "Tooltip for unknown tools capability."
+  },
+  "tooltipThinkingUnknown": "Thinking unknown for this model",
+  "@tooltipThinkingUnknown": {
+    "description": "Tooltip for unknown thinking capability."
+  },
+  "labelLowSensitivity": "Low sensitivity",
+  "@labelLowSensitivity": {
+    "description": "Barge-in sensitivity level."
+  },
+  "labelHighSensitivity": "High sensitivity",
+  "@labelHighSensitivity": {
+    "description": "Barge-in sensitivity level."
+  },
+  "labelBargeInOff": "Off",
+  "@labelBargeInOff": {
+    "description": "Barge-in sensitivity Off."
+  },
+  "labelByModel": "By model",
+  "@labelByModel": {
+    "description": "Usage page dropdown by model."
+  },
+  "labelByDay": "By day",
+  "@labelByDay": {
+    "description": "Usage page dropdown by day."
+  },
+  "labelByConversation": "By conversation",
+  "@labelByConversation": {
+    "description": "Usage page dropdown by conversation."
+  },
+  "labelTokens": "Tokens",
+  "@labelTokens": {
+    "description": "Usage page tokens label."
+  },
+  "labelMessages": "Messages",
+  "@labelMessages": {
+    "description": "Usage page messages label."
+  },
+  "messageNoDataForPeriod": "No data for this period",
+  "@messageNoDataForPeriod": {
+    "description": "Usage page empty chart message."
+  },
+  "titleUsageByModel": "By model",
+  "@titleUsageByModel": {
+    "description": "Usage page section by model."
+  },
+  "titleUsageByDay": "By day",
+  "@titleUsageByDay": {
+    "description": "Usage page section by day."
+  },
+  "titleUsageByConversation": "By conversation",
+  "@titleUsageByConversation": {
+    "description": "Usage page section by conversation."
+  },
+  "labelEnabled": "Enabled",
+  "@labelEnabled": {
+    "description": "Generic enabled label."
+  },
+  "labelStdio": "stdio",
+  "@labelStdio": {
+    "description": "MCP transport stdio."
+  },
+  "labelCommand": "Command",
+  "@labelCommand": {
+    "description": "MCP server command label."
+  },
+  "messageAdminPanelSubtitle": "Users, models, MCP servers, reports",
+  "@messageAdminPanelSubtitle": {
+    "description": "Subtitle for admin page in settings drawer."
+  },
+  "messageAllowAdminPrivileges": "Allow this user to manage users and MCP servers",
+  "@messageAllowAdminPrivileges": {
+    "description": "Create user admin privileges subtitle."
+  },
+  "messageDisabledServersIgnored": "Disabled servers are ignored by the agent",
+  "@messageDisabledServersIgnored": {
+    "description": "MCP server enabled switch subtitle."
+  },
+  "titleProfile": "Profile",
+  "@titleProfile": {
+    "description": "Settings page section label."
+  },
+  "titleModels": "Models",
+  "@titleModels": {
+    "description": "Settings page section label."
+  },
+  "titleMemory": "Memory",
+  "@titleMemory": {
+    "description": "Settings page section label."
+  },
+  "titleSoftwareUpdate": "Software update",
+  "@titleSoftwareUpdate": {
+    "description": "Settings page section label."
+  },
+  "messageServerFallback": "Server fallback (usually {model})",
+  "@messageServerFallback": {
+    "description": "Subtitle when no default model is selected.",
+    "placeholders": {
+      "model": {
+        "type": "String"
+      }
+    }
+  },
+  "messageNotSetUsingDefaults": "Not set — using built-in defaults",
+  "@messageNotSetUsingDefaults": {
+    "description": "Global default prompt subtitle when empty."
+  },
+  "messageSavedMemoriesHint": "Memories are managed from the chat screen via the memory page. Open the chat to review, edit, or delete them.",
+  "@messageSavedMemoriesHint": {
+    "description": "Hint text in memory settings section."
+  },
+  "messageNoSavedStylesHint": "No saved styles yet. Compose a model, thinking level, and prompt in Customize, then save the combination to switch in one tap.",
+  "@messageNoSavedStylesHint": {
+    "description": "Empty state hint in style picker."
+  },
+  "labelSaveChanges": "Save changes",
+  "@labelSaveChanges": {
+    "description": "Button label when editing a style."
+  },
+  "messageStyleModelNotInstalled": "{modelId} is not installed",
+  "@messageStyleModelNotInstalled": {
+    "description": "Snackbar when applying a style with missing model.",
+    "placeholders": {
+      "modelId": {
+        "type": "String"
+      }
+    }
+  },
+  "messageNotSupportedByThisModel": "Not supported by this model",
+  "@messageNotSupportedByThisModel": {
+    "description": "Thinking control unsupported hint."
+  },
+  "messageNoModelsMatchSearchAndCapabilities": "No models match your search and the selected capabilities.",
+  "@messageNoModelsMatchSearchAndCapabilities": {
+    "description": "Empty state when both search and filters are active."
+  },
+  "messageNoModelsMatchSearch": "No models match your search.",
+  "@messageNoModelsMatchSearch": {
+    "description": "Empty state when search has no results."
+  },
+  "messageNoModelsHaveCapabilities": "No models have the selected capabilities.",
+  "@messageNoModelsHaveCapabilities": {
+    "description": "Empty state when filters exclude everything."
+  },
+  "messageNoModelsAvailable": "No models available.",
+  "@messageNoModelsAvailable": {
+    "description": "Empty state when no models at all."
+  },
+  "messageCustomPromptReplacesTemplate": "This conversation has a custom prompt. Picking a template replaces it.",
+  "@messageCustomPromptReplacesTemplate": {
+    "description": "Hint under template picker when conversation has custom prompt."
+  },
+  "messageEditingStyle": "Editing \"{name}\"",
+  "@messageEditingStyle": {
+    "description": "Header while editing a saved style.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "messageStopUsingForNewChats": "Stop using for new chats",
+  "@messageStopUsingForNewChats": {
+    "description": "Popup item to unset default style."
+  },
+  "labelCustomize": "Customize",
+  "@labelCustomize": {
+    "description": "Style picker segmented button label."
+  },
+  "messageGenerateHint": "Describe what you want the prompt to do:",
+  "@messageGenerateHint": {
+    "description": "Label above AI prompt generator intent field."
+  },
+  "messageRefineDraft": "Refine draft",
+  "@messageRefineDraft": {
+    "description": "Title of AI refine panel."
+  },
+  "hintSarcasticCodingMentor": "e.g. A sarcastic coding mentor that keeps answers short",
+  "@hintSarcasticCodingMentor": {
+    "description": "Hint for AI prompt generator intent field."
+  },
+  "messageGenerating": "Generating…",
+  "@messageGenerating": {
+    "description": "Label shown while AI generates a prompt."
+  },
+  "messageGenerationFailed": "Generation failed",
+  "@messageGenerationFailed": {
+    "description": "Fallback AI generation error label."
+  },
+  "messageCouldNotLoadModels": "Could not load models",
+  "@messageCouldNotLoadModels": {
+    "description": "Placeholder when model list cannot load."
+  },
+  "messageEveryoneAndAllAgents": "Everyone and all agents",
+  "@messageEveryoneAndAllAgents": {
+    "description": "Mention autocomplete @all header."
+  },
+  "messageAgent": "Agent",
+  "@messageAgent": {
+    "description": "Mention autocomplete agent header."
+  },
+  "messageBranch": "Branch",
+  "@messageBranch": {
+    "description": "Message action branch tooltip."
+  },
+  "messageCopyMessageToClipboard": "Copy message to clipboard",
+  "@messageCopyMessageToClipboard": {
+    "description": "Copy button tooltip."
+  },
+  "messageRegenerate": "Regenerate",
+  "@messageRegenerate": {
+    "description": "Regenerate button tooltip."
+  },
+  "messageDeleteThisResponse": "Delete this response and generate a new one",
+  "@messageDeleteThisResponse": {
+    "description": "Regenerate dialog content."
+  },
+  "messageSpeak": "Speak",
+  "@messageSpeak": {
+    "description": "Speak button tooltip."
+  },
+  "messageCopied": "Copied!",
+  "@messageCopied": {
+    "description": "Copy feedback tooltip."
+  },
+  "messageCouldNotReachServer": "Could not reach the server — check your connection and try again.",
+  "@messageCouldNotReachServer": {
+    "description": "Generic network/connection error message."
+  },
+  "messageContextWindow": "Context window: {used} of {total} tokens used",
+  "@messageContextWindow": {
+    "description": "Context window indicator text.",
+    "placeholders": {
+      "used": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "messageAbove80PercentSummarized": "Above 80%, older messages are summarized to free up space.",
+  "@messageAbove80PercentSummarized": {
+    "description": "Context window explanation."
+  },
+  "messageCouldNotSubmit": "Could not submit: {error}",
+  "@messageCouldNotSubmit": {
+    "description": "Generic submit error with detail.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "messageEmailUpdatedSignInAgain": "Email updated. Please sign in again with the new address.",
+  "@messageEmailUpdatedSignInAgain": {
+    "description": "Snackbar after email change."
+  },
+  "messageChangingEmailSignsYouOut": "Changing email signs you out",
+  "@messageChangingEmailSignsYouOut": {
+    "description": "Edit profile email warning."
+  },
+  "messageNoFriendsYet": "No friends yet. Send a request by email above.",
+  "@messageNoFriendsYet": {
+    "description": "Empty friends list hint."
+  },
+  "titleIncomingRequests": "Incoming requests",
+  "@titleIncomingRequests": {
+    "description": "Friends page section header."
+  },
+  "titleSharedWithYou": "Shared with you",
+  "@titleSharedWithYou": {
+    "description": "Friends page section header."
+  },
+  "titleSentRequests": "Sent requests",
+  "@titleSentRequests": {
+    "description": "Friends page section header."
+  },
+  "titleYourFriends": "Your friends",
+  "@titleYourFriends": {
+    "description": "Friends page section header."
+  },
+  "titleBlocked": "Blocked",
+  "@titleBlocked": {
+    "description": "Friends page section header."
+  },
+  "messageAddAFriend": "Add a friend",
+  "@messageAddAFriend": {
+    "description": "Card title in friends page."
+  },
+  "messageBlockEmailConfirmation": "Block {email}? Any friendship or pending request between you is removed, and neither of you can send new requests or add the other to rooms. You can unblock them later.",
+  "@messageBlockEmailConfirmation": {
+    "description": "Block user confirmation dialog content.",
+    "placeholders": {
+      "email": {
+        "type": "String"
+      }
+    }
+  },
+  "messageRemoveFriendConfirmation": "Remove {name} from your friends? You can send a new request later.",
+  "@messageRemoveFriendConfirmation": {
+    "description": "Remove friend confirmation dialog content.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "messageYouAreNowFriendsWith": "You are now friends with {email}",
+  "@messageYouAreNowFriendsWith": {
+    "description": "Snackbar after auto-accepted friend request.",
+    "placeholders": {
+      "email": {
+        "type": "String"
+      }
+    }
+  },
+  "messageFriendRequestSentTo": "Friend request sent to {email}",
+  "@messageFriendRequestSentTo": {
+    "description": "Snackbar after sending friend request.",
+    "placeholders": {
+      "email": {
+        "type": "String"
+      }
+    }
+  },
+  "labelStyleNoun": "style",
+  "@labelStyleNoun": {
+    "description": "Noun for shared style item."
+  },
+  "labelPromptTemplateNoun": "prompt template",
+  "@labelPromptTemplateNoun": {
+    "description": "Noun for shared prompt template item."
+  },
+  "messageItemAddedToYourNouns": "\"{name}\" added to your {noun}s",
+  "@messageItemAddedToYourNouns": {
+    "description": "Snackbar after accepting shared item.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "noun": {
+        "type": "String"
+      }
+    }
+  },
+  "titleConfirmAction": "Confirm action?",
+  "@titleConfirmAction": {
+    "description": "Generic confirmation dialog title."
+  },
+  "labelConversation": "Conversation",
+  "@labelConversation": {
+    "description": "Generic conversation label."
+  },
+  "labelAlways": "Always",
+  "@labelAlways": {
+    "description": "Talk mode language always label."
+  },
+  "messageBackToChat": "Back to chat",
+  "@messageBackToChat": {
+    "description": "App bar back label in some contexts."
+  },
+  "titleSearchResults": "Search results",
+  "@titleSearchResults": {
+    "description": "Search results header."
+  },
+  "messageNoResultsFor": "No results for \"{query}\"",
+  "@messageNoResultsFor": {
+    "description": "Empty search results message.",
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "messageSearchHint": "Enter a search query",
+  "@messageSearchHint": {
+    "description": "Hint in search field."
+  },
+  "messageEveryToolEnabled": "Every available tool is enabled",
+  "@messageEveryToolEnabled": {
+    "description": "Tools picker hint."
+  },
+  "titleEnabledTools": "Enabled tools",
+  "@titleEnabledTools": {
+    "description": "Tools picker enabled section header."
+  },
+  "titleAvailableTools": "Available tools",
+  "@titleAvailableTools": {
+    "description": "Tools picker available section header."
+  },
+  "messageCouldNotReachServerPleaseTryAgain": "Could not reach the server. Please try again.",
+  "@messageCouldNotReachServerPleaseTryAgain": {
+    "description": "Generic retry error message."
+  },
+  "labelConnection": "Connection",
+  "@labelConnection": {
+    "description": "Generic connection label."
+  },
+  "messageCityCountry": "City, Country",
+  "@messageCityCountry": {
+    "description": "Location helper text."
+  },
+  "messageCityLevelOnly": "City-level only, shared as {location}",
+  "@messageCityLevelOnly": {
+    "description": "Subtitle when coarse location sharing is on.",
+    "placeholders": {
+      "location": {
+        "type": "String"
+      }
+    }
+  },
+  "labelLocation": "Location",
+  "@labelLocation": {
+    "description": "Location section label."
+  },
+  "messageNoDocumentsHint": "Upload documents for retrieval across chats.",
+  "@messageNoDocumentsHint": {
+    "description": "Knowledge base empty state hint."
+  },
+  "messageCouldNotLoadConversation": "Could not load conversation: {error}",
+  "@messageCouldNotLoadConversation": {
+    "description": "Error loading current conversation.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "messageCouldNotLoadConversations": "Could not load conversations: {error}",
+  "@messageCouldNotLoadConversations": {
+    "description": "Error loading conversation list.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "messageCouldNotLoadOlderMessages": "Could not load older messages: {error}",
+  "@messageCouldNotLoadOlderMessages": {
+    "description": "Error loading older messages.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "messageCouldNotCreateConversation": "Could not create conversation: {error}",
+  "@messageCouldNotCreateConversation": {
+    "description": "Error creating conversation.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "messageCouldNotDeleteConversation": "Could not delete conversation: {error}",
+  "@messageCouldNotDeleteConversation": {
+    "description": "Error deleting conversation.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "messageCouldNotRegenerate": "Could not regenerate: {error}",
+  "@messageCouldNotRegenerate": {
+    "description": "Error regenerating assistant response.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "messageCouldNotBranch": "Could not branch conversation: {error}",
+  "@messageCouldNotBranch": {
+    "description": "Error branching conversation.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "messageCouldNotPinConversation": "Could not pin conversation: {error}",
+  "@messageCouldNotPinConversation": {
+    "description": "Error pinning conversation.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "messageCouldNotReloadConversation": "Could not reload conversation: {error}",
+  "@messageCouldNotReloadConversation": {
+    "description": "Error reloading conversation.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "messageNoConversationsYet": "No conversations yet.",
+  "@messageNoConversationsYet": {
+    "description": "Empty conversation list."
+  },
+  "messageNoRoomsYet": "No rooms yet.",
+  "@messageNoRoomsYet": {
+    "description": "Empty rooms list."
+  },
+  "messageStartAConversation": "Start a conversation",
+  "@messageStartAConversation": {
+    "description": "Hint to start chatting."
+  },
+  "messageExplainQuantumComputing": "Explain quantum computing in simple terms",
+  "@messageExplainQuantumComputing": {
+    "description": "Chat input placeholder example."
+  },
+  "messageAttachOrDragFiles": "Attach or drag in PDFs, spreadsheets, code, and pictures.",
+  "@messageAttachOrDragFiles": {
+    "description": "Attachment drag target hint."
+  },
+  "messageAttachPhotosOrFiles": "Attach photos or files",
+  "@messageAttachPhotosOrFiles": {
+    "description": "Attachment menu camera/gallery option."
+  },
+  "messageDuplicateFile": "Duplicate file: {name}",
+  "@messageDuplicateFile": {
+    "description": "Duplicate attachment error.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "messageNewerVersionAvailable": "A newer version is available",
+  "@messageNewerVersionAvailable": {
+    "description": "Update banner message."
+  },
+  "messageCheckingForUpdates": "Checking for updates…",
+  "@messageCheckingForUpdates": {
+    "description": "Update status checking label."
+  },
+  "messageDownloadingUpdate": "Downloading update…",
+  "@messageDownloadingUpdate": {
+    "description": "Update status downloading label."
+  },
+  "messageDownloadedArchiveEmpty": "Downloaded archive is empty",
+  "@messageDownloadedArchiveEmpty": {
+    "description": "Update error empty archive."
+  },
+  "messageUpdateFailed": "Update failed",
+  "@messageUpdateFailed": {
+    "description": "Update status error label."
+  },
+  "messageInstallFailed": "Install failed",
+  "@messageInstallFailed": {
+    "description": "Update install failure label."
+  },
+  "labelError": "Error",
+  "@labelError": {
+    "description": "Generic error label."
+  },
+  "labelDismiss": "Dismiss",
+  "@labelDismiss": {
+    "description": "Dismiss button label."
+  },
+  "messageDismissed": "Dismissed",
+  "@messageDismissed": {
+    "description": "Snackbar after dismissing update."
+  },
+  "tooltipCopy": "Copy",
+  "@tooltipCopy": {
+    "description": "Generic copy tooltip."
+  },
+  "tooltipBranch": "Branch",
+  "@tooltipBranch": {
+    "description": "Message branch tooltip."
+  },
+  "tooltipRegenerate": "Regenerate",
+  "@tooltipRegenerate": {
+    "description": "Message regenerate tooltip."
+  },
+  "tooltipCopyMessage": "Copy message to clipboard",
+  "@tooltipCopyMessage": {
+    "description": "Copy message tooltip."
+  },
+  "messageDeleteResponseRegenerate": "Delete this response and generate a new one",
+  "@messageDeleteResponseRegenerate": {
+    "description": "Regenerate confirmation dialog content."
+  },
+  "messageRegenerateTitle": "Regenerate",
+  "@messageRegenerateTitle": {
+    "description": "Regenerate confirmation dialog title."
+  },
+  "tooltipSpeak": "Speak",
+  "@tooltipSpeak": {
+    "description": "Speak button tooltip."
+  },
+  "messageDragToPan": "Drag to pan • Double tap to reset",
+  "@messageDragToPan": {
+    "description": "Image viewer hint."
+  },
+  "messageDropFilesToAttach": "Drop files to attach",
+  "@messageDropFilesToAttach": {
+    "description": "Drag-and-drop attachment hint."
+  },
+  "labelCamera": "Camera",
+  "@labelCamera": {
+    "description": "Camera option label."
+  },
+  "labelGallery": "Gallery",
+  "@labelGallery": {
+    "description": "Gallery option label."
+  },
+  "labelFile": "File",
+  "@labelFile": {
+    "description": "File option label."
+  },
+  "messageDeleteConversationConfirmation": "Delete this conversation?",
+  "@messageDeleteConversationConfirmation": {
+    "description": "Delete conversation dialog content."
+  },
+  "messageConversationStyleUpdated": "Conversation style updated",
+  "@messageConversationStyleUpdated": {
+    "description": "Snackbar after applying style."
+  },
+  "messageChangeConversationStyle": "Change conversation style?",
+  "@messageChangeConversationStyle": {
+    "description": "Style change confirmation title."
+  },
+  "messageCalling": "Calling {name}…",
+  "@messageCalling": {
+    "description": "Talk mode status when calling.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "messageConnectionLost": "Connection lost.",
+  "@messageConnectionLost": {
+    "description": "Room connection lost indicator."
+  },
+  "messageDeactivate": "Deactivate",
+  "@messageDeactivate": {
+    "description": "Memory deactivate action."
+  },
+  "messageCreateMemory": "Create memory",
+  "@messageCreateMemory": {
+    "description": "Memory FAB tooltip."
+  },
+  "titleCreateMemoryAction": "Create Memory",
+  "@titleCreateMemoryAction": {
+    "description": "Memory page app bar title."
+  },
+  "titleEditMemoryAction": "Edit Memory",
+  "@titleEditMemoryAction": {
+    "description": "Memory page edit title."
+  },
+  "titleDeleteMemoryAction": "Delete Memory",
+  "@titleDeleteMemoryAction": {
+    "description": "Memory page delete title."
+  },
+  "messageDeleteMemoryConfirmation": "Are you sure you want to delete this memory?\n\n\"{content}\"",
+  "@messageDeleteMemoryConfirmation": {
+    "description": "Confirmation dialog before deleting memory.",
+    "placeholders": {
+      "content": {
+        "type": "String"
+      }
+    }
+  },
+  "messageCreateNewMemory": "Create new memory",
+  "@messageCreateNewMemory": {
+    "description": "Memory page empty action."
+  },
+  "messageNoMemoriesYet": "No memories yet.",
+  "@messageNoMemoriesYet": {
+    "description": "Memory list empty state."
+  },
+  "titleRoomMembers": "Members",
+  "@titleRoomMembers": {
+    "description": "Room members section header."
+  },
+  "titleRoomAgents": "Agents",
+  "@titleRoomAgents": {
+    "description": "Room agents section header."
+  },
+  "messageCreateRoom": "Create rooms where several AI agents (and people) chat together.",
+  "@messageCreateRoom": {
+    "description": "Create room dialog subtitle."
+  },
+  "messageCreateARoomQuestion": "Create a room?",
+  "@messageCreateARoomQuestion": {
+    "description": "Create room dialog title."
+  },
+  "messageAgentName": "Agent",
+  "@messageAgentName": {
+    "description": "Generic agent label."
+  },
+  "messageRoomOwner": "Owner",
+  "@messageRoomOwner": {
+    "description": "Room owner badge."
+  },
+  "messageEveryone": "Everyone",
+  "@messageEveryone": {
+    "description": "Generic everyone label."
+  },
+  "messageMentionAll": "@all",
+  "@messageMentionAll": {
+    "description": "Mention all literal."
+  },
+  "messageUnnamed": "(unnamed)",
+  "@messageUnnamed": {
+    "description": "Fallback for unnamed item."
+  },
+  "messageNoRoomMessagesYet": "No messages yet.",
+  "@messageNoRoomMessagesYet": {
+    "description": "Empty room chat state."
+  },
+  "messageRoomMuted": "Muted",
+  "@messageRoomMuted": {
+    "description": "Room/conversation muted tooltip."
+  },
+  "tooltipRoomInfo": "Room info",
+  "@tooltipRoomInfo": {
+    "description": "Room app bar info tooltip."
+  },
+  "tooltipLeaveRoom": "Leave room",
+  "@tooltipLeaveRoom": {
+    "description": "Leave room tooltip."
+  },
+  "tooltipRoomMenu": "Room menu",
+  "@tooltipRoomMenu": {
+    "description": "Room app bar menu tooltip."
+  },
+  "messageDeleteRoom": "Delete room",
+  "@messageDeleteRoom": {
+    "description": "Room delete menu item."
+  },
+  "messageLeaveRoom": "Leave room",
+  "@messageLeaveRoom": {
+    "description": "Room leave menu item."
+  },
+  "messageInviteSent": "Invite sent",
+  "@messageInviteSent": {
+    "description": "Snackbar after inviting member."
+  },
+  "messageNoModels": "No models",
+  "@messageNoModels": {
+    "description": "Add agent dialog when no models."
+  },
+  "messageNoTools": "No tools",
+  "@messageNoTools": {
+    "description": "Add agent dialog when no tools."
+  },
+  "tooltipSharePromptWithFriend": "Share \"{name}\" with a friend",
+  "@tooltipSharePromptWithFriend": {
+    "description": "Share prompt template tooltip.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "tooltipEditTemplate": "Edit \"{name}\"",
+  "@tooltipEditTemplate": {
+    "description": "Edit template tooltip.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "tooltipDeleteTemplate": "Delete \"{name}\"",
+  "@tooltipDeleteTemplate": {
+    "description": "Delete template tooltip.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "messageEditSystemPrompt": "Edit system prompt",
+  "@messageEditSystemPrompt": {
+    "description": "Default system prompt editor dialog title."
+  },
+  "messageEditMemory": "Edit memory",
+  "@messageEditMemory": {
+    "description": "Memory edit FAB tooltip."
+  },
+  "messageEditScheduledAction": "Edit scheduled action",
+  "@messageEditScheduledAction": {
+    "description": "Scheduled action edit title."
+  },
+  "messageEditThisMessage": "Edit this message and rerun the conversation from here",
+  "@messageEditThisMessage": {
+    "description": "Edit message tooltip."
+  },
+  "messageEmailRequired": "Email is required",
+  "@messageEmailRequired": {
+    "description": "Edit profile email validator."
+  },
+  "messageFullNameRequired": "Full name is required",
+  "@messageFullNameRequired": {
+    "description": "Edit profile full name validator."
+  },
+  "messageCurrentPasswordRequired": "Current password is required",
+  "@messageCurrentPasswordRequired": {
+    "description": "Change password current validator."
+  },
+  "messageNewPasswordRequired": "New password is required",
+  "@messageNewPasswordRequired": {
+    "description": "Change password new validator."
+  },
+  "messagePasswordsDoNotMatch": "Passwords do not match",
+  "@messagePasswordsDoNotMatch": {
+    "description": "Change password confirm validator."
+  },
+  "messageProfileUpdated": "Profile updated",
+  "@messageProfileUpdated": {
+    "description": "Snackbar after profile update."
+  },
+  "messageFailedToUpdateProfile": "Failed to update profile",
+  "@messageFailedToUpdateProfile": {
+    "description": "Fallback edit profile error."
+  },
+  "messageFailedToChangePassword": "Failed to change password",
+  "@messageFailedToChangePassword": {
+    "description": "Fallback change password error."
+  },
+  "messageFailedToUpdateLocation": "Failed to update location",
+  "@messageFailedToUpdateLocation": {
+    "description": "Fallback location update error."
+  },
+  "labelMonthNames": "Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec",
+  "@labelMonthNames": {
+    "description": "Comma-separated abbreviated month names."
+  },
+  "messageMonthDayYearTime": "{month} {day}, {year} • {hour}:{minute} {amPm}",
+  "@messageMonthDayYearTime": {
+    "description": "Formatted timestamp string.",
+    "placeholders": {
+      "month": {
+        "type": "String"
+      },
+      "day": {
+        "type": "String"
+      },
+      "year": {
+        "type": "String"
+      },
+      "hour": {
+        "type": "String"
+      },
+      "minute": {
+        "type": "String"
+      },
+      "amPm": {
+        "type": "String"
+      }
+    }
+  },
+  "labelOneWeek": "1 week",
+  "@labelOneWeek": {
+    "description": "Mute duration 1 week."
+  },
+  "labelEightHours": "8 hours",
+  "@labelEightHours": {
+    "description": "Mute duration 8 hours."
+  },
+  "labelForever": "forever",
+  "@labelForever": {
+    "description": "Mute duration forever."
+  },
+  "labelUnmute": "unmute",
+  "@labelUnmute": {
+    "description": "Mute action unmute."
+  },
+  "messageMute1Week": "Muted for 1 week",
+  "@messageMute1Week": {
+    "description": "Snackbar mute 1 week."
+  },
+  "messageMute8Hours": "Muted for 8 hours",
+  "@messageMute8Hours": {
+    "description": "Snackbar mute 8 hours."
+  },
+  "messageMutedForever": "Muted forever",
+  "@messageMutedForever": {
+    "description": "Snackbar mute forever."
+  },
+  "messageUnmuted": "Unmuted",
+  "@messageUnmuted": {
+    "description": "Snackbar unmute."
+  },
+  "titleMutedUntil": "Muted until {time}",
+  "@titleMutedUntil": {
+    "description": "Muted until timestamp tooltip.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "labelSystemDefault": "System default",
+  "@labelSystemDefault": {
+    "description": "Generic system default label."
+  },
+  "messageActivate": "Activate",
+  "@messageActivate": {
+    "description": "Memory activate action."
+  },
+  "tooltipEditMemory": "Edit memory",
+  "@tooltipEditMemory": {
+    "description": "Memory item edit tooltip."
+  },
+  "tooltipDeleteMemory": "Delete memory",
+  "@tooltipDeleteMemory": {
+    "description": "Memory item delete tooltip."
+  },
+  "tooltipDeactivateMemory": "Deactivate memory",
+  "@tooltipDeactivateMemory": {
+    "description": "Memory item deactivate tooltip."
+  },
+  "tooltipActivateMemory": "Activate memory",
+  "@tooltipActivateMemory": {
+    "description": "Memory item activate tooltip."
+  },
+  "labelImage": "Image",
+  "@labelImage": {
+    "description": "Generic image label."
+  },
+  "labelAudio": "Audio",
+  "@labelAudio": {
+    "description": "Generic audio label."
+  },
+  "labelVideo": "Video",
+  "@labelVideo": {
+    "description": "Generic video label."
+  },
+  "labelDocument": "Document",
+  "@labelDocument": {
+    "description": "Generic document label."
+  },
+  "messageTool": "tool",
+  "@messageTool": {
+    "description": "Generic tool label."
+  },
+  "messageBlockMath": "blockMath",
+  "@messageBlockMath": {
+    "description": "Semantic label for block math."
+  },
+  "messageInlineMath": "inlineMath",
+  "@messageInlineMath": {
+    "description": "Semantic label for inline math."
+  },
+  "messageDragToPanDoubleTapReset": "Drag to pan • Double tap to reset",
+  "@messageDragToPanDoubleTapReset": {
+    "description": "Image viewer hint."
+  },
+  "messageDropFilesHere": "Drop files to attach",
+  "@messageDropFilesHere": {
+    "description": "Drag and drop attachment hint."
+  },
+  "labelBytes": "bytes",
+  "@labelBytes": {
+    "description": "Generic bytes label."
+  },
+  "labelClose": "Close",
+  "@labelClose": {
+    "description": "Generic close label."
+  },
+  "messageFailedToRenderDiagramWithError": "Failed to render diagram: {error}",
+  "@messageFailedToRenderDiagramWithError": {
+    "description": "Mermaid diagram error with detail.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "messageCouldNotLoadDiagram": "Could not load diagram: {error}",
+  "@messageCouldNotLoadDiagram": {
+    "description": "Mermaid diagram load error.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "messageParseFailedForTool": "Parse failed for {tool}",
+  "@messageParseFailedForTool": {
+    "description": "Tool argument parse error.",
+    "placeholders": {
+      "tool": {
+        "type": "String"
+      }
+    }
+  },
+  "labelRetry": "Retry",
+  "@labelRetry": {
+    "description": "Generic retry label."
+  },
+  "labelDone": "Done",
+  "@labelDone": {
+    "description": "Generic done label."
+  },
+  "labelLoading": "Loading…",
+  "@labelLoading": {
+    "description": "Generic loading label."
+  },
+  "labelDeviceBusy": "Device or resource busy",
+  "@labelDeviceBusy": {
+    "description": "Talk mode mic busy error."
+  },
+  "messageMicrophoneUnavailable": "Microphone unavailable: {error}",
+  "@messageMicrophoneUnavailable": {
+    "description": "Talk mode mic unavailable.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "messageCouldNotTranscribe": "Could not transcribe: {error}",
+  "@messageCouldNotTranscribe": {
+    "description": "Talk mode transcription error.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "messageDidntCatchThat": "Didn’t catch that — try again",
+  "@messageDidntCatchThat": {
+    "description": "Talk mode empty transcript."
+  },
+  "messageCouldNotResolveLocation": "Could not resolve your location",
+  "@messageCouldNotResolveLocation": {
+    "description": "Geolocation resolve error."
+  },
+  "messageFailedToResolveLocation": "Failed to resolve your location",
+  "@messageFailedToResolveLocation": {
+    "description": "Fallback geolocation error."
+  },
+  "labelOr": "or",
+  "@labelOr": {
+    "description": "Generic or."
+  },
+  "labelOnline": "online",
+  "@labelOnline": {
+    "description": "Online status suffix."
+  },
+  "messageCallingX": "Calling X…",
+  "@messageCallingX": {
+    "description": "Talk mode calling placeholder."
+  },
+  "messageRevertAllChangesWarning": "Discard every uncommitted change in your workspace. This cannot be undone.",
+  "@messageRevertAllChangesWarning": {
+    "description": "Warning shown before discarding all uncommitted microapp changes."
+  },
+  "labelRemember": "Remember",
+  "@labelRemember": {
+    "description": "Label on the remember-this button."
+  },
+  "messageRememberDescription": "Save this content as a memory for future reference:",
+  "@messageRememberDescription": {
+    "description": "Explanation in remember dialog."
+  },
+  "messageMemorySaved": "Memory saved successfully",
+  "@messageMemorySaved": {
+    "description": "Success snackbar after saving memory."
+  },
+  "messageFailedToSaveMemory": "Failed to save memory: {error}",
+  "@messageFailedToSaveMemory": {
+    "description": "Error snackbar after saving memory.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "messageRecording": "Recording {duration}",
+  "@messageRecording": {
+    "description": "Voice recording duration label.",
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "messageFailedToDeleteRoom": "Failed to delete room: {error}",
+  "@messageFailedToDeleteRoom": {
+    "description": "Error snackbar after deleting room.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "labelUndo": "Undo",
+  "@labelUndo": {
+    "description": "Undo action label on snackbar."
+  },
+  "messageModelNotInstalled": "{modelId} is not installed",
+  "@messageModelNotInstalled": {
+    "description": "Info when a saved style references an uninstalled model.",
+    "placeholders": {
+      "modelId": {
+        "type": "String"
+      }
+    }
+  },
+  "messageNoSavedStylesYet": "No saved styles yet. Compose a model, thinking level, and prompt in Customize, then save the combination to switch in one tap.",
+  "@messageNoSavedStylesYet": {
+    "description": "Empty state in saved styles list."
+  },
+  "messageEditing": "Editing \"{name}\"",
+  "@messageEditing": {
+    "description": "Header while editing a saved style.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "messageFilesTooLarge": "Files too large:\n{files}",
+  "@messageFilesTooLarge": {
+    "description": "Error snackbar listing rejected oversized files.",
+    "placeholders": {
+      "files": {
+        "type": "String"
+      }
+    }
+  },
+  "titleTheme": "Theme",
+  "@titleTheme": {
+    "description": "Theme section title."
+  },
+  "titleDisplaySystemPrompt": "Display the active system prompt above the conversation",
+  "@titleDisplaySystemPrompt": {
+    "description": "Subtitle for show-system-prompt toggle."
+  },
+  "messageNoMcpToolsAvailable": "No MCP tools available. Configure a server from the Admin panel.",
+  "@messageNoMcpToolsAvailable": {
+    "description": "Empty state in tools picker when no MCP server."
+  },
+  "messageNToolsEnabled": "{selected} of {total} tools enabled",
+  "@messageNToolsEnabled": {
+    "description": "Tools picker summary per server.",
+    "placeholders": {
+      "selected": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "messageNoModelSelected": "No model selected",
+  "@messageNoModelSelected": {
+    "description": "Subtitle when no model is selected."
+  },
+  "messageUsingSource": "Using: {source}",
+  "@messageUsingSource": {
+    "description": "System prompt source label.",
+    "placeholders": {
+      "source": {
+        "type": "String"
+      }
+    }
+  },
+  "messageAppliedToEveryNewConversation": "Applied to every new conversation unless overridden per-chat.",
+  "@messageAppliedToEveryNewConversation": {
+    "description": "Description for global default system prompt."
+  },
+  "messageNoToolsAvailableConfigureMcp": "No tools available. Configure an MCP server first.",
+  "@messageNoToolsAvailableConfigureMcp": {
+    "description": "Empty state when no tools at all."
+  },
+  "messageNoToolsMatchQuery": "No tools match \"{query}\".",
+  "@messageNoToolsMatchQuery": {
+    "description": "Empty state when search has no results.",
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "messageToolCount": "{count, plural, =1{{count} tool} other{{count} tools}}",
+  "@messageToolCount": {
+    "description": "Header suffix showing number of tools.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "messageNoScheduledActionsYet": "No scheduled actions yet",
+  "@messageNoScheduledActionsYet": {
+    "description": "Empty state for scheduled actions list."
+  },
+  "messageUsePlusButton": "Use the + button to set up a reminder or recurring check-in.",
+  "@messageUsePlusButton": {
+    "description": "Empty state hint for scheduled actions."
+  },
+  "messageCronExpression": "Cron: {expr}",
+  "@messageCronExpression": {
+    "description": "Scheduled action subtitle showing cron expression.",
+    "placeholders": {
+      "expr": {
+        "type": "String"
+      }
+    }
+  },
+  "messageRemoveScheduledAction": "Remove \"{title}\"? This cannot be undone.",
+  "@messageRemoveScheduledAction": {
+    "description": "Confirmation dialog before deleting scheduled action.",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "titleNewScheduledAction": "New scheduled action",
+  "@titleNewScheduledAction": {
+    "description": "Dialog title for creating scheduled action."
+  },
+  "titleEditScheduledAction": "Edit scheduled action",
+  "@titleEditScheduledAction": {
+    "description": "Dialog title for editing scheduled action."
+  },
+  "hintMorningStandup": "Morning standup",
+  "@hintMorningStandup": {
+    "description": "Example scheduled action title."
+  },
+  "helperCronExpression": "min hour day month weekday",
+  "@helperCronExpression": {
+    "description": "Helper text under cron expression field."
+  },
+  "hintPickDateTime": "Pick a date and time",
+  "@hintPickDateTime": {
+    "description": "Hint when no run-at datetime selected."
+  },
+  "messageCreatedAt": "Created {date}",
+  "@messageCreatedAt": {
+    "description": "Memory creation timestamp label.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "messageUpdateToVersion": "Update to v{version}",
+  "@messageUpdateToVersion": {
+    "description": "Update dialog title.",
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "messageUpdateRestartAfterInstall": "You have v{currentVersion}. The app restarts after installing.",
+  "@messageUpdateRestartAfterInstall": {
+    "description": "Update dialog content.",
+    "placeholders": {
+      "currentVersion": {
+        "type": "String"
+      }
+    }
+  },
+  "messageLatestRelease": "Latest release: v{version}",
+  "@messageLatestRelease": {
+    "description": "Update section subtitle.",
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "messageUpdateAvailable": "Garbanzo AI v{version} is available",
+  "@messageUpdateAvailable": {
+    "description": "Update banner text.",
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "messageAssistantKnowsLocation": "The assistant knows you are near {location}",
+  "@messageAssistantKnowsLocation": {
+    "description": "Subtitle when precise location sharing is on.",
+    "placeholders": {
+      "location": {
+        "type": "String"
+      }
+    }
+  },
+  "titlePhotos": "Photos",
+  "@titlePhotos": {
+    "description": "Attach menu option for images."
+  },
+  "titleFiles": "Files",
+  "@titleFiles": {
+    "description": "Attach menu option for files."
+  },
+  "messageSttUnavailable": "Speech-to-text is currently unavailable on the server.",
+  "@messageSttUnavailable": {
+    "description": "Error when STT service is unavailable."
+  },
+  "messageTranscriptionFailed": "Transcription failed — please try again.",
+  "@messageTranscriptionFailed": {
+    "description": "Generic transcription failure message."
+  },
+  "messageDeleteStyle": "Delete \"{name}\"?",
+  "@messageDeleteStyle": {
+    "description": "Confirmation before deleting a saved style.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "messageSaveChangesToStyle": "Save changes",
+  "@messageSaveChangesToStyle": {
+    "description": "Button label when editing a style."
+  },
+  "messageModelNameFallback": "{modelId} / {modelName}",
+  "@messageModelNameFallback": {
+    "description": "Style card model display fallback.",
+    "placeholders": {
+      "modelId": {
+        "type": "String"
+      },
+      "modelName": {
+        "type": "String"
+      }
+    }
+  },
+  "messageDeleteStyleConfirmation": "Delete \"{name}\"?",
+  "@messageDeleteStyleConfirmation": {
+    "description": "Confirmation before deleting a saved style.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  }
 }

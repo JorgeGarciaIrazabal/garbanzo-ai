@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:garbanzo_ai/features/chat/services/audio_service.dart';
 import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
 import 'package:garbanzo_ai/features/settings/widgets/drawer_sections/app_settings_section.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -45,7 +46,10 @@ void main() {
         ChangeNotifierProvider.value(
           value: settings,
           child: MaterialApp(
-            home: Scaffold(
+            
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
+home: Scaffold(
               body: SingleChildScrollView(
                 child: VoiceSettingsTiles(loadVoices: () async => voices),
               ),

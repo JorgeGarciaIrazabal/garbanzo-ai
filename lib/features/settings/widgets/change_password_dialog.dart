@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:garbanzo_ai/core/auth_service.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 class ChangePasswordDialog extends StatefulWidget {
   const ChangePasswordDialog({super.key});
@@ -49,15 +50,17 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
     }
 
     Navigator.of(context).pop();
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Password updated')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(AppLocalizations.of(context)!.messagePasswordUpdated),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Change password'),
+      title: Text(AppLocalizations.of(context)!.titleChangePassword),
       content: SingleChildScrollView(
         child: Form(
           key: _formKey,
@@ -68,7 +71,7 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
                 controller: _current,
                 obscureText: _obscureCurrent,
                 decoration: InputDecoration(
-                  labelText: 'Current password',
+                  labelText: AppLocalizations.of(context)!.labelCurrentPassword,
                   suffixIcon: IconButton(
                     tooltip: _obscureCurrent
                         ? 'Show password'
@@ -87,7 +90,7 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
                 controller: _next,
                 obscureText: _obscureNext,
                 decoration: InputDecoration(
-                  labelText: 'New password',
+                  labelText: AppLocalizations.of(context)!.labelNewPassword,
                   suffixIcon: IconButton(
                     tooltip: _obscureNext ? 'Show password' : 'Hide password',
                     icon: Icon(
@@ -96,7 +99,9 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
                     onPressed: () =>
                         setState(() => _obscureNext = !_obscureNext),
                   ),
-                  helperText: 'At least 6 characters',
+                  helperText: AppLocalizations.of(
+                    context,
+                  )!.hintAtLeast6Characters,
                 ),
                 validator: (v) {
                   if (v == null || v.length < 6) {
@@ -109,8 +114,10 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
               TextFormField(
                 controller: _confirm,
                 obscureText: _obscureNext,
-                decoration: const InputDecoration(
-                  labelText: 'Confirm new password',
+                decoration: InputDecoration(
+                  labelText: AppLocalizations.of(
+                    context,
+                  )!.labelConfirmNewPassword,
                 ),
                 validator: (v) {
                   if (v != _next.text) return 'Passwords do not match';
@@ -131,7 +138,7 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
       actions: [
         TextButton(
           onPressed: _saving ? null : () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
+          child: Text(AppLocalizations.of(context)!.cancel),
         ),
         FilledButton(
           onPressed: _saving ? null : _save,
@@ -141,7 +148,7 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
                   height: 18,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : const Text('Change'),
+              : Text(AppLocalizations.of(context)!.change),
         ),
       ],
     );

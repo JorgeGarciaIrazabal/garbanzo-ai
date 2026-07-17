@@ -6,6 +6,7 @@ import 'package:garbanzo_ai/core/widgets/skeleton.dart';
 import 'package:garbanzo_ai/features/friends/models/friend_models.dart';
 import 'package:garbanzo_ai/features/friends/models/share_models.dart';
 import 'package:garbanzo_ai/features/friends/providers/friends_provider.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// Friends management: send requests by email, act on incoming/outgoing
 /// requests, and remove accepted friends.
@@ -61,7 +62,7 @@ class _FriendsPageState extends State<FriendsPage> {
     showAnimatedDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Block User'),
+        title: Text(AppLocalizations.of(context)!.titleBlockUser),
         content: Text(
           'Block $email? Any friendship or pending request between you is '
           'removed, and neither of you can send new requests or add the '
@@ -70,7 +71,7 @@ class _FriendsPageState extends State<FriendsPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context)!.cancel),
           ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
@@ -78,7 +79,7 @@ class _FriendsPageState extends State<FriendsPage> {
               Navigator.of(context).pop();
               await _provider.block(email);
             },
-            child: const Text('Block'),
+            child: Text(AppLocalizations.of(context)!.block),
           ),
         ],
       ),
@@ -89,7 +90,7 @@ class _FriendsPageState extends State<FriendsPage> {
     showAnimatedDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Remove Friend'),
+        title: Text(AppLocalizations.of(context)!.titleRemoveFriend),
         content: Text(
           'Remove ${friend.displayName} from your friends? '
           'You can send a new request later.',
@@ -97,7 +98,7 @@ class _FriendsPageState extends State<FriendsPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context)!.cancel),
           ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
@@ -105,7 +106,7 @@ class _FriendsPageState extends State<FriendsPage> {
               Navigator.of(context).pop();
               await _provider.remove(friend.email);
             },
-            child: const Text('Remove'),
+            child: Text(AppLocalizations.of(context)!.remove),
           ),
         ],
       ),
@@ -123,11 +124,11 @@ class _FriendsPageState extends State<FriendsPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Friends'),
+        title: Text(AppLocalizations.of(context)!.titleFriends),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            tooltip: 'Refresh',
+            tooltip: AppLocalizations.of(context)!.tooltipRefresh,
             onPressed: provider.isLoading ? null : provider.refresh,
           ),
         ],
@@ -182,11 +183,11 @@ class _FriendsPageState extends State<FriendsPage> {
                     provider.friends.length,
                   ),
                   if (provider.friends.isEmpty)
-                    const Padding(
+                    Padding(
                       padding: EdgeInsets.symmetric(vertical: 24),
                       child: Center(
                         child: Text(
-                          'No friends yet. Send a request by email above.',
+                          AppLocalizations.of(context)!.messageNoFriendsYet,
                         ),
                       ),
                     )
@@ -235,7 +236,7 @@ class _FriendsPageState extends State<FriendsPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Add a friend',
+              AppLocalizations.of(context)!.messageAddAFriend,
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 8),
@@ -247,8 +248,10 @@ class _FriendsPageState extends State<FriendsPage> {
                     controller: _emailController,
                     enabled: !_sending,
                     keyboardType: TextInputType.emailAddress,
-                    decoration: const InputDecoration(
-                      hintText: 'friend@example.com',
+                    decoration: InputDecoration(
+                      hintText: AppLocalizations.of(
+                        context,
+                      )!.hintFriendExampleCom,
                       border: OutlineInputBorder(),
                       isDense: true,
                     ),
@@ -266,7 +269,7 @@ class _FriendsPageState extends State<FriendsPage> {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Icon(Icons.person_add),
-                  label: const Text('Send'),
+                  label: Text(AppLocalizations.of(context)!.labelSend),
                 ),
               ],
             ),
@@ -293,25 +296,28 @@ class _FriendsPageState extends State<FriendsPage> {
       child: ListTile(
         leading: const Icon(Icons.mark_email_unread_outlined),
         title: Text(request.requesterEmail),
-        subtitle: const Text('wants to be your friend'),
+        subtitle: Text(AppLocalizations.of(context)!.wantsToBeYourFriend),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             IconButton(
               icon: const Icon(Icons.check, color: Colors.green),
-              tooltip: 'Accept',
+              tooltip: AppLocalizations.of(context)!.tooltipAccept,
               onPressed: () => _provider.accept(request),
             ),
             IconButton(
               icon: const Icon(Icons.close, color: Colors.red),
-              tooltip: 'Decline',
+              tooltip: AppLocalizations.of(context)!.tooltipDecline,
               onPressed: () => _provider.decline(request),
             ),
             PopupMenuButton<String>(
-              tooltip: 'More',
+              tooltip: AppLocalizations.of(context)!.tooltipMore,
               onSelected: (_) => _confirmBlock(request.requesterEmail),
-              itemBuilder: (_) => const [
-                PopupMenuItem(value: 'block', child: Text('Block sender')),
+              itemBuilder: (_) => [
+                PopupMenuItem(
+                  value: AppLocalizations.of(context)!.blockLowercase,
+                  child: Text(AppLocalizations.of(context)!.blockSender),
+                ),
               ],
             ),
           ],
@@ -325,10 +331,10 @@ class _FriendsPageState extends State<FriendsPage> {
       child: ListTile(
         leading: const Icon(Icons.schedule_send_outlined),
         title: Text(request.addresseeEmail),
-        subtitle: const Text('request pending'),
+        subtitle: Text(AppLocalizations.of(context)!.titleRequestPending),
         trailing: IconButton(
           icon: const Icon(Icons.cancel_outlined),
-          tooltip: 'Cancel request',
+          tooltip: AppLocalizations.of(context)!.tooltipCancelRequest,
           onPressed: () => _provider.remove(request.addresseeEmail),
         ),
       ),
@@ -346,13 +352,19 @@ class _FriendsPageState extends State<FriendsPage> {
             ? Text(friend.email)
             : null,
         trailing: PopupMenuButton<String>(
-          tooltip: 'Friend actions',
+          tooltip: AppLocalizations.of(context)!.tooltipFriendActions,
           onSelected: (action) => action == 'remove'
               ? _confirmRemove(friend)
               : _confirmBlock(friend.email),
-          itemBuilder: (_) => const [
-            PopupMenuItem(value: 'remove', child: Text('Remove friend')),
-            PopupMenuItem(value: 'block', child: Text('Block')),
+          itemBuilder: (_) => [
+            PopupMenuItem(
+              value: AppLocalizations.of(context)!.removeLowercase,
+              child: Text(AppLocalizations.of(context)!.removeFriend),
+            ),
+            PopupMenuItem(
+              value: AppLocalizations.of(context)!.blockLowercase,
+              child: Text(AppLocalizations.of(context)!.block),
+            ),
           ],
         ),
       ),
@@ -373,7 +385,7 @@ class _FriendsPageState extends State<FriendsPage> {
           children: [
             IconButton(
               icon: const Icon(Icons.check, color: Colors.green),
-              tooltip: 'Accept share',
+              tooltip: AppLocalizations.of(context)!.tooltipAcceptShare,
               onPressed: () async {
                 final ok = await _provider.acceptShare(item);
                 if (ok && mounted) {
@@ -387,7 +399,7 @@ class _FriendsPageState extends State<FriendsPage> {
             ),
             IconButton(
               icon: const Icon(Icons.close, color: Colors.red),
-              tooltip: 'Decline share',
+              tooltip: AppLocalizations.of(context)!.tooltipDeclineShare,
               onPressed: () => _provider.declineShare(item),
             ),
           ],
@@ -406,7 +418,7 @@ class _FriendsPageState extends State<FriendsPage> {
             : null,
         trailing: TextButton(
           onPressed: () => _provider.unblock(user.email),
-          child: const Text('Unblock'),
+          child: Text(AppLocalizations.of(context)!.unblock),
         ),
       ),
     );

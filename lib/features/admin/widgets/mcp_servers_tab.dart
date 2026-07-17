@@ -5,6 +5,7 @@ import 'package:garbanzo_ai/core/widgets/animated_dialog.dart';
 import 'package:garbanzo_ai/features/admin/models/mcp_server.dart';
 import 'package:garbanzo_ai/features/admin/providers/admin_provider.dart';
 import 'package:garbanzo_ai/features/admin/widgets/mcp_server_dialog.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// Tab rendering the list of configured MCP servers.
 class MCPServersTab extends StatefulWidget {
@@ -69,7 +70,7 @@ class _MCPServersTabState extends State<MCPServersTab> {
     final confirmed = await showAnimatedDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete MCP server?'),
+        title: Text(AppLocalizations.of(context)!.titleDeleteMcpServer),
         content: Text(
           'Are you sure you want to delete "${server.name}"? This '
           'cannot be undone.',
@@ -77,14 +78,14 @@ class _MCPServersTabState extends State<MCPServersTab> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context)!.cancel),
           ),
           FilledButton(
             style: FilledButton.styleFrom(
               backgroundColor: Theme.of(ctx).colorScheme.error,
             ),
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Delete'),
+            child: Text(AppLocalizations.of(context)!.delete),
           ),
         ],
       ),
@@ -138,7 +139,7 @@ class _MCPServersTabState extends State<MCPServersTab> {
             const SizedBox(height: 8),
             FilledButton(
               onPressed: provider.loadServers,
-              child: const Text('Retry'),
+              child: Text(AppLocalizations.of(context)!.labelRetry),
             ),
           ],
         ),
@@ -151,12 +152,12 @@ class _MCPServersTabState extends State<MCPServersTab> {
             Icon(Icons.extension_off, color: colorScheme.outline, size: 48),
             const SizedBox(height: 8),
             Text(
-              'No MCP servers configured',
+              AppLocalizations.of(context)!.messageNoMcpServersConfigured,
               style: theme.textTheme.titleMedium,
             ),
             const SizedBox(height: 4),
             Text(
-              'Use the + button to add one.',
+              AppLocalizations.of(context)!.messageUsePlusButtonToAddOne,
               style: theme.textTheme.bodySmall,
             ),
           ],
@@ -220,17 +221,21 @@ class _MCPServersTabState extends State<MCPServersTab> {
                     },
                   ),
                   IconButton(
-                    tooltip: 'Test connection',
+                    tooltip: AppLocalizations.of(
+                      context,
+                    )!.tooltipTestConnection,
                     icon: const Icon(Icons.play_arrow),
                     onPressed: () => _handleTest(server),
                   ),
                   IconButton(
-                    tooltip: 'Edit',
+                    tooltip: AppLocalizations.of(context)!.tooltipEdit,
                     icon: const Icon(Icons.edit_outlined),
                     onPressed: () => _handleEdit(server),
                   ),
                   IconButton(
-                    tooltip: 'Delete (long-press)',
+                    tooltip: AppLocalizations.of(
+                      context,
+                    )!.tooltipDeleteLongPress,
                     icon: Icon(Icons.delete_outline, color: colorScheme.error),
                     onPressed: () => _handleDelete(server),
                   ),

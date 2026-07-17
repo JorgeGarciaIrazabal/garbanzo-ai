@@ -8,6 +8,7 @@ import 'package:garbanzo_ai/features/chat/models/conversation.dart';
 import 'package:garbanzo_ai/features/chat/providers/search_provider.dart';
 import 'package:garbanzo_ai/features/chat/widgets/search_results_widget.dart';
 import 'package:garbanzo_ai/features/chat/widgets/search_widget.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// Widget displaying a list of conversations.
 class ConversationListWidget extends StatelessWidget {
@@ -65,7 +66,7 @@ class ConversationListWidget extends StatelessWidget {
                 child: FilledButton.icon(
                   onPressed: onNewChat,
                   icon: const Icon(Icons.add, size: 18),
-                  label: const Text('New Chat'),
+                  label: Text(AppLocalizations.of(context)!.labelNewChat),
                   style: FilledButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
@@ -154,21 +155,21 @@ class ConversationListWidget extends StatelessWidget {
     final confirmed = await showAnimatedDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Conversation?'),
+        title: Text(AppLocalizations.of(context)!.titleDeleteConversation),
         content: Text(
           'Are you sure you want to delete "${conversation.displayTitle}"?',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context)!.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
             style: FilledButton.styleFrom(
               backgroundColor: Theme.of(context).colorScheme.error,
             ),
-            child: const Text('Delete'),
+            child: Text(AppLocalizations.of(context)!.delete),
           ),
         ],
       ),
@@ -294,7 +295,9 @@ class _ConversationListItem extends StatelessWidget {
                             key: const ValueKey('conversation_muted_glyph'),
                             Icons.notifications_off,
                             size: 14,
-                            semanticLabel: 'Muted',
+                            semanticLabel: AppLocalizations.of(
+                              context,
+                            )!.messageRoomMuted,
                             color: unselectedIcon,
                           ),
                         ],

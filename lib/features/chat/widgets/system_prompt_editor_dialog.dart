@@ -10,6 +10,7 @@ import 'package:garbanzo_ai/features/chat/providers/model_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/system_prompt_provider.dart';
 import 'package:garbanzo_ai/features/chat/services/system_prompt_service.dart';
 import 'package:garbanzo_ai/features/friends/widgets/share_with_friend_dialog.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// Result returned from [SystemPromptEditorDialog].
 ///
@@ -126,11 +127,11 @@ class _SystemPromptEditorDialogState extends State<SystemPromptEditorDialog> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context)!.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Delete'),
+            child: Text(AppLocalizations.of(context)!.delete),
           ),
         ],
       ),
@@ -164,8 +165,8 @@ class _SystemPromptEditorDialogState extends State<SystemPromptEditorDialog> {
             children: [
               TextField(
                 controller: nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Name',
+                decoration: InputDecoration(
+                  labelText: AppLocalizations.of(context)!.labelName,
                   border: OutlineInputBorder(),
                 ),
                 autofocus: true,
@@ -173,8 +174,10 @@ class _SystemPromptEditorDialogState extends State<SystemPromptEditorDialog> {
               const SizedBox(height: 12),
               TextField(
                 controller: descController,
-                decoration: const InputDecoration(
-                  labelText: 'Description (optional)',
+                decoration: InputDecoration(
+                  labelText: AppLocalizations.of(
+                    context,
+                  )!.labelDescriptionOptional,
                   border: OutlineInputBorder(),
                 ),
                 maxLines: 2,
@@ -182,8 +185,8 @@ class _SystemPromptEditorDialogState extends State<SystemPromptEditorDialog> {
               const SizedBox(height: 12),
               TextField(
                 controller: contentController,
-                decoration: const InputDecoration(
-                  labelText: 'Prompt content',
+                decoration: InputDecoration(
+                  labelText: AppLocalizations.of(context)!.labelPromptContent,
                   border: OutlineInputBorder(),
                   alignLabelWithHint: true,
                 ),
@@ -196,11 +199,11 @@ class _SystemPromptEditorDialogState extends State<SystemPromptEditorDialog> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context)!.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Save'),
+            child: Text(AppLocalizations.of(context)!.save),
           ),
         ],
       ),
@@ -318,14 +321,14 @@ class _SystemPromptEditorDialogState extends State<SystemPromptEditorDialog> {
     final saved = await showAnimatedDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Save prompt to library'),
+        title: Text(AppLocalizations.of(context)!.titleSavePromptToLibrary),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: nameController,
-              decoration: const InputDecoration(
-                labelText: 'Name',
+              decoration: InputDecoration(
+                labelText: AppLocalizations.of(context)!.labelName,
                 border: OutlineInputBorder(),
               ),
               autofocus: true,
@@ -333,8 +336,10 @@ class _SystemPromptEditorDialogState extends State<SystemPromptEditorDialog> {
             const SizedBox(height: 12),
             TextField(
               controller: descController,
-              decoration: const InputDecoration(
-                labelText: 'Description (optional)',
+              decoration: InputDecoration(
+                labelText: AppLocalizations.of(
+                  context,
+                )!.labelDescriptionOptional,
                 border: OutlineInputBorder(),
               ),
               maxLines: 2,
@@ -344,11 +349,11 @@ class _SystemPromptEditorDialogState extends State<SystemPromptEditorDialog> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context)!.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Save'),
+            child: Text(AppLocalizations.of(context)!.save),
           ),
         ],
       ),
@@ -403,7 +408,10 @@ class _SystemPromptEditorDialogState extends State<SystemPromptEditorDialog> {
               Row(
                 children: [
                   Expanded(
-                    child: Text('Templates', style: theme.textTheme.titleSmall),
+                    child: Text(
+                      AppLocalizations.of(context)!.templates,
+                      style: theme.textTheme.titleSmall,
+                    ),
                   ),
                   if (promptProvider.isLoading)
                     const SizedBox(
@@ -424,15 +432,15 @@ class _SystemPromptEditorDialogState extends State<SystemPromptEditorDialog> {
                       // deleted underneath us — hence _selectedTemplate.
                       initialValue: selected?.id,
                       isExpanded: true,
-                      decoration: const InputDecoration(
-                        labelText: 'Template',
+                      decoration: InputDecoration(
+                        labelText: AppLocalizations.of(context)!.labelTemplate,
                         isDense: true,
                         border: OutlineInputBorder(),
                       ),
                       items: [
-                        const DropdownMenuItem<String?>(
+                        DropdownMenuItem<String?>(
                           value: null,
-                          child: Text('— None —'),
+                          child: Text(AppLocalizations.of(context)!.none),
                         ),
                         for (final tpl in [...builtins, ...customs])
                           DropdownMenuItem<String?>(
@@ -501,8 +509,8 @@ class _SystemPromptEditorDialogState extends State<SystemPromptEditorDialog> {
                 controller: _controller,
                 maxLines: 10,
                 minLines: 6,
-                decoration: const InputDecoration(
-                  labelText: 'System prompt',
+                decoration: InputDecoration(
+                  labelText: AppLocalizations.of(context)!.labelSystemPrompt,
                   hintText:
                       "e.g. You are a concise, no-nonsense assistant. Give short "
                       "factual answers with examples.",
@@ -522,7 +530,9 @@ class _SystemPromptEditorDialogState extends State<SystemPromptEditorDialog> {
                               setState(() => _aiPanelOpen = true);
                             },
                       icon: const Icon(Icons.auto_fix_high, size: 18),
-                      label: const Text('Create with AI'),
+                      label: Text(
+                        AppLocalizations.of(context)!.labelCreateWithAi,
+                      ),
                     ),
                     const SizedBox(width: 4),
                   ],
@@ -530,7 +540,7 @@ class _SystemPromptEditorDialogState extends State<SystemPromptEditorDialog> {
                     TextButton.icon(
                       onPressed: _cancelGeneration,
                       icon: const Icon(Icons.stop, size: 18),
-                      label: const Text('Stop'),
+                      label: Text(AppLocalizations.of(context)!.labelStop),
                     ),
                     const SizedBox(width: 8),
                     const SizedBox(
@@ -540,7 +550,7 @@ class _SystemPromptEditorDialogState extends State<SystemPromptEditorDialog> {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      'Generating…',
+                      AppLocalizations.of(context)!.messageGenerating,
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
@@ -557,7 +567,9 @@ class _SystemPromptEditorDialogState extends State<SystemPromptEditorDialog> {
                             Icons.bookmark_add_outlined,
                             size: 18,
                           ),
-                          label: const Text('Save to library'),
+                          label: Text(
+                            AppLocalizations.of(context)!.labelSaveToLibrary,
+                          ),
                         ),
                       ),
                     ),
@@ -597,12 +609,12 @@ class _SystemPromptEditorDialogState extends State<SystemPromptEditorDialog> {
             onPressed: () => Navigator.of(
               context,
             ).pop(const SystemPromptEditorResult(content: '')),
-            child: const Text('Clear'),
+            child: Text(AppLocalizations.of(context)!.clear),
           ),
         TextButton(
           onPressed: () =>
               Navigator.of(context).pop(const SystemPromptEditorResult()),
-          child: const Text('Cancel'),
+          child: Text(AppLocalizations.of(context)!.cancel),
         ),
         FilledButton(
           onPressed: isGenerating
@@ -610,7 +622,7 @@ class _SystemPromptEditorDialogState extends State<SystemPromptEditorDialog> {
               : () => Navigator.of(context).pop(
                   SystemPromptEditorResult(content: _controller.text.trim()),
                 ),
-          child: const Text('Apply'),
+          child: Text(AppLocalizations.of(context)!.apply),
         ),
       ],
     );
@@ -669,7 +681,7 @@ class _AiGeneratePanel extends StatelessWidget {
           const SizedBox(height: 10),
           if (isFirstGeneration) ...[
             Text(
-              'Describe what you want the prompt to do:',
+              AppLocalizations.of(context)!.messageGenerateHint,
               style: theme.textTheme.bodySmall,
             ),
             const SizedBox(height: 4),
@@ -677,22 +689,26 @@ class _AiGeneratePanel extends StatelessWidget {
               controller: intentController,
               enabled: !isGenerating,
               maxLines: 3,
-              decoration: const InputDecoration(
-                hintText:
-                    'e.g. A sarcastic coding mentor that keeps answers short',
+              decoration: InputDecoration(
+                hintText: AppLocalizations.of(
+                  context,
+                )!.hintSarcasticCodingMentor,
                 border: OutlineInputBorder(),
                 isDense: true,
               ),
             ),
           ] else ...[
-            Text('Feedback to apply:', style: theme.textTheme.bodySmall),
+            Text(
+              AppLocalizations.of(context)!.feedbackToApply,
+              style: theme.textTheme.bodySmall,
+            ),
             const SizedBox(height: 4),
             TextField(
               controller: feedbackController,
               enabled: !isGenerating,
               maxLines: 2,
-              decoration: const InputDecoration(
-                hintText: 'e.g. Make it friendlier',
+              decoration: InputDecoration(
+                hintText: AppLocalizations.of(context)!.hintEGMakeItFriendlier,
                 border: OutlineInputBorder(),
                 isDense: true,
               ),
@@ -710,12 +726,12 @@ class _AiGeneratePanel extends StatelessWidget {
                 const SizedBox(width: 8),
                 OutlinedButton(
                   onPressed: isGenerating ? null : onAccept,
-                  child: const Text('Accept'),
+                  child: Text(AppLocalizations.of(context)!.tooltipAccept),
                 ),
                 const SizedBox(width: 8),
                 OutlinedButton(
                   onPressed: isGenerating ? null : onDiscard,
-                  child: const Text('Discard'),
+                  child: Text(AppLocalizations.of(context)!.discard),
                 ),
               ],
             ],

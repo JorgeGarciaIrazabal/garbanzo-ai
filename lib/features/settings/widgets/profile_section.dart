@@ -9,6 +9,7 @@ import 'package:garbanzo_ai/core/widgets/user_avatar.dart';
 import 'package:garbanzo_ai/features/chat/widgets/input/file_picker_helper.dart';
 import 'package:garbanzo_ai/features/settings/widgets/change_password_dialog.dart';
 import 'package:garbanzo_ai/features/settings/widgets/edit_profile_dialog.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// Profile block: shows account identity and exposes edit / password dialogs.
 ///
@@ -75,7 +76,7 @@ class ProfileSection extends StatelessWidget {
             subtitle: Text(user?.email ?? ''),
             trailing: user?.isAdmin ?? false
                 ? Chip(
-                    label: const Text('Admin'),
+                    label: Text(AppLocalizations.of(context)!.titleAdmin),
                     visualDensity: VisualDensity.compact,
                     backgroundColor: colorScheme.primaryContainer,
                     side: BorderSide.none,
@@ -85,8 +86,10 @@ class ProfileSection extends StatelessWidget {
           const Divider(height: 1),
           ListTile(
             leading: const Icon(Icons.edit_outlined),
-            title: const Text('Edit profile'),
-            subtitle: const Text('Update name and email'),
+            title: Text(AppLocalizations.of(context)!.titleEditProfile),
+            subtitle: Text(
+              AppLocalizations.of(context)!.titleUpdateNameAndEmail,
+            ),
             onTap: () async {
               final changed = await showAnimatedDialog<bool>(
                 context: context,
@@ -98,7 +101,7 @@ class ProfileSection extends StatelessWidget {
           const Divider(height: 1),
           ListTile(
             leading: const Icon(Icons.lock_outline),
-            title: const Text('Change password'),
+            title: Text(AppLocalizations.of(context)!.titleChangePassword),
             onTap: () async {
               await showAnimatedDialog<void>(
                 context: context,
@@ -109,7 +112,10 @@ class ProfileSection extends StatelessWidget {
           const Divider(height: 1),
           ListTile(
             leading: Icon(Icons.logout, color: colorScheme.error),
-            title: Text('Sign out', style: TextStyle(color: colorScheme.error)),
+            title: Text(
+              AppLocalizations.of(context)!.titleSignOut,
+              style: TextStyle(color: colorScheme.error),
+            ),
             onTap: onLogout,
           ),
         ],
@@ -130,7 +136,7 @@ class ProfileSection extends StatelessWidget {
             children: [
               ListTile(
                 leading: const Icon(Icons.photo_library_outlined),
-                title: const Text('Choose photo'),
+                title: Text(AppLocalizations.of(context)!.titleChoosePhoto),
                 onTap: () {
                   Navigator.of(sheetContext).pop();
                   _pickImage(context, fromCamera: false);
@@ -139,7 +145,7 @@ class ProfileSection extends StatelessWidget {
               if (FilePickerHelper.isMobilePlatform)
                 ListTile(
                   leading: const Icon(Icons.camera_alt_outlined),
-                  title: const Text('Take photo'),
+                  title: Text(AppLocalizations.of(context)!.titleTakePhoto),
                   onTap: () {
                     Navigator.of(sheetContext).pop();
                     _pickImage(context, fromCamera: true);
@@ -221,13 +227,21 @@ class ProfileSection extends StatelessWidget {
       onUserChanged();
       if (context.mounted) {
         messenger.showSnackBar(
-          const SnackBar(content: Text('Profile picture updated')),
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(context)!.messageProfilePictureUpdated,
+            ),
+          ),
         );
       }
     } else {
       if (context.mounted) {
         messenger.showSnackBar(
-          const SnackBar(content: Text('Failed to upload profile picture')),
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(context)!.messageFailedToUploadProfilePicture,
+            ),
+          ),
         );
       }
     }
@@ -240,13 +254,21 @@ class ProfileSection extends StatelessWidget {
       onUserChanged();
       if (context.mounted) {
         messenger.showSnackBar(
-          const SnackBar(content: Text('Profile picture removed')),
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(context)!.messageProfilePictureRemoved,
+            ),
+          ),
         );
       }
     } else {
       if (context.mounted) {
         messenger.showSnackBar(
-          const SnackBar(content: Text('Failed to remove profile picture')),
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(context)!.messageFailedToRemoveProfilePicture,
+            ),
+          ),
         );
       }
     }

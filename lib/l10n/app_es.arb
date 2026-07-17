@@ -4,5 +4,2059 @@
   "language": "Idioma",
   "languageEnglish": "English",
   "languageSpanish": "Español",
-  "languageSystem": "Predeterminado del sistema"
+  "languageSystem": "Predeterminado del sistema",
+  "accept": "Aceptar",
+  "active": "Activo",
+  "add": "Añadir",
+  "addAgentTitle": "Añadir agente",
+  "agents": "Agentes",
+  "alwaysRespond": "Responder siempre",
+  "apply": "Aplicar",
+  "attachedImageLabel": "Imagen adjunta: {name}",
+  "authErrorIncorrectEmailOrPassword": "Correo o contraseña incorrectos",
+  "autoJumpInWhenRelevantLlm": "Auto — intervenir cuando sea relevante (LLM)",
+  "autoLowercase": "auto",
+  "autoModel": "Auto",
+  "block": "Bloquear",
+  "blockLowercase": "bloquear",
+  "blockSender": "Bloquear remitente",
+  "cancel": "Cancelar",
+  "change": "Cambiar",
+  "chatStyle": "Estilo de chat",
+  "checkNow": "Buscar ahora",
+  "clear": "Limpiar",
+  "close": "Cerrar",
+  "commitAndDeployToGithubPages": "Hacer commit y desplegar en GitHub Pages.",
+  "composeAStyle": "Componer un estilo",
+  "confirm": "Confirmar",
+  "couldNotUpdate": "No se ha podido actualizar: {error}",
+  "create": "Crear",
+  "delete": "Eliminar",
+  "deleteAgentConfirmation": "¿Eliminar el agente {name}? Esta acción no se puede deshacer.",
+  "deleteLowercase": "eliminar",
+  "deleteRoomConfirmation": "¿Eliminar \"{name}\"? Esta acción no se puede deshacer.",
+  "deleteStyleTitle": "¿Eliminar \"{name}\"?",
+  "deleteTemplateTitle": "¿Eliminar \"{name}\"?",
+  "discard": "Descartar",
+  "downloadInstall": "Descargar e instalar",
+  "edit": "editar",
+  "editAgentTitle": "Editar agente",
+  "editEllipsis": "Editar…",
+  "editTemplateTitle": "Editar \"{name}\"",
+  "errorWithDetails": "Error: {error}",
+  "failedToAcceptRequest": "Error al aceptar la solicitud",
+  "failedToAcceptShare": "Error al aceptar la compartición",
+  "failedToBlockUser": "Error al bloquear al usuario",
+  "failedToCreateMemory": "Error al crear el recuerdo",
+  "failedToCreateScheduledAction": "Error al crear la acción programada",
+  "failedToCreateTemplate": "Error al crear la plantilla",
+  "failedToDeactivateMemory": "Error al desactivar el recuerdo",
+  "failedToDeclineRequest": "Error al rechazar la solicitud",
+  "failedToDeclineShare": "Error al rechazar la compartición",
+  "failedToDeleteAgent": "Error al eliminar el agente: {error}",
+  "failedToDeleteDocument": "Error al eliminar el documento",
+  "failedToDeleteRoom": "Error al eliminar la sala: {error}",
+  "failedToDeleteScheduledAction": "Error al eliminar la acción programada",
+  "failedToDeleteStyle": "Error al eliminar el estilo",
+  "failedToDeleteTemplate": "Error al eliminar la plantilla",
+  "failedToEditMessage": "Error al editar el mensaje: {error}",
+  "failedToLoadDocuments": "Error al cargar los documentos",
+  "failedToLoadFriends": "Error al cargar los amigos",
+  "failedToLoadMemories": "Error al cargar los recuerdos",
+  "failedToLoadModels": "Error al cargar los modelos",
+  "failedToLoadNotifications": "Error al cargar las notificaciones",
+  "failedToLoadScheduledActions": "Error al cargar las acciones programadas",
+  "failedToLoadStyles": "Error al cargar los estilos",
+  "failedToLoadSystemPrompts": "Error al cargar las instrucciones del sistema",
+  "failedToLoadTools": "Error al cargar las herramientas",
+  "failedToLoadUsage": "Error al cargar el uso",
+  "failedToRemoveFriend": "Error al eliminar al amigo",
+  "failedToRemoveMember": "Error al eliminar el miembro: {error}",
+  "failedToRenderDiagram": "Error al renderizar el diagrama",
+  "failedToSaveDefaultPrompt": "Error al guardar la instrucción predeterminada",
+  "failedToSaveMemory": "Error al guardar el recuerdo: {error}",
+  "failedToSaveStyle": "Error al guardar el estilo",
+  "failedToSendFriendRequest": "Error al enviar la solicitud de amistad",
+  "failedToSendMessage": "Error al enviar el mensaje: {error}",
+  "failedToShare": "Error al compartir",
+  "failedToUnblockUser": "Error al desbloquear al usuario",
+  "failedToUpdateMemory": "Error al actualizar el recuerdo",
+  "failedToUpdateMemorySetting": "Error al actualizar el ajuste de recuerdos: {error}",
+  "failedToUpdateScheduledAction": "Error al actualizar la acción programada",
+  "failedToUpdateStyle": "Error al actualizar el estilo",
+  "failedToUpdateTemplate": "Error al actualizar la plantilla",
+  "failedToUploadDocument": "Error al subir el documento",
+  "feedbackToApply": "Comentarios a aplicar:",
+  "filesTooLarge": "Archivos demasiado grandes:\n{files}",
+  "fromYourKnowledgeBase": "De tu base de conocimientos",
+  "headingSignIn": "Iniciar sesión",
+  "hintApiKeyAbcNdebug1": "API_KEY=abc\\nDEBUG=1",
+  "hintAtLeast6Characters": "Al menos 6 caracteres",
+  "hintBearer": "Bearer …",
+  "hintBug": "error",
+  "hintDeepWorkQuickAnswers": "Trabajo profundo, respuestas rápidas…",
+  "hintEG09MonFri": "p. ej. \"0 9 * * mon-fri\"",
+  "hintEGFilesystem": "p. ej. filesystem",
+  "hintEGMadridSpain": "p. ej. Madrid, España",
+  "hintEGMakeItFriendlier": "p. ej. Hazlo más amable",
+  "hintEGMorningStandup": "p. ej. \"Reunión diaria\"",
+  "hintEGProductBrainstorm": "p. ej. Lluvia de ideas de producto",
+  "hintEnterMemoryContent": "Introduce el contenido del recuerdo",
+  "hintFriendExampleCom": "amigo@ejemplo.com",
+  "hintJaneDoe": "Jane Doe",
+  "hintMemoryContent": "Contenido del recuerdo",
+  "hintMessageTheRoomUseAgentnameOr": "Mensaje para la sala… (usa @AgentName o @all)",
+  "hintOneLineSummary": "Resumen en una línea",
+  "hintSearchConversations": "Buscar conversaciones…",
+  "hintSearchModels": "Buscar modelos",
+  "hintSearchTools": "Buscar herramientas…",
+  "hintUsrBinPython3": "/usr/bin/python3",
+  "hintWhatShouldTheAssistantDo": "¿Qué debe hacer el asistente?",
+  "hintYouAreAFriendlyProductStrategist": "Eres un estratega de producto amigable…",
+  "hintYouExampleCom": "tu@ejemplo.com",
+  "inactive": "Inactivo",
+  "invite": "Invitar",
+  "itemAddedToYourNouns": "\"{name}\" se ha añadido a tus {noun}s",
+  "labelAgentName": "Nombre del agente",
+  "labelAll": "Todos",
+  "labelAllLowercase": "todos",
+  "labelArgsOnePerLine": "Args (uno por línea)",
+  "labelAuthHeader": "Cabecera de autenticación",
+  "labelBug": "Error",
+  "labelChats": "Chats",
+  "labelCity": "Ciudad",
+  "labelCommitMessageOptional": "Mensaje de commit (opcional)",
+  "labelConfirmNewPassword": "Confirmar nueva contraseña",
+  "labelCopyUrl": "Copiar URL",
+  "labelCreateARoom": "Crear una sala",
+  "labelCreateWithAi": "Crear con IA",
+  "labelCronExpression": "Expresión cron",
+  "labelCurrentPassword": "Contraseña actual",
+  "labelDark": "Oscuro",
+  "labelDescription": "Descripción",
+  "labelDescriptionOptional": "Descripción (opcional)",
+  "labelDisabled": "Desactivado",
+  "labelEmail": "Correo electrónico",
+  "labelEnvKeyValueOnePerLine": "Env (KEY=VALUE, uno por línea)",
+  "labelFailedToCreateServer": "Error al crear el servidor",
+  "labelFailedToCreateUser": "Error al crear el usuario",
+  "labelFailedToDeleteServer": "Error al eliminar el servidor",
+  "labelFailedToLoadServers": "Error al cargar los servidores",
+  "labelFailedToLoadUsers": "Error al cargar los usuarios",
+  "labelFailedToSyncModels": "Error al sincronizar los modelos",
+  "labelFailedToTestServer": "Error al probar el servidor",
+  "labelFailedToUpdateModel": "Error al actualizar el modelo",
+  "labelFailedToUpdateServer": "Error al actualizar el servidor",
+  "labelFailedToUpdateUser": "Error al actualizar el usuario",
+  "labelFeature": "Funcionalidad",
+  "labelFullName": "Nombre completo",
+  "labelFullNameOptional": "Nombre completo (opcional)",
+  "labelGenerate": "Generar",
+  "labelHttp": "HTTP",
+  "labelInviteMembers": "Invitar miembros",
+  "labelLight": "Claro",
+  "labelMarkAllRead": "Marcar todas como leídas",
+  "labelModel": "Modelo",
+  "labelMonospace": "monoespaciado",
+  "labelName": "Nombre",
+  "labelNew": "Nueva",
+  "labelNewChat": "Nuevo chat",
+  "labelNewPassword": "Nueva contraseña",
+  "labelNewRoom": "Nueva sala",
+  "labelOneOff": "Puntual",
+  "labelPassword": "Contraseña",
+  "labelPrompt": "Instrucción",
+  "labelPromptContent": "Contenido de la instrucción",
+  "labelPromptTemplate": "Plantilla de instrucción",
+  "labelPublish": "Publicar",
+  "labelPublishing": "Publicando…",
+  "labelRecurring": "Recurrente",
+  "labelRefine": "Refinar",
+  "labelRooms": "Salas",
+  "labelRunAt": "Ejecutar a las",
+  "labelSaveToLibrary": "Guardar en la biblioteca",
+  "labelSend": "Enviar",
+  "labelShowSchema": "Mostrar esquema",
+  "labelSse": "SSE",
+  "labelStop": "Detener",
+  "labelStyles": "Estilos",
+  "labelSync": "Sincronizar",
+  "labelSystem": "Sistema",
+  "labelSystemPrompt": "Instrucción del sistema",
+  "labelSystemPromptOptional": "Instrucción del sistema (opcional)",
+  "labelTemplate": "Plantilla",
+  "labelTitle": "Título",
+  "labelTitleOptional": "Título (opcional)",
+  "labelUpload": "Subir",
+  "labelUrl": "URL",
+  "labelWhenToRespond": "Cuándo responder",
+  "last12Months": "Últimos 12 meses",
+  "last30Days": "Últimos 30 días",
+  "last7Days": "Últimos 7 días",
+  "last90Days": "Últimos 90 días",
+  "later": "Más tarde",
+  "latestReleaseVersion": "Última versión: v{releaseVersion}",
+  "loadingModels": "Cargando modelos…",
+  "loadingPreferences": "Cargando preferencias…",
+  "loadingTools": "Cargando herramientas…",
+  "members": "Miembros",
+  "memoriesInformedReply": "{count} recuerdos guardados sobre ti han informado esta respuesta",
+  "memory": "Recuerdo",
+  "messageChangesReverted": "Cambios revertidos",
+  "messageConversationDeleted": "Conversación eliminada",
+  "messageFailed": "Error: {error}",
+  "messageFailedToRemoveProfilePicture": "Error al eliminar la foto de perfil",
+  "messageFailedToUploadProfilePicture": "Error al subir la foto de perfil",
+  "messagePasswordUpdated": "Contraseña actualizada",
+  "messageProfilePictureRemoved": "Foto de perfil eliminada",
+  "messageProfilePictureUpdated": "Foto de perfil actualizada",
+  "messageSchemaCopied": "Esquema copiado",
+  "messageStartAConversationFirst": "Empieza una conversación primero",
+  "messageThanksYourReportWasSubmitted": "¡Gracias! Tu informe se ha enviado.",
+  "messageThisRemovesTheSavedStyleNot": "Esto elimina el estilo guardado, no los chats.",
+  "modelIdIsNotInstalled": "{modelId} no está instalado",
+  "noAppToDisplay": "No hay ninguna micro-app para mostrar",
+  "noDailyData": "Sin datos diarios",
+  "noDocumentsYet": "Aún no hay documentos",
+  "noModelsSyncedYet": "Aún no se han sincronizado modelos",
+  "noTemplate": "Sin plantilla",
+  "none": "— Ninguna —",
+  "ok": "Aceptar",
+  "onMentionOnly": "Solo al mencionar @",
+  "onlySwitchBetweenTheseNoneMeans": "Cambia solo entre estos; si no hay ninguno, permite cualquiera",
+  "pushServiceForegroundMessage": "[PushService] mensaje en primer plano: {title}",
+  "releasePage": "Página de la versión",
+  "remove": "Eliminar",
+  "removeDocumentConfirmation": "¿Eliminar \"{filename}\" de tu base de conocimientos?",
+  "removeFriend": "Eliminar amigo",
+  "removeLowercase": "eliminar",
+  "removeMemberFromRoomMessage": "¿Eliminar a {userId} de esta sala?",
+  "retry": "Reintentar",
+  "revert": "Revertir",
+  "roundRobinTakeTurns": "Round-robin (turnos)",
+  "save": "Guardar",
+  "saveAndRerun": "Guardar y volver a ejecutar",
+  "savedToLibrary": "Se ha guardado \"{name}\" en tu biblioteca",
+  "semanticLabelBlockMath": "matemáticas en bloque",
+  "semanticLabelInlineMath": "matemáticas en línea",
+  "semanticLabelMuted": "Silenciado",
+  "semanticLabelTool": "herramienta",
+  "settings": "Ajustes",
+  "shareItemTitle": "Compartir \"{itemName}\"",
+  "shareWithAFriend": "Compartir con un amigo…",
+  "sharedItemFromSender": "de {senderEmail}",
+  "sharedItemTitle": "\"{name}\" ({noun})",
+  "startAConversationToSetA": "Empieza una conversación para establecer una instrucción",
+  "submit": "Enviar",
+  "tabMcpServers": "Servidores MCP",
+  "tabModels": "Modelos",
+  "tabReports": "Informes",
+  "tabUsers": "Usuarios",
+  "templates": "Plantillas",
+  "testingServer": "Probando {name}…",
+  "thinking": "Pensando",
+  "titleAccountAndSystemNotifications": "Notificaciones de cuenta y sistema",
+  "titleAdmin": "Admin",
+  "titleAdminPrivileges": "Privilegios de administrador",
+  "titleAllTools": "Todas las herramientas",
+  "titleAppSettings": "Ajustes de la app",
+  "titleAppearance": "Apariencia",
+  "titleAutoPlayResponses": "Reproducir respuestas automáticamente",
+  "titleAutoSendAfterTranscription": "Enviar automáticamente tras transcribir",
+  "titleAutomaticLanguageSwitching": "Cambio automático de idioma",
+  "titleAutomaticallySendWhenVoiceInputFinishes": "Enviar automáticamente al terminar la entrada de voz",
+  "titleBlockUser": "Bloquear usuario",
+  "titleBrowseAvailableMcpTools": "Explorar herramientas MCP disponibles",
+  "titleChangePassword": "Cambiar contraseña",
+  "titleChartsByModelConversationDay": "Gráficos por modelo, conversación y día",
+  "titleChat": "Chat",
+  "titleChatResponses": "Respuestas del chat",
+  "titleChoosePhoto": "Elegir foto",
+  "titleConversationSystemPrompt": "Instrucción del sistema de la conversación",
+  "titleCreateMemory": "Crear recuerdo",
+  "titleCreateUser": "Crear usuario",
+  "titleCurrentVersion": "Versión actual",
+  "titleDefaultModel": "Modelo predeterminado",
+  "titleDeleteAgent": "¿Eliminar agente?",
+  "titleDeleteConversation": "¿Eliminar conversación?",
+  "titleDeleteDocument": "Eliminar documento",
+  "titleDeleteMcpServer": "¿Eliminar servidor MCP?",
+  "titleDeleteMemory": "Eliminar recuerdo",
+  "titleDeleteRoom": "¿Eliminar sala?",
+  "titleDeleteScheduledAction": "Eliminar acción programada",
+  "titleDisplayTokenCountsAndResponseTime": "Mostrar tokens y tiempo de respuesta",
+  "titleEditMcpServer": "Editar servidor MCP",
+  "titleEditMemory": "Editar recuerdo",
+  "titleEditMessage": "Editar mensaje",
+  "titleEditProfile": "Editar perfil",
+  "titleEditStyle": "Editar estilo",
+  "titleEnabled": "Activado",
+  "titleFriendRequestsAndAccepts": "Solicitudes y aceptaciones de amistad",
+  "titleFriendUpdates": "Actualizaciones de amigos",
+  "titleFriends": "Amigos",
+  "titleGlobalDefault": "Valor global predeterminado",
+  "titleGlobalDefaultSystemPrompt": "Instrucción del sistema global predeterminada",
+  "titleKnowledgeBase": "Base de conocimientos",
+  "titleKnowledgeBasePage": "Base de Conocimientos",
+  "titleLlmModel": "Modelo LLM",
+  "titleMemories": "Recuerdos",
+  "titleMemoryKnowledgeBase": "Recuerdos y base de conocimientos",
+  "titleModel": "Modelo",
+  "titleModerator": "Moderador",
+  "titleMyLanguages": "Mis idiomas",
+  "titleNewMcpServer": "Nuevo servidor MCP",
+  "titleNewRoom": "Nueva sala",
+  "titleNotifications": "Notificaciones",
+  "titleOpenFullSettings": "Abrir ajustes completos",
+  "titleOverridesYourGlobalDefaultForThis": "Sustituye tu valor global solo para esta conversación.",
+  "titlePages": "Páginas",
+  "titlePersonalContext": "Contexto personal",
+  "titleProfileAppearanceModelsAndMore": "Perfil, apariencia, modelos y más",
+  "titlePublishChanges": "Publicar cambios",
+  "titleReadAloudNewAssistantMessages": "Leer en voz alta los mensajes del asistente",
+  "titleRememberThis": "Recordar esto",
+  "titleReminders": "Recordatorios",
+  "titleRemindersAndRecurringPrompts": "Recordatorios e instrucciones recurrentes",
+  "titleRemoveFriend": "Eliminar amigo",
+  "titleRemoveMember": "¿Eliminar miembro?",
+  "titleReplyInTheLanguageYouSpeak": "Responde en el idioma en el que hablas (modo conversación)",
+  "titleReportABugOrIdea": "Informar de un error o idea",
+  "titleReportABugOrRequestA": "Informar de un error o sugerir una funcionalidad",
+  "titleRequestPending": "solicitud pendiente",
+  "titleRevertAllChanges": "¿Revertir todos los cambios?",
+  "titleSavePromptToLibrary": "Guardar instrucción en la biblioteca",
+  "titleSaveStyle": "Guardar estilo",
+  "titleSavedMemories": "Recuerdos guardados",
+  "titleScheduledActions": "Acciones programadas",
+  "titleScheduledRemindersAndCheckIns": "Recordatorios y check-ins programados",
+  "titleSendFeedbackStraightToTheAdmins": "Enviar comentarios directamente a los administradores",
+  "titleSendRequestsAndManageYourFriends": "Enviar solicitudes y gestionar tus amigos",
+  "titleSetYourLocation": "Establecer tu ubicación",
+  "titleShareCoarseLocation": "Compartir ubicación aproximada",
+  "titleShowMessageMetadata": "Mostrar metadatos del mensaje",
+  "titleShowSystemPromptInThread": "Mostrar instrucción del sistema en el hilo",
+  "titleSignOut": "Cerrar sesión",
+  "titleSkillsLibrary": "Biblioteca de habilidades",
+  "titleSpeed": "Velocidad",
+  "titleStartAConversationToPickTools": "Empieza una conversación para elegir herramientas",
+  "titleStartAConversationToToggleInjection": "Empieza una conversación para activar o desactivar la inyección",
+  "titleSystemAlerts": "Alertas del sistema",
+  "titleSystemPrompt": "Instrucción del sistema",
+  "titleTakePhoto": "Hacer foto",
+  "titleTalkOverTheAiToInterrupt": "Habla por encima de la IA para interrumpir (modo conversación)",
+  "titleTapToUpdateOrCorrect": "Toca para actualizar o corregir",
+  "titleThisConversation": "Esta conversación",
+  "titleTokenUsage": "Uso de tokens",
+  "titleTools": "Herramientas",
+  "titleUpdateNameAndEmail": "Actualizar nombre y correo",
+  "titleUploadDocumentsForRetrievalAcrossChats": "Sube documentos para recuperarlos entre chats",
+  "titleUseForNewChats": "Usar para chats nuevos",
+  "titleUseKnowledgeBase": "Usar base de conocimientos",
+  "titleUseMemory": "Usar recuerdos",
+  "titleUsersModelsMcpServersReports": "Usuarios, modelos, servidores MCP e informes",
+  "titleVoice": "Voz",
+  "titleVoiceInterruption": "Interrupción por voz",
+  "titleWhatTheAssistantHasLearnedAbout": "Lo que el asistente ha aprendido sobre ti",
+  "titleYou": "Tú",
+  "transport": "Transporte",
+  "tryAgain": "Volver a intentar",
+  "ttsSpeedValue": "{speed}x",
+  "unblock": "Desbloquear",
+  "unexpectedError": "Error inesperado",
+  "update": "Actualizar",
+  "updateToVersion": "Actualizar a v{releaseVersion}",
+  "usedForNewChats": "Usado para chats nuevos",
+  "userCreatedMessage": "Usuario {email} creado",
+  "validationErrorRequired": "Obligatorio",
+  "wantsToBeYourFriend": "quiere ser tu amigo",
+  "showPassword": "Mostrar contraseña",
+  "@showPassword": {
+    "description": "Tooltip for password visibility toggle (show)."
+  },
+  "hidePassword": "Ocultar contraseña",
+  "@hidePassword": {
+    "description": "Tooltip for password visibility toggle (hide)."
+  },
+  "validatorEnterPassword": "Introduce tu contraseña",
+  "@validatorEnterPassword": {
+    "description": "Validator message when password field is empty."
+  },
+  "validatorPasswordMinLength": "La contraseña debe tener al menos {length} caracteres",
+  "@validatorPasswordMinLength": {
+    "description": "Validator message when password is too short.",
+    "placeholders": {
+      "length": {
+        "type": "String"
+      }
+    }
+  },
+  "validatorEnterEmail": "Introduce tu correo electrónico",
+  "@validatorEnterEmail": {
+    "description": "Validator message when email field is empty."
+  },
+  "validatorEnterValidEmail": "Introduce un correo electrónico válido",
+  "@validatorEnterValidEmail": {
+    "description": "Validator message when email is invalid."
+  },
+  "validatorEnterAnEmail": "Introduce un correo electrónico",
+  "@validatorEnterAnEmail": {
+    "description": "Validator message for create-user email field."
+  },
+  "validatorNameRequired": "El nombre es obligatorio",
+  "@validatorNameRequired": {
+    "description": "Validator message when MCP server name is empty."
+  },
+  "validatorUrlRequired": "Se requiere URL para los transportes HTTP/SSE",
+  "@validatorUrlRequired": {
+    "description": "Validator message when URL is empty for HTTP/SSE."
+  },
+  "validatorCommandRequired": "Se requiere comando para el transporte stdio",
+  "@validatorCommandRequired": {
+    "description": "Validator message when command is empty for stdio."
+  },
+  "tooltipRefresh": "Actualizar",
+  "@tooltipRefresh": {
+    "description": "Tooltip for refresh icon button."
+  },
+  "tooltipMore": "Más",
+  "@tooltipMore": {
+    "description": "Generic more-options tooltip."
+  },
+  "tooltipSetStatus": "Establecer estado",
+  "@tooltipSetStatus": {
+    "description": "Tooltip for report status menu."
+  },
+  "tooltipStyleOptions": "Opciones de estilo",
+  "@tooltipStyleOptions": {
+    "description": "Tooltip for style card popup menu."
+  },
+  "tooltipTestConnection": "Probar conexión",
+  "@tooltipTestConnection": {
+    "description": "Tooltip for MCP server test button."
+  },
+  "tooltipEdit": "Editar",
+  "@tooltipEdit": {
+    "description": "Tooltip for edit button."
+  },
+  "tooltipDeleteLongPress": "Eliminar (mantener pulsado)",
+  "@tooltipDeleteLongPress": {
+    "description": "Tooltip for delete button requiring long press."
+  },
+  "tooltipStopEditing": "Dejar de editar",
+  "@tooltipStopEditing": {
+    "description": "Tooltip for cancel style edit button."
+  },
+  "tooltipClosePanel": "Cerrar panel",
+  "@tooltipClosePanel": {
+    "description": "Tooltip for style picker close button."
+  },
+  "tooltipNew": "Nuevo",
+  "@tooltipNew": {
+    "description": "Tooltip for new scheduled action FAB."
+  },
+  "tooltipCloseSettings": "Cerrar ajustes",
+  "@tooltipCloseSettings": {
+    "description": "Tooltip for settings close button."
+  },
+  "tooltipFriendActions": "Acciones de amigo",
+  "@tooltipFriendActions": {
+    "description": "Tooltip for friend tile popup menu."
+  },
+  "tooltipCancelRequest": "Cancelar solicitud",
+  "@tooltipCancelRequest": {
+    "description": "Tooltip for outgoing request cancel button."
+  },
+  "tooltipAcceptShare": "Aceptar compartición",
+  "@tooltipAcceptShare": {
+    "description": "Tooltip for accept share button."
+  },
+  "tooltipDeclineShare": "Rechazar compartición",
+  "@tooltipDeclineShare": {
+    "description": "Tooltip for decline share button."
+  },
+  "tooltipAccept": "Aceptar",
+  "@tooltipAccept": {
+    "description": "Tooltip for accept friend request button."
+  },
+  "tooltipDecline": "Rechazar",
+  "@tooltipDecline": {
+    "description": "Tooltip for decline friend request button."
+  },
+  "labelOff": "Apagado",
+  "@labelOff": {
+    "description": "Label for thinking level Off."
+  },
+  "labelLow": "Bajo",
+  "@labelLow": {
+    "description": "Label for thinking level Low."
+  },
+  "labelMedium": "Medio",
+  "@labelMedium": {
+    "description": "Label for thinking level Medium."
+  },
+  "labelHigh": "Alto",
+  "@labelHigh": {
+    "description": "Label for thinking level High."
+  },
+  "labelThinkingAuto": "auto",
+  "@labelThinkingAuto": {
+    "description": "Lowercase label for thinking level Auto."
+  },
+  "monogramPlaceholder": "?",
+  "@monogramPlaceholder": {
+    "description": "Placeholder for empty-name monogram."
+  },
+  "labelNewBadge": "NUEVO",
+  "@labelNewBadge": {
+    "description": "New model badge in admin models tab."
+  },
+  "messageNoReportsYet": "Aún no hay informes",
+  "@messageNoReportsYet": {
+    "description": "Empty state for admin reports tab without filter."
+  },
+  "messageNoReportsWithStatus": "No hay informes {status}",
+  "@messageNoReportsWithStatus": {
+    "description": "Empty state for admin reports tab with status filter.",
+    "placeholders": {
+      "status": {
+        "type": "String"
+      }
+    }
+  },
+  "messageNoMcpServersConfigured": "No hay servidores MCP configurados",
+  "@messageNoMcpServersConfigured": {
+    "description": "Empty state for MCP servers tab."
+  },
+  "messageUsePlusButtonToAddOne": "Usa el botón + para añadir uno.",
+  "@messageUsePlusButtonToAddOne": {
+    "description": "Hint for adding MCP server."
+  },
+  "messageTapSyncToDiscoverModels": "Toca el botón de sincronizar para descubrir modeles del proveedor.",
+  "@messageTapSyncToDiscoverModels": {
+    "description": "Hint for syncing models in admin."
+  },
+  "messageUnmute": "Activar micrófono",
+  "@messageUnmute": {
+    "description": "Tooltip for unmute in Talk Mode."
+  },
+  "messageMute": "Silenciar micrófono",
+  "@messageMute": {
+    "description": "Tooltip for mute in Talk Mode."
+  },
+  "messageEndCall": "Finalizar llamada",
+  "@messageEndCall": {
+    "description": "Tooltip for hang-up in Talk Mode."
+  },
+  "messageTapToStart": "Toca para empezar",
+  "@messageTapToStart": {
+    "description": "Talk Mode idle status hint."
+  },
+  "messageListening": "Escuchando…",
+  "@messageListening": {
+    "description": "Talk Mode listening status."
+  },
+  "messageTranscribing": "Transcribiendo…",
+  "@messageTranscribing": {
+    "description": "Talk Mode transcribing status."
+  },
+  "messageThinking": "Pensando…",
+  "@messageThinking": {
+    "description": "Talk Mode thinking status."
+  },
+  "messageSpeakingTapToInterrupt": "Hablando… toca para interrumpir",
+  "@messageSpeakingTapToInterrupt": {
+    "description": "Talk Mode speaking without barge-in."
+  },
+  "messageSpeakingTalkOrTapToInterrupt": "Hablando… habla o toca para interrumpir",
+  "@messageSpeakingTalkOrTapToInterrupt": {
+    "description": "Talk Mode speaking with barge-in."
+  },
+  "messageTapCircleToRetry": "Toca el círculo para reintentar",
+  "@messageTapCircleToRetry": {
+    "description": "Talk Mode retry hint."
+  },
+  "messageAuto": "Auto",
+  "@messageAuto": {
+    "description": "Talk Mode language menu Auto item."
+  },
+  "messageReplyLanguageAuto": "Idioma de respuesta: Auto",
+  "@messageReplyLanguageAuto": {
+    "description": "Talk Mode language tooltip when auto."
+  },
+  "messageReplyLanguageNamed": "Idioma de respuesta: {language}",
+  "@messageReplyLanguageNamed": {
+    "description": "Talk Mode language tooltip when pinned.",
+    "placeholders": {
+      "language": {
+        "type": "String"
+      }
+    }
+  },
+  "labelCouldNotUpdateWithError": "No se ha podido actualizar: {error}",
+  "@labelCouldNotUpdateWithError": {
+    "description": "Report status update failure snackbar.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "messageTestingServer": "Probando {name}…",
+  "@messageTestingServer": {
+    "description": "MCP server test snackbar.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "messageTestOkToolsAvailable": "OK: {count} herramientas disponibles",
+  "@messageTestOkToolsAvailable": {
+    "description": "MCP server test success snackbar.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "messageTestFailed": "Error: {error}",
+  "@messageTestFailed": {
+    "description": "MCP server test failure snackbar.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "messageUnknownError": "error desconocido",
+  "@messageUnknownError": {
+    "description": "Fallback when test result error is missing."
+  },
+  "messageSyncingModels": "Sincronizando modelos del proveedor…",
+  "@messageSyncingModels": {
+    "description": "Snackbar while models are syncing."
+  },
+  "messageModelsSyncedCount": "{count} modelos sincronizados",
+  "@messageModelsSyncedCount": {
+    "description": "Snackbar after model sync completes.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "messageUserCreated": "Usuario {email} creado",
+  "@messageUserCreated": {
+    "description": "Snackbar after admin creates user.",
+    "placeholders": {
+      "email": {
+        "type": "String"
+      }
+    }
+  },
+  "labelOpen": "Abierto",
+  "@labelOpen": {
+    "description": "Report status label open."
+  },
+  "labelInProgress": "En curso",
+  "@labelInProgress": {
+    "description": "Report status label in_progress."
+  },
+  "labelClosed": "Cerrado",
+  "@labelClosed": {
+    "description": "Report status label closed."
+  },
+  "statusOpen": "abierto",
+  "@statusOpen": {
+    "description": "Report status filter value open (lowercase)."
+  },
+  "statusInProgress": "en_curso",
+  "@statusInProgress": {
+    "description": "Report status filter value in_progress (lowercase)."
+  },
+  "statusClosed": "cerrado",
+  "@statusClosed": {
+    "description": "Report status filter value closed (lowercase)."
+  },
+  "messageOpenReports": "No hay informes abiertos",
+  "@messageOpenReports": {
+    "description": "Empty state for open reports filter."
+  },
+  "messageInProgressReports": "No hay informes en curso",
+  "@messageInProgressReports": {
+    "description": "Empty state for in_progress reports filter."
+  },
+  "messageClosedReports": "No hay informes cerrados",
+  "@messageClosedReports": {
+    "description": "Empty state for closed reports filter."
+  },
+  "labelVision": "Visión",
+  "@labelVision": {
+    "description": "Capability badge label."
+  },
+  "labelTools": "Herramientas",
+  "@labelTools": {
+    "description": "Capability badge label."
+  },
+  "labelThinking": "Razonamiento",
+  "@labelThinking": {
+    "description": "Capability badge label."
+  },
+  "tooltipVisionUnknown": "Visión desconocida para este modelo",
+  "@tooltipVisionUnknown": {
+    "description": "Tooltip for unknown vision capability."
+  },
+  "tooltipToolsUnknown": "Herramientas desconocidas para este modelo",
+  "@tooltipToolsUnknown": {
+    "description": "Tooltip for unknown tools capability."
+  },
+  "tooltipThinkingUnknown": "Razonamiento desconocido para este modelo",
+  "@tooltipThinkingUnknown": {
+    "description": "Tooltip for unknown thinking capability."
+  },
+  "labelLowSensitivity": "Baja sensibilidad",
+  "@labelLowSensitivity": {
+    "description": "Barge-in sensitivity level."
+  },
+  "labelHighSensitivity": "Alta sensibilidad",
+  "@labelHighSensitivity": {
+    "description": "Barge-in sensitivity level."
+  },
+  "labelBargeInOff": "Apagado",
+  "@labelBargeInOff": {
+    "description": "Barge-in sensitivity Off."
+  },
+  "labelByModel": "Por modelo",
+  "@labelByModel": {
+    "description": "Usage page dropdown by model."
+  },
+  "labelByDay": "Por día",
+  "@labelByDay": {
+    "description": "Usage page dropdown by day."
+  },
+  "labelByConversation": "Por conversación",
+  "@labelByConversation": {
+    "description": "Usage page dropdown by conversation."
+  },
+  "labelTokens": "Tokens",
+  "@labelTokens": {
+    "description": "Usage page tokens label."
+  },
+  "labelMessages": "Mensajes",
+  "@labelMessages": {
+    "description": "Usage page messages label."
+  },
+  "messageNoDataForPeriod": "No hay datos para este periodo",
+  "@messageNoDataForPeriod": {
+    "description": "Usage page empty chart message."
+  },
+  "titleUsageByModel": "Por modelo",
+  "@titleUsageByModel": {
+    "description": "Usage page section by model."
+  },
+  "titleUsageByDay": "Por día",
+  "@titleUsageByDay": {
+    "description": "Usage page section by day."
+  },
+  "titleUsageByConversation": "Por conversación",
+  "@titleUsageByConversation": {
+    "description": "Usage page section by conversation."
+  },
+  "labelEnabled": "Activado",
+  "@labelEnabled": {
+    "description": "Generic enabled label."
+  },
+  "labelStdio": "stdio",
+  "@labelStdio": {
+    "description": "MCP transport stdio."
+  },
+  "labelCommand": "Comando",
+  "@labelCommand": {
+    "description": "MCP server command label."
+  },
+  "messageAdminPanelSubtitle": "Usuarios, modelos, servidores MCP, informes",
+  "@messageAdminPanelSubtitle": {
+    "description": "Subtitle for admin page in settings drawer."
+  },
+  "messageAllowAdminPrivileges": "Permitir a este usuario gestionar usuarios y servidores MCP",
+  "@messageAllowAdminPrivileges": {
+    "description": "Create user admin privileges subtitle."
+  },
+  "messageDisabledServersIgnored": "Los servidores desactivados son ignorados por el agente",
+  "@messageDisabledServersIgnored": {
+    "description": "MCP server enabled switch subtitle."
+  },
+  "titleProfile": "Perfil",
+  "@titleProfile": {
+    "description": "Settings page section label."
+  },
+  "titleModels": "Modelos",
+  "@titleModels": {
+    "description": "Settings page section label."
+  },
+  "titleMemory": "Memoria",
+  "@titleMemory": {
+    "description": "Settings page section label."
+  },
+  "titleSoftwareUpdate": "Actualización de software",
+  "@titleSoftwareUpdate": {
+    "description": "Settings page section label."
+  },
+  "messageServerFallback": "Fallback del servidor (normalmente {model})",
+  "@messageServerFallback": {
+    "description": "Subtitle when no default model is selected.",
+    "placeholders": {
+      "model": {
+        "type": "String"
+      }
+    }
+  },
+  "messageNotSetUsingDefaults": "No establecido — usando valores predeterminados integrados",
+  "@messageNotSetUsingDefaults": {
+    "description": "Global default prompt subtitle when empty."
+  },
+  "messageSavedMemoriesHint": "Los recuerdos se gestionan desde la pantalla de chat a través de la página de memoria. Abre el chat para revisarlos, editarlos o eliminarlos.",
+  "@messageSavedMemoriesHint": {
+    "description": "Hint text in memory settings section."
+  },
+  "messageNoSavedStylesHint": "Aún no hay estilos guardados. Compón un modelo, nivel de razonamiento e instrucción en Personalizar, luego guarda la combinación para cambiar en un toque.",
+  "@messageNoSavedStylesHint": {
+    "description": "Empty state hint in style picker."
+  },
+  "labelSaveChanges": "Guardar cambios",
+  "@labelSaveChanges": {
+    "description": "Button label when editing a style."
+  },
+  "messageStyleModelNotInstalled": "{modelId} no está instalado",
+  "@messageStyleModelNotInstalled": {
+    "description": "Snackbar when applying a style with missing model.",
+    "placeholders": {
+      "modelId": {
+        "type": "String"
+      }
+    }
+  },
+  "messageNotSupportedByThisModel": "No compatible con este modelo",
+  "@messageNotSupportedByThisModel": {
+    "description": "Thinking control unsupported hint."
+  },
+  "messageNoModelsMatchSearchAndCapabilities": "Ningún modelo coincide con tu búsqueda y las capacidades seleccionadas.",
+  "@messageNoModelsMatchSearchAndCapabilities": {
+    "description": "Empty state when both search and filters are active."
+  },
+  "messageNoModelsMatchSearch": "Ningún modelo coincide con tu búsqueda.",
+  "@messageNoModelsMatchSearch": {
+    "description": "Empty state when search has no results."
+  },
+  "messageNoModelsHaveCapabilities": "Ningún modelo tiene las capacidades seleccionadas.",
+  "@messageNoModelsHaveCapabilities": {
+    "description": "Empty state when filters exclude everything."
+  },
+  "messageNoModelsAvailable": "No hay modelos disponibles.",
+  "@messageNoModelsAvailable": {
+    "description": "Empty state when no models at all."
+  },
+  "messageCustomPromptReplacesTemplate": "Esta conversación tiene un prompt personalizado. Elegir una plantilla lo reemplaza.",
+  "@messageCustomPromptReplacesTemplate": {
+    "description": "Hint under template picker when conversation has custom prompt."
+  },
+  "messageEditingStyle": "Editando \"{name}\"",
+  "@messageEditingStyle": {
+    "description": "Header while editing a saved style.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "messageStopUsingForNewChats": "Dejar de usar para chats nuevos",
+  "@messageStopUsingForNewChats": {
+    "description": "Popup item to unset default style."
+  },
+  "labelCustomize": "Personalizar",
+  "@labelCustomize": {
+    "description": "Style picker segmented button label."
+  },
+  "messageGenerateHint": "Describe lo que quieres que haga la instrucción:",
+  "@messageGenerateHint": {
+    "description": "Label above AI prompt generator intent field."
+  },
+  "messageRefineDraft": "Refinar borrador",
+  "@messageRefineDraft": {
+    "description": "Title of AI refine panel."
+  },
+  "hintSarcasticCodingMentor": "p. ej. Un mentor de programación sarcástico que da respuestas cortas",
+  "@hintSarcasticCodingMentor": {
+    "description": "Hint for AI prompt generator intent field."
+  },
+  "messageGenerating": "Generando…",
+  "@messageGenerating": {
+    "description": "Label shown while AI generates a prompt."
+  },
+  "messageGenerationFailed": "Generación fallida",
+  "@messageGenerationFailed": {
+    "description": "Fallback AI generation error label."
+  },
+  "messageCouldNotLoadModels": "No se han podido cargar los modelos",
+  "@messageCouldNotLoadModels": {
+    "description": "Placeholder when model list cannot load."
+  },
+  "messageEveryoneAndAllAgents": "Todos y todos los agentes",
+  "@messageEveryoneAndAllAgents": {
+    "description": "Mention autocomplete @all header."
+  },
+  "messageAgent": "Agente",
+  "@messageAgent": {
+    "description": "Mention autocomplete agent header."
+  },
+  "messageBranch": "Rama",
+  "@messageBranch": {
+    "description": "Message action branch tooltip."
+  },
+  "messageCopyMessageToClipboard": "Copiar mensaje al portapapeles",
+  "@messageCopyMessageToClipboard": {
+    "description": "Copy button tooltip."
+  },
+  "messageRegenerate": "Regenerar",
+  "@messageRegenerate": {
+    "description": "Regenerate button tooltip."
+  },
+  "messageDeleteThisResponse": "Eliminar esta respuesta y generar una nueva",
+  "@messageDeleteThisResponse": {
+    "description": "Regenerate dialog content."
+  },
+  "messageSpeak": "Leer",
+  "@messageSpeak": {
+    "description": "Speak button tooltip."
+  },
+  "messageCopied": "¡Copiado!",
+  "@messageCopied": {
+    "description": "Copy feedback tooltip."
+  },
+  "messageCouldNotReachServer": "No se pudo contactar al servidor — revisa tu conexión e inténtalo de nuevo.",
+  "@messageCouldNotReachServer": {
+    "description": "Generic network/connection error message."
+  },
+  "messageContextWindow": "Ventana de contexto: {used} de {total} tokens usados",
+  "@messageContextWindow": {
+    "description": "Context window indicator text.",
+    "placeholders": {
+      "used": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "messageAbove80PercentSummarized": "Por encima del 80%, los mensajes antiguos se resumen para liberar espacio.",
+  "@messageAbove80PercentSummarized": {
+    "description": "Context window explanation."
+  },
+  "messageCouldNotSubmit": "No se ha podido enviar: {error}",
+  "@messageCouldNotSubmit": {
+    "description": "Generic submit error with detail.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "messageEmailUpdatedSignInAgain": "Correo electrónico actualizado. Vuelve a iniciar sesión con la nueva dirección.",
+  "@messageEmailUpdatedSignInAgain": {
+    "description": "Snackbar after email change."
+  },
+  "messageChangingEmailSignsYouOut": "Cambiar el correo electrónico cierra la sesión",
+  "@messageChangingEmailSignsYouOut": {
+    "description": "Edit profile email warning."
+  },
+  "messageNoFriendsYet": "Aún no tienes amigos. Envía una solicitud por correo electrónico arriba.",
+  "@messageNoFriendsYet": {
+    "description": "Empty friends list hint."
+  },
+  "titleIncomingRequests": "Solicitudes entrantes",
+  "@titleIncomingRequests": {
+    "description": "Friends page section header."
+  },
+  "titleSharedWithYou": "Compartido contigo",
+  "@titleSharedWithYou": {
+    "description": "Friends page section header."
+  },
+  "titleSentRequests": "Solicitudes enviadas",
+  "@titleSentRequests": {
+    "description": "Friends page section header."
+  },
+  "titleYourFriends": "Tus amigos",
+  "@titleYourFriends": {
+    "description": "Friends page section header."
+  },
+  "titleBlocked": "Bloqueados",
+  "@titleBlocked": {
+    "description": "Friends page section header."
+  },
+  "messageAddAFriend": "Añadir un amigo",
+  "@messageAddAFriend": {
+    "description": "Card title in friends page."
+  },
+  "messageBlockEmailConfirmation": "¿Bloquear a {email}? Se elimina cualquier amistad o solicitud pendiente entre vosotros, y ninguno de los dos puede enviar nuevas solicitudes o añadir al otro a salas. Puedes desbloquearlo más tarde.",
+  "@messageBlockEmailConfirmation": {
+    "description": "Block user confirmation dialog content.",
+    "placeholders": {
+      "email": {
+        "type": "String"
+      }
+    }
+  },
+  "messageRemoveFriendConfirmation": "¿Eliminar a {name} de tus amigos? Puedes enviar una nueva solicitud más tarde.",
+  "@messageRemoveFriendConfirmation": {
+    "description": "Remove friend confirmation dialog content.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "messageYouAreNowFriendsWith": "Ahora eres amigo de {email}",
+  "@messageYouAreNowFriendsWith": {
+    "description": "Snackbar after auto-accepted friend request.",
+    "placeholders": {
+      "email": {
+        "type": "String"
+      }
+    }
+  },
+  "messageFriendRequestSentTo": "Solicitud de amistad enviada a {email}",
+  "@messageFriendRequestSentTo": {
+    "description": "Snackbar after sending friend request.",
+    "placeholders": {
+      "email": {
+        "type": "String"
+      }
+    }
+  },
+  "labelStyleNoun": "estilo",
+  "@labelStyleNoun": {
+    "description": "Noun for shared style item."
+  },
+  "labelPromptTemplateNoun": "plantilla de instrucción",
+  "@labelPromptTemplateNoun": {
+    "description": "Noun for shared prompt template item."
+  },
+  "messageItemAddedToYourNouns": "\"{name}\" se ha añadido a tus {noun}s",
+  "@messageItemAddedToYourNouns": {
+    "description": "Snackbar after accepting shared item.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "noun": {
+        "type": "String"
+      }
+    }
+  },
+  "titleConfirmAction": "¿Confirmar acción?",
+  "@titleConfirmAction": {
+    "description": "Generic confirmation dialog title."
+  },
+  "labelConversation": "Conversación",
+  "@labelConversation": {
+    "description": "Generic conversation label."
+  },
+  "labelAlways": "Siempre",
+  "@labelAlways": {
+    "description": "Talk mode language always label."
+  },
+  "messageBackToChat": "Volver al chat",
+  "@messageBackToChat": {
+    "description": "App bar back label in some contexts."
+  },
+  "titleSearchResults": "Resultados de búsqueda",
+  "@titleSearchResults": {
+    "description": "Search results header."
+  },
+  "messageNoResultsFor": "No hay resultados para \"{query}\"",
+  "@messageNoResultsFor": {
+    "description": "Empty search results message.",
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "messageSearchHint": "Introduce una consulta de búsqueda",
+  "@messageSearchHint": {
+    "description": "Hint in search field."
+  },
+  "messageEveryToolEnabled": "Todas las herramientas disponibles están activadas",
+  "@messageEveryToolEnabled": {
+    "description": "Tools picker hint."
+  },
+  "titleEnabledTools": "Herramientas activadas",
+  "@titleEnabledTools": {
+    "description": "Tools picker enabled section header."
+  },
+  "titleAvailableTools": "Herramientas disponibles",
+  "@titleAvailableTools": {
+    "description": "Tools picker available section header."
+  },
+  "messageCouldNotReachServerPleaseTryAgain": "No se ha podido contactar con el servidor. Inténtalo de nuevo.",
+  "@messageCouldNotReachServerPleaseTryAgain": {
+    "description": "Generic retry error message."
+  },
+  "labelConnection": "Conexión",
+  "@labelConnection": {
+    "description": "Generic connection label."
+  },
+  "messageCityCountry": "Ciudad, País",
+  "@messageCityCountry": {
+    "description": "Location helper text."
+  },
+  "messageCityLevelOnly": "Solo a nivel de ciudad, compartido como {location}",
+  "@messageCityLevelOnly": {
+    "description": "Subtitle when coarse location sharing is on.",
+    "placeholders": {
+      "location": {
+        "type": "String"
+      }
+    }
+  },
+  "labelLocation": "Ubicación",
+  "@labelLocation": {
+    "description": "Location section label."
+  },
+  "messageNoDocumentsHint": "Sube documentos para recuperarlos en todos los chats.",
+  "@messageNoDocumentsHint": {
+    "description": "Knowledge base empty state hint."
+  },
+  "messageCouldNotLoadConversation": "No se ha podido cargar la conversación: {error}",
+  "@messageCouldNotLoadConversation": {
+    "description": "Error loading current conversation.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "messageCouldNotLoadConversations": "No se han podido cargar las conversaciones: {error}",
+  "@messageCouldNotLoadConversations": {
+    "description": "Error loading conversation list.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "messageCouldNotLoadOlderMessages": "No se han podido cargar mensajes anteriores: {error}",
+  "@messageCouldNotLoadOlderMessages": {
+    "description": "Error loading older messages.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "messageCouldNotCreateConversation": "No se ha podido crear la conversación: {error}",
+  "@messageCouldNotCreateConversation": {
+    "description": "Error creating conversation.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "messageCouldNotDeleteConversation": "No se ha podido eliminar la conversación: {error}",
+  "@messageCouldNotDeleteConversation": {
+    "description": "Error deleting conversation.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "messageCouldNotRegenerate": "No se ha podido regenerar: {error}",
+  "@messageCouldNotRegenerate": {
+    "description": "Error regenerating assistant response.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "messageCouldNotBranch": "No se ha podido ramificar la conversación: {error}",
+  "@messageCouldNotBranch": {
+    "description": "Error branching conversation.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "messageCouldNotPinConversation": "No se ha podido fijar la conversación: {error}",
+  "@messageCouldNotPinConversation": {
+    "description": "Error pinning conversation.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "messageCouldNotReloadConversation": "No se ha podido recargar la conversación: {error}",
+  "@messageCouldNotReloadConversation": {
+    "description": "Error reloading conversation.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "messageNoConversationsYet": "Aún no hay conversaciones.",
+  "@messageNoConversationsYet": {
+    "description": "Empty conversation list."
+  },
+  "messageNoRoomsYet": "Aún no hay salas.",
+  "@messageNoRoomsYet": {
+    "description": "Empty rooms list."
+  },
+  "messageStartAConversation": "Iniciar una conversación",
+  "@messageStartAConversation": {
+    "description": "Hint to start chatting."
+  },
+  "messageExplainQuantumComputing": "Explica la computación cuántica en términos sencillos",
+  "@messageExplainQuantumComputing": {
+    "description": "Chat input placeholder example."
+  },
+  "messageAttachOrDragFiles": "Adjunta o arrastra PDFs, hojas de cálculo, código e imágenes.",
+  "@messageAttachOrDragFiles": {
+    "description": "Attachment drag target hint."
+  },
+  "messageAttachPhotosOrFiles": "Adjuntar fotos o archivos",
+  "@messageAttachPhotosOrFiles": {
+    "description": "Attachment menu camera/gallery option."
+  },
+  "messageDuplicateFile": "Archivo duplicado: {name}",
+  "@messageDuplicateFile": {
+    "description": "Duplicate attachment error.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "messageNewerVersionAvailable": "Hay una versión más reciente disponible",
+  "@messageNewerVersionAvailable": {
+    "description": "Update banner message."
+  },
+  "messageCheckingForUpdates": "Buscando actualizaciones…",
+  "@messageCheckingForUpdates": {
+    "description": "Update status checking label."
+  },
+  "messageDownloadingUpdate": "Descargando actualización…",
+  "@messageDownloadingUpdate": {
+    "description": "Update status downloading label."
+  },
+  "messageDownloadedArchiveEmpty": "El archivo descargado está vacío",
+  "@messageDownloadedArchiveEmpty": {
+    "description": "Update error empty archive."
+  },
+  "messageUpdateFailed": "Actualización fallida",
+  "@messageUpdateFailed": {
+    "description": "Update status error label."
+  },
+  "messageInstallFailed": "Instalación fallida",
+  "@messageInstallFailed": {
+    "description": "Update install failure label."
+  },
+  "labelError": "Error",
+  "@labelError": {
+    "description": "Generic error label."
+  },
+  "labelDismiss": "Descartar",
+  "@labelDismiss": {
+    "description": "Dismiss button label."
+  },
+  "messageDismissed": "Descartado",
+  "@messageDismissed": {
+    "description": "Snackbar after dismissing update."
+  },
+  "tooltipCopy": "Copiar",
+  "@tooltipCopy": {
+    "description": "Generic copy tooltip."
+  },
+  "tooltipBranch": "Rama",
+  "@tooltipBranch": {
+    "description": "Message branch tooltip."
+  },
+  "tooltipRegenerate": "Regenerar",
+  "@tooltipRegenerate": {
+    "description": "Message regenerate tooltip."
+  },
+  "tooltipCopyMessage": "Copiar mensaje al portapapeles",
+  "@tooltipCopyMessage": {
+    "description": "Copy message tooltip."
+  },
+  "messageDeleteResponseRegenerate": "Eliminar esta respuesta y generar una nueva",
+  "@messageDeleteResponseRegenerate": {
+    "description": "Regenerate confirmation dialog content."
+  },
+  "messageRegenerateTitle": "Regenerar",
+  "@messageRegenerateTitle": {
+    "description": "Regenerate confirmation dialog title."
+  },
+  "tooltipSpeak": "Leer",
+  "@tooltipSpeak": {
+    "description": "Speak button tooltip."
+  },
+  "messageDragToPan": "Arrastra para desplazar • Doble toque para restablecer",
+  "@messageDragToPan": {
+    "description": "Image viewer hint."
+  },
+  "messageDropFilesToAttach": "Suelta archivos para adjuntar",
+  "@messageDropFilesToAttach": {
+    "description": "Drag-and-drop attachment hint."
+  },
+  "labelCamera": "Cámara",
+  "@labelCamera": {
+    "description": "Camera option label."
+  },
+  "labelGallery": "Galería",
+  "@labelGallery": {
+    "description": "Gallery option label."
+  },
+  "labelFile": "Archivo",
+  "@labelFile": {
+    "description": "File option label."
+  },
+  "messageDeleteConversationConfirmation": "¿Eliminar esta conversación?",
+  "@messageDeleteConversationConfirmation": {
+    "description": "Delete conversation dialog content."
+  },
+  "messageConversationStyleUpdated": "Estilo de conversación actualizado",
+  "@messageConversationStyleUpdated": {
+    "description": "Snackbar after applying style."
+  },
+  "messageChangeConversationStyle": "¿Cambiar el estilo de conversación?",
+  "@messageChangeConversationStyle": {
+    "description": "Style change confirmation title."
+  },
+  "messageCalling": "Llamando a {name}…",
+  "@messageCalling": {
+    "description": "Talk mode status when calling.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "messageConnectionLost": "Conexión perdida.",
+  "@messageConnectionLost": {
+    "description": "Room connection lost indicator."
+  },
+  "messageDeactivate": "Desactivar",
+  "@messageDeactivate": {
+    "description": "Memory deactivate action."
+  },
+  "messageCreateMemory": "Crear recuerdo",
+  "@messageCreateMemory": {
+    "description": "Memory FAB tooltip."
+  },
+  "titleCreateMemoryAction": "Crear recuerdo",
+  "@titleCreateMemoryAction": {
+    "description": "Memory page app bar title."
+  },
+  "titleEditMemoryAction": "Editar recuerdo",
+  "@titleEditMemoryAction": {
+    "description": "Memory page edit title."
+  },
+  "titleDeleteMemoryAction": "Eliminar recuerdo",
+  "@titleDeleteMemoryAction": {
+    "description": "Memory page delete title."
+  },
+  "messageDeleteMemoryConfirmation": "¿Seguro que quieres eliminar este recuerdo?\n\n\"{content}\"",
+  "@messageDeleteMemoryConfirmation": {
+    "description": "Confirmation dialog before deleting memory.",
+    "placeholders": {
+      "content": {
+        "type": "String"
+      }
+    }
+  },
+  "messageCreateNewMemory": "Crear nuevo recuerdo",
+  "@messageCreateNewMemory": {
+    "description": "Memory page empty action."
+  },
+  "messageNoMemoriesYet": "Aún no hay recuerdos.",
+  "@messageNoMemoriesYet": {
+    "description": "Memory list empty state."
+  },
+  "titleRoomMembers": "Miembros",
+  "@titleRoomMembers": {
+    "description": "Room members section header."
+  },
+  "titleRoomAgents": "Agentes",
+  "@titleRoomAgents": {
+    "description": "Room agents section header."
+  },
+  "messageCreateRoom": "Crea salas donde varios agentes de IA (y personas) conversan juntos.",
+  "@messageCreateRoom": {
+    "description": "Create room dialog subtitle."
+  },
+  "messageCreateARoomQuestion": "¿Crear una sala?",
+  "@messageCreateARoomQuestion": {
+    "description": "Create room dialog title."
+  },
+  "messageAgentName": "Agente",
+  "@messageAgentName": {
+    "description": "Generic agent label."
+  },
+  "messageRoomOwner": "Propietario",
+  "@messageRoomOwner": {
+    "description": "Room owner badge."
+  },
+  "messageEveryone": "Todos",
+  "@messageEveryone": {
+    "description": "Generic everyone label."
+  },
+  "messageMentionAll": "@all",
+  "@messageMentionAll": {
+    "description": "Mention all literal."
+  },
+  "messageUnnamed": "(sin nombre)",
+  "@messageUnnamed": {
+    "description": "Fallback for unnamed item."
+  },
+  "messageNoRoomMessagesYet": "Aún no hay mensajes.",
+  "@messageNoRoomMessagesYet": {
+    "description": "Empty room chat state."
+  },
+  "messageRoomMuted": "Silenciado",
+  "@messageRoomMuted": {
+    "description": "Room/conversation muted tooltip."
+  },
+  "tooltipRoomInfo": "Información de la sala",
+  "@tooltipRoomInfo": {
+    "description": "Room app bar info tooltip."
+  },
+  "tooltipLeaveRoom": "Salir de la sala",
+  "@tooltipLeaveRoom": {
+    "description": "Leave room tooltip."
+  },
+  "tooltipRoomMenu": "Menú de la sala",
+  "@tooltipRoomMenu": {
+    "description": "Room app bar menu tooltip."
+  },
+  "messageDeleteRoom": "Eliminar sala",
+  "@messageDeleteRoom": {
+    "description": "Room delete menu item."
+  },
+  "messageLeaveRoom": "Salir de la sala",
+  "@messageLeaveRoom": {
+    "description": "Room leave menu item."
+  },
+  "messageInviteSent": "Invitación enviada",
+  "@messageInviteSent": {
+    "description": "Snackbar after inviting member."
+  },
+  "messageNoModels": "Sin modelos",
+  "@messageNoModels": {
+    "description": "Add agent dialog when no models."
+  },
+  "messageNoTools": "Sin herramientas",
+  "@messageNoTools": {
+    "description": "Add agent dialog when no tools."
+  },
+  "tooltipSharePromptWithFriend": "Compartir \"{name}\" con un amigo",
+  "@tooltipSharePromptWithFriend": {
+    "description": "Share prompt template tooltip.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "tooltipEditTemplate": "Editar \"{name}\"",
+  "@tooltipEditTemplate": {
+    "description": "Edit template tooltip.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "tooltipDeleteTemplate": "Eliminar \"{name}\"",
+  "@tooltipDeleteTemplate": {
+    "description": "Delete template tooltip.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "messageEditSystemPrompt": "Editar instrucción del sistema",
+  "@messageEditSystemPrompt": {
+    "description": "Default system prompt editor dialog title."
+  },
+  "messageEditMemory": "Editar recuerdo",
+  "@messageEditMemory": {
+    "description": "Memory edit FAB tooltip."
+  },
+  "messageEditScheduledAction": "Editar acción programada",
+  "@messageEditScheduledAction": {
+    "description": "Scheduled action edit title."
+  },
+  "messageEditThisMessage": "Editar este mensaje y reejecutar la conversación desde aquí",
+  "@messageEditThisMessage": {
+    "description": "Edit message tooltip."
+  },
+  "messageEmailRequired": "El correo electrónico es obligatorio",
+  "@messageEmailRequired": {
+    "description": "Edit profile email validator."
+  },
+  "messageFullNameRequired": "El nombre completo es obligatorio",
+  "@messageFullNameRequired": {
+    "description": "Edit profile full name validator."
+  },
+  "messageCurrentPasswordRequired": "Se requiere la contraseña actual",
+  "@messageCurrentPasswordRequired": {
+    "description": "Change password current validator."
+  },
+  "messageNewPasswordRequired": "Se requiere una nueva contraseña",
+  "@messageNewPasswordRequired": {
+    "description": "Change password new validator."
+  },
+  "messagePasswordsDoNotMatch": "Las contraseñas no coinciden",
+  "@messagePasswordsDoNotMatch": {
+    "description": "Change password confirm validator."
+  },
+  "messageProfileUpdated": "Perfil actualizado",
+  "@messageProfileUpdated": {
+    "description": "Snackbar after profile update."
+  },
+  "messageFailedToUpdateProfile": "Error al actualizar el perfil",
+  "@messageFailedToUpdateProfile": {
+    "description": "Fallback edit profile error."
+  },
+  "messageFailedToChangePassword": "Error al cambiar la contraseña",
+  "@messageFailedToChangePassword": {
+    "description": "Fallback change password error."
+  },
+  "messageFailedToUpdateLocation": "Error al actualizar la ubicación",
+  "@messageFailedToUpdateLocation": {
+    "description": "Fallback location update error."
+  },
+  "labelMonthNames": "ene.,feb.,mar.,abr.,may.,jun.,jul.,ago.,sept.,oct.,nov.,dic.",
+  "@labelMonthNames": {
+    "description": "Comma-separated abbreviated month names."
+  },
+  "messageMonthDayYearTime": "{day} de {month} de {year} • {hour}:{minute} {amPm}",
+  "@messageMonthDayYearTime": {
+    "description": "Formatted timestamp string.",
+    "placeholders": {
+      "month": {
+        "type": "String"
+      },
+      "day": {
+        "type": "String"
+      },
+      "year": {
+        "type": "String"
+      },
+      "hour": {
+        "type": "String"
+      },
+      "minute": {
+        "type": "String"
+      },
+      "amPm": {
+        "type": "String"
+      }
+    }
+  },
+  "labelOneWeek": "1 semana",
+  "@labelOneWeek": {
+    "description": "Mute duration 1 week."
+  },
+  "labelEightHours": "8 horas",
+  "@labelEightHours": {
+    "description": "Mute duration 8 hours."
+  },
+  "labelForever": "para siempre",
+  "@labelForever": {
+    "description": "Mute duration forever."
+  },
+  "labelUnmute": "desilenciar",
+  "@labelUnmute": {
+    "description": "Mute action unmute."
+  },
+  "messageMute1Week": "Silenciado durante 1 semana",
+  "@messageMute1Week": {
+    "description": "Snackbar mute 1 week."
+  },
+  "messageMute8Hours": "Silenciado durante 8 horas",
+  "@messageMute8Hours": {
+    "description": "Snackbar mute 8 hours."
+  },
+  "messageMutedForever": "Silenciado para siempre",
+  "@messageMutedForever": {
+    "description": "Snackbar mute forever."
+  },
+  "messageUnmuted": "Desilenciado",
+  "@messageUnmuted": {
+    "description": "Snackbar unmute."
+  },
+  "titleMutedUntil": "Silenciado hasta {time}",
+  "@titleMutedUntil": {
+    "description": "Muted until timestamp tooltip.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "labelSystemDefault": "Predeterminado del sistema",
+  "@labelSystemDefault": {
+    "description": "Generic system default label."
+  },
+  "messageActivate": "Activar",
+  "@messageActivate": {
+    "description": "Memory activate action."
+  },
+  "tooltipEditMemory": "Editar recuerdo",
+  "@tooltipEditMemory": {
+    "description": "Memory item edit tooltip."
+  },
+  "tooltipDeleteMemory": "Eliminar recuerdo",
+  "@tooltipDeleteMemory": {
+    "description": "Memory item delete tooltip."
+  },
+  "tooltipDeactivateMemory": "Desactivar recuerdo",
+  "@tooltipDeactivateMemory": {
+    "description": "Memory item deactivate tooltip."
+  },
+  "tooltipActivateMemory": "Activar recuerdo",
+  "@tooltipActivateMemory": {
+    "description": "Memory item activate tooltip."
+  },
+  "labelImage": "Imagen",
+  "@labelImage": {
+    "description": "Generic image label."
+  },
+  "labelAudio": "Audio",
+  "@labelAudio": {
+    "description": "Generic audio label."
+  },
+  "labelVideo": "Vídeo",
+  "@labelVideo": {
+    "description": "Generic video label."
+  },
+  "labelDocument": "Documento",
+  "@labelDocument": {
+    "description": "Generic document label."
+  },
+  "messageTool": "herramienta",
+  "@messageTool": {
+    "description": "Generic tool label."
+  },
+  "messageBlockMath": "matemáticas en bloque",
+  "@messageBlockMath": {
+    "description": "Semantic label for block math."
+  },
+  "messageInlineMath": "matemáticas en línea",
+  "@messageInlineMath": {
+    "description": "Semantic label for inline math."
+  },
+  "messageDragToPanDoubleTapReset": "Arrastra para desplazar • Doble toque para restablecer",
+  "@messageDragToPanDoubleTapReset": {
+    "description": "Image viewer hint."
+  },
+  "messageDropFilesHere": "Suelta archivos para adjuntar",
+  "@messageDropFilesHere": {
+    "description": "Drag and drop attachment hint."
+  },
+  "labelBytes": "bytes",
+  "@labelBytes": {
+    "description": "Generic bytes label."
+  },
+  "labelClose": "Cerrar",
+  "@labelClose": {
+    "description": "Generic close label."
+  },
+  "messageFailedToRenderDiagramWithError": "Error al renderizar el diagrama: {error}",
+  "@messageFailedToRenderDiagramWithError": {
+    "description": "Mermaid diagram error with detail.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "messageCouldNotLoadDiagram": "No se ha podido cargar el diagrama: {error}",
+  "@messageCouldNotLoadDiagram": {
+    "description": "Mermaid diagram load error.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "messageParseFailedForTool": "Error al analizar {tool}",
+  "@messageParseFailedForTool": {
+    "description": "Tool argument parse error.",
+    "placeholders": {
+      "tool": {
+        "type": "String"
+      }
+    }
+  },
+  "labelRetry": "Reintentar",
+  "@labelRetry": {
+    "description": "Generic retry label."
+  },
+  "labelDone": "Hecho",
+  "@labelDone": {
+    "description": "Generic done label."
+  },
+  "labelLoading": "Cargando…",
+  "@labelLoading": {
+    "description": "Generic loading label."
+  },
+  "labelDeviceBusy": "Dispositivo o recurso ocupado",
+  "@labelDeviceBusy": {
+    "description": "Talk mode mic busy error."
+  },
+  "messageMicrophoneUnavailable": "Micrófono no disponible: {error}",
+  "@messageMicrophoneUnavailable": {
+    "description": "Talk mode mic unavailable.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "messageCouldNotTranscribe": "No se ha podido transcribir: {error}",
+  "@messageCouldNotTranscribe": {
+    "description": "Talk mode transcription error.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "messageDidntCatchThat": "No te he entendido — inténtalo de nuevo",
+  "@messageDidntCatchThat": {
+    "description": "Talk mode empty transcript."
+  },
+  "messageCouldNotResolveLocation": "No se ha podido determinar tu ubicación",
+  "@messageCouldNotResolveLocation": {
+    "description": "Geolocation resolve error."
+  },
+  "messageFailedToResolveLocation": "Error al determinar tu ubicación",
+  "@messageFailedToResolveLocation": {
+    "description": "Fallback geolocation error."
+  },
+  "labelOr": "o",
+  "@labelOr": {
+    "description": "Generic or."
+  },
+  "labelOnline": "en línea",
+  "@labelOnline": {
+    "description": "Online status suffix."
+  },
+  "messageCallingX": "Llamando a X…",
+  "@messageCallingX": {
+    "description": "Talk mode calling placeholder."
+  },
+  "messageRevertAllChangesWarning": "Descarta todos los cambios no confirmados en tu espacio de trabajo. Esto no se puede deshacer.",
+  "@messageRevertAllChangesWarning": {
+    "description": "Warning shown before discarding all uncommitted microapp changes."
+  },
+  "labelRemember": "Recordar",
+  "@labelRemember": {
+    "description": "Label on the remember-this button."
+  },
+  "messageRememberDescription": "Guarda este contenido como un recuerdo para futura referencia:",
+  "@messageRememberDescription": {
+    "description": "Explanation in remember dialog."
+  },
+  "messageMemorySaved": "Recuerdo guardado correctamente",
+  "@messageMemorySaved": {
+    "description": "Success snackbar after saving memory."
+  },
+  "messageFailedToSaveMemory": "No se pudo guardar el recuerdo: {error}",
+  "@messageFailedToSaveMemory": {
+    "description": "Error snackbar after saving memory.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "messageRecording": "Grabando {duration}",
+  "@messageRecording": {
+    "description": "Voice recording duration label.",
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "messageFailedToDeleteRoom": "No se pudo eliminar la sala: {error}",
+  "@messageFailedToDeleteRoom": {
+    "description": "Error snackbar after deleting room.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "labelUndo": "Deshacer",
+  "@labelUndo": {
+    "description": "Undo action label on snackbar."
+  },
+  "messageModelNotInstalled": "{modelId} no está instalado",
+  "@messageModelNotInstalled": {
+    "description": "Info when a saved style references an uninstalled model.",
+    "placeholders": {
+      "modelId": {
+        "type": "String"
+      }
+    }
+  },
+  "messageNoSavedStylesYet": "Aún no hay estilos guardados. Compón un modelo, nivel de razonamiento e instrucción en Personalizar, luego guarda la combinación para cambiar con un toque.",
+  "@messageNoSavedStylesYet": {
+    "description": "Empty state in saved styles list."
+  },
+  "messageEditing": "Editando \"{name}\"",
+  "@messageEditing": {
+    "description": "Header while editing a saved style.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "messageFilesTooLarge": "Archivos demasiado grandes:\n{files}",
+  "@messageFilesTooLarge": {
+    "description": "Error snackbar listing rejected oversized files.",
+    "placeholders": {
+      "files": {
+        "type": "String"
+      }
+    }
+  },
+  "titleTheme": "Tema",
+  "@titleTheme": {
+    "description": "Theme section title."
+  },
+  "titleDisplaySystemPrompt": "Muestra el prompt de sistema activo sobre la conversación",
+  "@titleDisplaySystemPrompt": {
+    "description": "Subtitle for show-system-prompt toggle."
+  },
+  "messageNoMcpToolsAvailable": "No hay herramientas MCP disponibles. Configura un servidor desde el panel de Admin.",
+  "@messageNoMcpToolsAvailable": {
+    "description": "Empty state in tools picker when no MCP server."
+  },
+  "messageNToolsEnabled": "{selected} de {total} herramientas activas",
+  "@messageNToolsEnabled": {
+    "description": "Tools picker summary per server.",
+    "placeholders": {
+      "selected": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "messageNoModelSelected": "Ningún modelo seleccionado",
+  "@messageNoModelSelected": {
+    "description": "Subtitle when no model is selected."
+  },
+  "messageUsingSource": "Usando: {source}",
+  "@messageUsingSource": {
+    "description": "System prompt source label.",
+    "placeholders": {
+      "source": {
+        "type": "String"
+      }
+    }
+  },
+  "messageAppliedToEveryNewConversation": "Se aplica a cada conversación nueva a menos que se anule por chat.",
+  "@messageAppliedToEveryNewConversation": {
+    "description": "Description for global default system prompt."
+  },
+  "messageNoToolsAvailableConfigureMcp": "No hay herramientas disponibles. Configura primero un servidor MCP.",
+  "@messageNoToolsAvailableConfigureMcp": {
+    "description": "Empty state when no tools at all."
+  },
+  "messageNoToolsMatchQuery": "Ninguna herramienta coincide con \"{query}\".",
+  "@messageNoToolsMatchQuery": {
+    "description": "Empty state when search has no results.",
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "messageToolCount": "{count, plural, =1{{count} herramienta} other{{count} herramientas}}",
+  "@messageToolCount": {
+    "description": "Header suffix showing number of tools.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "messageNoScheduledActionsYet": "Aún no hay acciones programadas",
+  "@messageNoScheduledActionsYet": {
+    "description": "Empty state for scheduled actions list."
+  },
+  "messageUsePlusButton": "Usa el botón + para crear un recordatorio o una verificación recurrente.",
+  "@messageUsePlusButton": {
+    "description": "Empty state hint for scheduled actions."
+  },
+  "messageCronExpression": "Cron: {expr}",
+  "@messageCronExpression": {
+    "description": "Scheduled action subtitle showing cron expression.",
+    "placeholders": {
+      "expr": {
+        "type": "String"
+      }
+    }
+  },
+  "messageRemoveScheduledAction": "¿Eliminar \"{title}\"? Esto no se puede deshacer.",
+  "@messageRemoveScheduledAction": {
+    "description": "Confirmation dialog before deleting scheduled action.",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "titleNewScheduledAction": "Nueva acción programada",
+  "@titleNewScheduledAction": {
+    "description": "Dialog title for creating scheduled action."
+  },
+  "titleEditScheduledAction": "Editar acción programada",
+  "@titleEditScheduledAction": {
+    "description": "Dialog title for editing scheduled action."
+  },
+  "hintMorningStandup": "Reunión matutina",
+  "@hintMorningStandup": {
+    "description": "Example scheduled action title."
+  },
+  "helperCronExpression": "min hora día mes día_semana",
+  "@helperCronExpression": {
+    "description": "Helper text under cron expression field."
+  },
+  "hintPickDateTime": "Elige fecha y hora",
+  "@hintPickDateTime": {
+    "description": "Hint when no run-at datetime selected."
+  },
+  "messageCreatedAt": "Creado {date}",
+  "@messageCreatedAt": {
+    "description": "Memory creation timestamp label.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "messageUpdateToVersion": "Actualizar a v{version}",
+  "@messageUpdateToVersion": {
+    "description": "Update dialog title.",
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "messageUpdateRestartAfterInstall": "Tienes v{currentVersion}. La aplicación se reinicia tras instalar.",
+  "@messageUpdateRestartAfterInstall": {
+    "description": "Update dialog content.",
+    "placeholders": {
+      "currentVersion": {
+        "type": "String"
+      }
+    }
+  },
+  "messageLatestRelease": "Última versión: v{version}",
+  "@messageLatestRelease": {
+    "description": "Update section subtitle.",
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "messageUpdateAvailable": "Garbanzo AI v{version} está disponible",
+  "@messageUpdateAvailable": {
+    "description": "Update banner text.",
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "messageAssistantKnowsLocation": "El asistente sabe que estás cerca de {location}",
+  "@messageAssistantKnowsLocation": {
+    "description": "Subtitle when precise location sharing is on.",
+    "placeholders": {
+      "location": {
+        "type": "String"
+      }
+    }
+  },
+  "titlePhotos": "Fotos",
+  "@titlePhotos": {
+    "description": "Attach menu option for images."
+  },
+  "titleFiles": "Archivos",
+  "@titleFiles": {
+    "description": "Attach menu option for files."
+  },
+  "messageSttUnavailable": "La conversación de voz a texto no está disponible en el servidor.",
+  "@messageSttUnavailable": {
+    "description": "Error when STT service is unavailable."
+  },
+  "messageTranscriptionFailed": "La transcripción falló — inténtalo de nuevo.",
+  "@messageTranscriptionFailed": {
+    "description": "Generic transcription failure message."
+  },
+  "messageDeleteStyle": "¿Eliminar \"{name}\"?",
+  "@messageDeleteStyle": {
+    "description": "Confirmation before deleting a saved style.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "messageSaveChangesToStyle": "Guardar cambios",
+  "@messageSaveChangesToStyle": {
+    "description": "Button label when editing a style."
+  },
+  "messageModelNameFallback": "{modelId} / {modelName}",
+  "@messageModelNameFallback": {
+    "description": "Style card model display fallback.",
+    "placeholders": {
+      "modelId": {
+        "type": "String"
+      },
+      "modelName": {
+        "type": "String"
+      }
+    }
+  },
+  "@titleEditStyle": {
+    "description": "Dialog title for editing a saved style."
+  },
+  "messageDeleteStyleConfirmation": "¿Eliminar \"{name}\"?",
+  "@messageDeleteStyleConfirmation": {
+    "description": "Confirmation before deleting a saved style.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  }
 }

@@ -12,6 +12,7 @@ import 'package:garbanzo_ai/features/chat/widgets/tool_bubble_widget.dart';
 import 'package:garbanzo_ai/features/mentions/models/mention_markdown.dart';
 import 'package:garbanzo_ai/core/widgets/user_avatar.dart';
 import 'package:garbanzo_ai/features/rooms/models/room_models.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// Rendering for a single room message.
 ///
@@ -345,7 +346,7 @@ class _RoomMessageBubbleState extends State<RoomMessageBubble> {
     if (_isSelf) {
       return _BubbleVariant(
         kind: _BubbleKind.self,
-        title: 'You',
+        title: AppLocalizations.of(context)!.titleYou,
         avatarImageB64: _profilePictureFor(widget.message.senderUserId),
         avatarIcon: Icons.person,
         bubbleColor: cs.primaryContainer,

@@ -18,6 +18,7 @@ import 'package:garbanzo_ai/features/chat/widgets/message/speak_button.dart';
 import 'package:garbanzo_ai/features/chat/widgets/message/thinking_content.dart';
 import 'package:garbanzo_ai/features/chat/widgets/remember_this_button.dart';
 import 'package:garbanzo_ai/features/chat/widgets/tool_bubble_widget.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// Widget for displaying a single chat message.
 ///
@@ -232,7 +233,9 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
                 children: [
                   for (final source in _kbSources)
                     Tooltip(
-                      message: 'From your knowledge base',
+                      message: AppLocalizations.of(
+                        context,
+                      )!.fromYourKnowledgeBase,
                       child: Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 8,

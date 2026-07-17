@@ -5,6 +5,7 @@ import 'package:garbanzo_ai/core/widgets/animated_dialog.dart';
 import 'package:garbanzo_ai/features/microapps/providers/microapp_panel_controller.dart';
 import 'package:garbanzo_ai/features/microapps/services/microapp_service.dart';
 import 'package:garbanzo_ai/features/microapps/widgets/micro_app_view.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// The live micro-app view shown beside the chat. Header (house name + reload /
 /// publish / revert / close) over a dumb [MicroAppView]. Used both as a side
@@ -40,7 +41,9 @@ class MicroAppPanel extends StatelessWidget {
             const Divider(height: 1),
             Expanded(
               child: url == null
-                  ? const Center(child: Text('No app to display'))
+                  ? Center(
+                      child: Text(AppLocalizations.of(context)!.noAppToDisplay),
+                    )
                   : MicroAppView(url: url, reloadCounter: panel.reloadCounter),
             ),
           ],
@@ -78,7 +81,7 @@ class _HeaderState extends State<_Header> {
         children: [
           if (showCloseAsBack)
             IconButton(
-              tooltip: 'Back to chat',
+              tooltip: AppLocalizations.of(context)!.messageBackToChat,
               icon: const Icon(Icons.arrow_back, size: 20),
               onPressed: panel.close,
             )
@@ -109,7 +112,7 @@ class _HeaderState extends State<_Header> {
           // back arrow above.
           if (!showCloseAsBack)
             IconButton(
-              tooltip: 'Close panel',
+              tooltip: AppLocalizations.of(context)!.tooltipClosePanel,
               icon: const Icon(Icons.close, size: 20),
               onPressed: panel.close,
             ),
@@ -123,7 +126,7 @@ class _HeaderState extends State<_Header> {
   Widget _publishControl(ThemeData theme) {
     if (showCloseAsBack) {
       return IconButton(
-        tooltip: 'Publish',
+        tooltip: AppLocalizations.of(context)!.labelPublish,
         icon: _busy
             ? const SizedBox(
                 width: 20,
@@ -156,16 +159,18 @@ class _HeaderState extends State<_Header> {
     final confirmed = await showAnimatedDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Publish changes'),
+        title: Text(AppLocalizations.of(context)!.titlePublishChanges),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Commit and deploy to GitHub Pages.'),
+            Text(AppLocalizations.of(context)!.commitAndDeployToGithubPages),
             const SizedBox(height: 12),
             TextField(
               controller: controller,
-              decoration: const InputDecoration(
-                labelText: 'Commit message (optional)',
+              decoration: InputDecoration(
+                labelText: AppLocalizations.of(
+                  context,
+                )!.labelCommitMessageOptional,
               ),
             ),
           ],
@@ -173,11 +178,11 @@ class _HeaderState extends State<_Header> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context)!.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Publish'),
+            child: Text(AppLocalizations.of(context)!.labelPublish),
           ),
         ],
       ),
@@ -203,21 +208,20 @@ class _HeaderState extends State<_Header> {
 
   Future<void> _revert() async {
     final messenger = ScaffoldMessenger.of(context);
+    final l10n = AppLocalizations.of(context)!;
     final confirmed = await showAnimatedDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Revert all changes?'),
-        content: const Text(
-          'Discard every uncommitted change in your workspace. This cannot be undone.',
-        ),
+        title: Text(l10n.titleRevertAllChanges),
+        content: Text(l10n.messageRevertAllChangesWarning),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(l10n.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Revert'),
+            child: Text(l10n.revert),
           ),
         ],
       ),
@@ -228,7 +232,9 @@ class _HeaderState extends State<_Header> {
     try {
       await MicroappService.instance.revert(all: true);
       panel.reload();
-      messenger.showSnackBar(const SnackBar(content: Text('Changes reverted')));
+      messenger.showSnackBar(
+        SnackBar(content: Text(l10n.messageChangesReverted)),
+      );
     } on MicroappApiException catch (e) {
       if (mounted) await _showError('Revert failed', e.detail);
     } catch (e) {
@@ -257,7 +263,7 @@ class _HeaderState extends State<_Header> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('OK'),
+            child: Text(AppLocalizations.of(context)!.ok),
           ),
         ],
       ),

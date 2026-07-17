@@ -10,6 +10,7 @@ import 'package:garbanzo_ai/features/chat/services/system_prompt_service.dart';
 import 'package:garbanzo_ai/features/rooms/models/room_models.dart';
 import 'package:garbanzo_ai/features/rooms/providers/room_provider.dart';
 import 'package:garbanzo_ai/features/tools/providers/tool_provider.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// Show the "Add agent" dialog — or "Edit agent" when [existing] is given,
 /// pre-seeded from that agent. Returns when the dialog closes.
@@ -183,7 +184,9 @@ class _AddAgentDialogState extends State<_AddAgentDialog> {
             children: [
               TextField(
                 controller: _nameCtrl,
-                decoration: const InputDecoration(labelText: 'Agent name'),
+                decoration: InputDecoration(
+                  labelText: AppLocalizations.of(context)!.labelAgentName,
+                ),
                 autofocus: true,
               ),
               const SizedBox(height: 12),
@@ -197,32 +200,42 @@ class _AddAgentDialogState extends State<_AddAgentDialog> {
               const SizedBox(height: 12),
               TextField(
                 controller: _promptCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'System prompt (optional)',
-                  hintText: 'You are a friendly product strategist…',
+                decoration: InputDecoration(
+                  labelText: AppLocalizations.of(
+                    context,
+                  )!.labelSystemPromptOptional,
+                  hintText: AppLocalizations.of(
+                    context,
+                  )!.hintYouAreAFriendlyProductStrategist,
                 ),
                 maxLines: 3,
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 initialValue: _mode,
-                decoration: const InputDecoration(labelText: 'When to respond'),
-                items: const [
+                decoration: InputDecoration(
+                  labelText: AppLocalizations.of(context)!.labelWhenToRespond,
+                ),
+                items: [
                   DropdownMenuItem(
                     value: 'mention',
-                    child: Text('On @mention only'),
+                    child: Text(AppLocalizations.of(context)!.onMentionOnly),
                   ),
                   DropdownMenuItem(
                     value: 'always',
-                    child: Text('Always respond'),
+                    child: Text(AppLocalizations.of(context)!.alwaysRespond),
                   ),
                   DropdownMenuItem(
                     value: 'round_robin',
-                    child: Text('Round-robin (take turns)'),
+                    child: Text(
+                      AppLocalizations.of(context)!.roundRobinTakeTurns,
+                    ),
                   ),
                   DropdownMenuItem(
-                    value: 'auto',
-                    child: Text('Auto — jump in when relevant (LLM)'),
+                    value: AppLocalizations.of(context)!.labelThinkingAuto,
+                    child: Text(
+                      AppLocalizations.of(context)!.autoJumpInWhenRelevantLlm,
+                    ),
                   ),
                 ],
                 onChanged: (v) => setState(() => _mode = v ?? 'mention'),
@@ -232,7 +245,7 @@ class _AddAgentDialogState extends State<_AddAgentDialog> {
               const SizedBox(height: 8),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
-                title: const Text('Moderator'),
+                title: Text(AppLocalizations.of(context)!.titleModerator),
                 subtitle: const Text(
                   'Helps summarize, break ties, keep things on track',
                 ),
@@ -246,7 +259,7 @@ class _AddAgentDialogState extends State<_AddAgentDialog> {
       actions: [
         TextButton(
           onPressed: _saving ? null : () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
+          child: Text(AppLocalizations.of(context)!.cancel),
         ),
         FilledButton(
           onPressed:
@@ -270,8 +283,10 @@ class _AddAgentDialogState extends State<_AddAgentDialog> {
   Widget _buildModelSelector() {
     final theme = Theme.of(context);
     if (_models == null) {
-      return const InputDecorator(
-        decoration: InputDecoration(labelText: 'Model'),
+      return InputDecorator(
+        decoration: InputDecoration(
+          labelText: AppLocalizations.of(context)!.titleModel,
+        ),
         child: Padding(
           padding: EdgeInsets.symmetric(vertical: 8),
           child: Row(
@@ -282,7 +297,7 @@ class _AddAgentDialogState extends State<_AddAgentDialog> {
                 child: CircularProgressIndicator(strokeWidth: 2),
               ),
               SizedBox(width: 12),
-              Text('Loading models…'),
+              Text(AppLocalizations.of(context)!.loadingModels),
             ],
           ),
         ),
@@ -292,7 +307,7 @@ class _AddAgentDialogState extends State<_AddAgentDialog> {
     if (_models!.isEmpty) {
       return InputDecorator(
         decoration: InputDecoration(
-          labelText: 'Model',
+          labelText: AppLocalizations.of(context)!.titleModel,
           errorText: _modelLoadError != null
               ? 'Could not load models'
               : 'No models available',
@@ -306,7 +321,7 @@ class _AddAgentDialogState extends State<_AddAgentDialog> {
             _loadModels();
           },
           icon: const Icon(Icons.refresh, size: 16),
-          label: const Text('Retry'),
+          label: Text(AppLocalizations.of(context)!.labelRetry),
         ),
       );
     }
@@ -314,8 +329,8 @@ class _AddAgentDialogState extends State<_AddAgentDialog> {
     return DropdownButtonFormField<String>(
       initialValue: _selectedModelId,
       isExpanded: true,
-      decoration: const InputDecoration(
-        labelText: 'Model',
+      decoration: InputDecoration(
+        labelText: AppLocalizations.of(context)!.titleModel,
         prefixIcon: Icon(Icons.memory, size: 18),
       ),
       items: _models!.map((m) {
@@ -360,14 +375,14 @@ class _AddAgentDialogState extends State<_AddAgentDialog> {
     return DropdownButtonFormField<ThinkingLevel?>(
       key: const ValueKey('agent_thinking_level'),
       initialValue: _thinking,
-      decoration: const InputDecoration(
-        labelText: 'Thinking',
+      decoration: InputDecoration(
+        labelText: AppLocalizations.of(context)!.labelThinking,
         prefixIcon: Icon(Icons.psychology_outlined, size: 18),
       ),
       items: [
-        const DropdownMenuItem<ThinkingLevel?>(
+        DropdownMenuItem<ThinkingLevel?>(
           value: null,
-          child: Text('Auto'),
+          child: Text(AppLocalizations.of(context)!.messageAuto),
         ),
         for (final level in ThinkingLevel.values)
           DropdownMenuItem<ThinkingLevel?>(
@@ -388,12 +403,15 @@ class _AddAgentDialogState extends State<_AddAgentDialog> {
           ? _selectedTemplateId
           : null,
       isExpanded: true,
-      decoration: const InputDecoration(
-        labelText: 'Prompt template',
+      decoration: InputDecoration(
+        labelText: AppLocalizations.of(context)!.labelPromptTemplate,
         prefixIcon: Icon(Icons.bookmark_outline, size: 18),
       ),
       items: [
-        const DropdownMenuItem<String?>(value: null, child: Text('— None —')),
+        DropdownMenuItem<String?>(
+          value: null,
+          child: Text(AppLocalizations.of(context)!.none),
+        ),
         for (final tpl in _templates)
           DropdownMenuItem<String?>(
             value: tpl.id,
@@ -424,7 +442,7 @@ class _AddAgentDialogState extends State<_AddAgentDialog> {
 
         return ExpansionTile(
           leading: const Icon(Icons.build_outlined, size: 18),
-          title: const Text('Tools'),
+          title: Text(AppLocalizations.of(context)!.labelTools),
           subtitle: Text(
             _allTools
                 ? 'All tools enabled'
@@ -434,7 +452,7 @@ class _AddAgentDialogState extends State<_AddAgentDialog> {
           childrenPadding: const EdgeInsets.symmetric(horizontal: 8),
           children: [
             if (toolProvider.isLoading && tools.isEmpty)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.symmetric(vertical: 8),
                 child: Row(
                   children: [
@@ -444,7 +462,7 @@ class _AddAgentDialogState extends State<_AddAgentDialog> {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     ),
                     SizedBox(width: 8),
-                    Text('Loading tools…'),
+                    Text(AppLocalizations.of(context)!.loadingTools),
                   ],
                 ),
               )
@@ -458,7 +476,7 @@ class _AddAgentDialogState extends State<_AddAgentDialog> {
               )
             else ...[
               SwitchListTile(
-                title: const Text('All tools'),
+                title: Text(AppLocalizations.of(context)!.titleAllTools),
                 value: _allTools,
                 onChanged: (v) => setState(() {
                   _allTools = v;

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:garbanzo_ai/features/chat/widgets/message/thinking_content.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 Widget _wrap({
   required bool isLive,
@@ -8,7 +9,10 @@ Widget _wrap({
   String text = 'reasoning…',
 }) {
   return MaterialApp(
-    home: Builder(
+    
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
+home: Builder(
       builder: (ctx) {
         final theme = Theme.of(ctx);
         return Scaffold(

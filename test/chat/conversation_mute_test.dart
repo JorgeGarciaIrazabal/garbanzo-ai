@@ -9,6 +9,7 @@ import 'package:garbanzo_ai/features/chat/providers/conversation_list_controller
 import 'package:garbanzo_ai/features/chat/providers/search_provider.dart';
 import 'package:garbanzo_ai/features/chat/services/chat_service.dart';
 import 'package:garbanzo_ai/features/chat/widgets/conversation_list_widget.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 final _now = DateTime.utc(2026, 7, 15);
 
@@ -230,7 +231,10 @@ void main() {
     }) => ChangeNotifierProvider<SearchProvider>(
       create: (_) => SearchProvider(),
       child: MaterialApp(
-        home: Scaffold(
+        
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
+home: Scaffold(
           body: ConversationListWidget(
             conversations: conversations,
             selectedId: null,

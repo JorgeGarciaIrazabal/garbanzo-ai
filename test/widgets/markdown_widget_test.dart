@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:garbanzo_ai/features/chat/widgets/markdown_widget.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 void main() {
   group('MarkdownWidget', () {
@@ -16,7 +17,10 @@ void main() {
       testWidgets('renders inline math correctly', (tester) async {
         await tester.pumpWidget(
           MaterialApp(
-            home: Scaffold(
+            
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
+home: Scaffold(
               body: MarkdownWidget(
                 content: r'The equation $x^2$ is inline.',
                 colorScheme: colorScheme,
@@ -33,7 +37,10 @@ void main() {
       testWidgets('renders multiple inline math expressions', (tester) async {
         await tester.pumpWidget(
           MaterialApp(
-            home: Scaffold(
+            
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
+home: Scaffold(
               body: MarkdownWidget(
                 content: r'From $a$ to $b$ and back to $a$.',
                 colorScheme: colorScheme,
@@ -49,7 +56,10 @@ void main() {
       testWidgets('handles escaped dollar signs correctly', (tester) async {
         await tester.pumpWidget(
           MaterialApp(
-            home: Scaffold(
+            
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
+home: Scaffold(
               body: MarkdownWidget(
                 content: r'The price is \$100, not math.',
                 colorScheme: colorScheme,
@@ -68,7 +78,10 @@ void main() {
           (tester) async {
         await tester.pumpWidget(
           MaterialApp(
-            home: Scaffold(
+            
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
+home: Scaffold(
               body: MarkdownWidget(
                 content: r'This costs $100 only.',
                 colorScheme: colorScheme,
@@ -85,7 +98,10 @@ void main() {
       testWidgets('handles LaTeX commands with backslashes', (tester) async {
         await tester.pumpWidget(
           MaterialApp(
-            home: Scaffold(
+            
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
+home: Scaffold(
               body: MarkdownWidget(
                 content: r'Integral: $\int_0^1 x dx$',
                 colorScheme: colorScheme,
@@ -103,7 +119,10 @@ void main() {
       testWidgets('renders single-line block math correctly', (tester) async {
         await tester.pumpWidget(
           MaterialApp(
-            home: Scaffold(
+            
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
+home: Scaffold(
               body: MarkdownWidget(
                 content: r'$$\int_0^1 x dx$$',
                 colorScheme: colorScheme,
@@ -119,7 +138,10 @@ void main() {
       testWidgets('renders multi-line block math correctly', (tester) async {
         await tester.pumpWidget(
           MaterialApp(
-            home: Scaffold(
+            
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
+home: Scaffold(
               body: MarkdownWidget(
                 content: '''
 \$\$
@@ -139,7 +161,10 @@ void main() {
       testWidgets('renders block math with multiple lines', (tester) async {
         await tester.pumpWidget(
           MaterialApp(
-            home: Scaffold(
+            
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
+home: Scaffold(
               body: MarkdownWidget(
                 content: '''
 \$\$
@@ -162,7 +187,10 @@ x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}
           (tester) async {
         await tester.pumpWidget(
           MaterialApp(
-            home: Scaffold(
+            
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
+home: Scaffold(
               body: MarkdownWidget(
                 content: '''
 # Math Examples
@@ -190,7 +218,10 @@ More text with \$x^2\$ inline.
       testWidgets('renders empty content without error', (tester) async {
         await tester.pumpWidget(
           MaterialApp(
-            home: Scaffold(
+            
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
+home: Scaffold(
               body: MarkdownWidget(
                 content: '',
                 colorScheme: colorScheme,

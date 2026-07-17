@@ -28,6 +28,7 @@ import 'package:garbanzo_ai/features/chat/widgets/system_prompt_banner.dart';
 import 'package:garbanzo_ai/features/chat/widgets/tool_activity_group.dart';
 import 'package:garbanzo_ai/features/rooms/providers/room_provider.dart';
 import 'package:garbanzo_ai/features/rooms/widgets/room_chat_view.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// Main chat page with conversation sidebar and message area.
 ///
@@ -371,9 +372,15 @@ class _ChatPageContentState extends State<_ChatPageContent>
       await context.read<RoomProvider>().deleteRoom(id);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to delete room: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(
+                context,
+              )!.messageFailedToDeleteRoom(e.toString()),
+            ),
+          ),
+        );
       }
       return;
     }
@@ -419,7 +426,9 @@ class _ChatPageContentState extends State<_ChatPageContent>
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
-          content: const Text('Conversation deleted'),
+          content: Text(
+            AppLocalizations.of(context)!.messageConversationDeleted,
+          ),
           duration: const Duration(seconds: 3),
           behavior: SnackBarBehavior.floating,
           showCloseIcon: true,
@@ -429,7 +438,7 @@ class _ChatPageContentState extends State<_ChatPageContent>
             bottom: bottomMargin,
           ),
           action: SnackBarAction(
-            label: 'Undo',
+            label: AppLocalizations.of(context)!.labelUndo,
             onPressed: () => chatProvider.undoDeleteConversation(id),
           ),
         ),
@@ -444,7 +453,11 @@ class _ChatPageContentState extends State<_ChatPageContent>
     final chatProvider = context.read<ChatProvider>();
     if (!chatProvider.hasActiveConversation) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Start a conversation first')),
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(context)!.messageStartAConversationFirst,
+          ),
+        ),
       );
       return;
     }
@@ -470,7 +483,11 @@ class _ChatPageContentState extends State<_ChatPageContent>
     if (result.rejected.isNotEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Files too large:\n${result.rejected.join('\n')}'),
+          content: Text(
+            AppLocalizations.of(
+              context,
+            )!.messageFilesTooLarge(result.rejected.join('\n')),
+          ),
           backgroundColor: Theme.of(context).colorScheme.error,
           behavior: SnackBarBehavior.floating,
         ),
@@ -715,7 +732,9 @@ class _ChatPageContentState extends State<_ChatPageContent>
                                 ),
                                 const SizedBox(height: 16),
                                 Text(
-                                  'Drop files to attach',
+                                  AppLocalizations.of(
+                                    context,
+                                  )!.messageDropFilesHere,
                                   style: theme.textTheme.headlineSmall
                                       ?.copyWith(
                                         color: colorScheme.primary,

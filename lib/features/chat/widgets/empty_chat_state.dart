@@ -3,6 +3,7 @@ import 'package:garbanzo_ai/core/widgets/brand_mark.dart';
 import 'package:provider/provider.dart';
 
 import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// Shown when no conversation is active — prompts the user to start chatting.
 class EmptyChatState extends StatelessWidget {
@@ -25,7 +26,7 @@ class EmptyChatState extends StatelessWidget {
             const BrandMark(size: 88),
             const SizedBox(height: 24),
             Text(
-              'Start a conversation',
+              AppLocalizations.of(context)!.messageStartAConversation,
               style: theme.textTheme.titleLarge?.copyWith(
                 color: colorScheme.onSurface,
                 fontWeight: FontWeight.w500,
@@ -145,7 +146,7 @@ class _GettingStartedCard extends StatelessWidget {
                   ),
                   IconButton(
                     icon: const Icon(Icons.close, size: 18),
-                    tooltip: 'Dismiss',
+                    tooltip: AppLocalizations.of(context)!.labelDismiss,
                     onPressed: onDismiss,
                   ),
                 ],

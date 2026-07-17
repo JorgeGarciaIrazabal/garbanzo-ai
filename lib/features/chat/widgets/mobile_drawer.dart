@@ -7,6 +7,7 @@ import 'package:garbanzo_ai/features/rooms/providers/room_provider.dart';
 import 'package:garbanzo_ai/features/rooms/widgets/create_room_dialog.dart';
 import 'package:garbanzo_ai/features/rooms/widgets/rooms_list_view.dart';
 import 'package:garbanzo_ai/features/chat/models/conversation.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// Bottom-sheet drawer for mobile screens. Contains a Chats / Rooms tab
 /// switcher matching the wide-layout sidebar so rooms are equally
@@ -153,16 +154,16 @@ class _MobileDrawerBodyState extends State<_MobileDrawerBody> {
             padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
             child: SegmentedButton<int>(
               showSelectedIcon: false,
-              segments: const [
+              segments: [
                 ButtonSegment(
                   value: 0,
                   icon: Icon(Icons.chat_bubble_outline, size: 16),
-                  label: Text('Chats'),
+                  label: Text(AppLocalizations.of(context)!.labelChats),
                 ),
                 ButtonSegment(
                   value: 1,
                   icon: Icon(Icons.group_outlined, size: 16),
-                  label: Text('Rooms'),
+                  label: Text(AppLocalizations.of(context)!.labelRooms),
                 ),
               ],
               selected: {_tab},
@@ -194,7 +195,7 @@ class _MobileDrawerBodyState extends State<_MobileDrawerBody> {
                 Navigator.pop(context);
               },
               icon: const Icon(Icons.add),
-              label: const Text('New Chat'),
+              label: Text(AppLocalizations.of(context)!.labelNewChat),
             ),
           ),
         ),
@@ -223,11 +224,13 @@ class _MobileDrawerBodyState extends State<_MobileDrawerBody> {
                     ),
                     if (conversation.isMuted) ...[
                       const SizedBox(width: 6),
-                      const Icon(
+                      Icon(
                         key: ValueKey('conversation_muted_glyph'),
                         Icons.notifications_off,
                         size: 14,
-                        semanticLabel: 'Muted',
+                        semanticLabel: AppLocalizations.of(
+                          context,
+                        )!.messageRoomMuted,
                       ),
                     ],
                   ],
@@ -291,7 +294,7 @@ class _MobileDrawerBodyState extends State<_MobileDrawerBody> {
                     if (created != null) _selectRoom(created.id);
                   },
                   icon: const Icon(Icons.group_add),
-                  label: const Text('New Room'),
+                  label: Text(AppLocalizations.of(context)!.labelNewRoom),
                 ),
               ),
             ),

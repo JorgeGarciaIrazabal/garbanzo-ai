@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:garbanzo_ai/features/settings/providers/update_provider.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// Changelog + "Download & install" dialog for an available update.
 Future<void> showUpdateDialog(BuildContext context) {
@@ -88,11 +89,11 @@ class UpdateDialog extends StatelessWidget {
           onPressed: release.htmlUrl.isEmpty
               ? null
               : () => launchUrl(Uri.parse(release.htmlUrl)),
-          child: const Text('Release page'),
+          child: Text(AppLocalizations.of(context)!.releasePage),
         ),
         TextButton(
           onPressed: provider.busy ? null : () => Navigator.of(context).pop(),
-          child: const Text('Close'),
+          child: Text(AppLocalizations.of(context)!.labelClose),
         ),
         FilledButton(
           key: const ValueKey('update_install_button'),
