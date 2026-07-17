@@ -11,6 +11,7 @@ import 'package:garbanzo_ai/core/api_client.dart';
 import 'package:garbanzo_ai/core/auth_state.dart';
 import 'package:garbanzo_ai/core/router.dart';
 import 'package:garbanzo_ai/core/theme.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/model_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/search_provider.dart';
@@ -104,6 +105,9 @@ class _GarbanzoAppState extends State<GarbanzoApp> {
         builder: (context, settings, child) {
           return MaterialApp.router(
             title: 'Garbanzo AI',
+            locale: settings.flutterLocale,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
             theme: buildTheme(Brightness.light),
             darkTheme: buildTheme(Brightness.dark),
             themeMode: settings.loaded

@@ -75,6 +75,7 @@ or trial-and-error to figure out.
 | `task-runner` | Picking and implementing tasks from TASKS.md using the team workflow |
 | `subagent-task-runner` | Picking and implementing tasks from TASKS.md using subagents |
 | `team` | Orchestrating a full-stack development team (lead, backend, frontend, tester) |
+| `user-reports` | Reading user bug reports / feature requests from the prod DB and acting on them |
 
 ## Maintaining agent docs (part of every task)
 

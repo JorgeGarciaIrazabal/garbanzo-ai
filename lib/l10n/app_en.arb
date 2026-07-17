@@ -1,0 +1,17 @@
+{
+  "@@locale": "en",
+  "appTitle": "Garbanzo AI",
+  "@appTitle": {
+    "description": "Application name shown in the window/tab title."
+  },
+  "language": "Language",
+  "@language": {
+    "description": "Label for the language settings section."
+  },
+  "languageEnglish": "English",
+  "@languageEnglish": {},
+  "languageSpanish": "Español",
+  "@languageSpanish": {},
+  "languageSystem": "System default",
+  "@languageSystem": {}
+}

@@ -2,6 +2,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+/// UI locale options. [system] follows the device locale, falling back to
+/// English when the device locale isn't a supported language.
+enum AppLocale { system, english, spanish }
+
 /// Theme mode options for the app.
 enum AppThemeMode { light, dark, system }
 
@@ -31,6 +35,7 @@ class SettingsProvider extends ChangeNotifier {
   static const _keyPreferredLanguages = 'settings_preferred_languages';
   static const _keyAutoLanguage = 'settings_auto_language';
   static const _keyBargeInSensitivity = 'settings_barge_in_sensitivity';
+  static const _keyLocale = 'settings_locale';
 
   // Defaults
   static const defaultVoice = 'af_heart';
@@ -53,6 +58,7 @@ class SettingsProvider extends ChangeNotifier {
   List<String> _preferredLanguages = const [];
   bool _autoLanguage = defaultAutoLanguage;
   BargeInSensitivity _bargeInSensitivity = defaultBargeInSensitivity;
+  AppLocale _appLocale = AppLocale.system;
   bool _loaded = false;
 
   /// True while the full-screen Talk Mode call is open. Transient (not
@@ -73,6 +79,7 @@ class SettingsProvider extends ChangeNotifier {
   List<String> get preferredLanguages => List.unmodifiable(_preferredLanguages);
   bool get autoLanguage => _autoLanguage;
   BargeInSensitivity get bargeInSensitivity => _bargeInSensitivity;
+  AppLocale get appLocale => _appLocale;
   bool get loaded => _loaded;
 
   /// Converts AppThemeMode to Flutter's ThemeMode.
@@ -84,6 +91,19 @@ class SettingsProvider extends ChangeNotifier {
         return ThemeMode.dark;
       case AppThemeMode.system:
         return ThemeMode.system;
+    }
+  }
+
+  /// Resolves to the Flutter [Locale] for [MaterialApp.locale], or null to
+  /// let Flutter pick from the device locale.
+  Locale? get flutterLocale {
+    switch (_appLocale) {
+      case AppLocale.english:
+        return const Locale('en');
+      case AppLocale.spanish:
+        return const Locale('es');
+      case AppLocale.system:
+        return null;
     }
   }
 
@@ -105,6 +125,9 @@ class SettingsProvider extends ChangeNotifier {
           _keyBargeInSensitivity,
         )] ??
         defaultBargeInSensitivity;
+    _appLocale =
+        AppLocale.values.asNameMap()[prefs.getString(_keyLocale)] ??
+        AppLocale.system;
     _loaded = true;
     notifyListeners();
   }
@@ -209,5 +232,13 @@ class SettingsProvider extends ChangeNotifier {
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_keyAutoLanguage, value);
+  }
+
+  Future<void> setAppLocale(AppLocale value) async {
+    if (_appLocale == value) return;
+    _appLocale = value;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyLocale, value.name);
   }
 }

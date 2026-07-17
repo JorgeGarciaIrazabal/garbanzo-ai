@@ -68,6 +68,9 @@ dependencies:
   flutter_timezone: ^5.1.0
   geolocator: ^14.0.2
   package_info_plus: ^9.0.0
+  flutter_localizations:
+    sdk: flutter
+  intl: any
 
 dev_dependencies:
   flutter_test:
@@ -97,6 +100,8 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  generate: true
 
   assets:
     - assets/brand/

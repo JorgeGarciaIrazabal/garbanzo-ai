@@ -211,8 +211,11 @@ fe-build:
     flutter build web --output backend/web
 
 # Run Flutter widget/unit tests
+# Concurrency is capped: on a 32-core box `flutter test` defaults to 32 parallel
+# processes, which stampedes memory (each spawns a full engine test binding) and
+# froze the machine. 4 is fast enough for the suite (~10s) and safe.
 fe-test:
-    flutter test
+    flutter test --concurrency=4
 
 # Format Dart files (lib/ only — mirrors pre-commit hook)
 fe-format:

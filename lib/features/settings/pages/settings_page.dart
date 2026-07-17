@@ -15,6 +15,7 @@ import 'package:garbanzo_ai/core/platform_info.dart';
 import 'package:garbanzo_ai/features/settings/widgets/location_section.dart';
 import 'package:garbanzo_ai/features/settings/widgets/profile_section.dart';
 import 'package:garbanzo_ai/features/settings/widgets/update_section.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// Dedicated settings screen. Navigation target for `/settings`.
 ///
@@ -178,6 +179,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Widget _appearanceSection() {
     final settings = context.watch<SettingsProvider>();
+    final l10n = AppLocalizations.of(context)!;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -206,6 +208,28 @@ class _SettingsPageState extends State<SettingsPage> {
               ],
               selected: {settings.themeMode},
               onSelectionChanged: (s) => settings.setThemeMode(s.first),
+            ),
+            const Divider(height: 32),
+            Text(l10n.language, style: Theme.of(context).textTheme.titleSmall),
+            const SizedBox(height: 12),
+            SegmentedButton<AppLocale>(
+              segments: [
+                ButtonSegment(
+                  value: AppLocale.system,
+                  label: Text(l10n.languageSystem),
+                  icon: const Icon(Icons.brightness_auto),
+                ),
+                ButtonSegment(
+                  value: AppLocale.english,
+                  label: Text(l10n.languageEnglish),
+                ),
+                ButtonSegment(
+                  value: AppLocale.spanish,
+                  label: Text(l10n.languageSpanish),
+                ),
+              ],
+              selected: {settings.appLocale},
+              onSelectionChanged: (s) => settings.setAppLocale(s.first),
             ),
             const Divider(height: 32),
             SwitchListTile(
