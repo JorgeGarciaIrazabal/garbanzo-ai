@@ -27,6 +27,12 @@ for spoken replies. Used by the speak button and Talk Mode. Voices are
 available in English, Spanish, French, Hindi, Italian, and Brazilian
 Portuguese — each entry in the picker shows its language.
 
+## How do I make Talk Mode reply in my language?
+Voice → **Automatic language switching** (on by default): spoken replies
+follow the language you speak. Under **My languages**, select the languages
+you actually use to limit switching to those — with none selected, any
+supported language works. See Talk Mode for the in-call override.
+
 ## How do I manage what the assistant remembers?
 Memory settings link to the Memories page; per-conversation injection is
 controlled from the chat itself (see Memories).

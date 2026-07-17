@@ -11,10 +11,15 @@ class VoiceOption {
   final String name;
   final String language;
 
+  /// ISO 639-1 code for [language] (e.g. "en") — used to build the preferred
+  /// languages picker in Settings (idea 13.5).
+  final String langCode;
+
   const VoiceOption({
     required this.id,
     required this.name,
     required this.language,
+    required this.langCode,
   });
 }
 
@@ -96,6 +101,7 @@ class AudioService {
               id: v['id'] as String,
               name: v['name'] as String,
               language: v['language'] as String,
+              langCode: v['lang_code'] as String,
             ),
           )
           .toList();

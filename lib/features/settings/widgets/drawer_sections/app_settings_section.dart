@@ -102,7 +102,23 @@ class _ChatTiles extends StatelessWidget {
 /// TTS voice/speed/auto-play plus the STT auto-send toggle. Stateful because
 /// the voice list is fetched from the backend once per drawer open.
 class VoiceSettingsTiles extends StatefulWidget {
-  const VoiceSettingsTiles({super.key});
+  const VoiceSettingsTiles({super.key, this.loadVoices});
+
+  /// Voice catalog source; defaults to the backend. Injectable for tests.
+  final Future<List<VoiceOption>> Function()? loadVoices;
+
+  /// Unique languages in the voice catalog, in catalog order — the choices
+  /// for the preferred-languages picker.
+  @visibleForTesting
+  static List<({String code, String name})> uniqueLanguages(
+    List<VoiceOption> voices,
+  ) {
+    final seen = <String>{};
+    return [
+      for (final v in voices)
+        if (seen.add(v.langCode)) (code: v.langCode, name: v.language),
+    ];
+  }
 
   @override
   State<VoiceSettingsTiles> createState() => _VoiceSettingsTilesState();
@@ -120,7 +136,8 @@ class _VoiceSettingsTilesState extends State<VoiceSettingsTiles> {
 
   Future<void> _loadVoices() async {
     try {
-      final voiceData = await AudioService.instance.listVoices();
+      final voiceData =
+          await (widget.loadVoices ?? AudioService.instance.listVoices)();
       if (mounted) {
         setState(() {
           _voices = voiceData;
@@ -207,6 +224,54 @@ class _VoiceSettingsTilesState extends State<VoiceSettingsTiles> {
           onChanged: (value) => settings.setAutoSubmitStt(value),
           dense: true,
         ),
+        SwitchListTile(
+          key: const ValueKey('auto_language_switch'),
+          title: const Text('Automatic language switching'),
+          subtitle: const Text('Reply in the language you speak (Talk Mode)'),
+          value: settings.autoLanguage,
+          onChanged: (value) => settings.setAutoLanguage(value),
+          dense: true,
+        ),
+        // Preferred languages: bounds automatic switching. Chips come from the
+        // backend voice catalog so they always match what TTS can speak.
+        if (settings.autoLanguage && !_loadingVoices && _voices.isNotEmpty)
+          ListTile(
+            title: const Text('My languages'),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Only switch between these — none means any'),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  children: [
+                    for (final lang in VoiceSettingsTiles.uniqueLanguages(
+                      _voices,
+                    ))
+                      FilterChip(
+                        key: ValueKey('language_chip_${lang.code}'),
+                        label: Text(lang.name),
+                        visualDensity: VisualDensity.compact,
+                        selected: settings.preferredLanguages.contains(
+                          lang.code,
+                        ),
+                        onSelected: (selected) {
+                          final updated = List<String>.from(
+                            settings.preferredLanguages,
+                          );
+                          selected
+                              ? updated.add(lang.code)
+                              : updated.remove(lang.code);
+                          settings.setPreferredLanguages(updated);
+                        },
+                      ),
+                  ],
+                ),
+              ],
+            ),
+            dense: true,
+          ),
       ],
     );
   }
