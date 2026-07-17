@@ -29,6 +29,10 @@ it for procedures. This file is the agent quick reference.
   Linux `.tar.gz` + Windows `.zip` baked with `--dart-define=API_BASE_URL`
   from the tag annotation, attached to a GitHub Release. No APK/Firebase in
   CI — Android stays local (`dist/garbanzo-ai-<sha>.apk`).
+- The desktop auto-updater consumes those same GitHub Releases: the backend
+  proxies `releases/latest` at `GET /api/v1/version/latest` (repo from
+  `GITHUB_REPO`), and the image gets the release version baked in via the
+  `APP_VERSION` build arg so `/api/v1/health` reports it.
 
 ## Gotchas
 

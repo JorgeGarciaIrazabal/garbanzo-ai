@@ -12,9 +12,17 @@ class Settings(BaseSettings):
 
     # App
     app_name: str = "Garbanzo AI"
+    # Version reported by GET /api/v1/health and the FastAPI docs. Deploys
+    # bake the release tag into the image via the APP_VERSION build arg
+    # (scripts/deploy.sh); the default marks non-release/dev builds.
+    app_version: str = "0.0.0-dev"
     debug: bool = False
     host: str = "0.0.0.0"
     port: int = 8000
+
+    # GitHub repo ("owner/name") whose Releases feed the desktop auto-updater
+    # (GET /api/v1/version/latest). Self-hosters point this at their fork.
+    github_repo: str = "JorgeGarciaIrazabal/garbanzo-ai"
 
     # Security
     secret_key: str = "change-this-in-production"

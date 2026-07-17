@@ -25,4 +25,5 @@ when you add or change an endpoint, update the matching row in the same commit.
 | **Scheduled Actions** | `POST /scheduled-actions`, `GET /scheduled-actions`, `GET /scheduled-actions/{id}`, `PATCH /scheduled-actions/{id}`, `DELETE /scheduled-actions/{id}` |
 | **Styles** | `POST /styles`, `GET /styles`, `GET /styles/{id}`, `PATCH /styles/{id}`, `DELETE /styles/{id}` |
 | **Usage** | `GET /usage/summary` |
-| **Health** | `GET /health` |
+| **Health** | `GET /health` (includes `version` — the release baked in at deploy, `APP_VERSION`) |
+| **Version** | `GET /version/latest` (no auth; latest GitHub release for `GITHUB_REPO`, ~5-min cache — tag/notes/assets; feeds the desktop auto-updater) |

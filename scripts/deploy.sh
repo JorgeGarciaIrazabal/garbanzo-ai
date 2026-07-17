@@ -46,6 +46,20 @@ BUILD_NUMBER=$(git -C "$REPO" rev-list --count main)  # monotonic Android versio
 CURRENT_VERSION=$(grep '^version:' "$REPO/pubspec.yaml" | sed 's/version: *//' | cut -d+ -f1)
 [[ -n "$CURRENT_VERSION" ]] || die "could not parse version from pubspec.yaml"
 
+bump_patch() {
+    # Bump the last digit of a semver string (1.2.3 → 1.2.4)
+    local v="$1"
+    local major minor patch
+    IFS='.' read -r major minor patch <<< "$v"
+    patch=$((patch + 1))
+    echo "${major}.${minor}.${patch}"
+}
+
+# The version this deploy will be released as (tagged after a successful
+# deploy, below). Baked into the backend image so /api/v1/health reports the
+# same version the CI desktop builds of this release carry.
+NEW_VERSION=$(bump_patch "$CURRENT_VERSION")
+
 # --- Pristine snapshot of main ------------------------------------------------
 WT=$(mktemp -d "${TMPDIR:-/tmp}/garbanzo-deploy.XXXXXX")
 cleanup() {
@@ -63,7 +77,8 @@ step "Building Flutter web"
 (cd "$WT" && flutter build web --release --output backend/web)
 
 step "Building backend image (garbanzo-backend:latest, :$SHA)"
-docker build -t garbanzo-backend:latest -t "garbanzo-backend:$SHA" "$WT/backend"
+docker build --build-arg "APP_VERSION=$NEW_VERSION" \
+    -t garbanzo-backend:latest -t "garbanzo-backend:$SHA" "$WT/backend"
 
 # --- Ship ---------------------------------------------------------------------
 step "Starting prod stack"
@@ -115,16 +130,6 @@ echo "  Status: just deploy-status"
 # The tag push triggers the GitHub Actions workflow that builds the desktop apps.
 step "Bumping version and creating release tag"
 
-bump_patch() {
-    # Bump the last digit of a semver string (1.2.3 → 1.2.4)
-    local v="$1"
-    local major minor patch
-    IFS='.' read -r major minor patch <<< "$v"
-    patch=$((patch + 1))
-    echo "${major}.${minor}.${patch}"
-}
-
-NEW_VERSION=$(bump_patch "$CURRENT_VERSION")
 # Update pubspec.yaml: keep the existing +build suffix (or add +1 if none)
 BUILD_SUFFIX=$(grep '^version:' "$REPO/pubspec.yaml" | sed 's/version: *//' | cut -d+ -f2)
 [[ -n "$BUILD_SUFFIX" ]] || BUILD_SUFFIX="1"

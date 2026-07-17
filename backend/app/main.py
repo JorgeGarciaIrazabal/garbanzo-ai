@@ -178,7 +178,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title=settings.app_name,
     description="FastAPI backend serving Garbanzo AI Flutter web app",
-    version="0.1.0",
+    version=settings.app_version,
     debug=settings.debug,
     lifespan=lifespan,
 )

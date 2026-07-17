@@ -69,6 +69,8 @@ services:
       OLLAMA_API_KEY: ${OLLAMA_API_KEY:-}
       MICROAPPS_GIT_URL: ${MICROAPPS_GIT_URL:-}
       MICROAPPS_OPENCODE_MODEL: ${MICROAPPS_OPENCODE_MODEL:-ollama/kimi-k2.7-code:cloud}
+      # Repo whose GitHub Releases feed the desktop auto-updater.
+      GITHUB_REPO: ${GITHUB_REPO:-JorgeGarciaIrazabal/garbanzo-ai}
       TZ: ${TZ:-UTC}
     volumes:
       # Kokoro TTS + Whisper STT models persist across deploys (~2 GB, one-time).

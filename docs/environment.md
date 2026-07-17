@@ -52,6 +52,13 @@ NOMINATIM_URL=https://nominatim.openstreetmap.org
 # Firebase Cloud Messaging (push notifications)
 FIREBASE_CREDENTIALS_PATH=firebase-service-account.json
 
+# Desktop auto-updater (idea 19)
+GITHUB_REPO=JorgeGarciaIrazabal/garbanzo-ai  # owner/name whose Releases feed
+                                             # GET /api/v1/version/latest
+# APP_VERSION — reported by GET /api/v1/health. Not set by hand: deploys bake
+# the release tag in via the Docker build arg (scripts/deploy.sh); defaults to
+# "0.0.0-dev" outside a release image.
+
 # Multi-agent room auto-judge model (must be pulled in local Ollama)
 ROOM_AUTO_JUDGE_MODEL=granite4:micro
 

@@ -40,6 +40,11 @@ COPY migrations/ ./migrations/
 # context; build the web app first if building the image by hand.
 COPY web/ ./web/
 
+# Release version baked in by scripts/deploy.sh (matches the git tag / the
+# desktop builds from the same release). Reported by GET /api/v1/health.
+ARG APP_VERSION=0.0.0-dev
+ENV APP_VERSION=$APP_VERSION
+
 # Run straight from the venv — no resolver at container start.
 # Secrets and environment come from the compose file at runtime, never the image.
 ENV PATH="/app/.venv/bin:$PATH"
