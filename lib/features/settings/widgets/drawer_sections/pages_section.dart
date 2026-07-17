@@ -78,7 +78,7 @@ class PagesSection extends StatelessWidget {
           ListTile(
             leading: const Icon(Icons.admin_panel_settings_outlined),
             title: const Text('Admin'),
-            subtitle: const Text('Manage users and MCP servers'),
+            subtitle: const Text('Users, models, MCP servers, reports'),
             dense: true,
             onTap: () => _open(context, '/admin'),
           ),

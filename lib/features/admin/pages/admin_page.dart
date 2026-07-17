@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:garbanzo_ai/features/admin/providers/admin_provider.dart';
 import 'package:garbanzo_ai/features/admin/widgets/mcp_servers_tab.dart';
 import 'package:garbanzo_ai/features/admin/widgets/models_tab.dart';
+import 'package:garbanzo_ai/features/admin/widgets/reports_tab.dart';
 import 'package:garbanzo_ai/features/admin/widgets/users_tab.dart';
 
 /// Admin portal with tabs for user management, model visibility, and MCP
@@ -29,20 +30,22 @@ class _AdminPageContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 3,
+      length: 4,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Admin'),
           bottom: const TabBar(
+            isScrollable: true,
             tabs: [
               Tab(icon: Icon(Icons.people_outline), text: 'Users'),
               Tab(icon: Icon(Icons.memory), text: 'Models'),
               Tab(icon: Icon(Icons.extension_outlined), text: 'MCP Servers'),
+              Tab(icon: Icon(Icons.feedback_outlined), text: 'Reports'),
             ],
           ),
         ),
         body: const TabBarView(
-          children: [UsersTab(), ModelsTab(), MCPServersTab()],
+          children: [UsersTab(), ModelsTab(), MCPServersTab(), ReportsTab()],
         ),
       ),
     );
