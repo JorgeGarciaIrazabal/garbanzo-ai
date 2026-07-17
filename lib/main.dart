@@ -51,34 +51,35 @@ class GarbanzoApp extends StatefulWidget {
 class _GarbanzoAppState extends State<GarbanzoApp> {
   final AuthState _authState = AuthState();
   late final GoRouter _router = buildRouter(_authState);
-  StreamSubscription<String>? _pushRoomSub;
+  StreamSubscription<String>? _pushRouteSub;
 
   @override
   void initState() {
     super.initState();
-    // Listen for room deep-links from push notification taps.
-    _pushRoomSub = PushService.instance.onOpenRoom.listen((roomId) {
+    // Listen for deep-links from push notification taps (rooms or
+    // conversations — see PushService.routeForData).
+    _pushRouteSub = PushService.instance.onOpenRoute.listen((route) {
       if (_authState.loggedIn) {
-        _router.go('/rooms/$roomId');
+        _router.go(route);
       }
     });
     // Allow AuthState to defer-navigate after a manual login.
-    _authState.pendingRoomNavigator = (roomId) {
-      _router.go('/rooms/$roomId');
+    _authState.pendingRouteNavigator = (route) {
+      _router.go(route);
     };
-    // After the initial auth check completes, navigate to a pending room.
+    // After the initial auth check completes, navigate to a pending route.
     _authState.ensureReady().then((_) {
-      final pending = PushService.instance.pendingRoomId;
+      final pending = PushService.instance.pendingRoute;
       if (pending != null && _authState.loggedIn) {
-        PushService.instance.pendingRoomId = null;
-        _router.go('/rooms/$pending');
+        PushService.instance.pendingRoute = null;
+        _router.go(pending);
       }
     });
   }
 
   @override
   void dispose() {
-    _pushRoomSub?.cancel();
+    _pushRouteSub?.cancel();
     _router.dispose();
     _authState.dispose();
     super.dispose();

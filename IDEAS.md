@@ -241,6 +241,19 @@ actions and wants one chat window per scheduled action.
 - `docs/PUSH_NOTIFICATIONS.md:232` explicitly flags this as unimplemented
   future work, so this is a known gap, not a regression.
 
+**Fix:** `PushService` now derives a route from any payload via the new
+`routeForData` (`room_id` → `/rooms/:id`, `conversation_id` → `/chat/:id`,
+extensible for future keys), replacing the room-only `pendingRoomId`/
+`onOpenRoom` plumbing with `pendingRoute`/`onOpenRoute` used identically by
+`main.dart`'s foreground listener, its cold-start check, and
+`AuthState.pendingRouteNavigator`'s post-login deferred navigation. The
+in-app notification bell list (`notifications_page.dart`) now also calls
+`routeForData` on tap and navigates via `context.go`, closing that half of
+the gap too. Scheduled-action and chat-response-on-disconnect pushes both
+carry `conversation_id`, so both now land on the right conversation with no
+backend changes needed. *(Tests: `push_service_test.dart`,
+`notifications_page_test.dart`.)*
+
 ---
 
 ### B-03 `med-hard` — Very large conversations are slow to load (and reload after every turn)

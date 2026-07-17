@@ -54,23 +54,23 @@ class AuthState extends ChangeNotifier {
       ),
     );
     unawaited(PushService.instance.registerDevice());
-    // If a push notification tapped a room while logged out, navigate now.
-    final pending = PushService.instance.pendingRoomId;
+    // If a push notification was tapped while logged out, navigate now.
+    final pending = PushService.instance.pendingRoute;
     if (pending != null) {
-      PushService.instance.pendingRoomId = null;
+      PushService.instance.pendingRoute = null;
       // Defer to next frame so the router's redirect guard has processed
-      // the loggedIn state change before we push the room route.
+      // the loggedIn state change before we push the route.
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _pendingRoomNavigator?.call(pending);
+        _pendingRouteNavigator?.call(pending);
       });
     }
     notifyListeners();
   }
 
-  /// Callback set by the app state to navigate to a pending room after login.
-  void Function(String)? _pendingRoomNavigator;
-  set pendingRoomNavigator(void Function(String)? fn) =>
-      _pendingRoomNavigator = fn;
+  /// Callback set by the app state to navigate to a pending route after login.
+  void Function(String)? _pendingRouteNavigator;
+  set pendingRouteNavigator(void Function(String)? fn) =>
+      _pendingRouteNavigator = fn;
 
   Future<void> logout() async {
     unawaited(PushService.instance.unregisterDevice());

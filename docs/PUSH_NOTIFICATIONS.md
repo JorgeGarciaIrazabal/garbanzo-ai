@@ -227,6 +227,9 @@ This is expected. When the app is foregrounded, Android delivers the message to 
 Items from `TASKS.md` under `## Notifications`:
 
 - Android notification channels (chat_responses, reminders, system_alerts) with per-channel importance — currently only `chat_responses` is referenced in code, not yet declared.
-- In-app notification center (bell icon, unread list).
 - Per-user notification preferences synced with channel settings.
-- Tap-to-navigate: open the relevant conversation when the notification is tapped. The `data.conversation_id` field is already set by the backend; the Flutter side just needs a `onMessageOpenedApp` handler that routes to the chat page.
+
+Tap-to-navigate (B-02) is implemented: `PushService.routeForData` derives a
+route from the payload (`room_id` → `/rooms/:id`, `conversation_id` →
+`/chat/:id`), used by both the push-tap handler (`onMessageOpenedApp` /
+`getInitialMessage`) and the in-app notification bell list's `onTap`.

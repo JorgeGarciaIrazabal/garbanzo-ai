@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:garbanzo_ai/core/widgets/brand_mark.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import 'package:garbanzo_ai/features/notifications/models/app_notification.dart';
 import 'package:garbanzo_ai/core/widgets/skeleton.dart';
 import 'package:garbanzo_ai/features/notifications/providers/notification_provider.dart';
+import 'package:garbanzo_ai/features/notifications/services/push_service.dart';
 
 class NotificationsPage extends StatefulWidget {
   const NotificationsPage({super.key});
@@ -77,7 +79,17 @@ class _NotificationsPageState extends State<NotificationsPage> {
                 final notification = provider.items[index];
                 return _NotificationTile(
                   notification: notification,
-                  onTap: () => provider.markRead(notification.id),
+                  onTap: () {
+                    provider.markRead(notification.id);
+                    // B-02: the bell list used to only mark-read, same as
+                    // the push-tap handler it mirrors — navigate to the
+                    // room/conversation the notification targets, if any.
+                    final data = notification.data;
+                    final route = data != null
+                        ? PushService.routeForData(data)
+                        : null;
+                    if (route != null) context.go(route);
+                  },
                   onDelete: () => provider.remove(notification.id),
                 );
               },

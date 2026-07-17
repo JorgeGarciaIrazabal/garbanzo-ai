@@ -72,22 +72,36 @@ class PushService {
   }
 
   void _handleNotificationTap(Map<String, dynamic> data) {
-    final roomId = data['room_id'] as String?;
-    if (roomId != null) {
-      debugPrint('[PushService] deep-linking to room: $roomId');
+    final route = routeForData(data);
+    if (route != null) {
+      debugPrint('[PushService] deep-linking to: $route');
       // The navigation is handled by the app's router listening to
-      // [PushService.instance.pendingRoomId].
-      pendingRoomId = roomId;
-      _pendingRoomIdController.add(roomId);
+      // [PushService.instance.pendingRoute].
+      pendingRoute = route;
+      _pendingRouteController.add(route);
     }
   }
 
-  /// Room ID from a tapped notification, awaiting navigation.
-  String? pendingRoomId;
+  /// Derives the in-app route to open for a tapped notification's data
+  /// payload — room events carry `room_id`; scheduled-action fires and the
+  /// chat-response-on-disconnect push carry `conversation_id` (B-02: every
+  /// non-room notification used to be silently ignored here). Also used by
+  /// the in-app notification bell list, whose `data` payload mirrors the
+  /// push payload.
+  static String? routeForData(Map<String, dynamic> data) {
+    final roomId = data['room_id'] as String?;
+    if (roomId != null) return '/rooms/$roomId';
+    final conversationId = data['conversation_id'] as String?;
+    if (conversationId != null) return '/chat/$conversationId';
+    return null;
+  }
 
-  final StreamController<String> _pendingRoomIdController =
+  /// Route from a tapped notification, awaiting navigation.
+  String? pendingRoute;
+
+  final StreamController<String> _pendingRouteController =
       StreamController<String>.broadcast();
-  Stream<String> get onOpenRoom => _pendingRoomIdController.stream;
+  Stream<String> get onOpenRoute => _pendingRouteController.stream;
 
   /// Request notification permission, fetch the FCM token, and send it to the
   /// backend. Call this after the user successfully logs in.
@@ -165,6 +179,6 @@ class PushService {
     _initialized = false;
     _firebaseReady = false;
     _registeredToken = null;
-    await _pendingRoomIdController.close();
+    await _pendingRouteController.close();
   }
 }
