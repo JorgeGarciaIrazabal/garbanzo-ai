@@ -27,6 +27,9 @@ responds:
 An agent can also be a **Moderator**: it summarizes, breaks deadlocks, and
 keeps discussion on track.
 
+To change any of this later, use the **edit** (pencil) icon next to the
+agent in **Members & agents** — same form, pre-filled.
+
 ## How do I talk to a specific agent?
 Mention it by name. Typing `@` in the composer opens suggestions — members,
 agents, and `@all` — that filter as you type; pick one with the arrow keys

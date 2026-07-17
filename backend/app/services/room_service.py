@@ -422,9 +422,13 @@ class RoomService:
         ).scalar_one_or_none()
         if agent is None:
             raise RoomNotFoundError("Agent not found")
+        # None means "clear" for nullable columns (the endpoint only forwards
+        # fields the client actually sent); other fields ignore None.
+        nullable = {"avatar", "system_prompt", "enabled_tools"}
         for key, value in fields.items():
-            if value is not None:
-                setattr(agent, key, value)
+            if value is None and key not in nullable:
+                continue
+            setattr(agent, key, value)
         await self.db.commit()
         await self.db.refresh(agent)
         return agent

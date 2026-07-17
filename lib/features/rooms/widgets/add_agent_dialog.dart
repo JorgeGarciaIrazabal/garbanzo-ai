@@ -4,20 +4,27 @@ import 'package:provider/provider.dart';
 import 'package:garbanzo_ai/core/widgets/animated_dialog.dart';
 import 'package:garbanzo_ai/features/chat/models/model_info.dart';
 import 'package:garbanzo_ai/features/chat/services/chat_service.dart';
+import 'package:garbanzo_ai/features/rooms/models/room_models.dart';
 import 'package:garbanzo_ai/features/rooms/providers/room_provider.dart';
 import 'package:garbanzo_ai/features/tools/providers/tool_provider.dart';
 
-/// Show the "Add agent" dialog. Returns when the dialog closes.
-Future<void> showAddAgentDialog(BuildContext context, RoomProvider provider) {
+/// Show the "Add agent" dialog — or "Edit agent" when [existing] is given,
+/// pre-seeded from that agent. Returns when the dialog closes.
+Future<void> showAddAgentDialog(
+  BuildContext context,
+  RoomProvider provider, {
+  RoomAgent? existing,
+}) {
   return showAnimatedDialog<void>(
     context: context,
-    builder: (_) => _AddAgentDialog(provider: provider),
+    builder: (_) => _AddAgentDialog(provider: provider, existing: existing),
   );
 }
 
 class _AddAgentDialog extends StatefulWidget {
-  const _AddAgentDialog({required this.provider});
+  const _AddAgentDialog({required this.provider, this.existing});
   final RoomProvider provider;
+  final RoomAgent? existing;
 
   @override
   State<_AddAgentDialog> createState() => _AddAgentDialogState();
@@ -36,9 +43,20 @@ class _AddAgentDialogState extends State<_AddAgentDialog> {
   String? _modelLoadError;
   String? _selectedModelId;
 
+  RoomAgent? get _existing => widget.existing;
+
   @override
   void initState() {
     super.initState();
+    final a = _existing;
+    if (a != null) {
+      _nameCtrl.text = a.name;
+      _promptCtrl.text = a.systemPrompt ?? '';
+      _mode = a.responseMode;
+      _moderator = a.isModerator;
+      _allTools = a.enabledTools == null;
+      _selectedTools = Set.from(a.enabledTools ?? const []);
+    }
     _loadModels();
   }
 
@@ -55,7 +73,11 @@ class _AddAgentDialogState extends State<_AddAgentDialog> {
       if (!mounted) return;
       setState(() {
         _models = list.models;
-        _selectedModelId = _pickDefault(list.models);
+        final current = _existing?.model;
+        _selectedModelId =
+            current != null && list.models.any((m) => m.id == current)
+            ? current
+            : _pickDefault(list.models);
       });
     } catch (e) {
       if (!mounted) return;
@@ -79,17 +101,32 @@ class _AddAgentDialogState extends State<_AddAgentDialog> {
     final modelId = _selectedModelId;
     if (name.isEmpty || modelId == null || modelId.isEmpty) return;
     setState(() => _saving = true);
+    final prompt = _promptCtrl.text.trim().isEmpty
+        ? null
+        : _promptCtrl.text.trim();
+    final tools = _allTools ? null : _selectedTools.toList();
     try {
-      await widget.provider.addAgent(
-        name: name,
-        model: modelId,
-        systemPrompt: _promptCtrl.text.trim().isEmpty
-            ? null
-            : _promptCtrl.text.trim(),
-        responseMode: _mode,
-        isModerator: _moderator,
-        enabledTools: _allTools ? null : _selectedTools.toList(),
-      );
+      final existing = _existing;
+      if (existing != null) {
+        await widget.provider.updateAgent(
+          existing.id,
+          name: name,
+          model: modelId,
+          systemPrompt: prompt,
+          responseMode: _mode,
+          isModerator: _moderator,
+          enabledTools: tools,
+        );
+      } else {
+        await widget.provider.addAgent(
+          name: name,
+          model: modelId,
+          systemPrompt: prompt,
+          responseMode: _mode,
+          isModerator: _moderator,
+          enabledTools: tools,
+        );
+      }
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {
@@ -105,7 +142,7 @@ class _AddAgentDialogState extends State<_AddAgentDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Add agent'),
+      title: Text(_existing == null ? 'Add agent' : 'Edit agent'),
       content: SizedBox(
         width: 460,
         child: SingleChildScrollView(
@@ -186,7 +223,7 @@ class _AddAgentDialogState extends State<_AddAgentDialog> {
                   height: 16,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : const Text('Add'),
+              : Text(_existing == null ? 'Add' : 'Save'),
         ),
       ],
     );

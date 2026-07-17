@@ -532,6 +532,32 @@ class RoomProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Full-field update from the edit dialog. `systemPrompt: null` clears the
+  /// prompt and `enabledTools: null` means "all tools" — the backend treats
+  /// explicit nulls on nullable columns as clears.
+  Future<void> updateAgent(
+    String agentId, {
+    required String name,
+    required String model,
+    String? systemPrompt,
+    required String responseMode,
+    required bool isModerator,
+    List<String>? enabledTools,
+  }) async {
+    final room = _currentRoom;
+    if (room == null) return;
+    await _service.updateAgent(room.id, agentId, {
+      'name': name,
+      'model': model,
+      'system_prompt': systemPrompt,
+      'response_mode': responseMode,
+      'is_moderator': isModerator,
+      'enabled_tools': enabledTools,
+    });
+    _currentRoom = await _service.getRoom(room.id);
+    notifyListeners();
+  }
+
   Future<void> deleteAgent(String agentId) async {
     final room = _currentRoom;
     if (room == null) return;

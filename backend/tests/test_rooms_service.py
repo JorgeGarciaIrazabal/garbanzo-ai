@@ -113,6 +113,32 @@ async def test_agents_crud(db_session):
 
 
 @pytest.mark.asyncio
+async def test_update_agent_null_clears_nullable_fields(db_session):
+    svc = RoomService(db_session)
+    room = await svc.create(owner_id="test@example.com", name="Room")
+    agent = await svc.add_agent(
+        room_id=room.id,
+        user_id="test@example.com",
+        name="Alice",
+        model="llama3.2",
+        system_prompt="Be nice",
+        enabled_tools=["srv:tool"],
+    )
+
+    updated = await svc.update_agent(
+        room_id=room.id,
+        user_id="test@example.com",
+        agent_id=agent.id,
+        system_prompt=None,  # nullable: cleared
+        enabled_tools=None,  # nullable: back to "all tools"
+        name=None,  # non-nullable: ignored
+    )
+    assert updated.system_prompt is None
+    assert updated.enabled_tools is None
+    assert updated.name == "Alice"
+
+
+@pytest.mark.asyncio
 async def test_remove_owner_forbidden(db_session):
     svc = RoomService(db_session)
     room = await svc.create(owner_id="test@example.com", name="Room")

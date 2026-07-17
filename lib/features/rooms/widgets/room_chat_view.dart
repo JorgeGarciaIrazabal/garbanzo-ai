@@ -654,10 +654,21 @@ class _MembersAgentsPanel extends StatelessWidget {
             ),
             title: Text(a.name),
             subtitle: Text(_agentSubtitle(a)),
-            trailing: IconButton(
-              icon: const Icon(Icons.delete_outline),
-              tooltip: 'Remove agent',
-              onPressed: () => _confirmDeleteAgent(context, provider, a),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.edit_outlined),
+                  tooltip: 'Edit agent',
+                  onPressed: () =>
+                      showAddAgentDialog(context, provider, existing: a),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete_outline),
+                  tooltip: 'Remove agent',
+                  onPressed: () => _confirmDeleteAgent(context, provider, a),
+                ),
+              ],
             ),
           ),
         TextButton.icon(
