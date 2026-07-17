@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'package:garbanzo_ai/core/router.dart';
 import 'package:garbanzo_ai/features/settings/providers/update_provider.dart';
 import 'package:garbanzo_ai/features/settings/widgets/update_dialog.dart';
 
@@ -53,7 +54,12 @@ class UpdateBanner extends StatelessWidget {
                     key: const ValueKey('update_banner_update'),
                     onPressed: () {
                       provider.dismissBanner();
-                      showUpdateDialog(context);
+                      // The banner sits above the router's Navigator, so its
+                      // own context can't open dialogs — the root navigator's
+                      // context (below the app-level providers) can.
+                      showUpdateDialog(
+                        rootNavigatorKey.currentContext ?? context,
+                      );
                     },
                     child: const Text('Update'),
                   ),

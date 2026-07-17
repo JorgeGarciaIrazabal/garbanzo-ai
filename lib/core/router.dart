@@ -1,3 +1,4 @@
+import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:garbanzo_ai/core/auth_service.dart';
@@ -27,11 +28,17 @@ String? computeRedirect({
   return null;
 }
 
+/// Root navigator key. Lets chrome that lives *above* the Navigator (e.g.
+/// the update banner wrapped around the router in `main.dart`) open dialogs
+/// with a context that can actually find the Navigator.
+final rootNavigatorKey = GlobalKey<NavigatorState>();
+
 /// Builds the app router. [auth] drives the login redirect guard;
 /// `refreshListenable` re-evaluates redirects when auth state changes
 /// (login, logout).
 GoRouter buildRouter(AuthState auth) {
   return GoRouter(
+    navigatorKey: rootNavigatorKey,
     initialLocation: '/chat',
     refreshListenable: auth,
     redirect: (context, state) async {

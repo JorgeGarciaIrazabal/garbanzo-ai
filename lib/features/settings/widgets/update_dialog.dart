@@ -51,10 +51,10 @@ class UpdateDialog extends StatelessWidget {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   padding: const EdgeInsets.all(12),
-                  child: Markdown(
-                    data: release.body!,
-                    shrinkWrap: true,
-                    padding: EdgeInsets.zero,
+                  // MarkdownBody (not Markdown): a scrollable inside
+                  // AlertDialog breaks its intrinsic-width layout.
+                  child: SingleChildScrollView(
+                    child: MarkdownBody(data: release.body!),
                   ),
                 ),
               ),
