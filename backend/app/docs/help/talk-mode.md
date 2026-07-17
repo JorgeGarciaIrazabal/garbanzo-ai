@@ -22,3 +22,11 @@ Use the on-screen **Mute** button to stop listening temporarily and
 
 ## Which voice does it use?
 The voice and speaking speed come from Settings → Voice.
+
+## Can it reply in my language?
+Yes. Speak in any supported language (English, Spanish, French, Hindi,
+Italian, Brazilian Portuguese) and — with automatic language switching on —
+the reply is spoken by a matching voice. If you've set preferred languages in
+Settings, switching only happens between those. The **translate** button in
+the call bar pins a specific reply language for the call (or returns to
+Auto).

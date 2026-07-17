@@ -115,7 +115,9 @@ features/chat/
   utils/             text_cleaner.dart (strips markdown/emojis before TTS)
   talk/              Talk Mode — full-screen hands-free voice call over
                      ChatProvider: talk_mode_page.dart, talk_mode_controller.dart
-                     (state machine + call loop + voice barge-in), talk_vad.dart
+                     (state machine + call loop + voice barge-in + reply-language
+                     follow: STT-detected language → TTS voice swap, bounded to
+                     preferred languages, with an in-call override), talk_vad.dart
                      (energy VAD), talk_recorder.dart (mic + amplitude stream),
                      talk_tts_queue.dart (sentence-streamed playback)
   widgets/           ChatPage, ChatInputWidget, ChatMessageWidget,

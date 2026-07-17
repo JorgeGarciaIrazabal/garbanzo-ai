@@ -119,7 +119,9 @@ class _TalkModePageState extends State<TalkModePage> {
                 ),
                 _ControlBar(
                   muted: _controller.isMuted,
+                  languageOverride: _controller.languageOverride,
                   onToggleMute: _controller.toggleMute,
+                  onLanguageSelected: _controller.setLanguageOverride,
                   onHangUp: _hangUp,
                 ),
               ],
@@ -197,16 +199,22 @@ class _Captions extends StatelessWidget {
   }
 }
 
-/// Call-style bottom bar: mute toggle + red hang-up.
+/// Call-style bottom bar: mute toggle + reply-language override + red hang-up.
 class _ControlBar extends StatelessWidget {
   const _ControlBar({
     required this.muted,
+    required this.languageOverride,
     required this.onToggleMute,
+    required this.onLanguageSelected,
     required this.onHangUp,
   });
 
   final bool muted;
+
+  /// Pinned reply language (ISO code), null when following the speech (Auto).
+  final String? languageOverride;
   final Future<void> Function() onToggleMute;
+  final void Function(String? code) onLanguageSelected;
   final Future<void> Function() onHangUp;
 
   @override
@@ -226,6 +234,35 @@ class _ControlBar extends StatelessWidget {
             selectedIcon: const Icon(Icons.mic_off),
             tooltip: muted ? 'Unmute' : 'Mute',
             onPressed: onToggleMute,
+          ),
+          const SizedBox(width: 28),
+          // Reply-language override: Auto (follow the user's speech) or pin
+          // one of the supported TTS languages for the rest of the call.
+          PopupMenuButton<String>(
+            key: const ValueKey('talk_language_button'),
+            tooltip: languageOverride == null
+                ? 'Reply language: Auto'
+                : 'Reply language: '
+                      '${TalkModeController.supportedLanguages[languageOverride] ?? languageOverride}',
+            initialValue: languageOverride ?? 'auto',
+            onSelected: (code) =>
+                onLanguageSelected(code == 'auto' ? null : code),
+            itemBuilder: (context) => [
+              const PopupMenuItem(value: 'auto', child: Text('Auto')),
+              const PopupMenuDivider(),
+              for (final entry in TalkModeController.supportedLanguages.entries)
+                PopupMenuItem(value: entry.key, child: Text(entry.value)),
+            ],
+            child: IgnorePointer(
+              // The menu button handles taps; the tonal button is just the look.
+              child: IconButton.filledTonal(
+                iconSize: 26,
+                padding: const EdgeInsets.all(14),
+                isSelected: languageOverride != null,
+                icon: const Icon(Icons.translate),
+                onPressed: () {},
+              ),
+            ),
           ),
           const SizedBox(width: 28),
           IconButton(

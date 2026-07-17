@@ -17,10 +17,20 @@ import 'package:garbanzo_ai/features/chat/utils/text_cleaner.dart';
 /// Mirrors the proven playback pattern in `speak_button.dart`: a fresh
 /// [AudioPlayer] per chunk (reusing one is unreliable across web/Android/Linux).
 class TalkTtsQueue {
-  TalkTtsQueue({required this.voice, required this.speed, this.onComplete});
+  TalkTtsQueue({
+    required this.voice,
+    required this.speed,
+    this.language,
+    this.onComplete,
+  });
 
   final String voice;
   final double speed;
+
+  /// Target reply language (ISO code) — the backend swaps [voice] for that
+  /// language's default voice when it doesn't speak it (idea 13.4). Null keeps
+  /// [voice] as-is.
+  final String? language;
 
   /// Called when the queue drains and nothing more is playing.
   final void Function()? onComplete;
@@ -68,6 +78,7 @@ class TalkTtsQueue {
     speed: speed,
     // WAV avoids MP3 encoder priming that clips the first word on playback.
     format: 'wav',
+    language: language,
   );
 
   Future<void> _drain() async {

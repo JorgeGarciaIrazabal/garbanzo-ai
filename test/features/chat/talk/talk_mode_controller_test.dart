@@ -33,4 +33,85 @@ void main() {
       expect(TalkModeController.lastSentenceBoundary('Done.', 0), 0);
     });
   });
+
+  group('TalkModeController.resolveReplyLanguage', () {
+    test('manual override always wins', () {
+      expect(
+        TalkModeController.resolveReplyLanguage(
+          override: 'fr',
+          autoLanguage: true,
+          detected: 'es',
+          preferred: const ['es'],
+        ),
+        'fr',
+      );
+      // Even with auto off and nothing detected.
+      expect(
+        TalkModeController.resolveReplyLanguage(
+          override: 'it',
+          autoLanguage: false,
+          detected: null,
+          preferred: const [],
+        ),
+        'it',
+      );
+    });
+
+    test('auto mode follows the detected language', () {
+      expect(
+        TalkModeController.resolveReplyLanguage(
+          override: null,
+          autoLanguage: true,
+          detected: 'es',
+          preferred: const [],
+        ),
+        'es',
+      );
+    });
+
+    test('auto off keeps the pinned voice (null)', () {
+      expect(
+        TalkModeController.resolveReplyLanguage(
+          override: null,
+          autoLanguage: false,
+          detected: 'es',
+          preferred: const [],
+        ),
+        isNull,
+      );
+    });
+
+    test('nothing detected yields null', () {
+      expect(
+        TalkModeController.resolveReplyLanguage(
+          override: null,
+          autoLanguage: true,
+          detected: null,
+          preferred: const ['es'],
+        ),
+        isNull,
+      );
+    });
+
+    test('a non-empty preferred list bounds auto switching', () {
+      expect(
+        TalkModeController.resolveReplyLanguage(
+          override: null,
+          autoLanguage: true,
+          detected: 'fr',
+          preferred: const ['en', 'es'],
+        ),
+        isNull,
+      );
+      expect(
+        TalkModeController.resolveReplyLanguage(
+          override: null,
+          autoLanguage: true,
+          detected: 'es',
+          preferred: const ['en', 'es'],
+        ),
+        'es',
+      );
+    });
+  });
 }

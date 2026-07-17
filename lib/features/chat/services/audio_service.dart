@@ -24,8 +24,13 @@ class AudioService {
 
   final ApiClient _api = ApiClient.instance;
 
-  /// Transcribe audio bytes to text via the STT backend.
-  Future<String> transcribeAudio(Uint8List audioBytes, String filename) async {
+  /// Transcribe audio bytes via the STT backend. Returns the text plus the
+  /// language faster-whisper detected (ISO code, null if unknown) — Talk Mode
+  /// uses the latter to reply in the language the user spoke (idea 13.4).
+  Future<({String text, String? language})> transcribeAudio(
+    Uint8List audioBytes,
+    String filename,
+  ) async {
     final formData = FormData.fromMap({
       'file': MultipartFile.fromBytes(audioBytes, filename: filename),
     });
@@ -37,7 +42,10 @@ class AudioService {
 
     if (response.statusCode == 200) {
       final data = response.data as Map<String, dynamic>;
-      return data['text'] as String;
+      return (
+        text: data['text'] as String,
+        language: data['language'] as String?,
+      );
     }
 
     throw Exception('Transcription failed: ${response.statusCode}');
@@ -47,11 +55,14 @@ class AudioService {
   ///
   /// [format] selects the container: `mp3` (default, smaller) or `wav`
   /// (lossless, no encoder priming — avoids a clipped first word on playback).
+  /// [language] (ISO code) makes the backend swap in that language's default
+  /// voice when [voice] doesn't speak it (idea 13).
   Future<Uint8List> speak(
     String text, {
     String voice = 'af_heart',
     double speed = 1.0,
     String format = 'mp3',
+    String? language,
   }) async {
     final response = await _api.postBytes(
       '/api/v1/tts/speak',
@@ -60,6 +71,7 @@ class AudioService {
         'voice': voice,
         'speed': speed,
         'response_format': format,
+        'language': ?language,
       },
       receiveTimeout: const Duration(minutes: 3),
     );

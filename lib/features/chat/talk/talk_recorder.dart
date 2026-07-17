@@ -219,11 +219,11 @@ class TalkRecorder {
     final pcm = _pcm.takeBytes();
     if (pcm.isEmpty) return null;
     final wav = wrapPcmInWav(pcm, sampleRate: _sampleRate, channels: _channels);
-    final transcript = await AudioService.instance.transcribeAudio(
-      wav,
-      'talk.wav',
+    final result = await AudioService.instance.transcribeAudio(wav, 'talk.wav');
+    return VoiceRecordingResult(
+      transcript: result.text,
+      language: result.language,
     );
-    return VoiceRecordingResult(transcript: transcript);
   }
 
   // -- record-package backend (mobile / web / macOS / Windows) ---------------
@@ -289,11 +289,14 @@ class TalkRecorder {
         : Uint8List(0);
     if (audioBytes.isEmpty) return null;
     try {
-      final transcript = await AudioService.instance.transcribeAudio(
+      final result = await AudioService.instance.transcribeAudio(
         audioBytes,
         path.split('/').last,
       );
-      return VoiceRecordingResult(transcript: transcript);
+      return VoiceRecordingResult(
+        transcript: result.text,
+        language: result.language,
+      );
     } finally {
       try {
         await file.delete();

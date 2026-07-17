@@ -8,8 +8,12 @@ import 'package:garbanzo_ai/features/chat/services/audio_service.dart';
 
 /// Result of a completed voice recording + transcription.
 class VoiceRecordingResult {
-  const VoiceRecordingResult({required this.transcript});
+  const VoiceRecordingResult({required this.transcript, this.language});
   final String transcript;
+
+  /// ISO 639-1 language STT detected in the clip, null if unknown. Talk Mode
+  /// uses it to reply in the language the user spoke (idea 13.4).
+  final String? language;
 }
 
 /// Manages voice recording and transcription, keeping platform-specific
@@ -73,12 +77,18 @@ class VoiceRecordingHelper {
     }
 
     try {
-      final transcript = await AudioService.instance.transcribeAudio(
+      final result = await AudioService.instance.transcribeAudio(
         audioBytes,
         filename,
       );
-      debugPrint('STT: transcript="$transcript" (${transcript.length} chars)');
-      return VoiceRecordingResult(transcript: transcript);
+      debugPrint(
+        'STT: transcript="${result.text}" (${result.text.length} chars, '
+        'lang=${result.language})',
+      );
+      return VoiceRecordingResult(
+        transcript: result.text,
+        language: result.language,
+      );
     } finally {
       // Clean up temp file
       try {

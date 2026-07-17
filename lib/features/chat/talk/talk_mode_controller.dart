@@ -77,6 +77,57 @@ class TalkModeController extends ChangeNotifier {
 
   TalkTtsQueue? _tts;
 
+  /// Languages the backend TTS can speak (see `tts_service.py` `_VOICES`),
+  /// for the in-call override menu. ISO code → native display name.
+  static const Map<String, String> supportedLanguages = {
+    'en': 'English',
+    'es': 'Español',
+    'fr': 'Français',
+    'hi': 'हिन्दी',
+    'it': 'Italiano',
+    'pt': 'Português',
+  };
+
+  /// Language STT detected in the user's last utterance (ISO code).
+  String? _detectedLanguage;
+
+  /// Manual in-call language override; null means Auto (follow the speech).
+  String? _languageOverride;
+  String? get languageOverride => _languageOverride;
+
+  /// Pin the reply language for the rest of the call ([code] ISO, null returns
+  /// to Auto). Takes effect from the next reply — the current one keeps
+  /// whatever voice it started with.
+  void setLanguageOverride(String? code) {
+    if (_languageOverride == code) return;
+    _languageOverride = code;
+    notifyListeners();
+  }
+
+  /// The language the next reply should be spoken in, or null to keep the
+  /// pinned voice. A manual override always wins; otherwise Auto mode follows
+  /// the detected speech language, bounded to [preferred] when that list is
+  /// non-empty (idea 13.4).
+  @visibleForTesting
+  static String? resolveReplyLanguage({
+    required String? override,
+    required bool autoLanguage,
+    required String? detected,
+    required List<String> preferred,
+  }) {
+    if (override != null) return override;
+    if (!autoLanguage || detected == null) return null;
+    if (preferred.isNotEmpty && !preferred.contains(detected)) return null;
+    return detected;
+  }
+
+  String? get _replyLanguage => resolveReplyLanguage(
+    override: _languageOverride,
+    autoLanguage: _settings.autoLanguage,
+    detected: _detectedLanguage,
+    preferred: _settings.preferredLanguages,
+  );
+
   /// How many characters of the current reply have already been queued for
   /// speech, so streaming updates only enqueue the newly-completed remainder.
   int _spokenUpTo = 0;
@@ -238,6 +289,7 @@ class TalkModeController extends ChangeNotifier {
     try {
       final result = await _recorder.stopAndTranscribe();
       transcript = result?.transcript.trim();
+      if (result?.language != null) _detectedLanguage = result!.language;
     } catch (e) {
       _fail('Could not transcribe: ${_brief(e)}', recoverable: true);
       return;
@@ -267,6 +319,7 @@ class TalkModeController extends ChangeNotifier {
     _tts = TalkTtsQueue(
       voice: _settings.ttsVoice,
       speed: _settings.ttsSpeed,
+      language: _replyLanguage,
       onComplete: _onQueueDrained,
     );
     _chat.streamingMessage.addListener(_onStreamingContent);
