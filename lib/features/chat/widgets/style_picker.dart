@@ -15,12 +15,15 @@ import 'package:garbanzo_ai/features/chat/providers/system_prompt_provider.dart'
 
 /// The style picker: replaces the plain model dropdown with a "chat style"
 /// surface — saved styles (model + thinking level + system prompt bundles)
-/// as one-tap cards, plus an expandable Customize section with a searchable
-/// model list, thinking-level control, and prompt template picker.
+/// as one-tap cards, plus a Customize section with a searchable model list,
+/// thinking-level control, and prompt template picker. A segmented control
+/// swaps between the two sections so the surface stays content-sized on
+/// every form factor.
 ///
 /// [StylePickerButton] is the app-bar trigger; [showStylePicker] opens the
 /// panel as an anchored popover on wide layouts and a bottom sheet on narrow
-/// ones (the `mute_sheet` idiom).
+/// ones (the `mute_sheet` idiom). The popover scales its width and text with
+/// the window so it stays proportional on large desktop monitors.
 
 /// The capability vocabulary, shared by the model rows' badges and the
 /// capability filter so a filter chip reads as exactly the same thing the
@@ -158,6 +161,9 @@ class StylePickerButton extends StatelessWidget {
     final fg = enabled
         ? colorScheme.onSurfaceVariant
         : colorScheme.onSurfaceVariant.withValues(alpha: 0.5);
+    // Wide layouts have room for a roomier pill; narrow stays compact so the
+    // app bar keeps space for the title.
+    final wide = context.isWide;
 
     return Tooltip(
       message: 'Chat style',
@@ -167,7 +173,10 @@ class StylePickerButton extends StatelessWidget {
         onTap: enabled ? () => showStylePicker(context) : null,
         child: AnimatedContainer(
           duration: Motion.fast,
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          padding: EdgeInsets.symmetric(
+            horizontal: wide ? 12 : 10,
+            vertical: wide ? 8 : 6,
+          ),
           decoration: BoxDecoration(
             color: colorScheme.surfaceContainerHighest.withValues(
               alpha: enabled ? 1 : 0.5,
@@ -182,14 +191,14 @@ class StylePickerButton extends StatelessWidget {
               // just another label; otherwise the plain sparkle icon.
               if (monogram != null)
                 CircleAvatar(
-                  radius: 8,
+                  radius: wide ? 9 : 8,
                   backgroundColor: enabled
                       ? colorScheme.primary
                       : colorScheme.primary.withValues(alpha: 0.5),
                   child: Text(
                     monogram,
                     style: theme.textTheme.labelSmall?.copyWith(
-                      fontSize: 9,
+                      fontSize: wide ? 10 : 9,
                       height: 1,
                       fontWeight: FontWeight.w700,
                       color: colorScheme.onPrimary,
@@ -199,26 +208,31 @@ class StylePickerButton extends StatelessWidget {
               else
                 Icon(
                   Icons.auto_awesome,
-                  size: 14,
+                  size: wide ? 16 : 14,
                   color: enabled ? colorScheme.primary : fg,
                 ),
               const SizedBox(width: 6),
               ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 160),
+                constraints: BoxConstraints(maxWidth: wide ? 220 : 160),
                 child: Text(
                   label,
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: fg,
-                  ),
+                  style:
+                      (wide
+                              ? theme.textTheme.labelLarge
+                              : theme.textTheme.labelMedium)
+                          ?.copyWith(fontWeight: FontWeight.w600, color: fg),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
               if (thinkingActive) ...[
                 const SizedBox(width: 4),
-                Icon(Icons.psychology_outlined, size: 14, color: fg),
+                Icon(
+                  Icons.psychology_outlined,
+                  size: wide ? 16 : 14,
+                  color: fg,
+                ),
               ],
-              Icon(Icons.arrow_drop_down, size: 18, color: fg),
+              Icon(Icons.arrow_drop_down, size: wide ? 20 : 18, color: fg),
             ],
           ),
         ),
@@ -272,32 +286,46 @@ Future<void> showStylePicker(BuildContext context) {
           ),
         );
       },
-      pageBuilder: (dialogContext, _, _) => SafeArea(
-        child: Align(
-          alignment: Alignment.topRight,
-          child: Padding(
-            padding: const EdgeInsets.only(top: kToolbarHeight + 4, right: 12),
-            child: Material(
-              color: Theme.of(dialogContext).colorScheme.surfaceContainerLow,
-              elevation: 6,
-              borderRadius: BorderRadius.circular(16),
-              clipBehavior: Clip.antiAlias,
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxWidth: 400,
-                  maxHeight:
-                      MediaQuery.of(dialogContext).size.height -
-                      kToolbarHeight -
-                      48,
-                ),
-                child: withProviders(
-                  const StylePickerPanel(showCloseButton: true),
+      pageBuilder: (dialogContext, _, _) {
+        final screen = MediaQuery.of(dialogContext).size;
+        return SafeArea(
+          child: Align(
+            alignment: Alignment.topRight,
+            child: Padding(
+              padding: const EdgeInsets.only(
+                top: kToolbarHeight + 4,
+                right: 12,
+              ),
+              child: Material(
+                color: Theme.of(dialogContext).colorScheme.surfaceContainerLow,
+                elevation: 6,
+                borderRadius: BorderRadius.circular(16),
+                clipBehavior: Clip.antiAlias,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    // Scale with the window: a fixed 400dp reads tiny on a
+                    // large desktop monitor, but never exceed 560 so rows
+                    // stay scannable.
+                    maxWidth: (screen.width * 0.38).clamp(440.0, 560.0),
+                    maxHeight: screen.height - kToolbarHeight - 48,
+                  ),
+                  child: MediaQuery(
+                    // Pointer-driven desktops are fine with denser type, but
+                    // the panel still sizes up a notch so it does not read as
+                    // a phone UI lost on a big screen.
+                    data: MediaQuery.of(
+                      dialogContext,
+                    ).copyWith(textScaler: const TextScaler.linear(1.12)),
+                    child: withProviders(
+                      const StylePickerPanel(showCloseButton: true),
+                    ),
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -307,7 +335,9 @@ Future<void> showStylePicker(BuildContext context) {
     isScrollControlled: true,
     useSafeArea: true,
     constraints: BoxConstraints(
-      maxHeight: MediaQuery.of(context).size.height * 0.88,
+      // Content-sized up to this cap; the segmented layout keeps the sheet
+      // from becoming a fullscreen takeover.
+      maxHeight: MediaQuery.of(context).size.height * 0.8,
     ),
     builder: (sheetContext) => Padding(
       // Keep the model search field above the keyboard.
@@ -323,10 +353,20 @@ Future<void> showStylePicker(BuildContext context) {
 // Panel
 // ============================================================================
 
-/// Shared picker content: saved style cards on top, expandable Customize
-/// section below. Every control applies immediately (to the active
-/// conversation when there is one, and always to the pending state used for
-/// the next new conversation) — there is no Apply button.
+/// The two sections the segmented control swaps between: one-tap saved style
+/// cards, and the compose-your-own controls (model, thinking, prompt).
+enum _PickerSection { styles, customize }
+
+/// Shared picker content: a segmented [Styles | Customize] control swaps
+/// between saved style cards and the composition controls. Every control
+/// applies immediately (to the active conversation when there is one, and
+/// always to the pending state used for the next new conversation) — there
+/// is no Apply button.
+///
+/// The segmented layout replaces an inline expanding Customize section:
+/// expanding inline let the bottom sheet balloon to near-fullscreen on
+/// phones, while swapping sections keeps the surface content-sized on every
+/// form factor.
 class StylePickerPanel extends StatefulWidget {
   const StylePickerPanel({super.key, this.showCloseButton = false});
 
@@ -340,12 +380,16 @@ class StylePickerPanel extends StatefulWidget {
 
 class _StylePickerPanelState extends State<StylePickerPanel> {
   final TextEditingController _searchController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
   String _query = '';
 
   /// Capabilities the model list is filtered on. Composes with [_query]
   /// (both must pass) rather than replacing it; empty means no filtering.
   final Set<_Capability> _filters = {};
-  bool? _customizeExpanded;
+
+  /// The visible section. Null derives it: Styles when saved styles exist,
+  /// Customize otherwise — so saving a first style flips the view to it.
+  _PickerSection? _section;
 
   /// When set, the customize section edits this saved style with the local
   /// `_edit*` composition below instead of the live conversation/pendings —
@@ -366,6 +410,7 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
   @override
   void dispose() {
     _searchController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -460,11 +505,18 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
       _editModelId = style.modelId;
       _editThinking = style.thinkingLevel;
       _editTemplateId = style.systemPromptTemplateId;
-      _customizeExpanded = true;
+      _section = _PickerSection.customize;
     });
+    _scrollToTop();
   }
 
   void _cancelEditing() => setState(() => _editing = null);
+
+  /// Section swaps change the content under the same scroll view, so reset
+  /// the position or the new section can start scrolled halfway down.
+  void _scrollToTop() {
+    if (_scrollController.hasClients) _scrollController.jumpTo(0);
+  }
 
   Future<void> _setDefault(Style style, bool isDefault) async {
     final styleP = context.read<StyleProvider>();
@@ -587,7 +639,9 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
     final composeHasCustomPrompt = editing == null && hasCustomPrompt;
 
     // With no saved styles yet, composing is the only thing to do here.
-    final customizeExpanded = _customizeExpanded ?? styles.isEmpty;
+    final section =
+        _section ??
+        (styles.isEmpty ? _PickerSection.customize : _PickerSection.styles);
     final busy = chat.isSending;
 
     bool styleIsActive(Style s) => _styleMatches(
@@ -643,213 +697,223 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
             ],
           ),
         ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+          child: SegmentedButton<_PickerSection>(
+            segments: const [
+              ButtonSegment(
+                value: _PickerSection.styles,
+                icon: Icon(Icons.auto_awesome_outlined, size: 18),
+                label: Text('Styles'),
+              ),
+              ButtonSegment(
+                value: _PickerSection.customize,
+                icon: Icon(Icons.tune, size: 18),
+                label: Text('Customize', key: ValueKey('customize_tile')),
+              ),
+            ],
+            selected: {section},
+            showSelectedIcon: false,
+            // Switching views is a pure view operation, so unlike the
+            // composition controls it stays usable while a message streams.
+            onSelectionChanged: (selected) {
+              setState(() => _section = selected.first);
+              _scrollToTop();
+            },
+          ),
+        ),
         Flexible(
           child: SingleChildScrollView(
+            controller: _scrollController,
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (styleP.isLoading && styles.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 16),
-                    child: Center(
-                      child: SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                    ),
-                  )
-                else if (styles.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(4, 4, 4, 8),
-                    child: Text(
-                      'No saved styles yet. Customize below, then save the '
-                      'combination to switch in one tap.',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  )
-                else
-                  ...styles.map(
-                    (s) => Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: _StyleCard(
-                        key: ValueKey('style_card_${s.id}'),
-                        style: s,
-                        active: styleIsActive(s),
-                        modelName: models
-                            .where((m) => m.id == s.modelId)
-                            .firstOrNull
-                            ?.name,
-                        templateName: templates
-                            .where((t) => t.id == s.systemPromptTemplateId)
-                            .firstOrNull
-                            ?.name,
-                        enabled: !busy,
-                        onTap: () => _applyStyle(s),
-                        onSetDefault: (v) => _setDefault(s, v),
-                        onEdit: () => _startEditing(s),
-                        onDelete: () => _deleteStyle(s),
-                      ),
-                    ),
-                  ),
-                const SizedBox(height: 4),
-                _CustomizeHeader(
-                  key: const ValueKey('customize_tile'),
-                  expanded: customizeExpanded,
-                  summary: _compositionSummary(
-                    composeModel?.name ?? composeModelId,
-                    composeThinking,
-                    composeHasCustomPrompt
-                        ? 'Custom prompt'
-                        : templates
-                              .where((t) => t.id == composeTemplateId)
-                              .firstOrNull
-                              ?.name,
-                  ),
-                  onTap: () =>
-                      setState(() => _customizeExpanded = !customizeExpanded),
-                ),
-                AnimatedSize(
-                  duration: Motion.medium,
-                  curve: Motion.easeOut,
-                  alignment: Alignment.topCenter,
-                  child: !customizeExpanded
-                      ? const SizedBox(width: double.infinity)
-                      : Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            if (editing != null) ...[
-                              const SizedBox(height: 8),
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.edit_outlined,
-                                    size: 16,
+            child: AnimatedSize(
+              duration: Motion.medium,
+              curve: Motion.easeOut,
+              alignment: Alignment.topCenter,
+              child: section == _PickerSection.styles
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (styleP.isLoading && styles.isEmpty)
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 16),
+                            child: Center(
+                              child: SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                            ),
+                          )
+                        else if (styles.isEmpty)
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(4, 4, 4, 8),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'No saved styles yet. Compose a model, '
+                                  'thinking level, and prompt in Customize, '
+                                  'then save the combination to switch in '
+                                  'one tap.',
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                                TextButton(
+                                  onPressed: () {
+                                    setState(
+                                      () => _section = _PickerSection.customize,
+                                    );
+                                    _scrollToTop();
+                                  },
+                                  child: const Text('Compose a style'),
+                                ),
+                              ],
+                            ),
+                          )
+                        else
+                          ...styles.map(
+                            (s) => Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: _StyleCard(
+                                key: ValueKey('style_card_${s.id}'),
+                                style: s,
+                                active: styleIsActive(s),
+                                modelName: models
+                                    .where((m) => m.id == s.modelId)
+                                    .firstOrNull
+                                    ?.name,
+                                templateName: templates
+                                    .where(
+                                      (t) => t.id == s.systemPromptTemplateId,
+                                    )
+                                    .firstOrNull
+                                    ?.name,
+                                enabled: !busy,
+                                onTap: () => _applyStyle(s),
+                                onSetDefault: (v) => _setDefault(s, v),
+                                onEdit: () => _startEditing(s),
+                                onDelete: () => _deleteStyle(s),
+                              ),
+                            ),
+                          ),
+                      ],
+                    )
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (editing != null) ...[
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.edit_outlined,
+                                size: 16,
+                                color: colorScheme.primary,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Editing "${editing.name}"',
+                                  style: theme.textTheme.labelMedium?.copyWith(
                                     color: colorScheme.primary,
                                   ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      'Editing "${editing.name}"',
-                                      style: theme.textTheme.labelMedium
-                                          ?.copyWith(
-                                            color: colorScheme.primary,
-                                          ),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                  IconButton(
-                                    key: const ValueKey('cancel_edit_style'),
-                                    tooltip: 'Stop editing',
-                                    icon: const Icon(Icons.close, size: 16),
-                                    onPressed: _cancelEditing,
-                                  ),
-                                ],
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              IconButton(
+                                key: const ValueKey('cancel_edit_style'),
+                                tooltip: 'Stop editing',
+                                icon: const Icon(Icons.close, size: 16),
+                                onPressed: _cancelEditing,
                               ),
                             ],
-                            const SizedBox(height: 8),
-                            TextField(
-                              key: const ValueKey('style_search_field'),
-                              controller: _searchController,
-                              decoration: InputDecoration(
-                                hintText: 'Search models',
-                                prefixIcon: const Icon(Icons.search, size: 20),
-                                isDense: true,
-                                suffixIcon: _query.isEmpty
-                                    ? null
-                                    : IconButton(
-                                        icon: const Icon(Icons.clear, size: 18),
-                                        onPressed: _searchController.clear,
-                                      ),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            // Filtering is a pure view operation, so unlike
-                            // the controls below it stays usable while a
-                            // message is streaming.
-                            _CapabilityFilter(
-                              selected: _filters,
-                              onToggle: (c) => setState(
-                                () => _filters.contains(c)
-                                    ? _filters.remove(c)
-                                    : _filters.add(c),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            _ModelList(
-                              models: filteredModels,
-                              selectedId: composeModelId,
-                              filters: _filters,
-                              emptyMessage: emptyMessage,
-                              enabled: !busy,
-                              onSelect: _selectModel,
-                            ),
-                            const SizedBox(height: 16),
-                            _ThinkingControl(
-                              value: composeThinking,
-                              enabled:
-                                  !busy &&
-                                  composeModel?.supportsThinking != false,
-                              supported:
-                                  composeModel?.supportsThinking != false,
-                              onChanged: _setThinking,
-                            ),
-                            const SizedBox(height: 16),
-                            _TemplatePicker(
-                              templates: templates,
-                              selectedId: composeTemplateId,
-                              hasCustomPrompt: composeHasCustomPrompt,
-                              enabled: !busy,
-                              onChanged: _setTemplate,
-                            ),
-                            const SizedBox(height: 16),
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: FilledButton.tonalIcon(
-                                key: const ValueKey('save_style_button'),
-                                onPressed: (busy || composeModelId == null)
-                                    ? null
-                                    : () => _saveStyle(
-                                        modelId: composeModelId,
-                                        thinkingLevel: composeThinking,
-                                        templateId: composeTemplateId,
-                                      ),
-                                icon: Icon(
-                                  editing != null
-                                      ? Icons.save_outlined
-                                      : Icons.bookmark_add_outlined,
-                                ),
-                                label: Text(
-                                  editing != null
-                                      ? 'Save changes'
-                                      : 'Save style',
-                                ),
-                              ),
-                            ),
-                          ],
+                          ),
+                          const SizedBox(height: 8),
+                        ],
+                        TextField(
+                          key: const ValueKey('style_search_field'),
+                          controller: _searchController,
+                          decoration: InputDecoration(
+                            hintText: 'Search models',
+                            prefixIcon: const Icon(Icons.search, size: 20),
+                            isDense: context.isNarrow,
+                            suffixIcon: _query.isEmpty
+                                ? null
+                                : IconButton(
+                                    icon: const Icon(Icons.clear, size: 18),
+                                    onPressed: _searchController.clear,
+                                  ),
+                          ),
                         ),
-                ),
-              ],
+                        const SizedBox(height: 8),
+                        // Filtering is a pure view operation, so unlike
+                        // the controls below it stays usable while a
+                        // message is streaming.
+                        _CapabilityFilter(
+                          selected: _filters,
+                          onToggle: (c) => setState(
+                            () => _filters.contains(c)
+                                ? _filters.remove(c)
+                                : _filters.add(c),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        _ModelList(
+                          models: filteredModels,
+                          selectedId: composeModelId,
+                          filters: _filters,
+                          emptyMessage: emptyMessage,
+                          enabled: !busy,
+                          onSelect: _selectModel,
+                        ),
+                        const SizedBox(height: 16),
+                        _ThinkingControl(
+                          value: composeThinking,
+                          enabled:
+                              !busy && composeModel?.supportsThinking != false,
+                          supported: composeModel?.supportsThinking != false,
+                          onChanged: _setThinking,
+                        ),
+                        const SizedBox(height: 16),
+                        _TemplatePicker(
+                          templates: templates,
+                          selectedId: composeTemplateId,
+                          hasCustomPrompt: composeHasCustomPrompt,
+                          enabled: !busy,
+                          onChanged: _setTemplate,
+                        ),
+                        const SizedBox(height: 16),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: FilledButton.tonalIcon(
+                            key: const ValueKey('save_style_button'),
+                            onPressed: (busy || composeModelId == null)
+                                ? null
+                                : () => _saveStyle(
+                                    modelId: composeModelId,
+                                    thinkingLevel: composeThinking,
+                                    templateId: composeTemplateId,
+                                  ),
+                            icon: Icon(
+                              editing != null
+                                  ? Icons.save_outlined
+                                  : Icons.bookmark_add_outlined,
+                            ),
+                            label: Text(
+                              editing != null ? 'Save changes' : 'Save style',
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
             ),
           ),
         ),
       ],
     );
-  }
-
-  String _compositionSummary(
-    String? modelLabel,
-    ThinkingLevel? thinking,
-    String? promptLabel,
-  ) {
-    return [
-      modelLabel ?? 'No model',
-      'Thinking ${thinking?.label.toLowerCase() ?? 'auto'}',
-      promptLabel ?? 'No template',
-    ].join(' · ');
   }
 }
 
@@ -1030,62 +1094,6 @@ class _StyleCard extends StatelessWidget {
 // Customize section pieces
 // ============================================================================
 
-class _CustomizeHeader extends StatelessWidget {
-  const _CustomizeHeader({
-    super.key,
-    required this.expanded,
-    required this.summary,
-    required this.onTap,
-  });
-
-  final bool expanded;
-  final String summary;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    return InkWell(
-      borderRadius: BorderRadius.circular(12),
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-        child: Row(
-          children: [
-            Icon(Icons.tune, size: 18, color: colorScheme.onSurfaceVariant),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Customize', style: theme.textTheme.titleSmall),
-                  Text(
-                    summary,
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-            AnimatedRotation(
-              turns: expanded ? 0.5 : 0,
-              duration: Motion.fast,
-              child: Icon(
-                Icons.expand_more,
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _ModelList extends StatelessWidget {
   const _ModelList({
     required this.models,
@@ -1130,7 +1138,10 @@ class _ModelList extends StatelessWidget {
               ),
             )
           : ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 236),
+              // Wide surfaces have room to show more rows before scrolling.
+              constraints: BoxConstraints(
+                maxHeight: context.isWide ? 340 : 236,
+              ),
               child: ListView.builder(
                 shrinkWrap: true,
                 itemCount: models.length,
@@ -1272,7 +1283,11 @@ class _CapabilityFilter extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Wrapping chips rather than a SegmentedButton, which clips at 360dp —
-    // same reason as the thinking control below.
+    // same reason as the thinking control below. Compact density only on
+    // narrow touch layouts; pointer-driven wide layouts get full-size chips.
+    final density = context.isWide
+        ? VisualDensity.standard
+        : VisualDensity.compact;
     return Wrap(
       key: const ValueKey('capability_filter'),
       spacing: 6,
@@ -1287,7 +1302,7 @@ class _CapabilityFilter extends StatelessWidget {
             avatar: Icon(capability.icon, size: 16),
             label: Text(capability.label),
             selected: selected.contains(capability),
-            visualDensity: VisualDensity.compact,
+            visualDensity: density,
             onSelected: (_) => onToggle(capability),
           ),
       ],
@@ -1353,7 +1368,9 @@ class _ThinkingControl extends StatelessWidget {
               ChoiceChip(
                 label: Text(label),
                 selected: (value?.name ?? _auto) == name,
-                visualDensity: VisualDensity.compact,
+                visualDensity: context.isWide
+                    ? VisualDensity.standard
+                    : VisualDensity.compact,
                 onSelected: enabled
                     ? (_) => onChanged(
                         name == _auto
@@ -1412,16 +1429,19 @@ class _TemplatePicker extends StatelessWidget {
         // value is always the one derived from live state above — a template
         // deleted mid-session can never linger in FormField-internal state.
         InputDecorator(
-          decoration: const InputDecoration(
-            isDense: true,
-            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          decoration: InputDecoration(
+            isDense: context.isNarrow,
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: context.isWide ? 8 : 4,
+            ),
           ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
               key: const ValueKey('template_dropdown'),
               value: value,
               isExpanded: true,
-              isDense: true,
+              isDense: context.isNarrow,
               items: [
                 const DropdownMenuItem(
                   value: _none,

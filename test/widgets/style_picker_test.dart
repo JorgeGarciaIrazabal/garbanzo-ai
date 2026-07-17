@@ -594,9 +594,51 @@ void main() {
       expect(find.text('Chat style'), findsOneWidget);
       expect(find.text('Deep work'), findsOneWidget);
       expect(find.text('Quick answers'), findsOneWidget);
-      // With saved styles present, Customize starts collapsed.
+      // With saved styles present, the Styles section is the visible one.
       expect(find.byKey(const ValueKey('style_search_field')), findsNothing);
     });
+
+    _testPicker(
+      'with no saved styles, starts on Customize and the Styles section '
+      'offers a compose shortcut',
+      (tester) async {
+        _setScreenSize(tester, const Size(390, 844));
+        await tester.pumpWidget(
+          _wrap(
+            chat: _FakeChatProvider(),
+            models: _FakeModelProvider(
+              models: _defaultModels,
+              selectedId: 'qwen3',
+            ),
+            styles: _FakeStyleProvider(),
+            prompts: _FakeSystemPromptProvider(),
+          ),
+        );
+        await _openPicker(tester);
+
+        // No saved styles: composing is the only thing to do, so the
+        // Customize section is the visible one.
+        expect(
+          find.byKey(const ValueKey('style_search_field')),
+          findsOneWidget,
+        );
+
+        // The Styles section explains itself and links back to Customize.
+        await tester.tap(find.text('Styles'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 400));
+        expect(find.byKey(const ValueKey('style_search_field')), findsNothing);
+        expect(find.textContaining('No saved styles yet'), findsOneWidget);
+
+        await tester.tap(find.text('Compose a style'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 400));
+        expect(
+          find.byKey(const ValueKey('style_search_field')),
+          findsOneWidget,
+        );
+      },
+    );
 
     _testPicker('applying a style updates conversation, model, and pendings', (
       tester,
@@ -695,7 +737,7 @@ void main() {
               models: _defaultModels,
               selectedId: 'qwen3',
             ),
-            // No saved styles: Customize starts expanded.
+            // No saved styles: the Customize section is the visible one.
             styles: _FakeStyleProvider(),
             prompts: _FakeSystemPromptProvider(),
           ),
@@ -1218,7 +1260,8 @@ void main() {
       await tester.tap(find.text('Edit…'));
       await tester.pumpAndSettle();
 
-      // Customize expands in edit mode, seeded from the style.
+      // The picker switches to the Customize section in edit mode, seeded
+      // from the style.
       expect(find.text('Editing "Deep work"'), findsOneWidget);
 
       // Recomposing the model only changes the edit state, not the live chat.
@@ -1302,7 +1345,7 @@ void main() {
             ],
             selectedId: 'qwen3',
           ),
-          // No saved styles: Customize starts expanded.
+          // No saved styles: the Customize section is the visible one.
           styles: _FakeStyleProvider(),
           prompts: _FakeSystemPromptProvider(),
         ),

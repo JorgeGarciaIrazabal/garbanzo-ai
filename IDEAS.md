@@ -129,208 +129,52 @@ ChatGPT puts its voice-call entry point right in the composer; this app currentl
 
 ---
 
-New idea
+## 16. Edit existing room agents, chat styles, system prompts, and scheduled actions
 
-- on desktop applications, users should be able to include a folder in a chat. Of course we need to make sure the agent to never be able to read outside of that folder
-- in a chat or room, the agent can be delegated to start a opencode workflow to perform more complex tasks (similat to what we do wiht the small apps but more generic) The llm should be able auto decide to start this agent for very complex tasks.
-- auto upgrade wihtin the desktop app. check if there is a new version in the github releases and auto upgrade it
+All four features have a fully wired **backend** (model + schema + service + `PATCH`/`PUT` endpoint) but are missing the **frontend edit button/dialog** — today you can only create and delete. The fix in every case is the same three-layer split: add a provider wrapper, make the existing create-dialog dual-purpose (accept an optional `existing` record, pre-seed the controllers, swap `create` → `update`), and add an edit affordance to the list row. The cleanest existing pattern to copy is **memories**: `memory_page.dart:66` `_showEditMemoryDialog` pre-seeds a `TextEditingController(text: memory.content)` and calls `_provider.updateMemory(...)`; the list widget just emits an `onEdit` callback.
 
+- [x] `easy-med` **Room agents: edit flow** — Add `RoomProvider.updateAgent(...)` wrapping `room_service.updateAgent` (`room_service.dart:156`, the `PATCH /api/v1/rooms/$roomId/agents/$agentId` call that already works). Refactor `_AddAgentDialog` (`lib/features/rooms/widgets/add_agent_dialog.dart` — name/model/prompt/mode/moderator/tools form) to accept an optional `RoomAgent? existing`: seed all controllers from the agent (pre-select `a.model` instead of `_pickDefault`, pre-check `enabled_tools`, `is_moderator`, `mode`), dynamic title ("Add agent" vs "Edit agent") and submit label ("Add" vs "Save"). Add an edit `IconButton` (e.g. `Icons.edit_outlined`) beside the existing delete icon in `room_chat_view.dart:657` that opens the dialog with the agent. *Done (1c47858): dual-purpose add/edit dialog, pencil icon per agent row; backend update_agent now clears nullable fields on explicit null.*
+- [x] `easy-med` **Chat styles: edit flow** — Add `StyleProvider.updateStyle(...)` forwarding the three-way `set*` flags the service already supports (`style_service.dart:55` handles `name`, `modelId`, `thinkingLevel`/`setThinkingLevel`, `systemPromptTemplateId`/`setTemplateId`, `isDefault`). Extend `_SaveStyleDialog` (`style_picker.dart:1373`, currently name+isDefault-only) to accept an optional `Style? existing`: pre-fill the name/default and route to `updateStyle` instead of `createStyle`. Add an edit affordance on each saved-style card (overflow menu or long-press) opening the customize section pre-seeded from that style. *Done (e7c4178): Edit… in the card menu enters an edit mode in Customize (local state, chat untouched), Save changes → StyleProvider.updateStyle.*
+- [x] `easy` **System prompts: edit flow** — The provider is already complete (`system_prompt_provider.dart:55` `updateTemplate(...)` calls the service `PATCH` and replaces the list — it's just never invoked from the UI). Add an edit icon beside the existing Delete icon in the template dropdown toolbar (`system_prompt_editor_dialog.dart:411`) that, for the selected **custom** (non-builtin) template, opens a small "Edit template" dialog pre-seeding name/description/content from the `SystemPromptTemplate` and calling `provider.updateTemplate(template.id, name:, content:, description:)`. *This is the cheapest of the four — all plumbing exists.* *Done (ca73fee): pencil icon in the template toolbar opens an edit dialog seeded with name/description/content.*
+- [x] `easy-med` **Scheduled actions: edit flow** — Add `ScheduledActionsProvider.update({id, prompt, title, cronExpr, runAt, systemPrompt, model})` mirroring `scheduled_actions_api_service.dart:50` (`PATCH /api/v1/scheduled-actions/$id`), reusing the existing `_replace` helper (`:62`). Make `_ScheduledActionEditor` (`scheduled_actions_page.dart:271` — the richest create form: title + prompt + cron-segmentedbutton + date/time-picker) accept an optional `ScheduledAction? existing` that pre-fills all controllers and switches the submit fn + title ("New scheduled action" → "Edit scheduled action") + label ("Create" → "Save"). Add an edit `IconButton` beside the existing Switch + Delete in `_ActionTile` (`:213`). *Done (53a2e86): dual-purpose editor with pencil icon per tile; setSchedule flag lets an edit switch recurring↔one-off.*
+
+## 17. Include a folder in a chat (desktop) — sandboxed file access (Low priority)
+
+On desktop apps, let a user attach a **folder** to a chat so the agent can read files in it on demand. The agent must **never** be able to read outside that folder. Today there is no such concept: chat attachments are ephemeral in-memory bytes (`ChatAttachment` has no path), native tools have no file reader, and the only sandbox is `microapp_workspace._safe_rel` (`microapp_workspace.py:698-705` — `resolve()` + `relative_to(root)` guard). The reusable pieces are `file_picker`'s `getDirectoryPath()` (already a dependency but unused), `KnowledgeBaseService.extract_text`/`chunk_text` (more complete than the chat `document_parser`), and the `progressEmit`/`emit` mechanism for live file-read progress.
+
+- [ ] `medium` **Backend: sandboxed `read_file` native tool** — New native tool in `native_tools.py` (`read_file(path, query?)`) registered under `NATIVE_GARBO_SERVER_ID`. Each conversation can carry an `allowed_folder` (path on the host filesystem, set once when the folder is attached). The tool resolves the requested path, asserts `path.resolve().relative_to(allowed_folder.resolve())` (copy `microapp_workspace._safe_rel`), rejects anything escaping, then reads the file via `KnowledgeBaseService.extract_text` (handles PDF/CSV/spreadsheet/text) and returns the text as a `tool_result`. No writes, no listing beyond the folder root (optional `list_files` tool with the same guard). Add a `Conversation.allowed_folder` nullable column + migration.
+- [ ] `medium` **Backend: attach folder endpoint** — `POST /api/v1/chat/conversations/{id}/folder` taking `{path}` (desktop only — guard by a setting or client hint; never on web). Stores the resolved absolute path on the conversation, validates the directory exists, and registers the `read_file` tool only for conversations that have one set. Clear with `DELETE /api/v1/chat/conversations/{id}/folder`.
+- [ ] `medium` **Frontend: desktop-only folder picker** — Add a `PlatformInfo.isDesktop` helper in `lib/core/` (precedent: `file_picker_helper.isMobilePlatform`; use `!kIsWeb && (Platform.isLinux || Platform.isWindows || Platform.isMacOS)`). In `AttachMenuButton` (`attach_menu_button.dart`), show a "Folder" option **only on desktop** that calls `FilePicker.getDirectoryPath()` (existing package, unused today). On pick, call the attach-folder endpoint and show a folder chip in `AttachmentPreviewBar`. Reuse the existing drag-and-drop path (`chat_page.dart:506` `DragTarget`) to accept a dropped `Directory` on desktop.
+- [ ] `easy-med` **Frontend: folder-aware file-read progress** — While the agent uses `read_file`, relay the live progress (`tool_execution` chunks already work — `agent_turn.py:249-282`); no new SSE type needed. Show the file path + a "reading…" indicator in the existing tool-execution UI. Surface the allowed folder name in the composer so the user knows the bound scope.
+- [ ] `easy` **Docs + tests** — Add the new endpoints to `docs/api.md`, the `allowed_folder` column to `docs/database.md`, and a backend test asserting `_safe_rel` rejects `../../etc/passwd`-style escapes (copy the micro-app test pattern). Update the help doc for chat attachments (`backend/app/docs/help/chat.md`) to mention folder inclusion.
+
+## 18. Delegate to an opencode workflow for complex tasks (Low priority)
+
+In a chat or room, let the LLM **auto-decide** to delegate a very complex task to an autonomous opencode subagent (like micro-apps but generic — not tied to the micro-apps monorepo). Micro-apps already do exactly this: `microapp_chat_tool.py` registers a native tool the LLM calls, `microapp_agent.py` streams opencode events back as `ChatResponseChunk`s, and `_forward_progress` relays inner steps live. Generalize that machinery, gate it behind an `action_proposal`-style confirm card (so the user approves the plan before a minutes-long run), and add a persisted workflow-run entity so progress survives reloads and the user gets notified on completion (borrowing from `scheduled_action_job.py` + FCM).
+
+- [ ] `med-hard` **Backend: `WorkflowRun` model + migration** — New `WorkflowRun` table: `id`, `user_id`, `conversation_id` (nullable for rooms), `room_id`, `status: pending|running|done|error`, `instruction`, `scope` (allowed dir / permissions), `opencode_session_id`, `summary` (final tool_result), `progress` (JSONB list of emitted chunks for replay), `created_at`/`updated_at`/`completed_at`. Idempotent migration following the repo pattern. This is what survives a disconnect — today micro-app progress is ephemeral (`microapp_chat_tool.py:256-259` says so).
+- [ ] `med-hard` **Backend: `delegate_workflow` native tool + launcher** — New native tool (sentinel `NATIVE_SERVER_ID` variant or a new one, mirroring `microapp_chat_tool.py:50`). The executor is a **proposal tool** (`native_tools.py:665-683` pattern): it returns `{"proposal": {"type": "delegate_workflow", "summary": "I'll research and refactor X", "payload": {"instruction": ...}}}` so the turn engine emits an `action_proposal` chunk (`agent_turn.py:309-319`). The LLM decides to call this when the task is complex. Add a prompt nudge describing when to use it.
+- [ ] `med-hard` **Frontend: confirm card + launcher** — Reuse `ActionProposalCard` (`action_proposal_card.dart`) with a new `delegate_workflow` type: show the planned instruction + scope, with Confirm/Cancel. On Confirm, call a new `POST /api/v1/workflows` endpoint that creates the `WorkflowRun`, `asyncio.create_task`s it **outside the request scope** (so disconnect doesn't cancel — the key gap today), and returns immediately. `SharedPreferences` decision-store keyed by `tool_call_id` gives reload-safe idempotency for free.
+- [ ] `hard` **Backend: detached opencode runner** — Generalize `MicroappAgent.stream_instruction` (`microapp_agent.py:167`) away from the workspace coupling: given an instruction + a scope (working dir + `opencode.json` permissions), spawn/call opencode, relay events into `WorkflowRun.progress`, and write the final summary back as an **assistant message** in the originating conversation (the `scheduled_action_job.py:73-96` precedent) when done. Reuse `_child_preexec`/`_default_spawn` (`microapp_workspace.py:73-97`) for subprocess safety. Add a watchdog (copy `_WATCHDOG_TIMEOUT` at `microapp_agent.py:29`). On completion, send an FCM notification (borrow `fcm_service.py`) that deep-links back to the conversation.
+- [ ] `medium` **Frontend: live progress + resume after reload** — While a workflow runs and the user is watching, stream `progress` events live (existing `emit`/`progressEmit` path works for the in-SS/WS turn; for the detached task, a new SSE/WebSocket channel or polling `GET /workflows/{id}/events` is needed). On chat reload, hydrate the card from the persisted `WorkflowRun` (the `action_proposal` reload pattern at `action_proposal_card.dart:50-53` shows how decisions survive reloads — extend it). Show a live timeline of the opencode inner steps, then the summary.
+- [ ] `easy-med` **Rooms parity + scope policy** — Rooms use the same `run_agent_turn` (`room_chat_service.py:577`), so the delegate tool works there once registered in the room's `_resolve_tools` equivalent — verify and wire it. Define the scope/permission model for a generic (non-micro-app) workflow: which directories (default to a per-user sandbox tempdir, not the home fs unless explicitly granted), which permissions (`opencode.json` `edit`/`bash`/`webfetch` — default to read-only unless confirmed), a time budget, and a command budget. No workflow runs without Confirm.
+- [ ] `easy` **Docs** — `docs/api.md` (workflow endpoints), `docs/database.md` (`WorkflowRun`), `docs/architecture.md` (the delegated-workflow flow), and a help doc (`backend/app/docs/help/chat.md`) explaining when the agent will offer to delegate.
+
+## 19. Auto-upgrade within the desktop app (GitHub releases)
+
+Check for a new version in GitHub Releases and let the desktop app self-upgrade. Today there is **zero** client-side version awareness: no `package_info_plus` dep, no update-check service, no `/version` endpoint (backend `version="0.1.0"` is hardcoded at `main.py:181` and `/api/v1/health` returns no version). CI already publishes GitHub Releases with Linux `.tar.gz` + Windows `.zip` artifacts (`.github/workflows/build-desktop-apps.yml:135-156`), and the repo URL is `https://github.com/JorgeGarciaIrazabal/garbanzo-ai` (hardcoded in `README.md:3`/`scripts/deploy.sh:148`). No macOS build exists in CI, so this is Linux+Windows only initially.
+
+- [x] `easy` **Backend: version endpoint** — Add `version` (read from an env var or a build-time-generated file committed at deploy) to `GET /api/v1/health`, and a new `GET /api/v1/version/latest` that proxies/caches the GitHub releases API (`https://api.github.com/repos/JorgeGarciaIrazabal/garbanzo-ai/releases/latest`) with a 5-min in-memory cache. Centralizes the repo URL (add to `config.py` as `github_repo`) so self-hosters can override. Update `docs/api.md`. *(`APP_VERSION` is a Docker build arg: deploy.sh now computes the release tag before building the image and bakes it in, so `/health` reports the same version the CI desktop builds of that release carry. `GITHUB_REPO` overridable via deploy/.env. Endpoint smoke-tested against the real repo.)*
+- [x] `easy-med` **Frontend: update-check service** — Add `package_info_plus` dep (to read the running app version from `pubspec.yaml:19`). New `UpdateService` in `lib/features/settings/` that calls `GET /api/v1/version/latest` (or GitHub directly as fallback), compares semver against the running version, and exposes `hasUpdate`, `latestVersion`, `downloadUrl` (per-platform asset from the release's `assets`). Runs on app start (silent) + a "Check for updates" button in Settings. Desktop-only guard via the `PlatformInfo.isDesktop` helper from idea 17. *(`PlatformInfo` created in `lib/core/` (idea 17 hadn't landed) using web-safe `defaultTargetPlatform`. GitHub-direct fallback kicks in only when the backend 404s the endpoint — i.e. a backend older than the updater. Asset matching = `*linux*.tar.gz` / `*windows*.zip`, verified against the real v1.0.3 release assets.)*
+- [x] `med-hard` **Frontend: self-upgrade flow** — On "Download & install": download the platform asset to a temp dir, verify it's not empty, then: **Linux** — extract the `.tar.gz`, replace the current install dir (or prompt the user for the install path if unknown), and offer to relaunch via a `Process`/`xdotool` call. **Windows** — extract the `.zip`, run the new executable (or an MSI/NSIS installer if we switch to one), and relaunch. Show a progress bar + changelog (release body). Needs careful handling of file locks (the running app can't overwrite its own binary — copy-aside-and-swap on next launch is the common pattern). Decide between "download + prompt to restart" (safer) vs full auto-install. *(Went full auto-install. Install dir = parent of `Platform.resolvedExecutable`. Extraction via native `tar`/`Expand-Archive` (keeps Linux exec bits; no new dep). Linux: extract to a sibling staging dir (same filesystem — rename is atomic and legal while running since open inodes survive), swap `install → .old` (kept as rollback) + `staging → install`, relaunch detached, exit. Windows: locked files can't be dir-renamed, so a batch script waits for exit, robocopy /MIR-s staging over the install, and relaunches. Refuses to install archives missing the executable.)*
+- [x] `medium` **Frontend: update-available UX** — Toast/banner on app start when an update is available ("v1.0.4 is available — Update / Later"), with a don't-remind-until setting (persist in `SharedPreferences`, matching `SettingsProvider`). The Settings page gets a "Software update" section showing current vs latest version + changelog + "Check now" / "Download & install". Gate the whole feature behind the desktop check. *(Slim top banner above the router (wraps the app in `main.dart`'s builder); "Later" = 3-day per-version snooze in `SharedPreferences` — a newer release re-shows it. Shared changelog dialog (markdown release notes + progress bar) used by both banner and the desktop-only Settings section.)*
+- [x] `easy` **Docs** — `docs/environment.md` (new `github_repo` env var), `deploy/.env.example`, and a note in `deploy/CLAUDE.md` that the desktop auto-updater consumes the same GitHub Releases CI already produces. *(Plus `docs/api.md`, `docs/architecture.md` provider map, and a "How do I update the desktop app?" entry in `backend/app/docs/help/settings.md`.)*
+
+---
 
 ----
 
 ## Bugs
 
-A numbered `B-NN` prefix is used so these can be referenced from TASKS.md.
-
-### B-01 `med-hard` — Android background kills the SSE stream mid-generation
-
-**Symptom:** On Android (possibly other platforms), backgrounding the app
-while the LLM is mid-stream produces *Streaming error: HttpException:
-Connection closed while receiving data …* and the live reply is lost.
-
-**Root cause (confirmed by code audit):**
-
-- The chat stream uses Dio `ResponseType.stream` over `dart:io`'s
-  `HttpClient` (`lib/core/api_client.dart:284` `streamPost`, with
-  `receiveTimeout: Duration.zero` so the stream never times out on its
-  own).
-- Android suspends the app's Dart isolate within ~1 s of backgrounding and
-  tears down idle sockets a few seconds later. The backing TCP socket gets
-  a RST/FIN → Dio raises `HttpException` → `ChatProvider`'s `onError`
-  (`lib/features/chat/providers/chat_provider.dart:579`) sets
-  `_error = 'Streaming error: $e'` and gives up. **No retry / reconnect
-  exists** (contrast with `RoomSocketService` which has full backoff for
-  WebSocket).
-- There is **no app-lifecycle handling anywhere** in `lib/` —
-  `didChangeAppLifecycleState` is never overridden. `_ChatPageContentState`
-  uses `WidgetsBindingObserver` but only for `didChangeMetrics` (keyboard).
-- No foreground service, no `WAKE_LOCK` permission, no
-  `FOREGROUND_SERVICE_DATA_SYNC` in `android/app/src/main/AndroidManifest.xml`.
-  `wakelock_plus` is used only in Talk Mode, not for chat streaming.
-- The **backend already partially handles this**: `_sse_stream()`
-  (`backend/app/api/v1/endpoints/chat.py:286-361`) catches
-  `asyncio.CancelledError` and calls `on_client_disconnect` →
-  `_make_push_callback` sends an FCM "Response ready" push with the
-  `conversation_id`. But generation **aborts** on client disconnect (the
-  `raise` at line 354), so the persisted message may be incomplete and the
-  user must manually regenerate.
-- Backend SSE frames carry **no `id:` field** and the endpoint ignores
-  `Last-Event-ID` — there is no resume protocol today.
-
-**Notes:**
-- The backend's disconnect → push-notification path is the existing
-  workaround and should remain as a safety net even after a proper fix.
-- `RoomSocketService` (`lib/features/rooms/services/room_socket_service.dart`)
-  is the in-repo reference for reconnect-with-backoff; reuse its pattern if
-  retry is added.
-
-**Fix (partial, data-loss half only):** `run_agent_turn` (`agent_turn.py`)
-now catches `asyncio.CancelledError` and persists+commits whatever content
-had accumulated before reraising — previously `except Exception` never
-caught it (`CancelledError` is a `BaseException`), so a disconnect silently
-discarded the whole reply regardless of how much had streamed. `ChatProvider`'s
-stream `onError` now also reloads the conversation from the server (mirroring
-`onDone`), so the recovered content replaces the raw error instead of the
-user needing to manually regenerate. *(Tests:
-`test_agent_turn.py::test_cancellation_persists_partial_content`,
-`chat_provider_streaming_test.dart` "stream error reloads…".)* **Not** done:
-true reconnect-with-backoff, app-lifecycle handling, and an SSE resume
-protocol (`id:`/`Last-Event-ID`) so generation *after* the disconnect is
-detected also reaches the client live instead of only surfacing via reload/push.
-
----
-
-### B-02 `medium` — Notification taps never navigate (all notification types)
-
-**Symptom:** Tapping any notification (scheduled action, chat-response-on
-disconnect, friend event, share) does nothing — the app opens but stays on
-whatever screen was last visible. The user specifically noticed scheduled
-actions and wants one chat window per scheduled action.
-
-**Root cause (confirmed by code audit):**
-
-- The Flutter tap handler `_handleNotificationTap`
-  (`lib/features/notifications/services/push_service.dart:74-83`) reads
-  **only** `data['room_id']` and, if present, navigates to
-  `/rooms/$roomId`. Every other payload key is ignored and the method
-  returns silently. This is why *all* non-room notifications fail, not
-  just scheduled-action ones.
-- The wiring in `lib/main.dart:59-76` and `lib/core/auth_state.dart:57-73`
-  only listens for `pendingRoomId` / `onOpenRoom` — there is no
-  `pendingConversationId` / `onOpenConversation` equivalent, so the
-  cold-start and logged-out-deferred cases are also room-only.
-- The in-app notification bell list has the same gap:
-  `notifications_page.dart` line 80/157 `onTap` only calls `markRead` and
-  never navigates, even though `AppNotification.data` carries the same
-  `conversation_id`/`room_id` payload as the push.
-- **The backend already does the right thing** — payloads include the
-  targeting id:
-  - Scheduled action fire → `conversation_id` + `scheduled_action_id`
-    (`backend/app/jobs/scheduled_action_job.py:84-94`).
-  - Chat-response-on-disconnect → `conversation_id`
-    (`backend/app/api/v1/endpoints/chat.py:396-403`).
-  - Room offline member → `room_id` (already works).
-- The target route already exists: `lib/core/router.dart:49-53` defines
-  `/chat/:conversationId` → `ChatPage(conversationId: …)`, which is the
-  canonical way to open a conversation (used at `chat_page.dart:127,318`).
-- **Scheduled actions already produce one dedicated conversation per
-  fire** — `run_scheduled_action` creates a fresh `Conversation` titled
-  `⏰ {title}` and streams the reply into it
-  (`backend/app/jobs/scheduled_action_job.py:41-61`), then attaches its id
-  to the notification. So "one chat window per scheduled action" already
-  exists on the backend; the frontend just never opens it.
-- `docs/PUSH_NOTIFICATIONS.md:232` explicitly flags this as unimplemented
-  future work, so this is a known gap, not a regression.
-
-**Fix:** `PushService` now derives a route from any payload via the new
-`routeForData` (`room_id` → `/rooms/:id`, `conversation_id` → `/chat/:id`,
-extensible for future keys), replacing the room-only `pendingRoomId`/
-`onOpenRoom` plumbing with `pendingRoute`/`onOpenRoute` used identically by
-`main.dart`'s foreground listener, its cold-start check, and
-`AuthState.pendingRouteNavigator`'s post-login deferred navigation. The
-in-app notification bell list (`notifications_page.dart`) now also calls
-`routeForData` on tap and navigates via `context.go`, closing that half of
-the gap too. Scheduled-action and chat-response-on-disconnect pushes both
-carry `conversation_id`, so both now land on the right conversation with no
-backend changes needed. *(Tests: `push_service_test.dart`,
-`notifications_page_test.dart`.)*
-
----
-
-### B-03 `med-hard` — Very large conversations are slow to load (and reload after every turn)
-
-**Symptom:** Opening a conversation with many messages (hundreds, with tool
-calls) takes a long time; the lag repeats after every sent message.
-
-**Root cause (confirmed by code audit):**
-
-- **Backend loads everything in one shot.** `GET
-  /conversations/{conversation_id}` (`backend/app/api/v1/endpoints/chat.py:157`)
-  calls `ConversationService.get(..., include_messages=True)`
-  (`conversation_service.py:125-137`) which does
-  `selectinload(Conversation.messages)` — a single `SELECT *` returning
-  **all** message rows for the conversation, ordered by `created_at`. No
-  `LIMIT`, no `offset`, no cursor. (The *conversation list* endpoint has
-  `page`/`page_size`, but the message fetch does not.)
-- **Tool results are separate `Message` rows** (`role: "tool_call"` /
-  `"tool_result"`) persisted by `ConversationTurnSink`. Each tool_result
-  row stores the (truncated-to-32,000-char) result text in **both**
-  `content` and `meta.result` JSONB — so a single tool_result can be ~64 KB
-  in the payload, duplicated. Truncation at store time is already enforced
-  (`tool_result_max_chars = 32000`, `agent_turn.py:51-60`), but **no
-  trimming happens on the read path**: the full truncated content *and*
-  the duplicate `meta.result` are both serialized on every load.
-- **Frontend fetches all at once, twice per turn.** `ChatProvider`
-  `loadConversation` (`chat_provider.dart:159`) and
-  `_reloadCurrentConversation` (`chat_provider.dart:765`) each call
-  `ChatService.getConversation` → a single `GET` returning the whole
-  conversation with all messages. `_reloadCurrentConversation` runs in the
-  stream's `onDone` (line 605), so **after every single message exchange
-  the entire history is re-downloaded and re-deserialized**.
-- **Rendering is already virtualized** — `ListView.builder` is used
-  (`chat_page.dart:763`), tool bubbles are collapsed by default with
-  deferred payload mounting (`ToolBubbleWidget`, `ToolActivityGroup`), and
-  markdown is cached per-message (`markdown_widget.dart:44-48`). So the
-  bottleneck is **data transfer + JSON deserialization**, not layout.
-- **No infinite scroll exists anywhere yet.** The room messages endpoint
-  (`GET /rooms/{id}/messages?page=&page_size=`) has server-side pagination,
-  but the rooms UI only fetches page 1 and relies on WebSocket for new
-  messages — no load-more-on-scroll-top. Search has explicit prev/next
-  page buttons. `SmartScrollController` has `isNearBottom` detection but no
-  load-from-top trigger.
-
-**Fix:** Windowed message loading, mirroring the pattern this doc noted was
-missing on the frontend even where rooms had backend pagination:
-
-- New `Message.seq` column (migration 024) — an app-assigned monotonic
-  insertion order. `created_at` can't be trusted as a pagination cursor:
-  rows persisted in the same DB transaction (an agent turn's
-  assistant/tool_call/tool_result rows) share an identical value, since
-  Postgres `now()` is transaction-start time, not per-statement time — a
-  real correctness bug found while implementing this, not just a
-  performance one (sorting by `created_at` alone could show a tool_result
-  before its own tool_call).
-- `GET /conversations/{id}?message_limit=N` returns only the most recent N
-  messages + `has_more_messages`; `GET /conversations/{id}/messages?before=`
-  pages older ones in. Internal callers needing full history (regenerate,
-  edit, branch, context building) are untouched — only the read-only detail
-  endpoint is windowed.
-- `ChatProvider.loadConversation` requests a 60-message window;
-  `_reloadCurrentConversation` (runs after every turn) requests
-  `max(60, messages already displayed)` instead of everything, so it stays
-  cheap for an active conversation and never truncates history the user
-  scrolled up to see.
-- `chat_page.dart` triggers `loadOlderMessages()` on scroll-to-top and
-  compensates the scroll offset so prepending older messages doesn't yank
-  the view.
-- **Deliberately not done:** removing the tool_result `content`/`meta.result`
-  duplication. Traced during this fix — it isn't safe to drop: the frontend's
-  live-streaming tool bubble reads the structured result from
-  `meta['result']`, while `content` holds different things depending on path
-  (tool name during streaming, full result text after reload); removing the
-  duplication cleanly would need to touch the SSE chunk schema too, with real
-  regression risk to tool-call rendering. Left as a documented follow-up
-  rather than rushed.
-- *(Tests: `test_conversation_pagination.py`,
-  `test_conversation_pagination_endpoints.py`,
-  `chat_provider_pagination_test.dart`.)*
+- [x] `med-hard` **Talk Mode Android: stopping speech doesn't start transcription** — On Android (`talk_recorder.dart:231-275`, `record` package backend), when the user stops talking the VAD should fire `speechEnd` (`talk_mode_controller.dart:206-207` `_onDb → _vad.update → _stopAndSend`) which stops the recorder and calls `/stt/transcribe`. Prime suspects: (1) the `record` package's `Amplitude.current` scale may differ from the dBFS the VAD was calibrated against (`talk_vad.dart:31-34` `initialNoiseFloorDb=-50`, `startMarginDb=7`, `endMarginDb=4`, `silenceDuration=900ms`) — no normalization exists, so `speechEnd` may never fire; (2) `stopAndTranscribe` returning null/empty is silently swallowed (`talk_recorder.dart:290` `if (audioBytes.isEmpty) return null` + `talk_mode_controller.dart:246-250` loop-back-to-listening with no error); (3) `AndroidManifest.xml` lacks `MODIFY_AUDIO_SETTINGS` so hardware AEC (`echoCancel:true`) may be silently ignored, making the amplitude stream erratic. Fix: add debug logging of received `db` values on Android to confirm the scale, normalize/adjust the VAD thresholds for the `record` package, surface empty-transcript as a recoverable error instead of silent loop, and add `MODIFY_AUDIO_SETTINGS` to the manifest. *Fixed: root cause was suspect (1) in a specific form — the record package reports peak dB and −160 for digitally-silent buffers (noiseSuppress gates the mic), so calibration latched the VAD floor at ≈−160 and post-speech ambient never counted as silence. TalkVad now clamps the floor at −55 dB (`floorMinDb`); plus throttled db/floor debug logging, empty transcript surfaces as a recoverable "Didn't catch that" error, and MODIFY_AUDIO_SETTINGS added. Needs on-device confirmation via the new logs.*
+- [x] `easy-med` **Talk Mode desktop: too sensitive — interrupts the agent with very little sound** — On desktop (Linux PipeWire AEC), barge-in fires too easily. Thresholds: `_bargeMarginDb=14`, `_bargeSustainSamples=3` (~300ms) at `talk_mode_controller.dart:74-75`; `_detectBargeIn` (`:223-232`) interrupts when `db > noiseFloorDb + 14` for 3 consecutive samples (strict run, any sub-threshold sample resets). The noise floor is learned during the *listening* phase and is **not re-adapted during speaking** (`talk_vad.dart:77-80`), so a quiet pre-turn room makes the bar very low; ~30 dB residual AEC echo can clear it. Fix: raise `_bargeMarginDb` (18-22) and `_bargeSustainSamples` (6-8, ~600-800ms) and/or switch to a moving-average window; add an **absolute noise gate** in `_detectBargeIn` (ignore samples below a fixed `-X dBFS` even if above `floor+margin`); optionally re-adapt a separate "speaking-period floor" while AEC is active so the AI's residual echo raises the bar. Expose these as settings (currently hardcoded `TalkVad()` at `:64`). *Fixed: barge-in extracted to pure `talk_barge_in.dart` — margin 18 dB, 6-loud-of-last-8 sliding window (~600–800 ms, dips don't reset), absolute −45 dBFS gate, and a speaking-period floor that adapts upward toward residual echo. Sensitivity exposed as Settings → Voice → Voice interruption (Off/Low/Normal/High, persisted).*
