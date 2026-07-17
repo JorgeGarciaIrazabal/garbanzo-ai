@@ -22,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.services.app_help import search_help
 from app.services.memory_service import MemoryService
 from app.services.notification_service import NotificationService
+from app.services.report_service import ReportService
 from app.services.scheduled_action_service import ScheduledActionService
 
 logger = logging.getLogger(__name__)
@@ -38,6 +39,7 @@ NOTIFICATION_TOOL = "notifications"
 APP_HELP_TOOL = "app_help"
 CREATE_ROOM_TOOL = "create_room"
 SET_STYLE_TOOL = "set_conversation_style"
+REPORT_TOOL = "submit_report"
 
 ALL_NATIVE_TOOLS = (
     SCHEDULED_ACTION_TOOL,
@@ -46,6 +48,7 @@ ALL_NATIVE_TOOLS = (
     APP_HELP_TOOL,
     CREATE_ROOM_TOOL,
     SET_STYLE_TOOL,
+    REPORT_TOOL,
 )
 
 # Tools that return an action *proposal* instead of executing. The LLM never
@@ -877,6 +880,85 @@ async def _execute_set_style(
 
 
 # ---------------------------------------------------------------------------
+# Submit report tool (bug / feature)
+# ---------------------------------------------------------------------------
+
+_REPORT_TYPES = ("bug", "feature")
+
+_REPORT_DESCRIPTOR: dict[str, Any] = {
+    "type": "function",
+    "function": {
+        "name": REPORT_TOOL,
+        "description": (
+            "Submit a bug report or feature request about THIS app (Garbanzo "
+            "AI) to its admins, straight from the conversation. Use when the "
+            "user reports something broken or asks for a new capability, e.g. "
+            "'report a bug: the mic button does nothing on Android' or 'can "
+            "you request that talk mode support Portuguese?'. Write a concise "
+            "title and a description that captures the details the user gave "
+            "(what happened / what they want, steps, platform). Confirm the "
+            "title and type with the user first if they are ambiguous. This "
+            "files the report immediately — it is not a draft."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "enum": list(_REPORT_TYPES),
+                    "description": "'bug' for something broken, 'feature' for a request.",
+                },
+                "title": {
+                    "type": "string",
+                    "description": "Short one-line summary (max 200 chars).",
+                },
+                "description": {
+                    "type": "string",
+                    "description": (
+                        "Full details: what happened or what is wanted, plus "
+                        "any steps, platform, or context the user provided."
+                    ),
+                },
+            },
+            "required": ["type", "title", "description"],
+        },
+    },
+}
+
+
+async def _execute_submit_report(
+    *,
+    args: dict[str, Any],
+    db: AsyncSession,
+    user_id: str,
+) -> dict[str, Any]:
+    """File a bug/feature report and notify admins — same path as the form."""
+    type_ = (args.get("type") or "").strip().lower()
+    if type_ not in _REPORT_TYPES:
+        return {"ok": False, "error": f"type must be one of {', '.join(_REPORT_TYPES)}."}
+    title = (args.get("title") or "").strip()
+    if not title:
+        return {"ok": False, "error": "title is required."}
+    if len(title) > 200:
+        return {"ok": False, "error": "title must be at most 200 characters."}
+    description = (args.get("description") or "").strip()
+    if not description:
+        return {"ok": False, "error": "description is required."}
+    if len(description) > 10000:
+        return {"ok": False, "error": "description must be at most 10000 characters."}
+
+    svc = ReportService(db)
+    report = await svc.create(user_id=user_id, type_=type_, title=title, description=description)
+    await svc.notify_admins(report)
+    label = "Bug report" if type_ == "bug" else "Feature request"
+    return {
+        "ok": True,
+        "report": {"id": report.id, "type": type_, "title": title, "status": report.status},
+        "note": f"{label} filed and sent to the admins. Confirm this to the user.",
+    }
+
+
+# ---------------------------------------------------------------------------
 # Registry
 # ---------------------------------------------------------------------------
 
@@ -887,6 +969,7 @@ _NATIVE_TOOL_REGISTRY: dict[str, tuple[dict[str, Any], Any]] = {
     APP_HELP_TOOL: (_APP_HELP_DESCRIPTOR, _execute_app_help),
     CREATE_ROOM_TOOL: (_CREATE_ROOM_DESCRIPTOR, _execute_create_room),
     SET_STYLE_TOOL: (_SET_STYLE_DESCRIPTOR, _execute_set_style),
+    REPORT_TOOL: (_REPORT_DESCRIPTOR, _execute_submit_report),
 }
 
 

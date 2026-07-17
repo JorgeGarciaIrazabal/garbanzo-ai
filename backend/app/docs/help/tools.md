@@ -6,7 +6,8 @@ expandable activity cards.
 
 ## What tools are there?
 - **Built-in tools** — always available, e.g. saving memories, creating
-  scheduled actions, running micro-apps, and app help.
+  scheduled actions, running micro-apps, app help, and submitting a bug
+  report or feature request.
 - **MCP tools** — external tool servers connected by an admin (Model
   Context Protocol).
 

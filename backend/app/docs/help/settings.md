@@ -46,7 +46,9 @@ controlled from the chat itself (see Memories).
 ## How do I report a bug or request a feature?
 Settings drawer → **Report a bug or idea**. Pick Bug or Feature, add a
 title and description, and submit — it goes straight to the admins, who
-triage reports from the Admin page.
+triage reports from the Admin page. You can also just say it in chat
+("report a bug: the mic does nothing on Android", "request Portuguese
+voices") and the assistant files it for you through the same channel.
 
 ## How do I update the desktop app?
 The desktop app (Linux/Windows) checks for new releases when it starts and

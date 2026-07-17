@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import uuid
 
@@ -9,6 +10,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.report import Report
+from app.models.user import User
+from app.services import fcm_service
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +41,25 @@ class ReportService:
         await self.db.refresh(report)
         logger.info("Created %s report %s for user %s", type_, report.id, user_id)
         return report
+
+    async def notify_admins(self, report: Report) -> None:
+        """Best-effort heads-up to every admin (in-app + push, ``system_alerts``
+        channel) when a report lands. The submitter isn't notified about their
+        own submission, and a delivery failure never breaks the caller."""
+        result = await self.db.execute(
+            select(User.email).where(User.is_admin.is_(True), User.email != report.user_id)
+        )
+        label = "Bug report" if report.type == "bug" else "Feature request"
+        for email in result.scalars().all():
+            with contextlib.suppress(Exception):
+                await fcm_service.send_to_user(
+                    self.db,
+                    email,
+                    title=f"{label}: {report.title}",
+                    body=f"From {report.user_id} — triage it in Admin → Reports.",
+                    channel="system_alerts",
+                    data={"type": "report"},
+                )
 
     async def list_for_user(self, user_id: str) -> list[Report]:
         result = await self.db.execute(
