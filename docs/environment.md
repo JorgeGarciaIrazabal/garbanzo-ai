@@ -15,7 +15,10 @@ OLLAMA_BASE_URL=http://localhost:11434   # host.docker.internal when in Docker
 STT_MODE=local
 STT_MODEL=Systran/faster-distil-whisper-large-v3
 STT_DEVICE=auto          # "auto", "cpu", or "cuda"
-STT_LANGUAGE=en
+STT_LANGUAGE=auto        # server default when a request omits `language`; "auto"
+                         # detects per clip, or force an ISO code (e.g. "en").
+                         # POST /stt/transcribe's per-request `language` field
+                         # always overrides this for that request (idea 13).
 FASTER_WHISPER_URL=http://localhost:8010  # only used if stt_mode=remote
 
 DEFAULT_TTS_VOICE=af_heart

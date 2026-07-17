@@ -114,13 +114,23 @@ class STTService:
     async def transcribe(
         self, audio_bytes: bytes, filename: str, language: str | None = None
     ) -> TranscriptionResponse:
-        """Transcribe audio bytes to text using the local model."""
+        """Transcribe audio bytes to text using the local model.
+
+        ``language`` is an ISO code, ``"auto"``, or ``None`` (falls back to
+        the server default, ``settings.stt_language`` — itself "auto" unless
+        the operator forces one). Either "auto" form resolves to
+        ``language=None`` for faster-whisper, which triggers its own
+        detection — previously ``settings.stt_language`` was force-injected
+        on every request, so that detection path was never exercised.
+        """
+        resolved = language or self._language
+        whisper_language = None if resolved == "auto" else resolved
         async with self._lock:
             result = await asyncio.to_thread(
                 self._transcribe_sync,
                 audio_bytes,
                 filename,
-                language or self._language,
+                whisper_language,
             )
         return TranscriptionResponse(
             text=result["text"],
@@ -128,7 +138,7 @@ class STTService:
             duration=result.get("duration"),
         )
 
-    def _transcribe_sync(self, audio_bytes: bytes, filename: str, language: str) -> dict:
+    def _transcribe_sync(self, audio_bytes: bytes, filename: str, language: str | None) -> dict:
         import soundfile as sf
 
         # Decode audio bytes to numpy array
@@ -199,13 +209,19 @@ class RemoteSTTService:
         return self._client
 
     async def transcribe(
-        self, audio_bytes: bytes, filename: str, language: str = "en"
+        self, audio_bytes: bytes, filename: str, language: str | None = "auto"
     ) -> TranscriptionResponse:
         client = await self._get_client()
+        # The remote server's OpenAI-compatible endpoint auto-detects when
+        # `language` is omitted entirely — "auto" isn't a code it understands,
+        # so only forward a real ISO code.
+        data: dict[str, str] = {"vad_filter": "true"}
+        if language and language != "auto":
+            data["language"] = language
         response = await client.post(
             f"{self.base_url}/v1/audio/transcriptions",
             files={"file": (filename, audio_bytes)},
-            data={"language": language, "vad_filter": "true"},
+            data=data,
         )
         response.raise_for_status()
         data = response.json()

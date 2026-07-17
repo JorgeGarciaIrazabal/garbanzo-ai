@@ -92,6 +92,49 @@ class TestSTTTranscribe:
         mock_service.transcribe.assert_awaited_once()
 
     @patch("app.services.stt_service.STTService.get_instance", new_callable=AsyncMock)
+    async def test_language_field_is_forwarded_to_the_service(self, mock_get_instance):
+        mock_service = AsyncMock()
+        mock_service.transcribe.return_value = TranscriptionResponse(
+            text="Hola", language="es", duration=1.0
+        )
+        mock_get_instance.return_value = mock_service
+
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.post(
+                "/api/v1/stt/transcribe",
+                files={"file": ("audio.wav", b"fake-audio-data")},
+                data={"language": "es"},
+                headers=_auth_header(),
+            )
+        assert response.status_code == 200
+        mock_service.transcribe.assert_awaited_once_with(
+            b"fake-audio-data", "audio.wav", language="es"
+        )
+
+    @patch("app.services.stt_service.STTService.get_instance", new_callable=AsyncMock)
+    async def test_omitted_language_falls_back_to_the_server_default(self, mock_get_instance):
+        mock_service = AsyncMock()
+        mock_service.transcribe.return_value = TranscriptionResponse(
+            text="Hello", language="en", duration=1.0
+        )
+        mock_get_instance.return_value = mock_service
+
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.post(
+                "/api/v1/stt/transcribe",
+                files={"file": ("audio.wav", b"fake-audio-data")},
+                headers=_auth_header(),
+            )
+        assert response.status_code == 200
+        # _TEST_SETTINGS doesn't override stt_language, so the model default
+        # ("auto") is what gets forwarded when the client sends nothing.
+        mock_service.transcribe.assert_awaited_once_with(
+            b"fake-audio-data", "audio.wav", language="auto"
+        )
+
+    @patch("app.services.stt_service.STTService.get_instance", new_callable=AsyncMock)
     async def test_stt_service_unavailable_returns_502(self, mock_get_instance):
         mock_get_instance.side_effect = Exception("Connection refused")
 

@@ -2,7 +2,7 @@
 
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile, status
 
 from app.core.config import Settings, get_settings
 from app.core.rate_limit import rate_limit
@@ -22,23 +22,35 @@ async def transcribe_audio(
     file: UploadFile,
     current_user: Annotated[dict[str, Any], Depends(get_current_user)],
     settings: Annotated[Settings, Depends(get_settings)],
+    language: Annotated[
+        str | None,
+        Form(
+            description=(
+                'ISO language code (e.g. "en"), "auto", or omitted — '
+                "both of the latter auto-detect the spoken language."
+            )
+        ),
+    ] = None,
 ) -> TranscriptionResponse:
     audio_bytes = await file.read()
     if not audio_bytes:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Empty audio file")
+    effective_language = language or settings.stt_language
     try:
         if settings.stt_mode == "remote":
             from app.services.stt_service import RemoteSTTService
 
             service = RemoteSTTService(base_url=settings.faster_whisper_url)
             return await service.transcribe(
-                audio_bytes, file.filename or "audio.wav", language=settings.stt_language
+                audio_bytes, file.filename or "audio.wav", language=effective_language
             )
 
         from app.services.stt_service import STTService
 
         service = await STTService.get_instance()
-        return await service.transcribe(audio_bytes, file.filename or "audio.wav")
+        return await service.transcribe(
+            audio_bytes, file.filename or "audio.wav", language=effective_language
+        )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,

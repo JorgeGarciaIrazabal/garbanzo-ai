@@ -105,7 +105,11 @@ class Settings(BaseSettings):
     stt_mode: str = "local"  # "local" (in-process) or "remote" (Docker)
     stt_model: str = "Systran/faster-distil-whisper-large-v3"
     stt_device: str = "auto"  # "auto", "cpu", or "cuda"
-    stt_language: str = "en"
+    # Server-wide default when a request doesn't specify a language.
+    # "auto" lets faster-whisper detect the spoken language per clip; set to
+    # an ISO code (e.g. "en") to force a single language for every request
+    # that doesn't override it (idea 13 — per-request `language` always wins).
+    stt_language: str = "auto"
     stt_beam_size: int = 1
     stt_vad_max_duration: float = 10.0  # skip VAD for clips shorter than this (seconds)
     kokoro_url: str = "http://localhost:8020"  # kept for fallback / external kokoro
