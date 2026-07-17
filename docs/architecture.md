@@ -146,12 +146,17 @@ features/notifications/
   models/            AppNotification
   widgets/           NotificationBell
 features/friends/
-  pages/             FriendsPage (send/accept/decline requests, remove friends)
-  providers/         FriendsProvider
-  services/          friends_service.dart
-  models/            Friend, FriendRequest, FriendsList
+  pages/             FriendsPage (send/accept/decline requests, remove
+                     friends, incoming shares — accept/decline)
+  providers/         FriendsProvider (also holds incomingShares +
+                     shareItem/acceptShare/declineShare)
+  services/          friends_service.dart, shares_service.dart
+  models/            Friend, FriendRequest, FriendsList, SharedItem
   widgets/           FriendPickerField (chips + suggestions; used by rooms
-                     create/invite dialogs, raw-email fallback)
+                     create/invite dialogs, raw-email fallback),
+                     ShareWithFriendDialog (pick a friend to share a
+                     style/prompt template with; wired into the style
+                     picker and the prompt template editor)
 features/mentions/
   models/            MentionCandidate, mention_sources (pure client-side
                      candidate builders + filter for @/// # autocomplete;

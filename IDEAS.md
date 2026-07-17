@@ -92,7 +92,7 @@ WhatsApp-style: mute a room for 8 hours, 1 week, or forever. Per-member setting,
 ## Proposed additions (not in the original list)
 
 - [x] `easy-med` **8. Conversation-level mute / focus** — Same mute mechanism for the disconnect-mid-stream FCM pushes on regular conversations; cheap once idea 7 lands. *(Do first with 7 — smallest full-stack slice, good warm-up.)* *(Verified already implemented with 7: `Conversation.muted_until`, `PATCH /conversations/{id}/mute`, push suppression in `_make_push_callback`, mute sheet in the conversation list.)*
-- [ ] `medium` **9. Shared styles/prompts with friends** — Once friends (5) and styles (2) exist, let users share a style or prompt template to a friend (copy-on-accept, no live sync). Natural glue between two features.
+- [x] `medium` **9. Shared styles/prompts with friends** — Once friends (5) and styles (2) exist, let users share a style or prompt template to a friend (copy-on-accept, no live sync). Natural glue between two features. *(New `SharedItem` model (JSONB payload snapshot) + `ShareService`/`/api/v1/shares` endpoints; requires an accepted friendship. Frontend: `ShareWithFriendDialog` wired into the style picker and prompt template editor, plus a "Shared with you" section on the Friends page with accept/decline. Accept materializes an independent copy — verified the sender deleting the original afterwards doesn't affect the recipient.)*
 - [ ] `med-hard` **10. Room unread counts + read receipts** — `last_read_message_id` per RoomMember, unread badges in the sidebar, optional "seen" indicators. Pairs with muting to make rooms feel like a real messenger.
 - [ ] `medium` **11. Onboarding tour powered by the help docs** — First-login checklist/coach-marks generated from the same app-guide docs as idea 4, so there's one source of truth for "how the app works".
 - [ ] `easy` **12. `/help` command in chat** — Before idea 4's tool exists, a client-side `/help <question>` that stuffs the relevant doc into context — a one-day version to validate the docs are good.
@@ -126,3 +126,147 @@ ChatGPT puts its voice-call entry point right in the composer; this app currentl
 - [ ] `easy` **Resolve the app-bar duplicate** — Decide whether to remove the existing `chat_app_bar.dart` talk button once it's in the composer, or keep both for different layout widths.
 - [ ] `medium` **UI/UX pass** — Icon and placement so it doesn't collide with the dictation mic and send button; consider a call-style icon (`Icons.call`/waveform) vs. today's `Icons.graphic_eq`, and how it collapses on narrow/mobile vs. desktop widths. Good candidate for a `frontend-design` pass given the explicit "good UI/UX" ask.
 - [ ] `easy` **Rooms parity (out of scope for now)** — Rooms currently have no dedicated compose bar or voice affordance at all; note this as a follow-up rather than solving it here.
+
+---
+
+New idea
+
+- on desktop applications, users should be able to include a folder in a chat. Of course we need to make sure the agent to never be able to read outside of that folder
+- in a chat or room, the agent can be delegated to start a opencode workflow to perform more complex tasks (similat to what we do wiht the small apps but more generic) The llm should be able auto decide to start this agent for very complex tasks.
+
+
+----
+
+## Bugs
+
+A numbered `B-NN` prefix is used so these can be referenced from TASKS.md.
+
+### B-01 `med-hard` — Android background kills the SSE stream mid-generation
+
+**Symptom:** On Android (possibly other platforms), backgrounding the app
+while the LLM is mid-stream produces *Streaming error: HttpException:
+Connection closed while receiving data …* and the live reply is lost.
+
+**Root cause (confirmed by code audit):**
+
+- The chat stream uses Dio `ResponseType.stream` over `dart:io`'s
+  `HttpClient` (`lib/core/api_client.dart:284` `streamPost`, with
+  `receiveTimeout: Duration.zero` so the stream never times out on its
+  own).
+- Android suspends the app's Dart isolate within ~1 s of backgrounding and
+  tears down idle sockets a few seconds later. The backing TCP socket gets
+  a RST/FIN → Dio raises `HttpException` → `ChatProvider`'s `onError`
+  (`lib/features/chat/providers/chat_provider.dart:579`) sets
+  `_error = 'Streaming error: $e'` and gives up. **No retry / reconnect
+  exists** (contrast with `RoomSocketService` which has full backoff for
+  WebSocket).
+- There is **no app-lifecycle handling anywhere** in `lib/` —
+  `didChangeAppLifecycleState` is never overridden. `_ChatPageContentState`
+  uses `WidgetsBindingObserver` but only for `didChangeMetrics` (keyboard).
+- No foreground service, no `WAKE_LOCK` permission, no
+  `FOREGROUND_SERVICE_DATA_SYNC` in `android/app/src/main/AndroidManifest.xml`.
+  `wakelock_plus` is used only in Talk Mode, not for chat streaming.
+- The **backend already partially handles this**: `_sse_stream()`
+  (`backend/app/api/v1/endpoints/chat.py:286-361`) catches
+  `asyncio.CancelledError` and calls `on_client_disconnect` →
+  `_make_push_callback` sends an FCM "Response ready" push with the
+  `conversation_id`. But generation **aborts** on client disconnect (the
+  `raise` at line 354), so the persisted message may be incomplete and the
+  user must manually regenerate.
+- Backend SSE frames carry **no `id:` field** and the endpoint ignores
+  `Last-Event-ID` — there is no resume protocol today.
+
+**Notes:**
+- The backend's disconnect → push-notification path is the existing
+  workaround and should remain as a safety net even after a proper fix.
+- `RoomSocketService` (`lib/features/rooms/services/room_socket_service.dart`)
+  is the in-repo reference for reconnect-with-backoff; reuse its pattern if
+  retry is added.
+
+---
+
+### B-02 `medium` — Notification taps never navigate (all notification types)
+
+**Symptom:** Tapping any notification (scheduled action, chat-response-on
+disconnect, friend event, share) does nothing — the app opens but stays on
+whatever screen was last visible. The user specifically noticed scheduled
+actions and wants one chat window per scheduled action.
+
+**Root cause (confirmed by code audit):**
+
+- The Flutter tap handler `_handleNotificationTap`
+  (`lib/features/notifications/services/push_service.dart:74-83`) reads
+  **only** `data['room_id']` and, if present, navigates to
+  `/rooms/$roomId`. Every other payload key is ignored and the method
+  returns silently. This is why *all* non-room notifications fail, not
+  just scheduled-action ones.
+- The wiring in `lib/main.dart:59-76` and `lib/core/auth_state.dart:57-73`
+  only listens for `pendingRoomId` / `onOpenRoom` — there is no
+  `pendingConversationId` / `onOpenConversation` equivalent, so the
+  cold-start and logged-out-deferred cases are also room-only.
+- The in-app notification bell list has the same gap:
+  `notifications_page.dart` line 80/157 `onTap` only calls `markRead` and
+  never navigates, even though `AppNotification.data` carries the same
+  `conversation_id`/`room_id` payload as the push.
+- **The backend already does the right thing** — payloads include the
+  targeting id:
+  - Scheduled action fire → `conversation_id` + `scheduled_action_id`
+    (`backend/app/jobs/scheduled_action_job.py:84-94`).
+  - Chat-response-on-disconnect → `conversation_id`
+    (`backend/app/api/v1/endpoints/chat.py:396-403`).
+  - Room offline member → `room_id` (already works).
+- The target route already exists: `lib/core/router.dart:49-53` defines
+  `/chat/:conversationId` → `ChatPage(conversationId: …)`, which is the
+  canonical way to open a conversation (used at `chat_page.dart:127,318`).
+- **Scheduled actions already produce one dedicated conversation per
+  fire** — `run_scheduled_action` creates a fresh `Conversation` titled
+  `⏰ {title}` and streams the reply into it
+  (`backend/app/jobs/scheduled_action_job.py:41-61`), then attaches its id
+  to the notification. So "one chat window per scheduled action" already
+  exists on the backend; the frontend just never opens it.
+- `docs/PUSH_NOTIFICATIONS.md:232` explicitly flags this as unimplemented
+  future work, so this is a known gap, not a regression.
+
+---
+
+### B-03 `med-hard` — Very large conversations are slow to load (and reload after every turn)
+
+**Symptom:** Opening a conversation with many messages (hundreds, with tool
+calls) takes a long time; the lag repeats after every sent message.
+
+**Root cause (confirmed by code audit):**
+
+- **Backend loads everything in one shot.** `GET
+  /conversations/{conversation_id}` (`backend/app/api/v1/endpoints/chat.py:157`)
+  calls `ConversationService.get(..., include_messages=True)`
+  (`conversation_service.py:125-137`) which does
+  `selectinload(Conversation.messages)` — a single `SELECT *` returning
+  **all** message rows for the conversation, ordered by `created_at`. No
+  `LIMIT`, no `offset`, no cursor. (The *conversation list* endpoint has
+  `page`/`page_size`, but the message fetch does not.)
+- **Tool results are separate `Message` rows** (`role: "tool_call"` /
+  `"tool_result"`) persisted by `ConversationTurnSink`. Each tool_result
+  row stores the (truncated-to-32,000-char) result text in **both**
+  `content` and `meta.result` JSONB — so a single tool_result can be ~64 KB
+  in the payload, duplicated. Truncation at store time is already enforced
+  (`tool_result_max_chars = 32000`, `agent_turn.py:51-60`), but **no
+  trimming happens on the read path**: the full truncated content *and*
+  the duplicate `meta.result` are both serialized on every load.
+- **Frontend fetches all at once, twice per turn.** `ChatProvider`
+  `loadConversation` (`chat_provider.dart:159`) and
+  `_reloadCurrentConversation` (`chat_provider.dart:765`) each call
+  `ChatService.getConversation` → a single `GET` returning the whole
+  conversation with all messages. `_reloadCurrentConversation` runs in the
+  stream's `onDone` (line 605), so **after every single message exchange
+  the entire history is re-downloaded and re-deserialized**.
+- **Rendering is already virtualized** — `ListView.builder` is used
+  (`chat_page.dart:763`), tool bubbles are collapsed by default with
+  deferred payload mounting (`ToolBubbleWidget`, `ToolActivityGroup`), and
+  markdown is cached per-message (`markdown_widget.dart:44-48`). So the
+  bottleneck is **data transfer + JSON deserialization**, not layout.
+- **No infinite scroll exists anywhere yet.** The room messages endpoint
+  (`GET /rooms/{id}/messages?page=&page_size=`) has server-side pagination,
+  but the rooms UI only fetches page 1 and relies on WebSocket for new
+  messages — no load-more-on-scroll-top. Search has explicit prev/next
+  page buttons. `SmartScrollController` has `isNearBottom` detection but no
+  load-from-top trigger.

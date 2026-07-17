@@ -4,10 +4,13 @@ import 'package:garbanzo_ai/features/friends/models/friend_models.dart';
 import 'package:garbanzo_ai/features/friends/pages/friends_page.dart';
 import 'package:garbanzo_ai/features/friends/providers/friends_provider.dart';
 import 'package:garbanzo_ai/features/friends/services/friends_service.dart';
+import 'package:garbanzo_ai/features/friends/services/shares_service.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:provider/provider.dart';
 
 class MockFriendsService extends Mock implements FriendsService {}
+
+class MockSharesService extends Mock implements SharesService {}
 
 const _friend = Friend(
   email: 'ana@example.com',
@@ -27,15 +30,18 @@ const _outgoing = FriendRequest(
 
 void main() {
   late MockFriendsService service;
+  late MockSharesService shares;
 
   setUp(() {
     service = MockFriendsService();
+    shares = MockSharesService();
     when(() => service.list()).thenAnswer((_) async => const FriendsList());
+    when(() => shares.incoming()).thenAnswer((_) async => const []);
   });
 
   Widget app() => MaterialApp(
     home: ChangeNotifierProvider(
-      create: (_) => FriendsProvider(service: service),
+      create: (_) => FriendsProvider(service: service, sharesService: shares),
       child: const FriendsPage(),
     ),
   );

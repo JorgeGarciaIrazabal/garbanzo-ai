@@ -2,7 +2,9 @@ import 'package:flutter/foundation.dart';
 
 import 'package:garbanzo_ai/core/guarded_state.dart';
 import 'package:garbanzo_ai/features/friends/models/friend_models.dart';
+import 'package:garbanzo_ai/features/friends/models/share_models.dart';
 import 'package:garbanzo_ai/features/friends/services/friends_service.dart';
+import 'package:garbanzo_ai/features/friends/services/shares_service.dart';
 
 /// State for the Friends page: accepted friends plus pending requests in
 /// both directions. All mutations re-fetch the full list afterwards — the
@@ -10,14 +12,20 @@ import 'package:garbanzo_ai/features/friends/services/friends_service.dart';
 /// someone who already asked you auto-accepts), so server truth beats
 /// optimistic bookkeeping here.
 class FriendsProvider extends ChangeNotifier with GuardedStateMixin {
-  FriendsProvider({FriendsService? service})
-    : _service = service ?? FriendsService.instance {
+  FriendsProvider({FriendsService? service, SharesService? sharesService})
+    : _service = service ?? FriendsService.instance,
+      _shares = sharesService ?? SharesService.instance {
     refresh();
   }
 
   final FriendsService _service;
+  final SharesService _shares;
 
   FriendsList _list = const FriendsList();
+  List<SharedItem> _incomingShares = const [];
+
+  /// Styles/prompts friends shared with this user, pending accept/decline.
+  List<SharedItem> get incomingShares => _incomingShares;
 
   List<Friend> get friends => _list.friends;
   List<FriendRequest> get incomingRequests => _list.incomingRequests;
@@ -27,6 +35,7 @@ class FriendsProvider extends ChangeNotifier with GuardedStateMixin {
   Future<void> refresh() async {
     await runGuarded('Failed to load friends', () async {
       _list = await _service.list();
+      _incomingShares = await _shares.incoming();
     });
   }
 
@@ -85,6 +94,42 @@ class FriendsProvider extends ChangeNotifier with GuardedStateMixin {
     final ok = await runGuarded('Failed to unblock user', () async {
       await _service.unblock(email);
       _list = await _service.list();
+      return true;
+    }, trackLoading: false);
+    return ok ?? false;
+  }
+
+  /// Shares a style or prompt template with a friend.
+  Future<bool> shareItem({
+    required String kind,
+    required String itemId,
+    required String recipientEmail,
+  }) async {
+    final ok = await runGuarded('Failed to share', () async {
+      await _shares.share(
+        kind: kind,
+        itemId: itemId,
+        recipientEmail: recipientEmail,
+      );
+      return true;
+    }, trackLoading: false);
+    return ok ?? false;
+  }
+
+  /// Accepts a share — the copy lands in the user's styles/templates.
+  Future<bool> acceptShare(SharedItem item) async {
+    final ok = await runGuarded('Failed to accept share', () async {
+      await _shares.accept(item.id);
+      _incomingShares = await _shares.incoming();
+      return true;
+    }, trackLoading: false);
+    return ok ?? false;
+  }
+
+  Future<bool> declineShare(SharedItem item) async {
+    final ok = await runGuarded('Failed to decline share', () async {
+      await _shares.decline(item.id);
+      _incomingShares = await _shares.incoming();
       return true;
     }, trackLoading: false);
     return ok ?? false;

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:garbanzo_ai/core/widgets/animated_dialog.dart';
 import 'package:garbanzo_ai/core/widgets/skeleton.dart';
 import 'package:garbanzo_ai/features/friends/models/friend_models.dart';
+import 'package:garbanzo_ai/features/friends/models/share_models.dart';
 import 'package:garbanzo_ai/features/friends/providers/friends_provider.dart';
 
 /// Friends management: send requests by email, act on incoming/outgoing
@@ -117,7 +118,8 @@ class _FriendsPageState extends State<FriendsPage> {
     final hasAnything =
         provider.friends.isNotEmpty ||
         provider.incomingRequests.isNotEmpty ||
-        provider.outgoingRequests.isNotEmpty;
+        provider.outgoingRequests.isNotEmpty ||
+        provider.incomingShares.isNotEmpty;
 
     return Scaffold(
       appBar: AppBar(
@@ -157,6 +159,14 @@ class _FriendsPageState extends State<FriendsPage> {
                       provider.incomingRequests.length,
                     ),
                     ...provider.incomingRequests.map(_buildIncomingTile),
+                  ],
+                  if (provider.incomingShares.isNotEmpty) ...[
+                    _sectionHeader(
+                      context,
+                      'Shared with you',
+                      provider.incomingShares.length,
+                    ),
+                    ...provider.incomingShares.map(_buildShareTile),
                   ],
                   if (provider.outgoingRequests.isNotEmpty) ...[
                     _sectionHeader(
@@ -343,6 +353,43 @@ class _FriendsPageState extends State<FriendsPage> {
           itemBuilder: (_) => const [
             PopupMenuItem(value: 'remove', child: Text('Remove friend')),
             PopupMenuItem(value: 'block', child: Text('Block')),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildShareTile(SharedItem item) {
+    final noun = item.kind == 'style' ? 'style' : 'prompt template';
+    return Card(
+      child: ListTile(
+        leading: Icon(
+          item.kind == 'style' ? Icons.palette_outlined : Icons.notes_outlined,
+        ),
+        title: Text('"${item.name}" ($noun)'),
+        subtitle: Text('from ${item.senderEmail}'),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.check, color: Colors.green),
+              tooltip: 'Accept share',
+              onPressed: () async {
+                final ok = await _provider.acceptShare(item);
+                if (ok && mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('"${item.name}" added to your ${noun}s'),
+                    ),
+                  );
+                }
+              },
+            ),
+            IconButton(
+              icon: const Icon(Icons.close, color: Colors.red),
+              tooltip: 'Decline share',
+              onPressed: () => _provider.declineShare(item),
+            ),
           ],
         ),
       ),

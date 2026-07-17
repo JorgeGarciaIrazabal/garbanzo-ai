@@ -67,6 +67,14 @@ half-migrated schema.
   never the users table — so the API can't be used for account enumeration
   (the one deliberate disclosure is exact-match existence when sending a
   request).
+- `SharedItem` (Idea 9) — one row per pending share: `sender_email`,
+  `recipient_email`, `kind` (`style`/`prompt`), and `payload` (JSONB
+  snapshot of the shared item's content). Sharing requires an accepted
+  `Friendship` between the two emails. Accepting materializes an
+  independent copy from `payload` (a new `Style`/`SystemPromptTemplate`
+  owned by the recipient) and deletes the row — there is no live link back
+  to the original, so edits or deletes on the sender's side afterwards
+  never affect the recipient's copy. Declining just deletes the row.
 - `RoomAgent.enabled_tools` (JSONB) mirrors `Conversation.enabled_tools`: `null` = all, `[]` = none, `["srv:tool"]` = subset.
 - `RoomMember.muted_until` (nullable timestamptz) suppresses push + in-app
   notifications for that member while `now() < muted_until`; messages still

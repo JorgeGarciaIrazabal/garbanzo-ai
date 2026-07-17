@@ -38,3 +38,12 @@ users appear in a **Blocked** section where you can **Unblock** them.
 Yes — new requests and acceptances arrive as notifications on the
 **Friend updates** channel. Turn it off in Settings → Notifications
 (**Friend updates**).
+
+## How do I share a style or prompt template with a friend?
+Open the **⋮** menu on a style card (or the share icon in the prompt
+template editor) and choose **Share with a friend…**, then pick who to
+send it to. You can only share with accepted friends. They get a
+notification and the item appears under **Shared with you** on their
+Friends page, where they can accept (adds an independent copy to their own
+styles/templates) or decline. Accepting makes a one-time copy — if you
+later edit or delete your original, their copy is unaffected.

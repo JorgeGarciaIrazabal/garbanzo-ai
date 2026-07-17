@@ -9,6 +9,7 @@ import 'package:garbanzo_ai/features/chat/models/system_prompt_template.dart';
 import 'package:garbanzo_ai/features/chat/providers/model_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/system_prompt_provider.dart';
 import 'package:garbanzo_ai/features/chat/services/system_prompt_service.dart';
+import 'package:garbanzo_ai/features/friends/widgets/share_with_friend_dialog.dart';
 
 /// Result returned from [SystemPromptEditorDialog].
 ///
@@ -392,12 +393,23 @@ class _SystemPromptEditorDialogState extends State<SystemPromptEditorDialog> {
                   ),
                   // Deleting from inside a menu item doesn't work: the item's
                   // tap handler closes the menu out from under the dialog.
-                  if (selected != null && !selected.isBuiltin)
+                  if (selected != null && !selected.isBuiltin) ...[
+                    IconButton(
+                      icon: const Icon(Icons.person_add_alt_outlined),
+                      tooltip: 'Share "${selected.name}" with a friend',
+                      onPressed: () => showShareWithFriendDialog(
+                        context,
+                        kind: 'prompt',
+                        itemId: selected.id,
+                        itemName: selected.name,
+                      ),
+                    ),
                     IconButton(
                       icon: const Icon(Icons.delete_outline),
                       tooltip: 'Delete "${selected.name}"',
                       onPressed: () => _deleteTemplate(selected),
                     ),
+                  ],
                 ],
               ),
               const SizedBox(height: 12),

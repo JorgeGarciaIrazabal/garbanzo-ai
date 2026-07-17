@@ -15,6 +15,7 @@ from app.api.v1.endpoints import (
     rooms,
     rooms_ws,
     scheduled_actions,
+    shares,
     stt,
     styles,
     system_prompts,
@@ -29,6 +30,7 @@ api_router.include_router(admin.router, prefix="/admin", tags=["admin"])
 api_router.include_router(chat.router, prefix="/chat", tags=["chat"])
 api_router.include_router(devices.router, prefix="/devices", tags=["devices"])
 api_router.include_router(friends.router, prefix="/friends", tags=["friends"])
+api_router.include_router(shares.router, prefix="/shares", tags=["shares"])
 api_router.include_router(health.router, prefix="", tags=["health"])
 api_router.include_router(knowledge_base.router, prefix="/kb", tags=["knowledge-base"])
 api_router.include_router(mcp.router, prefix="/mcp", tags=["mcp"])

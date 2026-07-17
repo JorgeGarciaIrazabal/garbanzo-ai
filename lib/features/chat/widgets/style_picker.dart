@@ -9,6 +9,7 @@ import 'package:garbanzo_ai/features/chat/models/system_prompt_template.dart';
 import 'package:garbanzo_ai/features/chat/models/thinking_level.dart';
 import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/model_provider.dart';
+import 'package:garbanzo_ai/features/friends/widgets/share_with_friend_dialog.dart';
 import 'package:garbanzo_ai/features/chat/providers/style_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/system_prompt_provider.dart';
 
@@ -886,6 +887,13 @@ class _StyleCard extends StatelessWidget {
                     switch (action) {
                       case 'default':
                         onSetDefault(!style.isDefault);
+                      case 'share':
+                        showShareWithFriendDialog(
+                          context,
+                          kind: 'style',
+                          itemId: style.id,
+                          itemName: style.name,
+                        );
                       case 'delete':
                         onDelete();
                     }
@@ -898,6 +906,10 @@ class _StyleCard extends StatelessWidget {
                             ? 'Stop using for new chats'
                             : 'Use for new chats',
                       ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'share',
+                      child: Text('Share with a friend…'),
                     ),
                     const PopupMenuItem(value: 'delete', child: Text('Delete')),
                   ],

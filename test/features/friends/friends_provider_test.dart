@@ -1,10 +1,14 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:garbanzo_ai/features/friends/models/friend_models.dart';
+import 'package:garbanzo_ai/features/friends/models/share_models.dart';
 import 'package:garbanzo_ai/features/friends/providers/friends_provider.dart';
 import 'package:garbanzo_ai/features/friends/services/friends_service.dart';
+import 'package:garbanzo_ai/features/friends/services/shares_service.dart';
 import 'package:mocktail/mocktail.dart';
 
 class MockFriendsService extends Mock implements FriendsService {}
+
+class MockSharesService extends Mock implements SharesService {}
 
 const _friend = Friend(email: 'ana@example.com', friendshipId: 'f1');
 const _incoming = FriendRequest(
@@ -20,13 +24,17 @@ const _outgoing = FriendRequest(
 
 void main() {
   late MockFriendsService service;
+  late MockSharesService shares;
 
   setUp(() {
     service = MockFriendsService();
+    shares = MockSharesService();
     when(() => service.list()).thenAnswer((_) async => const FriendsList());
+    when(() => shares.incoming()).thenAnswer((_) async => const []);
   });
 
-  FriendsProvider provider() => FriendsProvider(service: service);
+  FriendsProvider provider() =>
+      FriendsProvider(service: service, sharesService: shares);
 
   group('refresh', () {
     test('populates friends and requests', () async {
@@ -158,6 +166,74 @@ void main() {
       expect(await p.unblock('ana@example.com'), isFalse);
       expect(p.error, isNotNull);
       p.dispose();
+    });
+  });
+
+  group('shares', () {
+    const share = SharedItem(
+      id: 's1',
+      senderEmail: 'ana@example.com',
+      kind: 'prompt',
+      payload: {'name': 'Concise', 'content': 'Be brief.'},
+    );
+
+    test('refresh loads incoming shares', () async {
+      when(() => shares.incoming()).thenAnswer((_) async => const [share]);
+
+      final p = provider();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(p.incomingShares.single.name, 'Concise');
+      p.dispose();
+    });
+
+    test('acceptShare calls the service and re-fetches', () async {
+      when(() => shares.incoming()).thenAnswer((_) async => const [share]);
+      when(() => shares.accept('s1')).thenAnswer((_) async => 'new-id');
+
+      final p = provider();
+      await Future<void>.delayed(Duration.zero);
+      when(() => shares.incoming()).thenAnswer((_) async => const []);
+
+      expect(await p.acceptShare(share), isTrue);
+      expect(p.incomingShares, isEmpty);
+      p.dispose();
+    });
+
+    test('shareItem surfaces the backend detail on failure', () async {
+      when(
+        () => shares.share(
+          kind: 'style',
+          itemId: 'st1',
+          recipientEmail: 'x@example.com',
+        ),
+      ).thenThrow(Exception('API Error (400): You can only share with your friends.'));
+
+      final p = provider();
+      await Future<void>.delayed(Duration.zero);
+
+      final ok = await p.shareItem(
+        kind: 'style',
+        itemId: 'st1',
+        recipientEmail: 'x@example.com',
+      );
+
+      expect(ok, isFalse);
+      expect(p.error, contains('only share with your friends'));
+      p.dispose();
+    });
+
+    test('SharedItem.fromJson parses the backend shape', () {
+      final item = SharedItem.fromJson({
+        'id': 's1',
+        'sender_email': 'ana@example.com',
+        'kind': 'style',
+        'payload': {'name': 'Deep Work', 'model_id': 'llama3'},
+        'created_at': '2026-07-10T10:00:00Z',
+      });
+      expect(item.name, 'Deep Work');
+      expect(item.kind, 'style');
+      expect(item.createdAt, isNotNull);
     });
   });
 
