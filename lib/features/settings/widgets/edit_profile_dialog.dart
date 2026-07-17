@@ -58,7 +58,9 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
     if (!result.success) {
       setState(() {
         _saving = false;
-        _error = result.error ?? 'Failed to update profile';
+        _error =
+            result.error ??
+            AppLocalizations.of(context)!.messageFailedToUpdateProfile;
       });
       return;
     }
@@ -114,8 +116,14 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
                 autocorrect: false,
                 validator: (value) {
                   final v = (value ?? '').trim();
-                  if (v.isEmpty) return 'Email is required';
-                  if (!v.contains('@')) return 'Enter a valid email';
+                  if (v.isEmpty) {
+                    return AppLocalizations.of(context)!.messageEmailRequired;
+                  }
+                  if (!v.contains('@')) {
+                    return AppLocalizations.of(
+                      context,
+                    )!.validatorEnterValidEmail;
+                  }
                   return null;
                 },
               ),

@@ -2,7 +2,7 @@
 
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -45,8 +45,16 @@ _SSE_HEADERS = {
 async def list_templates(
     current_user: Annotated[dict[str, Any], Depends(get_current_user)],
     service: Annotated[SystemPromptService, Depends(get_service)],
+    locale: str | None = Query(
+        default=None,
+        description=(
+            "BCP-47 language tag. When set and builtin templates exist for "
+            "the resolved language, only those builtins surface (plus the "
+            "user's own). Omit to surface builtins in every language."
+        ),
+    ),
 ) -> list[SystemPromptTemplateOut]:
-    templates = await service.list_templates(user_id=current_user["email"])
+    templates = await service.list_templates(user_id=current_user["email"], locale=locale)
     return [SystemPromptTemplateOut.model_validate(t) for t in templates]
 
 

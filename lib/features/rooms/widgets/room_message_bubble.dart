@@ -187,7 +187,6 @@ class _RoomMessageBubbleState extends State<RoomMessageBubble> {
               colorScheme: colorScheme,
               textTheme: theme.textTheme,
               isLive: widget.isStreaming && message.content.isEmpty,
-              hasContent: message.content.isNotEmpty,
             ),
           if (message.content.isEmpty && widget.isStreaming)
             Padding(

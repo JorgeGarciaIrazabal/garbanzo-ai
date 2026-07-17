@@ -34,7 +34,7 @@ class EmptyChatState extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Type a message below to begin chatting',
+              AppLocalizations.of(context)!.messageTypeMessageToBegin,
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: colorScheme.onSurfaceVariant,
               ),
@@ -53,20 +53,30 @@ class EmptyChatState extends StatelessWidget {
               alignment: WrapAlignment.center,
               children: [
                 _SuggestionChip(
-                  text: 'Explain quantum computing',
+                  text: AppLocalizations.of(
+                    context,
+                  )!.messageExplainQuantumComputing,
                   onTap: () => onSendMessage(
-                    'Explain quantum computing in simple terms',
+                    AppLocalizations.of(
+                      context,
+                    )!.messageExplainQuantumComputing,
                   ),
                 ),
                 _SuggestionChip(
-                  text: 'Write a Python function',
+                  text: AppLocalizations.of(
+                    context,
+                  )!.messageWriteAPythonFunction,
                   onTap: () => onSendMessage(
-                    'Write a Python function to calculate factorial',
+                    AppLocalizations.of(
+                      context,
+                    )!.messageWriteAPythonFunctionPrompt,
                   ),
                 ),
                 _SuggestionChip(
-                  text: 'Help me debug code',
-                  onTap: () => onSendMessage('I need help debugging some code'),
+                  text: AppLocalizations.of(context)!.messageHelpMeDebugCode,
+                  onTap: () => onSendMessage(
+                    AppLocalizations.of(context)!.messageHelpMeDebugCodePrompt,
+                  ),
                 ),
               ],
             ),
@@ -84,39 +94,27 @@ class _GettingStartedCard extends StatelessWidget {
 
   final VoidCallback onDismiss;
 
-  static const _tips = [
-    (
-      Icons.mic_none,
-      'Voice input',
-      'Tap the mic to dictate — your speech is transcribed locally.',
-    ),
-    (
-      Icons.attach_file,
-      'Files & images',
-      'Attach or drag in PDFs, spreadsheets, code, and pictures.',
-    ),
-    (
-      Icons.psychology_outlined,
-      'Memory',
-      'The assistant learns facts about you over time — review them '
-          'anytime under Settings → Memories.',
-    ),
-    (
-      Icons.menu_book_outlined,
-      'Knowledge base',
-      'Upload documents once, then ask questions about them in any chat.',
-    ),
-    (
-      Icons.groups_outlined,
-      'Rooms',
-      'Create rooms where several AI agents (and people) chat together.',
-    ),
-  ];
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final l10n = AppLocalizations.of(context)!;
+
+    final tips = [
+      (Icons.mic_none, l10n.tipVoiceInputTitle, l10n.tipVoiceInputBody),
+      (
+        Icons.attach_file,
+        l10n.tipFilesAndImagesTitle,
+        l10n.tipFilesAndImagesBody,
+      ),
+      (Icons.psychology_outlined, l10n.tipMemoryTitle, l10n.tipMemoryBody),
+      (
+        Icons.menu_book_outlined,
+        l10n.tipKnowledgeBaseTitle,
+        l10n.tipKnowledgeBaseBody,
+      ),
+      (Icons.groups_outlined, l10n.tipRoomsTitle, l10n.tipRoomsBody),
+    ];
 
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 460),
@@ -138,7 +136,7 @@ class _GettingStartedCard extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      'Getting started',
+                      AppLocalizations.of(context)!.titleGettingStarted,
                       style: theme.textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
@@ -152,7 +150,7 @@ class _GettingStartedCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 4),
-              for (final (icon, title, body) in _tips)
+              for (final (icon, title, body) in tips)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 10, right: 8),
                   child: Row(

@@ -4,12 +4,9 @@ import 'package:garbanzo_ai/core/widgets/skeleton.dart';
 
 /// Displays expandable thinking content.
 ///
-/// Auto-expand semantics (until the user manually toggles the section):
-/// - [isLive] becomes true → expand, so the user sees reasoning tokens stream.
-/// - [hasContent] becomes true → collapse, since the final answer is in.
-/// - [isLive] flips false on its own (e.g. a tool call elsewhere caused this
-///   message to stop being the trailing one) → leave the section open so the
-///   reasoning that led to the tool stays visible.
+/// Collapsed by default — the model's internal reasoning stays hidden until the
+/// user taps to expand it. While reasoning tokens are streaming, [isLive] only
+/// drives the header's colour and pulse, not the expanded state.
 class ThinkingContent extends StatefulWidget {
   const ThinkingContent({
     super.key,
@@ -17,38 +14,22 @@ class ThinkingContent extends StatefulWidget {
     required this.colorScheme,
     required this.textTheme,
     this.isLive = false,
-    this.hasContent = false,
   });
 
   final String thinkingContent;
   final ColorScheme colorScheme;
   final TextTheme textTheme;
   final bool isLive;
-  final bool hasContent;
 
   @override
   State<ThinkingContent> createState() => _ThinkingContentState();
 }
 
 class _ThinkingContentState extends State<ThinkingContent> {
-  late bool _isExpanded = widget.isLive;
-  bool _userToggled = false;
-
-  @override
-  void didUpdateWidget(covariant ThinkingContent oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (_userToggled) return;
-    if (widget.isLive && !oldWidget.isLive) {
-      _isExpanded = true;
-    }
-    if (widget.hasContent && !oldWidget.hasContent) {
-      _isExpanded = false;
-    }
-  }
+  bool _isExpanded = false;
 
   void _toggle() {
     setState(() {
-      _userToggled = true;
       _isExpanded = !_isExpanded;
     });
   }

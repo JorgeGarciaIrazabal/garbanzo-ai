@@ -4328,6 +4328,216 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Delete \"{name}\"?'**
   String messageDeleteStyleConfirmation(String name);
+
+  /// Empty-state helper in memory list widget.
+  ///
+  /// In en, this message translates to:
+  /// **'Memories store important facts about you\nfor more personalized conversations'**
+  String get messageMemoriesStoreFactsHint;
+
+  /// Caption shown on memory tile when it came from a chat.
+  ///
+  /// In en, this message translates to:
+  /// **'Source: Conversation'**
+  String get messageSourceConversation;
+
+  /// Subtitle shown in empty chat state.
+  ///
+  /// In en, this message translates to:
+  /// **'Type a message below to begin chatting'**
+  String get messageTypeMessageToBegin;
+
+  /// Suggestion chip label in empty chat state.
+  ///
+  /// In en, this message translates to:
+  /// **'Write a Python function'**
+  String get messageWriteAPythonFunction;
+
+  /// Prompt sent when the user taps the Python suggestion chip.
+  ///
+  /// In en, this message translates to:
+  /// **'Write a Python function to calculate factorial'**
+  String get messageWriteAPythonFunctionPrompt;
+
+  /// Suggestion chip label in empty chat state.
+  ///
+  /// In en, this message translates to:
+  /// **'Help me debug code'**
+  String get messageHelpMeDebugCode;
+
+  /// Prompt sent when the user taps the debug suggestion chip.
+  ///
+  /// In en, this message translates to:
+  /// **'I need help debugging some code'**
+  String get messageHelpMeDebugCodePrompt;
+
+  /// Onboarding card header in empty chat state.
+  ///
+  /// In en, this message translates to:
+  /// **'Getting started'**
+  String get titleGettingStarted;
+
+  /// Onboarding tip title.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice input'**
+  String get tipVoiceInputTitle;
+
+  /// Onboarding tip body.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap the mic to dictate — your speech is transcribed locally.'**
+  String get tipVoiceInputBody;
+
+  /// Onboarding tip title.
+  ///
+  /// In en, this message translates to:
+  /// **'Files & images'**
+  String get tipFilesAndImagesTitle;
+
+  /// Onboarding tip body.
+  ///
+  /// In en, this message translates to:
+  /// **'Attach or drag in PDFs, spreadsheets, code, and pictures.'**
+  String get tipFilesAndImagesBody;
+
+  /// Onboarding tip title.
+  ///
+  /// In en, this message translates to:
+  /// **'Memory'**
+  String get tipMemoryTitle;
+
+  /// Onboarding tip body.
+  ///
+  /// In en, this message translates to:
+  /// **'The assistant learns facts about you over time — review them anytime under Settings → Memories.'**
+  String get tipMemoryBody;
+
+  /// Onboarding tip title.
+  ///
+  /// In en, this message translates to:
+  /// **'Knowledge base'**
+  String get tipKnowledgeBaseTitle;
+
+  /// Onboarding tip body.
+  ///
+  /// In en, this message translates to:
+  /// **'Upload documents once, then ask questions about them in any chat.'**
+  String get tipKnowledgeBaseBody;
+
+  /// Onboarding tip title.
+  ///
+  /// In en, this message translates to:
+  /// **'Rooms'**
+  String get tipRoomsTitle;
+
+  /// Onboarding tip body.
+  ///
+  /// In en, this message translates to:
+  /// **'Create rooms where several AI agents (and people) chat together.'**
+  String get tipRoomsBody;
+
+  /// Tooltip for usage page time-range popup menu.
+  ///
+  /// In en, this message translates to:
+  /// **'Time range'**
+  String get tooltipTimeRange;
+
+  /// Empty-state title when there is no usage data.
+  ///
+  /// In en, this message translates to:
+  /// **'No usage in the last {days} days'**
+  String messageNoUsageInLastDays(int days);
+
+  /// Empty-state helper in usage page.
+  ///
+  /// In en, this message translates to:
+  /// **'Start a conversation to see your token consumption here.'**
+  String get messageStartAConversationTokensHint;
+
+  /// Usage page daily chart section title.
+  ///
+  /// In en, this message translates to:
+  /// **'Daily tokens ({days} days)'**
+  String messageDailyTokensDays(int days);
+
+  /// Usage page conversations section title.
+  ///
+  /// In en, this message translates to:
+  /// **'Top conversations'**
+  String get titleByConversation;
+
+  /// Usage page stat card label.
+  ///
+  /// In en, this message translates to:
+  /// **'Total tokens'**
+  String get labelTotalTokens;
+
+  /// Usage page stat card label for generated tokens.
+  ///
+  /// In en, this message translates to:
+  /// **'Generated'**
+  String get labelGenerated;
+
+  /// Fallback title for an unnamed conversation.
+  ///
+  /// In en, this message translates to:
+  /// **'Untitled'**
+  String get messageUntitled;
+
+  /// By-model breakdown subtitle in usage page.
+  ///
+  /// In en, this message translates to:
+  /// **'{prompt} in · {generated} out · {count} msgs'**
+  String messageModelBreakdown(String prompt, String generated, int count);
+
+  /// By-conversation breakdown subtitle in usage page.
+  ///
+  /// In en, this message translates to:
+  /// **'{prompt} in · {generated} out'**
+  String messagePromptGeneratedInOut(String prompt, String generated);
+
+  /// Tooltip for chat app bar menu button.
+  ///
+  /// In en, this message translates to:
+  /// **'Open conversations'**
+  String get tooltipOpenConversations;
+
+  /// Tooltip for chat app bar search button.
+  ///
+  /// In en, this message translates to:
+  /// **'Search conversations'**
+  String get tooltipSearchConversations;
+
+  /// Fallback label for a micro-app panel.
+  ///
+  /// In en, this message translates to:
+  /// **'Micro-app'**
+  String get labelMicroApp;
+
+  /// Tooltip for reopening a closed micro-app panel.
+  ///
+  /// In en, this message translates to:
+  /// **'Reopen the micro-app panel'**
+  String get tooltipReopenMicroAppPanel;
+
+  /// Tooltip for reopening a closed micro-app on narrow screens.
+  ///
+  /// In en, this message translates to:
+  /// **'Reopen {name}'**
+  String tooltipReopenApp(String name);
+
+  /// Conversation message count shown in sidebar/drawer.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{{count} message} other{{count} messages}}'**
+  String messageCount(int count);
+
+  /// Placeholder hint for the system prompt text field.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. You are a concise, no-nonsense assistant. Give short factual answers with examples.'**
+  String get hintSystemPromptExample;
 }
 
 class _AppLocalizationsDelegate

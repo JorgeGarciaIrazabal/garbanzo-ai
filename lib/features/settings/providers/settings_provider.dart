@@ -107,6 +107,22 @@ class SettingsProvider extends ChangeNotifier {
     }
   }
 
+  /// Resolves the effective BCP-47 primary language subtag for the chosen
+  /// locale. Used to request locale-specific resources (e.g. built-in
+  /// system-prompt templates) from the backend. Falls back to the device
+  /// locale's language code when [appLocale] is [AppLocale.system].
+  String get effectiveLanguageCode {
+    switch (_appLocale) {
+      case AppLocale.english:
+        return 'en';
+      case AppLocale.spanish:
+        return 'es';
+      case AppLocale.system:
+        final device = PlatformDispatcher.instance.locale.languageCode;
+        return device == 'es' ? 'es' : 'en';
+    }
+  }
+
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
     _ttsVoice = prefs.getString(_keyTtsVoice) ?? defaultVoice;

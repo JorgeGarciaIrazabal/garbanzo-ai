@@ -60,7 +60,9 @@ class _LoginPageState extends State<LoginPage> {
         _loading = false;
         _error = describeFailure(
           e,
-          unauthorizedMessage: 'Incorrect email or password',
+          unauthorizedMessage: AppLocalizations.of(
+            context,
+          )!.authErrorIncorrectEmailOrPassword,
         );
       });
     }
@@ -123,8 +125,12 @@ class _LoginPageState extends State<LoginPage> {
             prefixIcon: Icon(Icons.email_outlined),
           ),
           validator: (v) {
-            if (v == null || v.trim().isEmpty) return 'Enter your email';
-            if (!v.contains('@')) return 'Enter a valid email';
+            if (v == null || v.trim().isEmpty) {
+              return AppLocalizations.of(context)!.validatorEnterEmail;
+            }
+            if (!v.contains('@')) {
+              return AppLocalizations.of(context)!.validatorEnterValidEmail;
+            }
             return null;
           },
         ),

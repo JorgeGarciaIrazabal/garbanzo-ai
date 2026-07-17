@@ -2058,5 +2058,184 @@
         "type": "String"
       }
     }
+  },
+  "messageMemoriesStoreFactsHint": "Los recuerdos guardan datos importantes sobre ti\npara conversaciones más personalizadas",
+  "@messageMemoriesStoreFactsHint": {
+    "description": "Empty-state helper in memory list widget."
+  },
+  "messageSourceConversation": "Origen: Conversación",
+  "@messageSourceConversation": {
+    "description": "Caption shown on memory tile when it came from a chat."
+  },
+  "messageTypeMessageToBegin": "Escribe un mensaje abajo para empezar a chatear",
+  "@messageTypeMessageToBegin": {
+    "description": "Subtitle shown in empty chat state."
+  },
+  "messageWriteAPythonFunction": "Escribe una función en Python",
+  "@messageWriteAPythonFunction": {
+    "description": "Suggestion chip label in empty chat state."
+  },
+  "messageWriteAPythonFunctionPrompt": "Escribe una función en Python para calcular el factorial",
+  "@messageWriteAPythonFunctionPrompt": {
+    "description": "Prompt sent when the user taps the Python suggestion chip."
+  },
+  "messageHelpMeDebugCode": "Ayúdame a depurar código",
+  "@messageHelpMeDebugCode": {
+    "description": "Suggestion chip label in empty chat state."
+  },
+  "messageHelpMeDebugCodePrompt": "Necesito ayuda para depurar código",
+  "@messageHelpMeDebugCodePrompt": {
+    "description": "Prompt sent when the user taps the debug suggestion chip."
+  },
+  "titleGettingStarted": "Primeros pasos",
+  "@titleGettingStarted": {
+    "description": "Onboarding card header in empty chat state."
+  },
+  "tipVoiceInputTitle": "Entrada de voz",
+  "@tipVoiceInputTitle": {
+    "description": "Onboarding tip title."
+  },
+  "tipVoiceInputBody": "Toca el micrófono para dictar — tu voz se transcribe localmente.",
+  "@tipVoiceInputBody": {
+    "description": "Onboarding tip body."
+  },
+  "tipFilesAndImagesTitle": "Archivos e imágenes",
+  "@tipFilesAndImagesTitle": {
+    "description": "Onboarding tip title."
+  },
+  "tipFilesAndImagesBody": "Adjunta o arrastra PDFs, hojas de cálculo, código e imágenes.",
+  "@tipFilesAndImagesBody": {
+    "description": "Onboarding tip body."
+  },
+  "tipMemoryTitle": "Recuerdos",
+  "@tipMemoryTitle": {
+    "description": "Onboarding tip title."
+  },
+  "tipMemoryBody": "El asistente aprende datos sobre ti con el tiempo — revísalos cuando quieras en Ajustes → Recuerdos.",
+  "@tipMemoryBody": {
+    "description": "Onboarding tip body."
+  },
+  "tipKnowledgeBaseTitle": "Base de conocimientos",
+  "@tipKnowledgeBaseTitle": {
+    "description": "Onboarding tip title."
+  },
+  "tipKnowledgeBaseBody": "Sube documentos una vez y haz preguntas sobre ellos en cualquier chat.",
+  "@tipKnowledgeBaseBody": {
+    "description": "Onboarding tip body."
+  },
+  "tipRoomsTitle": "Salas",
+  "@tipRoomsTitle": {
+    "description": "Onboarding tip title."
+  },
+  "tipRoomsBody": "Crea salas donde varios agentes de IA (y personas) conversan juntos.",
+  "@tipRoomsBody": {
+    "description": "Onboarding tip body."
+  },
+  "tooltipTimeRange": "Rango de tiempo",
+  "@tooltipTimeRange": {
+    "description": "Tooltip for usage page time-range popup menu."
+  },
+  "messageNoUsageInLastDays": "Sin uso en los últimos {days} días",
+  "@messageNoUsageInLastDays": {
+    "description": "Empty-state title when there is no usage data.",
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "messageStartAConversationTokensHint": "Empieza una conversación para ver tu consumo de tokens aquí.",
+  "@messageStartAConversationTokensHint": {
+    "description": "Empty-state helper in usage page."
+  },
+  "messageDailyTokensDays": "Tokens diarios ({days} días)",
+  "@messageDailyTokensDays": {
+    "description": "Usage page daily chart section title.",
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "titleByConversation": "Conversaciones destacadas",
+  "@titleByConversation": {
+    "description": "Usage page conversations section title."
+  },
+  "labelTotalTokens": "Tokens totales",
+  "@labelTotalTokens": {
+    "description": "Usage page stat card label."
+  },
+  "labelGenerated": "Generados",
+  "@labelGenerated": {
+    "description": "Usage page stat card label for generated tokens."
+  },
+  "messageUntitled": "Sin título",
+  "@messageUntitled": {
+    "description": "Fallback title for an unnamed conversation."
+  },
+  "messageModelBreakdown": "{prompt} in · {generated} out · {count} msgs",
+  "@messageModelBreakdown": {
+    "description": "By-model breakdown subtitle in usage page.",
+    "placeholders": {
+      "prompt": {
+        "type": "String"
+      },
+      "generated": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "messagePromptGeneratedInOut": "{prompt} in · {generated} out",
+  "@messagePromptGeneratedInOut": {
+    "description": "By-conversation breakdown subtitle in usage page.",
+    "placeholders": {
+      "prompt": {
+        "type": "String"
+      },
+      "generated": {
+        "type": "String"
+      }
+    }
+  },
+  "tooltipOpenConversations": "Abrir conversaciones",
+  "@tooltipOpenConversations": {
+    "description": "Tooltip for chat app bar menu button."
+  },
+  "tooltipSearchConversations": "Buscar conversaciones",
+  "@tooltipSearchConversations": {
+    "description": "Tooltip for chat app bar search button."
+  },
+  "labelMicroApp": "Micro-app",
+  "@labelMicroApp": {
+    "description": "Fallback label for a micro-app panel."
+  },
+  "tooltipReopenMicroAppPanel": "Reabrir el panel de la micro-app",
+  "@tooltipReopenMicroAppPanel": {
+    "description": "Tooltip for reopening a closed micro-app panel."
+  },
+  "tooltipReopenApp": "Reabrir {name}",
+  "@tooltipReopenApp": {
+    "description": "Tooltip for reopening a closed micro-app on narrow screens.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "messageCount": "{count, plural, =1{{count} mensaje} other{{count} mensajes}}",
+  "@messageCount": {
+    "description": "Conversation message count shown in sidebar/drawer.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "hintSystemPromptExample": "p. ej. Eres un asistente conciso y directo. Da respuestas breves y fácticas con ejemplos.",
+  "@hintSystemPromptExample": {
+    "description": "Placeholder hint for the system prompt text field."
   }
 }

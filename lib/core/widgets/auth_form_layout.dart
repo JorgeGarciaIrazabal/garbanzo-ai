@@ -142,14 +142,14 @@ class PasswordField extends StatefulWidget {
     super.key,
     required this.controller,
     this.onSubmit,
-    this.labelText = 'Password',
+    this.labelText,
     this.hintText,
     this.minLength,
   });
 
   final TextEditingController controller;
   final VoidCallback? onSubmit;
-  final String labelText;
+  final String? labelText;
   final String? hintText;
 
   /// If non-null, validates the password is at least this many characters.
@@ -171,7 +171,7 @@ class _PasswordFieldState extends State<PasswordField> {
       textInputAction: TextInputAction.done,
       onFieldSubmitted: (_) => widget.onSubmit?.call(),
       decoration: InputDecoration(
-        labelText: widget.labelText,
+        labelText: widget.labelText ?? l10n.labelPassword,
         hintText: widget.hintText,
         border: const OutlineInputBorder(),
         prefixIcon: const Icon(Icons.lock_outlined),

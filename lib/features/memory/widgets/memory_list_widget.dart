@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:garbanzo_ai/features/memory/models/memory.dart';
 import 'package:garbanzo_ai/features/memory/widgets/memory_item_tile.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// Scrollable list of memories with empty state handling.
 class MemoryListWidget extends StatelessWidget {
@@ -32,14 +33,14 @@ class MemoryListWidget extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              'No memories yet',
+              AppLocalizations.of(context)!.messageNoMemoriesYet,
               style: Theme.of(
                 context,
               ).textTheme.titleLarge?.copyWith(color: Colors.grey.shade600),
             ),
             const SizedBox(height: 8),
             Text(
-              'Memories store important facts about you\nfor more personalized conversations',
+              AppLocalizations.of(context)!.messageMemoriesStoreFactsHint,
               textAlign: TextAlign.center,
               style: Theme.of(
                 context,

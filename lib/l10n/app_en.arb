@@ -3328,5 +3328,184 @@
         "type": "String"
       }
     }
+  },
+  "messageMemoriesStoreFactsHint": "Memories store important facts about you\nfor more personalized conversations",
+  "@messageMemoriesStoreFactsHint": {
+    "description": "Empty-state helper in memory list widget."
+  },
+  "messageSourceConversation": "Source: Conversation",
+  "@messageSourceConversation": {
+    "description": "Caption shown on memory tile when it came from a chat."
+  },
+  "messageTypeMessageToBegin": "Type a message below to begin chatting",
+  "@messageTypeMessageToBegin": {
+    "description": "Subtitle shown in empty chat state."
+  },
+  "messageWriteAPythonFunction": "Write a Python function",
+  "@messageWriteAPythonFunction": {
+    "description": "Suggestion chip label in empty chat state."
+  },
+  "messageWriteAPythonFunctionPrompt": "Write a Python function to calculate factorial",
+  "@messageWriteAPythonFunctionPrompt": {
+    "description": "Prompt sent when the user taps the Python suggestion chip."
+  },
+  "messageHelpMeDebugCode": "Help me debug code",
+  "@messageHelpMeDebugCode": {
+    "description": "Suggestion chip label in empty chat state."
+  },
+  "messageHelpMeDebugCodePrompt": "I need help debugging some code",
+  "@messageHelpMeDebugCodePrompt": {
+    "description": "Prompt sent when the user taps the debug suggestion chip."
+  },
+  "titleGettingStarted": "Getting started",
+  "@titleGettingStarted": {
+    "description": "Onboarding card header in empty chat state."
+  },
+  "tipVoiceInputTitle": "Voice input",
+  "@tipVoiceInputTitle": {
+    "description": "Onboarding tip title."
+  },
+  "tipVoiceInputBody": "Tap the mic to dictate — your speech is transcribed locally.",
+  "@tipVoiceInputBody": {
+    "description": "Onboarding tip body."
+  },
+  "tipFilesAndImagesTitle": "Files & images",
+  "@tipFilesAndImagesTitle": {
+    "description": "Onboarding tip title."
+  },
+  "tipFilesAndImagesBody": "Attach or drag in PDFs, spreadsheets, code, and pictures.",
+  "@tipFilesAndImagesBody": {
+    "description": "Onboarding tip body."
+  },
+  "tipMemoryTitle": "Memory",
+  "@tipMemoryTitle": {
+    "description": "Onboarding tip title."
+  },
+  "tipMemoryBody": "The assistant learns facts about you over time — review them anytime under Settings → Memories.",
+  "@tipMemoryBody": {
+    "description": "Onboarding tip body."
+  },
+  "tipKnowledgeBaseTitle": "Knowledge base",
+  "@tipKnowledgeBaseTitle": {
+    "description": "Onboarding tip title."
+  },
+  "tipKnowledgeBaseBody": "Upload documents once, then ask questions about them in any chat.",
+  "@tipKnowledgeBaseBody": {
+    "description": "Onboarding tip body."
+  },
+  "tipRoomsTitle": "Rooms",
+  "@tipRoomsTitle": {
+    "description": "Onboarding tip title."
+  },
+  "tipRoomsBody": "Create rooms where several AI agents (and people) chat together.",
+  "@tipRoomsBody": {
+    "description": "Onboarding tip body."
+  },
+  "tooltipTimeRange": "Time range",
+  "@tooltipTimeRange": {
+    "description": "Tooltip for usage page time-range popup menu."
+  },
+  "messageNoUsageInLastDays": "No usage in the last {days} days",
+  "@messageNoUsageInLastDays": {
+    "description": "Empty-state title when there is no usage data.",
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "messageStartAConversationTokensHint": "Start a conversation to see your token consumption here.",
+  "@messageStartAConversationTokensHint": {
+    "description": "Empty-state helper in usage page."
+  },
+  "messageDailyTokensDays": "Daily tokens ({days} days)",
+  "@messageDailyTokensDays": {
+    "description": "Usage page daily chart section title.",
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "titleByConversation": "Top conversations",
+  "@titleByConversation": {
+    "description": "Usage page conversations section title."
+  },
+  "labelTotalTokens": "Total tokens",
+  "@labelTotalTokens": {
+    "description": "Usage page stat card label."
+  },
+  "labelGenerated": "Generated",
+  "@labelGenerated": {
+    "description": "Usage page stat card label for generated tokens."
+  },
+  "messageUntitled": "Untitled",
+  "@messageUntitled": {
+    "description": "Fallback title for an unnamed conversation."
+  },
+  "messageModelBreakdown": "{prompt} in · {generated} out · {count} msgs",
+  "@messageModelBreakdown": {
+    "description": "By-model breakdown subtitle in usage page.",
+    "placeholders": {
+      "prompt": {
+        "type": "String"
+      },
+      "generated": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "messagePromptGeneratedInOut": "{prompt} in · {generated} out",
+  "@messagePromptGeneratedInOut": {
+    "description": "By-conversation breakdown subtitle in usage page.",
+    "placeholders": {
+      "prompt": {
+        "type": "String"
+      },
+      "generated": {
+        "type": "String"
+      }
+    }
+  },
+  "tooltipOpenConversations": "Open conversations",
+  "@tooltipOpenConversations": {
+    "description": "Tooltip for chat app bar menu button."
+  },
+  "tooltipSearchConversations": "Search conversations",
+  "@tooltipSearchConversations": {
+    "description": "Tooltip for chat app bar search button."
+  },
+  "labelMicroApp": "Micro-app",
+  "@labelMicroApp": {
+    "description": "Fallback label for a micro-app panel."
+  },
+  "tooltipReopenMicroAppPanel": "Reopen the micro-app panel",
+  "@tooltipReopenMicroAppPanel": {
+    "description": "Tooltip for reopening a closed micro-app panel."
+  },
+  "tooltipReopenApp": "Reopen {name}",
+  "@tooltipReopenApp": {
+    "description": "Tooltip for reopening a closed micro-app on narrow screens.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "messageCount": "{count, plural, =1{{count} message} other{{count} messages}}",
+  "@messageCount": {
+    "description": "Conversation message count shown in sidebar/drawer.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "hintSystemPromptExample": "e.g. You are a concise, no-nonsense assistant. Give short factual answers with examples.",
+  "@hintSystemPromptExample": {
+    "description": "Placeholder hint for the system prompt text field."
   }
 }

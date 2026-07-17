@@ -44,7 +44,9 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
     if (!result.success) {
       setState(() {
         _saving = false;
-        _error = result.error ?? 'Failed to change password';
+        _error =
+            result.error ??
+            AppLocalizations.of(context)!.messageFailedToChangePassword;
       });
       return;
     }
@@ -74,8 +76,8 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
                   labelText: AppLocalizations.of(context)!.labelCurrentPassword,
                   suffixIcon: IconButton(
                     tooltip: _obscureCurrent
-                        ? 'Show password'
-                        : 'Hide password',
+                        ? AppLocalizations.of(context)!.showPassword
+                        : AppLocalizations.of(context)!.hidePassword,
                     icon: Icon(
                       _obscureCurrent ? Icons.visibility : Icons.visibility_off,
                     ),
@@ -83,7 +85,9 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
                         setState(() => _obscureCurrent = !_obscureCurrent),
                   ),
                 ),
-                validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
+                validator: (v) => (v == null || v.isEmpty)
+                    ? AppLocalizations.of(context)!.validationErrorRequired
+                    : null,
               ),
               const SizedBox(height: 8),
               TextFormField(
@@ -92,7 +96,9 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
                 decoration: InputDecoration(
                   labelText: AppLocalizations.of(context)!.labelNewPassword,
                   suffixIcon: IconButton(
-                    tooltip: _obscureNext ? 'Show password' : 'Hide password',
+                    tooltip: _obscureNext
+                        ? AppLocalizations.of(context)!.showPassword
+                        : AppLocalizations.of(context)!.hidePassword,
                     icon: Icon(
                       _obscureNext ? Icons.visibility : Icons.visibility_off,
                     ),
@@ -105,7 +111,9 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
                 ),
                 validator: (v) {
                   if (v == null || v.length < 6) {
-                    return 'At least 6 characters';
+                    return AppLocalizations.of(
+                      context,
+                    )!.validatorPasswordMinLength('6');
                   }
                   return null;
                 },
@@ -120,7 +128,11 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
                   )!.labelConfirmNewPassword,
                 ),
                 validator: (v) {
-                  if (v != _next.text) return 'Passwords do not match';
+                  if (v != _next.text) {
+                    return AppLocalizations.of(
+                      context,
+                    )!.messagePasswordsDoNotMatch;
+                  }
                   return null;
                 },
               ),

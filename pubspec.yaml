@@ -145,3 +145,7 @@ flutter_launcher_icons:
   adaptive_icon_background: "#050D1A"
   adaptive_icon_foreground: "assets/app_icon_foreground.png"
   adaptive_icon_monochrome: "assets/app_icon_monochrome.png"
+  windows:
+    generate: true
+    image_path: "assets/app_icon_1024.png"
+    icon_size: 256

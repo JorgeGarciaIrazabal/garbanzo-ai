@@ -14,6 +14,7 @@ abstract class SystemPromptTemplate with _$SystemPromptTemplate {
     String? description,
     required String content,
     @Default(false) bool isBuiltin,
+    String? locale,
     required DateTime createdAt,
   }) = _SystemPromptTemplate;
 

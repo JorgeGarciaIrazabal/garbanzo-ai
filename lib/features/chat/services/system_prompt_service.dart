@@ -13,8 +13,11 @@ class SystemPromptService {
 
   final ApiClient _api = ApiClient.instance;
 
-  Future<List<SystemPromptTemplate>> listTemplates() async {
-    final response = await _api.get('/api/v1/system-prompts/templates');
+  Future<List<SystemPromptTemplate>> listTemplates({String? locale}) async {
+    final response = await _api.get(
+      '/api/v1/system-prompts/templates',
+      queryParameters: {'locale': locale},
+    );
     if (response.statusCode == 200) {
       final data = response.data as List<dynamic>;
       return data

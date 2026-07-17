@@ -36,6 +36,9 @@ class SystemPromptTemplateOut(BaseModel):
     description: str | None = None
     content: str
     is_builtin: bool
+    # BCP-47 language tag for built-in templates (e.g. 'en', 'es'); NULL for
+    # user-saved templates (language-neutral).
+    locale: str | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}

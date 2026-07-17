@@ -18,21 +18,9 @@ class MemoryItemTile extends StatelessWidget {
   final VoidCallback onDelete;
   final VoidCallback onToggleActive;
 
-  String _formatDateTime(DateTime dateTime) {
-    final months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
+  String _formatDateTime(BuildContext context, DateTime dateTime) {
+    final l10n = AppLocalizations.of(context)!;
+    final months = l10n.labelMonthNames.split(',');
     final month = months[dateTime.month - 1];
     final day = dateTime.day;
     final year = dateTime.year;
@@ -40,7 +28,14 @@ class MemoryItemTile extends StatelessWidget {
     final minute = dateTime.minute.toString().padLeft(2, '0');
     final amPm = hour >= 12 ? 'PM' : 'AM';
     final displayHour = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
-    return '$month $day, $year • $displayHour:$minute $amPm';
+    return l10n.messageMonthDayYearTime(
+      month,
+      day.toString(),
+      year.toString(),
+      displayHour.toString(),
+      minute,
+      amPm,
+    );
   }
 
   @override
@@ -69,7 +64,9 @@ class MemoryItemTile extends StatelessWidget {
                         : Colors.grey.shade400,
                   ),
                   child: Tooltip(
-                    message: memory.isActive ? 'Active' : 'Inactive',
+                    message: memory.isActive
+                        ? AppLocalizations.of(context)!.active
+                        : AppLocalizations.of(context)!.inactive,
                     child: const SizedBox.shrink(),
                   ),
                 ),
@@ -91,7 +88,9 @@ class MemoryItemTile extends StatelessWidget {
                       const SizedBox(height: 8),
                       // Source and timestamp
                       Text(
-                        'Created ${_formatDateTime(memory.createdAt)}',
+                        AppLocalizations.of(context)!.messageCreatedAt(
+                          _formatDateTime(context, memory.createdAt),
+                        ),
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: Colors.grey.shade600,
                         ),
@@ -99,7 +98,9 @@ class MemoryItemTile extends StatelessWidget {
                       if (memory.sourceConversationId != null) ...[
                         const SizedBox(height: 4),
                         Text(
-                          'Source: Conversation',
+                          AppLocalizations.of(
+                            context,
+                          )!.messageSourceConversation,
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: Colors.grey.shade600,
                             fontStyle: FontStyle.italic,
@@ -126,7 +127,11 @@ class MemoryItemTile extends StatelessWidget {
                         memory.isActive ? Icons.toggle_on : Icons.toggle_off,
                       ),
                       onPressed: onToggleActive,
-                      tooltip: memory.isActive ? 'Deactivate' : 'Activate',
+                      tooltip: memory.isActive
+                          ? AppLocalizations.of(
+                              context,
+                            )!.tooltipDeactivateMemory
+                          : AppLocalizations.of(context)!.tooltipActivateMemory,
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
                       iconSize: 24,

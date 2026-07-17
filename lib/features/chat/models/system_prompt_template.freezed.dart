@@ -16,7 +16,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$SystemPromptTemplate {
 
- String get id; String get name; String? get description; String get content; bool get isBuiltin; DateTime get createdAt;
+ String get id; String get name; String? get description; String get content; bool get isBuiltin; String? get locale; DateTime get createdAt;
 /// Create a copy of SystemPromptTemplate
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -29,16 +29,16 @@ $SystemPromptTemplateCopyWith<SystemPromptTemplate> get copyWith => _$SystemProm
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is SystemPromptTemplate&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.description, description) || other.description == description)&&(identical(other.content, content) || other.content == content)&&(identical(other.isBuiltin, isBuiltin) || other.isBuiltin == isBuiltin)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is SystemPromptTemplate&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.description, description) || other.description == description)&&(identical(other.content, content) || other.content == content)&&(identical(other.isBuiltin, isBuiltin) || other.isBuiltin == isBuiltin)&&(identical(other.locale, locale) || other.locale == locale)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,name,description,content,isBuiltin,createdAt);
+int get hashCode => Object.hash(runtimeType,id,name,description,content,isBuiltin,locale,createdAt);
 
 @override
 String toString() {
-  return 'SystemPromptTemplate(id: $id, name: $name, description: $description, content: $content, isBuiltin: $isBuiltin, createdAt: $createdAt)';
+  return 'SystemPromptTemplate(id: $id, name: $name, description: $description, content: $content, isBuiltin: $isBuiltin, locale: $locale, createdAt: $createdAt)';
 }
 
 
@@ -49,7 +49,7 @@ abstract mixin class $SystemPromptTemplateCopyWith<$Res>  {
   factory $SystemPromptTemplateCopyWith(SystemPromptTemplate value, $Res Function(SystemPromptTemplate) _then) = _$SystemPromptTemplateCopyWithImpl;
 @useResult
 $Res call({
- String id, String name, String? description, String content, bool isBuiltin, DateTime createdAt
+ String id, String name, String? description, String content, bool isBuiltin, String? locale, DateTime createdAt
 });
 
 
@@ -66,14 +66,15 @@ class _$SystemPromptTemplateCopyWithImpl<$Res>
 
 /// Create a copy of SystemPromptTemplate
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? description = freezed,Object? content = null,Object? isBuiltin = null,Object? createdAt = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? description = freezed,Object? content = null,Object? isBuiltin = null,Object? locale = freezed,Object? createdAt = null,}) {
   return _then(SystemPromptTemplate(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
 as String,description: freezed == description ? _self.description : description // ignore: cast_nullable_to_non_nullable
 as String?,content: null == content ? _self.content : content // ignore: cast_nullable_to_non_nullable
 as String,isBuiltin: null == isBuiltin ? _self.isBuiltin : isBuiltin // ignore: cast_nullable_to_non_nullable
-as bool,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
+as bool,locale: freezed == locale ? _self.locale : locale // ignore: cast_nullable_to_non_nullable
+as String?,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
 as DateTime,
   ));
 }
@@ -159,10 +160,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String name,  String? description,  String content,  bool isBuiltin,  DateTime createdAt)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String name,  String? description,  String content,  bool isBuiltin,  String? locale,  DateTime createdAt)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _SystemPromptTemplate() when $default != null:
-return $default(_that.id,_that.name,_that.description,_that.content,_that.isBuiltin,_that.createdAt);case _:
+return $default(_that.id,_that.name,_that.description,_that.content,_that.isBuiltin,_that.locale,_that.createdAt);case _:
   return orElse();
 
 }
@@ -180,10 +181,10 @@ return $default(_that.id,_that.name,_that.description,_that.content,_that.isBuil
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String name,  String? description,  String content,  bool isBuiltin,  DateTime createdAt)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String name,  String? description,  String content,  bool isBuiltin,  String? locale,  DateTime createdAt)  $default,) {final _that = this;
 switch (_that) {
 case _SystemPromptTemplate():
-return $default(_that.id,_that.name,_that.description,_that.content,_that.isBuiltin,_that.createdAt);case _:
+return $default(_that.id,_that.name,_that.description,_that.content,_that.isBuiltin,_that.locale,_that.createdAt);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -200,10 +201,10 @@ return $default(_that.id,_that.name,_that.description,_that.content,_that.isBuil
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String name,  String? description,  String content,  bool isBuiltin,  DateTime createdAt)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String name,  String? description,  String content,  bool isBuiltin,  String? locale,  DateTime createdAt)?  $default,) {final _that = this;
 switch (_that) {
 case _SystemPromptTemplate() when $default != null:
-return $default(_that.id,_that.name,_that.description,_that.content,_that.isBuiltin,_that.createdAt);case _:
+return $default(_that.id,_that.name,_that.description,_that.content,_that.isBuiltin,_that.locale,_that.createdAt);case _:
   return null;
 
 }
@@ -215,7 +216,7 @@ return $default(_that.id,_that.name,_that.description,_that.content,_that.isBuil
 @JsonSerializable()
 
 class _SystemPromptTemplate extends SystemPromptTemplate {
-  const _SystemPromptTemplate({required this.id, required this.name, this.description, required this.content, this.isBuiltin = false, required this.createdAt}): super._();
+  const _SystemPromptTemplate({required this.id, required this.name, this.description, required this.content, this.isBuiltin = false, this.locale, required this.createdAt}): super._();
   factory _SystemPromptTemplate.fromJson(Map<String, dynamic> json) => _$SystemPromptTemplateFromJson(json);
 
 @override final  String id;
@@ -223,6 +224,7 @@ class _SystemPromptTemplate extends SystemPromptTemplate {
 @override final  String? description;
 @override final  String content;
 @override@JsonKey() final  bool isBuiltin;
+@override final  String? locale;
 @override final  DateTime createdAt;
 
 /// Create a copy of SystemPromptTemplate
@@ -238,16 +240,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _SystemPromptTemplate&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.description, description) || other.description == description)&&(identical(other.content, content) || other.content == content)&&(identical(other.isBuiltin, isBuiltin) || other.isBuiltin == isBuiltin)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _SystemPromptTemplate&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.description, description) || other.description == description)&&(identical(other.content, content) || other.content == content)&&(identical(other.isBuiltin, isBuiltin) || other.isBuiltin == isBuiltin)&&(identical(other.locale, locale) || other.locale == locale)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,name,description,content,isBuiltin,createdAt);
+int get hashCode => Object.hash(runtimeType,id,name,description,content,isBuiltin,locale,createdAt);
 
 @override
 String toString() {
-  return 'SystemPromptTemplate(id: $id, name: $name, description: $description, content: $content, isBuiltin: $isBuiltin, createdAt: $createdAt)';
+  return 'SystemPromptTemplate(id: $id, name: $name, description: $description, content: $content, isBuiltin: $isBuiltin, locale: $locale, createdAt: $createdAt)';
 }
 
 
@@ -258,7 +260,7 @@ abstract mixin class _$SystemPromptTemplateCopyWith<$Res> implements $SystemProm
   factory _$SystemPromptTemplateCopyWith(_SystemPromptTemplate value, $Res Function(_SystemPromptTemplate) _then) = __$SystemPromptTemplateCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String name, String? description, String content, bool isBuiltin, DateTime createdAt
+ String id, String name, String? description, String content, bool isBuiltin, String? locale, DateTime createdAt
 });
 
 
@@ -275,14 +277,15 @@ class __$SystemPromptTemplateCopyWithImpl<$Res>
 
 /// Create a copy of SystemPromptTemplate
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? description = freezed,Object? content = null,Object? isBuiltin = null,Object? createdAt = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? description = freezed,Object? content = null,Object? isBuiltin = null,Object? locale = freezed,Object? createdAt = null,}) {
   return _then(_SystemPromptTemplate(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
 as String,description: freezed == description ? _self.description : description // ignore: cast_nullable_to_non_nullable
 as String?,content: null == content ? _self.content : content // ignore: cast_nullable_to_non_nullable
 as String,isBuiltin: null == isBuiltin ? _self.isBuiltin : isBuiltin // ignore: cast_nullable_to_non_nullable
-as bool,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
+as bool,locale: freezed == locale ? _self.locale : locale // ignore: cast_nullable_to_non_nullable
+as String?,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
 as DateTime,
   ));
 }

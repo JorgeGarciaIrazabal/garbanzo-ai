@@ -2425,4 +2425,138 @@ class AppLocalizationsEs extends AppLocalizations {
   String messageDeleteStyleConfirmation(String name) {
     return '¿Eliminar \"$name\"?';
   }
+
+  @override
+  String get messageMemoriesStoreFactsHint =>
+      'Los recuerdos guardan datos importantes sobre ti\npara conversaciones más personalizadas';
+
+  @override
+  String get messageSourceConversation => 'Origen: Conversación';
+
+  @override
+  String get messageTypeMessageToBegin =>
+      'Escribe un mensaje abajo para empezar a chatear';
+
+  @override
+  String get messageWriteAPythonFunction => 'Escribe una función en Python';
+
+  @override
+  String get messageWriteAPythonFunctionPrompt =>
+      'Escribe una función en Python para calcular el factorial';
+
+  @override
+  String get messageHelpMeDebugCode => 'Ayúdame a depurar código';
+
+  @override
+  String get messageHelpMeDebugCodePrompt =>
+      'Necesito ayuda para depurar código';
+
+  @override
+  String get titleGettingStarted => 'Primeros pasos';
+
+  @override
+  String get tipVoiceInputTitle => 'Entrada de voz';
+
+  @override
+  String get tipVoiceInputBody =>
+      'Toca el micrófono para dictar — tu voz se transcribe localmente.';
+
+  @override
+  String get tipFilesAndImagesTitle => 'Archivos e imágenes';
+
+  @override
+  String get tipFilesAndImagesBody =>
+      'Adjunta o arrastra PDFs, hojas de cálculo, código e imágenes.';
+
+  @override
+  String get tipMemoryTitle => 'Recuerdos';
+
+  @override
+  String get tipMemoryBody =>
+      'El asistente aprende datos sobre ti con el tiempo — revísalos cuando quieras en Ajustes → Recuerdos.';
+
+  @override
+  String get tipKnowledgeBaseTitle => 'Base de conocimientos';
+
+  @override
+  String get tipKnowledgeBaseBody =>
+      'Sube documentos una vez y haz preguntas sobre ellos en cualquier chat.';
+
+  @override
+  String get tipRoomsTitle => 'Salas';
+
+  @override
+  String get tipRoomsBody =>
+      'Crea salas donde varios agentes de IA (y personas) conversan juntos.';
+
+  @override
+  String get tooltipTimeRange => 'Rango de tiempo';
+
+  @override
+  String messageNoUsageInLastDays(int days) {
+    return 'Sin uso en los últimos $days días';
+  }
+
+  @override
+  String get messageStartAConversationTokensHint =>
+      'Empieza una conversación para ver tu consumo de tokens aquí.';
+
+  @override
+  String messageDailyTokensDays(int days) {
+    return 'Tokens diarios ($days días)';
+  }
+
+  @override
+  String get titleByConversation => 'Conversaciones destacadas';
+
+  @override
+  String get labelTotalTokens => 'Tokens totales';
+
+  @override
+  String get labelGenerated => 'Generados';
+
+  @override
+  String get messageUntitled => 'Sin título';
+
+  @override
+  String messageModelBreakdown(String prompt, String generated, int count) {
+    return '$prompt in · $generated out · $count msgs';
+  }
+
+  @override
+  String messagePromptGeneratedInOut(String prompt, String generated) {
+    return '$prompt in · $generated out';
+  }
+
+  @override
+  String get tooltipOpenConversations => 'Abrir conversaciones';
+
+  @override
+  String get tooltipSearchConversations => 'Buscar conversaciones';
+
+  @override
+  String get labelMicroApp => 'Micro-app';
+
+  @override
+  String get tooltipReopenMicroAppPanel => 'Reabrir el panel de la micro-app';
+
+  @override
+  String tooltipReopenApp(String name) {
+    return 'Reabrir $name';
+  }
+
+  @override
+  String messageCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count mensajes',
+      one: '$count mensaje',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get hintSystemPromptExample =>
+      'p. ej. Eres un asistente conciso y directo. Da respuestas breves y fácticas con ejemplos.';
 }

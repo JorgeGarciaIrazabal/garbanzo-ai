@@ -36,13 +36,14 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
 
     return AppBar(
       title: Text(
-        chatProvider.currentConversation?.displayTitle ?? 'New Chat',
+        chatProvider.currentConversation?.displayTitle ??
+            AppLocalizations.of(context)!.labelNewChat,
         overflow: TextOverflow.ellipsis,
       ),
       leading: showSidebar
           ? null
           : IconButton(
-              tooltip: 'Open conversations',
+              tooltip: AppLocalizations.of(context)!.tooltipOpenConversations,
               icon: const Icon(Icons.menu),
               onPressed: () => showMobileConversationDrawer(
                 context: context,
@@ -60,7 +61,7 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
         if (!showSidebar)
           IconButton(
             icon: const Icon(Icons.search),
-            tooltip: 'Search conversations',
+            tooltip: AppLocalizations.of(context)!.tooltipSearchConversations,
             onPressed: () => showMobileSearchSheet(context),
           ),
         const Padding(
@@ -81,18 +82,23 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
                     label: ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 140),
                       child: Text(
-                        chatProvider.panel.appTitle ?? 'Micro-app',
+                        chatProvider.panel.appTitle ??
+                            AppLocalizations.of(context)!.labelMicroApp,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    tooltip: 'Reopen the micro-app panel',
+                    tooltip: AppLocalizations.of(
+                      context,
+                    )!.tooltipReopenMicroAppPanel,
                     onPressed: chatProvider.panel.reopen,
                   ),
                 )
               : IconButton(
                   icon: const Icon(Icons.space_dashboard_outlined),
-                  tooltip:
-                      'Reopen ${chatProvider.panel.appTitle ?? 'micro-app'}',
+                  tooltip: AppLocalizations.of(context)!.tooltipReopenApp(
+                    chatProvider.panel.appTitle ??
+                        AppLocalizations.of(context)!.labelMicroApp,
+                  ),
                   onPressed: chatProvider.panel.reopen,
                 ),
         IconButton(

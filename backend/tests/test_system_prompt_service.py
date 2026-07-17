@@ -30,6 +30,38 @@ class TestBuiltinTemplates:
         names = {t.name for t in templates}
         assert {tpl["name"] for tpl in BUILTIN_TEMPLATES}.issubset(names)
 
+    async def test_list_templates_locale_filter(self, db_session, test_user_email):
+        svc = SystemPromptService(db_session)
+        await svc.seed_builtin_templates()
+
+        es = await svc.list_templates(test_user_email, locale="es")
+        es_builtin_names = {t.name for t in es if t.is_builtin}
+        es_expected = {t["name"] for t in BUILTIN_TEMPLATES if t["locale"] == "es"}
+        assert es_builtin_names == es_expected
+        # No English builtins leak through the filter.
+        en_expected = {t["name"] for t in BUILTIN_TEMPLATES if t["locale"] == "en"}
+        assert not (es_builtin_names & en_expected)
+
+    async def test_list_templates_locale_falls_back_when_unknown(self, db_session, test_user_email):
+        svc = SystemPromptService(db_session)
+        await svc.seed_builtin_templates()
+        # A locale with no builtins surfaces all builtins (NULL-as-wildcard).
+        fr = await svc.list_templates(test_user_email, locale="fr")
+        all_builtins = {t.name for t in fr if t.is_builtin}
+        assert {t["name"] for t in BUILTIN_TEMPLATES}.issubset(all_builtins)
+
+    async def test_list_templates_locale_with_user_templates(self, db_session, test_user_email):
+        svc = SystemPromptService(db_session)
+        await svc.seed_builtin_templates()
+        await svc.create_template(
+            user_id=test_user_email,
+            name="Mi plantilla",
+            content="Hola.",
+        )
+        es = await svc.list_templates(test_user_email, locale="es")
+        names = {t.name for t in es}
+        assert "Mi plantilla" in names
+
 
 class TestUserTemplates:
     async def test_create_and_fetch(self, db_session, test_user_email):

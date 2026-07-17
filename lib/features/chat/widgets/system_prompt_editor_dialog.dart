@@ -10,6 +10,7 @@ import 'package:garbanzo_ai/features/chat/providers/model_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/system_prompt_provider.dart';
 import 'package:garbanzo_ai/features/chat/services/system_prompt_service.dart';
 import 'package:garbanzo_ai/features/friends/widgets/share_with_friend_dialog.dart';
+import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
 import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// Result returned from [SystemPromptEditorDialog].
@@ -93,6 +94,24 @@ class _SystemPromptEditorDialogState extends State<SystemPromptEditorDialog> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Re-sync built-in templates with the active locale each time the dialog
+    // opens. Cheap (one extra GET) and keeps 'es' users from seeing 'en'.
+    // SettingsProvider lives at the app root, so it is always present in
+    // production — the try/catch lets widget tests that don't register it
+    // exercise the dialog in isolation.
+    try {
+      final settings = context.read<SettingsProvider>();
+      context.read<SystemPromptProvider>().setLocale(
+        settings.effectiveLanguageCode,
+      );
+    } catch (_) {
+      // No SettingsProvider in tree (e.g. isolated widget test) — skip.
+    }
+  }
+
+  @override
   void dispose() {
     _streamSub?.cancel();
     _controller.dispose();
@@ -123,7 +142,9 @@ class _SystemPromptEditorDialogState extends State<SystemPromptEditorDialog> {
     final ok = await showAnimatedDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Delete "${template.name}"?'),
+        title: Text(
+          AppLocalizations.of(context)!.deleteTemplateTitle(template.name),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
@@ -372,7 +393,9 @@ class _SystemPromptEditorDialogState extends State<SystemPromptEditorDialog> {
       if (created != null && mounted) {
         setState(() => _selectedTemplateId = created.id);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Saved "$name" to your library')),
+          SnackBar(
+            content: Text(AppLocalizations.of(context)!.savedToLibrary(name)),
+          ),
         );
       }
     }
@@ -483,7 +506,9 @@ class _SystemPromptEditorDialogState extends State<SystemPromptEditorDialog> {
                   if (selected != null && !selected.isBuiltin) ...[
                     IconButton(
                       icon: const Icon(Icons.person_add_alt_outlined),
-                      tooltip: 'Share "${selected.name}" with a friend',
+                      tooltip: AppLocalizations.of(
+                        context,
+                      )!.tooltipSharePromptWithFriend(selected.name),
                       onPressed: () => showShareWithFriendDialog(
                         context,
                         kind: 'prompt',
@@ -493,12 +518,16 @@ class _SystemPromptEditorDialogState extends State<SystemPromptEditorDialog> {
                     ),
                     IconButton(
                       icon: const Icon(Icons.edit_outlined),
-                      tooltip: 'Edit "${selected.name}"',
+                      tooltip: AppLocalizations.of(
+                        context,
+                      )!.tooltipEditTemplate(selected.name),
                       onPressed: () => _editTemplate(selected),
                     ),
                     IconButton(
                       icon: const Icon(Icons.delete_outline),
-                      tooltip: 'Delete "${selected.name}"',
+                      tooltip: AppLocalizations.of(
+                        context,
+                      )!.tooltipDeleteTemplate(selected.name),
                       onPressed: () => _deleteTemplate(selected),
                     ),
                   ],
@@ -511,9 +540,9 @@ class _SystemPromptEditorDialogState extends State<SystemPromptEditorDialog> {
                 minLines: 6,
                 decoration: InputDecoration(
                   labelText: AppLocalizations.of(context)!.labelSystemPrompt,
-                  hintText:
-                      "e.g. You are a concise, no-nonsense assistant. Give short "
-                      "factual answers with examples.",
+                  hintText: AppLocalizations.of(
+                    context,
+                  )!.hintSystemPromptExample,
                   border: OutlineInputBorder(),
                   alignLabelWithHint: true,
                 ),
@@ -720,7 +749,11 @@ class _AiGeneratePanel extends StatelessWidget {
               FilledButton.icon(
                 onPressed: isGenerating ? null : onStart,
                 icon: const Icon(Icons.play_arrow, size: 18),
-                label: Text(isFirstGeneration ? 'Generate' : 'Refine'),
+                label: Text(
+                  isFirstGeneration
+                      ? AppLocalizations.of(context)!.labelGenerate
+                      : AppLocalizations.of(context)!.labelRefine,
+                ),
               ),
               if (!isFirstGeneration) ...[
                 const SizedBox(width: 8),

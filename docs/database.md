@@ -133,6 +133,11 @@ half-migrated schema.
 - `MCPServer` stores registered MCP server configs (managed by admin).
 - `AvailableModel` stores admin-controlled per-model visibility (`model_id`, `is_enabled`).
 - `SystemPromptTemplate` stores built-in and user-created prompt templates.
+  Built-in rows carry a non-null `locale` (BCP-47 primary subtag, e.g. `en` /
+  `es` — seeded in both languages) so the picker can filter by the user's UI
+  language; user-saved rows keep `locale = NULL` (language-neutral, surface in
+  every locale). Added by 028_system_prompt_locale.sql; existing English
+  builtins are retroactively tagged `en` by the migration.
 - `Style` (Idea 2: "Styles", subtask 2) is a saved, reusable bundle of
   `model_id` + `thinking_level` + `system_prompt_template_id` a user can name
   ("Deep Work", "Quick Answers") and reuse across conversations — the picker

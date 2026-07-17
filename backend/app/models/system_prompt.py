@@ -29,6 +29,10 @@ class SystemPromptTemplate(Base):
     description: Mapped[str | None] = mapped_column(String(500), nullable=True)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     is_builtin: Mapped[bool] = mapped_column(default=False, nullable=False)
+    # BCP-47 language tag for built-in templates (e.g. 'en', 'es'); NULL for
+    # user-saved templates (language-neutral — the user typed them). NULL acts
+    # as a wildcard, surfacing in any locale request.
+    locale: Mapped[str | None] = mapped_column(String(5), nullable=True, default=None)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

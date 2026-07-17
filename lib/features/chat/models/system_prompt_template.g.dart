@@ -14,6 +14,7 @@ _SystemPromptTemplate _$SystemPromptTemplateFromJson(
   description: json['description'] as String?,
   content: json['content'] as String,
   isBuiltin: json['is_builtin'] as bool? ?? false,
+  locale: json['locale'] as String?,
   createdAt: DateTime.parse(json['created_at'] as String),
 );
 
@@ -25,5 +26,6 @@ Map<String, dynamic> _$SystemPromptTemplateToJson(
   'description': instance.description,
   'content': instance.content,
   'is_builtin': instance.isBuiltin,
+  'locale': instance.locale,
   'created_at': instance.createdAt.toIso8601String(),
 };

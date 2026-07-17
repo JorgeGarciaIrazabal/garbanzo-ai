@@ -236,7 +236,9 @@ class _MobileDrawerBodyState extends State<_MobileDrawerBody> {
                   ],
                 ),
                 subtitle: Text(
-                  '${conversation.messageCount} messages',
+                  AppLocalizations.of(
+                    context,
+                  )!.messageCount(conversation.messageCount),
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
                 selected: isSelected,

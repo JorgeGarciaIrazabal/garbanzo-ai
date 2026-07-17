@@ -305,7 +305,9 @@ class _ConversationListItem extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '${conversation.messageCount} message${conversation.messageCount == 1 ? '' : 's'}',
+                      AppLocalizations.of(
+                        context,
+                      )!.messageCount(conversation.messageCount),
                       style: textTheme.labelSmall?.copyWith(
                         color: isSelected
                             ? colorScheme.onPrimaryContainer.withValues(

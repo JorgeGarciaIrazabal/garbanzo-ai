@@ -32,7 +32,7 @@ class _UsageView extends StatelessWidget {
         actions: [
           PopupMenuButton<int>(
             icon: const Icon(Icons.calendar_today_outlined),
-            tooltip: 'Time range',
+            tooltip: AppLocalizations.of(context)!.tooltipTimeRange,
             onSelected: (value) => provider.load(days: value),
             initialValue: provider.days,
             itemBuilder: (context) => [
@@ -105,12 +105,16 @@ class _UsageView extends StatelessWidget {
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      'No usage in the last ${provider.days} days',
+                      AppLocalizations.of(
+                        context,
+                      )!.messageNoUsageInLastDays(provider.days),
                       style: theme.textTheme.titleMedium,
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Start a conversation to see your token consumption here.',
+                      AppLocalizations.of(
+                        context,
+                      )!.messageStartAConversationTokensHint,
                       style: theme.textTheme.bodySmall,
                       textAlign: TextAlign.center,
                     ),
@@ -126,15 +130,21 @@ class _UsageView extends StatelessWidget {
               children: [
                 _TotalsRow(summary: summary),
                 const SizedBox(height: 24),
-                _SectionTitle('Daily tokens (${summary.days} days)'),
+                _SectionTitle(
+                  AppLocalizations.of(
+                    context,
+                  )!.messageDailyTokensDays(summary.days),
+                ),
                 const SizedBox(height: 8),
                 _DailyChart(summary: summary),
                 const SizedBox(height: 24),
-                _SectionTitle('By model'),
+                _SectionTitle(AppLocalizations.of(context)!.titleUsageByModel),
                 const SizedBox(height: 8),
                 _ByModelSection(summary: summary),
                 const SizedBox(height: 24),
-                _SectionTitle('Top conversations'),
+                _SectionTitle(
+                  AppLocalizations.of(context)!.titleByConversation,
+                ),
                 const SizedBox(height: 8),
                 _ByConversationSection(summary: summary),
               ],
@@ -171,7 +181,7 @@ class _TotalsRow extends StatelessWidget {
       builder: (context, constraints) {
         final cards = [
           _StatCard(
-            label: 'Total tokens',
+            label: AppLocalizations.of(context)!.labelTotalTokens,
             value: _formatNumber(summary.totalTokens),
             icon: Icons.token_outlined,
           ),
@@ -181,7 +191,7 @@ class _TotalsRow extends StatelessWidget {
             icon: Icons.arrow_upward,
           ),
           _StatCard(
-            label: 'Generated',
+            label: AppLocalizations.of(context)!.labelGenerated,
             value: _formatNumber(summary.totalTokensGenerated),
             icon: Icons.arrow_downward,
           ),
@@ -438,6 +448,7 @@ class _ModelRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context)!;
     final fraction = maxValue == 0 ? 0.0 : entry.totalTokens / maxValue;
 
     return Padding(
@@ -474,9 +485,11 @@ class _ModelRow extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            '${_formatNumber(entry.tokensPrompt)} in · '
-            '${_formatNumber(entry.tokensGenerated)} out · '
-            '${entry.messageCount} msgs',
+            l10n.messageModelBreakdown(
+              _formatNumber(entry.tokensPrompt),
+              _formatNumber(entry.tokensGenerated),
+              entry.messageCount,
+            ),
             style: theme.textTheme.bodySmall,
           ),
         ],
@@ -492,6 +505,7 @@ class _ByConversationSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context)!;
     if (summary.byConversation.isEmpty) {
       return const SizedBox.shrink();
     }
@@ -502,13 +516,16 @@ class _ByConversationSection extends StatelessWidget {
           for (var i = 0; i < summary.byConversation.length; i++) ...[
             ListTile(
               title: Text(
-                summary.byConversation[i].title ?? 'Untitled',
+                summary.byConversation[i].title ??
+                    AppLocalizations.of(context)!.messageUntitled,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
               subtitle: Text(
-                '${_formatNumber(summary.byConversation[i].tokensPrompt)} in · '
-                '${_formatNumber(summary.byConversation[i].tokensGenerated)} out',
+                l10n.messagePromptGeneratedInOut(
+                  _formatNumber(summary.byConversation[i].tokensPrompt),
+                  _formatNumber(summary.byConversation[i].tokensGenerated),
+                ),
                 style: theme.textTheme.bodySmall,
               ),
               trailing: Text(

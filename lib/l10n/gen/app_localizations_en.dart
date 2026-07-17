@@ -2391,4 +2391,137 @@ class AppLocalizationsEn extends AppLocalizations {
   String messageDeleteStyleConfirmation(String name) {
     return 'Delete \"$name\"?';
   }
+
+  @override
+  String get messageMemoriesStoreFactsHint =>
+      'Memories store important facts about you\nfor more personalized conversations';
+
+  @override
+  String get messageSourceConversation => 'Source: Conversation';
+
+  @override
+  String get messageTypeMessageToBegin =>
+      'Type a message below to begin chatting';
+
+  @override
+  String get messageWriteAPythonFunction => 'Write a Python function';
+
+  @override
+  String get messageWriteAPythonFunctionPrompt =>
+      'Write a Python function to calculate factorial';
+
+  @override
+  String get messageHelpMeDebugCode => 'Help me debug code';
+
+  @override
+  String get messageHelpMeDebugCodePrompt => 'I need help debugging some code';
+
+  @override
+  String get titleGettingStarted => 'Getting started';
+
+  @override
+  String get tipVoiceInputTitle => 'Voice input';
+
+  @override
+  String get tipVoiceInputBody =>
+      'Tap the mic to dictate — your speech is transcribed locally.';
+
+  @override
+  String get tipFilesAndImagesTitle => 'Files & images';
+
+  @override
+  String get tipFilesAndImagesBody =>
+      'Attach or drag in PDFs, spreadsheets, code, and pictures.';
+
+  @override
+  String get tipMemoryTitle => 'Memory';
+
+  @override
+  String get tipMemoryBody =>
+      'The assistant learns facts about you over time — review them anytime under Settings → Memories.';
+
+  @override
+  String get tipKnowledgeBaseTitle => 'Knowledge base';
+
+  @override
+  String get tipKnowledgeBaseBody =>
+      'Upload documents once, then ask questions about them in any chat.';
+
+  @override
+  String get tipRoomsTitle => 'Rooms';
+
+  @override
+  String get tipRoomsBody =>
+      'Create rooms where several AI agents (and people) chat together.';
+
+  @override
+  String get tooltipTimeRange => 'Time range';
+
+  @override
+  String messageNoUsageInLastDays(int days) {
+    return 'No usage in the last $days days';
+  }
+
+  @override
+  String get messageStartAConversationTokensHint =>
+      'Start a conversation to see your token consumption here.';
+
+  @override
+  String messageDailyTokensDays(int days) {
+    return 'Daily tokens ($days days)';
+  }
+
+  @override
+  String get titleByConversation => 'Top conversations';
+
+  @override
+  String get labelTotalTokens => 'Total tokens';
+
+  @override
+  String get labelGenerated => 'Generated';
+
+  @override
+  String get messageUntitled => 'Untitled';
+
+  @override
+  String messageModelBreakdown(String prompt, String generated, int count) {
+    return '$prompt in · $generated out · $count msgs';
+  }
+
+  @override
+  String messagePromptGeneratedInOut(String prompt, String generated) {
+    return '$prompt in · $generated out';
+  }
+
+  @override
+  String get tooltipOpenConversations => 'Open conversations';
+
+  @override
+  String get tooltipSearchConversations => 'Search conversations';
+
+  @override
+  String get labelMicroApp => 'Micro-app';
+
+  @override
+  String get tooltipReopenMicroAppPanel => 'Reopen the micro-app panel';
+
+  @override
+  String tooltipReopenApp(String name) {
+    return 'Reopen $name';
+  }
+
+  @override
+  String messageCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count messages',
+      one: '$count message',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get hintSystemPromptExample =>
+      'e.g. You are a concise, no-nonsense assistant. Give short factual answers with examples.';
 }
