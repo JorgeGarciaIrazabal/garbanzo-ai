@@ -23,7 +23,9 @@ saved style the default from the style picker (see Styles).
 
 ## How do I change the assistant's voice?
 Voice: choose the text-to-speech voice and speed, plus auto-play behavior
-for spoken replies. Used by the speak button and Talk Mode.
+for spoken replies. Used by the speak button and Talk Mode. Voices are
+available in English, Spanish, French, Hindi, Italian, and Brazilian
+Portuguese — each entry in the picker shows its language.
 
 ## How do I manage what the assistant remembers?
 Memory settings link to the Memories page; per-conversation injection is

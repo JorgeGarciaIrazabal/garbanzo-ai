@@ -20,19 +20,71 @@ logger = logging.getLogger(__name__)
 # Suppress noisy phonemizer "words count mismatch" warnings
 logging.getLogger("phonemizer").setLevel(logging.ERROR)
 
+# Kokoro v1.0 voice packs. The voice ID's first letter is the KPipeline
+# lang_code (a=US/b=UK English, e=Spanish, f=French, h=Hindi, i=Italian,
+# p=Brazilian Portuguese); packs auto-download from HuggingFace on first use.
+# Japanese (j*) and Mandarin (z*) exist upstream but need the misaki[ja] /
+# misaki[zh] extras, which aren't installed — the espeak-based languages
+# below work with the already-bundled espeakng-loader. Per language, the
+# first entry is what `default_voice_for_language` picks (idea 13.3).
 _VOICES = [
-    VoiceInfo(id="af_heart", name="Heart", language="English"),
-    VoiceInfo(id="af_bella", name="Bella", language="English"),
-    VoiceInfo(id="af_nicole", name="Nicole", language="English"),
-    VoiceInfo(id="af_sarah", name="Sarah", language="English"),
-    VoiceInfo(id="af_sky", name="Sky", language="English"),
-    VoiceInfo(id="am_adam", name="Adam", language="English"),
-    VoiceInfo(id="am_michael", name="Michael", language="English"),
-    VoiceInfo(id="bf_emma", name="Emma", language="English"),
-    VoiceInfo(id="bf_isabella", name="Isabella", language="English"),
-    VoiceInfo(id="bm_george", name="George", language="English"),
-    VoiceInfo(id="bm_lewis", name="Lewis", language="English"),
+    VoiceInfo(id="af_heart", name="Heart", language="English", lang_code="en"),
+    VoiceInfo(id="af_bella", name="Bella", language="English", lang_code="en"),
+    VoiceInfo(id="af_nicole", name="Nicole", language="English", lang_code="en"),
+    VoiceInfo(id="af_sarah", name="Sarah", language="English", lang_code="en"),
+    VoiceInfo(id="af_sky", name="Sky", language="English", lang_code="en"),
+    VoiceInfo(id="am_adam", name="Adam", language="English", lang_code="en"),
+    VoiceInfo(id="am_michael", name="Michael", language="English", lang_code="en"),
+    VoiceInfo(id="bf_emma", name="Emma", language="English", lang_code="en"),
+    VoiceInfo(id="bf_isabella", name="Isabella", language="English", lang_code="en"),
+    VoiceInfo(id="bm_george", name="George", language="English", lang_code="en"),
+    VoiceInfo(id="bm_lewis", name="Lewis", language="English", lang_code="en"),
+    VoiceInfo(id="ef_dora", name="Dora", language="Spanish", lang_code="es"),
+    VoiceInfo(id="em_alex", name="Alex", language="Spanish", lang_code="es"),
+    VoiceInfo(id="em_santa", name="Santa", language="Spanish", lang_code="es"),
+    VoiceInfo(id="ff_siwis", name="Siwis", language="French", lang_code="fr"),
+    VoiceInfo(id="hf_alpha", name="Alpha", language="Hindi", lang_code="hi"),
+    VoiceInfo(id="hf_beta", name="Beta", language="Hindi", lang_code="hi"),
+    VoiceInfo(id="hm_omega", name="Omega", language="Hindi", lang_code="hi"),
+    VoiceInfo(id="hm_psi", name="Psi", language="Hindi", lang_code="hi"),
+    VoiceInfo(id="if_sara", name="Sara", language="Italian", lang_code="it"),
+    VoiceInfo(id="im_nicola", name="Nicola", language="Italian", lang_code="it"),
+    VoiceInfo(id="pf_dora", name="Dora", language="Portuguese (BR)", lang_code="pt"),
+    VoiceInfo(id="pm_alex", name="Alex", language="Portuguese (BR)", lang_code="pt"),
+    VoiceInfo(id="pm_santa", name="Santa", language="Portuguese (BR)", lang_code="pt"),
 ]
+
+_VOICES_BY_ID = {v.id: v for v in _VOICES}
+
+
+def default_voice_for_language(language: str) -> str | None:
+    """Return the default voice ID for an ISO language code, or None if no
+    voice speaks it. Region subtags are ignored ("es-MX" → "es")."""
+    code = language.lower().split("-")[0]
+    for v in _VOICES:
+        if v.lang_code == code:
+            return v.id
+    return None
+
+
+def resolve_voice_for_language(voice: str, language: str | None) -> str:
+    """Pick the voice to synthesize with, given a requested voice and an
+    optional target language (idea 13.3).
+
+    No language (or "auto") keeps the requested voice. Otherwise, a voice
+    that already speaks the language is kept (a user-pinned choice wins over
+    the per-language default); a mismatched voice is swapped for the
+    language's default. Unknown/unsupported languages keep the requested
+    voice so a bad detection degrades to today's behavior instead of a 500.
+    """
+    if not language or language == "auto":
+        return voice
+    known = _VOICES_BY_ID.get(voice)
+    code = language.lower().split("-")[0]
+    if known is not None and known.lang_code == code:
+        return voice
+    return default_voice_for_language(code) or voice
+
 
 SAMPLE_RATE = 24000
 

@@ -249,6 +249,28 @@ class TestTTSSpeak:
         )
 
     @patch("app.services.tts_service.TTSService.get_instance", new_callable=AsyncMock)
+    async def test_language_swaps_mismatched_voice(self, mock_get_instance):
+        """Idea 13.3: `language` re-targets a voice that doesn't speak it."""
+        mock_service = AsyncMock()
+        mock_service.speak.return_value = b"audio"
+        mock_get_instance.return_value = mock_service
+
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.post(
+                "/api/v1/tts/speak",
+                json={"text": "Hola mundo", "voice": "af_heart", "language": "es"},
+                headers=_auth_header(),
+            )
+        assert response.status_code == 200
+        mock_service.speak.assert_awaited_once_with(
+            text="Hola mundo",
+            voice="ef_dora",
+            speed=1.0,
+            response_format="mp3",
+        )
+
+    @patch("app.services.tts_service.TTSService.get_instance", new_callable=AsyncMock)
     async def test_tts_service_unavailable_returns_500(self, mock_get_instance):
         mock_service = AsyncMock()
         mock_service.speak.side_effect = Exception("Connection refused")
@@ -296,8 +318,8 @@ class TestTTSVoices:
 
         mock_service = MagicMock()
         mock_service.list_voices.return_value = [
-            VoiceInfo(id="af_heart", name="Heart", language="English"),
-            VoiceInfo(id="am_adam", name="Adam", language="English"),
+            VoiceInfo(id="af_heart", name="Heart", language="English", lang_code="en"),
+            VoiceInfo(id="am_adam", name="Adam", language="English", lang_code="en"),
         ]
         mock_get_instance.return_value = mock_service
 

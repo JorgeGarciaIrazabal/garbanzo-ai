@@ -8,7 +8,7 @@ from fastapi.responses import Response, StreamingResponse
 from app.core.rate_limit import rate_limit
 from app.core.security import get_current_user
 from app.schemas.audio import SpeechRequest, VoiceList
-from app.services.tts_service import TTSService
+from app.services.tts_service import TTSService, resolve_voice_for_language
 
 router = APIRouter()
 
@@ -33,7 +33,7 @@ async def speak(
     try:
         audio_bytes = await service.speak(
             text=data.text,
-            voice=data.voice,
+            voice=resolve_voice_for_language(data.voice, data.language),
             speed=data.speed,
             response_format=data.response_format,
         )
@@ -60,7 +60,7 @@ async def speak_stream(
     return StreamingResponse(
         service.stream_speak(
             text=data.text,
-            voice=data.voice,
+            voice=resolve_voice_for_language(data.voice, data.language),
             speed=data.speed,
             response_format=data.response_format,
         ),
