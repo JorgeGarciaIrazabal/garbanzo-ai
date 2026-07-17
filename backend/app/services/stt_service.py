@@ -215,20 +215,20 @@ class RemoteSTTService:
         # The remote server's OpenAI-compatible endpoint auto-detects when
         # `language` is omitted entirely — "auto" isn't a code it understands,
         # so only forward a real ISO code.
-        data: dict[str, str] = {"vad_filter": "true"}
+        form: dict[str, str] = {"vad_filter": "true"}
         if language and language != "auto":
-            data["language"] = language
+            form["language"] = language
         response = await client.post(
             f"{self.base_url}/v1/audio/transcriptions",
             files={"file": (filename, audio_bytes)},
-            data=data,
+            data=form,
         )
         response.raise_for_status()
-        data = response.json()
+        result = response.json()
         return TranscriptionResponse(
-            text=data["text"],
-            language=data.get("language"),
-            duration=data.get("duration"),
+            text=result["text"],
+            language=result.get("language"),
+            duration=result.get("duration"),
         )
 
     async def health_check(self) -> bool:

@@ -119,6 +119,60 @@ void main() {
       provider.dispose();
     });
 
+    test('post-turn reload requests at least what is already displayed',
+        () async {
+      final service = _FakeChatService()
+        ..conversationToReturn = Conversation(
+          id: 'c1',
+          title: 'Test',
+          model: 'llama3.2',
+          createdAt: DateTime.utc(2026),
+          updatedAt: DateTime.utc(2026),
+          messages: [for (var i = 0; i < 100; i++) _msg('m$i')],
+        );
+      final provider = ChatProvider(
+        selectedModelId: 'llama3.2',
+        chatService: service,
+      );
+      await provider.loadConversation('c1');
+
+      // Empty stream → onDone → _reloadCurrentConversation. By then the
+      // user message is in the list (100 + 1), so the reload must ask for
+      // at least that many, not shrink back to the initial window.
+      await provider.sendMessage('hi');
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      expect(service.getConversationLimits, ['60', '101']);
+      provider.dispose();
+    });
+
+    test('post-turn reload falls back to full history past the backend cap',
+        () async {
+      final service = _FakeChatService()
+        ..conversationToReturn = Conversation(
+          id: 'c1',
+          title: 'Test',
+          model: 'llama3.2',
+          createdAt: DateTime.utc(2026),
+          updatedAt: DateTime.utc(2026),
+          messages: [for (var i = 0; i < 501; i++) _msg('m$i')],
+        );
+      final provider = ChatProvider(
+        selectedModelId: 'llama3.2',
+        chatService: service,
+      );
+      await provider.loadConversation('c1');
+
+      // 501 loaded + the new user message exceeds the backend's
+      // message_limit cap (le=500) — a capped request would 422, so the
+      // reload must drop the limit and fetch the full history instead.
+      await provider.sendMessage('hi');
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      expect(service.getConversationLimits, ['60', 'null']);
+      provider.dispose();
+    });
+
     test('loadOlderMessages is a no-op when there is nothing more', () async {
       final service = _FakeChatService()
         ..conversationToReturn = Conversation(

@@ -54,6 +54,9 @@ half-migrated schema.
   persisted within the same DB transaction (an agent turn's
   assistant/tool_call/tool_result rows) share an identical value, since
   Postgres `now()` is transaction-start time, not per-statement time.
+  NOT NULL at the schema level (migration 025) — pagination orders by
+  `seq DESC` and Postgres sorts NULLs first in DESC, so a stray NULL row
+  would masquerade as the newest message.
 - `UserMemory` stores extracted/manual user memories with `content`, `source_conversation_id`, `is_active`.
 - `KnowledgeDocument` / `KnowledgeChunk` store uploaded documents and vector embeddings for RAG.
 - `Room`, `RoomMember`, `RoomAgent`, `RoomMessage` support multi-person/agent chat rooms.

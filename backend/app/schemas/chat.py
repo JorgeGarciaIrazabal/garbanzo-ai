@@ -402,23 +402,11 @@ class ConversationDetailOut(ConversationOut):
     @classmethod
     def from_model(cls, conv: "Any") -> "ConversationDetailOut":
         """Build from an ORM ``Conversation`` with eagerly-loaded messages."""
-        messages = [message_out(msg) for msg in conv.messages]
-        return cls(
-            id=conv.id,
-            title=conv.title,
-            model=conv.model,
-            created_at=conv.created_at,
-            updated_at=conv.updated_at,
-            message_count=len(messages),
-            messages=messages,
-            use_memory=getattr(conv, "use_memory", True),
-            use_knowledge_base=getattr(conv, "use_knowledge_base", True),
-            context_summary=getattr(conv, "context_summary", None),
-            system_prompt=getattr(conv, "system_prompt", None),
-            enabled_tools=getattr(conv, "enabled_tools", None),
-            is_pinned=getattr(conv, "is_pinned", False),
-            muted_until=getattr(conv, "muted_until", None),
-            thinking_level=getattr(conv, "thinking_level", None),
+        return cls.from_model_page(
+            conv,
+            list(conv.messages),
+            total_message_count=len(conv.messages),
+            has_more_messages=False,
         )
 
     @classmethod
@@ -431,13 +419,14 @@ class ConversationDetailOut(ConversationOut):
         has_more_messages: bool,
     ) -> "ConversationDetailOut":
         """Build from an ORM ``Conversation`` plus an explicitly-provided
-        (already windowed) message list, instead of reading ``conv.messages``.
+        message list, instead of reading ``conv.messages``.
 
-        B-03: used for the paginated recent-messages path, where only a
-        window of messages is loaded. Deliberately never touches the
-        ``conv.messages`` relationship — assigning a partial list to it would
-        trip its ``cascade="all, delete-orphan"`` collection-replace
-        semantics and delete the rows left out of the window.
+        B-03: powers the paginated recent-messages path (``from_model``
+        delegates here for the full-history case). Deliberately never
+        touches the ``conv.messages`` relationship — assigning a partial
+        list to it would trip its ``cascade="all, delete-orphan"``
+        collection-replace semantics and delete the rows left out of the
+        window.
         """
         out_messages = [message_out(msg) for msg in messages]
         return cls(

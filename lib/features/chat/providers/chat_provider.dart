@@ -80,6 +80,10 @@ class ChatProvider extends ChangeNotifier {
   // fetched up front. Older ones page in on demand via loadOlderMessages.
   static const int _messageWindow = 60;
 
+  // Backend cap on GET /conversations/{id}?message_limit= (le=500); asking
+  // for more is a validation error, not a bigger window.
+  static const int _maxMessageLimit = 500;
+
   /// Whether older messages exist beyond what's currently loaded.
   bool get hasMoreMessages => _currentConversation?.hasMoreMessages ?? false;
 
@@ -822,12 +826,14 @@ class ChatProvider extends ChangeNotifier {
       // grows if the user paged older ones in via loadOlderMessages) so this
       // reload — which runs after every single turn — never truncates
       // already-visible history back down to the initial window (B-03).
-      final limit = _messages.length < _messageWindow
+      // Past the backend's message_limit cap, fall back to the full history
+      // (null) — a capped value would 422, silently breaking every reload.
+      final needed = _messages.length < _messageWindow
           ? _messageWindow
           : _messages.length;
       final conversation = await _chatService.getConversation(
         id,
-        messageLimit: limit,
+        messageLimit: needed > _maxMessageLimit ? null : needed,
       );
       if (epoch != _actionEpoch || _currentConversation?.id != id) {
         return; // stale — a newer action owns the state now

@@ -60,6 +60,10 @@ class _GarbanzoAppState extends State<GarbanzoApp> {
     // conversations — see PushService.routeForData).
     _pushRouteSub = PushService.instance.onOpenRoute.listen((route) {
       if (_authState.loggedIn) {
+        // Consume it — otherwise a later logout→login would replay this
+        // route via AuthState's pending-route check. When logged out it
+        // stays set on purpose: that's the deferred-navigation case.
+        PushService.instance.pendingRoute = null;
         _router.go(route);
       }
     });
