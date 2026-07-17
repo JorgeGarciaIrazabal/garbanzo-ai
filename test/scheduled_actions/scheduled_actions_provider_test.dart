@@ -9,11 +9,12 @@ class _MockApi extends Mock implements ScheduledActionsApiService {}
 ScheduledAction _action({
   String id = 'a1',
   bool isActive = true,
+  String prompt = 'Daily ping',
 }) {
   return ScheduledAction(
     id: id,
     userId: 'u@example.com',
-    prompt: 'Daily ping',
+    prompt: prompt,
     cronExpr: '0 9 * * *',
     isActive: isActive,
     createdAt: DateTime.utc(2026, 4, 21),
@@ -97,6 +98,69 @@ void main() {
       expect(result, isNull);
       expect(provider.error, contains('Failed to create scheduled action'));
       expect(provider.actions, isEmpty);
+    });
+  });
+
+  group('update', () {
+    test('sends the full schedule and replaces the edited action', () async {
+      when(() => api.list()).thenAnswer((_) async => [_action(id: '1')]);
+      when(
+        () => api.update(
+          any(),
+          prompt: any(named: 'prompt'),
+          title: any(named: 'title'),
+          cronExpr: any(named: 'cronExpr'),
+          runAt: any(named: 'runAt'),
+          systemPrompt: any(named: 'systemPrompt'),
+          model: any(named: 'model'),
+          setSchedule: any(named: 'setSchedule'),
+        ),
+      ).thenAnswer((_) async => _action(id: '1', prompt: 'Weekly ping'));
+
+      await provider.load();
+      final ok = await provider.update(
+        '1',
+        prompt: 'Weekly ping',
+        cronExpr: '0 9 * * mon',
+      );
+
+      expect(ok, isTrue);
+      expect(provider.actions.single.prompt, 'Weekly ping');
+      verify(
+        () => api.update(
+          '1',
+          prompt: 'Weekly ping',
+          title: any(named: 'title'),
+          cronExpr: '0 9 * * mon',
+          runAt: any(named: 'runAt'),
+          systemPrompt: any(named: 'systemPrompt'),
+          model: any(named: 'model'),
+          setSchedule: true,
+        ),
+      ).called(1);
+    });
+
+    test('sets error and returns false on failure', () async {
+      when(() => api.list()).thenAnswer((_) async => [_action(id: '1')]);
+      when(
+        () => api.update(
+          any(),
+          prompt: any(named: 'prompt'),
+          title: any(named: 'title'),
+          cronExpr: any(named: 'cronExpr'),
+          runAt: any(named: 'runAt'),
+          systemPrompt: any(named: 'systemPrompt'),
+          model: any(named: 'model'),
+          setSchedule: any(named: 'setSchedule'),
+        ),
+      ).thenThrow(Exception('bad cron'));
+
+      await provider.load();
+      final ok = await provider.update('1', prompt: 'x', cronExpr: 'nope');
+
+      expect(ok, isFalse);
+      expect(provider.error, contains('Failed to update scheduled action'));
+      expect(provider.actions.single.prompt, 'Daily ping');
     });
   });
 

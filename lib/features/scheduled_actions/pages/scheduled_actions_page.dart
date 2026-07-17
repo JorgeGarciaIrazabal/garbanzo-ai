@@ -149,6 +149,34 @@ void _showCreateDialog(BuildContext context) {
   );
 }
 
+void _showEditDialog(BuildContext context, ScheduledAction action) {
+  final provider = context.read<ScheduledActionsProvider>();
+  showAnimatedDialog<void>(
+    context: context,
+    builder: (_) => _ScheduledActionEditor(
+      existing: action,
+      onSubmit:
+          ({
+            required String prompt,
+            String? title,
+            String? cronExpr,
+            DateTime? runAt,
+            String? systemPrompt,
+          }) {
+            return provider.update(
+              action.id,
+              prompt: prompt,
+              // Empty string (not null) so clearing the title sticks.
+              title: title ?? '',
+              cronExpr: cronExpr,
+              runAt: runAt,
+              systemPrompt: systemPrompt,
+            );
+          },
+    ),
+  );
+}
+
 class _ActionTile extends StatelessWidget {
   const _ActionTile({required this.action});
 
@@ -218,6 +246,11 @@ class _ActionTile extends StatelessWidget {
               onChanged: (value) => provider.setActive(action.id, value),
             ),
             IconButton(
+              icon: const Icon(Icons.edit_outlined),
+              tooltip: 'Edit',
+              onPressed: () => _showEditDialog(context, action),
+            ),
+            IconButton(
               icon: const Icon(Icons.delete_outline),
               tooltip: 'Delete',
               onPressed: () => _confirmDelete(context, action),
@@ -269,9 +302,12 @@ typedef _SubmitFn =
     });
 
 class _ScheduledActionEditor extends StatefulWidget {
-  const _ScheduledActionEditor({required this.onSubmit});
+  const _ScheduledActionEditor({required this.onSubmit, this.existing});
 
   final _SubmitFn onSubmit;
+
+  /// When set, the form is pre-filled from this action and submits an edit.
+  final ScheduledAction? existing;
 
   @override
   State<_ScheduledActionEditor> createState() => _ScheduledActionEditorState();
@@ -286,6 +322,22 @@ class _ScheduledActionEditorState extends State<_ScheduledActionEditor> {
   _Mode _mode = _Mode.recurring;
 
   @override
+  void initState() {
+    super.initState();
+    final a = widget.existing;
+    if (a != null) {
+      _titleController.text = a.title ?? '';
+      _promptController.text = a.prompt;
+      if (a.isRecurring) {
+        _cronController.text = a.cronExpr!;
+      } else {
+        _mode = _Mode.oneOff;
+        _runAt = a.runAt?.toLocal();
+      }
+    }
+  }
+
+  @override
   void dispose() {
     _titleController.dispose();
     _promptController.dispose();
@@ -295,9 +347,14 @@ class _ScheduledActionEditorState extends State<_ScheduledActionEditor> {
 
   Future<void> _pickRunAt() async {
     final now = DateTime.now();
+    // An edited action's run time may be in the past; clamp so the picker's
+    // initialDate never precedes firstDate.
+    final initial = _runAt != null && _runAt!.isAfter(now)
+        ? _runAt!
+        : now.add(const Duration(hours: 1));
     final date = await showDatePicker(
       context: context,
-      initialDate: _runAt ?? now.add(const Duration(hours: 1)),
+      initialDate: initial,
       firstDate: now,
       lastDate: now.add(const Duration(days: 365 * 5)),
     );
@@ -351,7 +408,11 @@ class _ScheduledActionEditorState extends State<_ScheduledActionEditor> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('New scheduled action'),
+      title: Text(
+        widget.existing == null
+            ? 'New scheduled action'
+            : 'Edit scheduled action',
+      ),
       content: SizedBox(
         width: 500,
         child: SingleChildScrollView(
@@ -434,7 +495,7 @@ class _ScheduledActionEditorState extends State<_ScheduledActionEditor> {
                   height: 16,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : const Text('Create'),
+              : Text(widget.existing == null ? 'Create' : 'Save'),
         ),
       ],
     );

@@ -15,7 +15,8 @@ pick when it runs:
 The assistant executes your prompt in the background; the result lands in a
 conversation and you get a notification. The card shows the next run time.
 
-## How do I pause or delete one?
+## How do I pause, edit, or delete one?
 Each action's card has a switch to pause/resume it without losing the
-schedule, and a delete button to remove it entirely. To change the prompt
-or schedule, delete it and create a new one.
+schedule, an edit (pencil) button that reopens the form pre-filled — you
+can change the title, prompt, and schedule, including switching between
+recurring and one-off — and a delete button to remove it entirely.

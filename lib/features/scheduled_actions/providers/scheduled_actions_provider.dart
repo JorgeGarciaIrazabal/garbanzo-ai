@@ -45,6 +45,35 @@ class ScheduledActionsProvider extends ChangeNotifier with GuardedStateMixin {
     }, trackLoading: false);
   }
 
+  /// Full edit from the editor dialog. Exactly one of [cronExpr] / [runAt]
+  /// should be set; the other is cleared server-side (mode switch). An empty
+  /// [title] clears the title.
+  Future<bool> update(
+    String id, {
+    required String prompt,
+    String? title,
+    String? cronExpr,
+    DateTime? runAt,
+    String? systemPrompt,
+    String? model,
+  }) async {
+    final ok = await runGuarded('Failed to update scheduled action', () async {
+      final updated = await _api.update(
+        id,
+        prompt: prompt,
+        title: title,
+        cronExpr: cronExpr,
+        runAt: runAt,
+        systemPrompt: systemPrompt,
+        model: model,
+        setSchedule: true,
+      );
+      _replace(updated);
+      return true;
+    }, trackLoading: false);
+    return ok ?? false;
+  }
+
   Future<void> setActive(String id, bool isActive) async {
     await runGuarded('Failed to update scheduled action', () async {
       final updated = await _api.update(id, isActive: isActive);

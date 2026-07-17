@@ -47,6 +47,9 @@ class ScheduledActionsApiService {
     throw _error(response);
   }
 
+  /// With [setSchedule] both `cron_expr` and `run_at` are sent explicitly
+  /// (one null, one set) — the backend clears the null one, which is how an
+  /// edit switches between recurring and one-off. Otherwise nulls are omitted.
   Future<ScheduledAction> update(
     String id, {
     String? title,
@@ -56,14 +59,20 @@ class ScheduledActionsApiService {
     String? model,
     String? systemPrompt,
     bool? isActive,
+    bool setSchedule = false,
   }) async {
     final response = await _api.patch(
       '/api/v1/scheduled-actions/$id',
       data: {
         'title': ?title,
         'prompt': ?prompt,
-        'cron_expr': ?cronExpr,
-        'run_at': ?runAt?.toUtc().toIso8601String(),
+        if (setSchedule) ...{
+          'cron_expr': cronExpr,
+          'run_at': runAt?.toUtc().toIso8601String(),
+        } else ...{
+          'cron_expr': ?cronExpr,
+          'run_at': ?runAt?.toUtc().toIso8601String(),
+        },
         'model': ?model,
         'system_prompt': ?systemPrompt,
         'is_active': ?isActive,
