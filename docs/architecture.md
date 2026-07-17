@@ -136,7 +136,10 @@ features/memory/
   providers/         MemoryProvider
   pages/             MemoryPage (CRUD UI for user memories)
 features/settings/
-  providers/         SettingsProvider (voice, theme, auto-play toggles)
+  providers/         SettingsProvider (voice, theme, auto-play toggles),
+                     UpdateProvider (desktop auto-update state)
+  services/          update_service.dart (version check), update_installer.dart
+                     (download + staged swap + relaunch)
 features/knowledge_base/
   pages/             KnowledgeBasePage
   providers/         KnowledgeBaseProvider
@@ -308,6 +311,11 @@ Main providers per `ChatPage` tree:
 Additional providers:
 - **`MemoryProvider`** — user memories CRUD
 - **`SettingsProvider`** — voice, theme, auto-play toggles; persisted via `SharedPreferences`
+- **`UpdateProvider`** — desktop (Linux/Windows) auto-update: silent check at
+  startup against `GET /api/v1/version/latest`, top banner + Settings section,
+  download/install via `UpdateInstaller` (staging-dir swap: Linux renames the
+  install dir aside and relaunches; Windows hands off to a swap-on-exit batch
+  script). Banner snooze is per-version in `SharedPreferences`. No-op off desktop.
 - **`SearchProvider`** — conversation search results
 - **`SystemPromptProvider`** — system prompt template library + user default
 - **`NotificationProvider`** — in-app notifications + unread count

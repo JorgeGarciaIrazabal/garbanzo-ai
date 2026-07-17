@@ -1,7 +1,7 @@
 # Settings & Profile
 
 Open Settings from the gear icon. Sections: Profile, Appearance, Models,
-Voice, Memory, Notifications.
+Voice, Memory, Notifications, and (desktop only) Software update.
 
 ## How do I change my name, email, or profile picture?
 Profile → **Edit profile** for name/email (changing email signs you out —
@@ -41,3 +41,11 @@ controlled from the chat itself (see Memories).
 Settings drawer → **Report a bug or idea**. Pick Bug or Feature, add a
 title and description, and submit — it goes straight to the admins, who
 triage reports from the Admin page.
+
+## How do I update the desktop app?
+The desktop app (Linux/Windows) checks for new releases when it starts and
+shows a banner when one is available — **Update** opens the changelog with
+**Download & install** (the app restarts itself), **Later** snoozes that
+version for a few days. You can also check manually: Settings →
+**Software update** → **Check now**. Web and Android update differently
+(web is always current; Android installs a new APK).
