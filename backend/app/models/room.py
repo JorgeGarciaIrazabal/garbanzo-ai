@@ -140,6 +140,14 @@ class RoomAgent(Base):
     )
     model: Mapped[str] = mapped_column(String(100), nullable=False)
     system_prompt: Mapped[str | None] = mapped_column(Text, nullable=True)
+    thinking_level: Mapped[str | None] = mapped_column(
+        String(10),
+        nullable=True,
+        comment=(
+            "One of 'off' | 'low' | 'medium' | 'high', or NULL for the "
+            "provider default — same semantics as Conversation.thinking_level."
+        ),
+    )
     response_mode: Mapped[str] = mapped_column(
         String(20),
         nullable=False,

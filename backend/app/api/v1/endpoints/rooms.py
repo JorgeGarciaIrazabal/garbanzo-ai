@@ -315,6 +315,7 @@ async def add_agent(
             provider=data.provider,
             model=data.model,
             system_prompt=data.system_prompt,
+            thinking_level=data.thinking_level,
             response_mode=data.response_mode,
             turn_order=data.turn_order,
             is_active=data.is_active,

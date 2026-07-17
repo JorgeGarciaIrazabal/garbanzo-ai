@@ -85,6 +85,9 @@ half-migrated schema.
   to the original, so edits or deletes on the sender's side afterwards
   never affect the recipient's copy. Declining just deletes the row.
 - `RoomAgent.enabled_tools` (JSONB) mirrors `Conversation.enabled_tools`: `null` = all, `[]` = none, `["srv:tool"]` = subset.
+- `RoomAgent.thinking_level` mirrors `Conversation.thinking_level`
+  (`off`/`low`/`medium`/`high`, `NULL` = provider default); passed as
+  `ChatOptions.think` on the agent's turns.
 - `RoomMember.muted_until` (nullable timestamptz) suppresses push + in-app
   notifications for that member while `now() < muted_until`; messages still
   post to the room and still count as unread (WhatsApp behaviour). `NULL` =

@@ -3,7 +3,10 @@ import 'package:provider/provider.dart';
 
 import 'package:garbanzo_ai/core/widgets/animated_dialog.dart';
 import 'package:garbanzo_ai/features/chat/models/model_info.dart';
+import 'package:garbanzo_ai/features/chat/models/system_prompt_template.dart';
+import 'package:garbanzo_ai/features/chat/models/thinking_level.dart';
 import 'package:garbanzo_ai/features/chat/services/chat_service.dart';
+import 'package:garbanzo_ai/features/chat/services/system_prompt_service.dart';
 import 'package:garbanzo_ai/features/rooms/models/room_models.dart';
 import 'package:garbanzo_ai/features/rooms/providers/room_provider.dart';
 import 'package:garbanzo_ai/features/tools/providers/tool_provider.dart';
@@ -34,6 +37,7 @@ class _AddAgentDialogState extends State<_AddAgentDialog> {
   final _nameCtrl = TextEditingController();
   final _promptCtrl = TextEditingController();
   String _mode = 'mention';
+  ThinkingLevel? _thinking; // null = Auto (provider default)
   bool _moderator = false;
   bool _saving = false;
   bool _allTools = true;
@@ -42,6 +46,9 @@ class _AddAgentDialogState extends State<_AddAgentDialog> {
   List<ModelInfo>? _models; // null = loading
   String? _modelLoadError;
   String? _selectedModelId;
+
+  List<SystemPromptTemplate> _templates = const [];
+  String? _selectedTemplateId;
 
   RoomAgent? get _existing => widget.existing;
 
@@ -52,12 +59,14 @@ class _AddAgentDialogState extends State<_AddAgentDialog> {
     if (a != null) {
       _nameCtrl.text = a.name;
       _promptCtrl.text = a.systemPrompt ?? '';
+      _thinking = a.thinkingLevel;
       _mode = a.responseMode;
       _moderator = a.isModerator;
       _allTools = a.enabledTools == null;
       _selectedTools = Set.from(a.enabledTools ?? const []);
     }
     _loadModels();
+    _loadTemplates();
   }
 
   @override
@@ -88,6 +97,27 @@ class _AddAgentDialogState extends State<_AddAgentDialog> {
     }
   }
 
+  /// The rooms page has no route-scoped SystemPromptProvider, so the saved
+  /// templates come straight from the service (mirrors _loadModels). Failure
+  /// just leaves the picker hidden — the free-text prompt still works.
+  Future<void> _loadTemplates() async {
+    try {
+      final templates = await SystemPromptService.instance.listTemplates();
+      if (!mounted) return;
+      setState(() {
+        _templates = templates;
+        // When editing, reflect the template the agent's prompt came from.
+        final prompt = _promptCtrl.text.trim();
+        if (prompt.isNotEmpty) {
+          _selectedTemplateId = templates
+              .where((t) => t.content.trim() == prompt)
+              .firstOrNull
+              ?.id;
+        }
+      });
+    } catch (_) {}
+  }
+
   String? _pickDefault(List<ModelInfo> models) {
     if (models.isEmpty) return null;
     final llama = models
@@ -113,6 +143,7 @@ class _AddAgentDialogState extends State<_AddAgentDialog> {
           name: name,
           model: modelId,
           systemPrompt: prompt,
+          thinkingLevel: _thinking,
           responseMode: _mode,
           isModerator: _moderator,
           enabledTools: tools,
@@ -122,6 +153,7 @@ class _AddAgentDialogState extends State<_AddAgentDialog> {
           name: name,
           model: modelId,
           systemPrompt: prompt,
+          thinkingLevel: _thinking,
           responseMode: _mode,
           isModerator: _moderator,
           enabledTools: tools,
@@ -156,6 +188,12 @@ class _AddAgentDialogState extends State<_AddAgentDialog> {
               ),
               const SizedBox(height: 12),
               _buildModelSelector(),
+              const SizedBox(height: 12),
+              _buildThinkingSelector(),
+              if (_templates.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                _buildTemplateSelector(),
+              ],
               const SizedBox(height: 12),
               TextField(
                 controller: _promptCtrl,
@@ -315,6 +353,61 @@ class _AddAgentDialogState extends State<_AddAgentDialog> {
           )
           .toList(),
       onChanged: (v) => setState(() => _selectedModelId = v),
+    );
+  }
+
+  Widget _buildThinkingSelector() {
+    return DropdownButtonFormField<ThinkingLevel?>(
+      key: const ValueKey('agent_thinking_level'),
+      initialValue: _thinking,
+      decoration: const InputDecoration(
+        labelText: 'Thinking',
+        prefixIcon: Icon(Icons.psychology_outlined, size: 18),
+      ),
+      items: [
+        const DropdownMenuItem<ThinkingLevel?>(
+          value: null,
+          child: Text('Auto'),
+        ),
+        for (final level in ThinkingLevel.values)
+          DropdownMenuItem<ThinkingLevel?>(
+            value: level,
+            child: Text(level.label),
+          ),
+      ],
+      onChanged: (v) => setState(() => _thinking = v),
+    );
+  }
+
+  /// Saved system-prompt templates; picking one fills the prompt field below
+  /// (still editable — the text is what gets saved, like the prompt editor).
+  Widget _buildTemplateSelector() {
+    return DropdownButtonFormField<String?>(
+      key: const ValueKey('agent_prompt_template'),
+      initialValue: _templates.any((t) => t.id == _selectedTemplateId)
+          ? _selectedTemplateId
+          : null,
+      isExpanded: true,
+      decoration: const InputDecoration(
+        labelText: 'Prompt template',
+        prefixIcon: Icon(Icons.bookmark_outline, size: 18),
+      ),
+      items: [
+        const DropdownMenuItem<String?>(value: null, child: Text('— None —')),
+        for (final tpl in _templates)
+          DropdownMenuItem<String?>(
+            value: tpl.id,
+            child: Text(tpl.name, overflow: TextOverflow.ellipsis),
+          ),
+      ],
+      onChanged: (id) {
+        setState(() {
+          _selectedTemplateId = id;
+          if (id != null) {
+            _promptCtrl.text = _templates.firstWhere((t) => t.id == id).content;
+          }
+        });
+      },
     );
   }
 

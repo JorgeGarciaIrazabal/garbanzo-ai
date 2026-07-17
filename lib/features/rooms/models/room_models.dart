@@ -9,6 +9,7 @@ import 'package:flutter/foundation.dart';
 
 import 'package:garbanzo_ai/core/mute_util.dart';
 import 'package:garbanzo_ai/features/chat/models/chat_attachment.dart';
+import 'package:garbanzo_ai/features/chat/models/thinking_level.dart';
 
 @immutable
 class RoomAgent {
@@ -19,6 +20,9 @@ class RoomAgent {
   final String provider;
   final String model;
   final String? systemPrompt;
+
+  /// Reasoning depth for the agent's model; null = provider default (auto).
+  final ThinkingLevel? thinkingLevel;
   final String responseMode; // 'mention' | 'always' | 'round_robin' | 'auto'
   final int turnOrder;
   final bool isActive;
@@ -34,6 +38,7 @@ class RoomAgent {
     required this.provider,
     required this.model,
     this.systemPrompt,
+    this.thinkingLevel,
     required this.responseMode,
     required this.turnOrder,
     required this.isActive,
@@ -50,6 +55,7 @@ class RoomAgent {
     provider: j['provider'] as String,
     model: j['model'] as String,
     systemPrompt: j['system_prompt'] as String?,
+    thinkingLevel: ThinkingLevel.values.asNameMap()[j['thinking_level']],
     responseMode: j['response_mode'] as String,
     turnOrder: j['turn_order'] as int,
     isActive: j['is_active'] as bool,

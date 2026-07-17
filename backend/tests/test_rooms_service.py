@@ -122,18 +122,22 @@ async def test_update_agent_null_clears_nullable_fields(db_session):
         name="Alice",
         model="llama3.2",
         system_prompt="Be nice",
+        thinking_level="high",
         enabled_tools=["srv:tool"],
     )
+    assert agent.thinking_level == "high"
 
     updated = await svc.update_agent(
         room_id=room.id,
         user_id="test@example.com",
         agent_id=agent.id,
         system_prompt=None,  # nullable: cleared
+        thinking_level=None,  # nullable: back to auto
         enabled_tools=None,  # nullable: back to "all tools"
         name=None,  # non-nullable: ignored
     )
     assert updated.system_prompt is None
+    assert updated.thinking_level is None
     assert updated.enabled_tools is None
     assert updated.name == "Alice"
 

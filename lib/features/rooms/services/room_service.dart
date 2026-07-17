@@ -1,4 +1,5 @@
 import 'package:garbanzo_ai/core/api_client.dart';
+import 'package:garbanzo_ai/features/chat/models/thinking_level.dart';
 import 'package:garbanzo_ai/features/rooms/models/room_models.dart';
 
 /// REST client for multi-person chat rooms.
@@ -127,6 +128,7 @@ class RoomService {
     String provider = 'ollama',
     String? avatar,
     String? systemPrompt,
+    ThinkingLevel? thinkingLevel,
     String responseMode = 'mention',
     int turnOrder = 0,
     bool isModerator = false,
@@ -140,6 +142,7 @@ class RoomService {
         'provider': provider,
         'avatar': ?avatar,
         'system_prompt': ?systemPrompt,
+        'thinking_level': ?thinkingLevel?.name,
         'response_mode': responseMode,
         'turn_order': turnOrder,
         'is_active': true,

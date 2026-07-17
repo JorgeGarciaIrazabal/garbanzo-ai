@@ -15,9 +15,10 @@ Remove members from the same panel (owner only). See the Friends guide for
 adding friends.
 
 ## How do I add an AI agent?
-In **Members & agents**, press **Add agent**. Pick its name, model, an
-optional persona (system prompt), which tools it may use, and how it
-responds:
+In **Members & agents**, press **Add agent**. Pick its name, model, a
+thinking level (Auto/Off/Low/Medium/High reasoning depth), an optional
+persona — write a system prompt or start from one of your saved prompt
+templates and tweak it — which tools it may use, and how it responds:
 - **Always respond** — replies to every message
 - **Auto — jump in when relevant (LLM)** — a judge model decides when it
   should speak

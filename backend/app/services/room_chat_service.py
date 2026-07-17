@@ -654,7 +654,9 @@ class RoomChatService:
             model=agent.model,
             llm_messages=llm_messages,
             sink=sink,
-            options=ChatOptions(temperature=0.7),
+            # think mirrors the agent's configured level; None lets the
+            # provider auto-enable thinking for capable models.
+            options=ChatOptions(temperature=0.7, think=agent.thinking_level),
             tools=ollama_tools or None,
             execute_tool=lambda call, _emit: self._execute_tool_call(call, tool_lookup),
             max_tool_iterations=MAX_TOOL_ITERATIONS,

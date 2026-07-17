@@ -6,7 +6,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 from sqlalchemy import inspect as sa_inspect
 
-from app.schemas.chat import AttachmentIn
+from app.schemas.chat import AttachmentIn, ThinkingLevel
 
 # ============================================================================
 # Agents
@@ -24,6 +24,9 @@ class RoomAgentCreate(BaseModel):
     provider: str = Field(default="ollama", max_length=50)
     model: str = Field(..., min_length=1, max_length=100)
     system_prompt: str | None = None
+    thinking_level: ThinkingLevel | None = Field(
+        None, description="Reasoning depth; null = provider default (auto)"
+    )
     response_mode: ResponseMode = "mention"
     turn_order: int = Field(default=0, ge=0)
     is_active: bool = True
@@ -41,6 +44,9 @@ class RoomAgentUpdate(BaseModel):
     provider: str | None = Field(None, max_length=50)
     model: str | None = Field(None, max_length=100)
     system_prompt: str | None = None
+    thinking_level: ThinkingLevel | None = Field(
+        None, description="Reasoning depth; explicit null resets to auto"
+    )
     response_mode: ResponseMode | None = None
     turn_order: int | None = Field(None, ge=0)
     is_active: bool | None = None
@@ -58,6 +64,7 @@ class RoomAgentOut(BaseModel):
     provider: str
     model: str
     system_prompt: str | None = None
+    thinking_level: ThinkingLevel | None = None
     response_mode: ResponseMode
     turn_order: int
     is_active: bool

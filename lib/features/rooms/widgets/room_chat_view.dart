@@ -13,6 +13,7 @@ import 'package:garbanzo_ai/core/widgets/mute_sheet.dart';
 import 'package:garbanzo_ai/core/widgets/skeleton.dart';
 import 'package:garbanzo_ai/core/widgets/user_avatar.dart';
 import 'package:garbanzo_ai/features/chat/models/chat_attachment.dart';
+import 'package:garbanzo_ai/features/chat/models/thinking_level.dart';
 import 'package:garbanzo_ai/features/chat/widgets/input/attach_menu_button.dart';
 import 'package:garbanzo_ai/features/chat/widgets/input/attachment_preview.dart';
 import 'package:garbanzo_ai/features/chat/widgets/input/message_composer.dart';
@@ -690,6 +691,9 @@ class _MembersAgentsPanel extends StatelessWidget {
 
   String _agentSubtitle(RoomAgent a) {
     final parts = <String>[a.model, _modeLabel(a.responseMode)];
+    if (a.thinkingLevel != null) {
+      parts.add('thinking ${a.thinkingLevel!.label.toLowerCase()}');
+    }
     if (a.isModerator) parts.add('moderator');
     return parts.join(' · ');
   }

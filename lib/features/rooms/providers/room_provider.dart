@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import 'package:garbanzo_ai/core/auth_service.dart';
 import 'package:garbanzo_ai/features/chat/models/chat_attachment.dart';
+import 'package:garbanzo_ai/features/chat/models/thinking_level.dart';
 import 'package:garbanzo_ai/features/rooms/models/room_models.dart';
 import 'package:garbanzo_ai/features/rooms/services/room_service.dart';
 import 'package:garbanzo_ai/features/rooms/services/room_socket_service.dart';
@@ -509,6 +510,7 @@ class RoomProvider extends ChangeNotifier {
     required String name,
     required String model,
     String? systemPrompt,
+    ThinkingLevel? thinkingLevel,
     String responseMode = 'mention',
     int turnOrder = 0,
     bool isModerator = false,
@@ -522,6 +524,7 @@ class RoomProvider extends ChangeNotifier {
       name: name,
       model: model,
       systemPrompt: systemPrompt,
+      thinkingLevel: thinkingLevel,
       responseMode: responseMode,
       turnOrder: turnOrder,
       isModerator: isModerator,
@@ -533,13 +536,15 @@ class RoomProvider extends ChangeNotifier {
   }
 
   /// Full-field update from the edit dialog. `systemPrompt: null` clears the
-  /// prompt and `enabledTools: null` means "all tools" — the backend treats
-  /// explicit nulls on nullable columns as clears.
+  /// prompt, `thinkingLevel: null` resets to auto, and `enabledTools: null`
+  /// means "all tools" — the backend treats explicit nulls on nullable
+  /// columns as clears.
   Future<void> updateAgent(
     String agentId, {
     required String name,
     required String model,
     String? systemPrompt,
+    ThinkingLevel? thinkingLevel,
     required String responseMode,
     required bool isModerator,
     List<String>? enabledTools,
@@ -550,6 +555,7 @@ class RoomProvider extends ChangeNotifier {
       'name': name,
       'model': model,
       'system_prompt': systemPrompt,
+      'thinking_level': thinkingLevel?.name,
       'response_mode': responseMode,
       'is_moderator': isModerator,
       'enabled_tools': enabledTools,

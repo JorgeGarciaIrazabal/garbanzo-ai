@@ -381,6 +381,7 @@ class RoomService:
         provider: str = "ollama",
         avatar: str | None = None,
         system_prompt: str | None = None,
+        thinking_level: str | None = None,
         response_mode: str = "mention",
         turn_order: int = 0,
         is_active: bool = True,
@@ -396,6 +397,7 @@ class RoomService:
             provider=provider,
             model=model,
             system_prompt=system_prompt,
+            thinking_level=thinking_level,
             response_mode=response_mode,
             turn_order=turn_order,
             is_active=is_active,
@@ -424,7 +426,7 @@ class RoomService:
             raise RoomNotFoundError("Agent not found")
         # None means "clear" for nullable columns (the endpoint only forwards
         # fields the client actually sent); other fields ignore None.
-        nullable = {"avatar", "system_prompt", "enabled_tools"}
+        nullable = {"avatar", "system_prompt", "thinking_level", "enabled_tools"}
         for key, value in fields.items():
             if value is None and key not in nullable:
                 continue
