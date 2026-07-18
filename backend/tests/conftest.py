@@ -1,4 +1,23 @@
-"""Shared fixtures for backend tests."""
+"""Shared fixtures for backend tests.
+
+Each test runs against a fresh in-memory SQLite database. The module-level
+``engine`` and ``async_session_maker`` in ``app.db.session`` are swapped to
+this per-test test engine *before each test*, so every code path — whether it
+uses the ``get_db`` FastAPI dependency or imports ``async_session_maker``
+directly (e.g. ``get_current_admin_user``, background auto-titling,
+push-on-disconnect) — sees the same in-memory SQLite DB instead of the real
+PostgreSQL ``DATABASE_URL``. No test ever touches the real DB; a fresh CI
+Postgres with no tables behaves identically to a dev machine with running
+migrations.
+
+``StaticPool`` makes all connections within one engine share a single
+underlying in-memory DB, so the ``db_session`` fixture and
+``async_session_maker`` users see the same data. A brand-new engine is built
+per test (so pytest-asyncio's per-test event loop owns it cleanly) and
+disposed at teardown.
+"""
+
+from collections.abc import AsyncGenerator
 
 import pytest
 import pytest_asyncio
@@ -6,12 +25,15 @@ from pgvector.sqlalchemy import Vector
 from sqlalchemy import JSON, event
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.pool import StaticPool
 
 from app.core.config import Settings
+from app.db import session as db_session_module
 from app.db.base import Base
 from app.models.available_model import AvailableModel  # noqa: F401 — register model
 from app.models.conversation import Conversation  # noqa: F401 — register model
 from app.models.device_token import DeviceToken  # noqa: F401 — register model
+from app.models.friendship import Friendship  # noqa: F401 — register model
 from app.models.knowledge_base import (  # noqa: F401 — register models
     KnowledgeChunk,
     KnowledgeDocument,
@@ -31,16 +53,37 @@ from app.models.room import (  # noqa: F401 — register models
     RoomMessage,
 )
 from app.models.scheduled_action import ScheduledAction  # noqa: F401 — register model
+from app.models.shared_item import SharedItem  # noqa: F401 — register model
 from app.models.style import Style  # noqa: F401 — register model
 from app.models.system_prompt import SystemPromptTemplate  # noqa: F401 — register model
 from app.models.user import User  # noqa: F401 — register model
 
-# Use in-memory SQLite for tests (no PostgreSQL required).
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
-
-
-# Map PostgreSQL JSONB → generic JSON so SQLite can handle it.
 JSONB_TO_JSON = {JSONB: JSON}
+
+# ---------------------------------------------------------------------------
+# JSONB → JSON patching (run once at import, before the first test starts)
+# ---------------------------------------------------------------------------
+_original_types: dict[str, type] = {}
+
+
+def _patch_jsonb_columns() -> None:
+    """Replace PG-specific column types with SQLite-compatible ones in place."""
+    for table in Base.metadata.tables.values():
+        for col in table.columns:
+            if isinstance(col.type, Vector):
+                key = f"{table.name}.{col.name}"
+                _original_types[key] = col.type
+                # none_as_null mirrors pgvector semantics: a Python None must
+                # become SQL NULL (so `IS NULL` matches), not JSON 'null'.
+                col.type = JSON(none_as_null=True)
+            elif isinstance(col.type, JSONB):
+                key = f"{table.name}.{col.name}"
+                _original_types[key] = col.type
+                col.type = JSON()
+
+
+_patch_jsonb_columns()
 
 
 @pytest.fixture()
@@ -53,55 +96,56 @@ def settings() -> Settings:
     )
 
 
-@pytest_asyncio.fixture(autouse=True)
-async def _reset_global_engine():
-    """Drop the process-global engine's pooled connections after every test.
+def _build_test_engine():
+    """Create a fresh in-memory SQLite engine for a single test's event loop.
 
-    ``app.db.session`` builds one module-level async engine at import time
-    against the real ``DATABASE_URL``. A handful of code paths bypass the
-    ``get_db`` dependency and use it directly via ``async_session_maker``
-    (``get_current_admin_user``, background auto-titling, push-on-disconnect).
-    Its asyncpg pool binds each connection to the event loop that created it,
-    but pytest-asyncio spins up a fresh loop per test — so a later test that
-    reuses a pooled connection fails with "got Future attached to a different
-    loop".
-
-    Disposing with ``close=False`` abandons the old connections without
-    awaiting their close (which would itself cross loops), forcing the next
-    test to open fresh connections on its own loop. This keeps the suite
-    order-independent.
+    ``StaticPool`` shares one underlying in-memory DB across all connections
+    opened from this engine, so ``async_session_maker`` users (which open
+    their own sessions) see the same rows ``db_session`` commits. Because the
+    engine is created fresh per test on that test's own event loop and
+    disposed at teardown, there's no cross-loop connection reuse (which would
+    otherwise surface as silent stale state, e.g. FK CASCADE pragmas being
+    lost between tests).
     """
-    yield
-    from app.db.session import engine
+    return create_async_engine(
+        TEST_DATABASE_URL,
+        echo=False,
+        poolclass=StaticPool,
+        connect_args={"check_same_thread": False},
+    )
 
-    await engine.dispose(close=False)
 
+def _enable_fk_pragma(engine) -> None:
+    """Enable SQLite foreign key enforcement (per-connection) for an engine.
 
-@pytest_asyncio.fixture()
-async def db_session():
-    """Yield an ``AsyncSession`` backed by an in-memory SQLite database.
-
-    Tables are created fresh for every test so tests stay isolated.
+    SQLite ignores FK constraint actions (CASCADE / SET NULL) unless
+    ``PRAGMA foreign_keys=ON`` is set per-connection — it's off by default.
+    Postgres (dev/prod) always enforces them, so this makes the in-memory test
+    DB match: models relying on ON DELETE SET NULL (e.g.
+    Style.system_prompt_template_id) would otherwise silently keep a dangling
+    id in tests.
     """
-    engine = create_async_engine(TEST_DATABASE_URL, echo=False)
 
-    # SQLite ignores FK constraint actions (CASCADE / SET NULL) unless
-    # foreign key enforcement is turned on per-connection — it's off by
-    # default for backward compatibility. Postgres (dev/prod) always
-    # enforces them, so this makes the in-memory test DB match: models
-    # relying on ON DELETE SET NULL (e.g. Style.system_prompt_template_id)
-    # would otherwise silently keep a dangling id in tests.
     @event.listens_for(engine.sync_engine, "connect")
-    def _enable_sqlite_fk(dbapi_connection, connection_record):
+    def _enable_sqlite_fk(dbapi_connection, connection_record):  # noqa: ARG001
         cursor = dbapi_connection.cursor()
         cursor.execute("PRAGMA foreign_keys=ON")
         cursor.close()
 
-    # Temporarily swap JSONB columns to JSON for table creation.
-    _patch_jsonb_columns()
 
-    # Import all models to ensure tables are registered
-    import app.models.memory  # noqa: F401
+@pytest_asyncio.fixture()
+async def db_session() -> AsyncGenerator[AsyncSession]:
+    """Yield an ``AsyncSession`` backed by a per-test in-memory SQLite DB.
+
+    Tables are created fresh for every test, and the module-level
+    ``app.db.session.engine`` / ``async_session_maker`` are swapped to this
+    test's engine so code paths that bypass ``get_db`` (e.g.
+    ``get_current_admin_user``, background auto-titling) hit the same
+    in-memory test DB rather than the real PostgreSQL ``DATABASE_URL``.
+    A test user is seeded so conversation FK constraints pass.
+    """
+    engine = _build_test_engine()
+    _enable_fk_pragma(engine)
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -114,8 +158,17 @@ async def db_session():
         autoflush=False,
     )
 
+    # Swap the module-level engine + session maker in place so any code path
+    # that has imported (or will import) them from ``app.db.session`` resolves
+    # to this test's SQLite engine. ``from x import async_session_maker``
+    # captured at a module's import time sees the OLD reference — those
+    # callers must be patched individually (see existing per-test monkeypatch
+    # patterns in tests/* for examples). Importantly, ``app.db.session.get_db``
+    # itself looks the name up at call time, so it picks up the swap.
+    db_session_module.engine = engine
+    db_session_module.async_session_maker = session_maker
+
     async with session_maker() as session:
-        # Seed a test user so that conversation FK constraints pass.
         from app.core.security import hash_password
 
         user = User(
@@ -127,13 +180,10 @@ async def db_session():
 
         yield session
 
-    # Dispose the engine while the event loop is still alive so aiosqlite's
+    # Dispose while the test's event loop is still alive so aiosqlite's
     # background connection thread shuts down cleanly (prevents
     # "Event loop is closed" PytestUnhandledThreadExceptionWarning).
     await engine.dispose()
-
-    # Clean up any remaining references before disposal
-    _unpatch_jsonb_columns()
 
 
 @pytest_asyncio.fixture()
@@ -157,34 +207,3 @@ async def test_conversation(db_session: AsyncSession, test_user_email: str):
     await db_session.commit()
     await db_session.refresh(conv)
     return conv
-
-
-# ---------------------------------------------------------------------------
-# JSONB → JSON patching helpers
-# ---------------------------------------------------------------------------
-_original_types: dict[str, type] = {}
-
-
-def _patch_jsonb_columns():
-    """Replace PG-specific column types with SQLite-compatible ones."""
-    for table in Base.metadata.tables.values():
-        for col in table.columns:
-            if isinstance(col.type, Vector):
-                key = f"{table.name}.{col.name}"
-                _original_types[key] = col.type
-                # none_as_null mirrors pgvector semantics: a Python None must
-                # become SQL NULL (so `IS NULL` matches), not JSON 'null'.
-                col.type = JSON(none_as_null=True)
-            elif isinstance(col.type, JSONB):
-                key = f"{table.name}.{col.name}"
-                _original_types[key] = col.type
-                col.type = JSON()
-
-
-def _unpatch_jsonb_columns():
-    """Restore original column types."""
-    for table in Base.metadata.tables.values():
-        for col in table.columns:
-            key = f"{table.name}.{col.name}"
-            if key in _original_types:
-                col.type = _original_types.pop(key)

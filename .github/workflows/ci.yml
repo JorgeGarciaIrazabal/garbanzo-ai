@@ -13,6 +13,9 @@ jobs:
 
     services:
       postgres:
+        # Tests run against an in-memory SQLite DB (see backend/tests/conftest.py)
+        # and never touch Postgres. The service is kept only so Settings()
+        # can be instantiated with a real-looking DATABASE_URL during import.
         image: pgvector/pgvector:pg16
         env:
           POSTGRES_USER: garbanzo
@@ -27,10 +30,9 @@ jobs:
           --health-retries 5
 
     env:
-      # backend/tests/conftest.py actually runs everything against an
-      # in-memory SQLite DB, but the app is still importable with these set
-      # so Settings() reflects the real dev credentials (see docker-compose.yml)
-      # if any test or startup path touches the real DATABASE_URL.
+      # Tests use in-memory SQLite, but the app's module-level engine is built
+      # from DATABASE_URL at import time before conftest swaps it out — keep a
+      # valid URL so that lazy pool construction doesn't fail.
       DATABASE_URL: postgresql+asyncpg://garbanzo:garbanzo_dev@localhost:5432/garbanzo_ai
       SECRET_KEY: ci-test-secret-key-do-not-use-in-prod
 

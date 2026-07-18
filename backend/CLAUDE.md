@@ -38,3 +38,10 @@ EXISTS`. Applied once each at startup (`db/migrations.py`), tracked in
 - PostgreSQL runs only via Docker (`just docker-up-db`) — never a host instance.
 - Startup ordering lives in `main.py` (`init_db` → test user → admin promotion →
   template seed → TTS/STT background load → scheduler → firebase).
+- Tests run against an in-memory SQLite DB — never the real Postgres. conftest
+  swaps `app.db.session.engine` and `async_session_maker` per test, so code
+  paths that bypass `get_db` (`get_current_admin_user`, background jobs, etc.)
+  also hit SQLite. Modules that did `from app.db.session import
+  async_session_maker` at top level keep the old (Postgres) reference — those
+  callers must be patched per-test, or call into `app.db.session` lazily (like
+  `get_current_admin_user` does) to pick up the swap.

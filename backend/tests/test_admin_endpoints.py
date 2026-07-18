@@ -75,9 +75,13 @@ async def test_non_admin_gets_403(db_session):
                 "/api/v1/admin/users",
                 headers={"Authorization": f"Bearer {_token('test@example.com')}"},
             )
-        # The real get_current_admin_user opens a NEW session via async_session_maker
-        # which points at the configured DATABASE_URL (not our in-memory fixture), so
-        # it won't find the user. Either way the expected result is 403.
+        # The real get_current_admin_user opens a NEW session via the global
+        # async_session_maker (swapped to the shared in-memory SQLite test
+        # engine in conftest). It finds the seeded non-admin user and raises
+        # 403. (Before conftest swapped the engine, this query hit the real
+        # PostgreSQL DATABASE_URL — which in CI has no tables, returning 500
+        # instead of 403; locally it worked only because the dev Postgres
+        # happened to have tables.)
         assert resp.status_code == 403
     finally:
         _clear_overrides()
