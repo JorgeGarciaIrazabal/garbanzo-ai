@@ -248,7 +248,7 @@ fe-run-test-server:
 # Deployment (prod stack under deploy/ — see deploy/README.md)
 # ============================================================================
 
-# Deploy the local main branch: web build → backend image → prod stack (postgres/backend/ngrok) → APK
+# Deploy local main: web build → backend image → prod stack → APK (+ install on Android if connected)
 deploy:
     "{{ justfile_directory() }}/scripts/deploy.sh"
 

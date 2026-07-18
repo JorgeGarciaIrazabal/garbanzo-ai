@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Deploy the local main branch: Flutter web + backend image + prod compose
-# stack (postgres / backend / ngrok) + Android APK.
+# stack (postgres / backend / ngrok) + Android APK. If an Android device is
+# connected via adb, the APK is installed on it automatically.
 #
 # Builds from a pristine temporary git worktree of main, so it can run from
 # any branch with a dirty tree. Safe to re-run; data lives in named volumes.
@@ -118,10 +119,24 @@ step "Building Android APK (versionCode $BUILD_NUMBER)"
 mkdir -p "$REPO/dist"
 cp "$WT/build/app/outputs/flutter-apk/app-release.apk" "$REPO/dist/garbanzo-ai-$SHA.apk"
 
+# --- Install APK on a connected device (if any) -----------------------------
+APK_PATH="$REPO/dist/garbanzo-ai-$SHA.apk"
+export ANDROID_HOME="${ANDROID_HOME:-$HOME/Android/Sdk}"
+export PATH="$ANDROID_HOME/platform-tools:$PATH"
+if command -v adb >/dev/null 2>&1 && adb get-state >/dev/null 2>&1; then
+    step "Installing APK on connected Android device"
+    adb install -r "$APK_PATH" && echo "APK installed on device." \
+        || echo "WARNING: adb install failed — APK is still at $APK_PATH"
+else
+    echo ""
+    echo "No Android device connected. To install the APK later:"
+    echo "  just deploy-apk-install"
+fi
+
 echo ""
 echo "Deployed main @ $SHA"
 echo "  Web:    https://$NGROK_DOMAIN"
-echo "  APK:    dist/garbanzo-ai-$SHA.apk   (adb install -r dist/garbanzo-ai-$SHA.apk)"
+echo "  APK:    $APK_PATH"
 echo "  Image:  garbanzo-backend:$SHA"
 echo "  Status: just deploy-status"
 
