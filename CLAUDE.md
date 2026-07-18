@@ -57,6 +57,7 @@ and `flutter test test/path/widget_test.dart`.
 | DB models, column semantics, migration mechanics | [`docs/database.md`](docs/database.md) |
 | Backend environment variables | [`docs/environment.md`](docs/environment.md) |
 | E2E testing (manual, Dart MCP + Marionette) | `/e2e-testing` skill |
+| Test coverage gaps, priorities, conventions | [`docs/coverage-strategy.md`](docs/coverage-strategy.md) |
 | New machine setup | [`setup.md`](setup.md) |
 
 Every `CLAUDE.md` has an `AGENTS.md → CLAUDE.md` symlink beside it so Claude
