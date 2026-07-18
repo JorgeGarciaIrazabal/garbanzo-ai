@@ -1,5 +1,15 @@
 {
   "$schema": "https://opencode.ai/config.json",
+  "lsp": {
+    "dart": {},
+    "pyright": {
+      "command": ["backend/.venv/bin/pyright-langserver", "--stdio"]
+    },
+    "ruff": {
+      "command": ["backend/.venv/bin/ruff", "server"],
+      "extensions": [".py", ".pyi"]
+    }
+  },
   "mcp": {
     "websearch": {
       "type": "local",
