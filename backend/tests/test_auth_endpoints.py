@@ -280,7 +280,7 @@ class TestUpdateProfile:
             captured["coords"] = (lat, lon)
             return "Madrid, Spain"
 
-        monkeypatch.setattr(auth_module, "reverse_geocode_city", _fake_geocode)
+        monkeypatch.setattr(auth_module, "reverse_geocode_place", _fake_geocode)
         await self._setup(db_session)
         try:
             async with await _client() as c:
@@ -304,7 +304,7 @@ class TestUpdateProfile:
         async def _fake_geocode(lat, lon):
             return None
 
-        monkeypatch.setattr(auth_module, "reverse_geocode_city", _fake_geocode)
+        monkeypatch.setattr(auth_module, "reverse_geocode_place", _fake_geocode)
         await self._setup(db_session)
         try:
             async with await _client() as c:

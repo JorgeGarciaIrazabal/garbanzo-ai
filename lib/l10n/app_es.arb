@@ -332,7 +332,7 @@
   "titleSendFeedbackStraightToTheAdmins": "Enviar comentarios directamente a los administradores",
   "titleSendRequestsAndManageYourFriends": "Enviar solicitudes y gestionar tus amigos",
   "titleSetYourLocation": "Establecer tu ubicación",
-  "titleShareCoarseLocation": "Compartir ubicación aproximada",
+  "titleShareCoarseLocation": "Compartir mi ubicación",
   "titleShowMessageMetadata": "Mostrar metadatos del mensaje",
   "titleShowSystemPromptInThread": "Mostrar instrucción del sistema en el hilo",
   "titleSignOut": "Cerrar sesión",
@@ -2238,7 +2238,7 @@
   "@hintSystemPromptExample": {
     "description": "Placeholder hint for the system prompt text field."
   },
-  "messageCityLevelOnlyHint": "Solo a nivel de ciudad, para que las preguntas \"cerca de mí\" funcionen. Las coordenadas precisas nunca se guardan.",
+  "messageCityLevelOnlyHint": "Comparte tu zona a nivel de barrio, para que las preguntas \"cerca de mí\" (como restaurantes cercanos) funcionen. Tus coordenadas exactas nunca se guardan.",
   "@messageCityLevelOnlyHint": {
     "description": "Subtitle shown when coarse location sharing is off."
   },

@@ -58,35 +58,69 @@ class TestBlockFormat:
         assert "Current UTC time:" in block
 
     async def test_location_line_when_shared(self):
-        block = build_dynamic_context_block(location="Madrid, Spain", now=_NOW)
-        assert "User's approximate location: Madrid, Spain" in block
+        block = build_dynamic_context_block(location="Malasaña, Madrid, Spain", now=_NOW)
+        assert "User's location: Malasaña, Madrid, Spain" in block
 
     async def test_no_location_line_by_default(self):
         block = build_dynamic_context_block(now=_NOW)
         assert "location" not in block
 
+    async def test_share_hint_when_missing_and_opted_in(self):
+        block = build_dynamic_context_block(now=_NOW, suggest_location_when_missing=True)
+        assert "has not shared their location" in block
+        assert "Settings → Profile" in block
+
+    async def test_no_share_hint_when_location_present(self):
+        block = build_dynamic_context_block(
+            location="Malasaña, Madrid, Spain",
+            now=_NOW,
+            suggest_location_when_missing=True,
+        )
+        assert "has not shared their location" not in block
+
+    async def test_no_share_hint_without_opt_in(self):
+        # Rooms leave the flag off — no location, no nudge.
+        block = build_dynamic_context_block(now=_NOW)
+        assert "has not shared their location" not in block
+
 
 class TestGeocodingFormat:
-    async def test_city_and_country(self):
-        from app.services.geocoding import format_city
+    async def test_neighbourhood_city_country(self):
+        from app.services.geocoding import format_place
 
-        assert format_city({"address": {"city": "Madrid", "country": "Spain"}}) == "Madrid, Spain"
+        assert (
+            format_place({"address": {"suburb": "Malasaña", "city": "Madrid", "country": "Spain"}})
+            == "Malasaña, Madrid, Spain"
+        )
+
+    async def test_city_and_country(self):
+        from app.services.geocoding import format_place
+
+        assert format_place({"address": {"city": "Madrid", "country": "Spain"}}) == "Madrid, Spain"
 
     async def test_town_fallback(self):
-        from app.services.geocoding import format_city
+        from app.services.geocoding import format_place
 
-        assert format_city({"address": {"town": "Ronda", "country": "Spain"}}) == "Ronda, Spain"
+        assert format_place({"address": {"town": "Ronda", "country": "Spain"}}) == "Ronda, Spain"
 
     async def test_country_only(self):
-        from app.services.geocoding import format_city
+        from app.services.geocoding import format_place
 
-        assert format_city({"address": {"country": "Spain"}}) == "Spain"
+        assert format_place({"address": {"country": "Spain"}}) == "Spain"
+
+    async def test_duplicate_area_and_city_folded(self):
+        from app.services.geocoding import format_place
+
+        assert (
+            format_place({"address": {"suburb": "Madrid", "city": "Madrid", "country": "Spain"}})
+            == "Madrid, Spain"
+        )
 
     async def test_nothing_useful_returns_none(self):
-        from app.services.geocoding import format_city
+        from app.services.geocoding import format_place
 
-        assert format_city({}) is None
-        assert format_city({"address": {}}) is None
+        assert format_place({}) is None
+        assert format_place({"address": {}}) is None
 
 
 class TestRoomsParity:
@@ -241,23 +275,26 @@ class TestChatTurnEndToEnd:
         assert "<context>" in prompt and "</context>" in prompt
         assert "Current UTC time:" in prompt
         assert "(Europe/Madrid)" in prompt
-        assert "User's approximate location: Madrid, Spain" in prompt
+        assert "User's location: Madrid, Spain" in prompt
 
-    async def test_location_line_absent_when_sharing_disabled(self, db_session):
-        """location=NULL is the settings toggle's off state — the block still
-        carries the times but must not mention location at all."""
+    async def test_share_hint_present_when_sharing_disabled(self, db_session):
+        """location=NULL is the settings toggle's off state — a 1:1 chat turn
+        keeps the times and adds the 'offer to enable location' hint instead of
+        a stored location line."""
         await self._set_user_context(db_session, "Europe/Madrid", None)
         prompt = await self._send_turn(db_session, _RecordingProvider())
         assert "<context>" in prompt
         assert "User's local time:" in prompt
-        assert "location" not in prompt
+        assert "User's location:" not in prompt
+        assert "has not shared their location" in prompt
 
-    async def test_utc_only_when_user_never_reported_anything(self, db_session):
+    async def test_share_hint_present_when_user_never_reported_anything(self, db_session):
         await self._set_user_context(db_session, None, None)
         prompt = await self._send_turn(db_session, _RecordingProvider())
         assert "Current UTC time:" in prompt
         assert "local time" not in prompt
-        assert "location" not in prompt
+        assert "User's location:" not in prompt
+        assert "has not shared their location" in prompt
 
     async def test_app_help_nudge_present_when_tools_enabled(self, db_session):
         """Default conversations (all tools) tell the model app_help exists

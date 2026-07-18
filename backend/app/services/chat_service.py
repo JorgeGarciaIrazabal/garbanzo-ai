@@ -422,6 +422,9 @@ class ChatService:
         dynamic_context = build_dynamic_context_block(
             timezone=user.timezone if user else None,
             location=user.location if user else None,
+            # 1:1 chat has a single user, so nudging them to share location
+            # when a turn needs it is safe (rooms deliberately opt out).
+            suggest_location_when_missing=True,
         )
         if APP_HELP_TOOL in tool_lookup:
             dynamic_context += f"\n\n{APP_HELP_NUDGE}"

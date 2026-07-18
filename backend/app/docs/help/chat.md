@@ -61,8 +61,8 @@ conversation uses. Long conversations are automatically summarized in the
 background so they keep fitting; the summary is shown in the chat as a
 collapsible block.
 
-## Why does the assistant know today's date or my city?
+## Why does the assistant know today's date or my location?
 Every message includes background context: the current time, your local
 timezone (reported automatically by the app), and — only if you enabled it
-in Settings — your approximate city. See the Settings guide for location
-sharing.
+in Settings — your approximate (neighbourhood-level) location. See the
+Settings guide for location sharing.

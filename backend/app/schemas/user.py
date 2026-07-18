@@ -44,8 +44,8 @@ class UserUpdate(BaseModel):
     default_model: str | None = Field(None, max_length=100)
     timezone: str | None = Field(None, max_length=64)
     locale: str | None = Field(None, max_length=32)
-    # Manual coarse location ("Madrid, Spain"); explicit null clears it,
-    # turning location sharing off. Whitespace-only collapses to null.
+    # Manual location ("Malasaña, Madrid, Spain" or just a city); explicit null
+    # clears it, turning location sharing off. Whitespace-only collapses to null.
     location: str | None = Field(None, max_length=128)
 
     @field_validator("location")
@@ -76,7 +76,7 @@ class CoordinatesIn(BaseModel):
     """One-shot coordinates for ``POST /auth/me/location``.
 
     Consumed transiently for the reverse-geocode lookup; only the resolved
-    city string is ever persisted or logged.
+    place name is ever persisted or logged.
     """
 
     latitude: float = Field(..., ge=-90, le=90)

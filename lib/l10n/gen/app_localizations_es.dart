@@ -1101,7 +1101,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get titleSetYourLocation => 'Establecer tu ubicación';
 
   @override
-  String get titleShareCoarseLocation => 'Compartir ubicación aproximada';
+  String get titleShareCoarseLocation => 'Compartir mi ubicación';
 
   @override
   String get titleShowMessageMetadata => 'Mostrar metadatos del mensaje';
@@ -2562,7 +2562,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get messageCityLevelOnlyHint =>
-      'Solo a nivel de ciudad, para que las preguntas \"cerca de mí\" funcionen. Las coordenadas precisas nunca se guardan.';
+      'Comparte tu zona a nivel de barrio, para que las preguntas \"cerca de mí\" (como restaurantes cercanos) funcionen. Tus coordenadas exactas nunca se guardan.';
 
   @override
   String get messageNotifyAssistantBackground =>

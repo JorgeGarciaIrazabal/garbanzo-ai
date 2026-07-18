@@ -2093,7 +2093,7 @@ abstract class AppLocalizations {
   /// features/settings/widgets/location_section.dart:50 (Text)
   ///
   /// In en, this message translates to:
-  /// **'Share coarse location'**
+  /// **'Share my location'**
   String get titleShareCoarseLocation;
 
   /// features/settings/widgets/drawer_sections/app_settings_section.dart:82 (Text); features/settings/pages/settings_page.dart:236 (Text)
@@ -4542,7 +4542,7 @@ abstract class AppLocalizations {
   /// Subtitle shown when coarse location sharing is off.
   ///
   /// In en, this message translates to:
-  /// **'City-level only, so \"near me\" questions work. Precise coordinates are never stored.'**
+  /// **'Shares your neighbourhood-level area, so \"near me\" questions (like nearby restaurants) work. Your exact coordinates are never stored.'**
   String get messageCityLevelOnlyHint;
 
   /// Subtitle for the chat-responses notification toggle.

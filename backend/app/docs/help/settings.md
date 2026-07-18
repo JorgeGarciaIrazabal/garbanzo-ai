@@ -9,10 +9,12 @@ log back in with the new one), **Change password** for the password, and
 tap the avatar to upload, replace, or delete your profile picture.
 
 ## How do I share my location with the assistant?
-Profile → **Share coarse location** (off by default). It stores only your
-city ("Madrid, Spain"), detected once from device location or typed
-manually — precise coordinates are never stored. The assistant then knows
-roughly where you are for "near me" questions. Toggle off to clear it.
+Profile → **Share my location** (off by default). It stores only a
+neighbourhood-level place name ("Malasaña, Madrid, Spain"), detected once
+from device location or typed manually — precise coordinates are never
+stored. The assistant then knows roughly where you are for "near me"
+questions like nearby restaurants. Toggle off to clear it. If it's off and
+you ask something location-dependent, the assistant will offer to turn it on.
 
 ## How do I change the app's look?
 Appearance: light/dark theme and related toggles.

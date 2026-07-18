@@ -1,9 +1,10 @@
-"""Reverse geocoding for the opt-in coarse location.
+"""Reverse geocoding for the opt-in location.
 
 One Nominatim lookup per explicit user action (enabling the settings toggle
 or refreshing their location) — never per chat turn — which keeps us well
 inside the public instance's 1 req/s usage policy. Coordinates are consumed
-transiently; only the resolved "City, Country" string leaves this module.
+transiently; only the resolved place name (e.g. "Malasaña, Madrid, Spain")
+leaves this module — precise coordinates are never persisted or logged.
 """
 
 import logging
@@ -18,13 +19,14 @@ logger = logging.getLogger(__name__)
 # python-httpx one gets throttled or blocked.
 _USER_AGENT = "garbanzo-ai (self-hosted chat app)"
 
-# zoom=10 asks for city-level detail, matching the coarsest useful answer —
-# we never want street or neighbourhood precision.
-_ZOOM_CITY = 10
+# zoom=14 asks for neighbourhood/suburb-level detail — precise enough to be
+# useful for "restaurants near me" while still stopping short of the exact
+# street or building the raw coordinates would pin down.
+_ZOOM_NEIGHBOURHOOD = 14
 
 
-async def reverse_geocode_city(latitude: float, longitude: float) -> str | None:
-    """Resolve coordinates to a coarse ``"City, Country"`` string.
+async def reverse_geocode_place(latitude: float, longitude: float) -> str | None:
+    """Resolve coordinates to a ``"Neighbourhood, City, Country"`` string.
 
     Returns None when the lookup fails or resolves to nothing useful (open
     ocean, rate-limited, network down) — callers treat that as "couldn't
@@ -40,7 +42,7 @@ async def reverse_geocode_city(latitude: float, longitude: float) -> str | None:
                     "lat": latitude,
                     "lon": longitude,
                     "format": "jsonv2",
-                    "zoom": _ZOOM_CITY,
+                    "zoom": _ZOOM_NEIGHBOURHOOD,
                     "accept-language": "en",
                 },
                 headers={"User-Agent": _USER_AGENT},
@@ -51,13 +53,28 @@ async def reverse_geocode_city(latitude: float, longitude: float) -> str | None:
         logger.warning("Reverse geocode failed: %s", e)
         return None
 
-    return format_city(data)
+    return format_place(data)
 
 
-def format_city(data: dict) -> str | None:
-    """Extract ``"City, Country"`` from a Nominatim reverse response."""
+def format_place(data: dict) -> str | None:
+    """Extract ``"Neighbourhood, City, Country"`` from a Nominatim response.
+
+    Each tier degrades gracefully: a place with no distinct neighbourhood
+    collapses to ``"City, Country"``, and a remote spot with only a country
+    to just the country. Duplicate names (a district that shares its city's
+    name) are folded so we never emit ``"Madrid, Madrid, Spain"``.
+    """
     address = data.get("address") or {}
-    # Nominatim names the settlement differently by size/region.
+    # Nominatim names the sub-city area differently by region/size.
+    area = next(
+        (
+            address[k]
+            for k in ("neighbourhood", "suburb", "city_district", "quarter", "borough")
+            if address.get(k)
+        ),
+        None,
+    )
+    # ...and the settlement itself differently by size.
     city = next(
         (
             address[k]
@@ -67,5 +84,6 @@ def format_city(data: dict) -> str | None:
         None,
     )
     country = address.get("country")
-    parts = [p for p in (city, country) if p]
+    # dict.fromkeys preserves order while dropping repeats (e.g. area == city).
+    parts = list(dict.fromkeys(p for p in (area, city, country) if p))
     return ", ".join(parts) or None

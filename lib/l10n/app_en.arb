@@ -1479,7 +1479,7 @@
   "@titleSetYourLocation": {
     "description": "features/settings/widgets/location_section.dart:152 (Text)"
   },
-  "titleShareCoarseLocation": "Share coarse location",
+  "titleShareCoarseLocation": "Share my location",
   "@titleShareCoarseLocation": {
     "description": "features/settings/widgets/location_section.dart:50 (Text)"
   },
@@ -3508,7 +3508,7 @@
   "@hintSystemPromptExample": {
     "description": "Placeholder hint for the system prompt text field."
   },
-  "messageCityLevelOnlyHint": "City-level only, so \"near me\" questions work. Precise coordinates are never stored.",
+  "messageCityLevelOnlyHint": "Shares your neighbourhood-level area, so \"near me\" questions (like nearby restaurants) work. Your exact coordinates are never stored.",
   "@messageCityLevelOnlyHint": {
     "description": "Subtitle shown when coarse location sharing is off."
   },

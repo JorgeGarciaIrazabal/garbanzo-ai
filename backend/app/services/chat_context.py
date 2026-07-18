@@ -27,14 +27,20 @@ def build_dynamic_context_block(
     timezone: str | None = None,
     location: str | None = None,
     now: datetime | None = None,
+    suggest_location_when_missing: bool = False,
 ) -> str:
     """The per-turn ``<context>`` block: current time, and — when the user
-    shared them — their local time/timezone and coarse location.
+    shared them — their local time/timezone and location.
 
     Deliberately framed as background the model should only draw on when the
     request actually needs it ("today", "near me"), so it doesn't start
     volunteering the date. A module-level function rather than a builder
     method so the rooms turn path can inject the identical block.
+
+    ``suggest_location_when_missing`` is a 1:1-chat-only flag: when set and no
+    ``location`` is stored, the block tells the model to offer to enable
+    location sharing *when the request needs it*. Rooms leave it off — a room
+    has several members, so no single stored location would fit.
 
     ``now`` is injectable for tests; production callers leave it None.
     """
@@ -55,7 +61,14 @@ def build_dynamic_context_block(
             # zoneinfo since dropped lands here — skip the line, keep the turn.
             logger.warning("Unknown user timezone %r; omitting local time", timezone)
     if location:
-        lines.append(f"User's approximate location: {location}")
+        lines.append(f"User's location: {location}")
+    elif suggest_location_when_missing:
+        lines.append(
+            "The user has not shared their location. If this request depends on "
+            "where they are (nearby places, local recommendations, weather here), "
+            "do not guess — briefly suggest they turn on location sharing in "
+            "Settings → Profile, then answer as best you can without it."
+        )
     lines.append("</context>")
     return "\n".join(lines)
 

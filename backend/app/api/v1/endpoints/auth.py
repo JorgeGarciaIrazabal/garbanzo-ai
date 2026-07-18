@@ -16,7 +16,7 @@ from app.core.security import (
 from app.db.session import get_db
 from app.schemas.auth import LoginRequest, RefreshRequest, TokenResponse
 from app.schemas.user import CoordinatesIn, PasswordUpdate, UserCreate, UserOut, UserUpdate
-from app.services.geocoding import reverse_geocode_city
+from app.services.geocoding import reverse_geocode_place
 from app.services.image_utils import downscale_image_b64
 from app.services.user_service import UserService
 
@@ -198,11 +198,11 @@ async def resolve_and_set_location(
     current_user: Annotated[dict[str, Any], Depends(get_current_user)],
     users: Annotated[UserService, Depends(get_user_service)],
 ) -> UserOut:
-    """Resolve coordinates to a coarse "City, Country" and store only that.
+    """Resolve coordinates to a "Neighbourhood, City, Country" and store that.
 
     The coordinates are consumed transiently for one reverse-geocode lookup
     (see ``services/geocoding.py``); they are never persisted or logged. 502
-    when the lookup can't produce a city, so the client's toggle can report
+    when the lookup can't produce a place, so the client's toggle can report
     failure instead of silently storing nothing.
     """
     user = await users.get_by_email(current_user["email"])
@@ -212,14 +212,14 @@ async def resolve_and_set_location(
             detail="User not found",
         )
 
-    city = await reverse_geocode_city(payload.latitude, payload.longitude)
-    if not city:
+    place = await reverse_geocode_place(payload.latitude, payload.longitude)
+    if not place:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Could not resolve a city for these coordinates",
+            detail="Could not resolve a location for these coordinates",
         )
 
-    await users.update_profile(user, location=city, update_location=True)
+    await users.update_profile(user, location=place, update_location=True)
     return _to_user_out(user)
 
 

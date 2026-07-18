@@ -4,15 +4,15 @@ import 'package:geolocator/geolocator.dart';
 import 'package:garbanzo_ai/core/auth_service.dart';
 import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
-/// Opt-in coarse location sharing (settings → Profile).
+/// Opt-in location sharing (settings → Profile).
 ///
 /// Off by default: sharing is on exactly when the server has a stored
 /// location string. Enabling tries device geolocation (Android / web /
 /// GeoClue on Linux) and sends the coordinates once to the backend, which
-/// stores only the reverse-geocoded "City, Country" — precise coordinates
-/// never persist anywhere. Wherever geolocation is unavailable or denied,
-/// the flow falls back to typing a city manually, which doubles as the
-/// edit affordance once sharing is on.
+/// stores only the reverse-geocoded "Neighbourhood, City, Country" — precise
+/// coordinates never persist anywhere. Wherever geolocation is unavailable or
+/// denied, the flow falls back to typing a location manually, which doubles as
+/// the edit affordance once sharing is on.
 class LocationSection extends StatefulWidget {
   const LocationSection({
     super.key,
@@ -142,10 +142,11 @@ class _LocationSectionState extends State<LocationSection> {
           permission == LocationPermission.deniedForever) {
         return null;
       }
-      // City-level is the goal, so ask for the cheapest fix the platform has.
+      // Neighbourhood-level is the goal (precise enough for "restaurants near
+      // me"), so ask for a medium fix — low is too coarse to resolve a suburb.
       return await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.low,
+          accuracy: LocationAccuracy.medium,
           timeLimit: Duration(seconds: 15),
         ),
       );

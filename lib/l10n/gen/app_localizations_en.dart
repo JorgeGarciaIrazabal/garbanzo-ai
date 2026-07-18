@@ -1086,7 +1086,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get titleSetYourLocation => 'Set your location';
 
   @override
-  String get titleShareCoarseLocation => 'Share coarse location';
+  String get titleShareCoarseLocation => 'Share my location';
 
   @override
   String get titleShowMessageMetadata => 'Show message metadata';
@@ -2527,7 +2527,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get messageCityLevelOnlyHint =>
-      'City-level only, so \"near me\" questions work. Precise coordinates are never stored.';
+      'Shares your neighbourhood-level area, so \"near me\" questions (like nearby restaurants) work. Your exact coordinates are never stored.';
 
   @override
   String get messageNotifyAssistantBackground =>
