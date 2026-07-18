@@ -13,13 +13,14 @@ import 'package:garbanzo_ai/features/notifications/providers/notification_provid
 import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
 import 'package:garbanzo_ai/core/platform_info.dart';
 import 'package:garbanzo_ai/features/settings/widgets/location_section.dart';
+import 'package:garbanzo_ai/features/settings/widgets/mcp_servers_section.dart';
 import 'package:garbanzo_ai/features/settings/widgets/profile_section.dart';
 import 'package:garbanzo_ai/features/settings/widgets/update_section.dart';
 import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// Dedicated settings screen. Navigation target for `/settings`.
 ///
-/// Sections: Profile, Appearance, Models, Voice, Memory, Notifications.
+/// Sections: Profile, Appearance, Models, Tools, Voice, Memory, Notifications.
 /// All providers (Model, SystemPrompt, Notification, Settings) are app-level,
 /// so this page pulls everything from the tree.
 class SettingsPage extends StatefulWidget {
@@ -33,6 +34,7 @@ enum _Section {
   profile,
   appearance,
   models,
+  tools,
   voice,
   memory,
   notifications,
@@ -166,6 +168,8 @@ class _SettingsPageState extends State<SettingsPage> {
         return _appearanceSection();
       case _Section.models:
         return _modelsSection();
+      case _Section.tools:
+        return const McpServersSection();
       case _Section.voice:
         return _voiceSection();
       case _Section.memory:
@@ -536,6 +540,8 @@ class _SettingsPageState extends State<SettingsPage> {
         return Icons.palette_outlined;
       case _Section.models:
         return Icons.smart_toy_outlined;
+      case _Section.tools:
+        return Icons.extension_outlined;
       case _Section.voice:
         return Icons.record_voice_over_outlined;
       case _Section.memory:
@@ -556,6 +562,8 @@ class _SettingsPageState extends State<SettingsPage> {
         return l10n.titleAppearance;
       case _Section.models:
         return l10n.titleModels;
+      case _Section.tools:
+        return l10n.titleTools;
       case _Section.voice:
         return l10n.titleVoice;
       case _Section.memory:

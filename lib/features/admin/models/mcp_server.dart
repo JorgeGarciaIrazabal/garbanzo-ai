@@ -37,6 +37,9 @@ class MCPServer {
   final Map<String, String>? env;
   final String? authHeader;
   final bool enabled;
+
+  /// Owner of a personal server; `null` for a global (admin-managed) one.
+  final String? ownerEmail;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -51,9 +54,13 @@ class MCPServer {
     this.env,
     this.authHeader,
     this.enabled = true,
+    this.ownerEmail,
     this.createdAt,
     this.updatedAt,
   });
+
+  /// A global server has no owner; personal servers belong to one user.
+  bool get isGlobal => ownerEmail == null;
 
   factory MCPServer.fromJson(Map<String, dynamic> json) {
     final rawArgs = json['args'];
@@ -82,6 +89,7 @@ class MCPServer {
       env: parsedEnv,
       authHeader: json['auth_header'] as String?,
       enabled: json['enabled'] as bool? ?? true,
+      ownerEmail: json['owner_email'] as String?,
       createdAt: parseDate(json['created_at']),
       updatedAt: parseDate(json['updated_at']),
     );
@@ -98,6 +106,7 @@ class MCPServer {
     Map<String, String>? env,
     String? authHeader,
     bool? enabled,
+    String? ownerEmail,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -112,6 +121,7 @@ class MCPServer {
       env: env ?? this.env,
       authHeader: authHeader ?? this.authHeader,
       enabled: enabled ?? this.enabled,
+      ownerEmail: ownerEmail ?? this.ownerEmail,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

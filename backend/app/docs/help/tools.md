@@ -8,8 +8,9 @@ expandable activity cards.
 - **Built-in tools** — always available, e.g. saving memories, creating
   scheduled actions, running micro-apps, app help, and submitting a bug
   report or feature request.
-- **MCP tools** — external tool servers connected by an admin (Model
-  Context Protocol).
+- **MCP tools** — external tool servers (Model Context Protocol). These come
+  in two kinds: **global** servers an admin connects for everyone, and
+  **personal** servers you connect just for yourself in Settings → Tools.
 
 ## Where can I see all available tools?
 The **Skills library** page lists every connected tool with its
@@ -39,4 +40,7 @@ Only tool-capable models can call tools (wrench badge in the model picker).
 Explicitly asking ("use the … tool") usually helps.
 
 ## How do I add a new MCP tool server?
-Admins connect MCP servers in the Admin area — see the Admin guide.
+For your own use, go to **Settings → Tools → My MCP servers** and add the
+server's connection details (transport, URL or command, optional auth). Only
+you can see and use the tools from a personal server. Admins add **global**
+servers for everyone in the Admin area — see the Admin guide.

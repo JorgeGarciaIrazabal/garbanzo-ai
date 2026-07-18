@@ -12,7 +12,7 @@ import time
 import uuid
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.mcp_server import MCPServer
@@ -55,8 +55,35 @@ class MCPService:
     # CRUD
     # ------------------------------------------------------------------
 
-    async def list_servers(self) -> list[MCPServer]:
-        result = await self.db.execute(select(MCPServer).order_by(MCPServer.created_at))
+    async def list_global_servers(self) -> list[MCPServer]:
+        """Global (admin-managed) servers — ``owner_email IS NULL``."""
+        result = await self.db.execute(
+            select(MCPServer).where(MCPServer.owner_email.is_(None)).order_by(MCPServer.created_at)
+        )
+        return list(result.scalars().all())
+
+    async def list_user_servers(self, owner_email: str) -> list[MCPServer]:
+        """A single user's personal servers."""
+        result = await self.db.execute(
+            select(MCPServer)
+            .where(MCPServer.owner_email == owner_email)
+            .order_by(MCPServer.created_at)
+        )
+        return list(result.scalars().all())
+
+    async def _servers_visible_to(self, user_email: str | None) -> list[MCPServer]:
+        """Servers whose tools a caller may use.
+
+        ``user_email`` set → global servers plus that user's personal ones.
+        ``user_email`` None (e.g. multi-user rooms) → global servers only.
+        """
+        if user_email is None:
+            return await self.list_global_servers()
+        result = await self.db.execute(
+            select(MCPServer)
+            .where(or_(MCPServer.owner_email.is_(None), MCPServer.owner_email == user_email))
+            .order_by(MCPServer.created_at)
+        )
         return list(result.scalars().all())
 
     async def get_server(self, server_id: str) -> MCPServer | None:
@@ -75,6 +102,7 @@ class MCPService:
         args: list[str] | None = None,
         env: dict[str, str] | None = None,
         enabled: bool = True,
+        owner_email: str | None = None,
         created_by: str | None = None,
     ) -> MCPServer:
         server = MCPServer(
@@ -88,6 +116,7 @@ class MCPService:
             args=args,
             env=env,
             enabled=enabled,
+            owner_email=owner_email,
             created_by=created_by,
         )
         self.db.add(server)
@@ -212,21 +241,28 @@ class MCPService:
         self,
         enabled_only: bool = True,
         use_cache: bool = True,
+        *,
+        user_email: str | None = None,
     ) -> list[dict[str, Any]]:
-        """Aggregate tool listings across all (enabled) servers.
+        """Aggregate tool listings across the servers visible to a caller.
 
-        Result is cached for 60 seconds under the key ``"all"``. If a server
+        ``user_email`` set → global servers plus that user's personal ones.
+        ``user_email`` None (e.g. multi-user rooms) → global servers only.
+
+        Result is cached for 60 seconds, keyed per scope so one user's
+        personal servers never leak into another's cached list. If a server
         errors during listing, it is skipped but others still return their
         tools.
         """
-        cache_key = "all" if enabled_only else "all:inc_disabled"
+        scope = "global" if user_email is None else f"user:{user_email}"
+        cache_key = scope if enabled_only else f"{scope}:inc_disabled"
         now = time.monotonic()
         if use_cache:
             cached = _tools_cache.get(cache_key)
             if cached and cached[0] > now:
                 return cached[1]
 
-        servers = await self.list_servers()
+        servers = await self._servers_visible_to(user_email)
         if enabled_only:
             servers = [s for s in servers if s.enabled]
 

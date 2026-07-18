@@ -12,8 +12,15 @@ from app.db.base import Base
 class MCPServer(Base):
     """A registered Model Context Protocol (MCP) server.
 
-    Admins create these server entries from the admin portal. Servers may
-    be reached over HTTP/SSE or spawned as a stdio subprocess.
+    Servers may be reached over HTTP/SSE or spawned as a stdio subprocess.
+
+    Ownership is expressed by :attr:`owner_email`:
+
+    * ``NULL`` — a *global* server registered by an admin from the admin
+      portal. Its tools are offered to every user and to multi-user rooms.
+    * set — a *personal* server the user registered from their own settings.
+      Its tools are offered only to that user's conversations; rooms never
+      see it. Deleted automatically when the owning user is deleted.
     """
 
     __tablename__ = "mcp_servers"
@@ -41,6 +48,13 @@ class MCPServer(Base):
         server_default="true",
     )
 
+    # NULL = global (admin-managed); set = personal to this user. Determines
+    # who sees the server's tools. See the class docstring.
+    owner_email: Mapped[str | None] = mapped_column(
+        ForeignKey("users.email", ondelete="CASCADE"),
+        nullable=True,
+    )
+    # Who created the row (audit only; kept even if the creator is deleted).
     created_by: Mapped[str | None] = mapped_column(
         ForeignKey("users.email", ondelete="SET NULL"),
         nullable=True,

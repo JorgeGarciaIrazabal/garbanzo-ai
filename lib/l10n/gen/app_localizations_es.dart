@@ -2595,4 +2595,14 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get messageRoomEmptyHint =>
       'Escribe un mensaje para empezar. Usa @AgentName para llamar a un agente, o @all para mencionar a todos.';
+
+  @override
+  String get titleMyMcpServers => 'Mis servidores MCP';
+
+  @override
+  String get messagePersonalMcpServersHint =>
+      'Conecta tus propios servidores de herramientas. Solo tú puedes verlos y usarlos; los administradores gestionan los servidores compartidos para todos.';
+
+  @override
+  String get labelAddServer => 'Añadir servidor';
 }

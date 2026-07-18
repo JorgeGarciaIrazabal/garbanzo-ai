@@ -130,7 +130,10 @@ half-migrated schema.
   handled. User-owned via `user_id → users.email` CASCADE.
 - `Notification` / `NotificationPreferences` support in-app + FCM push notifications.
 - `DeviceToken` stores FCM tokens per user per platform.
-- `MCPServer` stores registered MCP server configs (managed by admin).
+- `MCPServer` stores registered MCP server configs. `owner_email` (nullable FK,
+  ON DELETE CASCADE) sets scope: `NULL` = global (admin-managed, tools offered to
+  everyone and to rooms); set = personal to that user (tools offered only to that
+  user's chats, never rooms). `created_by` is audit-only (SET NULL).
 - `AvailableModel` stores admin-controlled per-model visibility (`model_id`, `is_enabled`).
 - `SystemPromptTemplate` stores built-in and user-created prompt templates.
   Built-in rows carry a non-null `locale` (BCP-47 primary subtag, e.g. `en` /

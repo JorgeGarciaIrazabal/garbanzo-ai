@@ -1,7 +1,13 @@
 # Settings & Profile
 
 Open Settings from the gear icon. Sections: Profile, Appearance, Models,
-Voice, Memory, Notifications, and (desktop only) Software update.
+Tools, Voice, Memory, Notifications, and (desktop only) Software update.
+
+## How do I connect my own tool server?
+**Tools → My MCP servers → Add server**. Enter the connection details
+(transport, URL or command, optional auth) and **Test connection**. These
+personal servers are private to you — only your conversations see their
+tools. Admins manage shared/global servers separately.
 
 ## How do I change my name, email, or profile picture?
 Profile → **Edit profile** for name/email (changing email signs you out —

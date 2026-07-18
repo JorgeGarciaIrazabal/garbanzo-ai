@@ -145,6 +145,18 @@ async def update_user(
 # ============================================================================
 
 
+async def _get_global_server_or_404(service: MCPService, server_id: str):
+    """Fetch a global server, 404-ing on personal ones so admins can't reach
+    into a user's private servers."""
+    server = await service.get_server(server_id)
+    if server is None or server.owner_email is not None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="MCP server not found",
+        )
+    return server
+
+
 @router.get(
     "/mcp-servers",
     response_model=list[MCPServerOut],
@@ -153,7 +165,8 @@ async def update_user(
 async def list_mcp_servers(
     service: Annotated[MCPService, Depends(get_mcp_service)],
 ) -> list[MCPServerOut]:
-    servers = await service.list_servers()
+    # Admin manages global servers only; users own their personal ones.
+    servers = await service.list_global_servers()
     return [MCPServerOut.model_validate(s) for s in servers]
 
 
@@ -193,6 +206,7 @@ async def update_mcp_server(
     data: MCPServerUpdate,
     service: Annotated[MCPService, Depends(get_mcp_service)],
 ) -> MCPServerOut:
+    await _get_global_server_or_404(service, server_id)
     update_fields = data.model_dump(exclude_unset=True)
     server = await service.update_server(server_id, **update_fields)
     if server is None:
@@ -212,6 +226,7 @@ async def delete_mcp_server(
     server_id: str,
     service: Annotated[MCPService, Depends(get_mcp_service)],
 ) -> None:
+    await _get_global_server_or_404(service, server_id)
     ok = await service.delete_server(server_id)
     if not ok:
         raise HTTPException(
@@ -229,12 +244,7 @@ async def test_mcp_connection(
     server_id: str,
     service: Annotated[MCPService, Depends(get_mcp_service)],
 ) -> MCPServerTestResult:
-    server = await service.get_server(server_id)
-    if server is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="MCP server not found",
-        )
+    server = await _get_global_server_or_404(service, server_id)
     result = await service.test_connection(server)
     return MCPServerTestResult(**result)
 

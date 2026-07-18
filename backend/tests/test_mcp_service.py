@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from app.models.mcp_server import MCPServer
+from app.models.user import User
 from app.services.mcp_service import (
     MCPService,
     build_tool_payload,
@@ -23,6 +24,11 @@ def _clear_cache():
     invalidate_tools_cache()
     yield
     invalidate_tools_cache()
+
+
+async def _seed_user(db, email: str) -> None:
+    db.add(User(email=email, hashed_password="x"))
+    await db.commit()
 
 
 async def _seed_server(db, **overrides) -> MCPServer:
@@ -138,6 +144,57 @@ async def test_list_all_tools_filters_disabled(db_session):
 
     tools = await service.list_all_tools(enabled_only=True, use_cache=False)
     assert {t["server_id"] for t in tools} == {"on"}
+
+
+async def test_list_all_tools_scopes_by_owner(db_session):
+    """A user sees global servers plus their own; another user's personal
+    server is invisible, and the omitted-user (room) scope sees globals only."""
+    service = MCPService(db_session)
+    await _seed_user(db_session, "alice@example.com")
+    await _seed_user(db_session, "bob@example.com")
+    await _seed_server(db_session, id="global", owner_email=None)
+    await _seed_server(db_session, id="alice", owner_email="alice@example.com")
+    await _seed_server(db_session, id="bob", owner_email="bob@example.com")
+
+    session = _fake_session([{"name": "t", "description": "", "input_schema": {}}])
+    _patch_open_session(service, session)
+
+    alice = await service.list_all_tools(use_cache=False, user_email="alice@example.com")
+    assert {t["server_id"] for t in alice} == {"global", "alice"}
+
+    rooms = await service.list_all_tools(use_cache=False)
+    assert {t["server_id"] for t in rooms} == {"global"}
+
+
+async def test_list_all_tools_cache_is_per_scope(db_session):
+    """One user's cached personal tools must not bleed into another's."""
+    service = MCPService(db_session)
+    await _seed_user(db_session, "alice@example.com")
+    await _seed_server(db_session, id="global", owner_email=None)
+    await _seed_server(db_session, id="alice", owner_email="alice@example.com")
+
+    session = _fake_session([{"name": "t", "description": "", "input_schema": {}}])
+    _patch_open_session(service, session)
+
+    alice = await service.list_all_tools(user_email="alice@example.com")
+    assert {t["server_id"] for t in alice} == {"global", "alice"}
+
+    # Bob (cached separately) never sees alice's server.
+    bob = await service.list_all_tools(user_email="bob@example.com")
+    assert {t["server_id"] for t in bob} == {"global"}
+
+
+async def test_list_global_and_user_servers(db_session):
+    service = MCPService(db_session)
+    await _seed_user(db_session, "alice@example.com")
+    await _seed_server(db_session, id="global", owner_email=None)
+    await _seed_server(db_session, id="alice", owner_email="alice@example.com")
+
+    globals_ = await service.list_global_servers()
+    assert {s.id for s in globals_} == {"global"}
+
+    mine = await service.list_user_servers("alice@example.com")
+    assert {s.id for s in mine} == {"alice"}
 
 
 async def test_call_tool_dispatches(db_session):

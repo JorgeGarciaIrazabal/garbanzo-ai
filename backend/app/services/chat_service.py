@@ -523,7 +523,10 @@ class ChatService:
             return [], {}
 
         try:
-            all_tools = await self._mcp.list_all_tools(enabled_only=True)
+            all_tools = await self._mcp.list_all_tools(
+                enabled_only=True,
+                user_email=getattr(conversation, "user_id", None),
+            )
         except Exception as exc:
             logger.warning("Failed to list MCP tools: %s", exc)
             all_tools = []

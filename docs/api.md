@@ -16,7 +16,7 @@ when you add or change an endpoint, update the matching row in the same commit.
 | **Knowledge Base** | `POST /kb/documents`, `GET /kb/documents`, `GET /kb/documents/{id}`, `DELETE /kb/documents/{id}`, `GET /kb/search` |
 | **Rooms** | `POST /rooms`, `GET /rooms`, `GET /rooms/search`, `GET /rooms/{id}`, `PATCH /rooms/{id}`, `DELETE /rooms/{id}`, `GET /rooms/{id}/members`, `POST /rooms/{id}/members`, `DELETE /rooms/{id}/members/{email}`, `PATCH /rooms/{id}/members/me/mute`, `GET /rooms/{id}/agents`, `POST /rooms/{id}/agents`, `PATCH /rooms/{id}/agents/{id}`, `DELETE /rooms/{id}/agents/{id}`, `GET /rooms/{id}/messages`, `POST /rooms/{id}/chat`, `GET /rooms/{id}/export`, `WS /rooms/{id}` |
 | **Micro-apps** | `POST /microapps/workspace`, `GET /microapps/workspace`, `DELETE /microapps/workspace`, `GET /microapps/apps`, `GET /microapps/houses`, `POST /microapps/houses`, `POST /microapps/agent/chat`, `POST /microapps/agent/abort`, `GET /microapps/changes`, `POST /microapps/publish`, `POST /microapps/revert` |
-| **MCP (Tools)** | `GET /mcp/tools` |
+| **MCP (Tools)** | `GET /mcp/tools`, `GET /mcp/servers`, `POST /mcp/servers`, `PATCH /mcp/servers/{id}`, `DELETE /mcp/servers/{id}`, `POST /mcp/servers/{id}/test-connection` |
 | **Notifications** | `GET /notifications`, `GET /notifications/unread-count`, `POST /notifications/read-all`, `PATCH /notifications/{id}/read`, `DELETE /notifications/{id}`, `GET /notifications/preferences`, `PATCH /notifications/preferences` |
 | **Devices** | `POST /devices/register`, `DELETE /devices/register` |
 | **Friends** | `POST /friends/requests`, `POST /friends/requests/{id}/accept`, `POST /friends/requests/{id}/decline`, `GET /friends` (friends + incoming + outgoing), `GET /friends/search?q=` (accepted friends only), `DELETE /friends/{email}`, `POST /friends/{email}/block` (204; replaces any relationship), `DELETE /friends/{email}/block` (blocker only) |
@@ -27,3 +27,9 @@ when you add or change an endpoint, update the matching row in the same commit.
 | **Usage** | `GET /usage/summary` |
 | **Health** | `GET /health` (includes `version` — the release baked in at deploy, `APP_VERSION`) |
 | **Version** | `GET /version/latest` (no auth; latest GitHub release for `GITHUB_REPO`, ~5-min cache — tag/notes/assets; feeds the desktop auto-updater) |
+
+**MCP server scoping.** `mcp_servers.owner_email` splits servers into *global*
+(NULL owner, admin-managed) and *personal* (owner = a user). `admin/mcp-servers`
+CRUD only sees/touches global servers (404 on personal ones); `mcp/servers` CRUD
+only sees/touches the caller's own. `GET /mcp/tools` returns global + the
+caller's personal tools; rooms get global-only.

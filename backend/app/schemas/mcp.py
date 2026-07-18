@@ -45,6 +45,8 @@ class MCPServerOut(BaseModel):
     args: list[str] | None = None
     env: dict[str, str] | None = None
     enabled: bool
+    # NULL = global (admin-managed); set = personal to this user.
+    owner_email: str | None = None
     created_by: str | None = None
     created_at: datetime
     updated_at: datetime

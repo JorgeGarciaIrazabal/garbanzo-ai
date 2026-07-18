@@ -754,6 +754,8 @@ class RoomChatService:
 
         mcp = MCPService(self.db)
         try:
+            # Rooms are multi-user: global servers only, never any one member's
+            # personal servers (user_email omitted → global-only).
             all_tools = await mcp.list_all_tools(enabled_only=True)
         except Exception as exc:
             logger.warning("Failed to list MCP tools for room agent: %s", exc)

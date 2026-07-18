@@ -3547,5 +3547,17 @@
   "messageRoomEmptyHint": "Type a message to get started. Use @AgentName to call an agent, or @all to mention everyone.",
   "@messageRoomEmptyHint": {
     "description": "Empty-state hint in a room chat view."
+  },
+  "titleMyMcpServers": "My MCP servers",
+  "@titleMyMcpServers": {
+    "description": "Settings section title for the user's own MCP tool servers."
+  },
+  "messagePersonalMcpServersHint": "Connect your own tool servers. Only you can see and use these — admins manage shared servers for everyone.",
+  "@messagePersonalMcpServersHint": {
+    "description": "Explanatory hint below the personal MCP servers list in settings."
+  },
+  "labelAddServer": "Add server",
+  "@labelAddServer": {
+    "description": "Button label to add a new personal MCP server."
   }
 }

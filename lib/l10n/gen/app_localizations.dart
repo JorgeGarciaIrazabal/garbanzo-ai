@@ -4598,6 +4598,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Type a message to get started. Use @AgentName to call an agent, or @all to mention everyone.'**
   String get messageRoomEmptyHint;
+
+  /// Settings section title for the user's own MCP tool servers.
+  ///
+  /// In en, this message translates to:
+  /// **'My MCP servers'**
+  String get titleMyMcpServers;
+
+  /// Explanatory hint below the personal MCP servers list in settings.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect your own tool servers. Only you can see and use these — admins manage shared servers for everyone.'**
+  String get messagePersonalMcpServersHint;
+
+  /// Button label to add a new personal MCP server.
+  ///
+  /// In en, this message translates to:
+  /// **'Add server'**
+  String get labelAddServer;
 }
 
 class _AppLocalizationsDelegate

@@ -8,7 +8,9 @@ which can also disable accounts or grant admin.
 
 ## How do I connect an MCP tool server?
 Admin → MCP Servers: add the server's connection details and use
-**Test connection**. Its tools then appear in everyone's Skills library.
+**Test connection**. These are **global** servers — their tools appear in
+everyone's Skills library. (Individual users can also connect their own
+private servers from Settings → Tools; those are visible only to that user.)
 
 ## How do I manage which models are available?
 Admin → Models syncs the model list from the LLM backend (Ollama) and lets
