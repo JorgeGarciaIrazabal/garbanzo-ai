@@ -155,7 +155,7 @@ class _ReportsTabState extends State<ReportsTab> {
             key: const ValueKey('reports_status_filter'),
             segments: [
               ButtonSegment(
-                value: AppLocalizations.of(context)!.labelAllLowercase,
+                value: 'all',
                 label: Text(AppLocalizations.of(context)!.labelAll),
               ),
               for (final e in ReportsTab.statusLabels.entries)

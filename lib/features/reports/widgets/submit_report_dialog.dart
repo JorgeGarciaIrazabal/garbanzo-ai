@@ -105,7 +105,7 @@ class _SubmitReportDialogState extends State<SubmitReportDialog> {
             SegmentedButton<String>(
               segments: [
                 ButtonSegment(
-                  value: AppLocalizations.of(context)!.hintBug,
+                  value: 'bug',
                   label: Text(AppLocalizations.of(context)!.labelBug),
                   icon: Icon(Icons.bug_report_outlined),
                 ),

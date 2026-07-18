@@ -250,7 +250,7 @@ class _ControlBar extends StatelessWidget {
                 onLanguageSelected(code == 'auto' ? null : code),
             itemBuilder: (context) => [
               PopupMenuItem(
-                value: AppLocalizations.of(context)!.labelThinkingAuto,
+                value: 'auto',
                 child: Text(AppLocalizations.of(context)!.messageAuto),
               ),
               const PopupMenuDivider(),

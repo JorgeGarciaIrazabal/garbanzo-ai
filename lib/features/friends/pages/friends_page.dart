@@ -358,11 +358,11 @@ class _FriendsPageState extends State<FriendsPage> {
               : _confirmBlock(friend.email),
           itemBuilder: (_) => [
             PopupMenuItem(
-              value: AppLocalizations.of(context)!.removeLowercase,
+              value: 'remove',
               child: Text(AppLocalizations.of(context)!.removeFriend),
             ),
             PopupMenuItem(
-              value: AppLocalizations.of(context)!.blockLowercase,
+              value: 'block',
               child: Text(AppLocalizations.of(context)!.block),
             ),
           ],

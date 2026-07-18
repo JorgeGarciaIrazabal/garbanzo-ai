@@ -232,7 +232,7 @@ class _AddAgentDialogState extends State<_AddAgentDialog> {
                     ),
                   ),
                   DropdownMenuItem(
-                    value: AppLocalizations.of(context)!.labelThinkingAuto,
+                    value: 'auto',
                     child: Text(
                       AppLocalizations.of(context)!.autoJumpInWhenRelevantLlm,
                     ),

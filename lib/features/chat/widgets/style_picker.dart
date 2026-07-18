@@ -345,7 +345,12 @@ Future<void> showStylePicker(BuildContext context) {
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(sheetContext).viewInsets.bottom,
       ),
-      child: withProviders(const StylePickerPanel()),
+      // `useSafeArea: true` wraps the sheet in `SafeArea(bottom: false)`, so a
+      // short, content-sized sheet would sit flush behind the Android system
+      // navigation bar (home/back/recents). This inner SafeArea pads the
+      // bottom clear of it (the `mute_sheet` idiom); when the keyboard is up
+      // the outer padding takes over and this collapses to zero.
+      child: SafeArea(child: withProviders(const StylePickerPanel())),
     ),
   );
 }
@@ -1094,7 +1099,7 @@ class _StyleCard extends StatelessWidget {
                       ),
                     ),
                     PopupMenuItem(
-                      value: AppLocalizations.of(context)!.edit,
+                      value: 'edit',
                       child: Text(AppLocalizations.of(context)!.editEllipsis),
                     ),
                     PopupMenuItem(
@@ -1104,7 +1109,7 @@ class _StyleCard extends StatelessWidget {
                       ),
                     ),
                     PopupMenuItem(
-                      value: AppLocalizations.of(context)!.deleteLowercase,
+                      value: 'delete',
                       child: Text(AppLocalizations.of(context)!.delete),
                     ),
                   ],
