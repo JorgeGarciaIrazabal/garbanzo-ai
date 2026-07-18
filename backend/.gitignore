@@ -1,3 +1,6 @@
 .env
 web/*
 .cursor/mcp.json
+coverage.xml
+.coverage
+htmlcov/

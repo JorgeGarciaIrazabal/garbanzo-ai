@@ -54,8 +54,16 @@ jobs:
       - name: Lint (ruff)
         run: just be-lint
 
-      - name: Test (pytest)
-        run: just be-test
+      - name: Test (pytest with coverage)
+        run: just be-test-cov
+
+      - name: Upload backend coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./backend/coverage.xml
+          flags: backend
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
 
   frontend:
     name: Frontend (lint + test)
@@ -81,5 +89,13 @@ jobs:
       - name: Lint (flutter analyze)
         run: just fe-lint
 
-      - name: Test (flutter test)
-        run: just fe-test
+      - name: Test (flutter test with coverage)
+        run: just fe-test-cov
+
+      - name: Upload frontend coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage/lcov.info
+          flags: frontend
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false

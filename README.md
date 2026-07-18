@@ -1,6 +1,7 @@
 # Garbanzo AI
 
 [![CI](https://github.com/JorgeGarciaIrazabal/garbanzo-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/JorgeGarciaIrazabal/garbanzo-ai/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/JorgeGarciaIrazabal/garbanzo-ai/branch/main/graph/badge.svg)](https://codecov.io/gh/JorgeGarciaIrazabal/garbanzo-ai)
 
 A Flutter web app with FastAPI backend.
 

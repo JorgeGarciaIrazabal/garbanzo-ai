@@ -185,6 +185,10 @@ be-format:
 be-test:
     cd backend; uv run pytest
 
+# Run pytest on backend with coverage (writes backend/coverage.xml)
+be-test-cov:
+    cd backend; uv run pytest --cov=app --cov-report=xml --cov-report=term-missing
+
 # ============================================================================
 # Frontend Commands (Flutter)
 # ============================================================================
@@ -216,6 +220,10 @@ fe-build:
 # froze the machine. 4 is fast enough for the suite (~10s) and safe.
 fe-test:
     flutter test --concurrency=4
+
+# Run Flutter tests with coverage (writes coverage/lcov.info)
+fe-test-cov:
+    flutter test --concurrency=4 --coverage
 
 # Format Dart files (lib/ only — mirrors pre-commit hook)
 fe-format:
