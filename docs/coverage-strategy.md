@@ -37,11 +37,11 @@ File → current % → why it matters.
 |------|---|-----|
 | `app/api/v1/endpoints/auth.py` | 40 | Login/register/refresh/verify — the front door. |
 | `app/core/security.py` | 91 | Token create/decode, password hash. Already good; aim 100. |
-| `app/services/friendship_service.py` | 39 | Writes friendship rows; used by share flow. |
-| `app/services/share_service.py` | 38 | Sharing items across users — privacy-sensitive. |
-| `app/services/memory_extraction.py` | 16 | Runs in a background job on user conversations; wrong output poisons memory. |
-| `app/jobs/extract_memories_job.py` | 22 | Schedules the above; untested path = silent memory corruption. |
-| `app/services/fcm_service.py` | 24 | Push delivery; failures go unnoticed by users. |
+| `app/services/friendship_service.py` | ~95 | Writes friendship rows; used by share flow. |
+| `app/services/share_service.py` | ~95 | Sharing items across users — privacy-sensitive. |
+| `app/services/memory_extraction.py` | ~90 | Runs in a background job on user conversations; wrong output poisons memory. |
+| `app/jobs/extract_memories_job.py` | ~95 | Schedules the above; untested path = silent memory corruption. |
+| `app/services/fcm_service.py` | ~90 | Push delivery; failures go unnoticed by users. |
 | `app/api/v1/endpoints/rooms.py` | 49 | Room CRUD + member management; data integrity. |
 
 ### Tier 2 — core flow

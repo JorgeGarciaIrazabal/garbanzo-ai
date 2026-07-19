@@ -37,9 +37,9 @@ Format your response as a JSON array of memory objects, each with a "content" fi
 
 Example output:
 [
-  {"content": "User works as a software engineer specializing in backend development"},
-  {"content": "User prefers concise, direct answers with code examples"},
-  {"content": "User is learning Spanish and practices conversation regularly"}
+  {{"content": "User works as a software engineer specializing in backend development"}},
+  {{"content": "User prefers concise, direct answers with code examples"}},
+  {{"content": "User is learning Spanish and practices conversation regularly"}}
 ]
 
 If no memorable facts are found, return an empty array [].
