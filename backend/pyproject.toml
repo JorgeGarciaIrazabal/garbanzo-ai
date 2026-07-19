@@ -50,6 +50,14 @@ dev = [
 source = ["app"]
 branch = true
 omit = ["app/tests/*", "tests/*"]
+# Coverage loses tracking across `await` points that involve SQLAlchemy's
+# internal greenlet context switches (async SQLAlchemy is built on greenlet).
+# Without this flag, async endpoint/service function bodies are reported as
+# missed even when executed — see coveragepy/coveragepy#1082. Files that
+# don't go through async sqlalchemy (LLM providers, native tools, audio
+# services) genuinely have the gaps shown; the flag just stops the
+# systematic false-misses in DB-touching async code.
+concurrency = ["thread", "greenlet"]
 
 [tool.coverage.report]
 exclude_lines = [

@@ -4,35 +4,30 @@
 > 100% on generated code, UI plumbing, or hard-to-test integrations.
 
 Current baseline (measured locally with `just be-test-cov` / `just fe-test-cov`,
-2026-07-18):
+2026-07-19):
 
 | Stack    | Coverage | Tests  |
 |----------|----------|--------|
-| Backend  | 73%      | 841    |
+| Backend  | 77%      | 841    |
 | Frontend | ~30%     | —      |
 
 Combined + per-flag views on Codecov (`codecov.io/gh/JorgeGarciaIrazabal/garbanzo-ai`).
 Status checks gate PRs through `codecov.yml` (see **CI gating** below).
 
-> ⚠️ **Known coverage measurement bug (2026-07-18).** `coverage.py` 7.x in this
-> environment only traces module-level statements and `def`/`class` declaration
-> lines; function bodies — sync **and** async — are reported as missed
-> regardless of whether they executed. Reproduced with `coverage.Coverage()` +
-> a trivial `def f(): return 1` invoked via the embedded `start()` API: `f()` runs
-> (`print` fires) but its `return` line shows as uncovered. `coverage run
-<script>` (subprocess mode) traces correctly, which is why some files
-> mysteriously hover near 0%/100% — the ones near 100% are almost entirely
-> module-level code, the ones near 0% are almost entirely function-bodies.
-> Symptom to watch for: a passing test leaves the lines it exercised "missing",
-> and adding more tests only moves branch coverage, never line coverage.
->
-> Consequence: the backend number above (73%) is **systematically deflated**;
-> real exercised coverage is materially higher. Treat per-file %s in the gap
-> tables below as a **lower bound**, not ground truth. Do **not** chase a file
-> to "100%" locally until this is fixed — you'll be fighting the tool, not real
-> gaps. A fix means either pinning a coverage version whose CTracer works with
-> this Python/Clang/glibc combination, or switching CI to `coverage run -m
-> pytest` (subprocess mode, which works). Tracking TODO: link an issue.
+> ℹ️ **Coverage concurrency config (2026-07-19).** `coverage.py` loses
+> tracking across `await` points that go through async SQLAlchemy, because
+> SQLAlchemy's async layer is built on **greenlet**. Without
+> `concurrency = ["thread", "greenlet"]` in `[tool.coverage.run]`
+> (backend/pyproject.toml), async endpoint/service function bodies that
+> touch the DB are reported as missed even when executed — see
+> [coveragepy/coveragepy#1082](https://github.com/coveragepy/coveragepy/issues/1082).
+> The fix is already applied. Numbers below were re-measured with it on;
+> pre-fix backend was 73% (auth.py 40% → 79%, rooms.py 49% → 88%,
+> usage_service 43% → 97%, total 73% → 77%). Files that don't go through
+> async SQLAlchemy (`ollama_provider`, `native_tools`, `tts_service`,
+> `stt_service`) genuinely have the gaps shown — the fix doesn't inflate
+> them. When re-baselining after future changes, keep the concurrency flag
+> on or the numbers collapse back to the deflated 73%.
 
 ## What "critical" means here
 
@@ -51,41 +46,40 @@ Priority for new tests is driven by **blast radius**, not line count:
 
 ## Backend priorities
 
-Top gaps from `pytest --cov=app --cov-report=term-missing`, worst first.
-File → current % → why it matters. **Per the measurement-bug note above,
-function-body lines are under-counted — a file showing 40% may actually be
-~85% exercised. Use these as relative priorities, not absolute truth.**
+Top gaps from `pytest --cov=app --cov-report=term-missing` (with the
+greenlet concurrency flag on — see preamble), worst first.
+File → current % → why it matters.
 
 ### Tier 1 — security & data integrity
 | File | % | Why |
 |------|---|-----|
-| `app/api/v1/endpoints/auth.py` | 40 | Login/register/refresh/verify — the front door. |
+| `app/api/v1/endpoints/auth.py` | 79 | Login/register/refresh/verify — the front door. Jumped from 40% after the greenlet fix; remaining 21% is refresh, password change, avatar upload edge cases. |
 | `app/core/security.py` | 91 | Token create/decode, password hash. Already good; aim 100. |
-| `app/services/friendship_service.py` | 98 | Writes friendship rows; used by share flow. ✅ at target. |
-| `app/services/share_service.py` | 97 | Sharing items across users — privacy-sensitive. ✅ at target. |
+| `app/services/friendship_service.py` | 99 | Writes friendship rows; used by share flow. ✅ at target. |
+| `app/services/share_service.py` | 99 | Sharing items across users — privacy-sensitive. ✅ at target. |
 | `app/services/memory_extraction.py` | 93 | Runs in a background job on user conversations; wrong output poisons memory. |
 | `app/jobs/extract_memories_job.py` | 100 | Schedules the above. ✅ covered — drop from gap list if it stays. |
 | `app/services/fcm_service.py` | 84 | Push delivery; failures go unnoticed by users. |
-| `app/api/v1/endpoints/rooms.py` | 49 | Room CRUD + member management; data integrity. |
+| `app/api/v1/endpoints/rooms.py` | 88 | Room CRUD + member management; data integrity. Jumped from 49% after the greenlet fix; remaining 12% is mostly error paths. |
 
 ### Tier 2 — core flow
 | File | % | Why |
 |------|---|-----|
-| `app/services/native_tools.py` | 39 | Tool dispatch — tools execute with user permissions. |
-| `app/services/ollama_provider.py` | 42 | LLM streaming; bug = broken chat or leaked content. |
+| `app/services/native_tools.py` | 39 | Tool dispatch — tools execute with user permissions. No async SQLAlchemy → the 39% is real, not a measurement artifact. |
+| `app/services/ollama_provider.py` | 42 | LLM streaming; bug = broken chat or leaked content. No async SQLAlchemy → real gap. |
 | `app/services/chat_service.py` | 66 | Central chat orchestration. |
-| `app/services/mcp_service.py` | 61 | MCP tool execution — external code with user perms. |
-| `app/scheduler.py` | 53 | Runs scheduled actions & jobs. |
-| `app/db/migrations.py` | 0 | Applied at startup; bad migration = won't boot. |
-| `app/db/session.py` | 39 | Engine/session factory; tested indirectly but not directly. |
+| `app/services/mcp_service.py` | 68 | MCP tool execution — external code with user perms. |
+| `app/scheduler.py` | 52 | Runs scheduled actions & jobs. |
+| `app/db/migrations.py` | 0 | Applied at startup; bad migration = won't boot. Needs real asyncpg+Postgres — hard to unit-test without breaking the "no real Postgres in tests" rule. |
+| `app/db/session.py` | 33 | Engine/session factory; tested indirectly but not directly. |
 
 ### Tier 3 — operational
 | File | % | Why |
 |------|---|-----|
-| `app/services/usage_service.py` | 43 | Accounting for billing/limits. |
-| `app/services/stt_service.py` | 41 | Whisper; optional, low blast radius. |
-| `app/services/tts_service.py` | 30 | Kokoro; optional. |
-| `app/services/model_management_service.py` | 27 | Model list/availability. |
+| `app/services/usage_service.py` | 97 | Accounting for billing/limits. ✅ at target after greenlet fix (was 43%). |
+| `app/services/stt_service.py` | 44 | Whisper; optional, low blast radius. |
+| `app/services/tts_service.py` | 33 | Kokoro; optional. |
+| `app/services/model_management_service.py` | 38 | Model list/availability. |
 
 ### Not worth targeting
 - `app/main.py` (27%) — startup wiring; covered by integration smoke tests.
@@ -108,10 +102,12 @@ A drop below a floor posts a failing status check on the PR; CI itself does
 outage doesn't block merges. Bump the floors when the baseline in this file
 moves — they track the doc, not the other way around.
 
-> The measurement-bug caveat still applies to what Codecov *receives*: until
-> the CTracer issue is fixed, the backend flag number is deflated. The floors
-> are set conservatively with that in mind; raising them before the bugfix
-> risks gating PRs on noise.
+> The floors are set just above the current backend baseline (77%) so PRs
+> that drop coverage post a failing check without flapping on noise.
+> Keep the `concurrency = ["thread", "greenlet"]` flag in
+> `backend/pyproject.toml` on, or the backend number collapses back to the
+> pre-fix 73% and the floors will start gating on legitimate tests that
+> *did* run but coverage missed.
 
 ## Frontend priorities
 
@@ -197,9 +193,11 @@ widgets with non-trivial interaction (`MessageComposer`, `ChatPage` search,
 2. Write tests until that file is ≥85% (backend) / ≥75% (frontend) or
    all branches with side-effects are covered — whichever first.
 3. Run `just be-test-cov` / `just fe-test-cov`; confirm the local number moves.
-   **Caveat (bug above): until the CTracer issue is fixed, line coverage for
-   function bodies will *not* move on the backend — only branch coverage
-   will. Judge backend test additions by branch %, not line %.**
+   The backend number *will* move for DB-touching code now that the
+   greenlet concurrency flag is on (see the preamble note). If a test runs
+   a code path but the line still shows missing, check whether the path
+   goes through a library that uses its own greenlet/eventlet — those need
+   additional `concurrency` entries.
 4. Commit tests alongside any refactor needed to make the code testable
    (e.g. injecting the session/engine). If you change behavior, also update
    the relevant `docs/` file per AGENTS.md.
@@ -210,10 +208,10 @@ widgets with non-trivial interaction (`MessageComposer`, `ChatPage` search,
 
 | Stack    | Now | Target | Stretch |
 |---------|-----|--------|---------|
-| Backend | 73% (deflated; see bug) | 80%    | 85%     |
+| Backend | 77% | 85%    | 90%     |
 | Frontend | ~30% | 50% | 65%      |
 
-Targets stop there deliberately. Past ~85% you're testing generated code,
+Targets stop there deliberately. Past ~90% you're testing generated code,
 animations, and integration glue that's better covered by E2E (see the
 `e2e-testing` skill) than by unit tests.
 
@@ -231,6 +229,8 @@ just fe-test-cov
 Update the tables and tiers when the shape of the code changes. Delete
 entries that hit target — don't let this file pretend gaps still exist.
 
-**When the coverage measurement bug is fixed**, re-measure from scratch and
-expect a one-time jump in the backend number (function bodies will finally
-count). Re-baseline everything and raise the `codecov.yml` floors accordingly.
+If you change anything under `[tool.coverage.run]` in
+`backend/pyproject.toml` (especially the `concurrency` setting), re-measure
+from scratch — the backend number is sensitive to it. See the preamble note
+for what the greenlet flag does and why removing it drops coverage back to
+~73% without any code change.
