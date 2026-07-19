@@ -145,11 +145,24 @@ jobs:
         with:
           path: artifacts
 
+      # The checkout above is at the tagged commit, which includes the
+      # CHANGELOG.md section scripts/deploy.sh generated for this release.
+      # Extract its top section (first "## v" up to the next "## v") to use as
+      # the curated release body; generate_release_notes appends the commit list.
+      - name: Extract changelog section
+        run: |
+          set -eu
+          if [ -f CHANGELOG.md ]; then
+            awk '/^## v/{n++} n==1{print} n==2{exit}' CHANGELOG.md > release-body.md
+          fi
+          [ -s release-body.md ] || echo "Release ${GITHUB_REF_NAME}" > release-body.md
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           name: Release ${{ github.ref_name }}
+          body_path: release-body.md
           generate_release_notes: true
           files: |
             artifacts/**/*.tar.gz

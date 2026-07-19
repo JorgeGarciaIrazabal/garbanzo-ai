@@ -6,11 +6,13 @@
 # Builds from a pristine temporary git worktree of main, so it can run from
 # any branch with a dirty tree. Safe to re-run; data lives in named volumes.
 #
-# After a successful deploy, bumps the patch version in pubspec.yaml, commits
-# the bump on main, creates an annotated tag v<version> (with the ngrok URL in
-# the tag message so CI can extract it), and pushes both to origin. The tag
-# push triggers the GitHub Actions workflow that builds Linux + Windows desktop
-# binaries and attaches them to a GitHub Release.
+# After a successful deploy, generates an LLM-authored changelog section (via
+# opencode, from this release's git log + user reports) into CHANGELOG.md, bumps
+# the patch version in pubspec.yaml, commits both on main, creates an annotated
+# tag v<version> (with the ngrok URL + changelog in the tag message so CI can
+# extract them), and pushes both to origin. The tag push triggers the GitHub
+# Actions workflow that builds Linux + Windows desktop binaries and attaches them
+# to a GitHub Release.
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -140,9 +142,105 @@ echo "  APK:    $APK_PATH"
 echo "  Image:  garbanzo-backend:$SHA"
 echo "  Status: just deploy-status"
 
+# --- Changelog ----------------------------------------------------------------
+# Generate a human-readable changelog section for this release and prepend it to
+# CHANGELOG.md. The content is authored by an LLM (opencode) from the release's
+# git log + the user reports it addressed; we only supply the raw inputs and the
+# instructions (scripts/changelog-instructions.md). Best-effort: a changelog
+# failure must never abort a deploy that has already shipped.
+step "Generating changelog"
+generate_changelog() {
+    local last_tag inputs
+    last_tag=$(git -C "$REPO" describe --tags --abbrev=0 2>/dev/null || true)
+    inputs="$WT/changelog-inputs.md"  # under the temp worktree; cleaned up on exit
+
+    {
+        echo "# Release inputs for v${NEW_VERSION} (date: $(date +%F))"
+        echo ""
+        echo "## Git log since ${last_tag:-the beginning}"
+        echo ""
+        if [[ -n "$last_tag" ]]; then
+            git -C "$REPO" log --no-merges --format='- %s%n%b' "${last_tag}..HEAD"
+        else
+            git -C "$REPO" log --no-merges --format='- %s%n%b'
+        fi
+        echo ""
+        echo "## User reports (bug/feature submissions)"
+        echo ""
+        # Reuse the prod psql escape hatch (see .claude/skills/user-reports).
+        # The prod stack is already up and health-checked above. Best-effort.
+        "${COMPOSE[@]}" exec -T postgres psql -U garbanzo -d garbanzo_ai_prod \
+            -c "SELECT id, type, status, title, description
+                FROM reports
+                WHERE status IN ('in_progress', 'closed')
+                ORDER BY updated_at DESC;" 2>/dev/null \
+            || echo "(user reports unavailable — proceeding with git log only)"
+    } > "$inputs"
+
+    if ! command -v opencode >/dev/null 2>&1; then
+        echo "WARNING: opencode not found — writing a minimal fallback changelog."
+        return 1
+    fi
+
+    # Model: use CHANGELOG_OPENCODE_MODEL if set, otherwise let opencode pick its
+    # own configured default (provider strings differ between hosts, so we avoid
+    # hardcoding one that may not resolve).
+    local model_args=()
+    [[ -n "${CHANGELOG_OPENCODE_MODEL:-}" ]] && model_args=(-m "$CHANGELOG_OPENCODE_MODEL")
+
+    # The message must come first: -f/--file is a variadic option and would
+    # otherwise swallow the trailing prompt as another file path.
+    opencode run \
+        "Follow scripts/changelog-instructions.md. Using the git log and user
+         reports in the attached inputs file, prepend a new section for version
+         v${NEW_VERSION} (dated $(date +%F)) to CHANGELOG.md. Edit only
+         CHANGELOG.md." \
+        --auto "${model_args[@]}" \
+        --dir "$REPO" \
+        -f "$REPO/scripts/changelog-instructions.md" \
+        -f "$inputs" \
+        || return 1
+    return 0
+}
+
+fallback_changelog() {
+    # Minimal deterministic changelog: raw feat/fix lines from the release range.
+    # Insert the new section before the first existing "## v" (or at the end if
+    # none yet), preserving the "# Changelog" header + blurb.
+    local last_tag section tmp
+    last_tag=$(git -C "$REPO" describe --tags --abbrev=0 2>/dev/null || true)
+    section="$WT/changelog-section.md"
+    {
+        echo "## v${NEW_VERSION} — $(date +%F)"
+        echo ""
+        git -C "$REPO" log --no-merges --format='%s' "${last_tag:+${last_tag}..}HEAD" \
+            | grep -E '^(feat|fix)' | sed -E 's/^(feat|fix)(\([^)]*\))?: */- /' \
+            || echo "- No user-facing changes."
+        echo ""
+    } > "$section"
+
+    [[ -f "$REPO/CHANGELOG.md" ]] || printf '# Changelog\n\n' > "$REPO/CHANGELOG.md"
+    tmp="$WT/changelog-new.md"
+    if grep -q '^## v' "$REPO/CHANGELOG.md"; then
+        # Splice the new section in just before the first release heading.
+        awk -v sf="$section" '
+            /^## v/ && !done { while ((getline l < sf) > 0) print l; done=1 }
+            { print }
+        ' "$REPO/CHANGELOG.md" > "$tmp"
+    else
+        cat "$REPO/CHANGELOG.md" "$section" > "$tmp"
+    fi
+    mv "$tmp" "$REPO/CHANGELOG.md"
+}
+
+if ! generate_changelog; then
+    fallback_changelog
+fi
+
 # --- Tag & version bump -------------------------------------------------------
-# Bump the patch version, commit on main, create an annotated tag, and push.
-# The tag push triggers the GitHub Actions workflow that builds the desktop apps.
+# Bump the patch version, commit on main (with the changelog), create an
+# annotated tag, and push. The tag push triggers the GitHub Actions workflow
+# that builds the desktop apps.
 step "Bumping version and creating release tag"
 
 # Update pubspec.yaml: keep the existing +build suffix (or add +1 if none)
@@ -150,12 +248,22 @@ BUILD_SUFFIX=$(grep '^version:' "$REPO/pubspec.yaml" | sed 's/version: *//' | cu
 [[ -n "$BUILD_SUFFIX" ]] || BUILD_SUFFIX="1"
 sed -i "s/^version:.*/version: ${NEW_VERSION}+${BUILD_SUFFIX}/" "$REPO/pubspec.yaml"
 
-git -C "$REPO" add pubspec.yaml
+# Stage only these two paths so any stray edit opencode may have made to the
+# working tree is not committed.
+git -C "$REPO" add pubspec.yaml CHANGELOG.md
 git -C "$REPO" commit -m "chore: bump version to ${NEW_VERSION}" >/dev/null
 
+# Extract the top section of CHANGELOG.md (this release's notes) for the tag
+# message: everything from the first "## v" up to the next "## v".
+CHANGELOG_SECTION=$(awk '/^## v/{n++} n==1{print} n==2{exit}' "$REPO/CHANGELOG.md")
+
 # Create an annotated tag. The tag message includes the ngrok URL on a line
-# prefixed with "API_URL: " so the CI workflow can extract it.
-git -C "$REPO" tag -a "v${NEW_VERSION}" -m "Release v${NEW_VERSION}" -m "API_URL: https://${NGROK_DOMAIN}"
+# prefixed with "API_URL: " so the CI workflow can extract it, plus this
+# release's changelog section.
+git -C "$REPO" tag -a "v${NEW_VERSION}" \
+    -m "Release v${NEW_VERSION}" \
+    -m "API_URL: https://${NGROK_DOMAIN}" \
+    -m "${CHANGELOG_SECTION}"
 
 step "Pushing main + tag v${NEW_VERSION} to origin"
 git -C "$REPO" push origin main

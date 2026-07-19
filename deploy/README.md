@@ -19,6 +19,13 @@ a dirty tree. Each deploy also tags `garbanzo-backend:<short-sha>` and drops an
 APK at `dist/garbanzo-ai-<short-sha>.apk` with the ngrok URL baked in — web and
 Android hit the same backend simultaneously.
 
+Every deploy also generates a release changelog: `opencode` reads this release's
+git log plus the user reports it addressed and prepends a section (User requests
+completed / Features / Fixes) to `CHANGELOG.md`, which is committed with the
+version bump and used as the GitHub Release body. It's best-effort — if opencode
+or its model isn't available, a raw commit list is written instead and the deploy
+proceeds. Set `CHANGELOG_OPENCODE_MODEL` in `.env` to override the model.
+
 ## First-time setup
 
 1. **ngrok** — create an account, reserve a static domain

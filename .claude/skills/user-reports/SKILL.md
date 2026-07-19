@@ -51,6 +51,9 @@ If there are no open reports, say so and stop.
      ambiguities with the user before building — the reporter isn't available
      for questions, so the user speaks for them.
    - Verify: `just check`, plus `just be-test` / `just fe-test` as applicable.
+   - When you commit the fix, add a `Report: <report title>` trailer to the
+     commit message (blank line, then the trailer). The deploy-time changelog
+     generator uses it to list this report under "User requests completed".
 5. **Close the loop in prod** — a fix isn't delivered until it's deployed.
    Once the work is merged to `main`, ask the user whether to `just deploy`
    now. After a successful deploy (`just deploy-status` healthy):

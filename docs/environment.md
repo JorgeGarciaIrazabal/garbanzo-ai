@@ -68,6 +68,9 @@ MICROAPPS_OPENCODE_MODEL=ollama/kimi-k2.7-code:cloud
 # Deployment-only (set via deploy/docker-compose.yml, not backend/.env):
 #   MICROAPPS_GIT_URL      — clone URL; also enables the periodic sync job
 #   MICROAPPS_PROXY_MODE   — serve the panel via the backend /micro-apps proxy
+# Deploy-script-only (read from deploy/.env by scripts/deploy.sh on the host):
+#   CHANGELOG_OPENCODE_MODEL — opencode model that writes CHANGELOG.md on deploy
+#                              (unset → opencode's own default; `opencode models`)
 ```
 
 > Prod secrets (ngrok authtoken/domain, prod DB password, SECRET_KEY, git/SSH
