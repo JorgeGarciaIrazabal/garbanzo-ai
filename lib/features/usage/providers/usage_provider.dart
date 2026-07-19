@@ -5,7 +5,10 @@ import 'package:garbanzo_ai/features/usage/models/usage_summary.dart';
 import 'package:garbanzo_ai/features/usage/services/usage_service.dart';
 
 class UsageProvider extends ChangeNotifier with GuardedStateMixin {
-  final UsageService _service = UsageService.instance;
+  UsageProvider({UsageService? service})
+    : _service = service ?? UsageService.instance;
+
+  final UsageService _service;
 
   UsageSummary? _summary;
   UsageSummary? get summary => _summary;
