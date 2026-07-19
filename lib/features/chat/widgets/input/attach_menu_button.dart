@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:garbanzo_ai/core/platform_info.dart';
 import 'package:garbanzo_ai/features/chat/models/chat_attachment.dart';
 import 'package:garbanzo_ai/features/chat/widgets/input/file_picker_helper.dart';
 import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
@@ -20,6 +21,7 @@ class AttachMenuButton extends StatefulWidget {
     required this.enabled,
     required this.existingNames,
     required this.onAdded,
+    this.onPickFolder,
     this.buttonKey,
   });
 
@@ -31,6 +33,10 @@ class AttachMenuButton extends StatefulWidget {
 
   /// Called with the validated attachments to stage.
   final ValueChanged<List<ChatAttachment>> onAdded;
+
+  /// Desktop-only: when set, a "Folder" option appears that lets the user
+  /// attach a folder for the agent to read. Null on mobile/web (no option).
+  final Future<void> Function()? onPickFolder;
 
   /// Key applied to the inner [IconButton] (E2E tests locate it by key).
   final Key? buttonKey;
@@ -60,6 +66,13 @@ class _AttachMenuButtonState extends State<AttachMenuButton> {
       pick: FilePickerHelper.pickFiles,
     ),
   ];
+
+  /// Desktop-only: whether to show the "Folder" attach option.
+  bool get _showFolder => widget.onPickFolder != null && PlatformInfo.isDesktop;
+
+  Future<void> _runFolder() async {
+    await widget.onPickFolder?.call();
+  }
 
   Future<void> _runPick(_AttachOption option) async {
     final result = await option.pick(existingNames: widget.existingNames());
@@ -101,6 +114,15 @@ class _AttachMenuButtonState extends State<AttachMenuButton> {
                 title: Text(option.label),
                 onTap: () => Navigator.of(ctx).pop(option),
               ),
+            if (_showFolder)
+              ListTile(
+                leading: const Icon(Icons.create_new_folder_outlined),
+                title: Text(AppLocalizations.of(ctx)!.titleFolder),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  _runFolder();
+                },
+              ),
           ],
         ),
       ),
@@ -140,6 +162,12 @@ class _AttachMenuButtonState extends State<AttachMenuButton> {
             leadingIcon: Icon(option.icon, size: 20),
             onPressed: () => _runPick(option),
             child: Text(option.label),
+          ),
+        if (_showFolder)
+          MenuItemButton(
+            leadingIcon: const Icon(Icons.create_new_folder_outlined, size: 20),
+            onPressed: _runFolder,
+            child: Text(AppLocalizations.of(context)!.titleFolder),
           ),
       ],
       builder: (context, controller, _) => _buildButton(

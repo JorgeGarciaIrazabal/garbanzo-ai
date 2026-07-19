@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -11,6 +12,7 @@ import 'package:garbanzo_ai/features/chat/talk/talk_mode_page.dart';
 import 'package:garbanzo_ai/features/chat/providers/system_prompt_provider.dart';
 import 'package:garbanzo_ai/features/chat/widgets/input/attach_menu_button.dart';
 import 'package:garbanzo_ai/features/chat/widgets/input/attachment_preview.dart';
+import 'package:garbanzo_ai/features/chat/widgets/input/folder_chip.dart';
 import 'package:garbanzo_ai/features/chat/widgets/input/message_composer.dart';
 import 'package:garbanzo_ai/features/chat/widgets/input/pulsing_dot.dart';
 import 'package:garbanzo_ai/features/chat/widgets/input/voice_recording_helper.dart';
@@ -251,6 +253,65 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
     return '$mins:${secs.toString().padLeft(2, '0')}';
   }
 
+  /// Desktop-only: pick a folder and attach it to the current conversation so
+  /// the agent can read files within it. Guarded to desktop inside
+  /// [AttachMenuButton] (the option only shows there).
+  Future<void> _pickFolder() async {
+    final chatProvider = context.read<ChatProvider>();
+    final messenger = ScaffoldMessenger.of(context);
+    final l10n = AppLocalizations.of(context)!;
+    final conversation = chatProvider.currentConversation;
+    if (conversation == null) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(l10n.messageStartAConversationFirst)),
+      );
+      return;
+    }
+    final path = await FilePicker.getDirectoryPath();
+    if (path == null || !mounted) return;
+    try {
+      await chatProvider.attachClientFolder(conversation.id, path);
+    } catch (e) {
+      logDebug('Failed to attach folder: $e');
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(content: Text(l10n.messageFolderAttachFailed)),
+      );
+    }
+  }
+
+  void _removeFolder() {
+    final chatProvider = context.read<ChatProvider>();
+    final id = chatProvider.currentConversation?.id;
+    if (id != null) unawaited(chatProvider.clearClientFolder(id));
+  }
+
+  /// The composer's `above` slot: an attached-folder chip and/or the staged
+  /// attachment previews. Null when there's nothing to show.
+  Widget? _buildAbove(
+    String? allowedFolder,
+    ColorScheme colorScheme,
+    ThemeData theme,
+  ) {
+    final hasFolder = allowedFolder != null;
+    if (!hasFolder && _attachments.isEmpty) return null;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (hasFolder)
+          FolderChip(folderPath: allowedFolder, onRemove: _removeFolder),
+        if (_attachments.isNotEmpty)
+          AttachmentPreviewBar(
+            attachments: _attachments,
+            onRemove: _removeAttachment,
+            colorScheme: colorScheme,
+            textTheme: theme.textTheme,
+          ),
+      ],
+    );
+  }
+
   // -- Build -----------------------------------------------------------------
 
   @override
@@ -258,6 +319,10 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final isMobile = MediaQuery.of(context).size.width < 600;
+    final chatProvider = context.watch<ChatProvider>();
+    final allowedFolder = chatProvider.clientFolderFor(
+      chatProvider.currentConversation?.id,
+    );
 
     return MentionAutocomplete(
       controller: _controller,
@@ -271,19 +336,13 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
         onStop: widget.onStop,
         isLoading: widget.isLoading,
         hasExtraContent: _attachments.isNotEmpty,
-        above: _attachments.isEmpty
-            ? null
-            : AttachmentPreviewBar(
-                attachments: _attachments,
-                onRemove: _removeAttachment,
-                colorScheme: colorScheme,
-                textTheme: theme.textTheme,
-              ),
+        above: _buildAbove(allowedFolder, colorScheme, theme),
         leading: AttachMenuButton(
           buttonKey: const ValueKey('attach_button'),
           enabled: !widget.isLoading,
           existingNames: () => _attachments.map((a) => a.name).toSet(),
           onAdded: (added) => setState(() => _attachments.addAll(added)),
+          onPickFolder: _pickFolder,
         ),
         overlay: !_isRecording
             ? null

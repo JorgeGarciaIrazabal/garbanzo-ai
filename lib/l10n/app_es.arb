@@ -2005,6 +2005,27 @@
   "@titleFiles": {
     "description": "Attach menu option for files."
   },
+  "titleFolder": "Carpeta",
+  "@titleFolder": {
+    "description": "Attach menu option (desktop) for including a folder in the chat."
+  },
+  "messageFolderScope": "Leyendo archivos en {name}",
+  "@messageFolderScope": {
+    "description": "Chip shown in the composer indicating the agent can read files in the attached folder.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "messageRemoveFolder": "Quitar carpeta",
+  "@messageRemoveFolder": {
+    "description": "Tooltip for removing the attached folder from a conversation."
+  },
+  "messageFolderAttachFailed": "No se pudo adjuntar esa carpeta",
+  "@messageFolderAttachFailed": {
+    "description": "Error snackbar shown when attaching a folder fails."
+  },
   "messageSttUnavailable": "La conversación de voz a texto no está disponible en el servidor.",
   "@messageSttUnavailable": {
     "description": "Error when STT service is unavailable."

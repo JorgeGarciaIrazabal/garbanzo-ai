@@ -4293,6 +4293,30 @@ abstract class AppLocalizations {
   /// **'Files'**
   String get titleFiles;
 
+  /// Attach menu option (desktop) for including a folder in the chat.
+  ///
+  /// In en, this message translates to:
+  /// **'Folder'**
+  String get titleFolder;
+
+  /// Chip shown in the composer indicating the agent can read files in the attached folder.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading files in {name}'**
+  String messageFolderScope(String name);
+
+  /// Tooltip for removing the attached folder from a conversation.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove folder'**
+  String get messageRemoveFolder;
+
+  /// Error snackbar shown when attaching a folder fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t attach that folder'**
+  String get messageFolderAttachFailed;
+
   /// Error when STT service is unavailable.
   ///
   /// In en, this message translates to:

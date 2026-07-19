@@ -127,4 +127,17 @@ abstract class ChatResponseChunk with _$ChatResponseChunk {
     }
     return null;
   }
+
+  /// The backend asking this desktop client to serve a folder read
+  /// (idea 17). Carries {tool_call_id, tool_name, args:{path}}.
+  bool get isClientToolRequest => type == 'client_tool_request';
+
+  Map<String, dynamic>? get clientToolRequest {
+    final raw = metadata?['client_tool_request'];
+    if (raw is Map<String, dynamic>) return raw;
+    if (raw is Map) {
+      return raw.map((k, v) => MapEntry(k.toString(), v));
+    }
+    return null;
+  }
 }

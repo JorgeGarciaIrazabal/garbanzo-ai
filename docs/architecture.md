@@ -66,6 +66,13 @@ services/      chat_service.py (turn orchestration + tool loop)
                and executes via its normal REST calls)
                app_help.py (keyword retrieval over app/docs/help/ guides
                for the app_help tool; parsed once, cached in memory)
+               client_tool_bridge.py + client_file_extract.py (idea 17:
+               on-demand client-served folder reads — read_file/list_files
+               are delegated to the desktop client via a client_tool_request
+               SSE chunk parked on ClientToolBridge until the client POSTs
+               to /client-tool-result; client_file_extract turns the returned
+               bytes into text (KB extractors + markitdown). The backend never
+               reads the host filesystem — the folder lives only on the client)
                fcm_service.py, device_service.py, notification_service.py
                image_utils.py (image attachment resize/encoding)
 db/            base.py, session.py (AsyncSession, init_db), migrations.py

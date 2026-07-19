@@ -183,6 +183,23 @@ class ChatService {
     throw _handleError(response);
   }
 
+  /// Return a client-served folder read to the in-flight turn (idea 17).
+  ///
+  /// The backend emits a `client_tool_request` chunk when the agent calls
+  /// `read_file`/`list_files`; the desktop app reads the file locally and posts
+  /// the result here so the parked turn can resume. The folder never leaves the
+  /// client. [payload] carries `tool_call_id` plus either `data`/`filename`
+  /// (read_file) or `entries` (list_files), or `ok:false` + `error`.
+  Future<void> postClientToolResult(
+    String conversationId,
+    Map<String, dynamic> payload,
+  ) async {
+    await _api.post(
+      '/api/v1/chat/conversations/$conversationId/client-tool-result',
+      data: payload,
+    );
+  }
+
   Future<void> deleteConversation(String conversationId) async {
     final response = await _api.delete(
       '/api/v1/chat/conversations/$conversationId',
@@ -205,12 +222,16 @@ class ChatService {
     double temperature = 0.7,
     int? maxTokens,
     double? topP,
+    bool hasClientFolder = false,
   }) {
     return _sseStream('/api/v1/chat/conversations/$conversationId/chat', {
       'message': message,
       if (attachments.isNotEmpty)
         'attachments': attachments.map((a) => a.toJson()).toList(),
       'options': _buildOptions(temperature, maxTokens, topP),
+      // Tells the backend to advertise the client-served read_file/list_files
+      // tools; when the model calls them we serve the read locally (idea 17).
+      if (hasClientFolder) 'has_client_folder': true,
     });
   }
 

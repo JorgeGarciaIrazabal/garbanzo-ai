@@ -110,6 +110,7 @@ class _FakeChatService extends ChatService {
     double temperature = 0.7,
     int? maxTokens,
     double? topP,
+    bool hasClientFolder = false,
   }) {
     streamChatCalls++;
     if (streamChatError != null) throw streamChatError!;

@@ -2399,6 +2399,20 @@ class AppLocalizationsEs extends AppLocalizations {
   String get titleFiles => 'Archivos';
 
   @override
+  String get titleFolder => 'Carpeta';
+
+  @override
+  String messageFolderScope(String name) {
+    return 'Leyendo archivos en $name';
+  }
+
+  @override
+  String get messageRemoveFolder => 'Quitar carpeta';
+
+  @override
+  String get messageFolderAttachFailed => 'No se pudo adjuntar esa carpeta';
+
+  @override
   String get messageSttUnavailable =>
       'La conversación de voz a texto no está disponible en el servidor.';
 

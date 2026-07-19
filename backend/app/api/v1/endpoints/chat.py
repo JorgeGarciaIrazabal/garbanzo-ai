@@ -16,6 +16,7 @@ from app.db.session import get_db
 from app.schemas.chat import (
     ChatRequest,
     ChatResponseChunk,
+    ClientToolResult,
     ConversationCreate,
     ConversationDetailOut,
     ConversationList,
@@ -32,6 +33,7 @@ from app.schemas.chat import (
 )
 from app.schemas.mute import MuteUpdate
 from app.services.chat_service import ChatService
+from app.services.client_tool_bridge import client_tool_bridge
 from app.services.conversation_service import _build_snippet
 
 logger = logging.getLogger(__name__)
@@ -407,6 +409,13 @@ async def _sse_stream(
                     type="action_proposal",
                     metadata=chunk.metadata,
                 )
+            elif chunk.metadata and chunk.metadata.get("client_tool_request"):
+                # A client-served folder tool (read_file/list_files): the desktop
+                # client reads it locally and POSTs the result back (idea 17).
+                response = ChatResponseChunk(
+                    type="client_tool_request",
+                    metadata=chunk.metadata,
+                )
             elif chunk.is_thinking:
                 response = ChatResponseChunk(type="thinking", content=chunk.content)
             else:
@@ -501,12 +510,49 @@ async def chat_stream(
                 content=data.message,
                 options=data.options,
                 attachments=data.attachments or None,
+                has_client_folder=data.has_client_folder,
             ),
             on_client_disconnect=_make_push_callback(current_user["email"], conversation_id),
         ),
         media_type="text/event-stream",
         headers=_SSE_HEADERS,
     )
+
+
+@router.post(
+    "/conversations/{conversation_id}/client-tool-result",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Return a client-served folder read to an in-flight turn",
+)
+async def client_tool_result(
+    conversation_id: str,
+    data: ClientToolResult,
+    current_user: Annotated[dict[str, Any], Depends(get_current_user)],
+    service: Annotated[ChatService, Depends(get_chat_service)],
+) -> None:
+    """Complete a parked ``read_file``/``list_files`` call (idea 17).
+
+    The desktop client posts here after reading a file locally in response to a
+    ``client_tool_request`` chunk. Ownership is enforced so only the
+    conversation's owner can feed its turns.
+    """
+    conversation = await service.conversations.get(
+        conversation_id, current_user["email"], include_messages=False
+    )
+    if not conversation:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Conversation not found",
+        )
+    resolved = client_tool_bridge.resolve(
+        conversation_id, data.tool_call_id, data.model_dump(exclude_none=True)
+    )
+    if not resolved:
+        # No turn is waiting on this id — it already timed out or completed.
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="No pending tool request for that id",
+        )
 
 
 @router.post(

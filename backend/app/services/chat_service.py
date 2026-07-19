@@ -1,6 +1,7 @@
 """Service for sending messages and streaming LLM responses."""
 
 import asyncio
+import base64
 import json
 import logging
 import uuid
@@ -15,6 +16,8 @@ from app.schemas.chat import AttachmentIn, ChatOptions, ModelInfo
 from app.services.agent_turn import ProgressEmit, TurnResult, run_agent_turn
 from app.services.chat_context import ChatContextBuilder, build_dynamic_context_block
 from app.services.chat_title import generate_and_persist_title
+from app.services.client_file_extract import extract_file_text
+from app.services.client_tool_bridge import client_tool_bridge
 from app.services.conversation_service import ConversationService
 from app.services.conversation_turn_sink import ConversationTurnSink
 from app.services.document_parser import extract_attachment_text
@@ -45,8 +48,11 @@ from app.services.microapp_workspace import manager as microapp_manager
 from app.services.native_tools import (
     APP_HELP_NUDGE,
     APP_HELP_TOOL,
+    FOLDER_TOOLS,
     NATIVE_GARBO_SERVER_ID,
+    READ_FILE_TOOL,
     execute_native_tool,
+    folder_tool_descriptors,
     native_tool_descriptors,
     native_tool_lookup,
 )
@@ -203,6 +209,7 @@ class ChatService:
         content: str,
         options: ChatOptions | None = None,
         attachments: list[AttachmentIn] | None = None,
+        has_client_folder: bool = False,
     ) -> AsyncIterator[ChatChunk]:
         """Save user message, stream LLM response, and persist the result."""
         conversation = await self._conversations.get(conversation_id, user_id)
@@ -251,6 +258,7 @@ class ChatService:
         async for chunk in self._stream_assistant_turn(
             conversation=conversation,
             options=options,
+            has_client_folder=has_client_folder,
         ):
             yield chunk
 
@@ -391,6 +399,7 @@ class ChatService:
         self,
         conversation,
         options: ChatOptions | None = None,
+        has_client_folder: bool = False,
     ) -> AsyncIterator[ChatChunk]:
         """Stream an LLM response for the current state of ``conversation``.
 
@@ -417,7 +426,9 @@ class ChatService:
 
         # Resolved before prompt assembly so the system prompt only nudges
         # toward tools that are actually available this turn.
-        ollama_tools, tool_lookup = await self._resolve_tools_for_conversation(conversation)
+        ollama_tools, tool_lookup = await self._resolve_tools_for_conversation(
+            conversation, has_client_folder=has_client_folder
+        )
 
         dynamic_context = build_dynamic_context_block(
             timezone=user.timezone if user else None,
@@ -510,12 +521,16 @@ class ChatService:
         )
 
     async def _resolve_tools_for_conversation(
-        self, conversation
+        self, conversation, has_client_folder: bool = False
     ) -> tuple[list[dict], dict[str, tuple[str, str]]]:
         """Return ``(ollama_tools, lookup)`` for this conversation.
 
         ``lookup`` maps the function name advertised to the LLM back to
         ``(server_id, tool_name)`` so the executor can resolve calls.
+
+        ``has_client_folder`` (set per-request by a desktop client with a folder
+        attached) additionally advertises the client-served ``read_file`` /
+        ``list_files`` tools — their execution is delegated back to that client.
         """
         enabled = getattr(conversation, "enabled_tools", None)
         if enabled is not None and not enabled:
@@ -551,11 +566,18 @@ class ChatService:
         # always available so the model can manage the user's data without the
         # user leaving the conversation. They run in-process — no MCP server
         # or admin registration needed, working identically in dev and prod.
-        all_native_descs = native_tool_descriptors()
+        # Folder tools are client-served and only advertised when the request
+        # signals a folder is attached on the client (has_client_folder).
+        all_native_descs = list(native_tool_descriptors())
+        if has_client_folder:
+            all_native_descs += folder_tool_descriptors()
         if enabled is None:
             for desc in all_native_descs:
                 ollama_tools.append(desc)
             lookup.update(native_tool_lookup())
+            if has_client_folder:
+                for name in FOLDER_TOOLS:
+                    lookup[name] = (NATIVE_GARBO_SERVER_ID, name)
         else:
             allowed = set(enabled)
             for desc in all_native_descs:
@@ -601,6 +623,8 @@ class ChatService:
         server_id, tool_name = target
         if server_id == NATIVE_SERVER_ID:
             return await self._execute_native_tool(name, args, conversation, emit)
+        if server_id == NATIVE_GARBO_SERVER_ID and tool_name in FOLDER_TOOLS:
+            return await self._execute_client_folder_tool(call, tool_name, args, conversation, emit)
         if server_id == NATIVE_GARBO_SERVER_ID:
             return await self._execute_garbo_tool(tool_name, args, conversation)
         try:
@@ -666,6 +690,63 @@ class ChatService:
                 logger.exception("Commit after native tool '%s' failed", name)
                 await self.db.rollback()
         return result
+
+    async def _execute_client_folder_tool(
+        self,
+        call: dict,
+        tool_name: str,
+        args: dict,
+        conversation,
+        emit: ProgressEmit | None,
+    ) -> dict:
+        """Delegate a folder read to the desktop client (idea 17).
+
+        Emits a ``client_tool_request`` chunk and parks on the bridge until the
+        client POSTs the result. The backend never touches the host filesystem:
+        for ``read_file`` the client returns the file's bytes, which we extract
+        into text here; for ``list_files`` it returns the directory listing.
+        """
+        conv_id = getattr(conversation, "id", None)
+        tool_call_id = call.get("id")
+        if emit is None or not conv_id or not tool_call_id:
+            return {"ok": False, "error": "Folder tools require a live turn."}
+
+        async def _emit_request() -> None:
+            await emit(
+                ChatChunk(
+                    content="",
+                    metadata={
+                        "client_tool_request": {
+                            "tool_call_id": tool_call_id,
+                            "tool_name": tool_name,
+                            "args": args,
+                        }
+                    },
+                )
+            )
+
+        payload = await client_tool_bridge.request(
+            conversation_id=conv_id,
+            tool_call_id=tool_call_id,
+            on_registered=_emit_request,
+        )
+        if not payload.get("ok"):
+            return payload
+
+        if tool_name == READ_FILE_TOOL:
+            data_b64 = payload.get("data")
+            filename = payload.get("filename") or args.get("path") or ""
+            if not data_b64:
+                return {"ok": False, "error": "The app returned no file content."}
+            try:
+                raw = base64.b64decode(data_b64)
+            except Exception:
+                return {"ok": False, "error": "The app returned invalid file content."}
+            content = extract_file_text(filename, raw)
+            return {"ok": True, "path": args.get("path"), "content": content}
+
+        # list_files: the client returns the directory entries verbatim.
+        return {"ok": True, "path": args.get("path", "."), "entries": payload.get("entries", [])}
 
     async def list_available_models(self) -> list[ModelInfo]:
         provider = self._get_provider()

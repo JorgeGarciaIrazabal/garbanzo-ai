@@ -2366,6 +2366,20 @@ class AppLocalizationsEn extends AppLocalizations {
   String get titleFiles => 'Files';
 
   @override
+  String get titleFolder => 'Folder';
+
+  @override
+  String messageFolderScope(String name) {
+    return 'Reading files in $name';
+  }
+
+  @override
+  String get messageRemoveFolder => 'Remove folder';
+
+  @override
+  String get messageFolderAttachFailed => 'Couldn\'t attach that folder';
+
+  @override
   String get messageSttUnavailable =>
       'Speech-to-text is currently unavailable on the server.';
 

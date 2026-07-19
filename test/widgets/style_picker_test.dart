@@ -1571,6 +1571,7 @@ class _RecordingChatService extends ChatService {
     double temperature = 0.7,
     int? maxTokens,
     double? topP,
+    bool hasClientFolder = false,
   }) =>
       Stream.fromIterable([const ChatResponseChunk(type: 'done')]);
 }

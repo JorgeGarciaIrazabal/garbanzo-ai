@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
 import 'package:garbanzo_ai/core/log.dart';
@@ -11,6 +13,7 @@ import 'package:garbanzo_ai/features/chat/models/conversation.dart';
 import 'package:garbanzo_ai/features/chat/models/thinking_level.dart';
 import 'package:garbanzo_ai/features/chat/providers/conversation_list_controller.dart';
 import 'package:garbanzo_ai/features/chat/services/chat_service.dart';
+import 'package:garbanzo_ai/features/chat/services/folder_reader.dart';
 
 const _uuid = Uuid();
 
@@ -20,15 +23,20 @@ const _uuid = Uuid();
 /// model id is pushed in via [selectedModelId] (wired through a
 /// `ChangeNotifierProxyProvider` in the page) so the two stay decoupled.
 class ChatProvider extends ChangeNotifier {
-  ChatProvider({String? selectedModelId, ChatService? chatService})
-    : _selectedModelIdValue = selectedModelId,
-      _chatService = chatService ?? ChatService.instance {
+  ChatProvider({
+    String? selectedModelId,
+    ChatService? chatService,
+    FolderReader folderReader = const FolderReader(),
+  }) : _selectedModelIdValue = selectedModelId,
+       _chatService = chatService ?? ChatService.instance,
+       _folderReader = folderReader {
     conversationList = ConversationListController(chatService: _chatService);
     // Rebuild chat widgets when the micro-app panel opens/closes/reloads
     // or the sidebar list changes.
     panel.addListener(notifyListeners);
     conversationList.addListener(notifyListeners);
     conversationList.load();
+    _loadClientFolders();
   }
 
   final ChatService _chatService;
@@ -340,6 +348,105 @@ class ChatProvider extends ChangeNotifier {
     }
   }
 
+  // ==========================================================================
+  // Client-side folder attachment (idea 17)
+  //
+  // The attached folder lives ONLY on this client — never sent to the backend.
+  // When a folder is attached, sends set has_client_folder=true so the agent
+  // gets read_file/list_files; the backend delegates each read back here via a
+  // client_tool_request chunk, which _serveClientToolRequest fulfils locally.
+  // ==========================================================================
+
+  final FolderReader _folderReader;
+  final Map<String, String> _clientFolders = {};
+  static const String _clientFoldersPrefsKey = 'client_folders';
+
+  /// Absolute path of the folder attached to [conversationId], or null.
+  String? clientFolderFor(String? conversationId) =>
+      conversationId == null ? null : _clientFolders[conversationId];
+
+  Future<void> _loadClientFolders() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_clientFoldersPrefsKey);
+      if (raw == null || raw.isEmpty) return;
+      final decoded = jsonDecode(raw);
+      if (decoded is Map) {
+        _clientFolders
+          ..clear()
+          ..addAll(decoded.map((k, v) => MapEntry(k.toString(), v.toString())));
+        notifyListeners();
+      }
+    } catch (e) {
+      logDebug('Failed to load client folders: $e');
+    }
+  }
+
+  Future<void> _persistClientFolders() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_clientFoldersPrefsKey, jsonEncode(_clientFolders));
+    } catch (e) {
+      logDebug('Failed to persist client folders: $e');
+    }
+  }
+
+  /// Attach [path] to [conversationId] (desktop only). Local-only state.
+  Future<void> attachClientFolder(String conversationId, String path) async {
+    _clientFolders[conversationId] = path;
+    notifyListeners();
+    await _persistClientFolders();
+  }
+
+  /// Detach the folder from [conversationId].
+  Future<void> clearClientFolder(String conversationId) async {
+    if (_clientFolders.remove(conversationId) != null) {
+      notifyListeners();
+      await _persistClientFolders();
+    }
+  }
+
+  /// Fulfil a backend `client_tool_request` by reading locally and posting the
+  /// result. Runs async off the SSE consumer so it never blocks the stream.
+  Future<void> _serveClientToolRequest(
+    String conversationId,
+    Map<String, dynamic> request,
+  ) async {
+    final toolCallId = request['tool_call_id']?.toString();
+    final toolName = request['tool_name']?.toString();
+    if (toolCallId == null) return;
+    final root = _clientFolders[conversationId];
+    final args = (request['args'] as Map?)?.cast<String, dynamic>() ?? const {};
+    final path = args['path']?.toString() ?? '';
+
+    final payload = <String, dynamic>{'tool_call_id': toolCallId};
+    try {
+      if (root == null) {
+        throw const FolderReadError('No folder is attached on this device.');
+      }
+      if (toolName == 'read_file') {
+        final file = _folderReader.readFile(root, path);
+        payload
+          ..['ok'] = true
+          ..['filename'] = file.filename
+          ..['data'] = base64Encode(file.bytes);
+      } else {
+        payload
+          ..['ok'] = true
+          ..['entries'] = _folderReader.listDir(root, path);
+      }
+    } catch (e) {
+      payload
+        ..['ok'] = false
+        ..['error'] = e is FolderReadError ? e.message : e.toString();
+    }
+    try {
+      await _chatService.postClientToolResult(conversationId, payload);
+    } catch (e) {
+      logDebug('Failed to post client tool result: $e');
+    }
+  }
+
   Future<void> deleteConversation(String conversationId) async {
     _error = null;
     _actionEpoch++;
@@ -448,6 +555,7 @@ class ChatProvider extends ChangeNotifier {
         _currentConversation!.id,
         content,
         attachments: attachments,
+        hasClientFolder: _clientFolders.containsKey(_currentConversation!.id),
       );
       _consumeAssistantStream(stream);
     } catch (e) {
@@ -549,6 +657,9 @@ class ChatProvider extends ChangeNotifier {
 
   void _consumeAssistantStream(Stream<ChatResponseChunk> stream) {
     final assistantMessageId = 'temp-${_uuid.v4()}';
+    // The conversation this stream belongs to, captured so a client_tool_request
+    // is served against the right folder even if the user navigates away.
+    final streamConversationId = _currentConversation?.id;
     var accumulatedContent = '';
     var accumulatedThinking = '';
 
@@ -604,6 +715,13 @@ class ChatProvider extends ChangeNotifier {
           // Live tool status (started / finished + duration): merge it into
           // the matching tool_call message so its bubble re-renders.
           _applyToolExecution(chunk.toolExecution);
+        } else if (chunk.isClientToolRequest) {
+          // The backend is asking us to read a file from the attached folder
+          // (idea 17). Serve it locally without blocking the stream.
+          final request = chunk.clientToolRequest;
+          if (streamConversationId != null && request != null) {
+            unawaited(_serveClientToolRequest(streamConversationId, request));
+          }
         } else if (chunk.isDone) {
           // The backend emits a `done` chunk PER LLM ITERATION (one for the
           // tool-call iteration, one for the final-answer iteration). It is

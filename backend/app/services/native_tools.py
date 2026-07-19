@@ -40,6 +40,8 @@ APP_HELP_TOOL = "app_help"
 CREATE_ROOM_TOOL = "create_room"
 SET_STYLE_TOOL = "set_conversation_style"
 REPORT_TOOL = "submit_report"
+READ_FILE_TOOL = "read_file"
+LIST_FILES_TOOL = "list_files"
 
 ALL_NATIVE_TOOLS = (
     SCHEDULED_ACTION_TOOL,
@@ -50,6 +52,15 @@ ALL_NATIVE_TOOLS = (
     SET_STYLE_TOOL,
     REPORT_TOOL,
 )
+
+# Folder tools are *client-served*, not registry executors: they're advertised
+# only when the desktop client signals it has a folder attached
+# (``ChatRequest.has_client_folder``), and when the model calls them the backend
+# delegates the read back to that client via ``ClientToolBridge`` — the backend
+# never touches the host filesystem. Their descriptors live here (for
+# advertising) but their execution is routed in ``chat_service`` (see
+# ``folder_tool_descriptors`` / ``_execute_client_folder_tool``).
+FOLDER_TOOLS = frozenset({READ_FILE_TOOL, LIST_FILES_TOOL})
 
 # Tools that return an action *proposal* instead of executing. The LLM never
 # performs these actions: the executor validates the arguments and returns a
@@ -956,6 +967,77 @@ async def _execute_submit_report(
         "report": {"id": report.id, "type": type_, "title": title, "status": report.status},
         "note": f"{label} filed and sent to the admins. Confirm this to the user.",
     }
+
+
+# ---------------------------------------------------------------------------
+# Folder tools (read_file, list_files) — client-served (idea 17)
+# ---------------------------------------------------------------------------
+# These are NOT registry executors: the attached folder lives only on the
+# desktop client, so the backend advertises these descriptors (when the request
+# sets has_client_folder) and delegates the actual read back to the client via
+# ClientToolBridge. See chat_service._execute_client_folder_tool.
+
+_READ_FILE_DESCRIPTOR: dict[str, Any] = {
+    "type": "function",
+    "function": {
+        "name": READ_FILE_TOOL,
+        "description": (
+            "Read a file from the folder the user attached to this "
+            "conversation. Use it whenever the user refers to their files, a "
+            "document, spreadsheet, PDF, or code in the attached folder. Paths "
+            "are relative to the folder root (e.g. 'notes.md', "
+            "'data/report.csv'); call list_files first if you don't know the "
+            "path. Reads PDF, CSV, spreadsheets, Word/PowerPoint, HTML, and "
+            "plain-text/source files. You can only read inside the attached "
+            "folder — nothing outside it is accessible."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "File path relative to the attached folder root.",
+                },
+            },
+            "required": ["path"],
+        },
+    },
+}
+
+_LIST_FILES_DESCRIPTOR: dict[str, Any] = {
+    "type": "function",
+    "function": {
+        "name": LIST_FILES_TOOL,
+        "description": (
+            "List the files and sub-folders inside the folder attached to this "
+            "conversation. Call it to discover what's available before reading. "
+            "Pass a sub-folder path (relative to the folder root) to list that "
+            "directory, or omit it to list the root."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": (
+                        "Sub-folder path relative to the attached folder root. "
+                        "Omit or '.' for the root."
+                    ),
+                },
+            },
+            "required": [],
+        },
+    },
+}
+
+
+def folder_tool_descriptors() -> list[dict[str, Any]]:
+    """Descriptors for the client-served folder tools (read_file, list_files).
+
+    Advertised only when a request sets ``has_client_folder``; execution is
+    delegated to the desktop client in ``chat_service``.
+    """
+    return [_READ_FILE_DESCRIPTOR, _LIST_FILES_DESCRIPTOR]
 
 
 # ---------------------------------------------------------------------------

@@ -131,6 +131,33 @@ class ChatRequest(BaseModel):
         default_factory=ChatOptions,
         description="Generation options",
     )
+    has_client_folder: bool = Field(
+        default=False,
+        description=(
+            "Set by a desktop client that has a folder attached to this "
+            "conversation. When true, the backend advertises the client-served "
+            "read_file/list_files tools; when the model calls them, the backend "
+            "delegates the read back to this client (it never touches the host "
+            "filesystem itself). Ignored/false on web."
+        ),
+    )
+
+
+class ClientToolResult(BaseModel):
+    """A desktop client's answer to a ``client_tool_request`` (idea 17).
+
+    Completes a parked ``read_file``/``list_files`` call. For ``read_file`` the
+    client sends the file's raw bytes (base64) + filename; for ``list_files`` it
+    sends the directory ``entries``. ``ok=False`` + ``error`` reports a
+    client-side failure (path escaped the folder, file too big, read error).
+    """
+
+    tool_call_id: str = Field(..., description="Correlates with the request chunk")
+    ok: bool = Field(default=True, description="False when the client couldn't serve it")
+    filename: str | None = Field(None, description="read_file: the file's name")
+    data: str | None = Field(None, description="read_file: base64-encoded file bytes")
+    entries: list[dict] | None = Field(None, description="list_files: directory entries")
+    error: str | None = Field(None, description="Client-side error message when ok is false")
 
 
 class RegenerateRequest(BaseModel):
@@ -171,6 +198,10 @@ class ChatResponseChunk(BaseModel):
         # Session handshake emitted by the micro-apps agent relay so the
         # client learns the opencode session id early enough to abort it.
         "session",
+        # Request for the desktop client to read a file / list a folder on the
+        # backend's behalf (idea 17: on-demand client-side folder reads). The
+        # client serves it locally and POSTs the result to /client-tool-result.
+        "client_tool_request",
     ] = Field(
         ...,
         description="The type of response chunk",

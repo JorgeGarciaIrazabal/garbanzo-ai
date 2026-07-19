@@ -3287,6 +3287,27 @@
   "@titleFiles": {
     "description": "Attach menu option for files."
   },
+  "titleFolder": "Folder",
+  "@titleFolder": {
+    "description": "Attach menu option (desktop) for including a folder in the chat."
+  },
+  "messageFolderScope": "Reading files in {name}",
+  "@messageFolderScope": {
+    "description": "Chip shown in the composer indicating the agent can read files in the attached folder.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "messageRemoveFolder": "Remove folder",
+  "@messageRemoveFolder": {
+    "description": "Tooltip for removing the attached folder from a conversation."
+  },
+  "messageFolderAttachFailed": "Couldn't attach that folder",
+  "@messageFolderAttachFailed": {
+    "description": "Error snackbar shown when attaching a folder fails."
+  },
   "messageSttUnavailable": "Speech-to-text is currently unavailable on the server.",
   "@messageSttUnavailable": {
     "description": "Error when STT service is unavailable."

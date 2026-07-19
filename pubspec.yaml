@@ -39,6 +39,10 @@ dependencies:
   provider: ^6.1.2
   file_picker: ^11.0.2
   image_picker: ^1.2.0
+  # OS-level drag-and-drop of files and folders onto the chat (desktop).
+  desktop_drop: ^0.6.0
+  # Path normalization for the client-side folder-read sandbox guard.
+  path: ^1.9.0
   freezed_annotation: ^3.1.0
   json_annotation: ^4.12.0
   uuid: ^4.3.0

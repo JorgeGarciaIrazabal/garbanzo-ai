@@ -186,6 +186,32 @@ async def test_sse_framing_and_event_sequence(db_session):
         _clear_overrides()
 
 
+async def test_client_tool_request_chunk_serializes_with_its_type():
+    """A client_tool_request chunk (idea 17) maps to its own SSE event type so
+    the desktop client knows to serve the read locally."""
+    from app.api.v1.endpoints.chat import _sse_stream
+
+    async def _one() -> AsyncIterator[ChatChunk]:
+        yield ChatChunk(
+            content="",
+            metadata={
+                "client_tool_request": {
+                    "tool_call_id": "tc-1",
+                    "tool_name": "read_file",
+                    "args": {"path": "notes.txt"},
+                }
+            },
+        )
+
+    frames = [frame async for frame in _sse_stream(_one())]
+    events = [json.loads(f[len("data: ") :]) for f in frames if f.startswith("data: ")]
+    assert len(events) == 1
+    assert events[0]["type"] == "client_tool_request"
+    request = events[0]["metadata"]["client_tool_request"]
+    assert request["tool_name"] == "read_file"
+    assert request["args"] == {"path": "notes.txt"}
+
+
 async def test_missing_conversation_yields_error_event_not_http_error(db_session):
     provider = _ScriptedProvider([])
     _install_overrides(db_session, provider)

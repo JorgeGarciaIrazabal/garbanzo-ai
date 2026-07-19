@@ -122,6 +122,13 @@ half-migrated schema.
   already exists — a later task (Idea 2 subtask 5) extends `GET
   /chat/models` with more capability flags (`supports_tools`,
   `supports_vision`) alongside it.
+- Idea 17 ("include a folder in a chat") deliberately stores **nothing** in the
+  DB: the attached folder lives only on the desktop client (SharedPreferences),
+  so the backend never learns or reads a host path. Each chat request sets
+  `has_client_folder` to advertise the client-served `read_file`/`list_files`
+  tools; reads are delegated back to the client at turn time via a
+  `client_tool_request` SSE chunk + the `POST …/client-tool-result` endpoint
+  (bridged in-process by `ClientToolBridge`).
 - `ScheduledAction` stores user-defined cron or one-shot prompts.
 - `Report` (026, idea 14) stores in-app bug reports / feature requests:
   `type` is `bug|feature`, `status` flows `open → in_progress → closed` and is

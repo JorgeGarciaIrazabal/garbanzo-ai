@@ -20,6 +20,17 @@ Use the paperclip (**Attach photos or files**) next to the input bar. Images
 are sent to vision-capable models; documents (PDF, text, etc.) have their
 text extracted and included with your message.
 
+## How do I include a folder in a chat? (desktop)
+On the desktop app, open the paperclip menu and choose **Folder**, or drag a
+folder onto the chat. The assistant can then read files inside that folder on
+demand (PDFs, spreadsheets, Word/PowerPoint, code, and plain text) as you ask
+about them — it reads them only when relevant, and shows which file it is
+reading. Access is strictly sandboxed: the assistant can **never** read
+anything outside the folder you attached, and for now it can only read
+(not modify) those files. A chip above the input bar shows the attached folder;
+tap its **×** to detach it. This option is desktop-only — web can't reach your
+files.
+
 ## How do I dictate a message?
 Press the microphone button in the input bar and speak; the recording is
 transcribed into the input field. For fully hands-free conversation, see
