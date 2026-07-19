@@ -38,7 +38,9 @@ class StyleCreate(BaseModel):
 
 
 class StyleUpdate(BaseModel):
-    """Partial update for a saved style. Omitted fields are left unchanged."""
+    """Partial update for a saved style. Omitted fields are left unchanged.
+    Built-in styles are read-only — the endpoint returns 403 for them.
+    """
 
     name: str | None = Field(None, min_length=1, max_length=100)
     model_id: str | None = Field(None, max_length=100)
@@ -61,13 +63,19 @@ class StyleUpdate(BaseModel):
 
 
 class StyleOut(BaseModel):
-    """A saved style as returned by the API."""
+    """A saved style as returned by the API. Includes built-in flag,
+    locale, and description so the picker can render built-ins consistently
+    with user-saved styles and filter them by the user's language.
+    """
 
     id: str
     name: str
+    description: str | None = None
     model_id: str
     thinking_level: ThinkingLevel | None = None
     system_prompt_template_id: str | None = None
+    is_builtin: bool = False
+    locale: str | None = None
     is_default: bool
     created_at: datetime
     updated_at: datetime

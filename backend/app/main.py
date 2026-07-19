@@ -144,6 +144,9 @@ async def lifespan(app: FastAPI):
     from app.services.system_prompt_service import seed_builtin_templates_task
 
     await seed_builtin_templates_task()
+    from app.services.style_service import seed_builtin_styles_task
+
+    await seed_builtin_styles_task()
     # Start loading the Kokoro TTS model in the background (non-blocking).
     from app.services.tts_service import TTSService
 

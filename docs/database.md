@@ -144,12 +144,32 @@ half-migrated schema.
 - `Style` (Idea 2: "Styles", subtask 2) is a saved, reusable bundle of
   `model_id` + `thinking_level` + `system_prompt_template_id` a user can name
   ("Deep Work", "Quick Answers") and reuse across conversations — the picker
-  UI and per-conversation "apply a style" wiring are later subtasks; this
-  table is CRUD-only so far. `thinking_level` reuses the exact
-  `off`/`low`/`medium`/`high` representation as `Conversation.thinking_level`
-  above (shared Pydantic `ThinkingLevel` literal in `app/schemas/chat.py`, not
-  redefined). `system_prompt_template_id` is nullable with `ON DELETE SET
-  NULL` (018_styles.sql): deleting the referenced template only clears that
+  UI and per-conversation "apply a style" wiring are later subtasks. A style
+  is either owned by a user (`user_id` = their email) or shared as a
+  **built-in** (`user_id = NULL`, `is_builtin = TRUE`); built-ins are seeded
+  by `StyleService.seed_builtin_styles` at startup from
+  `StyleService.BUILTIN_STYLES` (six per supported locale — Concise, Truth
+  Seeker, Writing & Stories, Coding, Tutoring, Brainstorm in English; the
+  same six named in Spanish), each referencing a built-in
+  `SystemPromptTemplate` of the same `(name, locale)` as its prompt half.
+  They surface in the picker as one-tap cards above the user's own styles
+  and are read-only — `StyleService.update`/`delete` raise
+  `BuiltinReadOnlyError` (the endpoint maps to 403). `locale` on built-ins
+  holds the BCP-47 tag ('en'/'es') so the picker surfaces them in the user's
+  language; user-saved rows keep `locale = NULL` (language-neutral, surface
+  in every locale). `description` is a short subtitle shown under the
+  built-in's name in the card (e.g. "Short, direct, to-the-point
+  answers"). All three columns added by 030_styles_builtin.sql; the
+  migration also makes `user_id` nullable so a built-in can exist (`NULL`
+  never matches a user row, so the partial unique index
+  `ix_styles_one_default_per_user` — which keys on `user_id` — never
+  collides with a built-in; built-ins are never marked `is_default`
+  anyway).
+  `thinking_level` reuses the exact `off`/`low`/`medium`/`high`
+  representation as `Conversation.thinking_level` above (shared Pydantic
+  `ThinkingLevel` literal in `app/schemas/chat.py`, not redefined).
+  `system_prompt_template_id` is nullable with `ON DELETE SET NULL`
+  (018_styles.sql): deleting the referenced template only clears that
   half of the bundle — it never cascades to delete the style itself, since
   the model/thinking-level choices remain meaningful on their own (mirrors
   `UserMemory.source_conversation_id`). `is_default` marks the style used to

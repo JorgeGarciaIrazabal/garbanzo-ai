@@ -16,7 +16,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$Style {
 
- String get id; String get name; String get modelId;@JsonKey(unknownEnumValue: JsonKey.nullForUndefinedEnumValue) ThinkingLevel? get thinkingLevel; String? get systemPromptTemplateId; bool get isDefault; DateTime get createdAt; DateTime get updatedAt;
+ String get id; String get name; String? get description; String get modelId;@JsonKey(unknownEnumValue: JsonKey.nullForUndefinedEnumValue) ThinkingLevel? get thinkingLevel; String? get systemPromptTemplateId; bool get isBuiltin; String? get locale; bool get isDefault; DateTime get createdAt; DateTime get updatedAt;
 /// Create a copy of Style
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -29,16 +29,16 @@ $StyleCopyWith<Style> get copyWith => _$StyleCopyWithImpl<Style>(this as Style, 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Style&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.modelId, modelId) || other.modelId == modelId)&&(identical(other.thinkingLevel, thinkingLevel) || other.thinkingLevel == thinkingLevel)&&(identical(other.systemPromptTemplateId, systemPromptTemplateId) || other.systemPromptTemplateId == systemPromptTemplateId)&&(identical(other.isDefault, isDefault) || other.isDefault == isDefault)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Style&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.description, description) || other.description == description)&&(identical(other.modelId, modelId) || other.modelId == modelId)&&(identical(other.thinkingLevel, thinkingLevel) || other.thinkingLevel == thinkingLevel)&&(identical(other.systemPromptTemplateId, systemPromptTemplateId) || other.systemPromptTemplateId == systemPromptTemplateId)&&(identical(other.isBuiltin, isBuiltin) || other.isBuiltin == isBuiltin)&&(identical(other.locale, locale) || other.locale == locale)&&(identical(other.isDefault, isDefault) || other.isDefault == isDefault)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,name,modelId,thinkingLevel,systemPromptTemplateId,isDefault,createdAt,updatedAt);
+int get hashCode => Object.hash(runtimeType,id,name,description,modelId,thinkingLevel,systemPromptTemplateId,isBuiltin,locale,isDefault,createdAt,updatedAt);
 
 @override
 String toString() {
-  return 'Style(id: $id, name: $name, modelId: $modelId, thinkingLevel: $thinkingLevel, systemPromptTemplateId: $systemPromptTemplateId, isDefault: $isDefault, createdAt: $createdAt, updatedAt: $updatedAt)';
+  return 'Style(id: $id, name: $name, description: $description, modelId: $modelId, thinkingLevel: $thinkingLevel, systemPromptTemplateId: $systemPromptTemplateId, isBuiltin: $isBuiltin, locale: $locale, isDefault: $isDefault, createdAt: $createdAt, updatedAt: $updatedAt)';
 }
 
 
@@ -49,7 +49,7 @@ abstract mixin class $StyleCopyWith<$Res>  {
   factory $StyleCopyWith(Style value, $Res Function(Style) _then) = _$StyleCopyWithImpl;
 @useResult
 $Res call({
- String id, String name, String modelId,@JsonKey(unknownEnumValue: JsonKey.nullForUndefinedEnumValue) ThinkingLevel? thinkingLevel, String? systemPromptTemplateId, bool isDefault, DateTime createdAt, DateTime updatedAt
+ String id, String name, String? description, String modelId,@JsonKey(unknownEnumValue: JsonKey.nullForUndefinedEnumValue) ThinkingLevel? thinkingLevel, String? systemPromptTemplateId, bool isBuiltin, String? locale, bool isDefault, DateTime createdAt, DateTime updatedAt
 });
 
 
@@ -66,13 +66,16 @@ class _$StyleCopyWithImpl<$Res>
 
 /// Create a copy of Style
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? modelId = null,Object? thinkingLevel = freezed,Object? systemPromptTemplateId = freezed,Object? isDefault = null,Object? createdAt = null,Object? updatedAt = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? description = freezed,Object? modelId = null,Object? thinkingLevel = freezed,Object? systemPromptTemplateId = freezed,Object? isBuiltin = null,Object? locale = freezed,Object? isDefault = null,Object? createdAt = null,Object? updatedAt = null,}) {
   return _then(Style(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
-as String,modelId: null == modelId ? _self.modelId : modelId // ignore: cast_nullable_to_non_nullable
+as String,description: freezed == description ? _self.description : description // ignore: cast_nullable_to_non_nullable
+as String?,modelId: null == modelId ? _self.modelId : modelId // ignore: cast_nullable_to_non_nullable
 as String,thinkingLevel: freezed == thinkingLevel ? _self.thinkingLevel : thinkingLevel // ignore: cast_nullable_to_non_nullable
 as ThinkingLevel?,systemPromptTemplateId: freezed == systemPromptTemplateId ? _self.systemPromptTemplateId : systemPromptTemplateId // ignore: cast_nullable_to_non_nullable
+as String?,isBuiltin: null == isBuiltin ? _self.isBuiltin : isBuiltin // ignore: cast_nullable_to_non_nullable
+as bool,locale: freezed == locale ? _self.locale : locale // ignore: cast_nullable_to_non_nullable
 as String?,isDefault: null == isDefault ? _self.isDefault : isDefault // ignore: cast_nullable_to_non_nullable
 as bool,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
 as DateTime,updatedAt: null == updatedAt ? _self.updatedAt : updatedAt // ignore: cast_nullable_to_non_nullable
@@ -161,10 +164,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String name,  String modelId, @JsonKey(unknownEnumValue: JsonKey.nullForUndefinedEnumValue)  ThinkingLevel? thinkingLevel,  String? systemPromptTemplateId,  bool isDefault,  DateTime createdAt,  DateTime updatedAt)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String name,  String? description,  String modelId, @JsonKey(unknownEnumValue: JsonKey.nullForUndefinedEnumValue)  ThinkingLevel? thinkingLevel,  String? systemPromptTemplateId,  bool isBuiltin,  String? locale,  bool isDefault,  DateTime createdAt,  DateTime updatedAt)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Style() when $default != null:
-return $default(_that.id,_that.name,_that.modelId,_that.thinkingLevel,_that.systemPromptTemplateId,_that.isDefault,_that.createdAt,_that.updatedAt);case _:
+return $default(_that.id,_that.name,_that.description,_that.modelId,_that.thinkingLevel,_that.systemPromptTemplateId,_that.isBuiltin,_that.locale,_that.isDefault,_that.createdAt,_that.updatedAt);case _:
   return orElse();
 
 }
@@ -182,10 +185,10 @@ return $default(_that.id,_that.name,_that.modelId,_that.thinkingLevel,_that.syst
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String name,  String modelId, @JsonKey(unknownEnumValue: JsonKey.nullForUndefinedEnumValue)  ThinkingLevel? thinkingLevel,  String? systemPromptTemplateId,  bool isDefault,  DateTime createdAt,  DateTime updatedAt)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String name,  String? description,  String modelId, @JsonKey(unknownEnumValue: JsonKey.nullForUndefinedEnumValue)  ThinkingLevel? thinkingLevel,  String? systemPromptTemplateId,  bool isBuiltin,  String? locale,  bool isDefault,  DateTime createdAt,  DateTime updatedAt)  $default,) {final _that = this;
 switch (_that) {
 case _Style():
-return $default(_that.id,_that.name,_that.modelId,_that.thinkingLevel,_that.systemPromptTemplateId,_that.isDefault,_that.createdAt,_that.updatedAt);case _:
+return $default(_that.id,_that.name,_that.description,_that.modelId,_that.thinkingLevel,_that.systemPromptTemplateId,_that.isBuiltin,_that.locale,_that.isDefault,_that.createdAt,_that.updatedAt);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -202,10 +205,10 @@ return $default(_that.id,_that.name,_that.modelId,_that.thinkingLevel,_that.syst
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String name,  String modelId, @JsonKey(unknownEnumValue: JsonKey.nullForUndefinedEnumValue)  ThinkingLevel? thinkingLevel,  String? systemPromptTemplateId,  bool isDefault,  DateTime createdAt,  DateTime updatedAt)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String name,  String? description,  String modelId, @JsonKey(unknownEnumValue: JsonKey.nullForUndefinedEnumValue)  ThinkingLevel? thinkingLevel,  String? systemPromptTemplateId,  bool isBuiltin,  String? locale,  bool isDefault,  DateTime createdAt,  DateTime updatedAt)?  $default,) {final _that = this;
 switch (_that) {
 case _Style() when $default != null:
-return $default(_that.id,_that.name,_that.modelId,_that.thinkingLevel,_that.systemPromptTemplateId,_that.isDefault,_that.createdAt,_that.updatedAt);case _:
+return $default(_that.id,_that.name,_that.description,_that.modelId,_that.thinkingLevel,_that.systemPromptTemplateId,_that.isBuiltin,_that.locale,_that.isDefault,_that.createdAt,_that.updatedAt);case _:
   return null;
 
 }
@@ -217,14 +220,17 @@ return $default(_that.id,_that.name,_that.modelId,_that.thinkingLevel,_that.syst
 @JsonSerializable()
 
 class _Style implements Style {
-  const _Style({required this.id, required this.name, required this.modelId, @JsonKey(unknownEnumValue: JsonKey.nullForUndefinedEnumValue) this.thinkingLevel, this.systemPromptTemplateId, this.isDefault = false, required this.createdAt, required this.updatedAt});
+  const _Style({required this.id, required this.name, this.description, required this.modelId, @JsonKey(unknownEnumValue: JsonKey.nullForUndefinedEnumValue) this.thinkingLevel, this.systemPromptTemplateId, this.isBuiltin = false, this.locale, this.isDefault = false, required this.createdAt, required this.updatedAt});
   factory _Style.fromJson(Map<String, dynamic> json) => _$StyleFromJson(json);
 
 @override final  String id;
 @override final  String name;
+@override final  String? description;
 @override final  String modelId;
 @override@JsonKey(unknownEnumValue: JsonKey.nullForUndefinedEnumValue) final  ThinkingLevel? thinkingLevel;
 @override final  String? systemPromptTemplateId;
+@override@JsonKey() final  bool isBuiltin;
+@override final  String? locale;
 @override@JsonKey() final  bool isDefault;
 @override final  DateTime createdAt;
 @override final  DateTime updatedAt;
@@ -242,16 +248,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Style&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.modelId, modelId) || other.modelId == modelId)&&(identical(other.thinkingLevel, thinkingLevel) || other.thinkingLevel == thinkingLevel)&&(identical(other.systemPromptTemplateId, systemPromptTemplateId) || other.systemPromptTemplateId == systemPromptTemplateId)&&(identical(other.isDefault, isDefault) || other.isDefault == isDefault)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Style&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.description, description) || other.description == description)&&(identical(other.modelId, modelId) || other.modelId == modelId)&&(identical(other.thinkingLevel, thinkingLevel) || other.thinkingLevel == thinkingLevel)&&(identical(other.systemPromptTemplateId, systemPromptTemplateId) || other.systemPromptTemplateId == systemPromptTemplateId)&&(identical(other.isBuiltin, isBuiltin) || other.isBuiltin == isBuiltin)&&(identical(other.locale, locale) || other.locale == locale)&&(identical(other.isDefault, isDefault) || other.isDefault == isDefault)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,name,modelId,thinkingLevel,systemPromptTemplateId,isDefault,createdAt,updatedAt);
+int get hashCode => Object.hash(runtimeType,id,name,description,modelId,thinkingLevel,systemPromptTemplateId,isBuiltin,locale,isDefault,createdAt,updatedAt);
 
 @override
 String toString() {
-  return 'Style(id: $id, name: $name, modelId: $modelId, thinkingLevel: $thinkingLevel, systemPromptTemplateId: $systemPromptTemplateId, isDefault: $isDefault, createdAt: $createdAt, updatedAt: $updatedAt)';
+  return 'Style(id: $id, name: $name, description: $description, modelId: $modelId, thinkingLevel: $thinkingLevel, systemPromptTemplateId: $systemPromptTemplateId, isBuiltin: $isBuiltin, locale: $locale, isDefault: $isDefault, createdAt: $createdAt, updatedAt: $updatedAt)';
 }
 
 
@@ -262,7 +268,7 @@ abstract mixin class _$StyleCopyWith<$Res> implements $StyleCopyWith<$Res> {
   factory _$StyleCopyWith(_Style value, $Res Function(_Style) _then) = __$StyleCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String name, String modelId,@JsonKey(unknownEnumValue: JsonKey.nullForUndefinedEnumValue) ThinkingLevel? thinkingLevel, String? systemPromptTemplateId, bool isDefault, DateTime createdAt, DateTime updatedAt
+ String id, String name, String? description, String modelId,@JsonKey(unknownEnumValue: JsonKey.nullForUndefinedEnumValue) ThinkingLevel? thinkingLevel, String? systemPromptTemplateId, bool isBuiltin, String? locale, bool isDefault, DateTime createdAt, DateTime updatedAt
 });
 
 
@@ -279,13 +285,16 @@ class __$StyleCopyWithImpl<$Res>
 
 /// Create a copy of Style
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? modelId = null,Object? thinkingLevel = freezed,Object? systemPromptTemplateId = freezed,Object? isDefault = null,Object? createdAt = null,Object? updatedAt = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? description = freezed,Object? modelId = null,Object? thinkingLevel = freezed,Object? systemPromptTemplateId = freezed,Object? isBuiltin = null,Object? locale = freezed,Object? isDefault = null,Object? createdAt = null,Object? updatedAt = null,}) {
   return _then(_Style(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
-as String,modelId: null == modelId ? _self.modelId : modelId // ignore: cast_nullable_to_non_nullable
+as String,description: freezed == description ? _self.description : description // ignore: cast_nullable_to_non_nullable
+as String?,modelId: null == modelId ? _self.modelId : modelId // ignore: cast_nullable_to_non_nullable
 as String,thinkingLevel: freezed == thinkingLevel ? _self.thinkingLevel : thinkingLevel // ignore: cast_nullable_to_non_nullable
 as ThinkingLevel?,systemPromptTemplateId: freezed == systemPromptTemplateId ? _self.systemPromptTemplateId : systemPromptTemplateId // ignore: cast_nullable_to_non_nullable
+as String?,isBuiltin: null == isBuiltin ? _self.isBuiltin : isBuiltin // ignore: cast_nullable_to_non_nullable
+as bool,locale: freezed == locale ? _self.locale : locale // ignore: cast_nullable_to_non_nullable
 as String?,isDefault: null == isDefault ? _self.isDefault : isDefault // ignore: cast_nullable_to_non_nullable
 as bool,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
 as DateTime,updatedAt: null == updatedAt ? _self.updatedAt : updatedAt // ignore: cast_nullable_to_non_nullable

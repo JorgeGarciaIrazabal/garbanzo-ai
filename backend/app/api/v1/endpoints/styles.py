@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.security import get_current_user
 from app.db.session import get_db
 from app.schemas.style import StyleCreate, StyleOut, StyleUpdate
-from app.services.style_service import StyleService
+from app.services.style_service import BuiltinReadOnlyError, StyleService
 
 router = APIRouter()
 
@@ -45,7 +45,7 @@ async def create_style(
 @router.get(
     "",
     response_model=list[StyleOut],
-    summary="List the user's saved styles",
+    summary="List the user's saved styles plus built-ins",
 )
 async def list_styles(
     current_user: Annotated[dict[str, Any], Depends(get_current_user)],
@@ -58,7 +58,7 @@ async def list_styles(
 @router.get(
     "/{style_id}",
     response_model=StyleOut,
-    summary="Get a single saved style",
+    summary="Get a single saved or built-in style",
 )
 async def get_style(
     style_id: str,
@@ -74,7 +74,7 @@ async def get_style(
 @router.patch(
     "/{style_id}",
     response_model=StyleOut,
-    summary="Update a saved style",
+    summary="Update a saved style (built-ins are read-only)",
 )
 async def update_style(
     style_id: str,
@@ -103,6 +103,11 @@ async def update_style(
             set_template_id=set_template_id,
             is_default=data.is_default,
         )
+    except BuiltinReadOnlyError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Built-in styles are read-only",
+        ) from exc
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
@@ -114,13 +119,19 @@ async def update_style(
 @router.delete(
     "/{style_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    summary="Delete a saved style",
+    summary="Delete a saved style (built-ins are read-only)",
 )
 async def delete_style(
     style_id: str,
     current_user: Annotated[dict[str, Any], Depends(get_current_user)],
     service: Annotated[StyleService, Depends(get_service)],
 ) -> None:
-    deleted = await service.delete(style_id, current_user["email"])
+    try:
+        deleted = await service.delete(style_id, current_user["email"])
+    except BuiltinReadOnlyError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Built-in styles are read-only",
+        ) from exc
     if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Style not found")

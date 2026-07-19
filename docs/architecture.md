@@ -308,7 +308,27 @@ never disagree about the local user after a mute/unmute round trip.
 
 Main providers per `ChatPage` tree:
 - **`ModelProvider`** — available models + selected model. Kept separate so model selection survives conversation switches.
-- **`StyleProvider`** — saved styles (model + thinking level + prompt template bundles, `/api/v1/styles`) plus the *pending* thinking level / system prompt the style picker composes for the next new conversation. Same survives-switches rationale as `ModelProvider`. On load it seeds the pendings from the default style (`is_default`) or, absent one, from the last saved style the user explicitly applied (id persisted locally in `SharedPreferences` via `recordLastUsed`, `style_last_used_style_id`) — an explicit default always wins over last-used. There is no backend column for "the active style": the app-bar pill and the picker's saved-style cards both derive it by matching a conversation's (or the pending) model/thinking/resolved-prompt against each saved style's settings (`_styleMatches` in `style_picker.dart`).
+- **`StyleProvider`** — saved styles + built-in styles (model + thinking level + prompt template bundles, `/api/v1/styles`) plus the *pending* thinking level / system prompt the style picker composes for the next new conversation. Same survives-switches rationale as `ModelProvider`. On load it seeds the pendings from the default style (`is_default`) or, absent one, from the last saved style the user explicitly applied (id persisted locally in `SharedPreferences` via `recordLastUsed`, `style_last_used_style_id`) — an explicit default always wins over last-used. There is no backend column for "the active style": the app-bar pill and the picker's saved-style cards both derive it by matching a conversation's (or the pending) model/thinking/resolved-prompt against each saved style's settings (`_styleMatches` in `style_picker.dart`).
+
+### Built-in styles
+
+The app ships six built-in styles — Concise, Truth Seeker, Writing & Stories,
+Coding, Tutoring, Brainstorm — seeded at startup. Each is a row in `styles`
+with `is_builtin=TRUE`, `user_id=NULL`, `locale`='en' or 'es', and a
+`system_prompt_template_id` referencing the built-in
+`SystemPromptTemplate` of the same `(name, locale)`. `StyleService.
+seed_builtin_styles` runs after `seed_builtin_templates` in `main.lifespan`,
+keys idempotency on `(name, locale)`, and skips a style whose template isn't
+seeded yet (retry next startup). `GET /styles` lists built-ins first (by
+name within a locale) then the user's own styles in creation order, so the
+picker surfaces the shared presets as one-tap cards above the user's saved
+styles. Built-ins are read-only: `StyleService.update`/`delete` raise
+`BuiltinReadOnlyError` (the endpoint maps to 403). The picker never shows
+the default/edit/share/delete menu on a built-in card — they're applied,
+not owned — and the Customize prompt dropdown lists only the user's own
+custom templates (the built-in personas are surfaced as built-in styles
+instead), so the dropdown's job stays "create your own". A built-in whose
+model isn't installed is hidden by the picker rather than shown as broken.
 - **`ChatProvider`** — conversations list, current conversation + messages, streaming state. A `ChangeNotifierProxyProvider2` in `main.dart` pushes `ModelProvider.selectedModelId` and `StyleProvider`'s pending thinking/prompt into it; new conversations are created with those values. Applying a style to a live conversation is a plain conversation PATCH (model + `thinking_level` + `system_prompt`) — there is no dedicated backend endpoint.
 
 Additional providers:

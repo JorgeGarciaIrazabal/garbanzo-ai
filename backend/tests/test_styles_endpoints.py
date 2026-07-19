@@ -448,3 +448,55 @@ class TestTemplateReference:
             assert body["model_id"] == "qwen3"
         finally:
             _clear_overrides()
+
+
+async def _seed_builtins(db_session):
+    """Helper: run the built-in template then style seeding, mirroring startup."""
+    from app.services.style_service import StyleService
+    from app.services.system_prompt_service import SystemPromptService
+
+    await SystemPromptService(db_session).seed_builtin_templates()
+    await StyleService(db_session).seed_builtin_styles()
+
+
+class TestBuiltinStyles:
+    async def test_list_includes_builtins(self, db_session):
+        await _seed_builtins(db_session)
+        _install_overrides(db_session)
+        try:
+            async with await _client() as c:
+                resp = await c.get("/api/v1/styles", headers=_auth())
+            assert resp.status_code == 200, resp.text
+            body = resp.json()
+            assert any(s["is_builtin"] for s in body)
+            assert "Concise" in {s["name"] for s in body if s["is_builtin"]}
+        finally:
+            _clear_overrides()
+
+    async def test_patch_builtin_returns_403(self, db_session):
+        await _seed_builtins(db_session)
+        _install_overrides(db_session)
+        try:
+            async with await _client() as c:
+                listed = await c.get("/api/v1/styles", headers=_auth())
+                builtin = next(s for s in listed.json() if s["is_builtin"])
+                resp = await c.patch(
+                    f"/api/v1/styles/{builtin['id']}",
+                    headers=_auth(),
+                    json={"name": "hijacked"},
+                )
+            assert resp.status_code == 403
+        finally:
+            _clear_overrides()
+
+    async def test_delete_builtin_returns_403(self, db_session):
+        await _seed_builtins(db_session)
+        _install_overrides(db_session)
+        try:
+            async with await _client() as c:
+                listed = await c.get("/api/v1/styles", headers=_auth())
+                builtin = next(s for s in listed.json() if s["is_builtin"])
+                resp = await c.delete(f"/api/v1/styles/{builtin['id']}", headers=_auth())
+            assert resp.status_code == 403
+        finally:
+            _clear_overrides()

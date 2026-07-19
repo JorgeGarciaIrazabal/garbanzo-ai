@@ -9,7 +9,7 @@ import pytest
 from app.core.security import hash_password
 from app.models.system_prompt import SystemPromptTemplate
 from app.models.user import User
-from app.services.style_service import StyleService
+from app.services.style_service import BuiltinReadOnlyError, StyleService
 
 pytestmark = pytest.mark.asyncio
 
@@ -304,3 +304,79 @@ class TestStyleTemplateDeletionBehavior:
         # The rest of the bundle is untouched.
         assert survivor.model_id == "qwen3"
         assert survivor.thinking_level == "high"
+
+
+class TestStyleServiceBuiltins:
+    """Built-in styles are shared, read-only, and surface for every user."""
+
+    async def _seed_builtins(self, db_session) -> int:
+        """Seed the built-in templates + styles without running startup.
+        Returns the number of built-in styles created this call.
+        """
+        from app.services.system_prompt_service import SystemPromptService
+
+        await SystemPromptService(db_session).seed_builtin_templates()
+        return await StyleService(db_session).seed_builtin_styles()
+
+    async def test_seed_creates_styles_per_locale(self, db_session):
+        await self._seed_builtins(db_session)
+        svc = StyleService(db_session)
+        # Every user sees the built-ins, even without an account row.
+        listed = await svc.list_for_user("anyone@example.com")
+        names = sorted((s.name, s.locale) for s in listed if s.is_builtin)
+        # 6 English + 6 Spanish built-ins (see StyleService.BUILTIN_STYLES).
+        assert ("Concise", "en") in names
+        assert ("Truth Seeker", "en") in names
+        assert ("Conciso", "es") in names
+        assert ("Buscador de la verdad", "es") in names
+        assert sum(1 for s in listed if s.is_builtin) == 12
+
+    async def test_seed_is_idempotent(self, db_session):
+        await self._seed_builtins(db_session)
+        first = await self._seed_builtins(db_session)
+        assert first == 0
+
+    async def test_builtins_link_to_builtin_templates(self, db_session):
+        await self._seed_builtins(db_session)
+        svc = StyleService(db_session)
+        listed = await svc.list_for_user("anyone@example.com")
+        for s in listed:
+            if not s.is_builtin:
+                continue
+            assert s.system_prompt_template_id is not None
+            tpl = await db_session.get(SystemPromptTemplate, s.system_prompt_template_id)
+            assert tpl is not None
+            assert tpl.is_builtin is True
+            assert tpl.locale == s.locale
+
+    async def test_builtins_are_never_default(self, db_session):
+        await self._seed_builtins(db_session)
+        svc = StyleService(db_session)
+        listed = await svc.list_for_user("anyone@example.com")
+        assert all(not s.is_default for s in listed if s.is_builtin)
+
+    async def test_update_builtins_raises(self, db_session, test_user_email):
+        await self._seed_builtins(db_session)
+        svc = StyleService(db_session)
+        listed = await svc.list_for_user(test_user_email)
+        builtin = next(s for s in listed if s.is_builtin)
+        with pytest.raises(BuiltinReadOnlyError):
+            await svc.update(builtin.id, test_user_email, name="hijacked")
+
+    async def test_delete_builtins_raises(self, db_session, test_user_email):
+        await self._seed_builtins(db_session)
+        svc = StyleService(db_session)
+        listed = await svc.list_for_user(test_user_email)
+        builtin = next(s for s in listed if s.is_builtin)
+        with pytest.raises(BuiltinReadOnlyError):
+            await svc.delete(builtin.id, test_user_email)
+
+    async def test_list_orders_builtins_before_user_styles(self, db_session, test_user_email):
+        await self._seed_builtins(db_session)
+        svc = StyleService(db_session)
+        await svc.create(user_id=test_user_email, name="mine", model_id="llama3.2")
+        listed = await svc.list_for_user(test_user_email)
+        # Built-ins come first.
+        first_owned = next(i for i, s in enumerate(listed) if not s.is_builtin)
+        assert all(listed[i].is_builtin for i in range(first_owned))
+        assert any(not s.is_builtin for s in listed)

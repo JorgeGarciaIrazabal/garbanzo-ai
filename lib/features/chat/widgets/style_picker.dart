@@ -1001,9 +1001,16 @@ class _StyleCard extends StatelessWidget {
         : String.fromCharCode(style.name.runes.first).toUpperCase();
     final composition = [
       modelName ?? style.modelId,
-      'Thinking ${style.thinkingLevel?.label.toLowerCase() ?? 'auto'}',
+      if (style.thinkingLevel != null)
+        'Thinking ${style.thinkingLevel!.label.toLowerCase()}',
       ?templateName,
     ].join(' · ');
+    // Builtins show their short description under the name (their "model ·
+    // thinking · template" composition is fixed and less informative); user
+    // styles keep the live composition they always showed.
+    final subtitle = style.isBuiltin
+        ? (style.description ?? composition)
+        : composition;
 
     return AnimatedContainer(
       duration: Motion.fast,
@@ -1071,11 +1078,11 @@ class _StyleCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        composition,
+                        subtitle,
                         style: theme.textTheme.labelSmall?.copyWith(
                           color: colorScheme.onSurfaceVariant,
                         ),
-                        maxLines: 1,
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ],
@@ -1090,51 +1097,55 @@ class _StyleCard extends StatelessWidget {
                       color: colorScheme.error,
                     ),
                   ),
-                PopupMenuButton<String>(
-                  tooltip: AppLocalizations.of(context)!.tooltipStyleOptions,
-                  iconSize: 18,
-                  onSelected: (action) {
-                    switch (action) {
-                      case 'default':
-                        onSetDefault(!style.isDefault);
-                      case 'edit':
-                        onEdit();
-                      case 'share':
-                        showShareWithFriendDialog(
-                          context,
-                          kind: 'style',
-                          itemId: style.id,
-                          itemName: style.name,
-                        );
-                      case 'delete':
-                        onDelete();
-                    }
-                  },
-                  itemBuilder: (_) => [
-                    PopupMenuItem(
-                      value: 'default',
-                      child: Text(
-                        style.isDefault
-                            ? 'Stop using for new chats'
-                            : 'Use for new chats',
+                // Built-in styles are read-only — no default/edit/share/delete
+                // menu. They can still be applied (onTap) and a copy can be
+                // saved from them via Customize, so the card stays tappable.
+                if (!style.isBuiltin)
+                  PopupMenuButton<String>(
+                    tooltip: AppLocalizations.of(context)!.tooltipStyleOptions,
+                    iconSize: 18,
+                    onSelected: (action) {
+                      switch (action) {
+                        case 'default':
+                          onSetDefault(!style.isDefault);
+                        case 'edit':
+                          onEdit();
+                        case 'share':
+                          showShareWithFriendDialog(
+                            context,
+                            kind: 'style',
+                            itemId: style.id,
+                            itemName: style.name,
+                          );
+                        case 'delete':
+                          onDelete();
+                      }
+                    },
+                    itemBuilder: (_) => [
+                      PopupMenuItem(
+                        value: 'default',
+                        child: Text(
+                          style.isDefault
+                              ? 'Stop using for new chats'
+                              : 'Use for new chats',
+                        ),
                       ),
-                    ),
-                    PopupMenuItem(
-                      value: 'edit',
-                      child: Text(AppLocalizations.of(context)!.editEllipsis),
-                    ),
-                    PopupMenuItem(
-                      value: 'share',
-                      child: Text(
-                        AppLocalizations.of(context)!.shareWithAFriend,
+                      PopupMenuItem(
+                        value: 'edit',
+                        child: Text(AppLocalizations.of(context)!.editEllipsis),
                       ),
-                    ),
-                    PopupMenuItem(
-                      value: 'delete',
-                      child: Text(AppLocalizations.of(context)!.delete),
-                    ),
-                  ],
-                ),
+                      PopupMenuItem(
+                        value: 'share',
+                        child: Text(
+                          AppLocalizations.of(context)!.shareWithAFriend,
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 'delete',
+                        child: Text(AppLocalizations.of(context)!.delete),
+                      ),
+                    ],
+                  ),
               ],
             ),
           ),
@@ -1681,15 +1692,21 @@ class _TemplatePicker extends StatelessWidget {
                   value: _none,
                   child: Text(AppLocalizations.of(context)!.noTemplate),
                 ),
-                for (final t in templates)
+                // Only the user's custom templates surface here — built-in
+                // templates are surfaced as built-in styles instead, so the
+                // picker keeps "create your own" as the dropdown's job.
+                // A built-in template already applied to the conversation
+                // (e.g. via a built-in style) still resolves correctly: the
+                // banner above the chat shows its content, and the dropdown
+                // simply falls back to the "No template" sentinel rather
+                // than asserting on a missing item.
+                for (final t in templates.where((t) => !t.isBuiltin))
                   DropdownMenuItem(
                     value: t.id,
                     child: Row(
                       children: [
                         Icon(
-                          t.isBuiltin
-                              ? Icons.auto_awesome_outlined
-                              : Icons.edit_note,
+                          Icons.edit_note,
                           size: 16,
                           color: colorScheme.onSurfaceVariant,
                         ),
