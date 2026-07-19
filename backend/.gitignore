@@ -3,4 +3,6 @@ web/*
 .cursor/mcp.json
 coverage.xml
 .coverage
+.coverage.*
 htmlcov/
+*,cover

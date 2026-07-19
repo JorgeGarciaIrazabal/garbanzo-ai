@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+  # Codecov posts status checks via the Checks API using the CODECOV_TOKEN;
+  # we don't grant write on statuses/PRs to the GITHUB_TOKEN.
+
 jobs:
   backend:
     name: Backend (lint + test)
@@ -58,12 +63,13 @@ jobs:
         run: just be-test-cov
 
       - name: Upload backend coverage to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         with:
           files: ./backend/coverage.xml
           flags: backend
           token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
+          disable_search: true    # we pass the file explicitly; skip gcov/lcov scans
+          fail_ci_if_error: false # keep uploads non-blocking; codecov.yml gates via status checks
 
   frontend:
     name: Frontend (lint + test)
@@ -93,9 +99,10 @@ jobs:
         run: just fe-test-cov
 
       - name: Upload frontend coverage to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         with:
           files: ./coverage/lcov.info
           flags: frontend
           token: ${{ secrets.CODECOV_TOKEN }}
+          disable_search: true
           fail_ci_if_error: false

@@ -1,0 +1,53 @@
+# Codecov configuration — see coverage-strategy.md for the full rationale.
+#
+# Two flags (backend, frontend) are uploaded separately from .github/workflows/ci.yml.
+# Status checks below gate PRs: a drop below the project floor or a patch with
+# reduced coverage fails the CI run. Thresholds start permissive and tighten as
+# the suite grows — bump these when the baseline in coverage-strategy.md moves.
+
+coverage:
+  status:
+    project:
+      default:
+        target: auto           # compare against the parent commit
+        threshold: 1%           # allow a 1pp drift before failing
+        if_not_found: success   # parent has no report → don't block
+        only_pulls: false
+      backend:
+        flags: [backend]
+        target: 75%             # baseline 69% (docs); stretch 85%
+        threshold: 1%
+      frontend:
+        flags: [frontend]
+        target: 25%             # baseline 29.8% (docs); keep room before tightening
+        threshold: 1%
+    patch:
+      default:
+        target: 70%             # new/changed code should be mostly covered
+        threshold: 5%
+
+flag_management:
+  individual_flags:
+    backend:
+      paths:
+        - backend/app/
+      carryforward: false
+    frontend:
+      paths:
+        - lib/
+      carryforward: false
+
+# Ignore generated files and pure-animation widgets (mirrors coverage-strategy.md)
+ignore:
+  - "lib/l10n/gen/**"
+  - "**/*.g.dart"
+  - "lib/core/reading_column.dart"
+  - "lib/core/fade_slide_in.dart"
+  - "lib/core/pulsing_dot.dart"
+  - "backend/app/tests/**"
+  - "backend/tests/**"
+
+comment:
+  layout: "reach,diff,flags,files,footer"
+  behavior: default
+  require_changes: false
