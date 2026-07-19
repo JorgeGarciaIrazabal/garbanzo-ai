@@ -3,9 +3,10 @@ import 'package:garbanzo_ai/features/chat/models/search_result.dart';
 import 'package:garbanzo_ai/features/chat/services/search_service.dart';
 
 class SearchProvider extends ChangeNotifier {
-  SearchProvider();
+  SearchProvider({SearchService? service})
+    : _searchService = service ?? SearchService.instance;
 
-  final _searchService = SearchService.instance;
+  final SearchService _searchService;
 
   String _searchQuery = '';
   SearchResults? _results;

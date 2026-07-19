@@ -11,11 +11,14 @@ import 'package:garbanzo_ai/features/chat/services/chat_service.dart';
 /// and shared across the app without tying it to a single conversation.
 /// The user's default model is persisted on the backend via `/auth/me`.
 class ModelProvider extends ChangeNotifier with GuardedStateMixin {
-  ModelProvider() {
+  ModelProvider({ChatService? chatService, AuthService? authService})
+    : _chatService = chatService ?? ChatService.instance,
+      _authService = authService ?? AuthService.instance {
     _loadModels();
   }
 
-  final ChatService _chatService = ChatService.instance;
+  final ChatService _chatService;
+  final AuthService _authService;
 
   List<ModelInfo> _availableModels = [];
   List<ModelInfo> get availableModels => List.unmodifiable(_availableModels);
@@ -32,7 +35,7 @@ class ModelProvider extends ChangeNotifier with GuardedStateMixin {
         // Preference order: the user's persisted default (via /auth/me) >
         // the models endpoint's server-recommended default > the hardcoded
         // fallback chain (used only if neither hint is present/valid).
-        final userDefault = AuthService.instance.cachedUser?.defaultModel;
+        final userDefault = _authService.cachedUser?.defaultModel;
         final serverDefault = modelList.defaultModel;
         ModelInfo? match;
         for (final candidate in [userDefault, serverDefault]) {
@@ -58,9 +61,7 @@ class ModelProvider extends ChangeNotifier with GuardedStateMixin {
 
   /// Persist [modelId] as the user's default. Use `null` to clear.
   Future<bool> setDefaultModel(String? modelId) async {
-    final result = await AuthService.instance.updateProfile(
-      defaultModel: modelId,
-    );
+    final result = await _authService.updateProfile(defaultModel: modelId);
     return result.success;
   }
 
