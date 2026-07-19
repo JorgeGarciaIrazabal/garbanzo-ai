@@ -28,10 +28,9 @@ import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 /// ones (the `mute_sheet` idiom). The popover scales its width and text with
 /// the window so it stays proportional on large desktop monitors.
 
-/// The capability vocabulary, shared by the model rows' badges and the
-/// capability filter so a filter chip reads as exactly the same thing the
-/// rows show. Any new flag the models endpoint grows slots in here once and
-/// appears in both places.
+/// The capability vocabulary shared by the model rows' badges. The picker no
+/// longer filters by capability, so this only drives the small informational
+/// icons next to each model name.
 enum _Capability {
   vision(Icons.visibility_outlined, 'Vision'),
   tools(Icons.build_outlined, 'Tools'),
@@ -50,14 +49,6 @@ enum _Capability {
     _Capability.tools => model.supportsTools,
     _Capability.thinking => model.supportsThinking,
   };
-
-  /// Whether [model] survives a filter on this capability. Only a confirmed
-  /// `false` is excluded: an unknown flag means we never learned the answer,
-  /// and hiding a model over a failed lookup would silently strip it from the
-  /// only list the user can pick from. Unknowns are kept and marked (see
-  /// [_CapabilityBadges]) so the row reads as "maybe" rather than a false
-  /// positive.
-  bool allows(ModelInfo model) => of(model) != false;
 }
 
 /// Trims to null so "unset", empty, and whitespace prompts all compare equal.
@@ -79,6 +70,30 @@ String? _resolveTemplateContent(
   return _normalize(
     templates.where((t) => t.id == templateId).firstOrNull?.content,
   );
+}
+
+/// Whether a style should be shown in the picker for [languageCode]. Built-in
+/// styles carry a BCP-47 language subtag and only surface in their locale;
+/// user-saved styles have a null locale and always show. A null
+/// [languageCode] means "no locale known" (e.g. SettingsProvider missing in an
+/// isolated widget test) and disables filtering so all built-ins stay
+/// visible — matching the pre-locale-filtering behavior.
+bool _styleMatchesLocale(Style style, String? languageCode) {
+  if (languageCode == null) return true;
+  if (!style.isBuiltin || style.locale == null) return true;
+  return style.locale == languageCode;
+}
+
+/// Resolves the active language code from [SettingsProvider] when it is in the
+/// widget tree, or null when it isn't (isolated widget tests). A null result
+/// means "don't filter by locale", matching the pre-locale-filtering behavior
+/// so tests that don't register SettingsProvider keep working unchanged.
+String? _effectiveLanguageCode(BuildContext context) {
+  try {
+    return context.read<SettingsProvider>().effectiveLanguageCode;
+  } catch (_) {
+    return null;
+  }
 }
 
 /// A saved style is "active" for the given effective settings when all three
@@ -138,16 +153,20 @@ class StylePickerButton extends StatelessWidget {
     );
     // No backend column tracks "the active style" — it's derived by matching
     // the effective model/thinking/prompt against saved styles, same logic
-    // the panel uses to highlight a style's card.
+    // the panel uses to highlight a style's card. Built-ins are filtered to
+    // the active locale so an 'en' user never reports 'Conciso' as active.
+    final languageCode = _effectiveLanguageCode(context);
     final activeStyle = styleP.styles
         .where(
-          (s) => _styleMatches(
-            s,
-            promptP.templates,
-            modelId: effectiveId,
-            thinkingLevel: thinking,
-            systemPrompt: prompt,
-          ),
+          (s) =>
+              _styleMatchesLocale(s, languageCode) &&
+              _styleMatches(
+                s,
+                promptP.templates,
+                modelId: effectiveId,
+                thinkingLevel: thinking,
+                systemPrompt: prompt,
+              ),
         )
         .firstOrNull;
     final label =
@@ -256,6 +275,17 @@ Future<void> showStylePicker(BuildContext context) {
   final models = context.read<ModelProvider>();
   final styles = context.read<StyleProvider>();
   final prompts = context.read<SystemPromptProvider>();
+  // SettingsProvider is needed for locale-based built-in filtering; read it
+  // off the caller's context and re-expose to the panel. Optional (the panel
+  // tolerates its absence via try/catch in _effectiveLanguageCode) so a tree
+  // that doesn't register SettingsProvider (e.g. isolated widget tests) keeps
+  // working.
+  SettingsProvider? settings;
+  try {
+    settings = context.read<SettingsProvider>();
+  } catch (_) {
+    settings = null;
+  }
 
   Widget withProviders(Widget child) => MultiProvider(
     providers: [
@@ -263,6 +293,8 @@ Future<void> showStylePicker(BuildContext context) {
       ChangeNotifierProvider.value(value: models),
       ChangeNotifierProvider.value(value: styles),
       ChangeNotifierProvider.value(value: prompts),
+      if (settings != null)
+        ChangeNotifierProvider<SettingsProvider>.value(value: settings),
     ],
     child: child,
   );
@@ -387,13 +419,7 @@ class StylePickerPanel extends StatefulWidget {
 }
 
 class _StylePickerPanelState extends State<StylePickerPanel> {
-  final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  String _query = '';
-
-  /// Capabilities the model list is filtered on. Composes with [_query]
-  /// (both must pass) rather than replacing it; empty means no filtering.
-  final Set<_Capability> _filters = {};
 
   /// The visible section. Null derives it: Styles when saved styles exist,
   /// Customize otherwise — so saving a first style flips the view to it.
@@ -410,9 +436,6 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
   @override
   void initState() {
     super.initState();
-    _searchController.addListener(() {
-      setState(() => _query = _searchController.text.trim().toLowerCase());
-    });
     // Surface built-in templates in the app's language rather than every
     // locale at once. Same pattern as SystemPromptEditorDialog; the
     // try/catch keeps widget tests that mount the panel in isolation working.
@@ -431,7 +454,6 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
 
   @override
   void dispose() {
-    _searchController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
@@ -643,7 +665,14 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
     final conv = chat.currentConversation;
     final models = modelP.availableModels;
     final templates = promptP.templates;
-    final styles = styleP.styles;
+    // Built-in styles are seeded per locale; surface only the ones matching
+    // the active language so the Styles segment doesn't double up 'Concise'
+    // and 'Conciso'. User-saved styles (locale = null) always show. The try/
+    // catch keeps widget tests that mount the panel in isolation working.
+    final languageCode = _effectiveLanguageCode(context);
+    final styles = styleP.styles
+        .where((s) => _styleMatchesLocale(s, languageCode))
+        .toList();
 
     final effectiveModelId = conv?.model ?? modelP.selectedModelId;
     final effectiveThinking = conv != null
@@ -689,31 +718,6 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
       thinkingLevel: effectiveThinking,
       systemPrompt: effectivePrompt,
     );
-
-    bool matchesQuery(ModelInfo m) =>
-        _query.isEmpty ||
-        m.id.toLowerCase().contains(_query) ||
-        m.name.toLowerCase().contains(_query) ||
-        (m.description?.toLowerCase().contains(_query) ?? false);
-
-    // Text search and capability filters compose: a model must pass both, and
-    // several filters are an AND (pick a model that can do all of these).
-    final filteredModels = models
-        .where((m) => matchesQuery(m) && _filters.every((c) => c.allows(m)))
-        .toList();
-
-    // The empty state has to name whichever of the two narrowed the list to
-    // nothing, or a filter-emptied list reads as a broken search.
-    final emptyMessage = switch ((_query.isNotEmpty, _filters.isNotEmpty)) {
-      (true, true) => AppLocalizations.of(
-        context,
-      )!.messageNoModelsMatchSearchAndCapabilities,
-      (true, false) => AppLocalizations.of(context)!.messageNoModelsMatchSearch,
-      (false, true) => AppLocalizations.of(
-        context,
-      )!.messageNoModelsHaveCapabilities,
-      (false, false) => AppLocalizations.of(context)!.messageNoModelsAvailable,
-    };
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -777,72 +781,18 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
               curve: Motion.easeOut,
               alignment: Alignment.topCenter,
               child: section == _PickerSection.styles
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        if (styleP.isLoading && styles.isEmpty)
-                          const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 16),
-                            child: Center(
-                              child: SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              ),
-                            ),
-                          )
-                        else ...[
-                          if (styles.isEmpty)
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(4, 4, 4, 8),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    AppLocalizations.of(
-                                      context,
-                                    )!.messageNoSavedStylesYet,
-                                    style: theme.textTheme.bodySmall?.copyWith(
-                                      color: colorScheme.onSurfaceVariant,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            )
-                          else
-                            ...styles.map(
-                              (s) => Padding(
-                                padding: const EdgeInsets.only(bottom: 8),
-                                child: _StyleCard(
-                                  key: ValueKey('style_card_${s.id}'),
-                                  style: s,
-                                  active: styleIsActive(s),
-                                  modelName: models
-                                      .where((m) => m.id == s.modelId)
-                                      .firstOrNull
-                                      ?.name,
-                                  templateName: templates
-                                      .where(
-                                        (t) => t.id == s.systemPromptTemplateId,
-                                      )
-                                      .firstOrNull
-                                      ?.name,
-                                  enabled: !busy,
-                                  onTap: () => _applyStyle(s),
-                                  onSetDefault: (v) => _setDefault(s, v),
-                                  onEdit: () => _startEditing(s),
-                                  onDelete: () => _deleteStyle(s),
-                                ),
-                              ),
-                            ),
-                          // Footer: a dashed-outline "+ New style" tile.
-                          // Full-width and tappable; disabled while busy
-                          // (sending) for parity with the style cards.
-                          _NewStyleTile(onTap: busy ? null : _startCreating),
-                        ],
-                      ],
+                  ? _StylesSegment(
+                      isLoading: styleP.isLoading && styleP.styles.isEmpty,
+                      styles: styles,
+                      styleIsActive: styleIsActive,
+                      models: models,
+                      templates: templates,
+                      busy: busy,
+                      onApply: _applyStyle,
+                      onSetDefault: _setDefault,
+                      onEdit: _startEditing,
+                      onDelete: _deleteStyle,
+                      onCreate: _startCreating,
                     )
                   : Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -879,41 +829,9 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
                           ),
                           const SizedBox(height: 8),
                         ],
-                        TextField(
-                          key: const ValueKey('style_search_field'),
-                          controller: _searchController,
-                          decoration: InputDecoration(
-                            hintText: AppLocalizations.of(
-                              context,
-                            )!.hintSearchModels,
-                            prefixIcon: const Icon(Icons.search, size: 20),
-                            isDense: context.isNarrow,
-                            suffixIcon: _query.isEmpty
-                                ? null
-                                : IconButton(
-                                    icon: const Icon(Icons.clear, size: 18),
-                                    onPressed: _searchController.clear,
-                                  ),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        // Filtering is a pure view operation, so unlike
-                        // the controls below it stays usable while a
-                        // message is streaming.
-                        _CapabilityFilter(
-                          selected: _filters,
-                          onToggle: (c) => setState(
-                            () => _filters.contains(c)
-                                ? _filters.remove(c)
-                                : _filters.add(c),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
                         _ModelList(
-                          models: filteredModels,
+                          models: models,
                           selectedId: composeModelId,
-                          filters: _filters,
-                          emptyMessage: emptyMessage,
                           enabled: !busy,
                           onSelect: _selectModel,
                         ),
@@ -961,6 +879,137 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// The Styles segment body: the user's own saved styles first under a
+/// "Your styles" header (with the "+ New style" tile at the bottom of that
+/// group), then the read-only built-in (predefined) styles under a
+/// "Predefined" header. Splitting the two groups makes the user's editable
+/// styles clearly distinct from the shared, read-only built-ins. When there
+/// are no user styles, the group is replaced by a short empty-state hint
+/// rather than a bare header with nothing under it.
+class _StylesSegment extends StatelessWidget {
+  const _StylesSegment({
+    required this.isLoading,
+    required this.styles,
+    required this.styleIsActive,
+    required this.models,
+    required this.templates,
+    required this.busy,
+    required this.onApply,
+    required this.onSetDefault,
+    required this.onEdit,
+    required this.onDelete,
+    required this.onCreate,
+  });
+
+  final bool isLoading;
+  final List<Style> styles;
+  final bool Function(Style) styleIsActive;
+  final List<ModelInfo> models;
+  final List<SystemPromptTemplate> templates;
+  final bool busy;
+  final void Function(Style) onApply;
+  final void Function(Style, bool) onSetDefault;
+  final void Function(Style) onEdit;
+  final void Function(Style) onDelete;
+  final VoidCallback onCreate;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    if (isLoading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 16),
+        child: Center(
+          child: SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      );
+    }
+
+    final predefined = styles.where((s) => s.isBuiltin).toList();
+    final custom = styles.where((s) => !s.isBuiltin).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _SectionHeader(label: l.labelYourStyles),
+        if (custom.isEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 4, 4, 8),
+            child: Text(
+              l.messageNoSavedStylesYet,
+              key: const ValueKey('custom_styles_empty'),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+          )
+        else
+          ...custom.map((s) => _styleCard(context, s)),
+        // Footer: a dashed-outline "+ New style" tile. Full-width and
+        // tappable; disabled while busy (sending) for parity with the cards.
+        _NewStyleTile(onTap: busy ? null : onCreate),
+        if (predefined.isNotEmpty) ...[
+          _SectionHeader(label: l.labelPredefinedStyles),
+          ...predefined.map((s) => _styleCard(context, s)),
+        ],
+      ],
+    );
+  }
+
+  Widget _styleCard(BuildContext context, Style s) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: _StyleCard(
+        key: ValueKey('style_card_${s.id}'),
+        style: s,
+        active: styleIsActive(s),
+        modelName: models.where((m) => m.id == s.modelId).firstOrNull?.name,
+        templateName: templates
+            .where((t) => t.id == s.systemPromptTemplateId)
+            .firstOrNull
+            ?.name,
+        enabled: !busy,
+        onTap: () => onApply(s),
+        onSetDefault: (v) => onSetDefault(s, v),
+        onEdit: () => onEdit(s),
+        onDelete: () => onDelete(s),
+      ),
+    );
+  }
+}
+
+/// Small section header inside the Styles segment. Reads as a subtle label,
+/// not a divider, so the two groups stay visually distinct without adding
+/// chrome that competes with the style cards.
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 12, 4, 8),
+      child: Text(
+        label,
+        key: ValueKey('styles_section_header_$label'),
+        style: theme.textTheme.labelMedium?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
     );
   }
 }
@@ -1254,21 +1303,12 @@ class _ModelList extends StatelessWidget {
   const _ModelList({
     required this.models,
     required this.selectedId,
-    required this.filters,
-    required this.emptyMessage,
     required this.enabled,
     required this.onSelect,
   });
 
   final List<ModelInfo> models;
   final String? selectedId;
-
-  /// Capabilities currently filtered on; forwarded to the badges so rows kept
-  /// on an unknown flag say so.
-  final Set<_Capability> filters;
-
-  /// Names whatever emptied the list (search text, filters, or both).
-  final String emptyMessage;
   final bool enabled;
   final ValueChanged<String> onSelect;
 
@@ -1287,7 +1327,7 @@ class _ModelList extends StatelessWidget {
           ? Padding(
               padding: const EdgeInsets.all(16),
               child: Text(
-                emptyMessage,
+                AppLocalizations.of(context)!.messageNoModelsAvailable,
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: colorScheme.onSurfaceVariant,
                 ),
@@ -1354,7 +1394,7 @@ class _ModelList extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(width: 8),
-                          _CapabilityBadges(model: model, filters: filters),
+                          _CapabilityBadges(model: model),
                         ],
                       ),
                     ),
@@ -1368,17 +1408,12 @@ class _ModelList extends StatelessWidget {
 
 /// Tiny icon badges for provider-reported capabilities, drawn from the shared
 /// [_Capability] vocabulary. Flags are tri-state (null = unknown), so a solid
-/// badge only shows when the capability is confirmed.
-///
-/// An unknown flag additionally gets a faded badge while that capability is
-/// being filtered on: such a model is deliberately kept in the list (see
-/// [_Capability.allows]), and without the marker the row would look like the
-/// filter had let through a model that plainly lacks the capability.
+/// badge only shows when the capability is confirmed. Purely informational —
+/// the picker no longer filters by capability, so unknown flags earn no badge.
 class _CapabilityBadges extends StatelessWidget {
-  const _CapabilityBadges({required this.model, this.filters = const {}});
+  const _CapabilityBadges({required this.model});
 
   final ModelInfo model;
-  final Set<_Capability> filters;
 
   @override
   Widget build(BuildContext context) {
@@ -1393,12 +1428,6 @@ class _CapabilityBadges extends StatelessWidget {
               capability: capability,
               color: colorScheme.onSurfaceVariant,
               tooltip: capability.label,
-            )
-          else if (capability.of(model) == null && filters.contains(capability))
-            _Badge(
-              capability: capability,
-              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.38),
-              tooltip: '${capability.label} unknown for this model',
             ),
       ],
     );
@@ -1424,44 +1453,6 @@ class _Badge extends StatelessWidget {
         message: tooltip,
         child: Icon(capability.icon, size: 16, color: color),
       ),
-    );
-  }
-}
-
-/// Capability filter for the model list: one chip per badge, same icon and
-/// label, so the control reads as "the things you see on the rows".
-class _CapabilityFilter extends StatelessWidget {
-  const _CapabilityFilter({required this.selected, required this.onToggle});
-
-  final Set<_Capability> selected;
-  final ValueChanged<_Capability> onToggle;
-
-  @override
-  Widget build(BuildContext context) {
-    // Wrapping chips rather than a SegmentedButton, which clips at 360dp —
-    // same reason as the thinking control below. Compact density only on
-    // narrow touch layouts; pointer-driven wide layouts get full-size chips.
-    final density = context.isWide
-        ? VisualDensity.standard
-        : VisualDensity.compact;
-    return Wrap(
-      key: const ValueKey('capability_filter'),
-      spacing: 6,
-      runSpacing: 4,
-      children: [
-        for (final capability in _Capability.values)
-          FilterChip(
-            key: ValueKey('capability_filter_${capability.name}'),
-            // The icon is the vocabulary link to the row badges, so it stays
-            // put instead of being swapped out for a selected checkmark.
-            showCheckmark: false,
-            avatar: Icon(capability.icon, size: 16),
-            label: Text(capability.label),
-            selected: selected.contains(capability),
-            visualDensity: density,
-            onSelected: (_) => onToggle(capability),
-          ),
-      ],
     );
   }
 }
@@ -1617,11 +1608,16 @@ class _TemplatePicker extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    // A stale id (deleted template) falls back to the sentinel instead of
-    // tripping DropdownButton's exactly-one-match assert.
-    final value = templates.any((t) => t.id == selectedId)
-        ? selectedId!
-        : _none;
+    // A stale id (deleted template) or a built-in template's id falls back to
+    // the sentinel instead of tripping DropdownButton's exactly-one-match
+    // assert: built-in templates are intentionally excluded from the dropdown
+    // items below (they're surfaced as built-in styles instead), so a
+    // conversation whose prompt resolves to a built-in template must read as
+    // "No template" here even though the template exists in `templates`.
+    final matchingTemplate = templates
+        .where((t) => t.id == selectedId && !t.isBuiltin)
+        .firstOrNull;
+    final value = matchingTemplate != null ? selectedId! : _none;
     final selected = _selected;
     final canShare = enabled && selected != null && !selected.isBuiltin;
 

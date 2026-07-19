@@ -14,6 +14,7 @@ import 'package:garbanzo_ai/features/chat/providers/system_prompt_provider.dart'
 import 'package:garbanzo_ai/features/chat/services/chat_service.dart';
 import 'package:garbanzo_ai/features/chat/services/style_service.dart';
 import 'package:garbanzo_ai/features/chat/widgets/style_picker.dart';
+import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
@@ -254,6 +255,8 @@ Style _style(
   ThinkingLevel? thinkingLevel,
   String? templateId,
   bool isDefault = false,
+  bool isBuiltin = false,
+  String? locale,
 }) => Style(
   id: id,
   name: name,
@@ -261,14 +264,21 @@ Style _style(
   thinkingLevel: thinkingLevel,
   systemPromptTemplateId: templateId,
   isDefault: isDefault,
+  isBuiltin: isBuiltin,
+  locale: locale,
   createdAt: DateTime(2026),
   updatedAt: DateTime(2026),
 );
 
-SystemPromptTemplate _template(String id, String name) => SystemPromptTemplate(
+SystemPromptTemplate _template(
+  String id,
+  String name, {
+  bool isBuiltin = false,
+}) => SystemPromptTemplate(
   id: id,
   name: name,
   content: 'content of $name',
+  isBuiltin: isBuiltin,
   createdAt: DateTime(2026),
 );
 
@@ -301,20 +311,24 @@ Widget _wrap({
   required _FakeModelProvider models,
   required _FakeStyleProvider styles,
   required _FakeSystemPromptProvider prompts,
+  SettingsProvider? settings,
 }) {
   // Providers live below the navigator like on the real chat page, so these
   // tests exercise showStylePicker's provider re-exposure across routes.
+  final providers = [
+    ChangeNotifierProvider<ChatProvider>.value(value: chat),
+    ChangeNotifierProvider<ModelProvider>.value(value: models),
+    ChangeNotifierProvider<StyleProvider>.value(value: styles),
+    ChangeNotifierProvider<SystemPromptProvider>.value(value: prompts),
+    if (settings != null)
+      ChangeNotifierProvider<SettingsProvider>.value(value: settings),
+  ];
   return MaterialApp(
     
   localizationsDelegates: AppLocalizations.localizationsDelegates,
   supportedLocales: AppLocalizations.supportedLocales,
-home: MultiProvider(
-      providers: [
-        ChangeNotifierProvider<ChatProvider>.value(value: chat),
-        ChangeNotifierProvider<ModelProvider>.value(value: models),
-        ChangeNotifierProvider<StyleProvider>.value(value: styles),
-        ChangeNotifierProvider<SystemPromptProvider>.value(value: prompts),
-      ],
+  home: MultiProvider(
+      providers: providers,
       child: const Scaffold(
         appBar: null,
         body: Align(
@@ -621,9 +635,9 @@ void main() {
         await _openPicker(tester);
 
         // No saved styles: composing is the only thing to do, so the
-        // Customize section is the visible one.
+        // Customize section is the visible one (its model list is rendered).
         expect(
-          find.byKey(const ValueKey('style_search_field')),
+          find.byKey(const ValueKey('model_row_qwen3')),
           findsOneWidget,
         );
 
@@ -631,14 +645,14 @@ void main() {
         await tester.tap(find.text('Styles'));
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 400));
-        expect(find.byKey(const ValueKey('style_search_field')), findsNothing);
+        expect(find.byKey(const ValueKey('model_row_qwen3')), findsNothing);
         expect(find.textContaining('No saved styles yet'), findsOneWidget);
 
         await tester.tap(find.text('Compose a style'));
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 400));
         expect(
-          find.byKey(const ValueKey('style_search_field')),
+          find.byKey(const ValueKey('model_row_qwen3')),
           findsOneWidget,
         );
       },
@@ -731,7 +745,7 @@ void main() {
     });
 
     _testPicker(
-      'customize: search filters models and capability badges show',
+      'customize: capability badges show on rows without search/filter UI',
       (tester) async {
         _setScreenSize(tester, const Size(390, 844));
         await tester.pumpWidget(
@@ -749,9 +763,12 @@ void main() {
         await _openPicker(tester);
 
         expect(tester.takeException(), isNull);
+        // The search field and capability filter chips were removed; the model
+        // list is the only model-selection surface now.
+        expect(find.byKey(const ValueKey('style_search_field')), findsNothing);
         expect(
-          find.byKey(const ValueKey('style_search_field')),
-          findsOneWidget,
+          find.byKey(const ValueKey('capability_filter')),
+          findsNothing,
         );
         expect(find.byKey(const ValueKey('model_row_qwen3')), findsOneWidget);
         // qwen3 advertises thinking+tools; gemma3-vision advertises vision.
@@ -762,251 +779,8 @@ void main() {
         // Reported false / unreported earns no badge.
         expect(_badge('qwen3', Icons.visibility_outlined), findsNothing);
         expect(_badge('llama3.2', Icons.psychology_outlined), findsNothing);
-
-        await tester.enterText(
-          find.byKey(const ValueKey('style_search_field')),
-          'vision',
-        );
-        await tester.pump();
-        await tester.pump(const Duration(milliseconds: 400));
-
-        expect(
-          find.byKey(const ValueKey('model_row_gemma3-vision')),
-          findsOneWidget,
-        );
-        expect(find.byKey(const ValueKey('model_row_qwen3')), findsNothing);
-        expect(find.byKey(const ValueKey('model_row_llama3.2')), findsNothing);
       },
     );
-
-    _testPicker('capability filter narrows the list to matching models', (
-      tester,
-    ) async {
-      _setScreenSize(tester, const Size(390, 844));
-      await tester.pumpWidget(
-        _wrap(
-          chat: _FakeChatProvider(),
-          models: _FakeModelProvider(
-            models: [
-              _model('qwen3', thinking: true, tools: true, vision: false),
-              _model('llama3.2', tools: true, vision: false),
-              _model('gemma3-vision', vision: true, tools: false),
-            ],
-            selectedId: 'qwen3',
-          ),
-          styles: _FakeStyleProvider(),
-          prompts: _FakeSystemPromptProvider(),
-        ),
-      );
-      await _openPicker(tester);
-      expect(tester.takeException(), isNull, reason: 'panel build');
-
-      await tester.tap(find.byKey(const ValueKey('capability_filter_vision')));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 400));
-
-      expect(tester.takeException(), isNull);
-      expect(
-        find.byKey(const ValueKey('model_row_gemma3-vision')),
-        findsOneWidget,
-      );
-      // Both explicitly report vision: false.
-      expect(find.byKey(const ValueKey('model_row_qwen3')), findsNothing);
-      expect(find.byKey(const ValueKey('model_row_llama3.2')), findsNothing);
-    });
-
-    _testPicker('multiple capability filters must all match', (tester) async {
-      _setScreenSize(tester, const Size(390, 844));
-      await tester.pumpWidget(
-        _wrap(
-          chat: _FakeChatProvider(),
-          models: _FakeModelProvider(
-            models: [
-              _model('qwen3', thinking: true, tools: true, vision: false),
-              _model('llama3.2', thinking: false, tools: true, vision: false),
-            ],
-            selectedId: 'qwen3',
-          ),
-          styles: _FakeStyleProvider(),
-          prompts: _FakeSystemPromptProvider(),
-        ),
-      );
-      await _openPicker(tester);
-
-      await tester.tap(find.byKey(const ValueKey('capability_filter_tools')));
-      await tester.pump();
-      // Tools alone keeps both.
-      expect(find.byKey(const ValueKey('model_row_qwen3')), findsOneWidget);
-      expect(find.byKey(const ValueKey('model_row_llama3.2')), findsOneWidget);
-
-      await tester.tap(
-        find.byKey(const ValueKey('capability_filter_thinking')),
-      );
-      await tester.pump();
-
-      expect(tester.takeException(), isNull);
-      expect(find.byKey(const ValueKey('model_row_qwen3')), findsOneWidget);
-      expect(find.byKey(const ValueKey('model_row_llama3.2')), findsNothing);
-
-      // Toggling off restores it.
-      await tester.tap(
-        find.byKey(const ValueKey('capability_filter_thinking')),
-      );
-      await tester.pump();
-      expect(find.byKey(const ValueKey('model_row_llama3.2')), findsOneWidget);
-    });
-
-    _testPicker('capability filter composes with the text search', (
-      tester,
-    ) async {
-      _setScreenSize(tester, const Size(390, 844));
-      await tester.pumpWidget(
-        _wrap(
-          chat: _FakeChatProvider(),
-          models: _FakeModelProvider(
-            models: [
-              _model('qwen3-vl', tools: true, vision: true),
-              _model('qwen3', tools: true, vision: false),
-              _model('gemma3-vision', tools: false, vision: true),
-            ],
-            selectedId: 'qwen3',
-          ),
-          styles: _FakeStyleProvider(),
-          prompts: _FakeSystemPromptProvider(),
-        ),
-      );
-      await _openPicker(tester);
-
-      await tester.tap(find.byKey(const ValueKey('capability_filter_vision')));
-      await tester.pump();
-      await tester.enterText(
-        find.byKey(const ValueKey('style_search_field')),
-        'qwen',
-      );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 400));
-
-      expect(tester.takeException(), isNull);
-      // Only the model passing BOTH the query and the filter survives.
-      expect(find.byKey(const ValueKey('model_row_qwen3-vl')), findsOneWidget);
-      // Matches the query but not the filter.
-      expect(find.byKey(const ValueKey('model_row_qwen3')), findsNothing);
-      // Matches the filter but not the query.
-      expect(
-        find.byKey(const ValueKey('model_row_gemma3-vision')),
-        findsNothing,
-      );
-    });
-
-    _testPicker(
-      'a model with an unknown capability is kept under that filter and '
-      'marked, not silently hidden',
-      (tester) async {
-        _setScreenSize(tester, const Size(390, 844));
-        await tester.pumpWidget(
-          _wrap(
-            chat: _FakeChatProvider(),
-            models: _FakeModelProvider(
-              // cloud-model reports nothing; no-vision explicitly says no.
-              models: [
-                _model('cloud-model'),
-                _model('no-vision', vision: false),
-                _model('sees', vision: true),
-              ],
-              selectedId: 'sees',
-            ),
-            styles: _FakeStyleProvider(),
-            prompts: _FakeSystemPromptProvider(),
-          ),
-        );
-        await _openPicker(tester);
-
-        // No filter yet: an unknown flag earns no badge at all.
-        expect(_badge('cloud-model', Icons.visibility_outlined), findsNothing);
-        expect(_badge('sees', Icons.visibility_outlined), findsOneWidget);
-
-        await tester.tap(
-          find.byKey(const ValueKey('capability_filter_vision')),
-        );
-        await tester.pump();
-        await tester.pump(const Duration(milliseconds: 400));
-
-        expect(tester.takeException(), isNull);
-        expect(find.byKey(const ValueKey('model_row_sees')), findsOneWidget);
-        expect(
-          find.byKey(const ValueKey('model_row_cloud-model')),
-          findsOneWidget,
-          reason: 'unknown != false; a failed lookup must not hide a model',
-        );
-        expect(find.byKey(const ValueKey('model_row_no-vision')), findsNothing);
-        // The kept unknown is marked so the row does not read as a confirmed
-        // vision model, and the marker is visibly weaker than a real badge.
-        expect(
-          _badge('cloud-model', Icons.visibility_outlined),
-          findsOneWidget,
-        );
-        expect(
-          find.byTooltip('Vision unknown for this model'),
-          findsOneWidget,
-        );
-        final unknown = tester.widget<Icon>(
-          _badge('cloud-model', Icons.visibility_outlined),
-        );
-        final confirmed = tester.widget<Icon>(
-          _badge('sees', Icons.visibility_outlined),
-        );
-        expect(unknown.color!.a, lessThan(confirmed.color!.a));
-      },
-    );
-
-    _testPicker('the empty state names the filter, not the search', (
-      tester,
-    ) async {
-      _setScreenSize(tester, const Size(390, 844));
-      await tester.pumpWidget(
-        _wrap(
-          chat: _FakeChatProvider(),
-          models: _FakeModelProvider(
-            models: [_model('no-vision', vision: false, tools: true)],
-            selectedId: 'no-vision',
-          ),
-          styles: _FakeStyleProvider(),
-          prompts: _FakeSystemPromptProvider(),
-        ),
-      );
-      await _openPicker(tester);
-
-      await tester.tap(find.byKey(const ValueKey('capability_filter_vision')));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 400));
-
-      expect(tester.takeException(), isNull);
-      expect(
-        find.text('No models have the selected capabilities.'),
-        findsOneWidget,
-      );
-      expect(find.text('No models match your search.'), findsNothing);
-
-      // With both narrowing, the copy accounts for both.
-      await tester.enterText(
-        find.byKey(const ValueKey('style_search_field')),
-        'zzz',
-      );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 400));
-
-      expect(
-        find.text('No models match your search and the selected capabilities.'),
-        findsOneWidget,
-      );
-
-      // Search alone keeps the original copy.
-      await tester.tap(find.byKey(const ValueKey('capability_filter_vision')));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 400));
-
-      expect(find.text('No models match your search.'), findsOneWidget);
-    });
 
     _testPicker('selecting a model applies it to the active conversation', (
       tester,
@@ -1173,6 +947,47 @@ void main() {
       expect(chat.updates.single['clearSystemPrompt'], false);
     });
 
+    _testPicker(
+      'a conversation whose prompt matches a built-in template does not '
+      'assert the template dropdown (built-ins are excluded from items)',
+      (tester) async {
+        // Regression: selectedTemplateId resolves by matching content across
+        // ALL templates (including built-ins), but the dropdown only renders
+        // custom ones. A built-in id as `value` with no matching item used to
+        // trip DropdownButton's exactly-one-match assertion.
+        _setScreenSize(tester, const Size(390, 844));
+        final chat = _FakeChatProvider(
+          conversation: _conversation(systemPrompt: 'content of Concise'),
+        );
+        await tester.pumpWidget(
+          _wrap(
+            chat: chat,
+            models: _FakeModelProvider(
+              models: _defaultModels,
+              selectedId: 'qwen3',
+            ),
+            styles: _FakeStyleProvider(),
+            prompts: _FakeSystemPromptProvider(
+              templates: [
+                _template('b1', 'Concise', isBuiltin: true),
+                _template('t1', 'Architect'),
+              ],
+            ),
+          ),
+        );
+        await _openPicker(tester);
+
+        // No assertion: the dropdown falls back to "No template" rather than
+        // looking for a built-in item that isn't there.
+        expect(tester.takeException(), isNull);
+        await tester.ensureVisible(
+          find.byKey(const ValueKey('template_dropdown')),
+        );
+        await tester.pump();
+        expect(find.text('No template'), findsOneWidget);
+      },
+    );
+
     _testPicker('save style composes the current selection', (tester) async {
       _setScreenSize(tester, const Size(390, 844));
       final styles = _FakeStyleProvider();
@@ -1303,6 +1118,246 @@ void main() {
       // Edit mode ends after saving.
       expect(find.text('Editing "Deep work"'), findsNothing);
     });
+
+    _testPicker(
+      'built-in styles are filtered to the active locale '
+      '(en user sees Concise, not Conciso)',
+      (tester) async {
+        _setScreenSize(tester, const Size(390, 844));
+        final settings = SettingsProvider();
+        // Let the constructor's async _load() finish before overriding,
+        // or it would stomp the value we set here.
+        await tester.runAsync(() async {
+          while (!settings.loaded) {
+            await Future<void>.delayed(const Duration(milliseconds: 1));
+          }
+        });
+        await settings.setAppLocale(AppLocale.english);
+        await tester.pumpWidget(
+          _wrap(
+            chat: _FakeChatProvider(),
+            models: _FakeModelProvider(
+              models: _defaultModels,
+              selectedId: 'qwen3',
+            ),
+            styles: _FakeStyleProvider(
+              styles: [
+                _style(
+                  'b-en',
+                  'Concise',
+                  modelId: 'llama3.2',
+                  isBuiltin: true,
+                  locale: 'en',
+                ),
+                _style(
+                  'b-es',
+                  'Conciso',
+                  modelId: 'llama3.2',
+                  isBuiltin: true,
+                  locale: 'es',
+                ),
+                // User-saved styles (locale = null) always show.
+                _style('u1', 'My style', modelId: 'llama3.2'),
+              ],
+            ),
+            prompts: _FakeSystemPromptProvider(),
+            settings: settings,
+          ),
+        );
+        await _openPicker(tester);
+
+        expect(tester.takeException(), isNull);
+        expect(find.text('Concise'), findsOneWidget);
+        expect(find.text('My style'), findsOneWidget);
+        expect(find.text('Conciso'), findsNothing);
+      },
+    );
+
+    _testPicker(
+      'built-in styles follow the locale when set to spanish '
+      '(es user sees Conciso, not Concise)',
+      (tester) async {
+        _setScreenSize(tester, const Size(390, 844));
+        final settings = SettingsProvider();
+        await tester.runAsync(() async {
+          while (!settings.loaded) {
+            await Future<void>.delayed(const Duration(milliseconds: 1));
+          }
+        });
+        await settings.setAppLocale(AppLocale.spanish);
+        await tester.pumpWidget(
+          _wrap(
+            chat: _FakeChatProvider(),
+            models: _FakeModelProvider(
+              models: _defaultModels,
+              selectedId: 'qwen3',
+            ),
+            styles: _FakeStyleProvider(
+              styles: [
+                _style(
+                  'b-en',
+                  'Concise',
+                  modelId: 'llama3.2',
+                  isBuiltin: true,
+                  locale: 'en',
+                ),
+                _style(
+                  'b-es',
+                  'Conciso',
+                  modelId: 'llama3.2',
+                  isBuiltin: true,
+                  locale: 'es',
+                ),
+              ],
+            ),
+            prompts: _FakeSystemPromptProvider(),
+            settings: settings,
+          ),
+        );
+        await _openPicker(tester);
+
+        expect(tester.takeException(), isNull);
+        expect(find.text('Conciso'), findsOneWidget);
+        expect(find.text('Concise'), findsNothing);
+      },
+    );
+
+    _testPicker(
+      'without SettingsProvider in the tree, all built-ins show '
+      '(preserves isolated-widget-test behavior)',
+      (tester) async {
+        _setScreenSize(tester, const Size(390, 844));
+        await tester.pumpWidget(
+          _wrap(
+            chat: _FakeChatProvider(),
+            models: _FakeModelProvider(
+              models: _defaultModels,
+              selectedId: 'qwen3',
+            ),
+            styles: _FakeStyleProvider(
+              styles: [
+                _style(
+                  'b-en',
+                  'Concise',
+                  modelId: 'llama3.2',
+                  isBuiltin: true,
+                  locale: 'en',
+                ),
+                _style(
+                  'b-es',
+                  'Conciso',
+                  modelId: 'llama3.2',
+                  isBuiltin: true,
+                  locale: 'es',
+                ),
+              ],
+            ),
+            prompts: _FakeSystemPromptProvider(),
+          ),
+        );
+        await _openPicker(tester);
+
+        expect(tester.takeException(), isNull);
+        // No SettingsProvider -> null language code -> no filtering.
+        expect(find.text('Concise'), findsOneWidget);
+        expect(find.text('Conciso'), findsOneWidget);
+      },
+    );
+
+    _testPicker(
+      'Styles segment splits user and predefined styles into sections '
+      'with "Your styles" first',
+      (tester) async {
+        _setScreenSize(tester, const Size(390, 844));
+        await tester.pumpWidget(
+          _wrap(
+            chat: _FakeChatProvider(),
+            models: _FakeModelProvider(
+              models: _defaultModels,
+              selectedId: 'qwen3',
+            ),
+            styles: _FakeStyleProvider(
+              styles: [
+                _style('u1', 'My style', modelId: 'llama3.2'),
+                _style(
+                  'b-en',
+                  'Concise',
+                  modelId: 'llama3.2',
+                  isBuiltin: true,
+                  locale: 'en',
+                ),
+              ],
+            ),
+            prompts: _FakeSystemPromptProvider(),
+          ),
+        );
+        await _openPicker(tester);
+
+        expect(tester.takeException(), isNull);
+        // "Your styles" precedes "Predefined" vertically.
+        final yourCenter = tester.getCenter(find.byKey(
+          const ValueKey('styles_section_header_Your styles'),
+        ));
+        final predefinedCenter = tester.getCenter(find.byKey(
+          const ValueKey('styles_section_header_Predefined'),
+        ));
+        expect(yourCenter.dy < predefinedCenter.dy, isTrue);
+        // The user style and built-in both appear once each (neither matches
+        // the active effective model, so neither shows in the pill).
+        expect(find.text('My style'), findsOneWidget);
+        expect(find.text('Concise'), findsOneWidget);
+      },
+    );
+
+    _testPicker(
+      'Coding/Programación built-ins are not in the seed list and the picker '
+      'shows none of them',
+      (tester) async {
+        _setScreenSize(tester, const Size(390, 844));
+        final settings = SettingsProvider();
+        await tester.runAsync(() async {
+          while (!settings.loaded) {
+            await Future<void>.delayed(const Duration(milliseconds: 1));
+          }
+        });
+        await settings.setAppLocale(AppLocale.english);
+        await tester.pumpWidget(
+          _wrap(
+            chat: _FakeChatProvider(),
+            models: _FakeModelProvider(
+              models: _defaultModels,
+              selectedId: 'qwen3',
+            ),
+            // Only the built-ins the seeder now produces; "Coding" is
+            // deliberately absent.
+            styles: _FakeStyleProvider(
+              styles: [
+                _style(
+                  'b1',
+                  'Concise',
+                  modelId: 'llama3.2',
+                  isBuiltin: true,
+                  locale: 'en',
+                ),
+                _style(
+                  'b2',
+                  'Truth Seeker',
+                  modelId: 'llama3.2',
+                  isBuiltin: true,
+                  locale: 'en',
+                ),
+              ],
+            ),
+            prompts: _FakeSystemPromptProvider(),
+            settings: settings,
+          ),
+        );
+        await _openPicker(tester);
+
+        expect(tester.takeException(), isNull);
+        expect(find.text('Coding'), findsNothing);
+      },
+    );
   });
 
   group('StylePicker panel (desktop popover)', () {
@@ -1337,7 +1392,7 @@ void main() {
       expect(find.text('Chat style'), findsNothing);
     });
 
-    _testPicker('capability filter works in the popover too', (tester) async {
+    _testPicker('popover shows model list without search/filter UI', (tester) async {
       _setScreenSize(tester, const Size(1280, 800));
       await tester.pumpWidget(
         _wrap(
@@ -1356,17 +1411,13 @@ void main() {
       );
       await _openPicker(tester);
 
-      expect(find.byKey(const ValueKey('capability_filter')), findsOneWidget);
-      await tester.tap(find.byKey(const ValueKey('capability_filter_vision')));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 400));
-
-      expect(tester.takeException(), isNull);
-      expect(
-        find.byKey(const ValueKey('model_row_gemma3-vision')),
-        findsOneWidget,
-      );
-      expect(find.byKey(const ValueKey('model_row_qwen3')), findsNothing);
+      // The Customize section renders the model list, but not the removed
+      // search field or capability filter chips.
+      expect(find.byKey(const ValueKey('model_row_qwen3')), findsOneWidget);
+      expect(find.byKey(const ValueKey('model_row_gemma3-vision')),
+          findsOneWidget);
+      expect(find.byKey(const ValueKey('style_search_field')), findsNothing);
+      expect(find.byKey(const ValueKey('capability_filter')), findsNothing);
     });
   });
 

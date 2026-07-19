@@ -324,12 +324,16 @@ class TestStyleServiceBuiltins:
         # Every user sees the built-ins, even without an account row.
         listed = await svc.list_for_user("anyone@example.com")
         names = sorted((s.name, s.locale) for s in listed if s.is_builtin)
-        # 6 English + 6 Spanish built-ins (see StyleService.BUILTIN_STYLES).
+        # 5 English + 5 Spanish built-ins (see StyleService.BUILTIN_STYLES).
+        # "Coding"/"Programación" were dropped from the seed list and pruned by
+        # migration 031, so neither should appear.
         assert ("Concise", "en") in names
         assert ("Truth Seeker", "en") in names
         assert ("Conciso", "es") in names
         assert ("Buscador de la verdad", "es") in names
-        assert sum(1 for s in listed if s.is_builtin) == 12
+        assert ("Coding", "en") not in names
+        assert ("Programación", "es") not in names
+        assert sum(1 for s in listed if s.is_builtin) == 10
 
     async def test_seed_is_idempotent(self, db_session):
         await self._seed_builtins(db_session)
@@ -371,12 +375,12 @@ class TestStyleServiceBuiltins:
         with pytest.raises(BuiltinReadOnlyError):
             await svc.delete(builtin.id, test_user_email)
 
-    async def test_list_orders_builtins_before_user_styles(self, db_session, test_user_email):
+    async def test_list_orders_user_styles_before_builtins(self, db_session, test_user_email):
         await self._seed_builtins(db_session)
         svc = StyleService(db_session)
         await svc.create(user_id=test_user_email, name="mine", model_id="llama3.2")
         listed = await svc.list_for_user(test_user_email)
-        # Built-ins come first.
-        first_owned = next(i for i, s in enumerate(listed) if not s.is_builtin)
-        assert all(listed[i].is_builtin for i in range(first_owned))
-        assert any(not s.is_builtin for s in listed)
+        # The user's own styles come first, built-ins after.
+        first_builtin = next(i for i, s in enumerate(listed) if s.is_builtin)
+        assert all(not listed[i].is_builtin for i in range(first_builtin))
+        assert any(s.is_builtin for s in listed)

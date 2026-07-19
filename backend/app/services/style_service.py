@@ -77,14 +77,6 @@ BUILTIN_STYLES: list[dict[str, str | None]] = [
     },
     {
         "locale": "en",
-        "name": "Coding",
-        "description": "Focused, pragmatic software engineering helper.",
-        "model_id": "kimi-k2.7-code:cloud",
-        "template_name": "Coding Assistant",
-        "thinking_level": None,
-    },
-    {
-        "locale": "en",
         "name": "Tutoring",
         "description": "Teaches by asking guiding questions.",
         "model_id": "glm-5.2:cloud",
@@ -121,14 +113,6 @@ BUILTIN_STYLES: list[dict[str, str | None]] = [
         "description": "Compañero de narración para ficción y no ficción.",
         "model_id": "minimax-m3:cloud",
         "template_name": "Coach de escritura",
-        "thinking_level": None,
-    },
-    {
-        "locale": "es",
-        "name": "Programación",
-        "description": "Ayuda de ingeniería de software enfocada y pragmática.",
-        "model_id": "kimi-k2.7-code:cloud",
-        "template_name": "Asistente de programación",
         "thinking_level": None,
     },
     {
@@ -225,16 +209,19 @@ class StyleService:
         return result.scalar_one_or_none()
 
     async def list_for_user(self, user_id: str) -> list[Style]:
-        """Built-ins first (by name within a locale), then the user's own
-        styles in creation order — so the picker renders the shared presets
-        at the top of the Styles segment and the user's saved styles below.
+        """The user's own styles first (in creation order), then built-ins by
+        name within a locale — so the picker renders the user's editable saved
+        styles at the top of the Styles segment and the shared, read-only
+        presets below. The picker splits the two groups by `is_builtin` for
+        its own headers, so this ordering only affects clients that render the
+        raw list (e.g. the API response).
         """
         result = await self.db.execute(
             Style.owned_by(user_id).order_by(
-                Style.is_builtin.desc(),
+                Style.is_builtin.asc(),
+                Style.created_at.asc(),
                 Style.locale.asc(),
                 Style.name.asc(),
-                Style.created_at.asc(),
             )
         )
         return list(result.scalars().all())

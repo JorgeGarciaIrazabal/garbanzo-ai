@@ -512,10 +512,6 @@
   "@hintSearchConversations": {
     "description": "features/chat/widgets/search_widget.dart:46 (Text)"
   },
-  "hintSearchModels": "Search models",
-  "@hintSearchModels": {
-    "description": "features/chat/widgets/style_picker.dart:840 (Text)"
-  },
   "hintSearchTools": "Search tools…",
   "@hintSearchTools": {
     "description": "features/tools/pages/skills_library_page.dart:117 (Text)"
@@ -807,6 +803,14 @@
   "labelStyles": "Styles",
   "@labelStyles": {
     "description": "features/chat/widgets/style_picker.dart:707 (Text)"
+  },
+  "labelPredefinedStyles": "Predefined",
+  "@labelPredefinedStyles": {
+    "description": "Header above the built-in/predefined styles section in the style picker."
+  },
+  "labelYourStyles": "Your styles",
+  "@labelYourStyles": {
+    "description": "Header above the user-saved styles section in the style picker."
   },
   "labelNewPrompt": "New prompt",
   "@labelNewPrompt": {
@@ -2120,18 +2124,6 @@
   "messageNotSupportedByThisModel": "Not supported by this model",
   "@messageNotSupportedByThisModel": {
     "description": "Thinking control unsupported hint."
-  },
-  "messageNoModelsMatchSearchAndCapabilities": "No models match your search and the selected capabilities.",
-  "@messageNoModelsMatchSearchAndCapabilities": {
-    "description": "Empty state when both search and filters are active."
-  },
-  "messageNoModelsMatchSearch": "No models match your search.",
-  "@messageNoModelsMatchSearch": {
-    "description": "Empty state when search has no results."
-  },
-  "messageNoModelsHaveCapabilities": "No models have the selected capabilities.",
-  "@messageNoModelsHaveCapabilities": {
-    "description": "Empty state when filters exclude everything."
   },
   "messageNoModelsAvailable": "No models available.",
   "@messageNoModelsAvailable": {

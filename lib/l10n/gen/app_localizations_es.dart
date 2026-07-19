@@ -377,9 +377,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get hintSearchConversations => 'Buscar conversaciones…';
 
   @override
-  String get hintSearchModels => 'Buscar modelos';
-
-  @override
   String get hintSearchTools => 'Buscar herramientas…';
 
   @override
@@ -594,6 +591,12 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get labelStyles => 'Estilos';
+
+  @override
+  String get labelPredefinedStyles => 'Predefinidos';
+
+  @override
+  String get labelYourStyles => 'Tus estilos';
 
   @override
   String get labelNewPrompt => 'Nueva instrucción';
@@ -1578,18 +1581,6 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get messageNotSupportedByThisModel => 'No compatible con este modelo';
-
-  @override
-  String get messageNoModelsMatchSearchAndCapabilities =>
-      'Ningún modelo coincide con tu búsqueda y las capacidades seleccionadas.';
-
-  @override
-  String get messageNoModelsMatchSearch =>
-      'Ningún modelo coincide con tu búsqueda.';
-
-  @override
-  String get messageNoModelsHaveCapabilities =>
-      'Ningún modelo tiene las capacidades seleccionadas.';
 
   @override
   String get messageNoModelsAvailable => 'No hay modelos disponibles.';

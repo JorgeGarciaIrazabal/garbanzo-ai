@@ -746,12 +746,6 @@ abstract class AppLocalizations {
   /// **'Search conversations...'**
   String get hintSearchConversations;
 
-  /// features/chat/widgets/style_picker.dart:840 (Text)
-  ///
-  /// In en, this message translates to:
-  /// **'Search models'**
-  String get hintSearchModels;
-
   /// features/tools/pages/skills_library_page.dart:117 (Text)
   ///
   /// In en, this message translates to:
@@ -1177,6 +1171,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Styles'**
   String get labelStyles;
+
+  /// Header above the built-in/predefined styles section in the style picker.
+  ///
+  /// In en, this message translates to:
+  /// **'Predefined'**
+  String get labelPredefinedStyles;
+
+  /// Header above the user-saved styles section in the style picker.
+  ///
+  /// In en, this message translates to:
+  /// **'Your styles'**
+  String get labelYourStyles;
 
   /// features/chat/widgets/style_picker.dart Prompts segment: create a new template.
   ///
@@ -2947,24 +2953,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Not supported by this model'**
   String get messageNotSupportedByThisModel;
-
-  /// Empty state when both search and filters are active.
-  ///
-  /// In en, this message translates to:
-  /// **'No models match your search and the selected capabilities.'**
-  String get messageNoModelsMatchSearchAndCapabilities;
-
-  /// Empty state when search has no results.
-  ///
-  /// In en, this message translates to:
-  /// **'No models match your search.'**
-  String get messageNoModelsMatchSearch;
-
-  /// Empty state when filters exclude everything.
-  ///
-  /// In en, this message translates to:
-  /// **'No models have the selected capabilities.'**
-  String get messageNoModelsHaveCapabilities;
 
   /// Empty state when no models at all.
   ///

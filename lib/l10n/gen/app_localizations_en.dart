@@ -370,9 +370,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get hintSearchConversations => 'Search conversations...';
 
   @override
-  String get hintSearchModels => 'Search models';
-
-  @override
   String get hintSearchTools => 'Search tools…';
 
   @override
@@ -587,6 +584,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get labelStyles => 'Styles';
+
+  @override
+  String get labelPredefinedStyles => 'Predefined';
+
+  @override
+  String get labelYourStyles => 'Your styles';
 
   @override
   String get labelNewPrompt => 'New prompt';
@@ -1555,17 +1558,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get messageNotSupportedByThisModel => 'Not supported by this model';
-
-  @override
-  String get messageNoModelsMatchSearchAndCapabilities =>
-      'No models match your search and the selected capabilities.';
-
-  @override
-  String get messageNoModelsMatchSearch => 'No models match your search.';
-
-  @override
-  String get messageNoModelsHaveCapabilities =>
-      'No models have the selected capabilities.';
 
   @override
   String get messageNoModelsAvailable => 'No models available.';

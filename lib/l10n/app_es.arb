@@ -108,7 +108,6 @@
   "hintMessageTheRoomUseAgentnameOr": "Mensaje para la sala… (usa @AgentName o @all)",
   "hintOneLineSummary": "Resumen en una línea",
   "hintSearchConversations": "Buscar conversaciones…",
-  "hintSearchModels": "Buscar modelos",
   "hintSearchTools": "Buscar herramientas…",
   "hintUsrBinPython3": "/usr/bin/python3",
   "hintWhatShouldTheAssistantDo": "¿Qué debe hacer el asistente?",
@@ -180,6 +179,8 @@
   "labelSse": "SSE",
   "labelStop": "Detener",
   "labelStyles": "Estilos",
+  "labelPredefinedStyles": "Predefinidos",
+  "labelYourStyles": "Tus estilos",
   "labelNewPrompt": "Nueva instrucción",
   "messageNoTemplatesYet": "Aún no hay instrucciones guardadas. Toca \"Nueva instrucción\" para crear una, o \"Crear con IA\" para redactar una.",
   "labelSync": "Sincronizar",
@@ -841,18 +842,6 @@
   "messageNotSupportedByThisModel": "No compatible con este modelo",
   "@messageNotSupportedByThisModel": {
     "description": "Thinking control unsupported hint."
-  },
-  "messageNoModelsMatchSearchAndCapabilities": "Ningún modelo coincide con tu búsqueda y las capacidades seleccionadas.",
-  "@messageNoModelsMatchSearchAndCapabilities": {
-    "description": "Empty state when both search and filters are active."
-  },
-  "messageNoModelsMatchSearch": "Ningún modelo coincide con tu búsqueda.",
-  "@messageNoModelsMatchSearch": {
-    "description": "Empty state when search has no results."
-  },
-  "messageNoModelsHaveCapabilities": "Ningún modelo tiene las capacidades seleccionadas.",
-  "@messageNoModelsHaveCapabilities": {
-    "description": "Empty state when filters exclude everything."
   },
   "messageNoModelsAvailable": "No hay modelos disponibles.",
   "@messageNoModelsAvailable": {
