@@ -1178,6 +1178,18 @@ abstract class AppLocalizations {
   /// **'Styles'**
   String get labelStyles;
 
+  /// features/chat/widgets/style_picker.dart Prompts segment: create a new template.
+  ///
+  /// In en, this message translates to:
+  /// **'New prompt'**
+  String get labelNewPrompt;
+
+  /// features/chat/widgets/style_picker.dart Prompts segment empty state.
+  ///
+  /// In en, this message translates to:
+  /// **'No saved prompts yet. Tap \"New prompt\" to create one, or \"Create with AI\" to draft one.'**
+  String get messageNoTemplatesYet;
+
   /// features/admin/widgets/models_tab.dart:165 (Text)
   ///
   /// In en, this message translates to:

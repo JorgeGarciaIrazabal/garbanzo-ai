@@ -596,6 +596,13 @@ class AppLocalizationsEs extends AppLocalizations {
   String get labelStyles => 'Estilos';
 
   @override
+  String get labelNewPrompt => 'Nueva instrucción';
+
+  @override
+  String get messageNoTemplatesYet =>
+      'Aún no hay instrucciones guardadas. Toca \"Nueva instrucción\" para crear una, o \"Crear con IA\" para redactar una.';
+
+  @override
   String get labelSync => 'Sincronizar';
 
   @override

@@ -6,9 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:garbanzo_ai/core/auth_service.dart';
 import 'package:garbanzo_ai/core/auth_state.dart';
 import 'package:garbanzo_ai/features/chat/providers/model_provider.dart';
-import 'package:garbanzo_ai/features/chat/providers/system_prompt_provider.dart';
 import 'package:garbanzo_ai/features/chat/services/audio_service.dart';
-import 'package:garbanzo_ai/features/chat/widgets/system_prompt_editor_dialog.dart';
 import 'package:garbanzo_ai/features/notifications/providers/notification_provider.dart';
 import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
 import 'package:garbanzo_ai/core/platform_info.dart';
@@ -271,30 +269,9 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Widget _modelsSection() {
     final modelProvider = context.watch<ModelProvider>();
-    final promptProvider = context.watch<SystemPromptProvider>();
     final models = modelProvider.availableModels;
     final defaultModel = _user?.defaultModel;
-    final userDefaultPrompt = promptProvider.userDefault;
     final theme = Theme.of(context);
-
-    String truncate(String s) =>
-        s.length <= 120 ? s : '${s.substring(0, 120)}…';
-
-    Future<void> editDefaultPrompt() async {
-      final result = await SystemPromptEditorDialog.show(
-        context,
-        initialContent: userDefaultPrompt,
-        title: AppLocalizations.of(context)!.titleGlobalDefaultSystemPrompt,
-        subtitle:
-            'Applied to every new conversation unless overridden per-chat.',
-      );
-      if (result == null || result.isCancelled) return;
-      if (result.isClear) {
-        await promptProvider.setUserDefault(null);
-      } else {
-        await promptProvider.setUserDefault(result.content);
-      }
-    }
 
     return Card(
       child: Column(
@@ -339,20 +316,6 @@ class _SettingsPageState extends State<SettingsPage> {
                       }
                     },
                   ),
-          ),
-          const Divider(height: 1),
-          ListTile(
-            title: Text(
-              AppLocalizations.of(context)!.titleGlobalDefaultSystemPrompt,
-            ),
-            subtitle: Text(
-              (userDefaultPrompt == null || userDefaultPrompt.isEmpty)
-                  ? 'Not set — using built-in defaults'
-                  : truncate(userDefaultPrompt),
-              style: theme.textTheme.bodySmall,
-            ),
-            trailing: const Icon(Icons.edit, size: 18),
-            onTap: editDefaultPrompt,
           ),
           const Divider(height: 1),
           ListTile(

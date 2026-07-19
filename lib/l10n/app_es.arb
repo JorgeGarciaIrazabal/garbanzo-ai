@@ -180,6 +180,8 @@
   "labelSse": "SSE",
   "labelStop": "Detener",
   "labelStyles": "Estilos",
+  "labelNewPrompt": "Nueva instrucción",
+  "messageNoTemplatesYet": "Aún no hay instrucciones guardadas. Toca \"Nueva instrucción\" para crear una, o \"Crear con IA\" para redactar una.",
   "labelSync": "Sincronizar",
   "labelSystem": "Sistema",
   "labelSystemPrompt": "Instrucción del sistema",

@@ -1,25 +1,39 @@
 # System Prompts
 
 A system prompt shapes the assistant's persona and rules. Three levels, most
-specific wins: conversation override → your global default → none.
+specific wins: conversation override → your default style's prompt → none.
+
+Everything prompt-related lives in the **style picker** on the chat screen
+(the pill at the top right). In the **Customize** section, the **Prompt**
+dropdown picks a template (built-ins show in the app's current language
+alongside your custom templates). Next to the dropdown:
+
+- **+** creates a new prompt (opens the editor — type one, draft one with
+  **Create with AI**, then **Save to library** to keep it).
+- **✏️** edits the selected custom template's content (built-ins are
+  read-only).
+- **share** shares the selected custom template with a friend.
 
 ## How do I set a system prompt for the current conversation?
-Open the system prompt banner above the chat (it shows "Conversation
-override", "Global default", or "No system prompt") and edit the prompt.
-The override applies only to that conversation.
+Pick a template in the dropdown (applies its content to the active
+conversation), or use the system-prompt banner above the chat to edit a
+free-form prompt for this conversation only. The override is cleared by
+picking a different template or editing it out in the banner.
 
-## How do I set a default system prompt for all chats?
-In the prompt editor, save the prompt as your global default (also available
-from Settings). Conversations without their own override use it.
+## How do I set a default prompt for all new chats?
+Mark a style that bundles your preferred template as **Use for new chats**.
+New conversations start with that style's prompt (and model + thinking level).
 
 ## How do I use templates?
-The editor has a template picker with built-in and your own custom
-templates. Selecting one fills the editor with its content; you can tweak
-before applying. Custom templates can be created, edited, and deleted;
-built-ins can't be deleted.
+Pick one from the dropdown — its content applies to the active conversation
+and seeds the next new one. Built-ins can't be edited or deleted; your custom
+templates can be edited (✏️), shared, and deleted from the prompt editor's
+template picker.
 
 ## How do I create a prompt with AI?
-In the prompt editor, press **Create with AI**, describe what you want
+Tap **+** next to the dropdown to open the editor, press **Create with AI**,
+describe what you want
 ("a sarcastic coding mentor that keeps answers short"), and press
-**Generate** — the draft streams in. You can refine it with feedback
-("make it friendlier") before accepting, then save it as a template.
+**Generate** — the draft streams in. Refine it with feedback
+("make it friendlier") before accepting, then **Save to library** so it
+appears in the dropdown.

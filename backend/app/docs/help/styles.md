@@ -15,9 +15,11 @@ Low, Medium, or High. It only applies to models that support thinking — the
 control is disabled otherwise. The level is saved per conversation.
 
 ## How do I set a system prompt for a conversation?
-Pick a prompt template in the style picker's Customize section, or edit the
-prompt directly from the system prompt banner above the chat. See the
-System Prompts guide for templates.
+Pick a prompt template in the style picker's **Customize** section, or edit
+the prompt directly from the system prompt banner above the chat. Use the
+**+** button next to the template dropdown to create a new prompt (with AI
+or from scratch) and the **✏️** button to edit a selected custom template.
+See the System Prompts guide for details.
 
 ## How do I save a style?
 Compose model + thinking + template in the picker's **Customize** section,

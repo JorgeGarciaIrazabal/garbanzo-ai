@@ -589,6 +589,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get labelStyles => 'Styles';
 
   @override
+  String get labelNewPrompt => 'New prompt';
+
+  @override
+  String get messageNoTemplatesYet =>
+      'No saved prompts yet. Tap \"New prompt\" to create one, or \"Create with AI\" to draft one.';
+
+  @override
   String get labelSync => 'Sync';
 
   @override

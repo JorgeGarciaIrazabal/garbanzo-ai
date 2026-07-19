@@ -9,9 +9,11 @@ import 'package:garbanzo_ai/features/chat/models/system_prompt_template.dart';
 import 'package:garbanzo_ai/features/chat/models/thinking_level.dart';
 import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/model_provider.dart';
-import 'package:garbanzo_ai/features/friends/widgets/share_with_friend_dialog.dart';
 import 'package:garbanzo_ai/features/chat/providers/style_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/system_prompt_provider.dart';
+import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
+import 'package:garbanzo_ai/features/friends/widgets/share_with_friend_dialog.dart';
+import 'package:garbanzo_ai/features/chat/widgets/system_prompt_editor_dialog.dart';
 import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// The style picker: replaces the plain model dropdown with a "chat style"
@@ -411,6 +413,20 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
     _searchController.addListener(() {
       setState(() => _query = _searchController.text.trim().toLowerCase());
     });
+    // Surface built-in templates in the app's language rather than every
+    // locale at once. Same pattern as SystemPromptEditorDialog; the
+    // try/catch keeps widget tests that mount the panel in isolation working.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      try {
+        final settings = context.read<SettingsProvider>();
+        context.read<SystemPromptProvider>().setLocale(
+          settings.effectiveLanguageCode,
+        );
+      } catch (_) {
+        // No SettingsProvider in tree (e.g. isolated widget test) — skip.
+      }
+    });
   }
 
   @override
@@ -511,6 +527,20 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
       _editModelId = style.modelId;
       _editThinking = style.thinkingLevel;
       _editTemplateId = style.systemPromptTemplateId;
+      _section = _PickerSection.customize;
+    });
+    _scrollToTop();
+  }
+
+  /// Jump to Customize in "create" mode (no `_editing` style) — the Compose
+  /// controls then shape a brand-new style rather than reshaping an existing
+  /// one. Triggered by the + button on the Styles segment.
+  void _startCreating() {
+    setState(() {
+      _editing = null;
+      _editModelId = null;
+      _editThinking = null;
+      _editTemplateId = null;
       _section = _PickerSection.customize;
     });
     _scrollToTop();
@@ -763,60 +793,55 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
                               ),
                             ),
                           )
-                        else if (styles.isEmpty)
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(4, 4, 4, 8),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  AppLocalizations.of(
-                                    context,
-                                  )!.messageNoSavedStylesYet,
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: colorScheme.onSurfaceVariant,
+                        else ...[
+                          if (styles.isEmpty)
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(4, 4, 4, 8),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    AppLocalizations.of(
+                                      context,
+                                    )!.messageNoSavedStylesYet,
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: colorScheme.onSurfaceVariant,
+                                    ),
                                   ),
+                                ],
+                              ),
+                            )
+                          else
+                            ...styles.map(
+                              (s) => Padding(
+                                padding: const EdgeInsets.only(bottom: 8),
+                                child: _StyleCard(
+                                  key: ValueKey('style_card_${s.id}'),
+                                  style: s,
+                                  active: styleIsActive(s),
+                                  modelName: models
+                                      .where((m) => m.id == s.modelId)
+                                      .firstOrNull
+                                      ?.name,
+                                  templateName: templates
+                                      .where(
+                                        (t) => t.id == s.systemPromptTemplateId,
+                                      )
+                                      .firstOrNull
+                                      ?.name,
+                                  enabled: !busy,
+                                  onTap: () => _applyStyle(s),
+                                  onSetDefault: (v) => _setDefault(s, v),
+                                  onEdit: () => _startEditing(s),
+                                  onDelete: () => _deleteStyle(s),
                                 ),
-                                TextButton(
-                                  onPressed: () {
-                                    setState(
-                                      () => _section = _PickerSection.customize,
-                                    );
-                                    _scrollToTop();
-                                  },
-                                  child: Text(
-                                    AppLocalizations.of(context)!.composeAStyle,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          )
-                        else
-                          ...styles.map(
-                            (s) => Padding(
-                              padding: const EdgeInsets.only(bottom: 8),
-                              child: _StyleCard(
-                                key: ValueKey('style_card_${s.id}'),
-                                style: s,
-                                active: styleIsActive(s),
-                                modelName: models
-                                    .where((m) => m.id == s.modelId)
-                                    .firstOrNull
-                                    ?.name,
-                                templateName: templates
-                                    .where(
-                                      (t) => t.id == s.systemPromptTemplateId,
-                                    )
-                                    .firstOrNull
-                                    ?.name,
-                                enabled: !busy,
-                                onTap: () => _applyStyle(s),
-                                onSetDefault: (v) => _setDefault(s, v),
-                                onEdit: () => _startEditing(s),
-                                onDelete: () => _deleteStyle(s),
                               ),
                             ),
-                          ),
+                          // Footer: a dashed-outline "+ New style" tile.
+                          // Full-width and tappable; disabled while busy
+                          // (sending) for parity with the style cards.
+                          _NewStyleTile(onTap: busy ? null : _startCreating),
+                        ],
                       ],
                     )
                   : Column(
@@ -939,10 +964,6 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
     );
   }
 }
-
-// ============================================================================
-// Saved style card
-// ============================================================================
 
 class _StyleCard extends StatelessWidget {
   const _StyleCard({
@@ -1121,6 +1142,97 @@ class _StyleCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Dashed-outline "New style" affordance shown at the bottom of the Styles
+/// segment. A tappable, full-width tile that switches the picker to the
+/// Customize (create) section.
+class _NewStyleTile extends StatelessWidget {
+  const _NewStyleTile({this.onTap});
+
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final enabled = onTap != null;
+    final color = enabled
+        ? colorScheme.primary
+        : colorScheme.onSurfaceVariant.withValues(alpha: 0.5);
+
+    return Material(
+      type: MaterialType.transparency,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: CustomPaint(
+          painter: _DashedBorderPainter(
+            color: color.withValues(alpha: 0.6),
+            radius: 12,
+          ),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.add_rounded, size: 20, color: color),
+                const SizedBox(width: 8),
+                Text(
+                  AppLocalizations.of(context)!.composeAStyle,
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: color,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Draws a rounded-rect dashed border. Used by [_NewStyleTile] to read as
+/// "add a new entry here" without the visual weight of a filled card.
+class _DashedBorderPainter extends CustomPainter {
+  const _DashedBorderPainter({required this.color, required this.radius});
+
+  final Color color;
+  final double radius;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 1.5
+      ..style = PaintingStyle.stroke;
+
+    // Approximate a rounded-rect perimeter with a dashed path.
+    final rrect = RRect.fromRectAndRadius(
+      Offset.zero & size,
+      Radius.circular(radius),
+    );
+    final path = Path()..addRRect(rrect);
+
+    const dashWidth = 6.0;
+    const dashGap = 4.0;
+    final metrics = path.computeMetrics();
+    for (final metric in metrics) {
+      double distance = 0;
+      while (distance < metric.length) {
+        final end = (distance + dashWidth).clamp(0.0, metric.length);
+        canvas.drawPath(metric.extractPath(distance, end), paint);
+        distance += dashWidth + dashGap;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _DashedBorderPainter old) =>
+      old.color != color || old.radius != radius;
 }
 
 // ============================================================================
@@ -1446,6 +1558,50 @@ class _TemplatePicker extends StatelessWidget {
   /// template dropdown ended up asserting — see 8131cdf).
   static const _none = '';
 
+  SystemPromptTemplate? get _selected {
+    for (final t in templates) {
+      if (t.id == selectedId) return t;
+    }
+    return null;
+  }
+
+  Future<void> _newPrompt(BuildContext context) async {
+    final l10n = AppLocalizations.of(context)!;
+    // The editor dialog owns the authoring + "Save to library" flow (which
+    // persists the template). We open it empty; the applied result is
+    // discarded — this surface is for *creating* templates, not for applying
+    // a prompt to the conversation.
+    await SystemPromptEditorDialog.show(
+      context,
+      initialContent: null,
+      title: l10n.labelNewPrompt,
+      subtitle: l10n.messageNoTemplatesYet,
+      allowClear: false,
+    );
+  }
+
+  Future<void> _editPrompt(
+    BuildContext context,
+    SystemPromptTemplate template,
+  ) async {
+    // Only custom templates are editable here (builtins are read-only — the
+    // edit button is hidden for them). The dialog edits a *content draft*;
+    // we persist the changed content back onto the template.
+    final provider = context.read<SystemPromptProvider>();
+    final result = await SystemPromptEditorDialog.show(
+      context,
+      initialContent: template.content,
+      title: template.name,
+      allowClear: false,
+    );
+    if (result == null || result.isCancelled || result.isClear) return;
+    final content = result.content;
+    if (content == null || content.isEmpty || content == template.content) {
+      return;
+    }
+    await provider.updateTemplate(template.id, content: content);
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -1455,15 +1611,52 @@ class _TemplatePicker extends StatelessWidget {
     final value = templates.any((t) => t.id == selectedId)
         ? selectedId!
         : _none;
+    final selected = _selected;
+    final canShare = enabled && selected != null && !selected.isBuiltin;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
           padding: const EdgeInsets.only(left: 4, bottom: 6),
-          child: Text(
-            AppLocalizations.of(context)!.labelPrompt,
-            style: theme.textTheme.titleSmall,
+          child: Row(
+            children: [
+              Text(
+                AppLocalizations.of(context)!.labelPrompt,
+                style: theme.textTheme.titleSmall,
+              ),
+              const Spacer(),
+              if (canShare)
+                IconButton(
+                  icon: const Icon(Icons.person_add_alt_outlined, size: 18),
+                  tooltip: AppLocalizations.of(
+                    context,
+                  )!.tooltipSharePromptWithFriend(selected.name),
+                  onPressed: () => showShareWithFriendDialog(
+                    context,
+                    kind: 'prompt',
+                    itemId: selected.id,
+                    itemName: selected.name,
+                  ),
+                  visualDensity: VisualDensity.compact,
+                ),
+              if (enabled && selected != null && !selected.isBuiltin)
+                IconButton(
+                  icon: const Icon(Icons.edit_outlined, size: 18),
+                  tooltip: AppLocalizations.of(
+                    context,
+                  )!.tooltipEditTemplate(selected.name),
+                  onPressed: () => _editPrompt(context, selected),
+                  visualDensity: VisualDensity.compact,
+                ),
+              if (enabled)
+                IconButton(
+                  icon: const Icon(Icons.add, size: 18),
+                  tooltip: AppLocalizations.of(context)!.labelNewPrompt,
+                  onPressed: () => _newPrompt(context),
+                  visualDensity: VisualDensity.compact,
+                ),
+            ],
           ),
         ),
         // A plain DropdownButton (not the FormField flavor) so the shown

@@ -808,6 +808,14 @@
   "@labelStyles": {
     "description": "features/chat/widgets/style_picker.dart:707 (Text)"
   },
+  "labelNewPrompt": "New prompt",
+  "@labelNewPrompt": {
+    "description": "features/chat/widgets/style_picker.dart Prompts segment: create a new template."
+  },
+  "messageNoTemplatesYet": "No saved prompts yet. Tap \"New prompt\" to create one, or \"Create with AI\" to draft one.",
+  "@messageNoTemplatesYet": {
+    "description": "features/chat/widgets/style_picker.dart Prompts segment empty state."
+  },
   "labelSync": "Sync",
   "@labelSync": {
     "description": "features/admin/widgets/models_tab.dart:165 (Text)"
