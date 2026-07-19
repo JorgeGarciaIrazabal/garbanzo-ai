@@ -8,7 +8,7 @@ Current baseline (measured locally with `just be-test-cov` / `just fe-test-cov`,
 
 | Stack    | Coverage | Tests  |
 |----------|----------|--------|
-| Backend  | 77%      | 841    |
+| Backend  | 80%      | 916    |
 | Frontend | ~30%     | —      |
 
 Combined + per-flag views on Codecov (`codecov.io/gh/JorgeGarciaIrazabal/garbanzo-ai`).
@@ -65,7 +65,7 @@ File → current % → why it matters.
 ### Tier 2 — core flow
 | File | % | Why |
 |------|---|-----|
-| `app/services/native_tools.py` | 39 | Tool dispatch — tools execute with user permissions. No async SQLAlchemy → the 39% is real, not a measurement artifact. |
+| `app/services/native_tools.py` | 97 | Tool dispatch — tools execute with user permissions. ✅ at target after test_native_tools.py (was 39%). Drop from gap list if it stays. |
 | `app/services/ollama_provider.py` | 42 | LLM streaming; bug = broken chat or leaked content. No async SQLAlchemy → real gap. |
 | `app/services/chat_service.py` | 66 | Central chat orchestration. |
 | `app/services/mcp_service.py` | 68 | MCP tool execution — external code with user perms. |
@@ -208,7 +208,7 @@ widgets with non-trivial interaction (`MessageComposer`, `ChatPage` search,
 
 | Stack    | Now | Target | Stretch |
 |---------|-----|--------|---------|
-| Backend | 77% | 85%    | 90%     |
+| Backend | 80% | 85%    | 90%     |
 | Frontend | ~30% | 50% | 65%      |
 
 Targets stop there deliberately. Past ~90% you're testing generated code,

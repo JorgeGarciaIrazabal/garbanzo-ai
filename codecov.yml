@@ -15,7 +15,7 @@ coverage:
         only_pulls: false
       backend:
         flags: [backend]
-        target: 76%             # baseline 77% (docs); allow 1pp drift
+        target: 79%             # baseline 80% (docs); allow 1pp drift
         threshold: 1%
       frontend:
         flags: [frontend]
