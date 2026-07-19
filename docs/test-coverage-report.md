@@ -2,6 +2,19 @@
 
 *Generated 2026-07-12. Snapshot: ~50 backend test files (~450 test functions, ~9,200 lines), 30 Flutter test files (~4,000 lines), no committed integration tests.*
 
+> **Status update (2026-07-19).** Most of the plan below has landed. Backend
+> P1/P2 endpoint gaps are covered (`test_chat_message_actions_endpoints.py`,
+> `test_chat_sse_endpoint.py`, `test_room_attachments.py`,
+> `test_rooms_endpoints.py`, `test_conversation_pagination_endpoints.py`).
+> Frontend: `chat_provider_actions_test.dart`, `memory_provider_test.dart`,
+> `notification_provider_test.dart`, `room_socket_service_test.dart`, plus new
+> `knowledge_base_provider_test.dart`, `model_provider_test.dart`,
+> `search_provider_test.dart`, `usage_provider_test.dart`. The
+> `conversation_list_mutation_test.dart` deletion and the dead
+> `fe-integration-test` recipe are both done. **Remaining:** `audio_service`
+> (thin `ApiClient.instance` wrapper — needs an injection point to unit-test;
+> backend side already covered), and the Part 1 `test_schemas.py` trim.
+
 ## TL;DR
 
 The suite is **strong at the service layer and weak at the user-story layer**. Very few tests deserve deletion — the real problem is that several core user flows (regenerate / edit / branch a message, room file attachments, whole frontend features like Memory, Knowledge Base, Notifications, Search) have **zero coverage**. Recommendation: trim ~350 lines of framework-testing noise, and invest in the P1/P2 gaps below.
@@ -77,13 +90,14 @@ Everything else backend-side earns its keep — service tests hit real logic (so
 
 ## Suggested execution order
 
-| # | Task | Layer | Est. size |
-|---|------|-------|-----------|
-| 1 | Endpoint tests for regenerate / edit / branch / cancel | Backend | ~250 lines |
-| 2 | ChatProvider action tests (send/edit/regen/branch/pin/attachments) | Frontend | ~300 lines |
-| 3 | Room attachment tests (service + WS + socket serialization) | Both | ~200 lines |
-| 4 | Rooms REST endpoint tests incl. export + authz | Backend | ~250 lines |
-| 5 | SSE endpoint contract test | Backend | ~80 lines |
-| 6 | MemoryProvider + NotificationProvider tests | Frontend | ~250 lines |
-| 7 | Trim `test_schemas.py`, delete `conversation_list_mutation_test.dart`, prune model roundtrip tests | Both | −400 lines |
-| 8 | Fix/remove `fe-integration-test` recipe | Infra | tiny |
+| # | Task | Layer | Status |
+|---|------|-------|--------|
+| 1 | Endpoint tests for regenerate / edit / branch / cancel | Backend | ✅ done |
+| 2 | ChatProvider action tests (send/edit/regen/branch/pin/attachments) | Frontend | ✅ done |
+| 3 | Room attachment tests (service + WS + socket serialization) | Both | ✅ done |
+| 4 | Rooms REST endpoint tests incl. export + authz | Backend | ✅ done |
+| 5 | SSE endpoint contract test | Backend | ✅ done |
+| 6 | MemoryProvider + NotificationProvider tests | Frontend | ✅ done |
+| 6b | KnowledgeBase / Model / Search / Usage provider tests | Frontend | ✅ done |
+| 7 | Trim `test_schemas.py`, prune model roundtrip tests (`conversation_list_mutation_test.dart` already deleted) | Both | ⬜ remaining |
+| 8 | Fix/remove `fe-integration-test` recipe | Infra | ✅ done |
