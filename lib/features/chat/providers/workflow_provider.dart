@@ -52,6 +52,8 @@ class WorkflowProvider extends ChangeNotifier {
     WorkflowService? service,
     FolderReader reader = const FolderReader(),
     FolderWriter writer = const FolderWriter(),
+    this.maxSnapshotFiles = 2000,
+    this.maxSnapshotBytes = 50 * 1024 * 1024,
   }) : _service = service ?? WorkflowService.instance,
        _reader = reader,
        _writer = writer;
@@ -59,6 +61,10 @@ class WorkflowProvider extends ChangeNotifier {
   final WorkflowService _service;
   final FolderReader _reader;
   final FolderWriter _writer;
+
+  /// Snapshot budgets, mirroring the backend's upload caps.
+  final int maxSnapshotFiles;
+  final int maxSnapshotBytes;
 
   /// How often a live run is polled. Fast enough to feel live, slow enough
   /// that a 15-minute run is ~600 requests rather than tens of thousands.
@@ -69,6 +75,7 @@ class WorkflowProvider extends ChangeNotifier {
   final Map<String, double> _uploadProgress = {};
   final Map<String, String> _errors = {};
   final Map<String, String> _runIdByToolCall = {};
+  final Map<String, ({int skipped, bool truncated})> _snapshotGaps = {};
   final Map<String, Timer> _pollers = {};
 
   /// Conversations already hydrated, so N cards on screen trigger one fetch.
@@ -86,6 +93,11 @@ class WorkflowProvider extends ChangeNotifier {
       _uploadProgress[toolCallId] ?? 0;
 
   String? errorFor(String toolCallId) => _errors[toolCallId];
+
+  /// Files left out of the uploaded snapshot, if any — the agent can't see
+  /// them, so the UI says so rather than implying full coverage.
+  ({int skipped, bool truncated})? snapshotGapFor(String toolCallId) =>
+      _snapshotGaps[toolCallId];
 
   @override
   void dispose() {
@@ -144,12 +156,24 @@ class WorkflowProvider extends ChangeNotifier {
     _errors.remove(toolCallId);
     _setPhase(toolCallId, WorkflowPhase.walking);
     try {
-      final FolderWalk walk = _reader.walk(folderRoot);
+      final FolderWalk walk = _reader.walk(
+        folderRoot,
+        maxFiles: maxSnapshotFiles,
+        maxTotalBytes: maxSnapshotBytes,
+      );
       if (walk.isEmpty) {
         throw const FolderReadError(
           'The attached folder has no readable files to work on.',
         );
       }
+      // Anything left out of the snapshot is something the agent will never
+      // see — large binaries (a big .pptx/.xlsx clears the 5 MB per-file cap
+      // easily) or files past the folder budget. Surfacing this beats letting
+      // the user assume the whole project was sent.
+      _snapshotGaps[toolCallId] = (
+        skipped: walk.skipped.length,
+        truncated: walk.truncated,
+      );
 
       final run = await _service.create(
         instruction: instruction,

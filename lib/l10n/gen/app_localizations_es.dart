@@ -2458,6 +2458,22 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
+  String messageWorkflowFilesSkipped(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count archivos eran demasiado grandes para enviarlos: el agente no los verá',
+      one: '1 archivo era demasiado grande para enviarlo: el agente no lo verá',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get messageWorkflowFolderTruncated =>
+      'La carpeta es demasiado grande para enviarla entera: solo se incluyó una parte.';
+
+  @override
   String get messageWorkflowTooLarge => 'Demasiado grande para aplicar';
 
   @override

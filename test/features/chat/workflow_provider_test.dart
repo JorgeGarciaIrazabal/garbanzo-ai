@@ -8,6 +8,7 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:garbanzo_ai/features/chat/models/workflow_run.dart';
 import 'package:garbanzo_ai/features/chat/providers/workflow_provider.dart';
+import 'package:garbanzo_ai/features/chat/services/folder_reader.dart';
 import 'package:garbanzo_ai/features/chat/services/workflow_service.dart';
 
 /// Covers the client half of a delegated workflow (idea 18): snapshot upload,
@@ -128,6 +129,54 @@ void main() {
       ));
       expect(provider.phaseFor('tc-1'), WorkflowPhase.watching);
       expect(provider.runFor('tc-1')?.id, 'run-1');
+    });
+
+    test('reports files the snapshot had to leave out', () async {
+      File('${root.path}/a.txt').writeAsStringSync('alpha');
+      // A deck bigger than the per-file cap — the agent will never see it, so
+      // the user has to be told rather than assuming full coverage.
+      File('${root.path}/deck.pptx').writeAsBytesSync(
+        List.filled(FolderReader.maxFileBytes + 1, 0),
+      );
+
+      await provider.startFromProposal(
+        toolCallId: 'tc-1',
+        instruction: 'tidy up',
+        folderRoot: root.path,
+      );
+
+      expect(provider.snapshotGapFor('tc-1')?.skipped, 1);
+      expect(provider.snapshotGapFor('tc-1')?.truncated, isFalse);
+      expect(service.uploadBatches.expand((b) => b), isNot(contains('deck.pptx')));
+    });
+
+    test('reports a folder that exceeded the snapshot budget', () async {
+      File('${root.path}/a.txt').writeAsStringSync('alpha');
+      File('${root.path}/b.txt').writeAsStringSync('beta');
+
+      final tight = WorkflowProvider(service: service, maxSnapshotFiles: 1);
+      addTearDown(tight.dispose);
+      await tight.startFromProposal(
+        toolCallId: 'tc-1',
+        instruction: 'tidy up',
+        folderRoot: root.path,
+      );
+
+      expect(tight.snapshotGapFor('tc-1')?.truncated, isTrue);
+    });
+
+    test('reports no gap when the whole folder fits', () async {
+      File('${root.path}/a.txt').writeAsStringSync('alpha');
+
+      await provider.startFromProposal(
+        toolCallId: 'tc-1',
+        instruction: 'tidy up',
+        folderRoot: root.path,
+      );
+
+      final gap = provider.snapshotGapFor('tc-1')!;
+      expect(gap.skipped, 0);
+      expect(gap.truncated, isFalse);
     });
 
     test('fails cleanly when the folder has nothing to upload', () async {

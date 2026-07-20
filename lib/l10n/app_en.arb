@@ -3370,6 +3370,19 @@
       }
     }
   },
+  "messageWorkflowFilesSkipped": "{count, plural, =1{1 file was too large to send — the agent won't see it} other{{count} files were too large to send — the agent won't see them}}",
+  "@messageWorkflowFilesSkipped": {
+    "description": "Warning that oversized files were left out of the uploaded snapshot.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "messageWorkflowFolderTruncated": "The folder is too big to send in full — only part of it was included.",
+  "@messageWorkflowFolderTruncated": {
+    "description": "Warning that the snapshot hit the file-count or total-size budget."
+  },
   "messageWorkflowTooLarge": "Too large to apply",
   "@messageWorkflowTooLarge": {
     "description": "Subtitle for a change the server couldn't send back in full."

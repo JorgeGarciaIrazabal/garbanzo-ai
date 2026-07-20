@@ -62,9 +62,15 @@ def build_config(
     return config
 
 
-def write_config(path: Path, config: dict[str, Any], *, overwrite: bool = False) -> None:
-    """Write ``opencode.json`` into ``path`` unless one is already there."""
+def write_config(path: Path, config: dict[str, Any], *, overwrite: bool = False) -> bool:
+    """Write ``opencode.json`` into ``path`` unless one is already there.
+
+    Returns True when this call created the file. Workflow runs use that to
+    decide whether the config is *ours* (and so must be kept out of the diff
+    sent back to the user) or the project's own.
+    """
     cfg_path = path / "opencode.json"
     if cfg_path.exists() and not overwrite:
-        return
+        return False
     cfg_path.write_text(json.dumps(config, indent=2), encoding="utf-8")
+    return True

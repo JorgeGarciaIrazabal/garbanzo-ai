@@ -51,7 +51,21 @@ Three things worth knowing:
   is working, that file is reported as a conflict and skipped rather than
   overwritten.
 - **Big folders are trimmed.** Hidden files, `.git`, and `node_modules` are
-  never uploaded, and very large files are skipped.
+  never uploaded, and files over 5 MB are skipped. The card tells you when
+  something was left out — the agent can't act on what it never received.
+
+## Can it work on slides, spreadsheets, or images?
+Your files come back **byte-for-byte intact** — a `.xlsx` or `.pptx` the agent
+changed is still a valid, openable file, and binary files it didn't touch are
+left alone. What's limited is how well the agent can *understand* them: it
+reads files as text, so it can't view a slide deck the way you do. It works
+best on code and text formats. It can still handle office files by scripting
+them (for example with a spreadsheet library), but treat that as something to
+review carefully rather than assume.
+
+Two practical limits: files over 5 MB aren't uploaded at all — which many real
+decks exceed — and if the agent produces a file over 5 MB, the review list
+shows it but can't write it locally.
 
 ## How do I dictate a message?
 Press the microphone button in the input bar and speak; the recording is

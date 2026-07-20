@@ -7,6 +7,8 @@ git-diff change detection that write-back depends on.
 
 import base64
 import hashlib
+import io
+import zipfile
 from pathlib import Path
 
 import pytest
@@ -171,6 +173,90 @@ def test_collect_changes_detects_add_modify_delete(tmp_path):
     assert changes["gone.txt"].status == "deleted"
     assert changes["gone.txt"].data is None
     assert changes["gone.txt"].base_sha256 == hashlib.sha256(b"bye").hexdigest()
+
+
+def test_collect_changes_handles_binary_files_byte_exactly(tmp_path):
+    """Spreadsheets, decks, and images must survive the diff untouched.
+
+    Detection uses ``--name-status`` (never a textual patch) and content is
+    carried as base64, so binary formats are safe — this pins that down.
+    """
+
+    def make_xlsx(path, note):
+        with zipfile.ZipFile(path, "w") as z:
+            z.writestr("[Content_Types].xml", "<Types/>")
+            z.writestr("xl/sharedStrings.xml", note)
+
+    make_xlsx(tmp_path / "book.xlsx", "before")
+    (tmp_path / "logo.png").write_bytes(bytes([0x89, 0x50, 0x4E, 0x47, 0, 1, 255, 254]))
+    _git_baseline(tmp_path)
+    original = (tmp_path / "book.xlsx").read_bytes()
+
+    make_xlsx(tmp_path / "book.xlsx", "after")
+    make_xlsx(tmp_path / "deck.pptx", "slides")
+
+    changes = {c.path: c for c in _collect_changes(tmp_path)}
+    assert set(changes) == {"book.xlsx", "deck.pptx"}  # untouched png not reported
+
+    edited = changes["book.xlsx"]
+    assert edited.status == "modified"
+    assert edited.base_sha256 == hashlib.sha256(original).hexdigest()
+    # Byte-exact, and still a readable office file after the round trip.
+    round_tripped = base64.b64decode(edited.data)
+    assert round_tripped == (tmp_path / "book.xlsx").read_bytes()
+    assert zipfile.is_zipfile(io.BytesIO(round_tripped))
+
+
+def test_collect_changes_omits_content_for_oversized_files(tmp_path):
+    _git_baseline(tmp_path)
+    (tmp_path / "huge.pptx").write_bytes(b"x" * (MAX_FILE_BYTES + 1))
+
+    change = next(c for c in _collect_changes(tmp_path) if c.path == "huge.pptx")
+    # Reported so the user knows it exists, but without content — the client
+    # shows it as skipped rather than writing a truncated file.
+    assert change.data is None
+    assert change.size > MAX_FILE_BYTES
+
+
+def test_collect_changes_excludes_tool_residue(tmp_path):
+    """A run that installs dependencies must not ship them back to the user."""
+    (tmp_path / "main.py").write_text("print('hi')")
+    _git_baseline(tmp_path)
+
+    (tmp_path / ".opencode").mkdir()
+    (tmp_path / ".opencode/state.json").write_text("{}")
+    (tmp_path / "node_modules/left-pad").mkdir(parents=True)
+    (tmp_path / "node_modules/left-pad/index.js").write_text("noise")
+    (tmp_path / "__pycache__").mkdir()
+    (tmp_path / "__pycache__/main.pyc").write_bytes(b"\x00")
+    (tmp_path / "main.py").write_text("print('bye')")
+
+    assert [c.path for c in _collect_changes(tmp_path)] == ["main.py"]
+
+
+def test_seeded_opencode_config_is_not_offered_to_the_user(tmp_path):
+    from app.core.config import get_settings
+    from app.services.workflow_runner import seed_opencode_config
+
+    (tmp_path / "main.py").write_text("x = 1")
+    _git_baseline(tmp_path)
+    seed_opencode_config(tmp_path, get_settings())
+
+    assert (tmp_path / "opencode.json").exists()  # opencode still sees it
+    assert _collect_changes(tmp_path) == []  # but the user never does
+
+
+def test_a_projects_own_opencode_config_stays_diffable(tmp_path):
+    from app.core.config import get_settings
+    from app.services.workflow_runner import seed_opencode_config
+
+    (tmp_path / "opencode.json").write_text('{"model": "theirs"}')
+    _git_baseline(tmp_path)
+    seed_opencode_config(tmp_path, get_settings())  # must not overwrite it
+    assert '"theirs"' in (tmp_path / "opencode.json").read_text()
+
+    (tmp_path / "opencode.json").write_text('{"model": "edited-by-agent"}')
+    assert [c.path for c in _collect_changes(tmp_path)] == ["opencode.json"]
 
 
 def test_collect_changes_empty_when_nothing_touched(tmp_path):

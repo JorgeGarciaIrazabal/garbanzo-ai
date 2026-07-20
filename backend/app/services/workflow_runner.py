@@ -29,7 +29,7 @@ from app.models.workflow_run import WorkflowRun
 from app.services.microapp_agent import MicroappAgent
 from app.services.opencode_config import build_config, write_config
 from app.services.opencode_process import default_spawn, pick_free_port, terminate, wait_ready
-from app.services.workflow_service import WorkflowService
+from app.services.workflow_service import WorkflowService, exclude_from_diff
 
 logger = logging.getLogger(__name__)
 
@@ -134,11 +134,23 @@ async def _run(run_id: str) -> None:
                 )
 
 
+def seed_opencode_config(workdir: Path, settings: Settings) -> None:
+    """Write the run's ``opencode.json``, keeping it out of the returned diff.
+
+    The user confirmed this run, so the agent may edit files and run commands —
+    inside the snapshot copy, never the user's actual folder.
+
+    If *we* seeded the config it's plumbing, and writing it into the user's
+    project would be a surprise, so it's excluded from the diff. A project that
+    already ships its own ``opencode.json`` keeps it, and stays diffable.
+    """
+    if write_config(workdir, build_config(settings)):
+        exclude_from_diff(workdir, ["opencode.json"])
+
+
 def _start_opencode(workdir: Path, settings: Settings) -> tuple[subprocess.Popen | None, str]:
     """Seed the config and spawn ``opencode serve`` in ``workdir`` (blocking)."""
-    # The user confirmed this run, so the agent may edit and run commands —
-    # inside the snapshot copy, never the user's actual folder.
-    write_config(workdir, build_config(settings))
+    seed_opencode_config(workdir, settings)
     port = pick_free_port()
     base = f"http://127.0.0.1:{port}"
     proc = default_spawn(

@@ -63,6 +63,22 @@ _GIT_ENV_ARGS = (
 _MAX_PROGRESS_ENTRIES = 2000
 _COALESCING_TYPES = frozenset({"chunk", "thinking"})
 
+# Never offered back to the user: opencode's own state plus the dependency and
+# build trees a run can create (bash is allowed, so `npm install` is fair game
+# — without this the diff would carry thousands of node_modules files into the
+# user's real folder). ``opencode.json`` is added at runtime, and only when we
+# were the ones who wrote it — a project with its own stays diffable.
+_TOOL_RESIDUE = [
+    ".opencode/",
+    "node_modules/",
+    "__pycache__/",
+    ".venv/",
+    "venv/",
+    ".pytest_cache/",
+    ".ruff_cache/",
+    ".mypy_cache/",
+]
+
 
 class WorkflowError(RuntimeError):
     """A workflow operation failed with a user-facing message."""
@@ -318,8 +334,25 @@ def _write_files(decoded: list[tuple[Path, bytes]]) -> None:
         path.write_bytes(data)
 
 
+def exclude_from_diff(workdir: Path, patterns: list[str]) -> None:
+    """Add ``patterns`` to the snapshot's ``.git/info/exclude``.
+
+    Uses ``.git/info/exclude`` rather than a ``.gitignore``: the latter would
+    itself be a new file in the working tree and get offered back to the user
+    as a change. Everything listed here is agent/tool residue that must never
+    be written into the user's real folder.
+    """
+    info = workdir / ".git" / "info"
+    if not info.parent.exists():
+        return
+    info.mkdir(parents=True, exist_ok=True)
+    with (info / "exclude").open("a", encoding="utf-8") as fh:
+        fh.write("\n" + "\n".join(patterns) + "\n")
+
+
 def _git_baseline(workdir: Path) -> None:
     _run_git(workdir, "init", "--quiet")
+    exclude_from_diff(workdir, _TOOL_RESIDUE)
     _run_git(workdir, "add", "-A")
     # An empty snapshot has nothing to commit; allow it so the run can still
     # create files from scratch.

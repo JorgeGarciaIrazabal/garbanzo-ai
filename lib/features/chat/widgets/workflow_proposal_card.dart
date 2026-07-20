@@ -119,6 +119,7 @@ class _WorkflowProposalCardState extends State<WorkflowProposalCard> {
                 const SizedBox(height: 8),
                 Text(_summary, style: theme.textTheme.bodyMedium),
                 ..._scopeLines(theme, run),
+                ..._snapshotGapLine(theme, workflows),
                 const SizedBox(height: 12),
                 _body(context, workflows, run, phase),
               ],
@@ -153,6 +154,41 @@ class _WorkflowProposalCardState extends State<WorkflowProposalCard> {
             ),
           ),
         ),
+    ];
+  }
+
+  /// Warn when the snapshot didn't cover the whole folder — the agent can't
+  /// act on what it never received, and silence would imply it could.
+  List<Widget> _snapshotGapLine(ThemeData theme, WorkflowProvider workflows) {
+    final toolCallId = _toolCallId;
+    final gap = toolCallId == null
+        ? null
+        : workflows.snapshotGapFor(toolCallId);
+    if (gap == null || (gap.skipped == 0 && !gap.truncated)) return const [];
+    final l10n = AppLocalizations.of(context)!;
+    return [
+      const SizedBox(height: 6),
+      Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.info_outline,
+            size: 14,
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              gap.truncated
+                  ? l10n.messageWorkflowFolderTruncated
+                  : l10n.messageWorkflowFilesSkipped(gap.skipped),
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+        ],
+      ),
     ];
   }
 

@@ -4395,6 +4395,18 @@ abstract class AppLocalizations {
   /// **'Selected files will be written into {path}.'**
   String messageWorkflowApplyWarning(String path);
 
+  /// Warning that oversized files were left out of the uploaded snapshot.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 file was too large to send — the agent won\'t see it} other{{count} files were too large to send — the agent won\'t see them}}'**
+  String messageWorkflowFilesSkipped(int count);
+
+  /// Warning that the snapshot hit the file-count or total-size budget.
+  ///
+  /// In en, this message translates to:
+  /// **'The folder is too big to send in full — only part of it was included.'**
+  String get messageWorkflowFolderTruncated;
+
   /// Subtitle for a change the server couldn't send back in full.
   ///
   /// In en, this message translates to:
