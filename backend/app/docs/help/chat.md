@@ -35,25 +35,28 @@ desktop-only — web can't reach your files.
 Not directly, but it can hand the job to an agent that does. When you ask for
 something big — "refactor this module", "add tests across the package", "fix
 every occurrence of X" — the assistant **delegates the task** to an autonomous
-coding agent and a card appears in the chat showing live progress.
+coding agent, and a line appears in the chat showing that it's working. Expand
+that line to watch what the agent is doing.
 
-Your own files are never at risk while it works: the app uploads a **copy** of
-the attached folder and the agent only ever touches that copy. When it
-finishes, the card offers **Review changes** — a list of every file it added,
-changed, or deleted, with a checkbox each. Nothing is written to your disk
-until you pick what you want and choose **Apply**.
+Your own files are never at risk *while it works*: the app uploads a **copy** of
+the attached folder and the agent only ever touches that copy. When it finishes,
+the resulting changes are **written straight into your folder** — no review step
+in between. There is no built-in undo yet, so keep anything precious under
+version control (or a backup) if you want an easy way back.
 
 Three things worth knowing:
 
-- **It keeps running if you close the app.** The work happens on the server, so
-  you can carry on elsewhere; you'll get a notification when it finishes, and
-  the summary appears in the conversation.
+- **It keeps running if you close the app.** The work happens on the server,
+  so you can carry on elsewhere. If the app is closed when it finishes you
+  get a notification; if you're still in the app you don't — the progress
+  line and the summary in the conversation already tell you.
 - **Your edits win.** If you change one of those files yourself while the agent
   is working, that file is reported as a conflict and skipped rather than
   overwritten.
 - **Big folders are trimmed.** Hidden files, `.git`, and `node_modules` are
-  never uploaded, and files over 5 MB are skipped. The card tells you when
-  something was left out — the agent can't act on what it never received.
+  never uploaded, and files over 5 MB are skipped. Expanding the progress
+  line tells you when something was left out — the agent can't act on what
+  it never received.
 
 ## Can it work on slides, spreadsheets, or images?
 Your files come back **byte-for-byte intact** — a `.xlsx` or `.pptx` the agent
@@ -64,9 +67,10 @@ best on code and text formats. It can still handle office files by scripting
 them (for example with a spreadsheet library), but treat that as something to
 review carefully rather than assume.
 
-Two practical limits: files over 5 MB aren't uploaded at all — which many real
-decks exceed — and if the agent produces a file over 5 MB, the review list
-shows it but can't write it locally.
+One practical limit: files over 5 MB aren't uploaded at all — which many real
+decks exceed. The agent can still produce one (its output is written to your
+folder on completion), but anything over 5 MB it generates is reported as
+skipped rather than written.
 
 ## How do I dictate a message?
 Press the microphone button in the input bar and speak; the recording is

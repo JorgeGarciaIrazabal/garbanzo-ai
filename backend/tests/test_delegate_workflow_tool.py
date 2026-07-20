@@ -129,7 +129,16 @@ async def test_returns_a_proposal_without_side_effects(db_session):
     note = result["note"]
     assert "STARTED" in note
     assert "Do NOT ask them to confirm" in note
-    assert "confirm" not in note.replace("Do NOT ask them to confirm", "")
+    # Regression: the model announced "Done, I created the file" while the run
+    # was still going and nothing had been written to the user's disk.
+    assert "has NOT finished" in note
+    assert "nothing on their disk has changed yet" in note
+    # The review gate is gone — the note must describe auto-apply, not ask the
+    # user to review anything.
+    assert "automatically" in note
+    assert "review" not in note.lower()
+    for claim in ("created", "written", "saved", "updated", "added"):
+        assert claim in note, f"the note must forbid claiming a file was {claim}"
 
     from sqlalchemy import func, select
 

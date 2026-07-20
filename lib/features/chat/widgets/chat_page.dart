@@ -517,19 +517,9 @@ class _ChatPageContentState extends State<_ChatPageContent>
       }
     }
     if (folder != null) {
-      if (!chatProvider.hasActiveConversation) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              AppLocalizations.of(context)!.messageStartAConversationFirst,
-            ),
-          ),
-        );
-        return;
-      }
       try {
         await chatProvider.attachClientFolder(
-          chatProvider.currentConversation!.id,
+          chatProvider.currentConversation?.id,
           folder.path,
         );
       } catch (_) {

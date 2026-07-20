@@ -244,6 +244,24 @@ async def test_get_pages_progress_with_since(db_session):
 
 
 @pytest.mark.asyncio
+async def test_polling_marks_the_run_as_watched(db_session):
+    """The poll doubles as the "user is in the app" signal that suppresses
+    the completion push."""
+    from app.services import workflow_watchers
+
+    _install_overrides(db_session, _UserSwitch())
+    try:
+        async with _client() as c:
+            run = await _create(c)
+            assert not workflow_watchers.is_watched(run["id"])
+            await c.get(f"/api/v1/workflows/{run['id']}")
+            assert workflow_watchers.is_watched(run["id"])
+    finally:
+        workflow_watchers.forget(run["id"])
+        _clear_overrides()
+
+
+@pytest.mark.asyncio
 async def test_list_for_conversation(db_session, test_conversation):
     _install_overrides(db_session, _UserSwitch())
     try:

@@ -15,6 +15,7 @@ that disappears mid-run comes back to a complete timeline.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
 import subprocess
@@ -26,10 +27,11 @@ from pathlib import Path
 from app.core.config import Settings, get_settings
 from app.models.message import Message
 from app.models.workflow_run import WorkflowRun
+from app.services import workflow_watchers
 from app.services.microapp_agent import MicroappAgent
-from app.services.opencode_config import build_config, write_config
+from app.services.opencode_config import DEFAULT_PERMISSION, build_config, write_config
 from app.services.opencode_process import default_spawn, pick_free_port, terminate, wait_ready
-from app.services.workflow_service import WorkflowService, exclude_from_diff
+from app.services.workflow_service import WorkflowService, absorb_into_baseline, exclude_from_diff
 
 logger = logging.getLogger(__name__)
 
@@ -142,10 +144,36 @@ def seed_opencode_config(workdir: Path, settings: Settings) -> None:
 
     If *we* seeded the config it's plumbing, and writing it into the user's
     project would be a surprise, so it's excluded from the diff. A project that
-    already ships its own ``opencode.json`` keeps it, and stays diffable.
+    already ships its own ``opencode.json`` keeps it — but must still end up
+    with a permission envelope (see :func:`_ensure_permission_envelope`).
     """
     if write_config(workdir, build_config(settings)):
         exclude_from_diff(workdir, ["opencode.json"])
+        return
+    _ensure_permission_envelope(workdir)
+
+
+def _ensure_permission_envelope(workdir: Path) -> None:
+    """Give a project-shipped ``opencode.json`` a permission envelope.
+
+    The run is detached — nobody is there to answer a permission prompt, so a
+    project config without a ``permission`` block leaves opencode waiting on
+    its first edit/bash approval until the time budget kills the run. Inject
+    the default allow envelope when the block is missing; a project that
+    declares its own permissions keeps them. The patched file is committed on
+    top of the baseline so the injection never reaches the user's folder
+    through the auto-applied diff.
+    """
+    cfg_path = workdir / "opencode.json"
+    try:
+        config = json.loads(cfg_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return  # unreadable or not plain JSON — leave the project's file alone
+    if not isinstance(config, dict) or "permission" in config:
+        return
+    config["permission"] = dict(DEFAULT_PERMISSION)
+    cfg_path.write_text(json.dumps(config, indent=2), encoding="utf-8")
+    absorb_into_baseline(workdir, ["opencode.json"])
 
 
 def _start_opencode(workdir: Path, settings: Settings) -> tuple[subprocess.Popen | None, str]:
@@ -243,6 +271,15 @@ async def _report_completion(
         except Exception:
             logger.exception("could not post workflow %s summary to its conversation", run_id)
             await db.rollback()
+
+    # A push is only useful when the user *isn't* watching. If their app has
+    # been polling this run, the progress line already showed the result and
+    # the conversation reloaded — buzzing them as well is pure noise.
+    watched = workflow_watchers.is_watched(run_id)
+    workflow_watchers.forget(run_id)
+    if watched:
+        logger.info("workflow %s finished while watched — skipping push", run_id)
+        return
 
     # Import late so tests that never touch FCM don't pay for firebase setup.
     from app.services.fcm_service import send_to_user

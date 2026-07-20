@@ -201,9 +201,11 @@ half-migrated schema.
     previous entry and the list is capped (2000 entries) so a runaway run
     can't bloat the row.
   - `tool_call_id` is the `delegate_workflow` proposal's id, which is how a
-    confirm card re-finds its run after a reload — no client-side storage
-    needed (contrast with the `SharedPreferences` decision store the other
-    proposal types use).
+    proposal card re-finds its run after a reload — no client-side storage
+    needed for the *run* itself. The **applied/not-applied** flag the
+    auto-apply path needs (so a reload doesn't double-write the diff) is kept
+    client-side in `SharedPreferences` keyed by run id; the run row never
+    learns whether the diff has landed on the user's disk.
   - `conversation_id` is nullable for room-originated runs; when set, the
     final summary is written back as an assistant `Message` carrying
     `meta.workflow_run_id`.

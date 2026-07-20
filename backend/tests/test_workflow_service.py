@@ -259,6 +259,51 @@ def test_a_projects_own_opencode_config_stays_diffable(tmp_path):
     assert [c.path for c in _collect_changes(tmp_path)] == ["opencode.json"]
 
 
+def test_a_permissionless_project_config_gets_the_allow_envelope(tmp_path):
+    """A detached run has nobody to answer permission prompts — a project
+    config without a ``permission`` block would stall opencode until the time
+    budget kills the run. The envelope is injected, but committed onto the
+    baseline so it never reaches the user's folder through the diff."""
+    import json
+
+    from app.core.config import get_settings
+    from app.services.opencode_config import DEFAULT_PERMISSION
+    from app.services.workflow_runner import seed_opencode_config
+
+    (tmp_path / "opencode.json").write_text('{"model": "theirs"}')
+    _git_baseline(tmp_path)
+    seed_opencode_config(tmp_path, get_settings())
+
+    config = json.loads((tmp_path / "opencode.json").read_text())
+    assert config["model"] == "theirs"  # everything else is kept
+    assert config["permission"] == DEFAULT_PERMISSION
+    assert _collect_changes(tmp_path) == []  # the injection is not a "change"
+
+
+def test_a_project_config_with_its_own_permissions_is_respected(tmp_path):
+    from app.core.config import get_settings
+    from app.services.workflow_runner import seed_opencode_config
+
+    (tmp_path / "opencode.json").write_text('{"permission": {"edit": "deny"}}')
+    _git_baseline(tmp_path)
+    seed_opencode_config(tmp_path, get_settings())
+
+    assert '"deny"' in (tmp_path / "opencode.json").read_text()
+    assert _collect_changes(tmp_path) == []
+
+
+def test_a_non_json_project_config_is_left_alone(tmp_path):
+    from app.core.config import get_settings
+    from app.services.workflow_runner import seed_opencode_config
+
+    jsonc = '{\n  // comment makes this JSONC\n  "model": "theirs"\n}'
+    (tmp_path / "opencode.json").write_text(jsonc)
+    _git_baseline(tmp_path)
+    seed_opencode_config(tmp_path, get_settings())
+
+    assert (tmp_path / "opencode.json").read_text() == jsonc
+
+
 def test_collect_changes_empty_when_nothing_touched(tmp_path):
     (tmp_path / "a.txt").write_text("same")
     _git_baseline(tmp_path)

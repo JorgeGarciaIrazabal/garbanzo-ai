@@ -2430,6 +2430,11 @@ class AppLocalizationsEs extends AppLocalizations {
   String get messageWorkflowUploading => 'Subiendo la carpeta…';
 
   @override
+  String messageWorkflowRunningIn(String name) {
+    return 'El agente está trabajando en $name…';
+  }
+
+  @override
   String get messageWorkflowRunning => 'El agente está trabajando…';
 
   @override
@@ -2519,6 +2524,27 @@ class AppLocalizationsEs extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get messageWorkflowApplying => 'Aplicando cambios a tu carpeta…';
+
+  @override
+  String messageWorkflowAppliedShort(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count archivos aplicados a tu carpeta',
+      one: '1 archivo aplicado a tu carpeta',
+      zero: 'Ningún archivo cambiado',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get messageWorkflowConflictsLabel => 'Omitido (cambió en el disco):';
+
+  @override
+  String get messageWorkflowFailedFilesLabel => 'No se pudo escribir:';
 
   @override
   String get messageSttUnavailable =>

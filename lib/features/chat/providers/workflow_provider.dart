@@ -2,9 +2,11 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:garbanzo_ai/core/log.dart';
 import 'package:garbanzo_ai/features/chat/models/workflow_run.dart';
+import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
 import 'package:garbanzo_ai/features/chat/services/folder_reader.dart';
 import 'package:garbanzo_ai/features/chat/services/folder_walk.dart';
 import 'package:garbanzo_ai/features/chat/services/folder_writer.dart';
@@ -35,6 +37,33 @@ class ApplyResult {
   bool get isClean => conflicts.isEmpty && failed.isEmpty && skipped.isEmpty;
   int get total =>
       applied.length + conflicts.length + skipped.length + failed.length;
+
+  static const ApplyResult empty = ApplyResult(
+    applied: [],
+    conflicts: [],
+    skipped: [],
+    failed: [],
+  );
+
+  /// (De)serialization for the per-run apply record in `SharedPreferences`,
+  /// so a reload can show the real outcome (files and counts) instead of a
+  /// reconstructed approximation.
+  Map<String, dynamic> toJson() => {
+    'applied': applied,
+    'conflicts': conflicts,
+    'skipped': skipped,
+    'failed': failed,
+  };
+
+  factory ApplyResult.fromJson(Map<String, dynamic> json) => ApplyResult(
+    applied: _paths(json['applied']),
+    conflicts: _paths(json['conflicts']),
+    skipped: _paths(json['skipped']),
+    failed: _paths(json['failed']),
+  );
+
+  static List<String> _paths(Object? value) =>
+      value is List ? value.map((e) => e.toString()).toList() : const [];
 }
 
 /// Phase of the client-side work around a run, which the server's `status`
@@ -49,14 +78,22 @@ enum WorkflowPhase { idle, walking, uploading, watching, done, failed }
 /// the user reads the rest of the conversation.
 class WorkflowProvider extends ChangeNotifier {
   WorkflowProvider({
+    required ChatProvider chat,
     WorkflowService? service,
     FolderReader reader = const FolderReader(),
     FolderWriter writer = const FolderWriter(),
     this.maxSnapshotFiles = 2000,
     this.maxSnapshotBytes = 50 * 1024 * 1024,
-  }) : _service = service ?? WorkflowService.instance,
+  }) : _chat = chat,
+       _service = service ?? WorkflowService.instance,
        _reader = reader,
        _writer = writer;
+
+  /// The chat provider that owns the per-conversation attached-folder path
+  /// and the current-conversation id. Held so the auto-apply kicked off
+  /// inside [WorkflowProvider] can resolve the folder without a
+  /// `BuildContext` (a card may be mid-deactivation when it fires).
+  final ChatProvider _chat;
 
   final WorkflowService _service;
   final FolderReader _reader;
@@ -65,6 +102,82 @@ class WorkflowProvider extends ChangeNotifier {
   /// Snapshot budgets, mirroring the backend's upload caps.
   final int maxSnapshotFiles;
   final int maxSnapshotBytes;
+
+  /// Called with the run's conversation id when a run reaches a terminal
+  /// state.
+  ///
+  /// The backend writes the run's summary into the conversation as an
+  /// assistant message, but the client has no reason to re-fetch on its own —
+  /// so the user got an FCM notification saying the workflow had finished and
+  /// then found nothing in the chat. Wired in `main.dart` to reload the
+  /// conversation.
+  void Function(String conversationId)? onRunFinished;
+
+  /// Result of the auto-apply that ran when a finished workflow's diff was
+  /// written back into the local folder. `null` until that's happened (or
+  /// until we've established there's nothing to apply), so the tile can tell
+  /// the user the diff was applied and call out any conflicts/failed writes.
+  final Map<String, ApplyResult> _applyResults = {};
+
+  ApplyResult? applyResultFor(String toolCallId) {
+    final id = _runIdByToolCall[toolCallId];
+    return id == null ? null : _applyResults[id];
+  }
+
+  /// SharedPreferences key under which every run that has been auto-applied
+  /// (or knowingly skipped) is recorded, runId → the [ApplyResult] as JSON.
+  /// A re-attach after reload reads this so a finished run doesn't get
+  /// re-applied (its snapshot may already have been released) and so the tile
+  /// can show the real outcome instead of a reconstruction.
+  static const String _appliedRunsPrefsKey = 'workflow_applied_runs';
+
+  /// The record can only grow (one entry per finished run, forever), so the
+  /// oldest entries are dropped past this point. Any run old enough to fall
+  /// off has long lost its snapshot server-side anyway.
+  static const int _maxAppliedRunRecords = 50;
+
+  final Map<String, ApplyResult> _appliedRuns = {};
+
+  /// Memoized so concurrent callers share one load and a `_markAppliedRun`
+  /// can never save before the existing records are in memory (which would
+  /// silently clobber them).
+  Future<void>? _appliedRunsLoad;
+
+  Future<void> _loadAppliedRuns() => _appliedRunsLoad ??= () async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_appliedRunsPrefsKey);
+      if (raw == null || raw.isEmpty) return;
+      final decoded = jsonDecode(raw);
+      if (decoded is Map<String, dynamic>) {
+        for (final entry in decoded.entries) {
+          final value = entry.value;
+          if (value is Map<String, dynamic>) {
+            _appliedRuns[entry.key] = ApplyResult.fromJson(value);
+          }
+        }
+      }
+    } catch (e) {
+      logDebug('Could not load applied-run records: $e');
+    }
+  }();
+
+  Future<void> _markAppliedRun(String runId, ApplyResult result) async {
+    await _loadAppliedRuns();
+    _appliedRuns[runId] = result;
+    while (_appliedRuns.length > _maxAppliedRunRecords) {
+      _appliedRuns.remove(_appliedRuns.keys.first);
+    }
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        _appliedRunsPrefsKey,
+        jsonEncode(_appliedRuns.map((k, v) => MapEntry(k, v.toJson()))),
+      );
+    } catch (e) {
+      logDebug('Could not persist applied-run record: $e');
+    }
+  }
 
   /// How often a live run is polled. Fast enough to feel live, slow enough
   /// that a 15-minute run is ~600 requests rather than tens of thousands.
@@ -101,12 +214,15 @@ class WorkflowProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    _isDisposed = true;
     for (final timer in _pollers.values) {
       timer.cancel();
     }
     _pollers.clear();
     super.dispose();
   }
+
+  bool _isDisposed = false;
 
   /// Re-attach cards to their runs after a reload.
   ///
@@ -118,6 +234,7 @@ class WorkflowProvider extends ChangeNotifier {
     bool force = false,
   }) async {
     if (!force && !_loadedConversations.add(conversationId)) return;
+    await _loadAppliedRuns();
     try {
       final runs = await _service.listForConversation(conversationId);
       for (final run in runs) {
@@ -131,7 +248,21 @@ class WorkflowProvider extends ChangeNotifier {
           _ => WorkflowPhase.watching,
         };
         if (run.error != null) _errors[toolCallId] = run.error!;
-        if (run.isRunning) _startPolling(toolCallId, run.id);
+        if (run.isRunning) {
+          _startPolling(toolCallId, run.id);
+        } else if (run.status == 'done') {
+          final recorded = _appliedRuns[run.id];
+          if (recorded == null) {
+            // Finished while the app was closed: apply now (the snapshot was
+            // kept server-side), exactly like a run that finishes on-screen.
+            unawaited(_maybeApplyOnDone(run));
+          } else {
+            // Already applied on a previous launch — restore the recorded
+            // result so the tile shows what actually happened instead of
+            // applying again.
+            _applyResults[run.id] = recorded;
+          }
+        }
       }
       notifyListeners();
     } catch (e) {
@@ -268,6 +399,14 @@ class WorkflowProvider extends ChangeNotifier {
             merged.succeeded ? WorkflowPhase.done : WorkflowPhase.failed,
           );
           if (merged.error != null) _errors[toolCallId] = merged.error!;
+          final conversationId = merged.conversationId;
+          if (merged.succeeded) {
+            // Auto-apply the diff to the user's folder; the tile shows the
+            // result. Replaced what used to be a manual "Review changes"
+            // gate — Jorge: a revert native action covers undo instead.
+            unawaited(_maybeApplyOnDone(merged));
+          }
+          if (conversationId != null) onRunFinished?.call(conversationId);
         }
         notifyListeners();
       } catch (e) {
@@ -281,12 +420,62 @@ class WorkflowProvider extends ChangeNotifier {
   Future<List<WorkflowChange>> fetchChanges(String runId) =>
       _service.getChanges(runId);
 
+  /// Runs whose auto-apply is currently in flight, so the poll-terminal path
+  /// and a concurrent `loadForConversation` can't both write the same diff.
+  final Set<String> _applying = {};
+
+  /// Auto-apply a finished run's diff into the attached folder.
+  ///
+  /// Replaces what used to be a manual "Review changes → pick → Apply" gate
+  /// (Jorge: "let's not have the diff review, let's just apply" — undo is a
+  /// separate revert native action, see IDEAS.md). Idempotent per run: once a
+  /// result has been recorded the run is never applied again, so a card
+  /// scrolling back into view (or a reload) doesn't re-write files. A failed
+  /// attempt records nothing, so the next launch retries.
+  Future<void> _maybeApplyOnDone(WorkflowRun run) async {
+    if (run.status != 'done' || _isDisposed) return;
+    await _loadAppliedRuns();
+    if (_appliedRuns.containsKey(run.id)) return;
+    if (!_applying.add(run.id)) return;
+    try {
+      // A run without a conversation has no folder to resolve — and the null
+      // id must not pick up a *pending* folder meant for a different, not-
+      // yet-started chat.
+      final folder = run.conversationId == null
+          ? null
+          : _chat.clientFolderFor(run.conversationId);
+      if (folder == null) {
+        // No folder on this device — the user attached it elsewhere, or has
+        // since detached it. Record the skip so we don't retry every poll.
+        await _markAppliedRun(run.id, ApplyResult.empty);
+        if (_isDisposed) return;
+        _applyResults[run.id] = ApplyResult.empty;
+        notifyListeners();
+        return;
+      }
+      final changes = await _service.getChanges(run.id);
+      if (_isDisposed) return;
+      final result = await applyChanges(
+        runId: run.id,
+        folderRoot: folder,
+        changes: changes,
+      );
+      _applyResults[run.id] = result;
+      await _markAppliedRun(run.id, result);
+      if (_isDisposed) return;
+      notifyListeners();
+    } catch (e) {
+      logDebug('Auto-apply failed for ${run.id}: $e');
+    } finally {
+      _applying.remove(run.id);
+    }
+  }
+
   /// Write a finished run's changes into the local folder.
   ///
   /// Each file is applied only if it still matches the content that was
   /// uploaded; anything the user edited in the meantime is reported as a
-  /// conflict and left alone. Nothing here is undoable, so the caller must
-  /// have shown the user this list first.
+  /// conflict and left alone.
   Future<ApplyResult> applyChanges({
     required String runId,
     required String folderRoot,
@@ -326,16 +515,15 @@ class WorkflowProvider extends ChangeNotifier {
       }
     }
 
-    if (applied.isNotEmpty || conflicts.isEmpty) {
-      // Only release the server-side snapshot once there's nothing left to
-      // retry from it.
-      try {
-        if (conflicts.isEmpty && failed.isEmpty) {
-          await _service.markApplied(runId);
-        }
-      } catch (e) {
-        logDebug('Could not release workflow snapshot: $e');
+    try {
+      // Release the server-side snapshot once everything has landed. With
+      // auto-apply this is now the common path; a conflict leaves it behind
+      // so a future "revert" can still inspect it.
+      if (conflicts.isEmpty && failed.isEmpty) {
+        await _service.markApplied(runId);
       }
+    } catch (e) {
+      logDebug('Could not release workflow snapshot: $e');
     }
 
     notifyListeners();

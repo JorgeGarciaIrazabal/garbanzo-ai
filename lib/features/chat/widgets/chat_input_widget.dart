@@ -256,21 +256,19 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
   /// Desktop-only: pick a folder and attach it to the current conversation so
   /// the agent can read files within it. Guarded to desktop inside
   /// [AttachMenuButton] (the option only shows there).
+  ///
+  /// Also works on a brand-new chat before any conversation exists: the path
+  /// is held as pending and transferred to the conversation id the moment the
+  /// first send creates it.
   Future<void> _pickFolder() async {
     final chatProvider = context.read<ChatProvider>();
     final messenger = ScaffoldMessenger.of(context);
     final l10n = AppLocalizations.of(context)!;
-    final conversation = chatProvider.currentConversation;
-    if (conversation == null) {
-      messenger.showSnackBar(
-        SnackBar(content: Text(l10n.messageStartAConversationFirst)),
-      );
-      return;
-    }
+    final conversationId = chatProvider.currentConversation?.id;
     final path = await FilePicker.getDirectoryPath();
     if (path == null || !mounted) return;
     try {
-      await chatProvider.attachClientFolder(conversation.id, path);
+      await chatProvider.attachClientFolder(conversationId, path);
     } catch (e) {
       logDebug('Failed to attach folder: $e');
       if (!mounted) return;
@@ -283,7 +281,7 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
   void _removeFolder() {
     final chatProvider = context.read<ChatProvider>();
     final id = chatProvider.currentConversation?.id;
-    if (id != null) unawaited(chatProvider.clearClientFolder(id));
+    unawaited(chatProvider.clearClientFolder(id));
   }
 
   /// The composer's `above` slot: an attached-folder chip and/or the staged

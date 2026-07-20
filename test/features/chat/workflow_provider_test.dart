@@ -6,10 +6,41 @@ import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:garbanzo_ai/features/chat/models/workflow_run.dart';
+import 'package:garbanzo_ai/features/chat/models/conversation.dart';
+import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/workflow_provider.dart';
+import 'package:garbanzo_ai/features/chat/services/chat_service.dart';
 import 'package:garbanzo_ai/features/chat/services/folder_reader.dart';
 import 'package:garbanzo_ai/features/chat/services/workflow_service.dart';
+import 'package:garbanzo_ai/features/chat/models/workflow_run.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+/// Fake ChatService so ChatProvider can be constructed in these tests without
+/// making any network calls. Only the bits WorkflowProvider touches (the
+/// per-conversation folder map and `currentConversation`) actually matter.
+class _FakeChatService extends ChatService {
+  _FakeChatService() : super.forTesting();
+
+  final _conversation = Conversation(
+    id: 'conv-1',
+    title: 'Test',
+    model: 'llama3.2',
+    createdAt: DateTime.utc(2026),
+    updatedAt: DateTime.utc(2026),
+    messages: const [],
+  );
+
+  @override
+  Future<Conversation> getConversation(String id, {int? messageLimit}) async =>
+      _conversation;
+
+  @override
+  Future<ConversationList> listConversations({
+    int page = 1,
+    int pageSize = 50,
+  }) async =>
+      ConversationList(items: [_conversation], total: 1, page: 1, pageSize: 50);
+}
 
 /// Covers the client half of a delegated workflow (idea 18): snapshot upload,
 /// polling/stitching of progress, and — most importantly — the hash-gated
@@ -32,12 +63,14 @@ class _FakeWorkflowService extends WorkflowService {
     int progressTotal = 0,
     String? summary,
     String? error,
+    String? conversationId,
   }) => WorkflowRun(
     id: id,
     userId: 'u@example.com',
     status: status,
     instruction: 'do it',
     toolCallId: 'tc-1',
+    conversationId: conversationId,
     progress: progress,
     progressTotal: progressTotal,
     summary: summary,
@@ -72,10 +105,8 @@ class _FakeWorkflowService extends WorkflowService {
   @override
   Future<WorkflowRun> get(String runId, {int since = 0}) async {
     sinceValues.add(since);
-    final response = pollResponses[pollCount.clamp(
-      0,
-      pollResponses.length - 1,
-    )];
+    final response =
+        pollResponses[pollCount.clamp(0, pollResponses.length - 1)];
     pollCount++;
     return response;
   }
@@ -86,9 +117,11 @@ class _FakeWorkflowService extends WorkflowService {
   @override
   Future<void> markApplied(String runId) async => appliedRuns.add(runId);
 
+  List<WorkflowRun>? listResponse;
+
   @override
   Future<List<WorkflowRun>> listForConversation(String conversationId) async =>
-      [_run(id: 'run-1', status: 'done', summary: 'all good')];
+      listResponse ?? [_run(id: 'run-1', status: 'done', summary: 'all good')];
 }
 
 String _sha(String text) => sha256.convert(utf8.encode(text)).toString();
@@ -96,18 +129,24 @@ String _sha(String text) => sha256.convert(utf8.encode(text)).toString();
 String _b64(String text) => base64Encode(utf8.encode(text));
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   late Directory root;
   late _FakeWorkflowService service;
+  late ChatProvider chat;
   late WorkflowProvider provider;
 
   setUp(() {
+    SharedPreferences.setMockInitialValues({});
     root = Directory.systemTemp.createTempSync('workflow_provider_test');
     service = _FakeWorkflowService();
-    provider = WorkflowProvider(service: service);
+    chat = ChatProvider(chatService: _FakeChatService());
+    provider = WorkflowProvider(chat: chat, service: service);
   });
 
   tearDown(() {
     provider.dispose();
+    chat.dispose();
     root.deleteSync(recursive: true);
   });
 
@@ -124,9 +163,10 @@ void main() {
 
       expect(run, isNotNull);
       expect(service.started, ['run-1']);
-      expect(service.uploadBatches.expand((b) => b), containsAll(
-        <String>['a.txt', 'b.txt'],
-      ));
+      expect(
+        service.uploadBatches.expand((b) => b),
+        containsAll(<String>['a.txt', 'b.txt']),
+      );
       expect(provider.phaseFor('tc-1'), WorkflowPhase.watching);
       expect(provider.runFor('tc-1')?.id, 'run-1');
     });
@@ -135,9 +175,9 @@ void main() {
       File('${root.path}/a.txt').writeAsStringSync('alpha');
       // A deck bigger than the per-file cap — the agent will never see it, so
       // the user has to be told rather than assuming full coverage.
-      File('${root.path}/deck.pptx').writeAsBytesSync(
-        List.filled(FolderReader.maxFileBytes + 1, 0),
-      );
+      File(
+        '${root.path}/deck.pptx',
+      ).writeAsBytesSync(List.filled(FolderReader.maxFileBytes + 1, 0));
 
       await provider.startFromProposal(
         toolCallId: 'tc-1',
@@ -147,14 +187,21 @@ void main() {
 
       expect(provider.snapshotGapFor('tc-1')?.skipped, 1);
       expect(provider.snapshotGapFor('tc-1')?.truncated, isFalse);
-      expect(service.uploadBatches.expand((b) => b), isNot(contains('deck.pptx')));
+      expect(
+        service.uploadBatches.expand((b) => b),
+        isNot(contains('deck.pptx')),
+      );
     });
 
     test('reports a folder that exceeded the snapshot budget', () async {
       File('${root.path}/a.txt').writeAsStringSync('alpha');
       File('${root.path}/b.txt').writeAsStringSync('beta');
 
-      final tight = WorkflowProvider(service: service, maxSnapshotFiles: 1);
+      final tight = WorkflowProvider(
+        chat: chat,
+        service: service,
+        maxSnapshotFiles: 1,
+      );
       addTearDown(tight.dispose);
       await tight.startFromProposal(
         toolCallId: 'tc-1',
@@ -227,44 +274,57 @@ void main() {
       expect(service.appliedRuns, ['run-1']);
     });
 
-    test('reports a conflict instead of clobbering a locally edited file', () async {
-      File('${root.path}/edit.txt').writeAsStringSync('user edited this');
+    test(
+      'reports a conflict instead of clobbering a locally edited file',
+      () async {
+        File('${root.path}/edit.txt').writeAsStringSync('user edited this');
 
-      final result = await provider.applyChanges(
-        runId: 'run-1',
-        folderRoot: root.path,
-        changes: [
-          WorkflowChange(
-            path: 'edit.txt',
-            status: 'modified',
-            data: _b64('agent version'),
-            baseSha256: _sha('before'),
-          ),
-        ],
-      );
+        final result = await provider.applyChanges(
+          runId: 'run-1',
+          folderRoot: root.path,
+          changes: [
+            WorkflowChange(
+              path: 'edit.txt',
+              status: 'modified',
+              data: _b64('agent version'),
+              baseSha256: _sha('before'),
+            ),
+          ],
+        );
 
-      expect(result.conflicts, ['edit.txt']);
-      expect(result.applied, isEmpty);
-      // The user's work survives untouched.
-      expect(File('${root.path}/edit.txt').readAsStringSync(), 'user edited this');
-      // And the server keeps the snapshot so the diff can be retried.
-      expect(service.appliedRuns, isEmpty);
-    });
+        expect(result.conflicts, ['edit.txt']);
+        expect(result.applied, isEmpty);
+        // The user's work survives untouched.
+        expect(
+          File('${root.path}/edit.txt').readAsStringSync(),
+          'user edited this',
+        );
+        // And the server keeps the snapshot so the diff can be retried.
+        expect(service.appliedRuns, isEmpty);
+      },
+    );
 
-    test('treats an added file that now exists locally as a conflict', () async {
-      File('${root.path}/new.txt').writeAsStringSync('mine');
+    test(
+      'treats an added file that now exists locally as a conflict',
+      () async {
+        File('${root.path}/new.txt').writeAsStringSync('mine');
 
-      final result = await provider.applyChanges(
-        runId: 'run-1',
-        folderRoot: root.path,
-        changes: [
-          WorkflowChange(path: 'new.txt', status: 'added', data: _b64('theirs')),
-        ],
-      );
+        final result = await provider.applyChanges(
+          runId: 'run-1',
+          folderRoot: root.path,
+          changes: [
+            WorkflowChange(
+              path: 'new.txt',
+              status: 'added',
+              data: _b64('theirs'),
+            ),
+          ],
+        );
 
-      expect(result.conflicts, ['new.txt']);
-      expect(File('${root.path}/new.txt').readAsStringSync(), 'mine');
-    });
+        expect(result.conflicts, ['new.txt']);
+        expect(File('${root.path}/new.txt').readAsStringSync(), 'mine');
+      },
+    );
 
     test('deleting a file that is already gone is not a conflict', () async {
       final result = await provider.applyChanges(
@@ -332,13 +392,21 @@ void main() {
           ],
           progressTotal: 2,
           summary: 'finished',
+          conversationId: 'conv-1',
         ),
+      ];
+
+      // Auto-apply on done needs a folder attached to the chat conversation.
+      await chat.attachClientFolder('conv-1', root.path);
+      service.changes = [
+        WorkflowChange(path: 'done.txt', status: 'added', data: _b64('done!')),
       ];
 
       await provider.startFromProposal(
         toolCallId: 'tc-1',
         instruction: 'tidy up',
         folderRoot: root.path,
+        conversationId: 'conv-1',
       );
 
       await Future<void>.delayed(
@@ -355,10 +423,88 @@ void main() {
       expect(service.sinceValues[1], 1);
       expect(provider.phaseFor('tc-1'), WorkflowPhase.done);
 
+      // The run was auto-applied: the diff landed in the local folder and
+      // the snapshot was released (no manual "Review changes" gate anymore).
+      expect(service.appliedRuns, ['run-1']);
+      expect(File('${root.path}/done.txt').readAsStringSync(), 'done!');
+      expect(provider.applyResultFor('tc-1')?.applied, contains('done.txt'));
+
       // Polling stopped: no further requests after the terminal response.
       final callsAfterDone = service.pollCount;
       await Future<void>.delayed(WorkflowProvider.pollInterval * 2);
       expect(service.pollCount, callsAfterDone);
+    });
+  });
+
+  group('completion notification', () {
+    test(
+      'fires onRunFinished so the chat reloads the summary message',
+      () async {
+        // Regression: the user got an FCM "workflow finished" push, but the
+        // summary the backend wrote into the conversation never appeared —
+        // nothing told the client to re-fetch.
+        File('${root.path}/a.txt').writeAsStringSync('alpha');
+        // Auto-apply needs the chat's folder attached; attach it so the
+        // terminal-status apply can actually land.
+        await chat.attachClientFolder('conv-1', root.path);
+        service.changes = [
+          WorkflowChange(path: 'summary.md', status: 'added', data: _b64('s')),
+        ];
+        final finished = <String>[];
+        provider.onRunFinished = finished.add;
+
+        service.pollResponses = [
+          service._run(id: 'run-1', status: 'running', progressTotal: 0),
+          service._run(
+            id: 'run-1',
+            status: 'done',
+            summary: 'created summary.md',
+            conversationId: 'conv-1',
+          ),
+        ];
+
+        await provider.startFromProposal(
+          toolCallId: 'tc-1',
+          instruction: 'summarise',
+          folderRoot: root.path,
+          conversationId: 'conv-1',
+        );
+        await Future<void>.delayed(
+          WorkflowProvider.pollInterval * 2 + const Duration(milliseconds: 400),
+        );
+
+        expect(finished, ['conv-1']);
+        // The diff was auto-applied on done.
+        expect(service.appliedRuns, ['run-1']);
+      },
+    );
+
+    test('fires on failure too, so the error reaches the chat', () async {
+      File('${root.path}/a.txt').writeAsStringSync('alpha');
+      final finished = <String>[];
+      provider.onRunFinished = finished.add;
+
+      service.pollResponses = [
+        service._run(
+          id: 'run-1',
+          status: 'error',
+          error: 'opencode died',
+          conversationId: 'conv-1',
+        ),
+      ];
+
+      await provider.startFromProposal(
+        toolCallId: 'tc-1',
+        instruction: 'summarise',
+        folderRoot: root.path,
+        conversationId: 'conv-1',
+      );
+      await Future<void>.delayed(
+        WorkflowProvider.pollInterval + const Duration(milliseconds: 400),
+      );
+
+      expect(finished, ['conv-1']);
+      expect(provider.phaseFor('tc-1'), WorkflowPhase.failed);
     });
   });
 
@@ -370,10 +516,43 @@ void main() {
       expect(provider.phaseFor('tc-1'), WorkflowPhase.done);
     });
 
+    test(
+      'a reload restores the recorded result instead of re-applying',
+      () async {
+        // First "session": a finished run whose diff gets auto-applied.
+        await chat.attachClientFolder('conv-1', root.path);
+        service.listResponse = [
+          service._run(id: 'run-1', status: 'done', conversationId: 'conv-1'),
+        ];
+        service.changes = [
+          WorkflowChange(path: 'out.txt', status: 'added', data: _b64('v1')),
+        ];
+        await provider.loadForConversation('conv-1');
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+
+        expect(File('${root.path}/out.txt').readAsStringSync(), 'v1');
+        expect(service.appliedRuns, ['run-1']);
+        expect(provider.applyResultFor('tc-1')?.applied, ['out.txt']);
+
+        // The user edits the file after the apply. A second "session" (fresh
+        // provider, same SharedPreferences) must restore the recorded result —
+        // with its real file list — and must NOT write the diff again.
+        File('${root.path}/out.txt').writeAsStringSync('user edit');
+        final second = WorkflowProvider(chat: chat, service: service);
+        addTearDown(second.dispose);
+        await second.loadForConversation('conv-1');
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+
+        expect(File('${root.path}/out.txt').readAsStringSync(), 'user edit');
+        expect(service.appliedRuns, ['run-1']); // no second markApplied
+        expect(second.applyResultFor('tc-1')?.applied, ['out.txt']);
+      },
+    );
+
     test('does not refetch the same conversation twice', () async {
       var calls = 0;
       final counting = _CountingService(() => calls++);
-      final p = WorkflowProvider(service: counting);
+      final p = WorkflowProvider(chat: chat, service: counting);
       addTearDown(p.dispose);
 
       await p.loadForConversation('conv-1');

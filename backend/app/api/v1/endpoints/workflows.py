@@ -21,7 +21,7 @@ from app.schemas.workflow import (
     WorkflowOut,
     WorkflowUploadResult,
 )
-from app.services import workflow_runner
+from app.services import workflow_runner, workflow_watchers
 from app.services.workflow_service import WorkflowError, WorkflowService
 
 router = APIRouter()
@@ -154,6 +154,9 @@ async def get_workflow(
     since: Annotated[int, Query(ge=0)] = 0,
 ) -> WorkflowOut:
     run = await _owned(run_id, current_user["email"], service)
+    # This poll is also the "someone is looking at the app" signal, which
+    # suppresses the completion push (see workflow_watchers).
+    workflow_watchers.mark_watching(run_id)
     return _to_out(run, since=since)
 
 

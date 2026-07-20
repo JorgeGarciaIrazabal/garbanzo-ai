@@ -1,5 +1,13 @@
 {
   "$schema": "https://opencode.ai/config.json",
+  "permission": {
+    "read": "allow",
+    "edit": "allow",
+    "bash": "allow",
+    "external_directory": {
+      "*": "allow"
+    }
+  },
   "lsp": {
     "dart": {
       "command": ["dart", "language-server", "--protocol=lsp"]

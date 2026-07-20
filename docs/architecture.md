@@ -75,14 +75,18 @@ services/      chat_service.py (turn orchestration + tool loop)
                to /client-tool-result; client_file_extract turns the returned
                bytes into text (KB extractors + markitdown). The backend never
                reads the host filesystem — the folder lives only on the client)
-               workflow_service.py + workflow_runner.py (idea 18: delegated
-               opencode workflows. The client uploads a snapshot of its
-               attached folder, workflow_service git-baselines it, and
-               workflow_runner spawns opencode in that copy as a DETACHED
-               asyncio task — it outlives the request, so progress is
-               persisted on WorkflowRun instead of streamed. On completion the
-               summary is written back as an assistant message + FCM push, and
-               the git diff is served for the client to apply locally)
+                workflow_service.py + workflow_runner.py (idea 18: delegated
+                opencode workflows. The client uploads a snapshot of its
+                attached folder, workflow_service git-baselines it, and
+                workflow_runner spawns opencode in that copy as a DETACHED
+                asyncio task — it outlives the request, so progress is
+                persisted on WorkflowRun instead of streamed. On completion the
+                summary is written back as an assistant message, the git diff is
+                served for the client to AUTO-APPLY straight to the user's
+                folder (no review gate — undo is a separate native action, see
+                IDEAS.md idea 20), and an FCM push fires ONLY if nobody is
+                watching — workflow_watchers reads the client's own ~1.5s
+                polling as the "app is open" signal)
                opencode_config.py + opencode_process.py (shared opencode.json
                builder and subprocess lifecycle — setsid + PR_SET_PDEATHSIG,
                port picking, readiness probe — used by both micro-apps and
@@ -135,10 +139,17 @@ features/chat/
                      ( all use freezed + json_serializable )
   providers/         ChatProvider, ModelProvider, SearchProvider,
                      SystemPromptProvider, StyleProvider,
-                     WorkflowProvider (idea 18: drives delegated workflows —
-                     folder walk, snapshot upload, polling, hash-gated
-                     write-back. Lives above the message list because a run
-                     outlasts its proposal card scrolling out of view)
+                      WorkflowProvider (idea 18: drives delegated workflows —
+                      folder walk, snapshot upload, polling, and AUTO-APPLY of
+                      the diff the moment a run reaches `done` (no review gate —
+                      Jorge: "let's just apply"; undo is a separate native
+                      action, IDEAS.md idea 20). Idempotent per run, persisted
+                      in SharedPreferences, so a reload or a card scrolling
+                      back into view can't double-write. Lives above the
+                      message list because a run outlasts its progress tile
+                      scrolling out of view; on completion it calls back into
+                      ChatProvider to reload the conversation, so the summary
+                      the runner wrote server-side actually appears)
   services/          chat_service.dart (CRUD + SSE streaming),
                      audio_service.dart (STT/TTS), style_service.dart,
                      folder_reader.dart / folder_writer.dart (facades that

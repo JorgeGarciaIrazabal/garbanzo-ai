@@ -160,8 +160,25 @@ class _AppProviders extends StatelessWidget {
         ),
         ChangeNotifierProvider(create: (_) => MemoryProvider()),
         // Above the message list on purpose: a delegated workflow runs for
-        // minutes, long after its proposal card has scrolled out of view.
-        ChangeNotifierProvider(create: (_) => WorkflowProvider()),
+        // minutes, long after its tile has scrolled out of view. The proxy
+        // wires completion back into the chat so the run's summary message
+        // (written server-side) actually shows up without a manual reload.
+        ChangeNotifierProxyProvider<ChatProvider, WorkflowProvider>(
+          // WorkflowProvider needs the per-conversation folder path (and the
+          // current conversation id) to auto-apply a finished run's diff to
+          // the user's disk — without this it would have no way to resolve
+          // the folder outside a BuildContext, and a card mid-deactivation
+          // (a ListView.builder reparents on scroll) would crash.
+          create: (context) =>
+              WorkflowProvider(chat: context.read<ChatProvider>()),
+          update: (context, chat, workflows) =>
+              workflows!
+                ..onRunFinished = (conversationId) {
+                  if (chat.currentConversation?.id == conversationId) {
+                    unawaited(chat.loadConversation(conversationId));
+                  }
+                },
+        ),
         ChangeNotifierProvider(create: (_) => SystemPromptProvider()),
         ChangeNotifierProvider(create: (_) => ToolProvider()),
         ChangeNotifierProvider(create: (_) => SearchProvider()),

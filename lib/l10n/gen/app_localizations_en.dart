@@ -2397,6 +2397,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get messageWorkflowUploading => 'Uploading folder…';
 
   @override
+  String messageWorkflowRunningIn(String name) {
+    return 'Agent is working in $name…';
+  }
+
+  @override
   String get messageWorkflowRunning => 'Agent is working…';
 
   @override
@@ -2486,6 +2491,27 @@ class AppLocalizationsEn extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get messageWorkflowApplying => 'Applying changes to your folder…';
+
+  @override
+  String messageWorkflowAppliedShort(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count files applied to your folder',
+      one: '1 file applied to your folder',
+      zero: 'No files changed',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get messageWorkflowConflictsLabel => 'Skipped (changed on disk):';
+
+  @override
+  String get messageWorkflowFailedFilesLabel => 'Could not write:';
 
   @override
   String get messageSttUnavailable =>

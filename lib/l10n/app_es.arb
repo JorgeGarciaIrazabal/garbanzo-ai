@@ -2051,6 +2051,15 @@
   "@messageWorkflowUploading": {
     "description": "Status while the folder snapshot uploads; a percentage is appended."
   },
+  "messageWorkflowRunningIn": "El agente está trabajando en {name}…",
+  "@messageWorkflowRunningIn": {
+    "description": "Collapsed header of a running workflow, naming the attached folder.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "messageWorkflowRunning": "El agente está trabajando…",
   "@messageWorkflowRunning": {
     "description": "Status while the delegated workflow runs on the server."
@@ -2150,6 +2159,27 @@
         "type": "int"
       }
     }
+  },
+  "messageWorkflowApplying": "Aplicando cambios a tu carpeta…",
+  "@messageWorkflowApplying": {
+    "description": "Inline status while a finished workflow's diff is being written to the local folder."
+  },
+  "messageWorkflowAppliedShort": "{count, plural, =0{Ningún archivo cambiado} =1{1 archivo aplicado a tu carpeta} other{{count} archivos aplicados a tu carpeta}}",
+  "@messageWorkflowAppliedShort": {
+    "description": "One-line summary of an auto-applied workflow, shown under the run header.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "messageWorkflowConflictsLabel": "Omitido (cambió en el disco):",
+  "@messageWorkflowConflictsLabel": {
+    "description": "Per-file line in the run details for a file skipped because it changed locally."
+  },
+  "messageWorkflowFailedFilesLabel": "No se pudo escribir:",
+  "@messageWorkflowFailedFilesLabel": {
+    "description": "Per-file line in the run details for a file that failed to write."
   },
   "messageSttUnavailable": "La conversación de voz a texto no está disponible en el servidor.",
   "@messageSttUnavailable": {

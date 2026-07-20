@@ -187,6 +187,65 @@ async def test_completion_posts_summary_and_push(
 
 
 @pytest.mark.asyncio
+async def test_no_push_when_the_user_is_watching(
+    db_session, monkeypatch, captured_push, test_conversation
+):
+    """A push while the app is open is noise — the progress line already
+    showed the result and the conversation reloaded."""
+    from app.services import workflow_watchers
+
+    run = await _queued_run(db_session, conversation_id=test_conversation.id)
+    _stub_opencode(
+        monkeypatch,
+        [
+            ChatResponseChunk(type="chunk", content="All done."),
+            ChatResponseChunk(type="done", metadata={}),
+        ],
+    )
+    # The desktop app polls ~every 1.5s while a run is live.
+    workflow_watchers.mark_watching(run.id)
+
+    await workflow_runner._run(run.id)
+
+    assert captured_push == []
+    # The summary still lands in the conversation — only the push is skipped.
+    from sqlalchemy import select
+
+    messages = (
+        (
+            await db_session.execute(
+                select(Message).where(Message.conversation_id == test_conversation.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert len(messages) == 1
+    assert "All done." in messages[0].content
+    # The watcher entry is released so the map can't grow unbounded.
+    assert not workflow_watchers.is_watched(run.id)
+
+
+@pytest.mark.asyncio
+async def test_push_sent_when_the_poll_is_stale(
+    db_session, monkeypatch, captured_push, test_conversation
+):
+    """App closed mid-run: polling stopped, so the user does need telling."""
+    from app.services import workflow_watchers
+
+    run = await _queued_run(db_session, conversation_id=test_conversation.id)
+    _stub_opencode(monkeypatch, [ChatResponseChunk(type="done", metadata={})])
+    workflow_watchers.mark_watching(run.id)
+    # Simulate the app having gone away well before the run finished.
+    monkeypatch.setattr(workflow_watchers, "WATCHING_WINDOW_SECONDS", -1.0)
+
+    await workflow_runner._run(run.id)
+
+    assert len(captured_push) == 1
+    assert captured_push[0]["data"]["workflow_run_id"] == run.id
+
+
+@pytest.mark.asyncio
 async def test_run_that_vanished_is_a_no_op(db_session, monkeypatch, captured_push):
     # No exception, no push — the row is simply gone.
     await workflow_runner._run("does-not-exist")

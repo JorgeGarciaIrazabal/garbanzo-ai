@@ -3333,6 +3333,15 @@
   "@messageWorkflowUploading": {
     "description": "Status while the folder snapshot uploads; a percentage is appended."
   },
+  "messageWorkflowRunningIn": "Agent is working in {name}…",
+  "@messageWorkflowRunningIn": {
+    "description": "Collapsed header of a running workflow, naming the attached folder.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "messageWorkflowRunning": "Agent is working…",
   "@messageWorkflowRunning": {
     "description": "Status while the delegated workflow runs on the server."
@@ -3432,6 +3441,27 @@
         "type": "int"
       }
     }
+  },
+  "messageWorkflowApplying": "Applying changes to your folder…",
+  "@messageWorkflowApplying": {
+    "description": "Inline status while a finished workflow's diff is being written to the local folder."
+  },
+  "messageWorkflowAppliedShort": "{count, plural, =0{No files changed} =1{1 file applied to your folder} other{{count} files applied to your folder}}",
+  "@messageWorkflowAppliedShort": {
+    "description": "One-line summary of an auto-applied workflow, shown under the run header.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "messageWorkflowConflictsLabel": "Skipped (changed on disk):",
+  "@messageWorkflowConflictsLabel": {
+    "description": "Per-file line in the run details for a file skipped because it changed locally."
+  },
+  "messageWorkflowFailedFilesLabel": "Could not write:",
+  "@messageWorkflowFailedFilesLabel": {
+    "description": "Per-file line in the run details for a file that failed to write."
   },
   "messageSttUnavailable": "Speech-to-text is currently unavailable on the server.",
   "@messageSttUnavailable": {

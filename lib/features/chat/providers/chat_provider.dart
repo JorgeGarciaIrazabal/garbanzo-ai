@@ -198,6 +198,10 @@ class ChatProvider extends ChangeNotifier {
       );
       _currentConversation = conversation;
       _messages = _hydrateAttachments(conversation.messages ?? []);
+      // Loading an existing conversation discards any folder the user picked
+      // on a new-chat composer — it belonged to the chat they were about to
+      // start, not this one. (The create path adopts it instead.)
+      _pendingClientFolder = null;
     } catch (e) {
       _error = 'Failed to load conversation: $e';
       logDebug(_error!);
@@ -268,6 +272,11 @@ class ChatProvider extends ChangeNotifier {
 
       _currentConversation = conversation;
       _messages = [];
+
+      // A folder the user attached on the empty "new chat" state keys onto
+      // the real conversation id now that it exists, so the first send
+      // carries `has_client_folder=true` and the chip keeps showing.
+      await _adoptPendingFolder(conversation.id);
 
       // Immediately add the new conversation to the list for sidebar visibility
       conversationList.prepend(conversation.copyWith(messageCount: 0));
@@ -361,9 +370,26 @@ class ChatProvider extends ChangeNotifier {
   final Map<String, String> _clientFolders = {};
   static const String _clientFoldersPrefsKey = 'client_folders';
 
-  /// Absolute path of the folder attached to [conversationId], or null.
-  String? clientFolderFor(String? conversationId) =>
-      conversationId == null ? null : _clientFolders[conversationId];
+  /// A folder the user picked BEFORE any conversation existed. Held here
+  /// instead of keyed by conversation id, and transferred onto the new
+  /// conversation the moment it's created — so "New chat → attach folder →
+  /// send" works instead of bouncing off "Start a conversation first".
+  String? _pendingClientFolder;
+
+  /// Absolute path of the folder attached to [conversationId], or — when
+  /// [conversationId] is null (a not-yet-started chat) — the pending folder
+  /// the user picked for the chat they're about to start.
+  ///
+  /// Returning the pending folder for the null id lets the composer render
+  /// the chip and the picker show the "remove" affordance before a
+  /// conversation exists. It is deliberately NOT a fallback for an *existing*
+  /// conversation without a folder: the pending folder belongs to a chat that
+  /// hasn't started, and handing it to another conversation would let e.g. a
+  /// finishing workflow auto-apply its diff into an unrelated folder.
+  String? clientFolderFor(String? conversationId) {
+    if (conversationId == null) return _pendingClientFolder;
+    return _clientFolders[conversationId];
+  }
 
   /// The attached folder's display name (base name), or null if none.
   ///
@@ -403,18 +429,43 @@ class ChatProvider extends ChangeNotifier {
   }
 
   /// Attach [path] to [conversationId] (desktop only). Local-only state.
-  Future<void> attachClientFolder(String conversationId, String path) async {
-    _clientFolders[conversationId] = path;
+  ///
+  /// [conversationId] may be null when the user attaches a folder on a brand-
+  /// new chat that has no conversation yet — in that case the path is held as
+  /// pending and transferred onto the new conversation id the moment it's
+  /// created (see [createConversation]).
+  Future<void> attachClientFolder(String? conversationId, String path) async {
+    if (conversationId == null) {
+      _pendingClientFolder = path;
+    } else {
+      _clientFolders[conversationId] = path;
+      await _persistClientFolders();
+    }
     notifyListeners();
-    await _persistClientFolders();
   }
 
-  /// Detach the folder from [conversationId].
-  Future<void> clearClientFolder(String conversationId) async {
+  /// Detach the folder from [conversationId], or clear the pending folder
+  /// when there isn't one yet (the chip on a not-yet-started chat).
+  Future<void> clearClientFolder(String? conversationId) async {
+    if (conversationId == null) {
+      if (_pendingClientFolder != null) {
+        _pendingClientFolder = null;
+        notifyListeners();
+      }
+      return;
+    }
     if (_clientFolders.remove(conversationId) != null) {
       notifyListeners();
       await _persistClientFolders();
     }
+  }
+
+  Future<void> _adoptPendingFolder(String conversationId) async {
+    final pending = _pendingClientFolder;
+    if (pending == null) return;
+    _pendingClientFolder = null;
+    _clientFolders[conversationId] = pending;
+    await _persistClientFolders();
   }
 
   /// Fulfil a backend `client_tool_request` by reading locally and posting the

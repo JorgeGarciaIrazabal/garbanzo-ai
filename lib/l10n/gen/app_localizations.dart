@@ -4347,6 +4347,12 @@ abstract class AppLocalizations {
   /// **'Uploading folder…'**
   String get messageWorkflowUploading;
 
+  /// Collapsed header of a running workflow, naming the attached folder.
+  ///
+  /// In en, this message translates to:
+  /// **'Agent is working in {name}…'**
+  String messageWorkflowRunningIn(String name);
+
   /// Status while the delegated workflow runs on the server.
   ///
   /// In en, this message translates to:
@@ -4466,6 +4472,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count, plural, =1{Apply 1 file} other{Apply {count} files}}'**
   String actionApplySelected(int count);
+
+  /// Inline status while a finished workflow's diff is being written to the local folder.
+  ///
+  /// In en, this message translates to:
+  /// **'Applying changes to your folder…'**
+  String get messageWorkflowApplying;
+
+  /// One-line summary of an auto-applied workflow, shown under the run header.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{No files changed} =1{1 file applied to your folder} other{{count} files applied to your folder}}'**
+  String messageWorkflowAppliedShort(int count);
+
+  /// Per-file line in the run details for a file skipped because it changed locally.
+  ///
+  /// In en, this message translates to:
+  /// **'Skipped (changed on disk):'**
+  String get messageWorkflowConflictsLabel;
+
+  /// Per-file line in the run details for a file that failed to write.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not write:'**
+  String get messageWorkflowFailedFilesLabel;
 
   /// Error when STT service is unavailable.
   ///

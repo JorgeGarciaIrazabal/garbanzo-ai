@@ -334,6 +334,21 @@ def _write_files(decoded: list[tuple[Path, bytes]]) -> None:
         path.write_bytes(data)
 
 
+def absorb_into_baseline(workdir: Path, paths: list[str]) -> None:
+    """Commit ``paths`` on top of the baseline so they never reach the diff.
+
+    :func:`exclude_from_diff` only hides *untracked* files — tool residue that
+    has to live inside a file the baseline already tracks (e.g. a permission
+    envelope injected into a project's own ``opencode.json``) must instead be
+    committed, so the diff the client auto-applies starts from the patched
+    content rather than offering the patch back to the user.
+    """
+    if not (workdir / ".git").exists():
+        return
+    _run_git(workdir, "add", *paths, check=False)
+    _run_git(workdir, "commit", "--quiet", "-m", "tool residue", check=False)
+
+
 def exclude_from_diff(workdir: Path, patterns: list[str]) -> None:
     """Add ``patterns`` to the snapshot's ``.git/info/exclude``.
 

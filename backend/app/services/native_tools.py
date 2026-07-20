@@ -739,11 +739,15 @@ _PROPOSAL_NOTE = (
 # up front would only add friction. The model must describe it as underway.
 _DELEGATE_STARTED_NOTE = (
     "The workflow has STARTED — the app is uploading a copy of the folder and "
-    "the agent is now working on it. Tell the user briefly that it's running "
-    "and that a card in the chat shows live progress; they'll review the "
-    "proposed file changes there when it finishes, and nothing is written to "
-    "their disk until they do. Do NOT ask them to confirm anything, and do "
-    "NOT claim the files have been changed yet."
+    "the agent is now working on it. This takes minutes and has NOT finished. "
+    "Tell the user only that the work is underway and that the progress line "
+    "in the chat will show the result. "
+    "CRITICAL: nothing on their disk has changed yet. Do NOT say a file has "
+    "been created, written, saved, updated, or added; do NOT describe its "
+    "contents or claim the task is done. The agent works on a COPY; when the "
+    "run finishes the app applies its changes to the folder automatically and "
+    "posts a summary in this conversation. "
+    "Do NOT ask them to confirm anything either — it is already running."
 )
 
 _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
