@@ -7,6 +7,7 @@ from app.services.native_tools import (
     ALL_NATIVE_TOOLS,
     APP_HELP_TOOL,
     CREATE_ROOM_TOOL,
+    DELEGATE_WORKFLOW_TOOL,
     FOLDER_TOOLS,
     LIST_FILES_TOOL,
     MEMORY_TOOL,
@@ -19,12 +20,21 @@ from app.services.native_tools import (
     folder_tool_descriptors,
     native_tool_descriptors,
     native_tool_lookup,
+    workflow_tool_descriptors,
 )
 
 
-def test_all_native_tools_advertised():
+def test_all_ungated_native_tools_advertised():
+    # delegate_workflow is a registry native but only advertised when a folder
+    # is attached, so it is deliberately absent from the default descriptors.
     names = {d["function"]["name"] for d in native_tool_descriptors()}
-    assert names == set(ALL_NATIVE_TOOLS)
+    assert names == set(ALL_NATIVE_TOOLS) - {DELEGATE_WORKFLOW_TOOL}
+
+
+def test_delegate_workflow_is_gated_behind_its_own_accessor():
+    workflow_names = {d["function"]["name"] for d in workflow_tool_descriptors()}
+    assert workflow_names == {DELEGATE_WORKFLOW_TOOL}
+    assert DELEGATE_WORKFLOW_TOOL in ALL_NATIVE_TOOLS
 
 
 def test_folder_tools_are_not_registry_natives():

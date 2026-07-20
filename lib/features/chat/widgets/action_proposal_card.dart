@@ -7,6 +7,7 @@ import 'package:garbanzo_ai/features/chat/models/chat_message.dart';
 import 'package:garbanzo_ai/features/chat/models/thinking_level.dart';
 import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/model_provider.dart';
+import 'package:garbanzo_ai/features/chat/widgets/workflow_proposal_card.dart';
 import 'package:garbanzo_ai/features/rooms/services/room_service.dart';
 import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
@@ -83,6 +84,12 @@ class _ActionProposalCardState extends State<ActionProposalCard> {
 
   @override
   Widget build(BuildContext context) {
+    // delegate_workflow doesn't *finish* on Confirm — that's when a
+    // minutes-long run starts — so it has its own card with live progress.
+    if (_type == 'delegate_workflow') {
+      return WorkflowProposalCard(message: widget.message);
+    }
+
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 

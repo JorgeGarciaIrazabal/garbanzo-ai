@@ -24,36 +24,38 @@ from __future__ import annotations
 
 import atexit
 import contextlib
-import ctypes
-import ctypes.util
 import hashlib
 import json
 import logging
 import os
-import random
 import re
 import shutil
 import signal
-import socket
 import subprocess
 import threading
-import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-import httpx
-
 from app.core.config import Settings, get_settings
 from app.schemas.microapp import ChangeFile, ChangesSummary, PublishResult
+from app.services.opencode_config import build_config as build_opencode_config
+from app.services.opencode_config import write_config as write_opencode_config
+from app.services.opencode_process import (
+    PortAllocationError,
+    pick_free_port,
+)
+from app.services.opencode_process import (
+    default_spawn as _default_spawn,
+)
+from app.services.opencode_process import (
+    wait_ready as wait_opencode_ready,
+)
 
 logger = logging.getLogger(__name__)
 
 # Port band width for per-user dev servers (base .. base + this).
 _DEV_PORT_SPAN = 400
-# opencode readiness poll: 240 × 0.25s ≈ 60s (first launch may load a model).
-_OPENCODE_READY_RETRIES = 240
-_OPENCODE_READY_INTERVAL = 0.25
 
 
 class FeatureDisabledError(RuntimeError):
@@ -68,33 +70,6 @@ def slugify_email(email: str) -> str:
     """Turn an email into a filesystem- and git-branch-safe slug."""
     slug = re.sub(r"[^a-z0-9]+", "-", email.strip().lower()).strip("-")
     return slug or "user"
-
-
-def _child_preexec() -> None:
-    """After fork / before exec in a child: own session + die-with-parent.
-
-    - ``os.setsid()``: new session/group so we can kill the whole group.
-    - ``PR_SET_PDEATHSIG=SIGKILL``: the kernel kills the child the instant this
-      process dies for ANY reason — the real guarantee against orphans.
-    """
-    os.setsid()
-    try:
-        libc = ctypes.CDLL(ctypes.util.find_library("c") or "libc.so.6", use_errno=True)
-        libc.prctl(1, signal.SIGKILL)  # PR_SET_PDEATHSIG = 1
-    except Exception:  # noqa: BLE001 — non-Linux: fall back to explicit kills in stop()
-        pass
-
-
-def _default_spawn(cmd: list[str], cwd: str, env: dict[str, str]) -> subprocess.Popen:
-    """Spawn a detached child that dies with us. Injectable for tests."""
-    return subprocess.Popen(
-        cmd,
-        cwd=cwd,
-        env=env,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        preexec_fn=_child_preexec,
-    )
 
 
 @dataclass
@@ -257,45 +232,17 @@ class MicroappWorkspaceManager:
         The repo's own opencode.json is gitignored, so worktrees never inherit
         it — we point opencode at the local Ollama cloud endpoint.
         """
-        cfg_path = ws.path / "opencode.json"
-        if cfg_path.exists():
-            return
-        model = self._settings.microapps_opencode_model
-        bare_model = model.split("/", 1)[1] if "/" in model else model
-        # All Ollama cloud models available in the prod stack. Each must be
-        # pulled (``ollama pull <name>:cloud``) and the container signed in
-        # once — see deploy/README.md. The key is the model id opencode sees;
-        # the value carries its display name. The active model (from
-        # MICROAPPS_OPENCODE_MODEL) is always present even if not listed here.
-        cloud_models = {
-            bare_model: {"name": bare_model},
-            "glm-5.2:cloud": {"name": "glm-5.2:cloud"},
-            "gemma4:cloud": {"name": "gemma4:cloud"},
-            "minimax-m3:cloud": {"name": "minimax-m3:cloud"},
-            "nemotron-3-ultra:cloud": {"name": "nemotron-3-ultra:cloud"},
-            "kimi-k2.7-code:cloud": {"name": "kimi-k2.7-code:cloud"},
-        }
-        config = {
-            "$schema": "https://opencode.ai/config.json",
-            "provider": {
-                "ollama": {
-                    "npm": "@ai-sdk/openai-compatible",
-                    "name": "Ollama (local)",
-                    "options": {"baseURL": f"{self._settings.ollama_base_url.rstrip('/')}/v1"},
-                    "models": cloud_models,
-                }
-            },
-            "model": model,
+        config = build_opencode_config(
+            self._settings,
             # Disable opencode's internal planning/checklist tools: micro-app
             # edits are bounded and the house-design skill + validator/linter
             # supply the structure. Smaller/cloud models otherwise waste turns on
             # malformed todowrite calls, whose schema errors leak into the SSE
             # stream the Flutter agent rail renders.
-            "tools": {"todowrite": False, "todoread": False},
-            "instructions": ["CLAUDE.md", "AGENTS.md"],
-            "permission": {"edit": "allow", "bash": "allow", "webfetch": "allow"},
-        }
-        cfg_path.write_text(json.dumps(config, indent=2), encoding="utf-8")
+            tools={"todowrite": False, "todoread": False},
+            instructions=["CLAUDE.md", "AGENTS.md"],
+        )
+        write_opencode_config(ws.path, config)
 
     # -- subprocesses -------------------------------------------------------
 
@@ -313,30 +260,15 @@ class MicroappWorkspaceManager:
 
     def _wait_opencode_ready(self, base: str, proc: subprocess.Popen) -> bool:
         """Poll opencode ``/config`` until ready. Injectable-friendly (sync)."""
-        for _ in range(_OPENCODE_READY_RETRIES):
-            if proc.poll() is not None:
-                return False
-            try:
-                httpx.get(base + "/config", timeout=2.0)
-                return True
-            except Exception:  # noqa: BLE001 — not up yet
-                time.sleep(_OPENCODE_READY_INTERVAL)
-        return False
+        return wait_opencode_ready(base, proc)
 
     @staticmethod
     def _pick_free_port() -> int:
-        """Random port in the opencode band, bind-tested so a collision with
-        another process (or another user's opencode) retries instead of
-        handing out a port that fails at spawn time."""
-        for _ in range(20):
-            port = random.randint(40000, 60000)  # noqa: S311 — not security-sensitive
-            with socket.socket() as s:
-                try:
-                    s.bind(("127.0.0.1", port))
-                except OSError:
-                    continue
-            return port
-        raise WorkspaceError("Could not find a free local port for opencode")
+        """Pick a bind-tested free port in the opencode band."""
+        try:
+            return pick_free_port()
+        except PortAllocationError as exc:
+            raise WorkspaceError(str(exc)) from exc
 
     def _start_opencode(self, ws: Workspace) -> None:
         if ws.opencode_ready and ws.opencode_proc and ws.opencode_proc.poll() is None:

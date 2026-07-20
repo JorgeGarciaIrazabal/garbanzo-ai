@@ -23,6 +23,7 @@ from app.api.v1.endpoints import (
     tts,
     usage,
     version,
+    workflows,
 )
 
 api_router = APIRouter()
@@ -51,5 +52,6 @@ api_router.include_router(system_prompts.router, prefix="/system-prompts", tags=
 api_router.include_router(tts.router, prefix="/tts", tags=["tts"])
 api_router.include_router(usage.router, prefix="/usage", tags=["usage"])
 api_router.include_router(version.router, prefix="/version", tags=["version"])
+api_router.include_router(workflows.router, prefix="/workflows", tags=["workflows"])
 api_router.include_router(rooms.router, prefix="/rooms", tags=["rooms"])
 api_router.include_router(rooms_ws.router, tags=["rooms-ws"])

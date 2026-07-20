@@ -4317,6 +4317,138 @@ abstract class AppLocalizations {
   /// **'Couldn\'t attach that folder'**
   String get messageFolderAttachFailed;
 
+  /// Header of the confirm card for a delegated opencode workflow.
+  ///
+  /// In en, this message translates to:
+  /// **'Delegate this task?'**
+  String get titleDelegateWorkflow;
+
+  /// Scope line on the delegate-workflow card naming the attached folder.
+  ///
+  /// In en, this message translates to:
+  /// **'Works on a copy of {name}'**
+  String messageWorkflowScope(String name);
+
+  /// Status while the client walks the attached folder before uploading.
+  ///
+  /// In en, this message translates to:
+  /// **'Scanning folder…'**
+  String get messageWorkflowScanning;
+
+  /// Status while the folder snapshot uploads; a percentage is appended.
+  ///
+  /// In en, this message translates to:
+  /// **'Uploading folder…'**
+  String get messageWorkflowUploading;
+
+  /// Status while the delegated workflow runs on the server.
+  ///
+  /// In en, this message translates to:
+  /// **'Agent is working…'**
+  String get messageWorkflowRunning;
+
+  /// Reassurance that a delegated workflow survives disconnecting.
+  ///
+  /// In en, this message translates to:
+  /// **'Keeps running if you close the app — you\'ll be notified.'**
+  String get messageWorkflowKeepsRunning;
+
+  /// Status when a delegated workflow completed successfully.
+  ///
+  /// In en, this message translates to:
+  /// **'Workflow finished'**
+  String get messageWorkflowDone;
+
+  /// Status when a delegated workflow ended in an error.
+  ///
+  /// In en, this message translates to:
+  /// **'Workflow failed'**
+  String get messageWorkflowFailed;
+
+  /// Snackbar when confirming a workflow with no folder attached.
+  ///
+  /// In en, this message translates to:
+  /// **'Attach a folder to this chat first.'**
+  String get messageWorkflowNeedsFolder;
+
+  /// Button opening the finished workflow's diff.
+  ///
+  /// In en, this message translates to:
+  /// **'Review changes'**
+  String get actionReviewChanges;
+
+  /// Title of the dialog listing a finished workflow's file changes.
+  ///
+  /// In en, this message translates to:
+  /// **'Review changes'**
+  String get titleWorkflowChanges;
+
+  /// Shown when a finished workflow produced an empty diff.
+  ///
+  /// In en, this message translates to:
+  /// **'The workflow didn\'t change any files.'**
+  String get messageWorkflowNoChanges;
+
+  /// Warning above the change list naming the local folder that will be modified.
+  ///
+  /// In en, this message translates to:
+  /// **'Selected files will be written into {path}.'**
+  String messageWorkflowApplyWarning(String path);
+
+  /// Subtitle for a change the server couldn't send back in full.
+  ///
+  /// In en, this message translates to:
+  /// **'Too large to apply'**
+  String get messageWorkflowTooLarge;
+
+  /// Result summary after writing a workflow's changes locally.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 file applied} other{{count} files applied}}'**
+  String messageWorkflowApplied(int count);
+
+  /// Heading for files left untouched because the local copy changed.
+  ///
+  /// In en, this message translates to:
+  /// **'Skipped — these changed on disk while the workflow ran:'**
+  String get messageWorkflowConflicts;
+
+  /// Heading for files that failed to write during apply.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not write:'**
+  String get messageWorkflowFailedFiles;
+
+  /// Change type label for a newly created file.
+  ///
+  /// In en, this message translates to:
+  /// **'Added'**
+  String get labelFileAdded;
+
+  /// Change type label for an edited file.
+  ///
+  /// In en, this message translates to:
+  /// **'Modified'**
+  String get labelFileModified;
+
+  /// Change type label for a removed file.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted'**
+  String get labelFileDeleted;
+
+  /// Status shown on a proposal card the user declined.
+  ///
+  /// In en, this message translates to:
+  /// **'Dismissed'**
+  String get labelDismissed;
+
+  /// Confirm button in the workflow changes dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Apply 1 file} other{Apply {count} files}}'**
+  String actionApplySelected(int count);
+
   /// Error when STT service is unavailable.
   ///
   /// In en, this message translates to:

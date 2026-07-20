@@ -185,3 +185,29 @@ half-migrated schema.
   unsetting any prior default before setting a new one so callers don't hit
   the constraint in normal use.
 - Conversations use soft delete (`is_deleted=True`), not hard delete.
+- `WorkflowRun` (032_workflow_runs.sql) is one delegated opencode run (idea
+  18). It exists because the run is **detached**: it keeps going after the
+  client that started it disconnects, so its state can't live in the SSE
+  stream. `status` flows `draft` → `uploading` → `queued` → `running` →
+  `done` | `error` | `cancelled`.
+  - `workdir` is the absolute path of the **server-side snapshot** of the
+    user's folder — the temp directory the client uploaded into, git-init'd
+    with a baseline commit at `/start` so change detection is an exact
+    `git diff`. It is internal: never serialized to a client (`WorkflowOut`
+    omits it), and never a path the client supplied. `POST /{id}/applied`
+    clears it and deletes the directory.
+  - `progress` (JSONB) is the appended list of translated opencode chunks,
+    replayed via `GET /{id}?since=<n>`. Streamed text is coalesced into the
+    previous entry and the list is capped (2000 entries) so a runaway run
+    can't bloat the row.
+  - `tool_call_id` is the `delegate_workflow` proposal's id, which is how a
+    confirm card re-finds its run after a reload — no client-side storage
+    needed (contrast with the `SharedPreferences` decision store the other
+    proposal types use).
+  - `conversation_id` is nullable for room-originated runs; when set, the
+    final summary is written back as an assistant `Message` carrying
+    `meta.workflow_run_id`.
+  - Runs left in `queued`/`running` by a backend restart are swept to
+    `error` at startup (`main._fail_stale_workflow_runs`) — their opencode
+    subprocess died with the old process, so a polling client would
+    otherwise wait forever.

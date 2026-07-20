@@ -48,6 +48,7 @@ from app.services.microapp_workspace import manager as microapp_manager
 from app.services.native_tools import (
     APP_HELP_NUDGE,
     APP_HELP_TOOL,
+    DELEGATE_WORKFLOW_NUDGE,
     FOLDER_TOOLS,
     NATIVE_GARBO_SERVER_ID,
     READ_FILE_TOOL,
@@ -55,6 +56,7 @@ from app.services.native_tools import (
     folder_tool_descriptors,
     native_tool_descriptors,
     native_tool_lookup,
+    workflow_tool_descriptors,
 )
 from app.services.system_prompt_service import SystemPromptService
 from app.services.token_counter import get_token_counter
@@ -439,6 +441,8 @@ class ChatService:
         )
         if APP_HELP_TOOL in tool_lookup:
             dynamic_context += f"\n\n{APP_HELP_NUDGE}"
+        if has_client_folder:
+            dynamic_context += f"\n\n{DELEGATE_WORKFLOW_NUDGE}"
 
         llm_messages, context_stats = await self._context.build_history_with_system_prompt(
             conversation.messages,
@@ -568,9 +572,11 @@ class ChatService:
         # or admin registration needed, working identically in dev and prod.
         # Folder tools are client-served and only advertised when the request
         # signals a folder is attached on the client (has_client_folder).
+        # delegate_workflow rides the same gate: it snapshots the attached
+        # folder, so without one there is nothing for it to work on.
         all_native_descs = list(native_tool_descriptors())
         if has_client_folder:
-            all_native_descs += folder_tool_descriptors()
+            all_native_descs += folder_tool_descriptors() + workflow_tool_descriptors()
         if enabled is None:
             for desc in all_native_descs:
                 ollama_tools.append(desc)

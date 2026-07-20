@@ -17,6 +17,7 @@ import 'package:garbanzo_ai/features/chat/providers/model_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/search_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/style_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/system_prompt_provider.dart';
+import 'package:garbanzo_ai/features/chat/providers/workflow_provider.dart';
 import 'package:garbanzo_ai/features/friends/providers/friends_provider.dart';
 import 'package:garbanzo_ai/features/knowledge_base/providers/knowledge_base_provider.dart';
 import 'package:garbanzo_ai/features/memory/providers/memory_provider.dart';
@@ -158,6 +159,9 @@ class _AppProviders extends StatelessWidget {
             ..pendingSystemPrompt = style.pendingSystemPrompt,
         ),
         ChangeNotifierProvider(create: (_) => MemoryProvider()),
+        // Above the message list on purpose: a delegated workflow runs for
+        // minutes, long after its proposal card has scrolled out of view.
+        ChangeNotifierProvider(create: (_) => WorkflowProvider()),
         ChangeNotifierProvider(create: (_) => SystemPromptProvider()),
         ChangeNotifierProvider(create: (_) => ToolProvider()),
         ChangeNotifierProvider(create: (_) => SearchProvider()),

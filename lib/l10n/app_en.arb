@@ -3308,6 +3308,114 @@
   "@messageFolderAttachFailed": {
     "description": "Error snackbar shown when attaching a folder fails."
   },
+  "titleDelegateWorkflow": "Delegate this task?",
+  "@titleDelegateWorkflow": {
+    "description": "Header of the confirm card for a delegated opencode workflow."
+  },
+  "messageWorkflowScope": "Works on a copy of {name}",
+  "@messageWorkflowScope": {
+    "description": "Scope line on the delegate-workflow card naming the attached folder.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "messageWorkflowScanning": "Scanning folder…",
+  "@messageWorkflowScanning": {
+    "description": "Status while the client walks the attached folder before uploading."
+  },
+  "messageWorkflowUploading": "Uploading folder…",
+  "@messageWorkflowUploading": {
+    "description": "Status while the folder snapshot uploads; a percentage is appended."
+  },
+  "messageWorkflowRunning": "Agent is working…",
+  "@messageWorkflowRunning": {
+    "description": "Status while the delegated workflow runs on the server."
+  },
+  "messageWorkflowKeepsRunning": "Keeps running if you close the app — you'll be notified.",
+  "@messageWorkflowKeepsRunning": {
+    "description": "Reassurance that a delegated workflow survives disconnecting."
+  },
+  "messageWorkflowDone": "Workflow finished",
+  "@messageWorkflowDone": {
+    "description": "Status when a delegated workflow completed successfully."
+  },
+  "messageWorkflowFailed": "Workflow failed",
+  "@messageWorkflowFailed": {
+    "description": "Status when a delegated workflow ended in an error."
+  },
+  "messageWorkflowNeedsFolder": "Attach a folder to this chat first.",
+  "@messageWorkflowNeedsFolder": {
+    "description": "Snackbar when confirming a workflow with no folder attached."
+  },
+  "actionReviewChanges": "Review changes",
+  "@actionReviewChanges": {
+    "description": "Button opening the finished workflow's diff."
+  },
+  "titleWorkflowChanges": "Review changes",
+  "@titleWorkflowChanges": {
+    "description": "Title of the dialog listing a finished workflow's file changes."
+  },
+  "messageWorkflowNoChanges": "The workflow didn't change any files.",
+  "@messageWorkflowNoChanges": {
+    "description": "Shown when a finished workflow produced an empty diff."
+  },
+  "messageWorkflowApplyWarning": "Selected files will be written into {path}.",
+  "@messageWorkflowApplyWarning": {
+    "description": "Warning above the change list naming the local folder that will be modified.",
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "messageWorkflowTooLarge": "Too large to apply",
+  "@messageWorkflowTooLarge": {
+    "description": "Subtitle for a change the server couldn't send back in full."
+  },
+  "messageWorkflowApplied": "{count, plural, =1{1 file applied} other{{count} files applied}}",
+  "@messageWorkflowApplied": {
+    "description": "Result summary after writing a workflow's changes locally.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "messageWorkflowConflicts": "Skipped — these changed on disk while the workflow ran:",
+  "@messageWorkflowConflicts": {
+    "description": "Heading for files left untouched because the local copy changed."
+  },
+  "messageWorkflowFailedFiles": "Could not write:",
+  "@messageWorkflowFailedFiles": {
+    "description": "Heading for files that failed to write during apply."
+  },
+  "labelFileAdded": "Added",
+  "@labelFileAdded": {
+    "description": "Change type label for a newly created file."
+  },
+  "labelFileModified": "Modified",
+  "@labelFileModified": {
+    "description": "Change type label for an edited file."
+  },
+  "labelFileDeleted": "Deleted",
+  "@labelFileDeleted": {
+    "description": "Change type label for a removed file."
+  },
+  "labelDismissed": "Dismissed",
+  "@labelDismissed": {
+    "description": "Status shown on a proposal card the user declined."
+  },
+  "actionApplySelected": "{count, plural, =1{Apply 1 file} other{Apply {count} files}}",
+  "@actionApplySelected": {
+    "description": "Confirm button in the workflow changes dialog.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "messageSttUnavailable": "Speech-to-text is currently unavailable on the server.",
   "@messageSttUnavailable": {
     "description": "Error when STT service is unavailable."

@@ -2380,6 +2380,96 @@ class AppLocalizationsEn extends AppLocalizations {
   String get messageFolderAttachFailed => 'Couldn\'t attach that folder';
 
   @override
+  String get titleDelegateWorkflow => 'Delegate this task?';
+
+  @override
+  String messageWorkflowScope(String name) {
+    return 'Works on a copy of $name';
+  }
+
+  @override
+  String get messageWorkflowScanning => 'Scanning folder…';
+
+  @override
+  String get messageWorkflowUploading => 'Uploading folder…';
+
+  @override
+  String get messageWorkflowRunning => 'Agent is working…';
+
+  @override
+  String get messageWorkflowKeepsRunning =>
+      'Keeps running if you close the app — you\'ll be notified.';
+
+  @override
+  String get messageWorkflowDone => 'Workflow finished';
+
+  @override
+  String get messageWorkflowFailed => 'Workflow failed';
+
+  @override
+  String get messageWorkflowNeedsFolder =>
+      'Attach a folder to this chat first.';
+
+  @override
+  String get actionReviewChanges => 'Review changes';
+
+  @override
+  String get titleWorkflowChanges => 'Review changes';
+
+  @override
+  String get messageWorkflowNoChanges =>
+      'The workflow didn\'t change any files.';
+
+  @override
+  String messageWorkflowApplyWarning(String path) {
+    return 'Selected files will be written into $path.';
+  }
+
+  @override
+  String get messageWorkflowTooLarge => 'Too large to apply';
+
+  @override
+  String messageWorkflowApplied(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count files applied',
+      one: '1 file applied',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get messageWorkflowConflicts =>
+      'Skipped — these changed on disk while the workflow ran:';
+
+  @override
+  String get messageWorkflowFailedFiles => 'Could not write:';
+
+  @override
+  String get labelFileAdded => 'Added';
+
+  @override
+  String get labelFileModified => 'Modified';
+
+  @override
+  String get labelFileDeleted => 'Deleted';
+
+  @override
+  String get labelDismissed => 'Dismissed';
+
+  @override
+  String actionApplySelected(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Apply $count files',
+      one: 'Apply 1 file',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get messageSttUnavailable =>
       'Speech-to-text is currently unavailable on the server.';
 

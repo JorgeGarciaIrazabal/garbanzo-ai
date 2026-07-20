@@ -119,6 +119,25 @@ async def _promote_admin_emails() -> None:
         logger.warning("Failed to promote admin emails", exc_info=True)
 
 
+async def _fail_stale_workflow_runs() -> None:
+    """Mark workflow runs orphaned by a restart as failed.
+
+    Their opencode subprocess died with the previous process, so a row left in
+    ``queued``/``running`` can never advance — a polling client would wait on
+    it forever.
+    """
+    from app.db.session import async_session_maker
+    from app.services.workflow_service import WorkflowService
+
+    try:
+        async with async_session_maker() as db:
+            swept = await WorkflowService(db).sweep_stale()
+            if swept:
+                logger.info("Failed %s workflow run(s) orphaned by restart", swept)
+    except Exception:
+        logger.warning("Could not sweep stale workflow runs", exc_info=True)
+
+
 def _check_config() -> None:
     """Validate settings and log the feature table; refuse to boot on fatal issues."""
     from app.core.config import feature_summary, validate_startup_config
@@ -147,6 +166,7 @@ async def lifespan(app: FastAPI):
     from app.services.style_service import seed_builtin_styles_task
 
     await seed_builtin_styles_task()
+    await _fail_stale_workflow_runs()
     # Start loading the Kokoro TTS model in the background (non-blocking).
     from app.services.tts_service import TTSService
 

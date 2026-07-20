@@ -14,6 +14,7 @@ from app.models.shared_item import SharedItem
 from app.models.style import Style
 from app.models.system_prompt import SystemPromptTemplate
 from app.models.user import User
+from app.models.workflow_run import WorkflowRun
 
 __all__ = [
     "User",
@@ -37,4 +38,5 @@ __all__ = [
     "RoomMember",
     "RoomAgent",
     "RoomMessage",
+    "WorkflowRun",
 ]

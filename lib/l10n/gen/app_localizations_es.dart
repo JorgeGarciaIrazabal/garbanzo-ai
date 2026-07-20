@@ -2413,6 +2413,95 @@ class AppLocalizationsEs extends AppLocalizations {
   String get messageFolderAttachFailed => 'No se pudo adjuntar esa carpeta';
 
   @override
+  String get titleDelegateWorkflow => '¿Delegar esta tarea?';
+
+  @override
+  String messageWorkflowScope(String name) {
+    return 'Trabaja sobre una copia de $name';
+  }
+
+  @override
+  String get messageWorkflowScanning => 'Explorando la carpeta…';
+
+  @override
+  String get messageWorkflowUploading => 'Subiendo la carpeta…';
+
+  @override
+  String get messageWorkflowRunning => 'El agente está trabajando…';
+
+  @override
+  String get messageWorkflowKeepsRunning =>
+      'Sigue en marcha aunque cierres la app: te avisaremos.';
+
+  @override
+  String get messageWorkflowDone => 'Tarea completada';
+
+  @override
+  String get messageWorkflowFailed => 'La tarea falló';
+
+  @override
+  String get messageWorkflowNeedsFolder =>
+      'Primero adjunta una carpeta a este chat.';
+
+  @override
+  String get actionReviewChanges => 'Revisar cambios';
+
+  @override
+  String get titleWorkflowChanges => 'Revisar cambios';
+
+  @override
+  String get messageWorkflowNoChanges => 'La tarea no modificó ningún archivo.';
+
+  @override
+  String messageWorkflowApplyWarning(String path) {
+    return 'Los archivos seleccionados se escribirán en $path.';
+  }
+
+  @override
+  String get messageWorkflowTooLarge => 'Demasiado grande para aplicar';
+
+  @override
+  String messageWorkflowApplied(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count archivos aplicados',
+      one: '1 archivo aplicado',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get messageWorkflowConflicts =>
+      'Omitidos: cambiaron en el disco mientras la tarea se ejecutaba:';
+
+  @override
+  String get messageWorkflowFailedFiles => 'No se pudo escribir:';
+
+  @override
+  String get labelFileAdded => 'Añadido';
+
+  @override
+  String get labelFileModified => 'Modificado';
+
+  @override
+  String get labelFileDeleted => 'Eliminado';
+
+  @override
+  String get labelDismissed => 'Descartado';
+
+  @override
+  String actionApplySelected(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Aplicar $count archivos',
+      one: 'Aplicar 1 archivo',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get messageSttUnavailable =>
       'La conversación de voz a texto no está disponible en el servidor.';
 

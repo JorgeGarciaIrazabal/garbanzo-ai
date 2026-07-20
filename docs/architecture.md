@@ -61,9 +61,11 @@ services/      chat_service.py (turn orchestration + tool loop)
                native_tools.py (in-process chat tools: scheduled actions,
                memories, notifications, app_help, submit_report — no MCP
                server needed;
-               plus proposal tools create_room / set_conversation_style
-               that only return a validated proposal the frontend confirms
-               and executes via its normal REST calls)
+               plus proposal tools create_room / set_conversation_style /
+               delegate_workflow that only return a validated proposal the
+               frontend confirms and executes via its normal REST calls.
+               delegate_workflow is gated: advertised only when the request
+               sets has_client_folder, since a run snapshots that folder)
                app_help.py (keyword retrieval over app/docs/help/ guides
                for the app_help tool; parsed once, cached in memory)
                client_tool_bridge.py + client_file_extract.py (idea 17:
@@ -73,6 +75,18 @@ services/      chat_service.py (turn orchestration + tool loop)
                to /client-tool-result; client_file_extract turns the returned
                bytes into text (KB extractors + markitdown). The backend never
                reads the host filesystem — the folder lives only on the client)
+               workflow_service.py + workflow_runner.py (idea 18: delegated
+               opencode workflows. The client uploads a snapshot of its
+               attached folder, workflow_service git-baselines it, and
+               workflow_runner spawns opencode in that copy as a DETACHED
+               asyncio task — it outlives the request, so progress is
+               persisted on WorkflowRun instead of streamed. On completion the
+               summary is written back as an assistant message + FCM push, and
+               the git diff is served for the client to apply locally)
+               opencode_config.py + opencode_process.py (shared opencode.json
+               builder and subprocess lifecycle — setsid + PR_SET_PDEATHSIG,
+               port picking, readiness probe — used by both micro-apps and
+               delegated workflows)
                fcm_service.py, device_service.py, notification_service.py
                image_utils.py (image attachment resize/encoding)
 db/            base.py, session.py (AsyncSession, init_db), migrations.py
@@ -88,6 +102,9 @@ scheduler.py   APScheduler lifecycle + action registration
 2. `_ensure_test_user()` — create test user (if `TEST_USER_EMAIL` + `TEST_USER_PASSWORD` configured)
 3. `_promote_admin_emails()` — promote matching emails to `is_admin=True`
 4. `seed_builtin_templates_task()` — seed built-in system prompt templates
+4b. `_fail_stale_workflow_runs()` — mark `queued`/`running` workflow runs
+   orphaned by the restart as `error` (their opencode died with the old
+   process, so a polling client would wait on them forever)
 5. `TTSService.start_loading()` — background, non-blocking
 6. `STTService.start_loading()` — background, non-blocking (skips if `stt_mode=remote`)
 7. `start_scheduler()` — APScheduler for memory extraction + scheduled actions
@@ -117,9 +134,17 @@ features/chat/
                      Style, ThinkingLevel
                      ( all use freezed + json_serializable )
   providers/         ChatProvider, ModelProvider, SearchProvider,
-                     SystemPromptProvider, StyleProvider
+                     SystemPromptProvider, StyleProvider,
+                     WorkflowProvider (idea 18: drives delegated workflows —
+                     folder walk, snapshot upload, polling, hash-gated
+                     write-back. Lives above the message list because a run
+                     outlasts its proposal card scrolling out of view)
   services/          chat_service.dart (CRUD + SSE streaming),
-                     audio_service.dart (STT/TTS), style_service.dart
+                     audio_service.dart (STT/TTS), style_service.dart,
+                     folder_reader.dart / folder_writer.dart (facades that
+                     conditionally export a dart:io impl or a throwing web
+                     stub — the folder only exists on desktop clients),
+                     workflow_service.dart (delegated-workflow REST)
   utils/             text_cleaner.dart (strips markdown/emojis before TTS)
   talk/              Talk Mode — full-screen hands-free voice call over
                      ChatProvider: talk_mode_page.dart, talk_mode_controller.dart

@@ -26,10 +26,32 @@ folder onto the chat. The assistant can then read files inside that folder on
 demand (PDFs, spreadsheets, Word/PowerPoint, code, and plain text) as you ask
 about them — it reads them only when relevant, and shows which file it is
 reading. Access is strictly sandboxed: the assistant can **never** read
-anything outside the folder you attached, and for now it can only read
-(not modify) those files. A chip above the input bar shows the attached folder;
-tap its **×** to detach it. This option is desktop-only — web can't reach your
-files.
+anything outside the folder you attached, and it never modifies those files on
+its own — to change them, see delegating a task below. A chip above the input
+bar shows the attached folder; tap its **×** to detach it. This option is
+desktop-only — web can't reach your files.
+
+## Can the assistant change files in my folder?
+Not directly. When you ask for something big — "refactor this module", "add
+tests across the package", "fix every occurrence of X" — the assistant will
+offer to **delegate the task** to an autonomous coding agent, and show you a
+confirmation card first. Nothing happens until you confirm.
+
+When you confirm, the app uploads a **copy** of the attached folder, the agent
+works on that copy for a few minutes, and then you get a list of every file it
+added, changed, or deleted. Your own files are untouched until you review that
+list, pick what you want, and choose **Apply**.
+
+Three things worth knowing:
+
+- **It keeps running if you close the app.** The work happens on the server, so
+  you can carry on elsewhere; you'll get a notification when it finishes, and
+  the summary appears in the conversation.
+- **Your edits win.** If you change one of those files yourself while the agent
+  is working, that file is reported as a conflict and skipped rather than
+  overwritten.
+- **Big folders are trimmed.** Hidden files, `.git`, and `node_modules` are
+  never uploaded, and very large files are skipped.
 
 ## How do I dictate a message?
 Press the microphone button in the input bar and speak; the recording is

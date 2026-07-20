@@ -16,6 +16,7 @@ when you add or change an endpoint, update the matching row in the same commit.
 | **Knowledge Base** | `POST /kb/documents`, `GET /kb/documents`, `GET /kb/documents/{id}`, `DELETE /kb/documents/{id}`, `GET /kb/search` |
 | **Rooms** | `POST /rooms`, `GET /rooms`, `GET /rooms/search`, `GET /rooms/{id}`, `PATCH /rooms/{id}`, `DELETE /rooms/{id}`, `GET /rooms/{id}/members`, `POST /rooms/{id}/members`, `DELETE /rooms/{id}/members/{email}`, `PATCH /rooms/{id}/members/me/mute`, `GET /rooms/{id}/agents`, `POST /rooms/{id}/agents`, `PATCH /rooms/{id}/agents/{id}`, `DELETE /rooms/{id}/agents/{id}`, `GET /rooms/{id}/messages`, `POST /rooms/{id}/chat`, `GET /rooms/{id}/export`, `WS /rooms/{id}` |
 | **Micro-apps** | `POST /microapps/workspace`, `GET /microapps/workspace`, `DELETE /microapps/workspace`, `GET /microapps/apps`, `GET /microapps/houses`, `POST /microapps/houses`, `POST /microapps/agent/chat`, `POST /microapps/agent/abort`, `GET /microapps/changes`, `POST /microapps/publish`, `POST /microapps/revert` |
+| **Workflows** | `POST /workflows` (create a delegated opencode run in `draft` — idea 18; body `{instruction, conversation_id?, room_id?, tool_call_id?, folder_label?}`), `GET /workflows?conversation_id=` (hydrate proposal cards after a reload), `POST /workflows/{id}/files` (upload one batch of the folder snapshot: `{files:[{path, data(base64)}]}`; 400 on an escaping path or a budget overrun), `POST /workflows/{id}/start` (git-baselines the snapshot and launches the **detached** run; 409 if already started), `GET /workflows/{id}?since=` (status + only the progress after the cursor), `GET /workflows/{id}/changes` (the run's git diff for local apply; 409 while still running), `POST /workflows/{id}/applied` (204 — drop the server-side snapshot) |
 | **MCP (Tools)** | `GET /mcp/tools`, `GET /mcp/servers`, `POST /mcp/servers`, `PATCH /mcp/servers/{id}`, `DELETE /mcp/servers/{id}`, `POST /mcp/servers/{id}/test-connection` |
 | **Notifications** | `GET /notifications`, `GET /notifications/unread-count`, `POST /notifications/read-all`, `PATCH /notifications/{id}/read`, `DELETE /notifications/{id}`, `GET /notifications/preferences`, `PATCH /notifications/preferences` |
 | **Devices** | `POST /devices/register`, `DELETE /devices/register` |
@@ -33,3 +34,16 @@ when you add or change an endpoint, update the matching row in the same commit.
 CRUD only sees/touches global servers (404 on personal ones); `mcp/servers` CRUD
 only sees/touches the caller's own. `GET /mcp/tools` returns global + the
 caller's personal tools; rooms get global-only.
+
+**Delegated workflows (idea 18).** The attached folder lives only on the desktop
+client (idea 17), so a run works on a *server-side snapshot*: the client
+uploads a copy, opencode edits that copy, and the resulting diff is sent back
+for the client to write locally. That's what lets a run outlive the client —
+`/start` schedules the task **outside the request scope** and returns
+immediately, so closing the app doesn't cancel it; the summary lands as an
+assistant message in the conversation plus an FCM push. Every uploaded path is
+forced back inside the snapshot directory server-side (absolute paths, `..`,
+and symlink escapes are rejected with 400), and `workdir` is never serialized
+to a client. `/changes` returns each file's `base_sha256` — the hash of what
+was uploaded — so the client can refuse to overwrite a file the user edited
+while the run was going.

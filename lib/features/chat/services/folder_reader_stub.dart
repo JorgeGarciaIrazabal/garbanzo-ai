@@ -1,4 +1,5 @@
 import 'package:garbanzo_ai/features/chat/services/folder_read_error.dart';
+import 'package:garbanzo_ai/features/chat/services/folder_walk.dart';
 
 /// Web stub: folders can't be attached or read without a filesystem, so every
 /// operation reports it's unsupported. (In practice the client never sets
@@ -15,6 +16,14 @@ class FolderReader {
   }
 
   List<Map<String, Object>> listDir(String root, String relPath) {
+    throw const FolderReadError('Folder reads are not supported on web.');
+  }
+
+  FolderWalk walk(
+    String root, {
+    int maxFiles = 2000,
+    int maxTotalBytes = 50 * 1024 * 1024,
+  }) {
     throw const FolderReadError('Folder reads are not supported on web.');
   }
 }

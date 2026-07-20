@@ -35,6 +35,17 @@ EXISTS`. Applied once each at startup (`db/migrations.py`), tracked in
 
 ## Gotchas
 
+- Work that must outlive the HTTP request (delegated workflows) is started with
+  `asyncio.create_task` from the endpoint and **never awaited there** — awaiting
+  re-couples it to the client's connection, which is the exact bug the feature
+  exists to avoid. Such a task opens its own session via a *late* `from app.db
+  import session as db_session` + `db_session.async_session_maker()` so tests
+  pick up conftest's swapped maker (see the note above). Anything it needs to
+  report goes to the DB (+ FCM), not the response.
+- Spawning opencode? Use `opencode_process.py` (setsid + `PR_SET_PDEATHSIG`,
+  port picking, readiness probe) and `opencode_config.py` — shared by micro-apps
+  and workflows, so the child-never-outlives-us guarantee holds in one place.
+
 - PostgreSQL runs only via Docker (`just docker-up-db`) — never a host instance.
 - Startup ordering lives in `main.py` (`init_db` → test user → admin promotion →
   template seed → TTS/STT background load → scheduler → firebase).

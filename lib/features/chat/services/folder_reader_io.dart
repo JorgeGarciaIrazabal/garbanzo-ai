@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 
 import 'package:garbanzo_ai/features/chat/services/folder_read_error.dart';
+import 'package:garbanzo_ai/features/chat/services/folder_walk.dart';
 
 /// Client-side reader for a folder the user attached to a conversation
 /// (idea 17). The folder lives only on this desktop client; when the backend
@@ -65,6 +66,72 @@ class FolderReader {
       );
     }
     return (filename: p.basename(resolved), bytes: file.readAsBytesSync());
+  }
+
+  /// Recursively collect every readable file under [root], as paths relative
+  /// to it. Used to snapshot the folder for a delegated workflow (idea 18).
+  ///
+  /// Applies the same skip rules as [listDir] plus the size caps, so build
+  /// output and giant binaries never get uploaded. Stops at [maxFiles] /
+  /// [maxTotalBytes] and reports what it skipped rather than failing — a
+  /// partial snapshot with a warning beats refusing to run.
+  FolderWalk walk(
+    String root, {
+    int maxFiles = 2000,
+    int maxTotalBytes = 50 * 1024 * 1024,
+  }) {
+    final rootAbs = p.canonicalize(root);
+    final paths = <String>[];
+    final skipped = <String>[];
+    var totalBytes = 0;
+    var truncated = false;
+
+    void visit(Directory dir) {
+      if (truncated) return;
+      final List<FileSystemEntity> children;
+      try {
+        children = dir.listSync(followLinks: false);
+      } on FileSystemException {
+        return; // unreadable directory — skip it, don't abort the walk
+      }
+      children.sort((a, b) => a.path.compareTo(b.path));
+      for (final entity in children) {
+        if (truncated) return;
+        final name = p.basename(entity.path);
+        if (name.startsWith('.') || _skipNames.contains(name)) continue;
+        if (entity is Directory) {
+          visit(entity);
+          continue;
+        }
+        if (entity is! File) continue; // symlinks and sockets
+        final rel = p.relative(entity.path, from: rootAbs);
+        final int length;
+        try {
+          length = entity.lengthSync();
+        } on FileSystemException {
+          skipped.add(rel);
+          continue;
+        }
+        if (length > maxFileBytes) {
+          skipped.add(rel);
+          continue;
+        }
+        if (paths.length >= maxFiles || totalBytes + length > maxTotalBytes) {
+          truncated = true;
+          return;
+        }
+        paths.add(rel);
+        totalBytes += length;
+      }
+    }
+
+    visit(Directory(rootAbs));
+    return FolderWalk(
+      paths: paths,
+      totalBytes: totalBytes,
+      skipped: skipped,
+      truncated: truncated,
+    );
   }
 
   /// List entries directly under [relPath] inside [root]. Skips dotfiles and

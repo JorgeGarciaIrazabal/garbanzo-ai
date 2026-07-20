@@ -42,6 +42,7 @@ SET_STYLE_TOOL = "set_conversation_style"
 REPORT_TOOL = "submit_report"
 READ_FILE_TOOL = "read_file"
 LIST_FILES_TOOL = "list_files"
+DELEGATE_WORKFLOW_TOOL = "delegate_workflow"
 
 ALL_NATIVE_TOOLS = (
     SCHEDULED_ACTION_TOOL,
@@ -51,6 +52,9 @@ ALL_NATIVE_TOOLS = (
     CREATE_ROOM_TOOL,
     SET_STYLE_TOOL,
     REPORT_TOOL,
+    # In the registry (so it can execute) but only advertised when a folder is
+    # attached — see _GATED_TOOLS.
+    DELEGATE_WORKFLOW_TOOL,
 )
 
 # Folder tools are *client-served*, not registry executors: they're advertised
@@ -67,7 +71,13 @@ FOLDER_TOOLS = frozenset({READ_FILE_TOOL, LIST_FILES_TOOL})
 # structured proposal; the frontend renders it as a Confirm/Cancel card and,
 # on confirm, calls the same REST endpoints it uses everywhere else (reusing
 # auth and keeping the model out of the execution path).
-PROPOSAL_TOOLS = (CREATE_ROOM_TOOL, SET_STYLE_TOOL)
+PROPOSAL_TOOLS = (CREATE_ROOM_TOOL, SET_STYLE_TOOL, DELEGATE_WORKFLOW_TOOL)
+
+# Tools that execute in-process but are only *advertised* under a condition,
+# so they stay out of the default descriptor list. ``delegate_workflow``
+# needs an attached folder to snapshot, so it appears only alongside the
+# folder tools (see ``workflow_tool_descriptors``).
+_GATED_TOOLS = frozenset({DELEGATE_WORKFLOW_TOOL})
 
 # Appended to the system prompt when app_help is available. Models reliably
 # call tools they were told exist; without the nudge, "how do I…" questions
@@ -77,6 +87,19 @@ APP_HELP_NUDGE = (
     "use the app — how to do something in it, where a feature or setting "
     "lives, or what a feature is — call the app_help tool and answer from "
     "what it returns instead of guessing."
+)
+
+# Appended when a folder is attached. Without it, models either grind through
+# dozens of read_file calls on a task that actually needs edits, or claim they
+# changed files they have no way to write to.
+DELEGATE_WORKFLOW_NUDGE = (
+    "The user has attached a folder to this conversation. You can read from it "
+    "with list_files/read_file, but you CANNOT modify it. When the user asks "
+    "for work that would change files, or that needs many steps of reading and "
+    "editing, call delegate_workflow to hand the task to an autonomous agent "
+    "instead of attempting it yourself — it returns a proposal the user "
+    "confirms, and they review every change before it touches their disk. Keep "
+    "answering questions and small look-ups with read_file directly."
 )
 
 
@@ -1031,6 +1054,77 @@ _LIST_FILES_DESCRIPTOR: dict[str, Any] = {
 }
 
 
+_DELEGATE_WORKFLOW_DESCRIPTOR: dict[str, Any] = {
+    "type": "function",
+    "function": {
+        "name": DELEGATE_WORKFLOW_TOOL,
+        "description": (
+            "Propose handing a LARGE, multi-step task on the attached folder "
+            "to an autonomous coding agent that works on its own for several "
+            "minutes. Use this instead of read_file/list_files when the task "
+            "would need many reads AND edits across several files — e.g. "
+            "'refactor this module', 'add tests for the whole package', "
+            "'migrate this project to the new API', 'find and fix every "
+            "occurrence of X'. Do NOT use it for questions you can answer by "
+            "reading one or two files, or for anything that only needs "
+            "reading. This does NOT start the work: it returns a proposal the "
+            "user must confirm, after which their app uploads a copy of the "
+            "folder, the agent works on that copy, and the user reviews the "
+            "resulting changes before anything is written back to their disk. "
+            "Write the instruction as a complete, self-contained brief — the "
+            "agent cannot see this conversation."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "instruction": {
+                    "type": "string",
+                    "description": (
+                        "The full brief for the autonomous agent: what to "
+                        "change, in which files or areas, and what 'done' "
+                        "looks like. Self-contained — it has no access to "
+                        "this conversation."
+                    ),
+                },
+                "summary": {
+                    "type": "string",
+                    "description": (
+                        "One short line shown on the confirmation card, e.g. "
+                        "'Refactor the parser into three modules'."
+                    ),
+                },
+            },
+            "required": ["instruction"],
+        },
+    },
+}
+
+
+async def _execute_delegate_workflow(
+    *,
+    args: dict[str, Any],
+    db: AsyncSession,  # noqa: ARG001 — proposal tools never touch the DB
+    user_id: str,  # noqa: ARG001
+) -> dict[str, Any]:
+    """Validate and return a delegate-workflow proposal. Starts nothing."""
+    instruction = (args.get("instruction") or "").strip()
+    if not instruction:
+        return {"ok": False, "error": "instruction is required."}
+    if len(instruction) > 10000:
+        return {"ok": False, "error": "instruction must be at most 10000 characters."}
+    summary = (args.get("summary") or "").strip() or instruction[:120]
+    return _proposal_result(
+        DELEGATE_WORKFLOW_TOOL,
+        summary,
+        {"instruction": instruction},
+    )
+
+
+def workflow_tool_descriptors() -> list[dict[str, Any]]:
+    """Descriptor for ``delegate_workflow`` (needs an attached folder)."""
+    return [_DELEGATE_WORKFLOW_DESCRIPTOR]
+
+
 def folder_tool_descriptors() -> list[dict[str, Any]]:
     """Descriptors for the client-served folder tools (read_file, list_files).
 
@@ -1052,12 +1146,21 @@ _NATIVE_TOOL_REGISTRY: dict[str, tuple[dict[str, Any], Any]] = {
     CREATE_ROOM_TOOL: (_CREATE_ROOM_DESCRIPTOR, _execute_create_room),
     SET_STYLE_TOOL: (_SET_STYLE_DESCRIPTOR, _execute_set_style),
     REPORT_TOOL: (_REPORT_DESCRIPTOR, _execute_submit_report),
+    DELEGATE_WORKFLOW_TOOL: (_DELEGATE_WORKFLOW_DESCRIPTOR, _execute_delegate_workflow),
 }
 
 
 def native_tool_descriptors() -> list[dict[str, Any]]:
-    """Return the Ollama/OpenAI tool descriptors for all native tools."""
-    return [desc for desc, _executor in _NATIVE_TOOL_REGISTRY.values()]
+    """Descriptors for the always-available native tools.
+
+    Gated tools (``delegate_workflow``) are excluded — they're appended by the
+    caller when their precondition holds.
+    """
+    return [
+        desc
+        for name, (desc, _executor) in _NATIVE_TOOL_REGISTRY.items()
+        if name not in _GATED_TOOLS
+    ]
 
 
 def native_tool_lookup() -> dict[str, tuple[str, str]]:

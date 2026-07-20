@@ -43,6 +43,9 @@ dependencies:
   desktop_drop: ^0.6.0
   # Path normalization for the client-side folder-read sandbox guard.
   path: ^1.9.0
+  # sha256 of local files, so a delegated workflow's changes are only applied
+  # when the file still matches what was uploaded (conflict detection).
+  crypto: ^3.0.7
   freezed_annotation: ^3.1.0
   json_annotation: ^4.12.0
   uuid: ^4.3.0
