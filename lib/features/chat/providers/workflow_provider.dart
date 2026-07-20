@@ -141,7 +141,14 @@ class WorkflowProvider extends ChangeNotifier {
     }
   }
 
-  /// Confirm a `delegate_workflow` proposal: snapshot the folder, upload it,
+  /// Record a failure that happened before a run could even be created (e.g.
+  /// no folder attached on this device), so the card shows it like any other.
+  void reportStartFailure(String toolCallId, String message) {
+    _errors[toolCallId] = message;
+    _setPhase(toolCallId, WorkflowPhase.failed);
+  }
+
+  /// Start a `delegate_workflow` task: snapshot the folder, upload it,
   /// and start the detached run.
   ///
   /// Everything before [WorkflowService.start] is client-side work on the

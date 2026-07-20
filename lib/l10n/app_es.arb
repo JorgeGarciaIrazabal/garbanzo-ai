@@ -2039,6 +2039,10 @@
       }
     }
   },
+  "messageWorkflowStarting": "Iniciando…",
+  "@messageWorkflowStarting": {
+    "description": "Status shown the instant a delegated workflow card appears, before the folder walk begins."
+  },
   "messageWorkflowScanning": "Explorando la carpeta…",
   "@messageWorkflowScanning": {
     "description": "Status while the client walks the attached folder before uploading."

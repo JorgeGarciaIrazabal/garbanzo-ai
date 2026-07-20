@@ -4329,6 +4329,12 @@ abstract class AppLocalizations {
   /// **'Works on a copy of {name}'**
   String messageWorkflowScope(String name);
 
+  /// Status shown the instant a delegated workflow card appears, before the folder walk begins.
+  ///
+  /// In en, this message translates to:
+  /// **'Starting…'**
+  String get messageWorkflowStarting;
+
   /// Status while the client walks the attached folder before uploading.
   ///
   /// In en, this message translates to:

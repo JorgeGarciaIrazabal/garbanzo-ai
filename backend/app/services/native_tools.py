@@ -97,8 +97,8 @@ DELEGATE_WORKFLOW_NUDGE = (
     "with list_files/read_file, but you CANNOT modify it. When the user asks "
     "for work that would change files, or that needs many steps of reading and "
     "editing, call delegate_workflow to hand the task to an autonomous agent "
-    "instead of attempting it yourself — it returns a proposal the user "
-    "confirms, and they review every change before it touches their disk. Keep "
+    "instead of attempting it yourself — it starts right away, and the user "
+    "reviews every change before it touches their disk. Keep "
     "answering questions and small look-ups with read_file directly."
 )
 
@@ -706,17 +706,35 @@ _PROPOSAL_NOTE = (
     "happened."
 )
 
+# delegate_workflow is NOT confirmed by the user: the app starts the run as
+# soon as this returns. The real gate is downstream — the diff is reviewed
+# file-by-file before anything is written to disk — so a second "are you sure"
+# up front would only add friction. The model must describe it as underway.
+_DELEGATE_STARTED_NOTE = (
+    "The workflow has STARTED — the app is uploading a copy of the folder and "
+    "the agent is now working on it. Tell the user briefly that it's running "
+    "and that a card in the chat shows live progress; they'll review the "
+    "proposed file changes there when it finishes, and nothing is written to "
+    "their disk until they do. Do NOT ask them to confirm anything, and do "
+    "NOT claim the files have been changed yet."
+)
+
 _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 _RESPONSE_MODES = ("always", "mention", "auto", "round_robin")
 _THINKING_LEVELS = ("off", "low", "medium", "high")
 
 
-def _proposal_result(kind: str, summary: str, payload: dict[str, Any]) -> dict[str, Any]:
+def _proposal_result(
+    kind: str,
+    summary: str,
+    payload: dict[str, Any],
+    note: str = _PROPOSAL_NOTE,
+) -> dict[str, Any]:
     return {
         "ok": True,
         "proposal": {"type": kind, "summary": summary, "payload": payload},
-        "note": _PROPOSAL_NOTE,
+        "note": note,
     }
 
 
@@ -1067,10 +1085,10 @@ _DELEGATE_WORKFLOW_DESCRIPTOR: dict[str, Any] = {
             "'migrate this project to the new API', 'find and fix every "
             "occurrence of X'. Do NOT use it for questions you can answer by "
             "reading one or two files, or for anything that only needs "
-            "reading. This does NOT start the work: it returns a proposal the "
-            "user must confirm, after which their app uploads a copy of the "
-            "folder, the agent works on that copy, and the user reviews the "
-            "resulting changes before anything is written back to their disk. "
+            "reading. Calling this STARTS the work immediately — no "
+            "confirmation is asked. The app uploads a copy of the folder, the "
+            "agent works on that copy, and the user reviews the resulting "
+            "changes before anything is written back to their disk. "
             "Write the instruction as a complete, self-contained brief — the "
             "agent cannot see this conversation."
         ),
@@ -1117,6 +1135,7 @@ async def _execute_delegate_workflow(
         DELEGATE_WORKFLOW_TOOL,
         summary,
         {"instruction": instruction},
+        note=_DELEGATE_STARTED_NOTE,
     )
 
 

@@ -2421,6 +2421,9 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
+  String get messageWorkflowStarting => 'Iniciando…';
+
+  @override
   String get messageWorkflowScanning => 'Explorando la carpeta…';
 
   @override

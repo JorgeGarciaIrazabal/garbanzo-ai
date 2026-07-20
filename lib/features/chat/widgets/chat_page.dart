@@ -859,6 +859,13 @@ class _ChatPageContentState extends State<_ChatPageContent>
     // single collapsible "tool activity" section instead of N stacked cards.
     final items = <_ListItem>[];
     final messages = chatProvider.messages;
+    // A proposal tool's result is a card the user acts on, not a step in the
+    // agent's timeline — folding it into the collapsible "Used N tools"
+    // section would bury it (and make ChatMessageWidget's card branch
+    // unreachable), so it stays a top-level item.
+    bool isGroupableTool(ChatMessage m) =>
+        (m.isToolCall || m.isToolResult) && m.actionProposal == null;
+
     var i = 0;
     var lastAssistantIdx = -1;
     for (var j = 0; j < messages.length; j++) {
@@ -866,10 +873,9 @@ class _ChatPageContentState extends State<_ChatPageContent>
     }
     while (i < messages.length) {
       final m = messages[i];
-      if (m.isToolCall || m.isToolResult) {
+      if (isGroupableTool(m)) {
         final start = i;
-        while (i < messages.length &&
-            (messages[i].isToolCall || messages[i].isToolResult)) {
+        while (i < messages.length && isGroupableTool(messages[i])) {
           i++;
         }
         items.add(_ToolGroupItem(messages.sublist(start, i), endIdx: i - 1));

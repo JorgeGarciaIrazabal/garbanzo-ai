@@ -2388,6 +2388,9 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get messageWorkflowStarting => 'Starting…';
+
+  @override
   String get messageWorkflowScanning => 'Scanning folder…';
 
   @override

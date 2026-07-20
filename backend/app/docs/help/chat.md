@@ -32,15 +32,16 @@ bar shows the attached folder; tap its **×** to detach it. This option is
 desktop-only — web can't reach your files.
 
 ## Can the assistant change files in my folder?
-Not directly. When you ask for something big — "refactor this module", "add
-tests across the package", "fix every occurrence of X" — the assistant will
-offer to **delegate the task** to an autonomous coding agent, and show you a
-confirmation card first. Nothing happens until you confirm.
+Not directly, but it can hand the job to an agent that does. When you ask for
+something big — "refactor this module", "add tests across the package", "fix
+every occurrence of X" — the assistant **delegates the task** to an autonomous
+coding agent and a card appears in the chat showing live progress.
 
-When you confirm, the app uploads a **copy** of the attached folder, the agent
-works on that copy for a few minutes, and then you get a list of every file it
-added, changed, or deleted. Your own files are untouched until you review that
-list, pick what you want, and choose **Apply**.
+Your own files are never at risk while it works: the app uploads a **copy** of
+the attached folder and the agent only ever touches that copy. When it
+finishes, the card offers **Review changes** — a list of every file it added,
+changed, or deleted, with a checkbox each. Nothing is written to your disk
+until you pick what you want and choose **Apply**.
 
 Three things worth knowing:
 

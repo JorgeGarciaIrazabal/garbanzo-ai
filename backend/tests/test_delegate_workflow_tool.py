@@ -74,8 +74,14 @@ async def test_returns_a_proposal_without_side_effects(db_session):
     assert proposal["type"] == DELEGATE_WORKFLOW_TOOL
     assert proposal["summary"] == "Split the parser into three modules"
     assert proposal["payload"]["instruction"].startswith("Split parser.py")
-    # The note is what stops the model claiming the work already happened.
-    assert "PROPOSAL" in result["note"]
+    # Unlike the other proposal tools, this one is NOT user-confirmed: the app
+    # starts the run as soon as the tool returns, so the note must tell the
+    # model to say it's underway — never to ask for a confirmation that no
+    # longer exists — while still not claiming any file was changed.
+    note = result["note"]
+    assert "STARTED" in note
+    assert "Do NOT ask them to confirm" in note
+    assert "confirm" not in note.replace("Do NOT ask them to confirm", "")
 
     from sqlalchemy import func, select
 

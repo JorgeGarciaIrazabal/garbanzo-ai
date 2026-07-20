@@ -1,6 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:garbanzo_ai/features/chat/models/chat_message.dart';
 import 'package:garbanzo_ai/features/chat/models/workflow_run.dart';
@@ -27,8 +28,8 @@ class WorkflowProposalCard extends StatefulWidget {
 }
 
 class _WorkflowProposalCardState extends State<WorkflowProposalCard> {
-  bool _dismissed = false;
-  bool _loadedDecision = false;
+  bool _ready = false;
+  bool _autoStarted = false;
 
   Map<String, dynamic> get _proposal =>
       widget.message.actionProposal ?? const {};
@@ -41,36 +42,40 @@ class _WorkflowProposalCardState extends State<WorkflowProposalCard> {
   }
 
   String? get _toolCallId => widget.message.toolCallId;
-  String? get _decisionKey {
-    final id = _toolCallId;
-    return id == null ? null : 'workflow_proposal_decision_$id';
-  }
 
   @override
   void initState() {
     super.initState();
-    _restore();
+    _restoreThenStart();
   }
 
-  Future<void> _restore() async {
-    final key = _decisionKey;
-    if (key != null) {
-      final prefs = await SharedPreferences.getInstance();
-      if (mounted && prefs.getString(key) == 'dismissed') {
-        setState(() => _dismissed = true);
-      }
+  /// Re-attach to any existing run first, then start one if there is none.
+  ///
+  /// The hydrate has to come first: without it, a card scrolling back into
+  /// view (or a reload) would look like a fresh proposal and launch a second
+  /// run of the same task.
+  Future<void> _restoreThenStart() async {
+    final chat = context.read<ChatProvider>();
+    final workflows = context.read<WorkflowProvider>();
+    final conversationId = chat.currentConversation?.id;
+    if (conversationId != null) {
+      await workflows.loadForConversation(conversationId);
     }
     if (!mounted) return;
-    setState(() => _loadedDecision = true);
+    setState(() => _ready = true);
+    _maybeAutoStart();
+  }
 
-    // Re-attach to a run started before this widget existed (reload, or the
-    // card scrolling back into view). The provider de-dupes per conversation.
-    final conversationId = context.read<ChatProvider>().currentConversation?.id;
-    if (conversationId != null) {
-      await context.read<WorkflowProvider>().loadForConversation(
-        conversationId,
-      );
-    }
+  /// The model decided this task needs the agent, so it just runs — asking a
+  /// second time adds nothing, because the real gate is downstream: the diff
+  /// is reviewed file-by-file before anything is written to disk.
+  void _maybeAutoStart() {
+    final toolCallId = _toolCallId;
+    if (!_ready || _autoStarted || toolCallId == null) return;
+    final workflows = context.read<WorkflowProvider>();
+    if (workflows.runFor(toolCallId) != null) return; // already running/done
+    _autoStarted = true;
+    unawaited(_start());
   }
 
   @override
@@ -203,21 +208,6 @@ class _WorkflowProposalCardState extends State<WorkflowProposalCard> {
     final toolCallId = _toolCallId;
     final error = toolCallId == null ? null : workflows.errorFor(toolCallId);
 
-    if (!_loadedDecision) {
-      return const SizedBox(
-        height: 24,
-        width: 24,
-        child: CircularProgressIndicator(strokeWidth: 2),
-      );
-    }
-    if (_dismissed && run == null) {
-      return _status(
-        Icons.cancel_outlined,
-        l10n.labelDismissed,
-        colorScheme.onSurfaceVariant,
-      );
-    }
-
     switch (phase) {
       case WorkflowPhase.walking:
         return _progressRow(l10n.messageWorkflowScanning, null);
@@ -240,11 +230,17 @@ class _WorkflowProposalCardState extends State<WorkflowProposalCard> {
               colorScheme.error,
             ),
             const SizedBox(height: 8),
-            _buttons(l10n),
+            OutlinedButton.icon(
+              key: const ValueKey('workflow_retry'),
+              onPressed: _start,
+              icon: const Icon(Icons.refresh, size: 16),
+              label: Text(l10n.retry),
+            ),
           ],
         );
       case WorkflowPhase.idle:
-        return _buttons(l10n);
+        // Auto-start is in flight (or about to be) — never a dead card.
+        return _progressRow(l10n.messageWorkflowStarting, null);
     }
   }
 
@@ -357,46 +353,18 @@ class _WorkflowProposalCardState extends State<WorkflowProposalCard> {
     );
   }
 
-  Widget _buttons(AppLocalizations l10n) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        FilledButton(
-          key: const ValueKey('workflow_proposal_confirm'),
-          onPressed: _confirm,
-          child: Text(l10n.confirm),
-        ),
-        const SizedBox(width: 8),
-        TextButton(
-          key: const ValueKey('workflow_proposal_cancel'),
-          onPressed: _dismiss,
-          child: Text(l10n.cancel),
-        ),
-      ],
-    );
-  }
-
-  Future<void> _dismiss() async {
-    setState(() => _dismissed = true);
-    final key = _decisionKey;
-    if (key == null) return;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(key, 'dismissed');
-  }
-
-  Future<void> _confirm() async {
+  Future<void> _start() async {
     final toolCallId = _toolCallId;
     if (toolCallId == null) return;
     final chat = context.read<ChatProvider>();
     final workflows = context.read<WorkflowProvider>();
     final conversationId = chat.currentConversation?.id;
     final folder = chat.clientFolderFor(conversationId);
-    final messenger = ScaffoldMessenger.of(context);
-    final l10n = AppLocalizations.of(context)!;
 
     if (folder == null) {
-      messenger.showSnackBar(
-        SnackBar(content: Text(l10n.messageWorkflowNeedsFolder)),
+      workflows.reportStartFailure(
+        toolCallId,
+        'No folder is attached to this chat on this device.',
       );
       return;
     }
