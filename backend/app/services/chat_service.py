@@ -48,10 +48,10 @@ from app.services.microapp_workspace import manager as microapp_manager
 from app.services.native_tools import (
     APP_HELP_NUDGE,
     APP_HELP_TOOL,
-    DELEGATE_WORKFLOW_NUDGE,
     FOLDER_TOOLS,
     NATIVE_GARBO_SERVER_ID,
     READ_FILE_TOOL,
+    client_folder_nudge,
     execute_native_tool,
     folder_tool_descriptors,
     native_tool_descriptors,
@@ -212,6 +212,7 @@ class ChatService:
         options: ChatOptions | None = None,
         attachments: list[AttachmentIn] | None = None,
         has_client_folder: bool = False,
+        client_folder_label: str | None = None,
     ) -> AsyncIterator[ChatChunk]:
         """Save user message, stream LLM response, and persist the result."""
         conversation = await self._conversations.get(conversation_id, user_id)
@@ -261,6 +262,7 @@ class ChatService:
             conversation=conversation,
             options=options,
             has_client_folder=has_client_folder,
+            client_folder_label=client_folder_label,
         ):
             yield chunk
 
@@ -402,6 +404,7 @@ class ChatService:
         conversation,
         options: ChatOptions | None = None,
         has_client_folder: bool = False,
+        client_folder_label: str | None = None,
     ) -> AsyncIterator[ChatChunk]:
         """Stream an LLM response for the current state of ``conversation``.
 
@@ -442,7 +445,7 @@ class ChatService:
         if APP_HELP_TOOL in tool_lookup:
             dynamic_context += f"\n\n{APP_HELP_NUDGE}"
         if has_client_folder:
-            dynamic_context += f"\n\n{DELEGATE_WORKFLOW_NUDGE}"
+            dynamic_context += f"\n\n{client_folder_nudge(client_folder_label)}"
 
         llm_messages, context_stats = await self._context.build_history_with_system_prompt(
             conversation.messages,

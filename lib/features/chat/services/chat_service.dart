@@ -223,6 +223,7 @@ class ChatService {
     int? maxTokens,
     double? topP,
     bool hasClientFolder = false,
+    String? clientFolderLabel,
   }) {
     return _sseStream('/api/v1/chat/conversations/$conversationId/chat', {
       'message': message,
@@ -232,6 +233,10 @@ class ChatService {
       // Tells the backend to advertise the client-served read_file/list_files
       // tools; when the model calls them we serve the read locally (idea 17).
       if (hasClientFolder) 'has_client_folder': true,
+      // The folder's *name* only — never its path. Lets the system prompt say
+      // which folder is attached, so the model stops answering "I can't
+      // access your local folders" when asked about "this folder".
+      if (hasClientFolder) 'client_folder_label': ?clientFolderLabel,
     });
   }
 

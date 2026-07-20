@@ -511,6 +511,7 @@ async def chat_stream(
                 options=data.options,
                 attachments=data.attachments or None,
                 has_client_folder=data.has_client_folder,
+                client_folder_label=data.client_folder_label,
             ),
             on_client_disconnect=_make_push_callback(current_user["email"], conversation_id),
         ),

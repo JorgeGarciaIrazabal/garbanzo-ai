@@ -89,18 +89,45 @@ APP_HELP_NUDGE = (
     "what it returns instead of guessing."
 )
 
-# Appended when a folder is attached. Without it, models either grind through
-# dozens of read_file calls on a task that actually needs edits, or claim they
-# changed files they have no way to write to.
+# Appended when a folder is attached. Phrased around what the model CAN do:
+# an earlier version led with "you cannot modify files", and models parroted
+# that back at users instead of delegating — the capability has to be the
+# salient sentence, and the refusal explicitly ruled out.
 DELEGATE_WORKFLOW_NUDGE = (
-    "The user has attached a folder to this conversation. You can read from it "
-    "with list_files/read_file, but you CANNOT modify it. When the user asks "
-    "for work that would change files, or that needs many steps of reading and "
-    "editing, call delegate_workflow to hand the task to an autonomous agent "
-    "instead of attempting it yourself — it starts right away, and the user "
-    "reviews every change before it touches their disk. Keep "
-    "answering questions and small look-ups with read_file directly."
+    "A folder from the user's computer is ATTACHED to this conversation and "
+    "you have access to it right now. When the user says 'this folder', "
+    "'my files', or names a file, they mean that folder. Use read_file and "
+    "list_files to look at individual files (call list_files first if you "
+    "don't know what's in it).\n"
+    "To CREATE, EDIT, or DELETE files in that folder, call delegate_workflow. "
+    "That tool IS how you write files here — it hands the job to an autonomous "
+    "coding agent that can create and modify anything in the folder. Use it "
+    "for writes of any size (even a single new file), and for tasks needing "
+    "many steps of reading and editing, such as refactors, adding tests, or "
+    "sweeping fixes.\n"
+    "You therefore CAN change the user's files. Never say you are unable to "
+    "create, edit, write, or save files, and never suggest the user do it "
+    "manually — call delegate_workflow instead. Do not ask for permission "
+    "first: it starts immediately, and the user reviews every change before "
+    "anything reaches their disk. Use read_file directly only for questions "
+    "and small look-ups that need no changes.\n"
+    "Never claim you cannot access the user's local files or ask them to "
+    "paste the contents — the tools above are already connected to that "
+    "folder."
 )
+
+
+def client_folder_nudge(folder_label: str | None = None) -> str:
+    """The attached-folder prompt block, naming the folder when we know it.
+
+    The label is the folder's base name, supplied by the client per request —
+    the backend never learns (or needs) the real path. Naming it matters: with
+    only "a folder is attached", models still answered "I can't access your
+    local folders" and asked the user to paste the contents.
+    """
+    if not folder_label:
+        return DELEGATE_WORKFLOW_NUDGE
+    return f"The attached folder is named '{folder_label}'.\n{DELEGATE_WORKFLOW_NUDGE}"
 
 
 # ---------------------------------------------------------------------------
@@ -1077,15 +1104,16 @@ _DELEGATE_WORKFLOW_DESCRIPTOR: dict[str, Any] = {
     "function": {
         "name": DELEGATE_WORKFLOW_TOOL,
         "description": (
-            "Propose handing a LARGE, multi-step task on the attached folder "
-            "to an autonomous coding agent that works on its own for several "
-            "minutes. Use this instead of read_file/list_files when the task "
-            "would need many reads AND edits across several files — e.g. "
+            "Write to the folder the user attached to this conversation, by "
+            "handing the job to an autonomous coding agent. This is the ONLY "
+            "way to create, edit, or delete the user's files — use it for any "
+            "write, from a single new file to a large multi-step task the "
+            "agent works on for several minutes: 'create a summary README', "
             "'refactor this module', 'add tests for the whole package', "
-            "'migrate this project to the new API', 'find and fix every "
-            "occurrence of X'. Do NOT use it for questions you can answer by "
-            "reading one or two files, or for anything that only needs "
-            "reading. Calling this STARTS the work immediately — no "
+            "'find and fix every occurrence of X'. Do NOT use it for "
+            "questions you can answer by reading one or two files, or for "
+            "anything that needs no changes. Calling this STARTS the work "
+            "immediately — no "
             "confirmation is asked. The app uploads a copy of the folder, the "
             "agent works on that copy, and the user reviews the resulting "
             "changes before anything is written back to their disk. "

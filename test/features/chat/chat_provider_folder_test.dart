@@ -24,6 +24,7 @@ class _FakeChatService extends ChatService {
   final List<({String conversationId, Map<String, dynamic> payload})> posted =
       [];
   bool? lastHasClientFolder;
+  String? lastClientFolderLabel;
 
   final _conversation = Conversation(
     id: 'conv-1',
@@ -57,8 +58,10 @@ class _FakeChatService extends ChatService {
     int? maxTokens,
     double? topP,
     bool hasClientFolder = false,
+    String? clientFolderLabel,
   }) {
     lastHasClientFolder = hasClientFolder;
+    lastClientFolderLabel = clientFolderLabel;
     controller = StreamController<ChatResponseChunk>();
     return controller.stream;
   }
@@ -123,6 +126,7 @@ void main() {
 
     await provider.sendMessage('hi');
     expect(service.lastHasClientFolder, isFalse);
+    expect(service.lastClientFolderLabel, isNull);
     // End the first stream so the provider is free to send again.
     await service.controller.close();
     await _pump();
@@ -130,6 +134,14 @@ void main() {
     await provider.attachClientFolder('conv-1', folder.path);
     await provider.sendMessage('again');
     expect(service.lastHasClientFolder, isTrue);
+    // The folder's NAME goes with it so the system prompt can say which
+    // folder is attached — without it the model answers "I can't access
+    // your local folders". The path itself never leaves this device.
+    expect(
+      service.lastClientFolderLabel,
+      folder.path.split(Platform.pathSeparator).last,
+    );
+    expect(service.lastClientFolderLabel, isNot(contains('/')));
   });
 
   test('serves a read_file request by reading locally and posting bytes',

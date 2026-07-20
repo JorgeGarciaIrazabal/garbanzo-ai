@@ -141,6 +141,16 @@ class ChatRequest(BaseModel):
             "filesystem itself). Ignored/false on web."
         ),
     )
+    client_folder_label: str | None = Field(
+        default=None,
+        max_length=255,
+        description=(
+            "Display name of the attached folder (its base name only — never a "
+            "path, so it can't be opened server-side). Named in the system "
+            "prompt so the model knows *which* folder 'this folder' refers to "
+            "instead of claiming it has no file access."
+        ),
+    )
 
 
 class ClientToolResult(BaseModel):

@@ -43,10 +43,27 @@ class _WorkflowProposalCardState extends State<WorkflowProposalCard> {
 
   String? get _toolCallId => widget.message.toolCallId;
 
+  /// Providers resolved once, up front, and held as fields.
+  ///
+  /// This card lives in a `ListView.builder`, so its element is deactivated
+  /// and reparented as the user scrolls. `State.mounted` stays true across
+  /// that window, so a `context.read` after an `await` throws "Looking up a
+  /// deactivated widget's ancestor is unsafe" no matter how carefully it's
+  /// guarded. Reading them synchronously and never touching `context` in the
+  /// async paths removes the hazard entirely — both providers are app-scoped
+  /// and outlive this widget.
+  late final ChatProvider _chat;
+  late final WorkflowProvider _workflows;
+  bool _wired = false;
+
   @override
-  void initState() {
-    super.initState();
-    _restoreThenStart();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_wired) return;
+    _wired = true;
+    _chat = context.read<ChatProvider>();
+    _workflows = context.read<WorkflowProvider>();
+    unawaited(_restoreThenStart());
   }
 
   /// Re-attach to any existing run first, then start one if there is none.
@@ -55,11 +72,9 @@ class _WorkflowProposalCardState extends State<WorkflowProposalCard> {
   /// view (or a reload) would look like a fresh proposal and launch a second
   /// run of the same task.
   Future<void> _restoreThenStart() async {
-    final chat = context.read<ChatProvider>();
-    final workflows = context.read<WorkflowProvider>();
-    final conversationId = chat.currentConversation?.id;
+    final conversationId = _chat.currentConversation?.id;
     if (conversationId != null) {
-      await workflows.loadForConversation(conversationId);
+      await _workflows.loadForConversation(conversationId);
     }
     if (!mounted) return;
     setState(() => _ready = true);
@@ -72,8 +87,7 @@ class _WorkflowProposalCardState extends State<WorkflowProposalCard> {
   void _maybeAutoStart() {
     final toolCallId = _toolCallId;
     if (!_ready || _autoStarted || toolCallId == null) return;
-    final workflows = context.read<WorkflowProvider>();
-    if (workflows.runFor(toolCallId) != null) return; // already running/done
+    if (_workflows.runFor(toolCallId) != null) return; // already running/done
     _autoStarted = true;
     unawaited(_start());
   }
@@ -136,8 +150,7 @@ class _WorkflowProposalCardState extends State<WorkflowProposalCard> {
   }
 
   List<Widget> _scopeLines(ThemeData theme, WorkflowRun? run) {
-    final chat = context.read<ChatProvider>();
-    final folder = chat.clientFolderFor(chat.currentConversation?.id);
+    final folder = _chat.clientFolderFor(_chat.currentConversation?.id);
     final label =
         (run?.scope?['folder_label'] as String?) ??
         folder?.split(RegExp(r'[/\\]')).last;
@@ -353,23 +366,23 @@ class _WorkflowProposalCardState extends State<WorkflowProposalCard> {
     );
   }
 
+  /// Kicks off a run. Deliberately free of `context` — it is called from an
+  /// async path where this widget's element may already be deactivated.
   Future<void> _start() async {
     final toolCallId = _toolCallId;
     if (toolCallId == null) return;
-    final chat = context.read<ChatProvider>();
-    final workflows = context.read<WorkflowProvider>();
-    final conversationId = chat.currentConversation?.id;
-    final folder = chat.clientFolderFor(conversationId);
+    final conversationId = _chat.currentConversation?.id;
+    final folder = _chat.clientFolderFor(conversationId);
 
     if (folder == null) {
-      workflows.reportStartFailure(
+      _workflows.reportStartFailure(
         toolCallId,
         'No folder is attached to this chat on this device.',
       );
       return;
     }
 
-    await workflows.startFromProposal(
+    await _workflows.startFromProposal(
       toolCallId: toolCallId,
       instruction: _instruction.isEmpty ? _summary : _instruction,
       folderRoot: folder,
@@ -378,8 +391,7 @@ class _WorkflowProposalCardState extends State<WorkflowProposalCard> {
   }
 
   Future<void> _review(BuildContext context, WorkflowRun run) async {
-    final chat = context.read<ChatProvider>();
-    final folder = chat.clientFolderFor(chat.currentConversation?.id);
+    final folder = _chat.clientFolderFor(_chat.currentConversation?.id);
     if (folder == null) return;
     await showDialog<void>(
       context: context,

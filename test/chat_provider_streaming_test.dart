@@ -53,6 +53,7 @@ class _FakeChatService extends ChatService {
     int? maxTokens,
     double? topP,
     bool hasClientFolder = false,
+    String? clientFolderLabel,
   }) {
     return controller.stream;
   }

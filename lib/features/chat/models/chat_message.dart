@@ -34,27 +34,43 @@ abstract class ChatMessage with _$ChatMessage {
   bool get isToolCall => role == 'tool_call';
   bool get isToolResult => role == 'tool_result';
 
+  /// The `{tool_call_id, tool_name, result, …}` block of a tool_result
+  /// message, in either shape the app produces.
+  ///
+  /// The streaming path nests it under a `tool_result` key (mirroring the SSE
+  /// chunk), but the backend persists the very same block **flat** on
+  /// `Message.meta`. Reading only the nested shape meant a proposal card
+  /// rendered while streaming and then vanished the moment the canonical
+  /// server message replaced it — which is exactly how the delegate_workflow
+  /// and create_room cards appeared to "never show up".
+  Map<String, dynamic>? get _toolResultMeta {
+    final meta = metadata;
+    if (meta == null) return null;
+    final nested = meta['tool_result'];
+    if (nested is Map) return Map<String, dynamic>.from(nested);
+    if (meta.containsKey('tool_call_id') && meta.containsKey('result')) {
+      return Map<String, dynamic>.from(meta);
+    }
+    return null;
+  }
+
   /// The action proposal carried by a proposal tool's result, if any —
   /// `{type, summary, payload}` as produced by the backend's proposal tools
-  /// (create_room, set_conversation_style). Lives inside the persisted
-  /// tool_result meta so it survives reloads; the streaming path builds the
-  /// same shape.
+  /// (create_room, set_conversation_style, delegate_workflow).
+  ///
+  /// Null when the result was truncated to a string for being oversized, in
+  /// which case there is no structured proposal left to render.
   Map<String, dynamic>? get actionProposal {
-    final tr = metadata?['tool_result'];
-    if (tr is! Map) return null;
-    final result = tr['result'];
+    final result = _toolResultMeta?['result'];
     if (result is! Map) return null;
     final proposal = result['proposal'];
     if (proposal is! Map) return null;
     return Map<String, dynamic>.from(proposal);
   }
 
-  /// The tool_call_id of a tool_result message (used to key proposal
-  /// confirm/dismiss decisions).
-  String? get toolCallId {
-    final tr = metadata?['tool_result'];
-    return tr is Map ? tr['tool_call_id'] as String? : null;
-  }
+  /// The tool_call_id of a tool_result message — keys a proposal's decision
+  /// and, for delegate_workflow, the run the card re-attaches to.
+  String? get toolCallId => _toolResultMeta?['tool_call_id'] as String?;
 }
 
 /// A single tool invocation requested by the assistant.

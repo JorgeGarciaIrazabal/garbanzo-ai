@@ -365,6 +365,17 @@ class ChatProvider extends ChangeNotifier {
   String? clientFolderFor(String? conversationId) =>
       conversationId == null ? null : _clientFolders[conversationId];
 
+  /// The attached folder's display name (base name), or null if none.
+  ///
+  /// Only the name is ever sent to the backend — never the path, which stays
+  /// on this device (idea 17).
+  String? clientFolderNameFor(String? conversationId) {
+    final path = clientFolderFor(conversationId);
+    if (path == null) return null;
+    final parts = path.split(RegExp(r'[/\\]')).where((p) => p.isNotEmpty);
+    return parts.isEmpty ? null : parts.last;
+  }
+
   Future<void> _loadClientFolders() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -556,6 +567,7 @@ class ChatProvider extends ChangeNotifier {
         content,
         attachments: attachments,
         hasClientFolder: _clientFolders.containsKey(_currentConversation!.id),
+        clientFolderLabel: clientFolderNameFor(_currentConversation!.id),
       );
       _consumeAssistantStream(stream);
     } catch (e) {
