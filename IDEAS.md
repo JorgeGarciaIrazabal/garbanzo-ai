@@ -14,184 +14,9 @@ Work task by task in order, use subagent with right model to execute on each of 
 
 ---
 
-## 1. AI-assisted system prompt creation
+## Open / pending
 
-Add a "✨ Create with AI" flow to the existing system prompt editor. The user describes what they want ("a sarcastic coding mentor that keeps answers short") and the LLM drafts a well-structured prompt; the user can then iterate ("make it friendlier") before saving. Reuses `SystemPromptTemplate` + `SystemPromptEditorDialog` — no new storage needed.
-
-- [x] `easy-med` **Backend: generate endpoint** — `POST /api/v1/system-prompts/generate` taking `{intent, existing_prompt?, feedback?}`; calls the LLM with a meta-prompt that outputs only the prompt text. Support the same SSE streaming shape as chat so the draft streams into the editor.
-- [x] `easy` **Meta-prompt engineering** — Write and test the meta-prompt: produce prompts with persona, tone, constraints, and output-format sections; when `existing_prompt` + `feedback` are given, revise instead of regenerate.
-- [x] `medium` **Frontend: AI flow in SystemPromptEditorDialog** — "Create with AI" button → intent text field → streamed draft preview → Accept / Refine (feedback field) / Discard. Refine loops back to the endpoint with the current draft.
-- [x] `easy` **Rate-limit + model choice** — Route generation through the user's currently selected model; apply the existing `rate_limit.py` throttling.
-
-## 2. "Styles" — unified model / thinking / prompt selector
-
-Replace the plain model dropdown with a **Style** concept: a style = model + thinking level + system prompt (+ optionally voice). Users can compose one ad-hoc per conversation or save named styles ("Deep Work", "Quick Answers", "Funny Friend"). This is the flagship UX item — worth a design pass before coding.
-
-- [x] `easy-med` **Backend: thinking level on conversations** — Add `thinking_level` (`off | low | medium | high`) to `Conversation` + migration + schema; pass through `chat_service` → `ollama_provider` (`think` option). Detect/flag per-model support so the UI can grey it out.
-- [x] `easy-med` **Backend: saved styles** — New `Style` model (name, model_id, thinking_level, system_prompt_template_id, is_default) + CRUD endpoints. Alternatively extend `SystemPromptTemplate` with model/thinking columns — decide during planning; a separate table is cleaner.
-- [x] `med-hard` **Frontend: Style picker UI** — Redesign `ModelSelectorWidget` into a popover/bottom-sheet: saved styles as cards at top, then expandable "Customize" with model list (search + capability badges: vision/tools/thinking), thinking-level segmented control, and prompt template picker. Must feel great on both desktop and mobile — do a `frontend-design` pass first.
-- [x] `easy` **Frontend: style chip in the app bar** — Show the active style name/emoji next to the conversation title; tap to open the picker. Persist last-used style for new conversations.
-- [x] `medium` **Model capability metadata** — Extend `AvailableModel` / `GET /chat/models` with capability flags (supports_thinking, supports_tools, supports_vision) populated by the admin sync so the picker can badge and filter. *(Implemented live from `ollama show` in `OllamaProvider.list_models` rather than cached on `AvailableModel` — live-and-correct beats cached-and-stale.)*
-
-## 3. Dynamic context: location + timestamp
-
-Inject a compact, clearly-scoped context block (current datetime, timezone, coarse location) into the system prompt on every request so answers about "today", "near me", "this weekend" just work — with wording that tells the model to use it only when relevant.
-
-- [x] `easy` **Backend: context block injection** — In `chat_context.py`, append a `<context>` block with server-side UTC time + user's local time/timezone. Frame it as "background info; only use when relevant to the request".
-- [x] `easy` **Frontend: send timezone** — Include IANA timezone (and locale) in the chat request or persist on the `User` at login. Timezone needs no permission prompt.
-- [x] `easy-med` **Frontend: optional location** — Settings toggle (default off) to share coarse location: city-level via `geolocator` + reverse-geocode once, cached; never raw coordinates in the prompt. Handle web/desktop/Android permission differences.
-- [x] `easy` **Rooms parity** — Inject the same context block in `agent_turn.py` so room agents also know the time. *(Landed in `room_chat_service._build_llm_history`, where room system prompts are actually assembled; UTC-only — a single member's timezone/location doesn't fit a multi-human room.)*
-- [x] `easy` **Tests** — Backend test asserting the block is present, correctly formatted, and absent when the user disabled location.
-
-## 4. Native "app help" skill (and later, in-app actions)
-
-The assistant should answer "how do I pin a conversation?" from curated app docs, via the existing native-tools mechanism (`native_tools.py`) rather than an MCP server. Second iteration: let it *do* things ("create a room with Ana and a research agent") with a confirmation step.
-
-**Iteration 1 — explain:**
-- [x] `easy` (laborious) **Write the app user guide** — One markdown file per feature area (chat, rooms, memories, KB, styles, notifications, scheduled actions, talk mode…) in `backend/app/docs/` or similar. Short, task-oriented, "how do I X" phrasing. Good bulk task for a cheap model + human skim. *(13 files in `backend/app/docs/help/`, grounded in actual UI labels — worth a human skim.)*
-- [x] `medium` **Native tool `app_help(query)`** — Add to `native_tools.py`: embed the docs with the existing `embedding_provider` (or plain keyword scoring to start — decide by testing quality), return top chunks. Docs are static, so embed once at startup and cache in memory; no DB tables needed. *(Keyword scoring won: 12/12 realistic queries hit the right section, zero model dependency. Parsed lazily, cached in memory.)*
-- [x] `easy` **Prompt nudge** — Mention in the base system prompt that an app-help tool exists, so models actually call it when asked about the app.
-- [x] `easy` **Keep docs honest** — Add a line to CLAUDE.md: when a user-facing feature changes, update its help doc in the same PR.
-
-**Iteration 2 — act:**
-- [x] `med-hard` **Action tools design** — Define a small, safe set of native tools: `create_room(name, member_emails, agents)`, `create_scheduled_action(...)` (exists), `save_memory(...)` (exists), `set_conversation_style(...)`. Each returns a structured "proposal" rather than executing directly.
-- [x] `med-hard` **Confirmation UX** — New SSE chunk type (`action_proposal`) rendered as a card in `ChatMessageWidget` with Confirm/Cancel; on confirm the frontend calls the real REST endpoint it already knows. Keeps the LLM out of the execution path and reuses existing auth. *(Card renders from the persisted tool_result meta so it survives reloads; decisions keyed by tool_call_id in SharedPreferences prevent re-confirming after reload.)*
-- [x] `medium` **Deep links after action** — Confirmed action responses include a route (`/rooms/{id}`) the frontend can offer to navigate to. *(Route is known client-side after the confirm executes; stored with the decision so the Open button survives reloads.)*
-
-## 5. Friends
-
-A lightweight social graph so rooms stop requiring raw email entry. Friend requests by email, accept/decline, and a friends list that powers autocompletion everywhere (idea 6) and future sharing features.
-
-- [x] `medium` **Backend: Friendship model + endpoints** — `Friendship(requester_email, addressee_email, status: pending|accepted|blocked, created_at)` + migration. Endpoints: `POST /friends/requests`, `POST /friends/requests/{id}/accept|decline`, `GET /friends`, `DELETE /friends/{email}`, `GET /friends/search?q=` (only among accepted friends).
-- [x] `easy-med` **Notifications integration** — Friend request / accepted events through the existing `notification_service` + FCM, with a new `NotificationPreferences` category.
-- [x] `medium` **Frontend: Friends page** — List with pending (incoming/outgoing) and accepted sections; add-by-email field; accept/decline/remove actions. New `FriendsProvider` + service following the existing feature-folder pattern.
-- [x] `easy-med` **Rooms: add members from friends** — In `CreateRoomDialog` and member management, replace the raw email field with a friend picker (search + chips). Keep a "by email" fallback for non-friends.
-- [x] `easy` **Privacy guard** — Searching users by email only confirms existence on exact match (no enumeration); block list respected everywhere. *(Added block/unblock endpoints + UI so the block list is real: blocks replace any relationship, stop requests both ways non-disclosingly, and rooms refuse to co-place a blocked pair.)*
-
-## 6. Mention autocompletion (@friends, @agents, /skills, #tools)
-
-Typing `@` in a room suggests friends and agents; `/` in chat suggests skills/prompt templates; `#` (or `@tool`) suggests enabled MCP + native tools. The hard part is a good reusable Flutter overlay — build it once, wire it everywhere.
-
-- [x] `easy` **Backend: suggestion sources** — Everything mostly exists (`GET /mcp/tools`, room agents, templates, friends from idea 5). Add one thin `GET /autocomplete?context=room|chat&q=` endpoint or just fetch-and-filter client-side — client-side is simpler and the lists are small; start there. *(Went client-side: `features/mentions/` has MentionCandidate + pure source builders (room members/agents, friends, templates, tools) and the shared filter/ranking the overlay will use.)*
-- [x] `hard` **Frontend: mention overlay engine** — Reusable `MentionTextController` + overlay widget: detects trigger chars at the cursor, filters candidates as you type, keyboard navigation (↑↓⏎/Esc) on desktop, tap on mobile, inserts a styled token/text. This is the genuinely tricky Flutter work (cursor geometry, IME, web quirks) — give it your best model and a focused session. *(Panel anchors above the composer via LayerLink instead of the text cursor — sidesteps the IME/web cursor-geometry quirks entirely; TextFieldTapRegion keeps taps from blurring the field.)*
-- [x] `medium` **Wire into RoomComposeBar** — `@` → members + agents. Render mentions highlighted in `RoomMessageBubble`. *(Also offers `@all`; bubbles bold mention tokens via markdown preprocessing.)*
-- [x] `medium` **Wire into ChatInputWidget** — `/` → prompt templates & app actions; `#` → tools (inserting a tool mention nudges the model to use it via a hint appended to the request). *(`/` expands the template's content snippet-style; `#` inserts a styled token and send appends "(Please use the `tool` …)". App actions deferred — no action registry exists yet.)*
-- [x] `medium` **Backend: @agent targeting in rooms** — When a room message mentions a specific agent, route the turn to that agent directly, bypassing the auto-judge (`ROOM_AUTO_JUDGE_MODEL`) only for that message. *(Already implemented in `_select_agents` rule 1 — verified by `test_explicit_mentions_skip_auto_agents`. Added: `parse_mentions` now also matches multi-word/dotted agent names, which the composer autocomplete inserts verbatim.)*
-
-## 7. Room notification muting
-
-WhatsApp-style: mute a room for 8 hours, 1 week, or forever. Per-member setting, checked at send time.
-
-- [x] `easy` **Backend: `muted_until` on RoomMember** — Nullable timestamp (far-future sentinel or separate `muted_forever` bool) + `ADD COLUMN IF NOT EXISTS` migration + `PATCH /rooms/{id}/members/me/mute` endpoint.
-- [x] `easy` **Backend: respect mute** — In `notification_service` / room FCM path, skip push + in-app notification when muted (messages still appear in the room; unread badge choice: keep counting, like WhatsApp).
-- [x] `easy-med` **Frontend: mute UI** — Bell icon in room header + long-press/context-menu on the room list entry → sheet with 8 hours / 1 week / Always options and "Unmute". Show a muted-bell glyph on muted rooms in the sidebar.
-- [x] `easy` **Auto-expiry** — No job needed: compare `muted_until` to `now()` at notification time.
-
----
-
-## Proposed additions (not in the original list)
-
-- [x] `easy-med` **8. Conversation-level mute / focus** — Same mute mechanism for the disconnect-mid-stream FCM pushes on regular conversations; cheap once idea 7 lands. *(Do first with 7 — smallest full-stack slice, good warm-up.)* *(Verified already implemented with 7: `Conversation.muted_until`, `PATCH /conversations/{id}/mute`, push suppression in `_make_push_callback`, mute sheet in the conversation list.)*
-- [x] `medium` **9. Shared styles/prompts with friends** — Once friends (5) and styles (2) exist, let users share a style or prompt template to a friend (copy-on-accept, no live sync). Natural glue between two features. *(New `SharedItem` model (JSONB payload snapshot) + `ShareService`/`/api/v1/shares` endpoints; requires an accepted friendship. Frontend: `ShareWithFriendDialog` wired into the style picker and prompt template editor, plus a "Shared with you" section on the Friends page with accept/decline. Accept materializes an independent copy — verified the sender deleting the original afterwards doesn't affect the recipient.)*
-- [ ] DON'T DO, WE DON'T NEED THIS! `med-hard` **10. Room unread counts + read receipts** — `last_read_message_id` per RoomMember, unread badges in the sidebar, optional "seen" indicators. Pairs with muting to make rooms feel like a real messenger.
 - [ ]  ONLY DO IF IT IS EASY `medium` **11. Onboarding tour powered by the help docs** — First-login checklist/coach-marks generated from the same app-guide docs as idea 4, so there's one source of truth for "how the app works".
-- [ ] DON'T DO, WE DON'T NEED THIS! `easy` **12. `/help` command in chat** — Before idea 4's tool exists, a client-side `/help <question>` that stuffs the relevant doc into context — a one-day version to validate the docs are good.
-
-
-## 13. Configurable, auto-detecting STT/TTS language
-
-Let users pick which languages they speak (e.g. English + Spanish) or leave it on **Auto**, and have Talk Mode follow along — detecting the spoken language per turn and replying in kind, with a manual override available mid-conversation. Today `STTService` (`backend/app/services/stt_service.py`) always forces a single language from `settings.stt_language`, so faster-whisper's built-in auto-detect (triggered by passing `language=None`) is never actually used; Kokoro TTS (`tts_service.py`) only ships English voices (`_VOICES`), with the reply language implicitly fixed by whichever voice ID is configured.
-
-- [x] `easy-med` **Backend: STT auto-detect + per-request language** — Add an optional `language` field (ISO code or `"auto"`) to `POST /transcribe`; when `"auto"`/omitted, call `WhisperModel.transcribe(language=None, ...)` instead of always injecting `settings.stt_language`, and surface the detected code via the existing `TranscriptionResponse.language` field. Thread the same optional param through `RemoteSTTService`. *(`POST /stt/transcribe` now accepts a `language` form field (ISO code or `"auto"`); `STTService`/`RemoteSTTService` both resolve `"auto"`/unset to real auto-detect — `language=None` locally, an omitted field remotely (the OpenAI-compatible server doesn't understand the literal string `"auto"`). `settings.stt_language` (server-wide fallback when a request sends nothing) now defaults to `"auto"` instead of `"en"`, so out-of-the-box auto-detect finally gets exercised — previously it was force-overridden on every single request.)*
-- [x] `easy` **Backend/frontend: multi-language preference** — Add a `preferred_languages` list (e.g. `["en", "es"]`) + `auto` toggle, following the pattern of today's `ttsVoice`/`ttsSpeed` settings in `SettingsProvider` (`lib/features/settings/providers/settings_provider.dart`), which currently live only in `SharedPreferences`. Decide whether this needs a `User` column to sync cross-device or can stay local-only like the existing TTS prefs. *(Local-only, matching every other TTS/STT pref — a spoken-language preference is cheap to re-pick per device, no `User` column/migration warranted. `preferredLanguages` + `autoLanguage` (default on) in `SettingsProvider`, no backend change.)*
-- [x] `medium` **TTS: non-English voices** — `tts_service.py` already derives Kokoro's `lang_code` from the voice ID's first letter; add Kokoro's other language packs to `_VOICES` with a correct `language` field, and auto-pick the voice from the detected/preferred language instead of the hardcoded default when the user hasn't pinned one. *(`_VOICES` now carries Spanish/French/Hindi/Italian/Brazilian-Portuguese packs (all smoke-tested end-to-end; packs auto-download) with a new `lang_code` ISO field on `VoiceInfo`. Japanese/Mandarin deliberately excluded — they need the `misaki[ja]`/`misaki[zh]` extras, while the added languages work with the already-bundled espeak G2P. `POST /tts/speak(/stream)` takes an optional `language`: a voice already speaking it is kept (pinned choice wins), a mismatched one swaps to that language's default (`resolve_voice_for_language`), unknown languages degrade to the requested voice. Talk Mode wiring is 13.4.)*
-- [x] `med-hard` **Talk Mode: language follows the conversation** — In `TalkModeController`/`talk_mode_page.dart` (currently language-agnostic), when STT reports a detected language different from the active TTS voice's language and the user is in Auto mode, switch the reply voice to match (bounded to `preferred_languages`); add a small in-call control to override the language manually without leaving the call. *(STT's detected language now flows `transcribeAudio` → `VoiceRecordingResult.language` → `TalkModeController`, which resolves the reply language per turn (`resolveReplyLanguage`: manual override > Auto-mode detected language, bounded to `preferredLanguages` when non-empty) and passes it to `TalkTtsQueue` → `POST /tts/speak`'s `language` field, where the backend swaps in a matching voice (13.3). In-call override: translate button in the call bar with an Auto + six-language menu; takes effect from the next reply.)*
-- [x] `easy` **Settings UI** — Language multi-select + Auto toggle alongside the existing voice/speed controls. *(Voice section gains an "Automatic language switching" toggle (`autoLanguage`) and, while it's on, a "My languages" `FilterChip` multi-select bound to `preferredLanguages`. Chip choices derive from the backend voice catalog (`VoiceOption` now carries `lang_code`), so they always match what TTS can actually speak. `VoiceSettingsTiles` gained an injectable `loadVoices` for widget tests.)*
-
-## 14. In-app bug/feature submission (admin-visible)
-
-Let users submit bug reports or feature requests from inside the app; admins triage them from a new admin page, following the same admin-managed pattern as `MCPServer`/`AvailableModel` today. No existing model fits directly — `ScheduledAction` (`backend/app/models/scheduled_action.py`) is the closest structural template (simple user-owned table keyed off `user_id → users.email`, with a matching endpoint/service/schema split).
-
-- [x] `easy-med` **Backend: Report model + endpoints** — New `Report` model (`id`, `user_id` FK `users.email` CASCADE, `type: bug|feature`, `title`, `description`, `status: open|in_progress|closed`, `created_at`/`updated_at`) + `NNN_add_reports_table.sql` migration. Endpoints: `POST /reports` + `GET /reports/mine` for any authed user; `GET /admin/reports` + `PATCH /admin/reports/{id}` gated by the existing `get_current_admin_user` dependency used throughout `admin.py`. *(Migration `026_reports.sql`, applied + verified idempotent against the dev DB. Follows the `ScheduledAction` model/schema/service/endpoint split; type/status values enforced via Pydantic literals rather than DB enums. Admin triage lives in `admin.py` (router-level admin gate); `GET /admin/reports` takes an optional `?status=` filter; the PATCH is status-only by design.)*
-- [x] `easy` **Docs** — Add the new endpoints to `docs/api.md` and the model to `docs/database.md` in the same commit, per the root `CLAUDE.md` doc-maintenance rule. *(Done in the same commit as the backend.)*
-- [x] `medium` **Frontend: submission form** — Type toggle (bug/feature) + title + description, reachable from the Settings drawer alongside `pages_section.dart`/`profile_section.dart`. *(New `lib/features/reports/` feature: plain `Report` model + `ReportsService` (user submit/list + admin list/status endpoints, ready for the triage page) + `SubmitReportDialog` (Bug/Feature `SegmentedButton`, title, description, inline error, success snackbar shown from inside the dialog so it survives the drawer being dismissed). Entry point: "Report a bug or idea" tile in the drawer's Pages section.)*
-- [x] `medium` **Frontend: admin triage view** — New admin page listing reports with status filter/update, alongside the existing Users/MCP Servers/Models admin pages, gated the same way (`AuthService.instance.cachedUser?.isAdmin`). *(Fourth "Reports" tab on the existing AdminPage (same gate). Self-contained `ReportsTab` — its state is just a filtered list, so no AdminProvider plumbing; service calls injectable for widget tests. All/Open/In-progress/Closed segmented filter (server-side via `?status=`), rows expand to the full description, status changed from a chip popup menu; under a filter, a report moved out of it leaves the list.)*
-- [x] `easy-med` **Notifications (optional)** — Notify admins via the existing `notification_service` when a new report lands. *(`POST /reports` now sends a best-effort `system_alerts` notification (in-app + push via `fcm_service.send_to_user`, same `contextlib.suppress` pattern as friends) to every admin except the submitter; delivery failure never breaks the submission.)*
-
-## 15. Talk/call button in the text input bar
-
-ChatGPT puts its voice-call entry point right in the composer; this app currently only exposes Talk Mode via a button in the chat app bar (`chat_app_bar.dart`, `ValueKey('talk_mode_button')`, `Icons.graphic_eq`), separate from the composer's own dictation mic (`ValueKey('voice_button')` in `lib/features/chat/widgets/input/message_composer.dart`, wired to `VoiceRecordingHelper` for inline speech-to-text). Move/add the call entry point into the composer so it's discoverable right where the user is typing.
-
-- [x] `easy` **Frontend: add call button to `MessageComposer`** — Add a button beside the existing dictation mic that opens `TalkModePage.open(...)` (same call currently wired from `chat_app_bar.dart`), disabled while sending, matching today's guard. *(Added via `ChatInputWidget`'s `idleTrailingBuilder` (the chat-specific slot — the shared `MessageComposer` stays rooms-agnostic): mic + filled-tonal call button side by side, keeping `ValueKey('talk_mode_button')`. The idle slot only renders when nothing is streaming/composing, so the old "disabled while sending" guard holds structurally; also disabled mid-dictation.)*
-- [x] `easy` **Resolve the app-bar duplicate** — Decide whether to remove the existing `chat_app_bar.dart` talk button once it's in the composer, or keep both for different layout widths. *(Removed — one entry point where the user is already looking, and the app bar was crowding on narrow widths. The key moved with it.)*
-- [x] `medium` **UI/UX pass** — Icon and placement so it doesn't collide with the dictation mic and send button; consider a call-style icon (`Icons.call`/waveform) vs. today's `Icons.graphic_eq`, and how it collapses on narrow/mobile vs. desktop widths. Good candidate for a `frontend-design` pass given the explicit "good UI/UX" ask. *(Kept the waveform (`Icons.graphic_eq`) for continuity but in a `filledTonal` circle so it reads as the call entry vs. the plain mic; both sit right of the field and give way to send/stop, and sizes follow the composer's existing 32/40 mobile/desktop metrics.)*
-- [x] `easy` **Rooms parity (out of scope for now)** — Rooms currently have no dedicated compose bar or voice affordance at all; note this as a follow-up rather than solving it here. *(Noted as a follow-up, per the subtask: rooms use the bare `MessageComposer` with no voice affordances; adding any would be a separate rooms-voice effort.)*
-
----
-
-## 16. Edit existing room agents, chat styles, system prompts, and scheduled actions
-
-All four features have a fully wired **backend** (model + schema + service + `PATCH`/`PUT` endpoint) but are missing the **frontend edit button/dialog** — today you can only create and delete. The fix in every case is the same three-layer split: add a provider wrapper, make the existing create-dialog dual-purpose (accept an optional `existing` record, pre-seed the controllers, swap `create` → `update`), and add an edit affordance to the list row. The cleanest existing pattern to copy is **memories**: `memory_page.dart:66` `_showEditMemoryDialog` pre-seeds a `TextEditingController(text: memory.content)` and calls `_provider.updateMemory(...)`; the list widget just emits an `onEdit` callback.
-
-- [x] `easy-med` **Room agents: edit flow** — Add `RoomProvider.updateAgent(...)` wrapping `room_service.updateAgent` (`room_service.dart:156`, the `PATCH /api/v1/rooms/$roomId/agents/$agentId` call that already works). Refactor `_AddAgentDialog` (`lib/features/rooms/widgets/add_agent_dialog.dart` — name/model/prompt/mode/moderator/tools form) to accept an optional `RoomAgent? existing`: seed all controllers from the agent (pre-select `a.model` instead of `_pickDefault`, pre-check `enabled_tools`, `is_moderator`, `mode`), dynamic title ("Add agent" vs "Edit agent") and submit label ("Add" vs "Save"). Add an edit `IconButton` (e.g. `Icons.edit_outlined`) beside the existing delete icon in `room_chat_view.dart:657` that opens the dialog with the agent. *Done (1c47858): dual-purpose add/edit dialog, pencil icon per agent row; backend update_agent now clears nullable fields on explicit null.*
-- [x] `easy-med` **Chat styles: edit flow** — Add `StyleProvider.updateStyle(...)` forwarding the three-way `set*` flags the service already supports (`style_service.dart:55` handles `name`, `modelId`, `thinkingLevel`/`setThinkingLevel`, `systemPromptTemplateId`/`setTemplateId`, `isDefault`). Extend `_SaveStyleDialog` (`style_picker.dart:1373`, currently name+isDefault-only) to accept an optional `Style? existing`: pre-fill the name/default and route to `updateStyle` instead of `createStyle`. Add an edit affordance on each saved-style card (overflow menu or long-press) opening the customize section pre-seeded from that style. *Done (e7c4178): Edit… in the card menu enters an edit mode in Customize (local state, chat untouched), Save changes → StyleProvider.updateStyle.*
-- [x] `easy` **System prompts: edit flow** — The provider is already complete (`system_prompt_provider.dart:55` `updateTemplate(...)` calls the service `PATCH` and replaces the list — it's just never invoked from the UI). Add an edit icon beside the existing Delete icon in the template dropdown toolbar (`system_prompt_editor_dialog.dart:411`) that, for the selected **custom** (non-builtin) template, opens a small "Edit template" dialog pre-seeding name/description/content from the `SystemPromptTemplate` and calling `provider.updateTemplate(template.id, name:, content:, description:)`. *This is the cheapest of the four — all plumbing exists.* *Done (ca73fee): pencil icon in the template toolbar opens an edit dialog seeded with name/description/content.*
-- [x] `easy-med` **Scheduled actions: edit flow** — Add `ScheduledActionsProvider.update({id, prompt, title, cronExpr, runAt, systemPrompt, model})` mirroring `scheduled_actions_api_service.dart:50` (`PATCH /api/v1/scheduled-actions/$id`), reusing the existing `_replace` helper (`:62`). Make `_ScheduledActionEditor` (`scheduled_actions_page.dart:271` — the richest create form: title + prompt + cron-segmentedbutton + date/time-picker) accept an optional `ScheduledAction? existing` that pre-fills all controllers and switches the submit fn + title ("New scheduled action" → "Edit scheduled action") + label ("Create" → "Save"). Add an edit `IconButton` beside the existing Switch + Delete in `_ActionTile` (`:213`). *Done (53a2e86): dual-purpose editor with pencil icon per tile; setSchedule flag lets an edit switch recurring↔one-off.*
-
-## 17. Include a folder in a chat (desktop) — sandboxed file access (Low priority)
-
-On desktop apps, let a user attach a **folder** to a chat so the agent can read files in it on demand. The agent must **never** be able to read outside that folder. Today there is no such concept: chat attachments are ephemeral in-memory bytes (`ChatAttachment` has no path), native tools have no file reader, and the only sandbox is `microapp_workspace._safe_rel` (`microapp_workspace.py:698-705` — `resolve()` + `relative_to(root)` guard). The reusable pieces are `file_picker`'s `getDirectoryPath()` (already a dependency but unused), `KnowledgeBaseService.extract_text`/`chunk_text` (more complete than the chat `document_parser`), and the `progressEmit`/`emit` mechanism for live file-read progress.
-
-> **Architecture correction (Jorge's bug below):** an early cut read files on
-> the *backend* filesystem, which only worked when backend + desktop app shared
-> a machine (localhost) and let the web frontend trigger reads. Reworked so the
-> **folder lives only on the desktop client and reads happen client-side**, sent
-> to the backend on demand — the backend never touches a host path, and it works
-> across machines. Notes below reflect the final client-delegated design.
-
-- [x] `medium` **Client-served `read_file`/`list_files` tools** — Advertised (descriptors in `native_tools.py`, `folder_tool_descriptors()`) only when a chat request sets `has_client_folder`; **no** `Conversation` column — the folder is client-only. When the model calls one, `chat_service._execute_client_folder_tool` emits a `client_tool_request` SSE chunk and parks the turn on `ClientToolBridge` (in-memory future, registered *before* the emit so a fast client can't race it) until the desktop app POSTs the result. `read_file` returns the file's bytes → backend extracts text via `client_file_extract.extract_file_text` (KB extractors for PDF/CSV/XLSX, curated text/code allowlist, **markitdown** for DOCX/PPTX/HTML/images, 5 MB + binary guards). No host-FS access anywhere on the backend.
-- [x] `medium` **Result endpoint + gating** — `POST /api/v1/chat/conversations/{id}/client-tool-result` (`{tool_call_id, ok, filename?, data(base64)?, entries?, error?}`) resolves the parked bridge future (owner-checked; 409 if none pending, e.g. timed out). `has_client_folder` on `ChatRequest` threads `send_message → _stream_assistant_turn → _resolve_tools_for_conversation`. Timeout (60 s) → clean tool error, so a web/absent client just doesn't serve.
-- [x] `medium` **Desktop folder picker + client-side reading** — Reused `PlatformInfo.isDesktop`. `AttachMenuButton` gets a desktop-only "Folder" option; folder + drop (`desktop_drop`) call `ChatProvider.attachClientFolder`, which stores the path **locally** (SharedPreferences, per conversation) — never sent to the backend except as `has_client_folder`. `FolderReader` (`dart:io`, web-stubbed via conditional import) does the actual read/list with a Dart port of the `safe_resolve` escape guard (rejects `../`, absolute, symlink escapes); `ChatProvider._serveClientToolRequest` reads on demand and posts bytes back. A `FolderChip` in the composer surfaces the bound scope with a detach ×.
-- [x] `easy-med` **Read progress** — `ToolBubbleWidget` already renders the tool name + inline `path` arg + a "running…" spinner from the existing `tool_execution` chunks (which still fire around the delegated call), so "read_file  path: notes.txt … running…" shows with no UI change. Scope shown via the `FolderChip`.
-- [x] `easy` **Docs + tests** — `docs/api.md`, `docs/database.md`, `docs/architecture.md`, `backend/CLAUDE.md` chunk list, help `chat.md`. Tests: `test_client_folder_reads.py` (bytes extraction, bridge park/resolve/timeout, delegated executor, tool gating), `test_client_tool_result_endpoint.py` (owner/409/resolve), plus Dart `folder_reader_test.dart` (escape guard incl. symlink) and `chat_provider_folder_test.dart` (store + on-demand serving). Full suites green.
-- [x] BUG (Jorge): *"I can still read the file from the web front end … it should read the files using the client application and send it to the backend … should work on other computers."* — **Fixed** by the client-delegated rework above: the backend no longer reads any host path; web can't attach a folder (no `dart:io`) and, lacking `has_client_folder`, is never offered the tools; reads are performed by the desktop client and streamed back, so it works with the backend on a different machine.
-
-
-
-## 18. Delegate to an opencode workflow for complex tasks (Low priority)
-
-In a chat or room, let the LLM **auto-decide** to delegate a very complex task to an autonomous opencode subagent (like micro-apps but generic — not tied to the micro-apps monorepo). Micro-apps already do exactly this: `microapp_chat_tool.py` registers a native tool the LLM calls, `microapp_agent.py` streams opencode events back as `ChatResponseChunk`s, and `_forward_progress` relays inner steps live. Generalize that machinery, surface it as an `action_proposal`-style card (which ended up showing live progress rather than asking for approval — see the note below), and add a persisted workflow-run entity so progress survives reloads and the user gets notified on completion (borrowing from `scheduled_action_job.py` + FCM).
-
-> **Architecture note (Option C, chosen over A/B):** an opencode agent needs
-> real files on the machine it runs on, but idea 17 put the attached folder
-> **only on the client**. Running opencode client-side (option B) would tie the
-> run's life to the app staying open, gutting the "survives a disconnect +
-> notifies you" premise. So: the client uploads a **snapshot** of its folder,
-> opencode works on that server-side copy (which is what lets the run outlive
-> the client), and the resulting **git diff** is sent back for the client to
-> apply locally after review. The backend still never opens a host path — it
-> only ever handles uploaded bytes.
-
-- [x] `med-hard` **Backend: `WorkflowRun` model + migration** — `workflow_runs` (032, idempotent): `id`, `user_id`, `conversation_id` (nullable, for rooms), `room_id`, `tool_call_id`, `status`, `instruction`, `scope` (JSONB: folder label + file/byte counts + permissions), `workdir` (server-side snapshot path — **never** serialized to a client), `opencode_session_id`, `summary`, `error`, `progress` (JSONB), timestamps. Status flows `draft → uploading → queued → running → done|error|cancelled`. `tool_call_id` is how the card re-finds its run after a reload, so no client-side storage is needed (and so a card scrolling back into view can't launch a duplicate run). Runs orphaned by a restart are swept to `error` at startup (`main._fail_stale_workflow_runs`) — otherwise a polling client waits forever.
-- [x] `med-hard` **Backend: `delegate_workflow` native tool** — Proposal tool (`_proposal_result`, same pattern as `create_room`) returning `{"proposal": {"type": "delegate_workflow", ...}}` so `agent_turn` emits an `action_proposal` chunk. It's in the registry (executable) but in `_GATED_TOOLS`, so it's advertised only when the request sets `has_client_folder` — a run snapshots that folder, so without one there's nothing to work on. `DELEGATE_WORKFLOW_NUDGE` is appended to the system prompt under the same condition, telling the model it can read but not modify, and to delegate work that needs edits.
-- [x] `med-hard` **Frontend: progress card + launcher** — `delegate_workflow` gets its **own** card (`workflow_proposal_card.dart`) rather than a branch in `ActionProposalCard`, because it isn't a decision — it's a live run. **No confirmation is asked** (Jorge: *"I don't think we should require any confirmation"*): the card auto-starts on appearance, walking the folder, uploading in ~2 MB batches, then `POST /workflows/{id}/start`, which `asyncio.create_task`s the run **outside the request scope** so a disconnect can't cancel it. The user-facing gate is downstream instead — the diff is reviewed file-by-file before anything is written to disk — so an up-front prompt would have been pure friction.
-- [x] `hard` **Backend: detached opencode runner** — `workflow_runner.py`. `MicroappAgent.stream_instruction` turned out to be duck-typed over `opencode_base`/`opencode_ready`, so it's reused as-is against a tiny `_OpencodeEndpoint` — no changes to the micro-app path. Subprocess safety (`setsid` + `PR_SET_PDEATHSIG`, port picking, readiness probe) and the `opencode.json` builder were extracted to shared `opencode_process.py` / `opencode_config.py` and are now used by both. 15-minute hard budget on top of the 30 s watchdog; progress is flushed to the DB once a second (never per token) with streamed text coalesced; on completion the summary is written back as an assistant message and an FCM push deep-links to the conversation.
-- [x] `medium` **Frontend: live progress + resume after reload** — Polling `GET /workflows/{id}?since=<cursor>` at 1.5 s (simplest thing that works; no new socket) — the response carries only new chunks, which the client stitches onto what it has. State lives in `WorkflowProvider`, **not** the card, because a chat bubble is disposed the moment it scrolls out of a `ListView.builder` while the run keeps going. `loadForConversation` re-attaches cards to their runs by `tool_call_id` after a reload (de-duped per conversation).
-- [x] `medium` **Write-back with conflict detection** *(new — the half of option C that A/B don't have)* — `/changes` returns each file's `base_sha256`, the hash of what was uploaded; `FolderWriter` (client-side, `dart:io`, reusing idea 17's `safeResolve` escape guard) re-hashes the local file before writing and reports a **conflict** instead of clobbering anything the user edited during the run. An "added" file that now exists locally counts as a conflict too; deleting an already-deleted file does not. The review dialog lists every change with per-file checkboxes — nothing touches the user's disk until they choose Apply. The server-side snapshot is only released once everything landed cleanly.
-- [x] `medium` **Live-run visibility + no confirmation gate** *(from Jorge's first real run)* — Two bugs surfaced. (1) `chat_page` folds consecutive tool_call/tool_result messages into a collapsible "Used N tools" section, which swallowed proposal results too — so `ChatMessageWidget`'s card branch was **unreachable** and no card ever rendered. This also silently broke the pre-existing `create_room` / `set_conversation_style` cards. Fixed by excluding proposal-carrying results from grouping. (2) Confirmation removed entirely: the card auto-starts, and the tool's note tells the model to say the work is underway instead of "Confirm in the app to run it".
-- [ ] `med-hard` **Folderless mode — "deep research" without an attached folder** *(from Jorge: "do we need to have a folder selected to use agent mode? I asked 'deep research on the world cup 2026' and it used the normal web-search, not the agent through opencode")* — Same machinery, no folder. Today `delegate_workflow` is gated on `has_client_folder`, so without a folder the model never sees the tool and falls back to in-chat web-search. The run, the detached opencode, the progress timeline, and the completion→assistant-message+push path are all folder-independent; only the snapshot upload and the write-back diff aren't. So: advertise `delegate_workflow` even without a folder, spawn the run against an **empty server-side workdir** (git-init'd like today, just no uploaded files), let the agent work with `webfetch` + its own reasoning, and skip `compute_changes` / apply entirely. The result lands as the run's `summary` (already posted into the conversation by `workflow_runner._report_completion`); the tile shows the streamed progress like today and, on `done`, offers a **Download** button for the agent's markdown output (`GET /workflows/{id}/output` returns the summary as a text blob — `share_plus` on web/Android, a save-file picker on desktop). This is what makes the feature work on **web and Android too**: with no folder to read or write, the dart:io-only bits of idea 17/18 (FolderReader/FolderWriter, `PlatformInfo.isDesktop`) are simply not on the path. `WorkflowRun.scope` gains a `mode: "folder" | "research"` field so the runner and the client know whether to expect a diff back.
-- [x] `medium` **Drop the diff-review gate — auto-apply on done** *(from Jorge's second real run — "let's not have the diff review, let's just apply, I will add a revert changes native action later")* — The "Review changes → pick → Apply" dialog was the only thing standing between a finished run and the user's disk, and it was easy to miss: Jorge watched the agent claim it had created a file, and the file was nowhere in his folder because he never opened the dialog. `WorkflowChangesDialog` is gone; `WorkflowProvider` now applies the diff the instant a run reaches `done`, surfaces a one-line result ("N files applied to your folder") under the run header, and refuses to re-apply a run it has already applied (idempotent per-run, persisted in `SharedPreferences`, so a reload or a card scrolling back into view doesn't double-write). Conflicts and failed writes are still reported in the expanded details — those just aren't a *gate* anymore. Undo moves to a dedicated native action (idea 20).
-- [x] `easy` **Docs** — `docs/api.md` (endpoints + the snapshot/detach/conflict/auto-apply rationale), `docs/database.md` (`WorkflowRun` column semantics), `docs/architecture.md` (services, provider map, startup sweep), and `backend/app/docs/help/chat.md` ("Can the assistant change files in my folder?").
-
-## 19. Auto-upgrade within the desktop app (GitHub releases)
-
-Check for a new version in GitHub Releases and let the desktop app self-upgrade. Today there is **zero** client-side version awareness: no `package_info_plus` dep, no update-check service, no `/version` endpoint (backend `version="0.1.0"` is hardcoded at `main.py:181` and `/api/v1/health` returns no version). CI already publishes GitHub Releases with Linux `.tar.gz` + Windows `.zip` artifacts (`.github/workflows/build-desktop-apps.yml:135-156`), and the repo URL is `https://github.com/JorgeGarciaIrazabal/garbanzo-ai` (hardcoded in `README.md:3`/`scripts/deploy.sh:148`). No macOS build exists in CI, so this is Linux+Windows only initially.
-
-- [x] `easy` **Backend: version endpoint** — Add `version` (read from an env var or a build-time-generated file committed at deploy) to `GET /api/v1/health`, and a new `GET /api/v1/version/latest` that proxies/caches the GitHub releases API (`https://api.github.com/repos/JorgeGarciaIrazabal/garbanzo-ai/releases/latest`) with a 5-min in-memory cache. Centralizes the repo URL (add to `config.py` as `github_repo`) so self-hosters can override. Update `docs/api.md`. *(`APP_VERSION` is a Docker build arg: deploy.sh now computes the release tag before building the image and bakes it in, so `/health` reports the same version the CI desktop builds of that release carry. `GITHUB_REPO` overridable via deploy/.env. Endpoint smoke-tested against the real repo.)*
-- [x] `easy-med` **Frontend: update-check service** — Add `package_info_plus` dep (to read the running app version from `pubspec.yaml:19`). New `UpdateService` in `lib/features/settings/` that calls `GET /api/v1/version/latest` (or GitHub directly as fallback), compares semver against the running version, and exposes `hasUpdate`, `latestVersion`, `downloadUrl` (per-platform asset from the release's `assets`). Runs on app start (silent) + a "Check for updates" button in Settings. Desktop-only guard via the `PlatformInfo.isDesktop` helper from idea 17. *(`PlatformInfo` created in `lib/core/` (idea 17 hadn't landed) using web-safe `defaultTargetPlatform`. GitHub-direct fallback kicks in only when the backend 404s the endpoint — i.e. a backend older than the updater. Asset matching = `*linux*.tar.gz` / `*windows*.zip`, verified against the real v1.0.3 release assets.)*
-- [x] `med-hard` **Frontend: self-upgrade flow** — On "Download & install": download the platform asset to a temp dir, verify it's not empty, then: **Linux** — extract the `.tar.gz`, replace the current install dir (or prompt the user for the install path if unknown), and offer to relaunch via a `Process`/`xdotool` call. **Windows** — extract the `.zip`, run the new executable (or an MSI/NSIS installer if we switch to one), and relaunch. Show a progress bar + changelog (release body). Needs careful handling of file locks (the running app can't overwrite its own binary — copy-aside-and-swap on next launch is the common pattern). Decide between "download + prompt to restart" (safer) vs full auto-install. *(Went full auto-install. Install dir = parent of `Platform.resolvedExecutable`. Extraction via native `tar`/`Expand-Archive` (keeps Linux exec bits; no new dep). Linux: extract to a sibling staging dir (same filesystem — rename is atomic and legal while running since open inodes survive), swap `install → .old` (kept as rollback) + `staging → install`, relaunch detached, exit. Windows: locked files can't be dir-renamed, so a batch script waits for exit, robocopy /MIR-s staging over the install, and relaunches. Refuses to install archives missing the executable.)*
-- [x] `medium` **Frontend: update-available UX** — Toast/banner on app start when an update is available ("v1.0.4 is available — Update / Later"), with a don't-remind-until setting (persist in `SharedPreferences`, matching `SettingsProvider`). The Settings page gets a "Software update" section showing current vs latest version + changelog + "Check now" / "Download & install". Gate the whole feature behind the desktop check. *(Slim top banner above the router (wraps the app in `main.dart`'s builder); "Later" = 3-day per-version snooze in `SharedPreferences` — a newer release re-shows it. Shared changelog dialog (markdown release notes + progress bar) used by both banner and the desktop-only Settings section.)*
-- [x] `easy` **Docs** — `docs/environment.md` (new `github_repo` env var), `deploy/.env.example`, and a note in `deploy/CLAUDE.md` that the desktop auto-updater consumes the same GitHub Releases CI already produces. *(Plus `docs/api.md`, `docs/architecture.md` provider map, and a "How do I update the desktop app?" entry in `backend/app/docs/help/settings.md`.)*
 
 ## 20. Revert a delegated workflow's changes (native action)
 
@@ -212,16 +37,238 @@ anything the agent did overnight" is a one-liner.
 - [ ] `easy-med` **Scheduled-action parity** — `scheduled_action_job.py` already re-hydrates the conversation a scheduled action fires in; allow a scheduled action's prompt to call `revert_workflow` so "revert what the agent did" can run on a schedule.
 - [ ] `easy` **Docs** — Help doc entry ("How do I undo what the agent did?"), `docs/api.md`, `docs/architecture.md`.
 
----
+## 21. Manual conversation compaction (Claude Code `/compact`)
 
-Allow manual compating chats like what we have in claude code
+Let the user trigger compaction on demand so a long conversation stays usable
+without waiting for the 80%-of-context-window auto-trigger. Claude Code's
+`/compact` summarizes the conversation so far into rolling context notes and
+continues from there; this app already has the machinery — it just isn't
+user-triggered.
 
-----
+**What exists today (the foundation):**
+- `ChatService._maybe_summarize_context` (`backend/app/services/chat_service.py:127`)
+  runs at the top of every turn (`:462`) and, when the prompt token count
+  exceeds **80% of the effective context window** (`:150`), summarizes
+  everything before the last 10 messages into rolling prose notes. It writes
+  the result to `conversation.context_summary` and tracks the boundary in
+  `conversation.context_summary_until_id` (`Conversation` model,
+  `backend/app/models/conversation.py:47-48`).
+- `ChatContextBuilder.build_history_with_system_prompt`
+  (`backend/app/services/chat_context.py:141`) drops every message up to
+  `context_summary_until_id` and injects the summary as a second system
+  message (`:192-198`), so subsequent turns only pay for unsummarized
+  messages + the summary.
+- Context-window resolution: `resolve_context_length`
+  (`backend/app/services/llm_provider.py:171`) = `max(512, min(model_max,
+  settings.llm_context_window))`. The token counter is
+  `get_token_counter()` (`token_counter.py:85`, tiktoken `cl100k_base` with
+  a word/char fallback).
+- The frontend already renders the auto-summary
+  (`lib/features/chat/widgets/context_summary_widget.dart`) and a
+  context-usage indicator
+  (`lib/features/chat/widgets/context_window_indicator.dart`) — so the UI
+  surface a compact-now affordance slots into already exists.
+- **Rooms have no compaction at all** — `RoomChatService._load_history`
+  (`backend/app/services/room_chat_service.py:196`) is last-N only (`limit=50`
+  for turn selection, `limit=100` after a reply). A `/compact` parity for
+  rooms is a larger follow-up; out of scope for the first cut.
 
-## Bugs
+**The slash-command pattern to copy — `/agent`:**
+- Backend: `_forced_agent_instruction` (`chat_service.py:77-82`) detects a
+  leading `/agent` token in `send_message` (`:282`) / `edit_and_resend`
+  (`:410`) and diverts the turn into `_stream_forced_workflow` (`:546-616`)
+  instead of the normal LLM path — a deterministic execution that never
+  asks the model "should I?".
+- Frontend: a `MentionCandidate` with `insertText: '/agent'` is the first
+  entry in `_templateCandidates()` (`chat_input_widget.dart:107-126`),
+  surfaced by the `MentionAutocomplete` overlay when the user types `/`.
+  Selecting it inserts the literal `/agent` token; the user types the rest.
 
-- [x] `med-hard` **Talk Mode Android: stopping speech doesn't start transcription** — On Android (`talk_recorder.dart:231-275`, `record` package backend), when the user stops talking the VAD should fire `speechEnd` (`talk_mode_controller.dart:206-207` `_onDb → _vad.update → _stopAndSend`) which stops the recorder and calls `/stt/transcribe`. Prime suspects: (1) the `record` package's `Amplitude.current` scale may differ from the dBFS the VAD was calibrated against (`talk_vad.dart:31-34` `initialNoiseFloorDb=-50`, `startMarginDb=7`, `endMarginDb=4`, `silenceDuration=900ms`) — no normalization exists, so `speechEnd` may never fire; (2) `stopAndTranscribe` returning null/empty is silently swallowed (`talk_recorder.dart:290` `if (audioBytes.isEmpty) return null` + `talk_mode_controller.dart:246-250` loop-back-to-listening with no error); (3) `AndroidManifest.xml` lacks `MODIFY_AUDIO_SETTINGS` so hardware AEC (`echoCancel:true`) may be silently ignored, making the amplitude stream erratic. Fix: add debug logging of received `db` values on Android to confirm the scale, normalize/adjust the VAD thresholds for the `record` package, surface empty-transcript as a recoverable error instead of silent loop, and add `MODIFY_AUDIO_SETTINGS` to the manifest. *Fixed: root cause was suspect (1) in a specific form — the record package reports peak dB and −160 for digitally-silent buffers (noiseSuppress gates the mic), so calibration latched the VAD floor at ≈−160 and post-speech ambient never counted as silence. TalkVad now clamps the floor at −55 dB (`floorMinDb`); plus throttled db/floor debug logging, empty transcript surfaces as a recoverable "Didn't catch that" error, and MODIFY_AUDIO_SETTINGS added. Needs on-device confirmation via the new logs.*
-- [x] `easy-med` **Talk Mode desktop: too sensitive — interrupts the agent with very little sound** — On desktop (Linux PipeWire AEC), barge-in fires too easily. Thresholds: `_bargeMarginDb=14`, `_bargeSustainSamples=3` (~300ms) at `talk_mode_controller.dart:74-75`; `_detectBargeIn` (`:223-232`) interrupts when `db > noiseFloorDb + 14` for 3 consecutive samples (strict run, any sub-threshold sample resets). The noise floor is learned during the *listening* phase and is **not re-adapted during speaking** (`talk_vad.dart:77-80`), so a quiet pre-turn room makes the bar very low; ~30 dB residual AEC echo can clear it. Fix: raise `_bargeMarginDb` (18-22) and `_bargeSustainSamples` (6-8, ~600-800ms) and/or switch to a moving-average window; add an **absolute noise gate** in `_detectBargeIn` (ignore samples below a fixed `-X dBFS` even if above `floor+margin`); optionally re-adapt a separate "speaking-period floor" while AEC is active so the AI's residual echo raises the bar. Expose these as settings (currently hardcoded `TalkVad()` at `:64`). *Fixed: barge-in extracted to pure `talk_barge_in.dart` — margin 18 dB, 6-loud-of-last-8 sliding window (~600–800 ms, dips don't reset), absolute −45 dBFS gate, and a speaking-period floor that adapts upward toward residual echo. Sensitivity exposed as Settings → Voice → Voice interruption (Off/Low/Normal/High, persisted).*
+A `/compact` command follows the same three layers.
 
+- [ ] `easy-med` **Backend: `/compact` command** — Detect a leading `/compact`
+  (mirror `_forced_agent_instruction` at `chat_service.py:77-82`) in
+  `send_message` / `edit_and_resend`. Instead of streaming an LLM reply, run
+  the summarization core of `_maybe_summarize_context` (`:127`) **forced over
+  the entire unsummarized history** (not gated at 80%, and keep fewer — or
+  zero — recent messages intact, since the user is explicitly asking to
+  compact). Write `context_summary` + `context_summary_until_id` on the
+  conversation. Yield a short confirmation chunk (e.g. a `tool_result`-style
+  info message "Compacted N messages into rolling context notes") so the
+  frontend renders a breadcrumb in the message list and the
+  `context_summary_widget` updates. Reuse the existing summary prompt at
+  `:183-192` ("Condense the following conversation excerpt…"). Optional: a
+  `/compact keep-last K` variant where K is configurable.
+- [ ] `easy` **Backend: `/compact` parity for `edit_and_resend`** — When the
+  user edits a message to `/compact`, compact up to *that* message rather
+  than the latest. Cheap once the core command exists.
+- [ ] `easy` **Frontend: `/compact` mention candidate** — Add a
+  `MentionCandidate` in `_templateCandidates()` (`chat_input_widget.dart:107`)
+  beside `/agent`, with `insertText: '/compact'` and a short
+  label/description (e.g. "Summarize this conversation so far"). No new
+  widget — the autocomplete machinery (`mention_autocomplete.dart:22`,
+  sources `{'+', '/', '#'}`) already handles the trigger + insertion.
+- [ ] `easy-med` **Frontend: compaction breadcrumb + manual trigger button** —
+  Render a one-line "Compacted N messages" system-style message in the chat
+  list when a turn's `context_summary` changed (the existing
+  `context_summary_widget.dart` + `context_window_indicator.dart` are the
+  surface). Add an explicit "Compact now" entry alongside the
+  context-indicator (icon button) so the feature is discoverable without
+  knowing the `/compact` token — it dispatches the same `/compact` send.
+- [ ] `medium` **Frontend: undo last compaction** — Because compaction writes
+  `context_summary_until_id`, an undo can clear the summary columns and
+  reload the full message window. Cheap on the backend (a
+  `DELETE /conversations/{id}/summary` or a `PATCH` clearing the two
+  columns); frontend adds a "Restore full history" affordance on the
+  compaction breadcrumb. Decide if this is worth the surface area.
+- [ ] `medium` **Rooms parity (follow-up, larger)** — `RoomChatService` has
+  no summarization. A room `/compact` would need a per-room or per-agent
+  summary store (new columns on `Room` / `RoomMember`, or on the agent's
+  view) and a summary-injection point in `_build_llm_history`
+  (`room_chat_service.py:798`) analogous to `chat_context.py:192-198`.
+  Defer unless long rooms become a pain.
+- [ ] `easy` **Tests** — Backend: `/compact` command on a 30-message
+  conversation compacts all-but-last-K and sets both columns; subsequent
+  `_stream_assistant_turn` sends only the summary + tail (assert via the
+  message list passed to `run_agent_turn`); `/compact` on an already-summarized
+  conversation extends (not replaces) the summary (the auto path appends at
+  `:213-217`). Frontend: widget test that the context indicator shows a
+  reduced window after a compact.
+- [ ] `easy` **Docs** — `docs/architecture.md` (manual compaction flow, how
+  it reuses the auto-summarizer), `docs/api.md` (any new endpoint), and a
+  help entry in `backend/app/docs/help/chat.md` ("How do I shorten a long
+  conversation?") so the `app_help` tool can answer it.
 
+## 22. Auto-file errors as user bug reports
+
+When something breaks on either stack, file it as a `Report` automatically
+(the admin-visible triage table from idea 14) — with enough metadata
+(conversation id, message id, timestamp, stack trace, platform, model, last
+user turn) that triaging can reproduce it. Today errors become either a
+log line on the backend (`logging` to stdout, no persistence) or a
+user-facing error string in a Flutter provider, and neither reaches the
+`Report` table unless the user manually opens "Report a bug".
+
+**What exists today (the foundation):**
+- `Report` model (`backend/app/models/report.py:16`, migration
+  `026_reports.sql`): `id`, `user_id` (FK `users.email`, cascade), `type`
+  (`bug`|`feature`), `title` (≤200), `description` (Text), `status`
+  (`open` default), timestamps. **No structured-metadata column exists** —
+  `conversation_id` / `message_id` / `stack_trace` / `platform` would
+  either be packed into `description` or added via a new migration
+  (`metadata JSONB`, `conversation_id`, `severity`).
+- `ReportService` (`backend/app/services/report_service.py:23`)
+  `create(user_id, type_, title, description)` + `notify_admins` (best-effort
+  FCM/in-app to admins, failures suppressed). Endpoint
+  `POST /api/v1/reports` (`endpoints/reports.py:29`) derives the user from
+  the JWT (`current_user["email"]`).
+- Frontend `ReportsService.instance.create(type, title, description)`
+  (`lib/features/reports/services/reports_service.dart:14`) — the exact call
+  an auto-file helper would use with `type: 'bug'`. The JWT in `ApiClient`
+  identifies the user, so no user_id arg is needed.
+- **No Sentry / Crashlytics / Bugsnag** on either stack (checked
+  `pubspec.yaml` + `pyproject.toml`) — the `Report` table becomes the
+  error-tracking store with nothing to reconcile against.
+- User identity = email string, derived from the JWT on the backend
+  (`current_user["email"]`) and available via `ApiClient` on the frontend.
+
+**The gaps:**
+- Frontend (`lib/main.dart:32`): **no global error handler** — no
+  `FlutterError.onError`, no `runZonedGuarded`, no
+  `PlatformDispatcher.instance.onError`. `runApp` is called directly.
+  Uncaught framework/isolate errors aren't captured anywhere.
+- Backend (`app/main.py:201`): **only `CORSMiddleware` is registered** — no
+  `@app.exception_handler(Exception)`, no `ServerErrorMiddleware`. Unhandled
+  endpoint exceptions fall through to FastAPI's default 500 + a uvicorn
+  traceback to stdout.
+- API client (`lib/core/api_client.dart:37`): `validateStatus: (s) => true`
+  means non-2xx never raise `DioException`; the `onResponse` interceptor
+  handles **only 401** (`:170-208`). Network/timeout `DioException`s
+  propagate to providers, which catch them into a `String` error and stop
+  there — no reporting.
+
+- [ ] `easy-med` **Backend: `Report` metadata migration** — Add a
+  `metadata JSONB` column (and an indexed `conversation_id` FK-ish String,
+  plus `severity` / `source` literals: `frontend` | `backend`) to `reports`
+  via an idempotent `NNN_reports_metadata.sql` migration mirroring
+  `026_reports.sql`. Extend `ReportService.create` to accept optional
+  `metadata`/`conversation_id`/`severity`/`source`, and `ReportCreate` +
+  `ReportOut` schemas accordingly. Keep `type=bug` for auto-filed errors.
+  *(This is strictly additive — existing manual reports keep working.)*
+- [ ] `med-hard` **Backend: global exception handler** — Register
+  `@app.exception_handler(Exception)` (or `ServerErrorMiddleware`) in
+  `main.py` that, for any unhandled exception in an authenticated request,
+  opens a **fresh** session via `async_session_maker()` (late import — the
+  request's session is likely poisoned post-exception; follow the
+  background-task pattern in `_make_push_callback` at `chat.py:453`) and
+  calls `ReportService.create(type='bug', source='backend', title=<Exception
+  class + one-liner>, description=<full traceback>, metadata={
+  path, method, query, user_id if derivable, conversation_id if in path },
+  severity='error')`. Re-raise after filing so FastAPI still returns the
+  500. Rate-limit per (user, exception_fingerprint) so a tight retry loop
+  doesn't flood the table (e.g. one per fingerprint per 5 min, in-memory
+  or via a small DB unique-ish guard). 401/403/404 and other 4xx should
+  **not** auto-file (only 5xx / uncaught).
+- [ ] `easy-med` **Backend: stream-error capture in the chat path** — The
+  streaming chat endpoints catch errors and yield `error` `ChatChunk`s
+  (`agent_turn.py:360`, `chat_service.py:221`, `ollama_provider.py:290-318`).
+  Add a thin `report_chat_error(...)` helper that files a Report with
+  `conversation_id`, the in-flight `message_id`/tool_call id, the model,
+  and the last user turn's text (truncated) in `metadata` — called from
+  the spots that already `logger.exception(...)` in the chat/agent path.
+  Keep it best-effort (`contextlib.suppress`) so error reporting never
+  breaks the turn.
+- [ ] `med-hard` **Frontend: global error capture** — In `main.dart`, wrap
+  `runApp` in `runZonedGuarded` and install `FlutterError.onError` +
+  `PlatformDispatcher.instance.onError`. On any uncaught framework or
+  isolate error, call a new `ErrorReporter.report(error, stack,
+  {conversationId, messageId, context})` that posts to
+  `ReportsService.instance.create(type: 'bug', title: <Error one-liner>,
+  description: <stack + platform + app version + context JSON>,
+  metadata: {...})` (requires the metadata migration's endpoint to accept
+  the extra fields). Guard against the report call itself throwing
+  (try/catch + swallow). Debounce on the client too (same fingerprint →
+  one report per session) so a render-loop error doesn't spam. Include
+  `package_info_plus` app version + `Platform.operatingSystem` + the
+  `PlatformInfo` desktop/web/Android classification already used by the
+  updater (idea 19).
+- [ ] `easy-med` **Frontend: API/network error capture** — Add a Dio
+  `onError` interceptor in `api_client.dart` (and/or a wrapper around the
+  convenience methods) that, for unexpected `DioException`s (timeouts,
+  connection errors, 5xx responses that still raise), files a Report with
+  `{method, url, statusCode, responseBody}` in metadata, *excluding* 401
+  (already handled) and user-initiated cancel. Keep it consistent with the
+  backend handler's rate-limit semantics. Be careful not to recurse: the
+  report call goes through the same `ApiClient`, so gate it with an
+  `isReporting` flag / use a raw `Dio` for the report POST.
+- [ ] `medium` **Frontend: context capture** — The error handler needs
+  `conversationId` / `messageId` that live on `ChatProvider`. Since the
+  global handler can't reach a provider, expose the *last active context*
+  via a lightweight singleton (`ErrorReporter.setContext({conversationId,
+  messageId, ...})` updated by `ChatProvider` / `RoomProvider` on
+  navigation). On error, the reporter reads the singleton. This is the
+  same "cheap to re-pick per session" pattern the spoken-language pref
+  (idea 13) uses — no backend column, just in-memory.
+- [ ] `easy-med` **Admin triage: surface metadata** — The existing
+  `ReportsTab` (`lib/features/admin/...`, idea 14) shows title/description/
+  status. Extend it to render the `metadata` JSON (conversation id → deep
+  link to the conversation, stack trace in an expandable, platform/severity
+  badges) so an admin triaging an auto-filed bug can jump straight to the
+  failing conversation and reproduce. Keep manual bug reports (no metadata)
+  looking identical.
+- [ ] `easy` **Tests** — Backend: exception handler files a Report with a
+  traceback into `metadata` and re-raises; rate-limit dedupes identical
+  exceptions within the window; 4xx don't file. Chat-path helper files with
+  `conversation_id` + `message_id`. Frontend: `ErrorReporter` debounces by
+  fingerprint within a session; the report POST is excluded from the
+  interceptor (no recursion); `setContext` is read at report time.
+- [ ] `easy` **Docs** — `docs/api.md` (new `metadata`/`conversation_id`/
+  `severity`/`source` fields on `ReportCreate`/`ReportOut`, note that
+  `POST /reports` now accepts them), `docs/database.md` (`reports` new
+  columns), `docs/architecture.md` (error→Report pipeline on both stacks),
+  and a help entry ("How do I report a bug?" already exists from idea 14 —
+  add a note that errors are auto-reported unless you opt out). Add an env
+  var / settings toggle to disable auto-filing (e.g. `auto_error_reports:
+  bool = true`) in `docs/environment.md` for self-hosters who don't want
+  their server filing reports to itself.
 

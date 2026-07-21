@@ -86,6 +86,23 @@ class MCPService:
         )
         return list(result.scalars().all())
 
+    async def list_visible_servers(
+        self,
+        user_email: str | None,
+        *,
+        enabled_only: bool = True,
+    ) -> list[MCPServer]:
+        """Return server configs visible to a caller.
+
+        Detached workflow runners need the connection definitions themselves,
+        not a discovered tool list, so they can seed the same allowed MCPs into
+        opencode without copying credentials into ``WorkflowRun.scope``.
+        """
+        servers = await self._servers_visible_to(user_email)
+        if enabled_only:
+            servers = [server for server in servers if server.enabled]
+        return servers
+
     async def get_server(self, server_id: str) -> MCPServer | None:
         result = await self.db.execute(select(MCPServer).where(MCPServer.id == server_id))
         return result.scalar_one_or_none()

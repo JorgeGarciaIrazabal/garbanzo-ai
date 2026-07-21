@@ -4377,11 +4377,35 @@ abstract class AppLocalizations {
   /// **'Workflow failed'**
   String get messageWorkflowFailed;
 
-  /// Snackbar when confirming a workflow with no folder attached.
+  /// Button that exports a finished research workflow as markdown.
   ///
   /// In en, this message translates to:
-  /// **'Attach a folder to this chat first.'**
-  String get messageWorkflowNeedsFolder;
+  /// **'Download'**
+  String get messageWorkflowDownload;
+
+  /// Snackbar when exporting a research workflow fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t download the research report.'**
+  String get messageWorkflowDownloadFailed;
+
+  /// Share sheet and save-dialog title for workflow research output.
+  ///
+  /// In en, this message translates to:
+  /// **'Research report'**
+  String get messageWorkflowResearchReport;
+
+  /// Title of the /agent composer command.
+  ///
+  /// In en, this message translates to:
+  /// **'Agent'**
+  String get messageAgentCommandTitle;
+
+  /// Description of the /agent composer command.
+  ///
+  /// In en, this message translates to:
+  /// **'Run this task with the autonomous agent'**
+  String get messageAgentCommandDescription;
 
   /// Button opening the finished workflow's diff.
   ///

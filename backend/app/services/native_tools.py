@@ -73,12 +73,6 @@ FOLDER_TOOLS = frozenset({READ_FILE_TOOL, LIST_FILES_TOOL})
 # auth and keeping the model out of the execution path).
 PROPOSAL_TOOLS = (CREATE_ROOM_TOOL, SET_STYLE_TOOL, DELEGATE_WORKFLOW_TOOL)
 
-# Tools that execute in-process but are only *advertised* under a condition,
-# so they stay out of the default descriptor list. ``delegate_workflow``
-# needs an attached folder to snapshot, so it appears only alongside the
-# folder tools (see ``workflow_tool_descriptors``).
-_GATED_TOOLS = frozenset({DELEGATE_WORKFLOW_TOOL})
-
 # Appended to the system prompt when app_help is available. Models reliably
 # call tools they were told exist; without the nudge, "how do I…" questions
 # about the app get hallucinated UI instead of a lookup.
@@ -114,6 +108,19 @@ DELEGATE_WORKFLOW_NUDGE = (
     "Never claim you cannot access the user's local files or ask them to "
     "paste the contents — the tools above are already connected to that "
     "folder."
+)
+
+DELEGATE_RESEARCH_NUDGE = (
+    "You can hand complex, multi-step work to the autonomous agent by calling "
+    "delegate_workflow, even though no folder is attached. Use it for deep "
+    "research, broad comparisons, investigations that need several sources, "
+    "or other work that benefits from running independently for several "
+    "minutes. The agent starts immediately in an empty server-side workspace, "
+    "can reason and use webfetch plus the MCP tools allowed in this "
+    "conversation, and posts its final markdown report back here. For quick "
+    "lookups and ordinary questions, answer normally. If the user's message "
+    "starts with /agent, you MUST call delegate_workflow exactly once with the "
+    "text after /agent as a complete instruction."
 )
 
 
@@ -734,19 +741,19 @@ _PROPOSAL_NOTE = (
 )
 
 # delegate_workflow is NOT confirmed by the user: the app starts the run as
-# soon as this returns. The real gate is downstream — the diff is reviewed
-# file-by-file before anything is written to disk — so a second "are you sure"
-# up front would only add friction. The model must describe it as underway.
+# soon as this returns. The model must describe it as underway, not completed.
 _DELEGATE_STARTED_NOTE = (
-    "The workflow has STARTED — the app is uploading a copy of the folder and "
-    "the agent is now working on it. This takes minutes and has NOT finished. "
+    "The workflow has STARTED — the autonomous agent is now working on it. "
+    "This takes minutes and has NOT finished. "
     "Tell the user only that the work is underway and that the progress line "
     "in the chat will show the result. "
-    "CRITICAL: nothing on their disk has changed yet. Do NOT say a file has "
+    "CRITICAL: do NOT say a file has "
     "been created, written, saved, updated, or added; do NOT describe its "
-    "contents or claim the task is done. The agent works on a COPY; when the "
-    "run finishes the app applies its changes to the folder automatically and "
-    "posts a summary in this conversation. "
+    "contents or claim the task is done. For a folder run, nothing on their "
+    "disk has changed yet. If a folder is attached, the agent "
+    "works on a COPY and the app applies its changes automatically when done. "
+    "Without a folder, it runs as research and posts a downloadable markdown "
+    "report in this conversation. "
     "Do NOT ask them to confirm anything either — it is already running."
 )
 
@@ -1108,19 +1115,21 @@ _DELEGATE_WORKFLOW_DESCRIPTOR: dict[str, Any] = {
     "function": {
         "name": DELEGATE_WORKFLOW_TOOL,
         "description": (
-            "Write to the folder the user attached to this conversation, by "
-            "handing the job to an autonomous coding agent. This is the ONLY "
-            "way to create, edit, or delete the user's files — use it for any "
-            "write, from a single new file to a large multi-step task the "
-            "agent works on for several minutes: 'create a summary README', "
+            "Return a proposal that hands complex work to an autonomous agent "
+            "that runs independently "
+            "for several minutes. Without an attached folder, use it for deep "
+            "research, multi-source investigations, and broad comparisons; "
+            "the result is a markdown report. With an attached folder, this "
+            "is also the ONLY way to create, edit, or delete the user's files — use it for any "
+            "write, from a single new file to a large multi-step task: "
+            "'create a summary README', "
             "'refactor this module', 'add tests for the whole package', "
             "'find and fix every occurrence of X'. Do NOT use it for "
             "questions you can answer by reading one or two files, or for "
-            "anything that needs no changes. Calling this STARTS the work "
-            "immediately — no "
-            "confirmation is asked. The app uploads a copy of the folder, the "
-            "agent works on that copy, and the user reviews the resulting "
-            "changes before anything is written back to their disk. "
+            "simple questions or quick lookups. Calling this STARTS the work "
+            "immediately — no confirmation is asked. Folder runs work on an "
+            "uploaded copy and auto-apply the resulting changes. Research runs "
+            "start in an empty server-side workspace. "
             "Write the instruction as a complete, self-contained brief — the "
             "agent cannot see this conversation."
         ),
@@ -1172,7 +1181,7 @@ async def _execute_delegate_workflow(
 
 
 def workflow_tool_descriptors() -> list[dict[str, Any]]:
-    """Descriptor for ``delegate_workflow`` (needs an attached folder)."""
+    """Descriptor for ``delegate_workflow`` (folder or research mode)."""
     return [_DELEGATE_WORKFLOW_DESCRIPTOR]
 
 
@@ -1202,16 +1211,8 @@ _NATIVE_TOOL_REGISTRY: dict[str, tuple[dict[str, Any], Any]] = {
 
 
 def native_tool_descriptors() -> list[dict[str, Any]]:
-    """Descriptors for the always-available native tools.
-
-    Gated tools (``delegate_workflow``) are excluded — they're appended by the
-    caller when their precondition holds.
-    """
-    return [
-        desc
-        for name, (desc, _executor) in _NATIVE_TOOL_REGISTRY.items()
-        if name not in _GATED_TOOLS
-    ]
+    """Descriptors for the always-available native tools."""
+    return [desc for desc, _executor in _NATIVE_TOOL_REGISTRY.values()]
 
 
 def native_tool_lookup() -> dict[str, tuple[str, str]]:

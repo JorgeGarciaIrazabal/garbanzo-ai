@@ -16,6 +16,7 @@ WorkflowStatus = Literal[
     "error",
     "cancelled",
 ]
+WorkflowMode = Literal["folder", "research"]
 
 # Terminal statuses — the client stops polling once a run reaches one.
 TERMINAL_STATUSES = frozenset({"done", "error", "cancelled"})
@@ -31,6 +32,10 @@ class WorkflowCreate(BaseModel):
     """Create a run in ``draft``; nothing executes until ``/start``."""
 
     instruction: str = Field(..., min_length=1, max_length=10000)
+    mode: WorkflowMode = Field(
+        default="folder",
+        description="folder uploads a client snapshot; research starts from an empty workdir.",
+    )
     conversation_id: str | None = None
     room_id: str | None = None
     tool_call_id: str | None = Field(default=None, max_length=64)

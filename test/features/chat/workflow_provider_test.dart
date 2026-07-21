@@ -12,6 +12,7 @@ import 'package:garbanzo_ai/features/chat/providers/workflow_provider.dart';
 import 'package:garbanzo_ai/features/chat/services/chat_service.dart';
 import 'package:garbanzo_ai/features/chat/services/folder_reader.dart';
 import 'package:garbanzo_ai/features/chat/services/workflow_service.dart';
+import 'package:garbanzo_ai/features/chat/services/workflow_output_downloader.dart';
 import 'package:garbanzo_ai/features/chat/models/workflow_run.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -55,6 +56,8 @@ class _FakeWorkflowService extends WorkflowService {
   List<WorkflowChange> changes = [];
   int pollCount = 0;
   List<int> sinceValues = [];
+  final List<String> createdModes = [];
+  final List<String> outputRequests = [];
 
   WorkflowRun _run({
     required String id,
@@ -64,6 +67,7 @@ class _FakeWorkflowService extends WorkflowService {
     String? summary,
     String? error,
     String? conversationId,
+    Map<String, dynamic>? scope,
   }) => WorkflowRun(
     id: id,
     userId: 'u@example.com',
@@ -71,6 +75,7 @@ class _FakeWorkflowService extends WorkflowService {
     instruction: 'do it',
     toolCallId: 'tc-1',
     conversationId: conversationId,
+    scope: scope,
     progress: progress,
     progressTotal: progressTotal,
     summary: summary,
@@ -82,11 +87,15 @@ class _FakeWorkflowService extends WorkflowService {
   @override
   Future<WorkflowRun> create({
     required String instruction,
+    String mode = 'folder',
     String? conversationId,
     String? roomId,
     String? toolCallId,
     String? folderLabel,
-  }) async => _run(id: 'run-1');
+  }) async {
+    createdModes.add(mode);
+    return _run(id: 'run-1', scope: {'mode': mode});
+  }
 
   @override
   Future<void> uploadFiles(
@@ -117,11 +126,34 @@ class _FakeWorkflowService extends WorkflowService {
   @override
   Future<void> markApplied(String runId) async => appliedRuns.add(runId);
 
+  @override
+  Future<String> getOutput(String runId) async {
+    outputRequests.add(runId);
+    return '# Research';
+  }
+
   List<WorkflowRun>? listResponse;
 
   @override
   Future<List<WorkflowRun>> listForConversation(String conversationId) async =>
       listResponse ?? [_run(id: 'run-1', status: 'done', summary: 'all good')];
+}
+
+class _FakeOutputDownloader extends WorkflowOutputDownloader {
+  String? markdown;
+  String? filename;
+  String? title;
+
+  @override
+  Future<void> download({
+    required String markdown,
+    required String filename,
+    required String title,
+  }) async {
+    this.markdown = markdown;
+    this.filename = filename;
+    this.title = title;
+  }
 }
 
 String _sha(String text) => sha256.convert(utf8.encode(text)).toString();
@@ -169,6 +201,41 @@ void main() {
       );
       expect(provider.phaseFor('tc-1'), WorkflowPhase.watching);
       expect(provider.runFor('tc-1')?.id, 'run-1');
+      expect(service.createdModes, ['folder']);
+    });
+
+    test('starts research without walking or uploading a folder', () async {
+      final run = await provider.startFromProposal(
+        toolCallId: 'tc-1',
+        instruction: 'deep research',
+        conversationId: 'conv-1',
+      );
+
+      expect(run, isNotNull);
+      expect(service.createdModes, ['research']);
+      expect(service.uploadBatches, isEmpty);
+      expect(service.started, ['run-1']);
+      expect(provider.phaseFor('tc-1'), WorkflowPhase.watching);
+    });
+
+    test('shares concurrent starts for one proposal', () async {
+      final runs = await Future.wait([
+        provider.startFromProposal(
+          toolCallId: 'tc-1',
+          instruction: 'deep research',
+          conversationId: 'conv-1',
+        ),
+        provider.startFromProposal(
+          toolCallId: 'tc-1',
+          instruction: 'deep research',
+          conversationId: 'conv-1',
+        ),
+      ]);
+
+      expect(service.createdModes, ['research']);
+      expect(service.started, ['run-1']);
+      expect(runs[0]?.id, 'run-1');
+      expect(runs[1]?.id, 'run-1');
     });
 
     test('reports files the snapshot had to leave out', () async {
@@ -369,6 +436,47 @@ void main() {
 
       expect(result.applied, ['a.txt']);
       expect(File('${root.path}/b.txt').existsSync(), isFalse);
+    });
+  });
+
+  group('research output', () {
+    test('downloads markdown through the platform exporter', () async {
+      final downloader = _FakeOutputDownloader();
+      final researchProvider = WorkflowProvider(
+        chat: chat,
+        service: service,
+        outputDownloader: downloader,
+      );
+      addTearDown(researchProvider.dispose);
+      final run = service._run(
+        id: 'research-1',
+        status: 'done',
+        scope: {'mode': 'research'},
+      );
+
+      await researchProvider.downloadOutput(run, title: 'Research report');
+
+      expect(service.outputRequests, ['research-1']);
+      expect(downloader.markdown, '# Research');
+      expect(downloader.filename, 'research-research-1.md');
+      expect(downloader.title, 'Research report');
+    });
+
+    test('does not fetch or apply a diff for a completed research run', () async {
+      service.listResponse = [
+        service._run(
+          id: 'research-1',
+          status: 'done',
+          conversationId: 'conv-1',
+          scope: {'mode': 'research'},
+        ),
+      ];
+
+      await provider.loadForConversation('conv-1');
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+
+      expect(service.appliedRuns, isEmpty);
+      expect(provider.applyResultFor('tc-1'), isNull);
     });
   });
 

@@ -2076,9 +2076,25 @@
   "@messageWorkflowFailed": {
     "description": "Status when a delegated workflow ended in an error."
   },
-  "messageWorkflowNeedsFolder": "Primero adjunta una carpeta a este chat.",
-  "@messageWorkflowNeedsFolder": {
-    "description": "Snackbar when confirming a workflow with no folder attached."
+  "messageWorkflowDownload": "Descargar",
+  "@messageWorkflowDownload": {
+    "description": "Button that exports a finished research workflow as markdown."
+  },
+  "messageWorkflowDownloadFailed": "No se pudo descargar el informe de investigación.",
+  "@messageWorkflowDownloadFailed": {
+    "description": "Snackbar when exporting a research workflow fails."
+  },
+  "messageWorkflowResearchReport": "Informe de investigación",
+  "@messageWorkflowResearchReport": {
+    "description": "Share sheet and save-dialog title for workflow research output."
+  },
+  "messageAgentCommandTitle": "Agente",
+  "@messageAgentCommandTitle": {
+    "description": "Title of the /agent composer command."
+  },
+  "messageAgentCommandDescription": "Ejecuta esta tarea con el agente autónomo",
+  "@messageAgentCommandDescription": {
+    "description": "Description of the /agent composer command."
   },
   "actionReviewChanges": "Revisar cambios",
   "@actionReviewChanges": {

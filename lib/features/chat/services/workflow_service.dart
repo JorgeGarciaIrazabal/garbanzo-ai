@@ -27,6 +27,7 @@ class WorkflowService {
 
   Future<WorkflowRun> create({
     required String instruction,
+    String mode = 'folder',
     String? conversationId,
     String? roomId,
     String? toolCallId,
@@ -36,6 +37,7 @@ class WorkflowService {
       '/api/v1/workflows',
       data: {
         'instruction': instruction,
+        'mode': mode,
         'conversation_id': ?conversationId,
         'room_id': ?roomId,
         'tool_call_id': ?toolCallId,
@@ -91,6 +93,12 @@ class WorkflowService {
     return (data['changes'] as List)
         .map((e) => WorkflowChange.fromJson(e as Map<String, dynamic>))
         .toList();
+  }
+
+  /// Fetch the durable markdown report produced by a research-mode run.
+  Future<String> getOutput(String runId) async {
+    final response = await _api.get('/api/v1/workflows/$runId/output');
+    return response.data?.toString() ?? '';
   }
 
   /// Tell the server the diff has been applied so it can drop the snapshot.

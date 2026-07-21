@@ -25,13 +25,13 @@ from app.services.native_tools import (
 
 
 def test_all_ungated_native_tools_advertised():
-    # delegate_workflow is a registry native but only advertised when a folder
-    # is attached, so it is deliberately absent from the default descriptors.
+    # delegate_workflow is folder-independent: without a client folder it
+    # starts a research run in an empty server-side workdir.
     names = {d["function"]["name"] for d in native_tool_descriptors()}
-    assert names == set(ALL_NATIVE_TOOLS) - {DELEGATE_WORKFLOW_TOOL}
+    assert names == set(ALL_NATIVE_TOOLS)
 
 
-def test_delegate_workflow_is_gated_behind_its_own_accessor():
+def test_delegate_workflow_accessor_matches_the_default_descriptor():
     workflow_names = {d["function"]["name"] for d in workflow_tool_descriptors()}
     assert workflow_names == {DELEGATE_WORKFLOW_TOOL}
     assert DELEGATE_WORKFLOW_TOOL in ALL_NATIVE_TOOLS

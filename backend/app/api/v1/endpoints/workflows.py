@@ -1,14 +1,13 @@
 """Delegated opencode workflow runs (idea 18).
 
-The client confirms a ``delegate_workflow`` proposal, uploads a snapshot of its
-attached folder, and starts the run. Execution is detached from this request —
-``/start`` returns as soon as the task is scheduled, and the client follows
-along with ``GET /workflows/{id}?since=<cursor>``.
+Folder runs upload a client snapshot; research runs start with an empty
+server-side workdir. Execution is detached from the request, and the client
+follows along with ``GET /workflows/{id}?since=<cursor>``.
 """
 
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import get_current_user
@@ -77,14 +76,24 @@ async def create_workflow(
     current_user: Annotated[dict[str, Any], Depends(get_current_user)],
     service: Annotated[WorkflowService, Depends(get_service)],
 ) -> WorkflowOut:
-    run = await service.create(
-        user_id=current_user["email"],
-        instruction=data.instruction,
-        conversation_id=data.conversation_id,
-        room_id=data.room_id,
-        tool_call_id=data.tool_call_id,
-        folder_label=data.folder_label,
-    )
+    try:
+        mcp_tools = (
+            await service.conversation_mcp_tools(data.conversation_id, current_user["email"])
+            if data.conversation_id
+            else []
+        )
+        run = await service.create(
+            user_id=current_user["email"],
+            instruction=data.instruction,
+            conversation_id=data.conversation_id,
+            room_id=data.room_id,
+            tool_call_id=data.tool_call_id,
+            folder_label=data.folder_label,
+            mode=data.mode,
+            mcp_tools=mcp_tools,
+        )
+    except WorkflowError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     return _to_out(run)
 
 
@@ -176,7 +185,39 @@ async def get_changes(
             status_code=status.HTTP_409_CONFLICT,
             detail="This workflow is still running.",
         )
-    return WorkflowChanges(run_id=run.id, changes=await service.compute_changes(run))
+    try:
+        changes = await service.compute_changes(run)
+    except WorkflowError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    return WorkflowChanges(run_id=run.id, changes=changes)
+
+
+@router.get(
+    "/{run_id}/output",
+    response_class=Response,
+    summary="Download a completed research workflow's markdown output",
+)
+async def get_output(
+    run_id: str,
+    current_user: Annotated[dict[str, Any], Depends(get_current_user)],
+    service: Annotated[WorkflowService, Depends(get_service)],
+) -> Response:
+    run = await _owned(run_id, current_user["email"], service)
+    if (run.scope or {}).get("mode", "folder") != "research":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Only research workflows have downloadable output.",
+        )
+    if run.status != "done":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This workflow has not completed successfully.",
+        )
+    return Response(
+        content=run.summary or "",
+        media_type="text/markdown",
+        headers={"Content-Disposition": f'attachment; filename="research-{run.id}.md"'},
+    )
 
 
 @router.post(
@@ -190,4 +231,9 @@ async def mark_applied(
     service: Annotated[WorkflowService, Depends(get_service)],
 ) -> None:
     run = await _owned(run_id, current_user["email"], service)
+    if (run.scope or {}).get("mode", "folder") != "folder":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Research workflows have no file changes to apply.",
+        )
     await service.cleanup(run)

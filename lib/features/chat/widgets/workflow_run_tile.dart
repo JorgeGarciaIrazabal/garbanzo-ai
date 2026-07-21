@@ -13,10 +13,8 @@ import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 /// transcript — deliberately *not* a card.
 ///
 /// The run needs no decision from the user: it starts on its own, and the
-/// diff is **auto-applied** to the user's folder when it finishes. The only
-/// feedback the user gets here is the result of that write-back — how many
-/// files landed, and any conflicts or write failures. Undo is a separate
-/// "revert" native action (see IDEAS.md), not a pre-apply review gate.
+/// Folder runs auto-apply their diff when finished. Research runs never touch
+/// folder I/O and instead expose their markdown report for download/share.
 class WorkflowRunTile extends StatefulWidget {
   const WorkflowRunTile({super.key, required this.message});
 
@@ -30,6 +28,7 @@ class _WorkflowRunTileState extends State<WorkflowRunTile> {
   bool _expanded = false;
   bool _ready = false;
   bool _autoStarted = false;
+  bool _downloading = false;
 
   /// Providers resolved once, up front, and held as fields.
   ///
@@ -175,11 +174,58 @@ class _WorkflowRunTileState extends State<WorkflowRunTile> {
           // The auto-apply result sits under the header when the run is done,
           // so finished work doesn't look like it vanished. Undo is a separate
           // revert action — no "Review changes" button here anymore.
-          if (phase == WorkflowPhase.done && run != null)
+          if (phase == WorkflowPhase.done && run != null && !run.isResearch)
             _applyResultLine(theme, workflows, run),
+          if (phase == WorkflowPhase.done && run?.isResearch == true)
+            _downloadButton(theme, run!),
         ],
       ),
     );
+  }
+
+  Widget _downloadButton(ThemeData theme, WorkflowRun run) {
+    final l10n = AppLocalizations.of(context)!;
+    return Padding(
+      padding: const EdgeInsets.only(left: 6, top: 4),
+      child: OutlinedButton.icon(
+        key: const ValueKey('workflow_download_output'),
+        onPressed: _downloading ? null : () => _download(run),
+        icon: _downloading
+            ? const SizedBox(
+                width: 14,
+                height: 14,
+                child: CircularProgressIndicator(strokeWidth: 1.5),
+              )
+            : const Icon(Icons.download_outlined, size: 16),
+        label: Text(l10n.messageWorkflowDownload),
+        style: OutlinedButton.styleFrom(
+          visualDensity: VisualDensity.compact,
+          foregroundColor: theme.colorScheme.primary,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _download(WorkflowRun run) async {
+    setState(() => _downloading = true);
+    try {
+      await _workflows.downloadOutput(
+        run,
+        title: AppLocalizations.of(context)!.messageWorkflowResearchReport,
+      );
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(context)!.messageWorkflowDownloadFailed,
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _downloading = false);
+    }
   }
 
   Widget _applyResultLine(
@@ -384,7 +430,9 @@ class _WorkflowRunTileState extends State<WorkflowRunTile> {
               ),
             ),
           ],
-          if (phase == WorkflowPhase.done && toolCallId != null) ...[
+          if (phase == WorkflowPhase.done &&
+              toolCallId != null &&
+              run?.isResearch != true) ...[
             ..._applyDetailLines(theme, workflows.applyResultFor(toolCallId)),
           ],
           if (phase == WorkflowPhase.failed) ...[
@@ -430,14 +478,6 @@ class _WorkflowRunTileState extends State<WorkflowRunTile> {
     if (toolCallId == null) return;
     final conversationId = _chat.currentConversation?.id;
     final folder = _chat.clientFolderFor(conversationId);
-
-    if (folder == null) {
-      _workflows.reportStartFailure(
-        toolCallId,
-        'No folder is attached to this chat on this device.',
-      );
-      return;
-    }
 
     await _workflows.startFromProposal(
       toolCallId: toolCallId,

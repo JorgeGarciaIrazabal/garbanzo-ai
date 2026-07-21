@@ -11,6 +11,7 @@ import 'package:garbanzo_ai/features/chat/services/folder_reader.dart';
 import 'package:garbanzo_ai/features/chat/services/folder_walk.dart';
 import 'package:garbanzo_ai/features/chat/services/folder_writer.dart';
 import 'package:garbanzo_ai/features/chat/services/workflow_service.dart';
+import 'package:garbanzo_ai/features/chat/services/workflow_output_downloader.dart';
 
 /// Outcome of writing a finished run's diff back into the local folder.
 class ApplyResult {
@@ -82,12 +83,15 @@ class WorkflowProvider extends ChangeNotifier {
     WorkflowService? service,
     FolderReader reader = const FolderReader(),
     FolderWriter writer = const FolderWriter(),
+    WorkflowOutputDownloader outputDownloader =
+        const WorkflowOutputDownloader(),
     this.maxSnapshotFiles = 2000,
     this.maxSnapshotBytes = 50 * 1024 * 1024,
   }) : _chat = chat,
        _service = service ?? WorkflowService.instance,
        _reader = reader,
-       _writer = writer;
+       _writer = writer,
+       _outputDownloader = outputDownloader;
 
   /// The chat provider that owns the per-conversation attached-folder path
   /// and the current-conversation id. Held so the auto-apply kicked off
@@ -98,6 +102,7 @@ class WorkflowProvider extends ChangeNotifier {
   final WorkflowService _service;
   final FolderReader _reader;
   final FolderWriter _writer;
+  final WorkflowOutputDownloader _outputDownloader;
 
   /// Snapshot budgets, mirroring the backend's upload caps.
   final int maxSnapshotFiles;
@@ -191,6 +196,11 @@ class WorkflowProvider extends ChangeNotifier {
   final Map<String, ({int skipped, bool truncated})> _snapshotGaps = {};
   final Map<String, Timer> _pollers = {};
 
+  /// A proposal tile can be rebuilt while its first start request is awaiting
+  /// the server. Share that request across tile instances so one proposal
+  /// cannot create two detached agent runs.
+  final Map<String, Future<WorkflowRun?>> _startsInFlight = {};
+
   /// Conversations already hydrated, so N cards on screen trigger one fetch.
   final Set<String> _loadedConversations = {};
 
@@ -272,59 +282,101 @@ class WorkflowProvider extends ChangeNotifier {
     }
   }
 
-  /// Record a failure that happened before a run could even be created (e.g.
-  /// no folder attached on this device), so the card shows it like any other.
-  void reportStartFailure(String toolCallId, String message) {
-    _errors[toolCallId] = message;
-    _setPhase(toolCallId, WorkflowPhase.failed);
-  }
-
-  /// Start a `delegate_workflow` task: snapshot the folder, upload it,
-  /// and start the detached run.
+  /// Start a detached `delegate_workflow` task, optionally uploading a folder
+  /// snapshot before launch.
   ///
   /// Everything before [WorkflowService.start] is client-side work on the
   /// user's machine — the backend only ever receives uploaded bytes.
   Future<WorkflowRun?> startFromProposal({
     required String toolCallId,
     required String instruction,
-    required String folderRoot,
+    String? folderRoot,
+    String? conversationId,
+    String? roomId,
+  }) {
+    final inFlight = _startsInFlight[toolCallId];
+    if (inFlight != null) return inFlight;
+
+    final completer = Completer<WorkflowRun?>();
+    _startsInFlight[toolCallId] = completer.future;
+
+    Future<void> start() async {
+      try {
+        completer.complete(
+          await _startFromProposal(
+            toolCallId: toolCallId,
+            instruction: instruction,
+            folderRoot: folderRoot,
+            conversationId: conversationId,
+            roomId: roomId,
+          ),
+        );
+      } catch (error, stackTrace) {
+        completer.completeError(error, stackTrace);
+      } finally {
+        if (identical(_startsInFlight[toolCallId], completer.future)) {
+          _startsInFlight.remove(toolCallId)?.ignore();
+        }
+      }
+    }
+
+    unawaited(start());
+    return completer.future;
+  }
+
+  Future<WorkflowRun?> _startFromProposal({
+    required String toolCallId,
+    required String instruction,
+    String? folderRoot,
     String? conversationId,
     String? roomId,
   }) async {
     _errors.remove(toolCallId);
-    _setPhase(toolCallId, WorkflowPhase.walking);
+    final isResearch = folderRoot == null;
+    _setPhase(
+      toolCallId,
+      isResearch ? WorkflowPhase.idle : WorkflowPhase.walking,
+    );
     try {
-      final FolderWalk walk = _reader.walk(
-        folderRoot,
-        maxFiles: maxSnapshotFiles,
-        maxTotalBytes: maxSnapshotBytes,
-      );
-      if (walk.isEmpty) {
-        throw const FolderReadError(
-          'The attached folder has no readable files to work on.',
+      FolderWalk? walk;
+      if (!isResearch) {
+        walk = _reader.walk(
+          folderRoot,
+          maxFiles: maxSnapshotFiles,
+          maxTotalBytes: maxSnapshotBytes,
         );
+        if (walk.isEmpty) {
+          throw const FolderReadError(
+            'The attached folder has no readable files to work on.',
+          );
+        }
       }
       // Anything left out of the snapshot is something the agent will never
       // see — large binaries (a big .pptx/.xlsx clears the 5 MB per-file cap
       // easily) or files past the folder budget. Surfacing this beats letting
       // the user assume the whole project was sent.
-      _snapshotGaps[toolCallId] = (
-        skipped: walk.skipped.length,
-        truncated: walk.truncated,
-      );
+      if (walk != null) {
+        _snapshotGaps[toolCallId] = (
+          skipped: walk.skipped.length,
+          truncated: walk.truncated,
+        );
+      }
 
       final run = await _service.create(
         instruction: instruction,
+        mode: isResearch ? 'research' : 'folder',
         conversationId: conversationId,
         roomId: roomId,
         toolCallId: toolCallId,
-        folderLabel: folderRoot.split(RegExp(r'[/\\]')).last,
+        folderLabel: folderRoot?.split(RegExp(r'[/\\]')).last,
       );
       _runs[run.id] = run;
       _runIdByToolCall[toolCallId] = run.id;
 
-      _setPhase(toolCallId, WorkflowPhase.uploading);
-      await _uploadSnapshot(toolCallId, run.id, folderRoot, walk);
+      if (walk != null) {
+        _setPhase(toolCallId, WorkflowPhase.uploading);
+        await _uploadSnapshot(toolCallId, run.id, folderRoot!, walk);
+      }
 
       final started = await _service.start(run.id);
       _runs[started.id] = started;
@@ -420,6 +472,16 @@ class WorkflowProvider extends ChangeNotifier {
   Future<List<WorkflowChange>> fetchChanges(String runId) =>
       _service.getChanges(runId);
 
+  /// Export a finished research report without touching folder I/O.
+  Future<void> downloadOutput(WorkflowRun run, {required String title}) async {
+    final markdown = await _service.getOutput(run.id);
+    await _outputDownloader.download(
+      markdown: markdown,
+      filename: 'research-${run.id}.md',
+      title: title,
+    );
+  }
+
   /// Runs whose auto-apply is currently in flight, so the poll-terminal path
   /// and a concurrent `loadForConversation` can't both write the same diff.
   final Set<String> _applying = {};
@@ -434,6 +496,7 @@ class WorkflowProvider extends ChangeNotifier {
   /// attempt records nothing, so the next launch retries.
   Future<void> _maybeApplyOnDone(WorkflowRun run) async {
     if (run.status != 'done' || _isDisposed) return;
+    if (run.isResearch) return;
     await _loadAppliedRuns();
     if (_appliedRuns.containsKey(run.id)) return;
     if (!_applying.add(run.id)) return;

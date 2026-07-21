@@ -9,8 +9,10 @@ Type in the input bar and press Enter (or the send button). While the
 assistant is replying you can press the stop button to cancel generation.
 
 ## What do / and # do in the input bar?
-Typing `/` at the start of a word suggests your prompt templates — picking
-one pastes its content into the field, ready to edit and send. Typing `#`
+Typing `/` at the start of a word suggests prompt templates and the **Agent**
+command. Picking a template pastes its content into the field. Use `/agent`
+followed by a task to force the autonomous agent instead of a normal chat
+response. Typing `#`
 suggests available tools; picking one inserts a `#tool_name` mention that
 nudges the assistant to use that tool for your request. Use the arrow keys
 and Enter (or tap) to pick a suggestion; Esc dismisses it.
@@ -57,6 +59,19 @@ Three things worth knowing:
   never uploaded, and files over 5 MB are skipped. Expanding the progress
   line tells you when something was left out — the agent can't act on what
   it never received.
+
+## Can I use the agent without attaching a folder?
+Yes. Ask for deep research or another complex, multi-step task and the
+assistant can delegate it with no folder attached. To force delegation, start
+the message with `/agent`, for example `/agent deep research on the 2026 World
+Cup`.
+
+Folderless work runs on the server in an empty workspace, can use web research
+and the MCP tools allowed in this conversation, and keeps running if you close
+the app. It never reads or writes files on your device, so it works on web and
+Android as well as desktop. When it finishes, use **Download** on the progress
+line to export the markdown report (share sheet on web/Android, Save As on
+desktop).
 
 ## Can it work on slides, spreadsheets, or images?
 Your files come back **byte-for-byte intact** — a `.xlsx` or `.pptx` the agent

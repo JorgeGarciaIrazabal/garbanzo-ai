@@ -106,7 +106,15 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
   /// edit and send.
   List<MentionCandidate> _templateCandidates() {
     final templates = context.read<SystemPromptProvider>().templates;
+    final l10n = AppLocalizations.of(context)!;
     return [
+      MentionCandidate(
+        kind: MentionKind.agent,
+        id: 'command:agent',
+        label: l10n.messageAgentCommandTitle,
+        sublabel: l10n.messageAgentCommandDescription,
+        insertText: '/agent',
+      ),
       for (final t in templates)
         if (t.content.trim().isNotEmpty)
           MentionCandidate(

@@ -16,7 +16,7 @@ when you add or change an endpoint, update the matching row in the same commit.
 | **Knowledge Base** | `POST /kb/documents`, `GET /kb/documents`, `GET /kb/documents/{id}`, `DELETE /kb/documents/{id}`, `GET /kb/search` |
 | **Rooms** | `POST /rooms`, `GET /rooms`, `GET /rooms/search`, `GET /rooms/{id}`, `PATCH /rooms/{id}`, `DELETE /rooms/{id}`, `GET /rooms/{id}/members`, `POST /rooms/{id}/members`, `DELETE /rooms/{id}/members/{email}`, `PATCH /rooms/{id}/members/me/mute`, `GET /rooms/{id}/agents`, `POST /rooms/{id}/agents`, `PATCH /rooms/{id}/agents/{id}`, `DELETE /rooms/{id}/agents/{id}`, `GET /rooms/{id}/messages`, `POST /rooms/{id}/chat`, `GET /rooms/{id}/export`, `WS /rooms/{id}` |
 | **Micro-apps** | `POST /microapps/workspace`, `GET /microapps/workspace`, `DELETE /microapps/workspace`, `GET /microapps/apps`, `GET /microapps/houses`, `POST /microapps/houses`, `POST /microapps/agent/chat`, `POST /microapps/agent/abort`, `GET /microapps/changes`, `POST /microapps/publish`, `POST /microapps/revert` |
-| **Workflows** | `POST /workflows` (create a delegated opencode run in `draft` — idea 18; body `{instruction, conversation_id?, room_id?, tool_call_id?, folder_label?}`), `GET /workflows?conversation_id=` (hydrate proposal cards after a reload), `POST /workflows/{id}/files` (upload one batch of the folder snapshot: `{files:[{path, data(base64)}]}`; 400 on an escaping path or a budget overrun), `POST /workflows/{id}/start` (git-baselines the snapshot and launches the **detached** run; 409 if already started), `GET /workflows/{id}?since=` (status + only the progress after the cursor), `GET /workflows/{id}/changes` (the run's git diff; 409 while still running — the client auto-applies this on terminal status, no review gate), `POST /workflows/{id}/applied` (204 — drop the server-side snapshot once the client has written the diff) |
+| **Workflows** | `POST /workflows` (create a delegated opencode run in `draft`; body `{instruction, mode:"folder"|"research", conversation_id?, room_id?, tool_call_id?, folder_label?}`), `GET /workflows?conversation_id=` (hydrate proposal cards after reload), `POST /workflows/{id}/files` (folder mode only: upload a snapshot batch), `POST /workflows/{id}/start` (git-baseline the folder snapshot or empty research workdir and launch the **detached** run), `GET /workflows/{id}?since=` (status + progress after the cursor), `GET /workflows/{id}/changes` and `POST /workflows/{id}/applied` (folder mode diff/cleanup), `GET /workflows/{id}/output` (completed research mode: markdown summary attachment) |
 | **MCP (Tools)** | `GET /mcp/tools`, `GET /mcp/servers`, `POST /mcp/servers`, `PATCH /mcp/servers/{id}`, `DELETE /mcp/servers/{id}`, `POST /mcp/servers/{id}/test-connection` |
 | **Notifications** | `GET /notifications`, `GET /notifications/unread-count`, `POST /notifications/read-all`, `PATCH /notifications/{id}/read`, `DELETE /notifications/{id}`, `GET /notifications/preferences`, `PATCH /notifications/preferences` |
 | **Devices** | `POST /devices/register`, `DELETE /devices/register` |
@@ -50,3 +50,10 @@ and `workdir` is never serialized to a client. `/changes` returns each file's
 `base_sha256` — the hash of what was uploaded — so the client can refuse to
 overwrite a file the user edited while the run was going, reporting it as a
 conflict instead.
+
+Folderless delegation uses the same lifecycle with `scope.mode = "research"`:
+`/start` git-initializes an empty server workdir, opencode receives the MCP
+allowance captured from the originating conversation, and no upload, diff, or
+local apply occurs. The durable `summary` is posted into chat and served as
+markdown by `/output`. A leading `/agent` command forces this proposal path
+instead of leaving tool choice to the chat model.

@@ -1,0 +1,7 @@
+name = "backend_agent"
+description = "Senior FastAPI backend engineer for Garbanzo AI."
+developer_instructions = """
+You are the backend agent for Garbanzo AI. Before acting, read and follow the
+complete role instructions in `.claude/agents/backend-agent.md`. The repository
+AGENTS.md instructions also apply.
+"""

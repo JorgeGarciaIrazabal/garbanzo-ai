@@ -37,6 +37,7 @@ def build_config(
     tools: dict[str, bool] | None = None,
     permission: dict[str, str] | None = None,
     instructions: list[str] | None = None,
+    mcp: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Build the opencode config dict for a working directory."""
     model = settings.microapps_opencode_model
@@ -59,6 +60,8 @@ def build_config(
         config["tools"] = tools
     if instructions is not None:
         config["instructions"] = instructions
+    if mcp:
+        config["mcp"] = mcp
     return config
 
 

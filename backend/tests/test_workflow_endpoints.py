@@ -144,6 +144,45 @@ async def test_full_round_trip(db_session, no_launch, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_research_run_starts_empty_and_downloads_summary(db_session, no_launch):
+    _install_overrides(db_session, _UserSwitch())
+    try:
+        async with _client() as c:
+            run = await _create(c, mode="research")
+            assert run["scope"]["mode"] == "research"
+
+            upload = await c.post(
+                f"/api/v1/workflows/{run['id']}/files",
+                json={"files": [{"path": "no.txt", "data": _b64("no")}]},
+            )
+            assert upload.status_code == 400
+
+            started = await c.post(f"/api/v1/workflows/{run['id']}/start")
+            assert started.status_code == 200
+            assert no_launch == [run["id"]]
+
+            from app.models.workflow_run import WorkflowRun
+
+            row = await db_session.get(WorkflowRun, run["id"])
+            row.status = "done"
+            row.summary = "# Findings\n\nThe answer."
+            await db_session.commit()
+
+            output = await c.get(f"/api/v1/workflows/{run['id']}/output")
+            assert output.status_code == 200
+            assert output.text == "# Findings\n\nThe answer."
+            assert output.headers["content-type"].startswith("text/markdown")
+            assert output.headers["content-disposition"].endswith('.md"')
+
+            changes = await c.get(f"/api/v1/workflows/{run['id']}/changes")
+            assert changes.status_code == 409
+            applied = await c.post(f"/api/v1/workflows/{run['id']}/applied")
+            assert applied.status_code == 409
+    finally:
+        _clear_overrides()
+
+
+@pytest.mark.asyncio
 async def test_changes_conflict_while_running(db_session, no_launch):
     _install_overrides(db_session, _UserSwitch())
     try:
@@ -275,5 +314,22 @@ async def test_list_for_conversation(db_session, test_conversation):
         runs = resp.json()
         assert len(runs) == 1
         assert runs[0]["conversation_id"] == test_conversation.id
+    finally:
+        _clear_overrides()
+
+
+@pytest.mark.asyncio
+async def test_create_captures_conversation_mcp_allowance(db_session, test_conversation):
+    test_conversation.enabled_tools = ["server-1:web_search", "__garbo__:memories"]
+    await db_session.commit()
+    _install_overrides(db_session, _UserSwitch())
+    try:
+        async with _client() as c:
+            run = await _create(
+                c,
+                mode="research",
+                conversation_id=test_conversation.id,
+            )
+        assert run["scope"]["mcp_tools"] == ["server-1:web_search"]
     finally:
         _clear_overrides()

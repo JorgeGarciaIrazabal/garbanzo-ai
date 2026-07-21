@@ -190,12 +190,15 @@ half-migrated schema.
   client that started it disconnects, so its state can't live in the SSE
   stream. `status` flows `draft` → `uploading` → `queued` → `running` →
   `done` | `error` | `cancelled`.
-  - `workdir` is the absolute path of the **server-side snapshot** of the
-    user's folder — the temp directory the client uploaded into, git-init'd
-    with a baseline commit at `/start` so change detection is an exact
-    `git diff`. It is internal: never serialized to a client (`WorkflowOut`
-    omits it), and never a path the client supplied. `POST /{id}/applied`
-    clears it and deletes the directory.
+  - `scope.mode` is `"folder"` or `"research"` (missing on legacy rows means
+    folder). Folder runs upload a snapshot and return a diff. Research runs
+    start empty, skip diff/apply, and expose `summary` as markdown.
+    `scope.mcp_tools` captures the conversation MCP whitelist (`null` = all
+    visible, `[]` = none) without storing connection credentials on the run.
+  - `workdir` is the absolute path of the server-side folder snapshot or empty
+    research scratch directory, git-init'd at `/start`. It is internal and
+    never serialized. Folder mode releases it after `/applied`; research
+    releases it as soon as the terminal summary is persisted.
   - `progress` (JSONB) is the appended list of translated opencode chunks,
     replayed via `GET /{id}?since=<n>`. Streamed text is coalesced into the
     previous entry and the list is capped (2000 entries) so a runaway run

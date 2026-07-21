@@ -1,15 +1,16 @@
 """Tests for the delegate_workflow tool (idea 18).
 
 The tool must never *do* anything itself: it validates and hands back a payload
-the app acts on. It stays hidden unless a folder is attached, since a run works
-on a snapshot of that folder. The prompt-wording tests are regressions from a
-real run where the model claimed it could not write files.
+the app acts on. It is advertised with or without a folder: folder runs edit a
+snapshot, while research runs start from an empty workdir. The prompt-wording
+tests are regressions from real delegation failures.
 """
 
 import pytest
 
 from app.services.native_tools import (
     _DELEGATE_WORKFLOW_DESCRIPTOR,
+    DELEGATE_RESEARCH_NUDGE,
     DELEGATE_WORKFLOW_NUDGE,
     DELEGATE_WORKFLOW_TOOL,
     PROPOSAL_TOOLS,
@@ -64,19 +65,17 @@ def test_nudge_names_the_attached_folder():
     assert client_folder_nudge("") == DELEGATE_WORKFLOW_NUDGE
 
 
-def test_tool_description_leads_with_writing():
+def test_tool_description_covers_research_and_folder_writes():
     description = _DELEGATE_WORKFLOW_DESCRIPTOR["function"]["description"]
-    # A model scanning tool descriptions for "how do I write a file" has to
-    # land on this one.
-    assert description.startswith("Write to the folder")
+    assert "deep research" in description
     assert "ONLY way to create, edit, or delete" in description
     assert "single new file" in description  # not just big refactors
 
 
-def test_not_advertised_by_default():
-    # Without an attached folder there is nothing to snapshot, so the model
-    # must not even see the tool.
-    assert DELEGATE_WORKFLOW_TOOL not in _names(native_tool_descriptors())
+def test_advertised_by_default_for_research():
+    assert DELEGATE_WORKFLOW_TOOL in _names(native_tool_descriptors())
+    assert "deep" in DELEGATE_RESEARCH_NUDGE
+    assert "/agent" in DELEGATE_RESEARCH_NUDGE
 
 
 def test_advertised_via_the_gated_helper():
@@ -87,8 +86,16 @@ def test_is_dispatchable_when_advertised():
     assert DELEGATE_WORKFLOW_TOOL in native_tool_lookup()
 
 
+def test_agent_command_parser_is_leading_and_case_insensitive():
+    from app.services.chat_service import _forced_agent_instruction
+
+    assert _forced_agent_instruction("/agent research this") == "research this"
+    assert _forced_agent_instruction("  /AGENT\tcompare sources") == "compare sources"
+    assert _forced_agent_instruction("please use /agent") is None
+
+
 @pytest.mark.asyncio
-async def test_advertised_only_when_a_folder_is_attached(db_session):
+async def test_advertised_with_and_without_a_folder(db_session):
     from types import SimpleNamespace
 
     from app.services.chat_service import ChatService
@@ -97,7 +104,7 @@ async def test_advertised_only_when_a_folder_is_attached(db_session):
     conversation = SimpleNamespace(id="c", user_id="u@example.com", enabled_tools=None)
 
     without, _ = await svc._resolve_tools_for_conversation(conversation, has_client_folder=False)
-    assert DELEGATE_WORKFLOW_TOOL not in _names(without)
+    assert DELEGATE_WORKFLOW_TOOL in _names(without)
 
     with_folder, lookup = await svc._resolve_tools_for_conversation(
         conversation, has_client_folder=True
@@ -146,6 +153,32 @@ async def test_returns_a_proposal_without_side_effects(db_session):
 
     count = await db_session.scalar(select(func.count()).select_from(WorkflowRun))
     assert count == 0
+
+
+@pytest.mark.asyncio
+async def test_agent_command_forces_a_proposal_without_model_choice(
+    db_session, test_conversation, monkeypatch
+):
+    from app.services.chat_service import ChatService
+
+    monkeypatch.setattr(ChatService, "_spawn_title_generation", lambda *args: None)
+    chunks = [
+        chunk
+        async for chunk in ChatService(db_session).send_message(
+            test_conversation.id,
+            "test@example.com",
+            "/agent research the 2026 World Cup",
+        )
+    ]
+
+    proposals = [
+        chunk.metadata["action_proposal"]
+        for chunk in chunks
+        if chunk.metadata and chunk.metadata.get("action_proposal")
+    ]
+    assert len(proposals) == 1
+    assert proposals[0]["type"] == DELEGATE_WORKFLOW_TOOL
+    assert proposals[0]["payload"]["instruction"] == "research the 2026 World Cup"
 
 
 @pytest.mark.asyncio

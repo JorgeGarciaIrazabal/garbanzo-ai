@@ -19,7 +19,6 @@ from app.services.fcm_service import (
 )
 
 
-@pytest.mark.asyncio
 class TestFCMServiceInit:
     def test_init_firebase_no_credentials_logs_and_returns(self, caplog):
         """init_firebase logs and becomes no-op when credentials missing."""
@@ -333,7 +332,6 @@ class TestFCMServiceSendToUser:
         await db.commit()
 
 
-@pytest.mark.asyncio
 class TestFCMServiceValidChannels:
     def test_valid_channels_constant(self):
         assert {"chat_responses", "reminders", "system_alerts", "friend_updates"} == VALID_CHANNELS

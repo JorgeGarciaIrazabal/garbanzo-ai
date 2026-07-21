@@ -7,6 +7,7 @@ the conversation.
 """
 
 import asyncio
+from pathlib import Path
 
 import pytest
 
@@ -67,6 +68,61 @@ async def _queued_run(db_session, conversation_id=None) -> WorkflowRun:
     )
     await service.start_snapshot(run)
     return run
+
+
+@pytest.mark.asyncio
+async def test_research_run_cleans_up_workdir_after_summary(db_session, monkeypatch, captured_push):
+    service = WorkflowService(db_session)
+    run = await service.create(
+        user_id=OWNER,
+        instruction="research it",
+        mode="research",
+        mcp_tools=[],
+    )
+    await service.start_snapshot(run)
+    workdir = run.workdir
+    _stub_opencode(
+        monkeypatch,
+        [
+            ChatResponseChunk(type="chunk", content="# Report"),
+            ChatResponseChunk(type="done", metadata={}),
+        ],
+    )
+
+    await workflow_runner._run(run.id)
+
+    await db_session.refresh(run)
+    assert run.status == "done"
+    assert run.summary == "# Report"
+    assert run.workdir is None
+    assert not await asyncio.to_thread(Path(workdir).exists)
+
+
+@pytest.mark.asyncio
+async def test_mcp_config_respects_explicit_tool_whitelist(db_session):
+    from app.services.mcp_service import MCPService
+
+    server = await MCPService(db_session).create_server(
+        name="Web Search",
+        transport="stdio",
+        command="search-mcp",
+        args=["--stdio"],
+        env={"TOKEN": "secret"},
+        created_by=OWNER,
+    )
+    config, rules = await workflow_runner._opencode_mcp_config(
+        db_session,
+        OWNER,
+        [f"{server.id}:search"],
+    )
+
+    config_name = next(iter(config))
+    assert config[config_name]["command"] == ["search-mcp", "--stdio"]
+    assert config[config_name]["environment"] == {"TOKEN": "secret"}
+    assert rules == {
+        f"{config_name}_*": False,
+        f"{config_name}_search": True,
+    }
 
 
 @pytest.mark.asyncio

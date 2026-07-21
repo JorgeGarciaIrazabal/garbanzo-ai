@@ -134,6 +134,19 @@ async def test_add_files_refused_after_start(db_session):
         await service.add_files(run, [("b.txt", _b64("late"))])
 
 
+@pytest.mark.asyncio
+async def test_research_run_rejects_folder_upload_and_diff(db_session):
+    service, run = await _new_run(db_session, mode="research", mcp_tools=[])
+    assert run.scope["mode"] == "research"
+    with pytest.raises(WorkflowError, match="do not accept folder uploads"):
+        await service.add_files(run, [("notes.md", _b64("nope"))])
+
+    await service.start_snapshot(run)
+    assert (Path(run.workdir) / ".git").exists()
+    with pytest.raises(WorkflowError, match="do not have file changes"):
+        await service.compute_changes(run)
+
+
 # ---------------------------------------------------------------------------
 # baseline + diff
 # ---------------------------------------------------------------------------

@@ -34,6 +34,7 @@ from typing import Any
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.conversation import Conversation
 from app.models.workflow_run import WorkflowRun
 from app.schemas.workflow import (
     MAX_FILE_BYTES,
@@ -126,6 +127,8 @@ class WorkflowService:
         room_id: str | None = None,
         tool_call_id: str | None = None,
         folder_label: str | None = None,
+        mode: str = "folder",
+        mcp_tools: list[str] | None = None,
     ) -> WorkflowRun:
         """Create a ``draft`` run and its (empty) server-side snapshot dir."""
         workdir = await asyncio.to_thread(tempfile.mkdtemp, prefix=_WORKDIR_PREFIX)
@@ -140,16 +143,47 @@ class WorkflowService:
             workdir=workdir,
             progress=[],
             scope={
+                "mode": mode,
                 "folder_label": folder_label,
                 "file_count": 0,
                 "total_bytes": 0,
                 "permissions": ["edit", "bash", "webfetch"],
+                # None means every enabled MCP visible to this user; a list is
+                # the conversation's explicit tool whitelist (native entries
+                # are removed before it reaches here).
+                "mcp_tools": mcp_tools,
             },
         )
         self.db.add(run)
         await self.db.commit()
         await self.db.refresh(run)
         return run
+
+    async def conversation_mcp_tools(
+        self,
+        conversation_id: str,
+        user_id: str,
+    ) -> list[str] | None:
+        """Return the MCP allowance for a user-owned conversation.
+
+        ``None`` preserves the conversation contract of "all enabled tools";
+        an explicit list keeps only MCP keys because detached opencode does
+        not execute Garbanzo's in-process native tools.
+        """
+        result = await self.db.execute(
+            select(Conversation).where(
+                Conversation.id == conversation_id,
+                Conversation.user_id == user_id,
+                Conversation.is_deleted.is_(False),
+            )
+        )
+        conversation = result.scalar_one_or_none()
+        if conversation is None:
+            raise WorkflowError("Conversation not found.")
+        enabled = conversation.enabled_tools
+        if enabled is None:
+            return None
+        return [key for key in enabled if not key.startswith("__garbo__:")]
 
     async def get(self, run_id: str, user_id: str) -> WorkflowRun | None:
         """Fetch a run owned by ``user_id`` (None if missing or not theirs)."""
@@ -186,6 +220,8 @@ class WorkflowService:
         """
         if run.status not in ("draft", "uploading"):
             raise WorkflowError("This workflow has already started.")
+        if (run.scope or {}).get("mode", "folder") != "folder":
+            raise WorkflowError("Research workflows do not accept folder uploads.")
         if not run.workdir:
             raise WorkflowError("This workflow has no snapshot directory.")
         root = Path(run.workdir)
@@ -311,6 +347,8 @@ class WorkflowService:
 
     async def compute_changes(self, run: WorkflowRun) -> list[WorkflowChange]:
         """Diff the snapshot against its baseline commit."""
+        if (run.scope or {}).get("mode", "folder") != "folder":
+            raise WorkflowError("Research workflows do not have file changes.")
         if not run.workdir:
             return []
         return await asyncio.to_thread(_collect_changes, Path(run.workdir))

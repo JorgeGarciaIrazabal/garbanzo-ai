@@ -10,10 +10,17 @@ from collections.abc import AsyncIterator
 from sqlalchemy import delete, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import get_settings
 from app.models.message import Message
 from app.models.user import User
 from app.schemas.chat import AttachmentIn, ChatOptions, ModelInfo
-from app.services.agent_turn import ProgressEmit, TurnResult, run_agent_turn
+from app.services.agent_turn import (
+    ProgressEmit,
+    TurnResult,
+    run_agent_turn,
+    stringify_tool_result,
+    truncate_tool_result,
+)
 from app.services.chat_context import ChatContextBuilder, build_dynamic_context_block
 from app.services.chat_title import generate_and_persist_title
 from app.services.client_file_extract import extract_file_text
@@ -48,6 +55,8 @@ from app.services.microapp_workspace import manager as microapp_manager
 from app.services.native_tools import (
     APP_HELP_NUDGE,
     APP_HELP_TOOL,
+    DELEGATE_RESEARCH_NUDGE,
+    DELEGATE_WORKFLOW_TOOL,
     FOLDER_TOOLS,
     NATIVE_GARBO_SERVER_ID,
     READ_FILE_TOOL,
@@ -56,7 +65,6 @@ from app.services.native_tools import (
     folder_tool_descriptors,
     native_tool_descriptors,
     native_tool_lookup,
-    workflow_tool_descriptors,
 )
 from app.services.system_prompt_service import SystemPromptService
 from app.services.token_counter import get_token_counter
@@ -64,6 +72,14 @@ from app.services.token_counter import get_token_counter
 MAX_TOOL_ITERATIONS = 5
 
 logger = logging.getLogger(__name__)
+
+
+def _forced_agent_instruction(content: str) -> str | None:
+    """Return the brief after a leading ``/agent`` command, if present."""
+    parts = content.lstrip().split(maxsplit=1)
+    if not parts or parts[0].casefold() != "/agent":
+        return None
+    return parts[1].strip() if len(parts) == 2 else ""
 
 
 class ChatService:
@@ -263,6 +279,7 @@ class ChatService:
             options=options,
             has_client_folder=has_client_folder,
             client_folder_label=client_folder_label,
+            forced_workflow_instruction=_forced_agent_instruction(content),
         ):
             yield chunk
 
@@ -390,6 +407,7 @@ class ChatService:
         async for chunk in self._stream_assistant_turn(
             conversation=conversation,
             options=options,
+            forced_workflow_instruction=_forced_agent_instruction(new_content),
         ):
             yield chunk
 
@@ -405,6 +423,7 @@ class ChatService:
         options: ChatOptions | None = None,
         has_client_folder: bool = False,
         client_folder_label: str | None = None,
+        forced_workflow_instruction: str | None = None,
     ) -> AsyncIterator[ChatChunk]:
         """Stream an LLM response for the current state of ``conversation``.
 
@@ -422,6 +441,23 @@ class ChatService:
             (m.content for m in reversed(existing_messages) if m.role == "user"),
             "",
         )
+
+        if forced_workflow_instruction is not None:
+            confirmation = "I started the autonomous agent. Follow its progress here."
+            async for chunk in self._stream_forced_workflow(
+                conversation,
+                forced_workflow_instruction,
+                confirmation,
+            ):
+                yield chunk
+            if is_first_exchange and forced_workflow_instruction:
+                self._spawn_title_generation(
+                    conversation_id,
+                    conversation.model,
+                    last_user_text,
+                    confirmation,
+                )
+            return
 
         await self._maybe_summarize_context(conversation, existing_messages)
 
@@ -446,6 +482,8 @@ class ChatService:
             dynamic_context += f"\n\n{APP_HELP_NUDGE}"
         if has_client_folder:
             dynamic_context += f"\n\n{client_folder_nudge(client_folder_label)}"
+        elif DELEGATE_WORKFLOW_TOOL in tool_lookup:
+            dynamic_context += f"\n\n{DELEGATE_RESEARCH_NUDGE}"
 
         llm_messages, context_stats = await self._context.build_history_with_system_prompt(
             conversation.messages,
@@ -505,6 +543,78 @@ class ChatService:
         finally:
             ChatService._active_streams.pop(conversation_id, None)
 
+    async def _stream_forced_workflow(
+        self,
+        conversation,
+        instruction: str,
+        confirmation: str,
+    ) -> AsyncIterator[ChatChunk]:
+        """Execute ``/agent`` deterministically without asking the LLM first."""
+        sink = ConversationTurnSink(self.db, conversation)
+        if not instruction:
+            message = (
+                "Add a task after `/agent`, for example: `/agent research the 2026 World Cup`."
+            )
+            await sink.persist_assistant(message, None)
+            await sink.commit()
+            yield ChatChunk(content=message)
+            yield ChatChunk(content="", is_finished=True)
+            return
+
+        call = {
+            "id": str(uuid.uuid4()),
+            "name": DELEGATE_WORKFLOW_TOOL,
+            "arguments": {"instruction": instruction, "summary": instruction[:120]},
+        }
+        await sink.persist_tool_call([call])
+        yield ChatChunk(content="", tool_calls=[call])
+        yield ChatChunk(
+            content="",
+            metadata={
+                "tool_execution": {
+                    "tool_call_id": call["id"],
+                    "tool_name": DELEGATE_WORKFLOW_TOOL,
+                    "status": "started",
+                }
+            },
+        )
+        tool_result = await self._execute_garbo_tool(
+            DELEGATE_WORKFLOW_TOOL,
+            call["arguments"],
+            conversation,
+        )
+        raw_text = stringify_tool_result(tool_result)
+        result_text = truncate_tool_result(raw_text, get_settings().tool_result_max_chars)
+        result_meta = {
+            "tool_call_id": call["id"],
+            "tool_name": DELEGATE_WORKFLOW_TOOL,
+            "result": tool_result,
+            "duration_ms": 0,
+        }
+        await sink.persist_tool_result(result_text, result_meta)
+        yield ChatChunk(
+            content="",
+            metadata={
+                "tool_execution": {
+                    "tool_call_id": call["id"],
+                    "tool_name": DELEGATE_WORKFLOW_TOOL,
+                    "status": "finished",
+                    "duration_ms": 0,
+                }
+            },
+        )
+        yield ChatChunk(content="", metadata={"tool_result": result_meta})
+        proposal = tool_result.get("proposal") if isinstance(tool_result, dict) else None
+        if proposal:
+            yield ChatChunk(
+                content="",
+                metadata={"action_proposal": {**proposal, "tool_call_id": call["id"]}},
+            )
+        await sink.persist_assistant(confirmation, None)
+        await sink.commit()
+        yield ChatChunk(content=confirmation)
+        yield ChatChunk(content="", is_finished=True)
+
     def _spawn_title_generation(
         self,
         conversation_id: str,
@@ -535,9 +645,9 @@ class ChatService:
         ``lookup`` maps the function name advertised to the LLM back to
         ``(server_id, tool_name)`` so the executor can resolve calls.
 
-        ``has_client_folder`` (set per-request by a desktop client with a folder
-        attached) additionally advertises the client-served ``read_file`` /
-        ``list_files`` tools — their execution is delegated back to that client.
+        ``delegate_workflow`` is available in both folder and research mode.
+        ``has_client_folder`` additionally advertises the client-served
+        ``read_file`` / ``list_files`` tools.
         """
         enabled = getattr(conversation, "enabled_tools", None)
         if enabled is not None and not enabled:
@@ -573,13 +683,12 @@ class ChatService:
         # always available so the model can manage the user's data without the
         # user leaving the conversation. They run in-process — no MCP server
         # or admin registration needed, working identically in dev and prod.
-        # Folder tools are client-served and only advertised when the request
-        # signals a folder is attached on the client (has_client_folder).
-        # delegate_workflow rides the same gate: it snapshots the attached
-        # folder, so without one there is nothing for it to work on.
+        # Folder reads remain client-served and gated by has_client_folder.
+        # delegate_workflow is always available: with a folder it edits an
+        # uploaded copy; without one it runs as detached research.
         all_native_descs = list(native_tool_descriptors())
         if has_client_folder:
-            all_native_descs += folder_tool_descriptors() + workflow_tool_descriptors()
+            all_native_descs += folder_tool_descriptors()
         if enabled is None:
             for desc in all_native_descs:
                 ollama_tools.append(desc)

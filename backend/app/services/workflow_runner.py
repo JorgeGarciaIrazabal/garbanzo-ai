@@ -18,6 +18,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import subprocess
 import time
 import uuid
@@ -28,6 +29,7 @@ from app.core.config import Settings, get_settings
 from app.models.message import Message
 from app.models.workflow_run import WorkflowRun
 from app.services import workflow_watchers
+from app.services.mcp_service import MCPService
 from app.services.microapp_agent import MicroappAgent
 from app.services.opencode_config import DEFAULT_PERMISSION, build_config, write_config
 from app.services.opencode_process import default_spawn, pick_free_port, terminate, wait_ready
@@ -85,6 +87,7 @@ async def _run(run_id: str) -> None:
 
         workdir = Path(run.workdir)
         instruction = run.instruction
+        mode = (run.scope or {}).get("mode", "folder")
         conversation_id = run.conversation_id
         user_id = run.user_id
         proc: subprocess.Popen | None = None
@@ -94,6 +97,18 @@ async def _run(run_id: str) -> None:
 
         try:
             async with asyncio.timeout(MAX_RUN_SECONDS):
+                mcp, tool_rules = await _opencode_mcp_config(
+                    db,
+                    user_id,
+                    (run.scope or {}).get("mcp_tools", []),
+                )
+                await asyncio.to_thread(
+                    seed_opencode_config,
+                    workdir,
+                    settings,
+                    mcp,
+                    tool_rules,
+                )
                 proc, base = await asyncio.to_thread(_start_opencode, workdir, settings)
                 if proc is None:
                     raise RuntimeError(
@@ -134,9 +149,20 @@ async def _run(run_id: str) -> None:
                     status=status,
                     error=error,
                 )
+            # Research output is durable in ``summary`` and downloadable from
+            # the API, so its empty scratch workdir has no diff lifecycle and
+            # can be released immediately on every terminal outcome.
+            if mode == "research":
+                await db.refresh(run)
+                await service.cleanup(run)
 
 
-def seed_opencode_config(workdir: Path, settings: Settings) -> None:
+def seed_opencode_config(
+    workdir: Path,
+    settings: Settings,
+    mcp: dict[str, dict] | None = None,
+    tools: dict[str, bool] | None = None,
+) -> None:
     """Write the run's ``opencode.json``, keeping it out of the returned diff.
 
     The user confirmed this run, so the agent may edit files and run commands —
@@ -147,13 +173,18 @@ def seed_opencode_config(workdir: Path, settings: Settings) -> None:
     already ships its own ``opencode.json`` keeps it — but must still end up
     with a permission envelope (see :func:`_ensure_permission_envelope`).
     """
-    if write_config(workdir, build_config(settings)):
+    if write_config(workdir, build_config(settings, mcp=mcp, tools=tools)):
         exclude_from_diff(workdir, ["opencode.json"])
         return
-    _ensure_permission_envelope(workdir)
+    _ensure_permission_envelope(workdir, mcp=mcp, tools=tools)
 
 
-def _ensure_permission_envelope(workdir: Path) -> None:
+def _ensure_permission_envelope(
+    workdir: Path,
+    *,
+    mcp: dict[str, dict] | None = None,
+    tools: dict[str, bool] | None = None,
+) -> None:
     """Give a project-shipped ``opencode.json`` a permission envelope.
 
     The run is detached — nobody is there to answer a permission prompt, so a
@@ -169,14 +200,32 @@ def _ensure_permission_envelope(workdir: Path) -> None:
         config = json.loads(cfg_path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return  # unreadable or not plain JSON — leave the project's file alone
-    if not isinstance(config, dict) or "permission" in config:
+    if not isinstance(config, dict):
         return
-    config["permission"] = dict(DEFAULT_PERMISSION)
+    changed = False
+    if "permission" not in config:
+        config["permission"] = dict(DEFAULT_PERMISSION)
+        changed = True
+    if mcp:
+        existing_mcp = config.setdefault("mcp", {})
+        if isinstance(existing_mcp, dict):
+            existing_mcp.update(mcp)
+            changed = True
+    if tools:
+        existing_tools = config.setdefault("tools", {})
+        if isinstance(existing_tools, dict):
+            existing_tools.update(tools)
+            changed = True
+    if not changed:
+        return
     cfg_path.write_text(json.dumps(config, indent=2), encoding="utf-8")
     absorb_into_baseline(workdir, ["opencode.json"])
 
 
-def _start_opencode(workdir: Path, settings: Settings) -> tuple[subprocess.Popen | None, str]:
+def _start_opencode(
+    workdir: Path,
+    settings: Settings,
+) -> tuple[subprocess.Popen | None, str]:
     """Seed the config and spawn ``opencode serve`` in ``workdir`` (blocking)."""
     seed_opencode_config(workdir, settings)
     port = pick_free_port()
@@ -197,6 +246,66 @@ def _start_opencode(workdir: Path, settings: Settings) -> tuple[subprocess.Popen
         terminate(proc)
         return None, base
     return proc, base
+
+
+_MCP_NAME_UNSAFE = re.compile(r"[^a-zA-Z0-9_-]")
+
+
+def _mcp_config_name(name: str, server_id: str) -> str:
+    """Stable, collision-resistant OpenCode prefix for an MCP server."""
+    clean = _MCP_NAME_UNSAFE.sub("_", name).strip("_-") or "mcp"
+    return f"{clean}_{server_id.replace('-', '')[:8]}"
+
+
+async def _opencode_mcp_config(
+    db,
+    user_id: str,
+    allowed_tool_keys: list[str] | None,
+) -> tuple[dict[str, dict], dict[str, bool]]:
+    """Translate the conversation's MCP allowance into OpenCode config.
+
+    Server credentials stay in the MCP table and are read only when the run
+    starts. For an explicit per-tool whitelist, each server prefix is denied
+    first and only the selected ``server_tool`` names are re-enabled.
+    """
+    selected: dict[str, list[str]] | None
+    if allowed_tool_keys is None:
+        selected = None
+    else:
+        selected = {}
+        for key in allowed_tool_keys:
+            server_id, separator, tool_name = key.partition(":")
+            if separator and server_id and tool_name:
+                selected.setdefault(server_id, []).append(tool_name)
+
+    servers = await MCPService(db).list_visible_servers(user_id)
+    mcp: dict[str, dict] = {}
+    tool_rules: dict[str, bool] = {}
+    for server in servers:
+        if selected is not None and server.id not in selected:
+            continue
+        config_name = _mcp_config_name(server.name, server.id)
+        if server.transport == "stdio" and server.command:
+            config: dict = {
+                "type": "local",
+                "command": [server.command, *(server.args or [])],
+                "enabled": True,
+            }
+            if server.env:
+                config["environment"] = dict(server.env)
+        elif server.transport in ("http", "sse") and server.url:
+            config = {"type": "remote", "url": server.url, "enabled": True}
+            if server.auth_header:
+                config["headers"] = {"Authorization": server.auth_header}
+        else:
+            continue
+        mcp[config_name] = config
+
+        if selected is not None:
+            tool_rules[f"{config_name}_*"] = False
+            for tool_name in selected[server.id]:
+                tool_rules[f"{config_name}_{tool_name}"] = True
+    return mcp, tool_rules
 
 
 async def _stream_into_progress(

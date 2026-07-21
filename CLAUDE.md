@@ -66,7 +66,8 @@ Code, opencode, Cursor, and other tools all read the same file.
 ## Skills
 
 Skills (`.claude/skills/<name>/SKILL.md`) capture workflows that took research
-or trial-and-error to figure out.
+or trial-and-error to figure out. `.agents/skills` symlinks this directory so
+Codex discovers the same project skills without maintaining duplicate copies.
 
 | Skill | Trigger |
 |-------|---------|

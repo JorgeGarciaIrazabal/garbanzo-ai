@@ -41,6 +41,10 @@ abstract class WorkflowRun with _$WorkflowRun {
   bool get isRunning => status == 'queued' || status == 'running';
 
   bool get succeeded => status == 'done';
+
+  /// Research runs start from an empty server-side workspace and never have a
+  /// local folder diff to apply. Missing mode means a pre-feature folder run.
+  bool get isResearch => scope?['mode'] == 'research';
 }
 
 /// One file a finished run created, modified, or deleted.

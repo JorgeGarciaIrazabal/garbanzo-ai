@@ -49,9 +49,9 @@ class WorkflowRun(Base):
         JSONB,
         nullable=True,
         comment=(
-            "Snapshot + permission envelope: file_count, total_bytes, "
-            "permissions, and the client's folder label (never a host path "
-            "the backend would act on)."
+            "Run mode + permission envelope: mode (folder/research), file_count, "
+            "total_bytes, MCP allowance, permissions, and the client's folder "
+            "label (never a host path the backend would act on)."
         ),
     )
     # Absolute path of the server-side temp snapshot. Internal only — never

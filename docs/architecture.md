@@ -62,10 +62,10 @@ services/      chat_service.py (turn orchestration + tool loop)
                memories, notifications, app_help, submit_report — no MCP
                server needed;
                plus proposal tools create_room / set_conversation_style /
-               delegate_workflow that only return a validated proposal the
-               frontend confirms and executes via its normal REST calls.
-               delegate_workflow is gated: advertised only when the request
-               sets has_client_folder, since a run snapshots that folder)
+               delegate_workflow that returns a validated proposal the
+               frontend executes via REST. It is always advertised: folder
+               mode snapshots a client folder; research mode starts in an
+               empty server workdir. Leading /agent forces the proposal)
                app_help.py (keyword retrieval over app/docs/help/ guides
                for the app_help tool; parsed once, cached in memory)
                client_tool_bridge.py + client_file_extract.py (idea 17:
@@ -76,15 +76,15 @@ services/      chat_service.py (turn orchestration + tool loop)
                bytes into text (KB extractors + markitdown). The backend never
                reads the host filesystem — the folder lives only on the client)
                 workflow_service.py + workflow_runner.py (idea 18: delegated
-                opencode workflows. The client uploads a snapshot of its
-                attached folder, workflow_service git-baselines it, and
-                workflow_runner spawns opencode in that copy as a DETACHED
+                opencode workflows. Folder mode uploads + git-baselines a
+                client snapshot; research mode baselines an empty workdir.
+                workflow_runner seeds the conversation's allowed MCPs and
+                spawns opencode as a DETACHED
                 asyncio task — it outlives the request, so progress is
                 persisted on WorkflowRun instead of streamed. On completion the
-                summary is written back as an assistant message, the git diff is
-                served for the client to AUTO-APPLY straight to the user's
-                folder (no review gate — undo is a separate native action, see
-                IDEAS.md idea 20), and an FCM push fires ONLY if nobody is
+                summary is written back as an assistant message. Folder diffs
+                are served for AUTO-APPLY; research skips diff/apply and serves
+                the summary as markdown. An FCM push fires ONLY if nobody is
                 watching — workflow_watchers reads the client's own ~1.5s
                 polling as the "app is open" signal)
                opencode_config.py + opencode_process.py (shared opencode.json
@@ -140,8 +140,9 @@ features/chat/
   providers/         ChatProvider, ModelProvider, SearchProvider,
                      SystemPromptProvider, StyleProvider,
                       WorkflowProvider (idea 18: drives delegated workflows —
-                      folder walk, snapshot upload, polling, and AUTO-APPLY of
-                      the diff the moment a run reaches `done` (no review gate —
+                      optional folder walk/upload, polling, folder AUTO-APPLY,
+                      and research markdown export. Folder diffs apply the
+                      moment a run reaches `done` (no review gate —
                       Jorge: "let's just apply"; undo is a separate native
                       action, IDEAS.md idea 20). Idempotent per run, persisted
                       in SharedPreferences, so a reload or a card scrolling
@@ -155,7 +156,9 @@ features/chat/
                      folder_reader.dart / folder_writer.dart (facades that
                      conditionally export a dart:io impl or a throwing web
                      stub — the folder only exists on desktop clients),
-                     workflow_service.dart (delegated-workflow REST)
+                     workflow_service.dart (delegated-workflow REST),
+                     workflow_output_downloader.dart (desktop Save As;
+                     web/mobile share/download)
   utils/             text_cleaner.dart (strips markdown/emojis before TTS)
   talk/              Talk Mode — full-screen hands-free voice call over
                      ChatProvider: talk_mode_page.dart, talk_mode_controller.dart

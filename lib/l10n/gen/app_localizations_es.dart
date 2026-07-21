@@ -2448,8 +2448,21 @@ class AppLocalizationsEs extends AppLocalizations {
   String get messageWorkflowFailed => 'La tarea falló';
 
   @override
-  String get messageWorkflowNeedsFolder =>
-      'Primero adjunta una carpeta a este chat.';
+  String get messageWorkflowDownload => 'Descargar';
+
+  @override
+  String get messageWorkflowDownloadFailed =>
+      'No se pudo descargar el informe de investigación.';
+
+  @override
+  String get messageWorkflowResearchReport => 'Informe de investigación';
+
+  @override
+  String get messageAgentCommandTitle => 'Agente';
+
+  @override
+  String get messageAgentCommandDescription =>
+      'Ejecuta esta tarea con el agente autónomo';
 
   @override
   String get actionReviewChanges => 'Revisar cambios';

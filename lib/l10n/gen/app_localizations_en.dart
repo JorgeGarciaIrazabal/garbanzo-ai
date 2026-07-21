@@ -2415,8 +2415,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get messageWorkflowFailed => 'Workflow failed';
 
   @override
-  String get messageWorkflowNeedsFolder =>
-      'Attach a folder to this chat first.';
+  String get messageWorkflowDownload => 'Download';
+
+  @override
+  String get messageWorkflowDownloadFailed =>
+      'Couldn\'t download the research report.';
+
+  @override
+  String get messageWorkflowResearchReport => 'Research report';
+
+  @override
+  String get messageAgentCommandTitle => 'Agent';
+
+  @override
+  String get messageAgentCommandDescription =>
+      'Run this task with the autonomous agent';
 
   @override
   String get actionReviewChanges => 'Review changes';

@@ -38,6 +38,7 @@ dependencies:
   shared_preferences: ^2.2.2
   provider: ^6.1.2
   file_picker: ^11.0.2
+  share_plus: ^12.0.2
   image_picker: ^1.2.0
   # OS-level drag-and-drop of files and folders onto the chat (desktop).
   desktop_drop: ^0.6.0
