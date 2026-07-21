@@ -4,6 +4,21 @@ Release notes for Garbanzo AI. Each entry is generated automatically on
 `just deploy` — an LLM (via opencode) writes it from the release's commits and
 the user reports it addressed. See `scripts/changelog-instructions.md`.
 
+## v1.0.10 — 2026-07-20
+
+### ✨ Features
+- Added an `/agent` composer command that sends complex tasks straight to a detached workflow runner, with a folder-editing mode and a read-only research mode.
+- Added folder attachments for desktop chats, so the assistant can read files on demand while the folder stays on your device.
+- Added detached workflow runs for complex folder tasks: the agent works on a server-side snapshot and returns a diff you review before applying locally.
+- Added automatic error reports.
+
+### 🐛 Fixes
+- Fixed completed workflow runs restarting when the run card re-rendered.
+- Fixed workflow run cards not appearing in chat and removed the upfront confirmation gate so runs start automatically.
+- Fixed create-room and set-style action cards disappearing after reloading a conversation.
+- Fixed the assistant not knowing the name of the folder you attached.
+- Fixed workflow diffs including internal tool files and added warnings when large files are skipped.
+
 ## v1.0.9 — 2026-07-19
 
 ### ✨ Features
