@@ -1,16 +1,19 @@
 import logging
 import logging.config
+import re
+import traceback
 import warnings
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.api.v1.router import api_router
 from app.core.config import get_settings
+from app.core.security import decode_token
 from app.db.session import init_db
 
 # Structured logging configuration
@@ -205,6 +208,48 @@ app = FastAPI(
     debug=settings.debug,
     lifespan=lifespan,
 )
+
+
+def _authenticated_user_id(request: Request) -> str | None:
+    """Read the access-token subject without turning a reporting failure into auth."""
+    authorization = request.headers.get("authorization", "")
+    if not authorization.lower().startswith("bearer "):
+        return None
+    settings_provider = request.app.dependency_overrides.get(get_settings, get_settings)
+    payload = decode_token(authorization[7:].strip(), settings_provider())
+    if payload is None or payload.get("type", "access") != "access":
+        return None
+    subject = payload.get("sub")
+    return subject if isinstance(subject, str) and subject else None
+
+
+@app.exception_handler(Exception)
+async def auto_file_unhandled_exception(request: Request, exc: Exception) -> None:
+    """Persist unexpected authenticated-request failures, then preserve the 500."""
+    user_id = _authenticated_user_id(request)
+    if user_id is not None:
+        from app.services.error_reporting import create_auto_error_report
+
+        conversation_match = re.search(r"/conversations/([^/]+)", request.url.path)
+        conversation_id = conversation_match.group(1) if conversation_match else None
+        trace = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
+        await create_auto_error_report(
+            user_id=user_id,
+            error=exc,
+            trace=trace,
+            title_prefix="Backend request error",
+            conversation_id=conversation_id,
+            metadata={
+                "path": request.url.path,
+                "method": request.method,
+                "query": request.url.query,
+                "user_id": user_id,
+                "conversation_id": conversation_id,
+            },
+        )
+    # ServerErrorMiddleware turns this back into FastAPI's normal 500.
+    raise exc
+
 
 # Configure CORS
 # In debug mode, also allow Flutter dev server (random port, e.g. localhost:55596)

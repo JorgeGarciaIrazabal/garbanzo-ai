@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:garbanzo_ai/core/http_adapter/http_adapter_stub.dart'
     if (dart.library.js_interop) 'package:garbanzo_ai/core/http_adapter/http_adapter_web.dart';
+import 'package:garbanzo_ai/core/error_reporter.dart';
 
 const _apiBaseUrl = String.fromEnvironment('API_BASE_URL', defaultValue: '');
 
@@ -49,7 +52,11 @@ class ApiClient {
     }
 
     _dio.interceptors.add(
-      InterceptorsWrapper(onRequest: _onRequest, onResponse: _onResponse),
+      InterceptorsWrapper(
+        onRequest: _onRequest,
+        onResponse: _onResponse,
+        onError: _onError,
+      ),
     );
 
     _tokenReady = _hydrateTokenFromPrefs();
@@ -171,6 +178,17 @@ class ApiClient {
     Response response,
     ResponseInterceptorHandler handler,
   ) async {
+    if (_shouldReportResponse(response)) {
+      unawaited(
+        ErrorReporter.instance.reportNetworkError(
+          DioException(
+            requestOptions: response.requestOptions,
+            response: response,
+            type: DioExceptionType.badResponse,
+          ),
+        ),
+      );
+    }
     if (response.statusCode != 401 || _token == null) {
       return handler.next(response);
     }
@@ -206,6 +224,29 @@ class ApiClient {
       return handler.next(response);
     }
   }
+
+  void _onError(DioException error, ErrorInterceptorHandler handler) {
+    if (_shouldReportError(error)) {
+      unawaited(ErrorReporter.instance.reportNetworkError(error));
+    }
+    handler.next(error);
+  }
+
+  bool _shouldReportResponse(Response<dynamic> response) =>
+      (response.statusCode ?? 0) >= 500 &&
+      _isReportableRequest(response.requestOptions);
+
+  bool _shouldReportError(DioException error) {
+    if (error.type == DioExceptionType.cancel) return false;
+    final status = error.response?.statusCode;
+    return (status == null || status >= 500) &&
+        _isReportableRequest(error.requestOptions);
+  }
+
+  bool _isReportableRequest(RequestOptions request) =>
+      request.extra['__error_report__'] != true &&
+      !request.path.contains('/api/v1/reports') &&
+      !request.path.contains('/api/v1/auth/refresh');
 
   Future<bool> _attemptRefresh() {
     // Coalesce concurrent refresh attempts — many pending requests seeing

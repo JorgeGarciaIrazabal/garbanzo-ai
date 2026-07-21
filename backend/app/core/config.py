@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     debug: bool = False
     host: str = "0.0.0.0"
     port: int = 8000
+    # Persist unexpected authenticated backend/chat failures as admin-triaged
+    # bug reports. Disable for installations that prefer logs only.
+    auto_error_reports: bool = True
 
     # GitHub repo ("owner/name") whose Releases feed the desktop auto-updater
     # (GET /api/v1/version/latest). Self-hosters point this at their fork.
@@ -262,6 +265,7 @@ def feature_summary(settings: "Settings") -> list[str]:
         f"microapps sync : {flag(bool(settings.microapps_git_url))}",
         f"test user      : {flag(bool(settings.test_user_email and settings.test_user_password))}",
         f"admin emails   : {len(settings.admin_emails_list)} configured",
+        f"error reports  : {flag(settings.auto_error_reports)}",
     ]
 
 

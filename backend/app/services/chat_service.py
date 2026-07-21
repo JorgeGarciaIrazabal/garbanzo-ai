@@ -28,6 +28,7 @@ from app.services.client_tool_bridge import client_tool_bridge
 from app.services.conversation_service import ConversationService
 from app.services.conversation_turn_sink import ConversationTurnSink
 from app.services.document_parser import extract_attachment_text
+from app.services.error_reporting import report_chat_error
 from app.services.image_utils import downscale_image_b64
 from app.services.knowledge_base_service import KnowledgeBaseService
 from app.services.llm_provider import (
@@ -441,6 +442,10 @@ class ChatService:
             (m.content for m in reversed(existing_messages) if m.role == "user"),
             "",
         )
+        last_user_message_id = next(
+            (m.id for m in reversed(existing_messages) if m.role == "user"),
+            None,
+        )
 
         if forced_workflow_instruction is not None:
             confirmation = "I started the autonomous agent. Follow its progress here."
@@ -530,6 +535,16 @@ class ChatService:
                 max_tool_iterations=MAX_TOOL_ITERATIONS,
                 extra_finish_metadata=extra_meta or None,
                 result=result,
+                on_error=lambda error, tool_call_id, trace: report_chat_error(
+                    user_id=conversation.user_id,
+                    conversation_id=conversation_id,
+                    message_id=last_user_message_id,
+                    model=conversation.model,
+                    last_user_turn=last_user_text,
+                    error=error,
+                    tool_call_id=tool_call_id,
+                    trace=trace,
+                ),
             ):
                 yield chunk
 

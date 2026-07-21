@@ -50,6 +50,33 @@ home: Scaffold(
     expect(find.text('Closed'), findsWidgets); // filter segment + chip
   });
 
+  testWidgets('shows diagnostic metadata only for automatic reports', (
+    tester,
+  ) async {
+    final automatic = Report(
+      id: 'auto',
+      userId: 'user@example.com',
+      type: 'bug',
+      title: 'Stream error',
+      description: 'traceback',
+      metadata: {'platform': 'android', 'stack_trace': 'frame one'},
+      conversationId: 'conversation-1',
+      severity: 'error',
+      source: 'frontend',
+      status: 'open',
+      createdAt: DateTime(2026, 7, 1),
+      updatedAt: DateTime(2026, 7, 1),
+    );
+    await pump(tester, load: ({String? status}) async => [automatic]);
+
+    await tester.tap(find.byKey(const ValueKey('report_tile_auto')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Open conversation'), findsOneWidget);
+    expect(find.text('Stack trace'), findsOneWidget);
+    expect(find.text('Diagnostic metadata'), findsOneWidget);
+  });
+
   testWidgets('status filter reloads with the selected status', (tester) async {
     final requested = <String?>[];
     await pump(

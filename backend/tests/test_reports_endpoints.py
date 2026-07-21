@@ -1,13 +1,25 @@
 """Integration tests for /api/v1/reports and /api/v1/admin/reports endpoints."""
 
 import pytest
+from fastapi import Request
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import select
 
 from app.core.config import Settings, get_settings
-from app.core.security import get_current_admin_user, get_current_user, hash_password
+from app.core.security import (
+    create_access_token,
+    get_current_admin_user,
+    get_current_user,
+    hash_password,
+)
 from app.db.session import get_db
-from app.main import app
+from app.main import app, auto_file_unhandled_exception
+from app.models.report import Report
 from app.models.user import User
+from app.services.error_reporting import (
+    clear_error_report_rate_limit,
+    report_chat_error,
+)
 
 pytestmark = pytest.mark.asyncio
 
@@ -71,6 +83,99 @@ async def test_create_and_list_own_reports(db_session):
         _clear_overrides()
 
 
+async def test_create_report_accepts_structured_diagnostics(db_session):
+    _install_overrides(db_session)
+    try:
+        async with _client() as c:
+            response = await c.post(
+                "/api/v1/reports",
+                json={
+                    "type": "bug",
+                    "title": "Stream failed",
+                    "description": "traceback",
+                    "metadata": {"platform": "android", "message_id": "message-1"},
+                    "conversation_id": "conversation-1",
+                    "severity": "error",
+                    "source": "frontend",
+                },
+            )
+        assert response.status_code == 201
+        body = response.json()
+        assert body["metadata"]["platform"] == "android"
+        assert body["conversation_id"] == "conversation-1"
+        assert body["severity"] == "error"
+        assert body["source"] == "frontend"
+    finally:
+        _clear_overrides()
+
+
+async def test_chat_error_report_includes_turn_context_and_dedupes(db_session):
+    clear_error_report_rate_limit()
+    try:
+        raise RuntimeError("provider unavailable")
+    except RuntimeError as error:
+        await report_chat_error(
+            user_id="test@example.com",
+            conversation_id="conversation-1",
+            message_id="message-1",
+            model="llama3.2",
+            last_user_turn="Please help me debug this.",
+            error=error,
+            tool_call_id="tool-1",
+        )
+        # The same traceback/fingerprint in the rate-limit window files once.
+        await report_chat_error(
+            user_id="test@example.com",
+            conversation_id="conversation-1",
+            message_id="message-1",
+            model="llama3.2",
+            last_user_turn="Please help me debug this.",
+            error=error,
+            tool_call_id="tool-1",
+        )
+
+    reports = list((await db_session.execute(select(Report))).scalars())
+    assert len(reports) == 1
+    report = reports[0]
+    assert report.conversation_id == "conversation-1"
+    assert report.metadata_["message_id"] == "message-1"
+    assert report.metadata_["tool_call_id"] == "tool-1"
+    assert report.metadata_["model"] == "llama3.2"
+    assert "RuntimeError: provider unavailable" in report.metadata_["stack_trace"]
+
+
+async def test_unhandled_authenticated_error_is_reported_and_reraised(db_session):
+    clear_error_report_rate_limit()
+    _install_overrides(db_session)
+    try:
+        token = create_access_token({"sub": "test@example.com"}, _TEST_SETTINGS)
+        request = Request(
+            {
+                "type": "http",
+                "app": app,
+                "method": "POST",
+                "path": "/api/v1/chat/conversations/conversation-1/chat",
+                "query_string": b"retry=1",
+                "headers": [(b"authorization", f"Bearer {token}".encode())],
+            }
+        )
+        with pytest.raises(RuntimeError, match="unexpected failure"):
+            try:
+                raise RuntimeError("unexpected failure")
+            except RuntimeError as error:
+                await auto_file_unhandled_exception(request, error)
+
+        reports = list((await db_session.execute(select(Report))).scalars())
+        assert len(reports) == 1
+        report = reports[0]
+        assert report.source == "backend"
+        assert report.conversation_id == "conversation-1"
+        assert report.metadata_["path"].endswith("/conversation-1/chat")
+        assert "RuntimeError: unexpected failure" in report.metadata_["stack_trace"]
+    finally:
+        _clear_overrides()
+
+
 async def test_create_rejects_bad_type(db_session):
     _install_overrides(db_session)
     try:
@@ -80,6 +185,7 @@ async def test_create_rejects_bad_type(db_session):
                 json={"type": "complaint", "title": "t", "description": "d"},
             )
         assert resp.status_code == 422
+        assert list((await db_session.execute(select(Report))).scalars()) == []
     finally:
         _clear_overrides()
 

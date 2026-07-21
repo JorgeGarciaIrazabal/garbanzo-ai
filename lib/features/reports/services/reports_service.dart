@@ -15,10 +15,22 @@ class ReportsService {
     required String type,
     required String title,
     required String description,
+    Map<String, dynamic>? metadata,
+    String? conversationId,
+    String? severity,
+    String? source,
   }) async {
     final response = await _api.post(
       '/api/v1/reports',
-      data: {'type': type, 'title': title, 'description': description},
+      data: {
+        'type': type,
+        'title': title,
+        'description': description,
+        'metadata': ?metadata,
+        'conversation_id': ?conversationId,
+        'severity': ?severity,
+        'source': ?source,
+      },
     );
     if (response.statusCode == 201) {
       return Report.fromJson(response.data as Map<String, dynamic>);

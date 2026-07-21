@@ -130,11 +130,14 @@ half-migrated schema.
   `client_tool_request` SSE chunk + the `POST …/client-tool-result` endpoint
   (bridged in-process by `ClientToolBridge`).
 - `ScheduledAction` stores user-defined cron or one-shot prompts.
-- `Report` (026, idea 14) stores in-app bug reports / feature requests:
+- `Report` (026; extended by 033, idea 22) stores in-app bug reports / feature requests:
   `type` is `bug|feature`, `status` flows `open → in_progress → closed` and is
   admin-controlled (`PATCH /admin/reports/{id}`); values are enforced by
   Pydantic literals, not DB enums, matching how other string states are
-  handled. User-owned via `user_id → users.email` CASCADE.
+  handled. User-owned via `user_id → users.email` CASCADE. Automatic error
+  reports additionally store nullable `metadata` JSONB (trace/context), indexed
+  `conversation_id` (a navigation hint, not an FK), `severity`, and `source`
+  (`frontend|backend`); manual reports leave them NULL.
 - `Notification` / `NotificationPreferences` support in-app + FCM push notifications.
 - `DeviceToken` stores FCM tokens per user per platform.
 - `MCPServer` stores registered MCP server configs. `owner_email` (nullable FK,

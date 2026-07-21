@@ -36,6 +36,10 @@ async def create_report(
         type_=data.type,
         title=data.title,
         description=data.description,
+        metadata=data.metadata,
+        conversation_id=data.conversation_id,
+        severity=data.severity,
+        source=data.source,
     )
     await service.notify_admins(report)
     return ReportOut.model_validate(report)

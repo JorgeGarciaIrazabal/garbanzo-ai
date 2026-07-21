@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:garbanzo_ai/features/reports/models/report.dart';
 import 'package:garbanzo_ai/features/reports/services/reports_service.dart';
@@ -228,7 +231,53 @@ class _ReportTile extends StatelessWidget {
       ),
       childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
       expandedCrossAxisAlignment: CrossAxisAlignment.start,
-      children: [SelectableText(report.description)],
+      children: [
+        SelectableText(report.description),
+        if (report.metadata != null) ...[
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: [
+              if (report.severity != null)
+                Chip(
+                  label: Text(report.severity!),
+                  visualDensity: VisualDensity.compact,
+                ),
+              if (report.source != null)
+                Chip(
+                  label: Text(report.source!),
+                  visualDensity: VisualDensity.compact,
+                ),
+              if (report.metadata?['platform'] != null)
+                Chip(
+                  label: Text('${report.metadata!['platform']}'),
+                  visualDensity: VisualDensity.compact,
+                ),
+              if (report.conversationId != null)
+                ActionChip(
+                  label: const Text('Open conversation'),
+                  onPressed: () => context.go('/chat/${report.conversationId}'),
+                ),
+            ],
+          ),
+          if (report.metadata?['stack_trace'] != null)
+            ExpansionTile(
+              tilePadding: EdgeInsets.zero,
+              title: const Text('Stack trace'),
+              children: [SelectableText('${report.metadata!['stack_trace']}')],
+            ),
+          ExpansionTile(
+            tilePadding: EdgeInsets.zero,
+            title: const Text('Diagnostic metadata'),
+            children: [
+              SelectableText(
+                const JsonEncoder.withIndent('  ').convert(report.metadata),
+              ),
+            ],
+          ),
+        ],
+      ],
     );
   }
 }

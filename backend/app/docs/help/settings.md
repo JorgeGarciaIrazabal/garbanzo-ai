@@ -57,6 +57,8 @@ title and description, and submit — it goes straight to the admins, who
 triage reports from the Admin page. You can also just say it in chat
 ("report a bug: the mic does nothing on Android", "request Portuguese
 voices") and the assistant files it for you through the same channel.
+Unexpected app and chat errors are also reported automatically with diagnostic
+details, unless the self-hoster has disabled automatic error reports.
 
 ## How do I update the desktop app?
 The desktop app (Linux/Windows) checks for new releases when it starts and

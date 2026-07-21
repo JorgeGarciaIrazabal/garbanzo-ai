@@ -1,17 +1,18 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
 import 'package:garbanzo_ai/core/log.dart';
+import 'package:garbanzo_ai/core/error_reporter.dart';
 import 'package:garbanzo_ai/features/microapps/providers/microapp_panel_controller.dart';
 import 'package:garbanzo_ai/features/chat/models/chat_attachment.dart';
 import 'package:garbanzo_ai/features/chat/models/chat_message.dart';
 import 'package:garbanzo_ai/features/chat/models/conversation.dart';
 import 'package:garbanzo_ai/features/chat/models/thinking_level.dart';
 import 'package:garbanzo_ai/features/chat/providers/conversation_list_controller.dart';
+import 'package:garbanzo_ai/features/chat/providers/chat_stream_controller.dart';
+import 'package:garbanzo_ai/features/chat/providers/client_folder_controller.dart';
 import 'package:garbanzo_ai/features/chat/services/chat_service.dart';
 import 'package:garbanzo_ai/features/chat/services/folder_reader.dart';
 
@@ -28,18 +29,23 @@ class ChatProvider extends ChangeNotifier {
     ChatService? chatService,
     FolderReader folderReader = const FolderReader(),
   }) : _selectedModelIdValue = selectedModelId,
-       _chatService = chatService ?? ChatService.instance,
-       _folderReader = folderReader {
+       _chatService = chatService ?? ChatService.instance {
     conversationList = ConversationListController(chatService: _chatService);
     // Rebuild chat widgets when the micro-app panel opens/closes/reloads
     // or the sidebar list changes.
     panel.addListener(notifyListeners);
     conversationList.addListener(notifyListeners);
     conversationList.load();
-    _loadClientFolders();
+    _folders = ClientFolderController(
+      chatService: _chatService,
+      onChanged: notifyListeners,
+      folderReader: folderReader,
+    );
+    _folders.load();
   }
 
   final ChatService _chatService;
+  late final ClientFolderController _folders;
 
   /// Sidebar conversation list (loading, pin, optimistic delete + undo).
   /// Notifications are forwarded, so watching this provider is enough.
@@ -108,7 +114,7 @@ class ChatProvider extends ChangeNotifier {
   String? _error;
   String? get error => _error ?? conversationList.error;
 
-  StreamSubscription<ChatResponseChunk>? _streamSubscription;
+  final ChatStreamController _stream = ChatStreamController();
 
   // ==========================================================================
   // Streaming message channel
@@ -121,56 +127,24 @@ class ChatProvider extends ChangeNotifier {
   // start, tool calls/results, per-iteration done, and end of stream.
 
   /// Live view of the assistant message currently being streamed.
-  final ValueNotifier<ChatMessage?> streamingMessage = ValueNotifier(null);
+  ValueNotifier<ChatMessage?> get streamingMessage => _stream.streamingMessage;
 
   /// ID of the in-flight assistant placeholder, if a stream is active.
-  String? get streamingMessageId => _streamingMessageId;
-  String? _streamingMessageId;
-
-  // Notifier pushes are throttled: token chunks can arrive 50–100×/s and
-  // each push re-parses the growing message's markdown. ~12 updates/s is
-  // visually indistinguishable for streaming text at a fraction of the cost.
-  static const _streamPushInterval = Duration(milliseconds: 80);
-  DateTime _lastStreamPush = DateTime.fromMillisecondsSinceEpoch(0);
-  Timer? _streamFlushTimer;
-  ChatMessage? _pendingStreamMessage;
+  String? get streamingMessageId => _stream.messageId;
 
   void _pushStreamingUpdate(ChatMessage message, {bool force = false}) {
-    _pendingStreamMessage = message;
-    final now = DateTime.now();
-    if (force || now.difference(_lastStreamPush) >= _streamPushInterval) {
-      _streamFlushTimer?.cancel();
-      _streamFlushTimer = null;
-      _lastStreamPush = now;
-      streamingMessage.value = message;
-    } else {
-      _streamFlushTimer ??= Timer(_streamPushInterval, () {
-        _streamFlushTimer = null;
-        _lastStreamPush = DateTime.now();
-        final pending = _pendingStreamMessage;
-        if (pending != null && pending.id == _streamingMessageId) {
-          streamingMessage.value = pending;
-        }
-      });
-    }
+    _stream.push(message, force: force);
   }
 
   /// Commit the latest streamed content into [_messages] before a structural
   /// change (tool insert, stop, end of stream), so list state never lags
   /// behind what the user already saw in the live bubble.
   void _syncStreamingIntoList() {
-    final pending = _pendingStreamMessage ?? streamingMessage.value;
-    if (pending != null && pending.id == _streamingMessageId) {
-      _upsertIntoList(pending);
-    }
+    _stream.sync(_upsertIntoList);
   }
 
   void _clearStreamingState() {
-    _streamFlushTimer?.cancel();
-    _streamFlushTimer = null;
-    _pendingStreamMessage = null;
-    _streamingMessageId = null;
-    streamingMessage.value = null;
+    _stream.clear();
   }
 
   // ==========================================================================
@@ -182,8 +156,7 @@ class ChatProvider extends ChangeNotifier {
   Future<void> loadConversation(String conversationId) async {
     // Switching away mid-stream: stop the old stream so its chunks can't
     // bleed into the newly loaded conversation's message list.
-    if (_streamSubscription != null &&
-        _currentConversation?.id != conversationId) {
+    if (_stream.isActive && _currentConversation?.id != conversationId) {
       await stopStreaming();
     }
 
@@ -198,10 +171,11 @@ class ChatProvider extends ChangeNotifier {
       );
       _currentConversation = conversation;
       _messages = _hydrateAttachments(conversation.messages ?? []);
+      _setErrorContext();
       // Loading an existing conversation discards any folder the user picked
       // on a new-chat composer — it belonged to the chat they were about to
       // start, not this one. (The create path adopts it instead.)
-      _pendingClientFolder = null;
+      unawaited(_folders.clear(null));
     } catch (e) {
       _error = 'Failed to load conversation: $e';
       logDebug(_error!);
@@ -272,11 +246,12 @@ class ChatProvider extends ChangeNotifier {
 
       _currentConversation = conversation;
       _messages = [];
+      _setErrorContext();
 
       // A folder the user attached on the empty "new chat" state keys onto
       // the real conversation id now that it exists, so the first send
       // carries `has_client_folder=true` and the chip keeps showing.
-      await _adoptPendingFolder(conversation.id);
+      await _folders.adoptPending(conversation.id);
 
       // Immediately add the new conversation to the list for sidebar visibility
       conversationList.prepend(conversation.copyWith(messageCount: 0));
@@ -363,151 +338,20 @@ class ChatProvider extends ChangeNotifier {
   // The attached folder lives ONLY on this client — never sent to the backend.
   // When a folder is attached, sends set has_client_folder=true so the agent
   // gets read_file/list_files; the backend delegates each read back here via a
-  // client_tool_request chunk, which _serveClientToolRequest fulfils locally.
+  // client_tool_request chunk, which [ClientFolderController] fulfils locally.
   // ==========================================================================
 
-  final FolderReader _folderReader;
-  final Map<String, String> _clientFolders = {};
-  static const String _clientFoldersPrefsKey = 'client_folders';
+  String? clientFolderFor(String? conversationId) =>
+      _folders.folderFor(conversationId);
 
-  /// A folder the user picked BEFORE any conversation existed. Held here
-  /// instead of keyed by conversation id, and transferred onto the new
-  /// conversation the moment it's created — so "New chat → attach folder →
-  /// send" works instead of bouncing off "Start a conversation first".
-  String? _pendingClientFolder;
+  String? clientFolderNameFor(String? conversationId) =>
+      _folders.folderNameFor(conversationId);
 
-  /// Absolute path of the folder attached to [conversationId], or — when
-  /// [conversationId] is null (a not-yet-started chat) — the pending folder
-  /// the user picked for the chat they're about to start.
-  ///
-  /// Returning the pending folder for the null id lets the composer render
-  /// the chip and the picker show the "remove" affordance before a
-  /// conversation exists. It is deliberately NOT a fallback for an *existing*
-  /// conversation without a folder: the pending folder belongs to a chat that
-  /// hasn't started, and handing it to another conversation would let e.g. a
-  /// finishing workflow auto-apply its diff into an unrelated folder.
-  String? clientFolderFor(String? conversationId) {
-    if (conversationId == null) return _pendingClientFolder;
-    return _clientFolders[conversationId];
-  }
+  Future<void> attachClientFolder(String? conversationId, String path) =>
+      _folders.attach(conversationId, path);
 
-  /// The attached folder's display name (base name), or null if none.
-  ///
-  /// Only the name is ever sent to the backend — never the path, which stays
-  /// on this device (idea 17).
-  String? clientFolderNameFor(String? conversationId) {
-    final path = clientFolderFor(conversationId);
-    if (path == null) return null;
-    final parts = path.split(RegExp(r'[/\\]')).where((p) => p.isNotEmpty);
-    return parts.isEmpty ? null : parts.last;
-  }
-
-  Future<void> _loadClientFolders() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString(_clientFoldersPrefsKey);
-      if (raw == null || raw.isEmpty) return;
-      final decoded = jsonDecode(raw);
-      if (decoded is Map) {
-        _clientFolders
-          ..clear()
-          ..addAll(decoded.map((k, v) => MapEntry(k.toString(), v.toString())));
-        notifyListeners();
-      }
-    } catch (e) {
-      logDebug('Failed to load client folders: $e');
-    }
-  }
-
-  Future<void> _persistClientFolders() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_clientFoldersPrefsKey, jsonEncode(_clientFolders));
-    } catch (e) {
-      logDebug('Failed to persist client folders: $e');
-    }
-  }
-
-  /// Attach [path] to [conversationId] (desktop only). Local-only state.
-  ///
-  /// [conversationId] may be null when the user attaches a folder on a brand-
-  /// new chat that has no conversation yet — in that case the path is held as
-  /// pending and transferred onto the new conversation id the moment it's
-  /// created (see [createConversation]).
-  Future<void> attachClientFolder(String? conversationId, String path) async {
-    if (conversationId == null) {
-      _pendingClientFolder = path;
-    } else {
-      _clientFolders[conversationId] = path;
-      await _persistClientFolders();
-    }
-    notifyListeners();
-  }
-
-  /// Detach the folder from [conversationId], or clear the pending folder
-  /// when there isn't one yet (the chip on a not-yet-started chat).
-  Future<void> clearClientFolder(String? conversationId) async {
-    if (conversationId == null) {
-      if (_pendingClientFolder != null) {
-        _pendingClientFolder = null;
-        notifyListeners();
-      }
-      return;
-    }
-    if (_clientFolders.remove(conversationId) != null) {
-      notifyListeners();
-      await _persistClientFolders();
-    }
-  }
-
-  Future<void> _adoptPendingFolder(String conversationId) async {
-    final pending = _pendingClientFolder;
-    if (pending == null) return;
-    _pendingClientFolder = null;
-    _clientFolders[conversationId] = pending;
-    await _persistClientFolders();
-  }
-
-  /// Fulfil a backend `client_tool_request` by reading locally and posting the
-  /// result. Runs async off the SSE consumer so it never blocks the stream.
-  Future<void> _serveClientToolRequest(
-    String conversationId,
-    Map<String, dynamic> request,
-  ) async {
-    final toolCallId = request['tool_call_id']?.toString();
-    final toolName = request['tool_name']?.toString();
-    if (toolCallId == null) return;
-    final root = _clientFolders[conversationId];
-    final args = (request['args'] as Map?)?.cast<String, dynamic>() ?? const {};
-    final path = args['path']?.toString() ?? '';
-
-    final payload = <String, dynamic>{'tool_call_id': toolCallId};
-    try {
-      if (root == null) {
-        throw const FolderReadError('No folder is attached on this device.');
-      }
-      if (toolName == 'read_file') {
-        final file = _folderReader.readFile(root, path);
-        payload
-          ..['ok'] = true
-          ..['filename'] = file.filename
-          ..['data'] = base64Encode(file.bytes);
-      } else {
-        payload
-          ..['ok'] = true
-          ..['entries'] = _folderReader.listDir(root, path);
-      }
-    } catch (e) {
-      payload
-        ..['ok'] = false
-        ..['error'] = e is FolderReadError ? e.message : e.toString();
-    }
-    try {
-      await _chatService.postClientToolResult(conversationId, payload);
-    } catch (e) {
-      logDebug('Failed to post client tool result: $e');
-    }
-  }
+  Future<void> clearClientFolder(String? conversationId) =>
+      _folders.clear(conversationId);
 
   Future<void> deleteConversation(String conversationId) async {
     _error = null;
@@ -526,7 +370,7 @@ class ChatProvider extends ChangeNotifier {
       conversationList.undoDelete(conversationId);
 
   void clearCurrentConversation() {
-    if (_streamSubscription != null) {
+    if (_stream.isActive) {
       unawaited(stopStreaming());
     }
     _currentConversation = null;
@@ -602,6 +446,7 @@ class ChatProvider extends ChangeNotifier {
       attachments: attachments,
     );
     _messages = [..._messages, userMessage];
+    _setErrorContext(messageId: userMessage.id);
 
     // Update current conversation with new message count for sidebar
     if (_currentConversation != null) {
@@ -617,7 +462,7 @@ class ChatProvider extends ChangeNotifier {
         _currentConversation!.id,
         content,
         attachments: attachments,
-        hasClientFolder: _clientFolders.containsKey(_currentConversation!.id),
+        hasClientFolder: _folders.hasFolder(_currentConversation!.id),
         clientFolderLabel: clientFolderNameFor(_currentConversation!.id),
       );
       _consumeAssistantStream(stream);
@@ -723,6 +568,10 @@ class ChatProvider extends ChangeNotifier {
     // The conversation this stream belongs to, captured so a client_tool_request
     // is served against the right folder even if the user navigates away.
     final streamConversationId = _currentConversation?.id;
+    ErrorReporter.instance.setContext(
+      conversationId: streamConversationId,
+      context: {'surface': 'chat'},
+    );
     var accumulatedContent = '';
     var accumulatedThinking = '';
 
@@ -745,12 +594,13 @@ class ChatProvider extends ChangeNotifier {
     // Per-chunk content flows through [streamingMessage] only; the list
     // (and notifyListeners) is reserved for structural changes.
     _upsertIntoList(current());
-    _streamingMessageId = assistantMessageId;
     _pushStreamingUpdate(current(), force: true);
     notifyListeners();
 
-    _streamSubscription = stream.listen(
-      (chunk) {
+    _stream.listen(
+      stream,
+      messageId: assistantMessageId,
+      onChunk: (chunk) {
         if (chunk.isThinking && chunk.content != null) {
           accumulatedThinking += chunk.content!;
           _pushStreamingUpdate(current());
@@ -783,7 +633,7 @@ class ChatProvider extends ChangeNotifier {
           // (idea 17). Serve it locally without blocking the stream.
           final request = chunk.clientToolRequest;
           if (streamConversationId != null && request != null) {
-            unawaited(_serveClientToolRequest(streamConversationId, request));
+            unawaited(_folders.serveToolRequest(streamConversationId, request));
           }
         } else if (chunk.isDone) {
           // The backend emits a `done` chunk PER LLM ITERATION (one for the
@@ -823,7 +673,6 @@ class ChatProvider extends ChangeNotifier {
       onDone: () {
         // Real end of the SSE stream — finalize and reconcile with server.
         _isSending = false;
-        _streamSubscription = null;
         _syncStreamingIntoList();
         _clearStreamingState();
         if (accumulatedContent.isEmpty && accumulatedThinking.isEmpty) {
@@ -851,15 +700,22 @@ class ChatProvider extends ChangeNotifier {
     }
   }
 
+  void _setErrorContext({String? messageId}) {
+    ErrorReporter.instance.setContext(
+      conversationId: _currentConversation?.id,
+      messageId: messageId,
+      context: {'surface': 'chat'},
+    );
+  }
+
   Future<void> stopStreaming() async {
-    unawaited(_streamSubscription?.cancel());
-    _streamSubscription = null;
+    unawaited(_stream.cancel());
     _isSending = false;
     _actionEpoch++;
     // Keep what was already streamed, marked as interrupted so the partial
     // answer isn't mistaken for a complete one.
-    final pending = _pendingStreamMessage ?? streamingMessage.value;
-    if (pending != null && pending.id == _streamingMessageId) {
+    final pending = streamingMessage.value;
+    if (pending != null && pending.id == streamingMessageId) {
       _upsertIntoList(
         pending.copyWith(metadata: {...?pending.metadata, 'stopped': true}),
       );
@@ -1087,10 +943,8 @@ class ChatProvider extends ChangeNotifier {
 
   @override
   void dispose() {
-    _streamSubscription?.cancel();
-    _streamFlushTimer?.cancel();
+    _stream.dispose();
     _titleRefreshTimer?.cancel();
-    streamingMessage.dispose();
     panel.dispose();
     // Flushes pending undo-window deletions.
     conversationList.dispose();

@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from sqlalchemy import DateTime, ForeignKey, String, Text, func
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -24,6 +25,12 @@ class Report(Base):
     type: Mapped[str] = mapped_column(String(16), nullable=False)
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
+    # ``metadata`` is reserved by SQLAlchemy's declarative base, so keep the
+    # Python attribute distinct while retaining the public/database column name.
+    metadata_: Mapped[dict | None] = mapped_column("metadata", JSONB, nullable=True)
+    conversation_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
+    severity: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    source: Mapped[str | None] = mapped_column(String(16), nullable=True)
     status: Mapped[str] = mapped_column(
         String(16), nullable=False, default="open", server_default="open", index=True
     )

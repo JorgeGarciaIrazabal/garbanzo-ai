@@ -317,6 +317,25 @@ reloads the conversation from the server, so whatever the backend managed to
 persist replaces the raw error instead of the user needing to manually
 regenerate.
 
+### Automatic error reports
+
+`Report` is also the app's self-hosted error store. On the backend, an
+unhandled exception from an authenticated request is re-raised as the normal
+500 but first best-effort files a bug report from a fresh database session.
+Chat turn failures use the same path and attach the conversation, active
+message/tool call, model, truncated last user turn, and traceback. Reports are
+deduped per user/fingerprint for five minutes; 4xx responses are never filed.
+Set `AUTO_ERROR_REPORTS=false` to disable backend/chat auto-filing.
+
+On Flutter, `FlutterError`, `PlatformDispatcher`, and zone errors share an
+`ErrorReporter` singleton. It keeps the latest chat/room context, debounces a
+fingerprint for the app session, and submits diagnostics (platform and app
+version included) through a bare Dio client so the normal API error interceptor
+cannot recurse. The interceptor also reports unexpected 5xx and transport
+failures, excluding cancellation, authentication, and the report endpoint.
+Admin Reports renders diagnostic metadata, stack traces, and conversation deep
+links while manual reports remain unchanged.
+
 ## WebSocket Rooms (Multi-Agent)
 
 1. `RoomSocketService` opens a WebSocket to `ws://host/rooms/{room_id}` ( authenticated via `?token=<jwt>` query param )
@@ -375,7 +394,7 @@ not owned — and the Customize prompt dropdown lists only the user's own
 custom templates (the built-in personas are surfaced as built-in styles
 instead), so the dropdown's job stays "create your own". A built-in whose
 model isn't installed is hidden by the picker rather than shown as broken.
-- **`ChatProvider`** — conversations list, current conversation + messages, streaming state. A `ChangeNotifierProxyProvider2` in `main.dart` pushes `ModelProvider.selectedModelId` and `StyleProvider`'s pending thinking/prompt into it; new conversations are created with those values. Applying a style to a live conversation is a plain conversation PATCH (model + `thinking_level` + `system_prompt`) — there is no dedicated backend endpoint.
+- **`ChatProvider`** — conversation/message state and user actions. Its focused `ChatStreamController` owns the SSE subscription and throttled live-message notifier; `ClientFolderController` owns local folder persistence and client-served `read_file`/`list_files` responses. A `ChangeNotifierProxyProvider2` in `main.dart` pushes `ModelProvider.selectedModelId` and `StyleProvider`'s pending thinking/prompt into it; new conversations are created with those values. Applying a style to a live conversation is a plain conversation PATCH (model + `thinking_level` + `system_prompt`) — there is no dedicated backend endpoint.
 
 Additional providers:
 - **`MemoryProvider`** — user memories CRUD

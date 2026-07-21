@@ -4,6 +4,19 @@ import 'package:flutter/foundation.dart';
 /// at the call site; on web [defaultTargetPlatform] reflects the host OS,
 /// which the [kIsWeb] guard excludes).
 class PlatformInfo {
+  /// A stable, web-safe platform label for diagnostics and backend metadata.
+  static String get classification {
+    if (kIsWeb) return 'web';
+    return switch (defaultTargetPlatform) {
+      TargetPlatform.android => 'android',
+      TargetPlatform.iOS => 'ios',
+      TargetPlatform.linux => 'linux',
+      TargetPlatform.macOS => 'macos',
+      TargetPlatform.windows => 'windows',
+      TargetPlatform.fuchsia => 'fuchsia',
+    };
+  }
+
   static bool get isDesktop =>
       !kIsWeb &&
       (defaultTargetPlatform == TargetPlatform.linux ||

@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import logging
 import uuid
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,6 +28,10 @@ class ReportService:
         type_: str,
         title: str,
         description: str,
+        metadata: dict[str, Any] | None = None,
+        conversation_id: str | None = None,
+        severity: str | None = None,
+        source: str | None = None,
     ) -> Report:
         report = Report(
             id=str(uuid.uuid4()),
@@ -34,6 +39,10 @@ class ReportService:
             type=type_,
             title=title,
             description=description,
+            metadata_=metadata,
+            conversation_id=conversation_id,
+            severity=severity,
+            source=source,
             status="open",
         )
         self.db.add(report)

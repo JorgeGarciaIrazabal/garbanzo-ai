@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import 'package:garbanzo_ai/core/auth_service.dart';
+import 'package:garbanzo_ai/core/error_reporter.dart';
 import 'package:garbanzo_ai/features/chat/models/chat_attachment.dart';
 import 'package:garbanzo_ai/features/chat/models/thinking_level.dart';
 import 'package:garbanzo_ai/features/rooms/models/room_models.dart';
@@ -214,6 +215,9 @@ class RoomProvider extends ChangeNotifier {
         me,
         room.memberFor(me)?.mutedUntil,
       );
+      ErrorReporter.instance.setContext(
+        context: {'surface': 'room', 'room_id': room.id},
+      );
       _messages = await _service.listMessages(roomId);
       final socket = _socketFactory(roomId);
       _socket = socket;
@@ -240,6 +244,7 @@ class RoomProvider extends ChangeNotifier {
     _connectionState = RoomConnectionState.closed;
     _wasConnected = false;
     _currentRoom = null;
+    ErrorReporter.instance.clearContext();
     _messages = [];
     _online = [];
     _streaming.clear();

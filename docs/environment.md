@@ -29,6 +29,10 @@ KOKORO_VOICES_DIR=data/kokoro/voices
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 REFRESH_TOKEN_EXPIRE_DAYS=30
 
+# Persist unexpected authenticated backend/chat failures as admin-triaged bug
+# reports. Set false to keep these failures in logs only.
+AUTO_ERROR_REPORTS=true
+
 # Dev helpers
 TEST_USER_EMAIL=          # Optional — auto-creates test user on startup
 TEST_USER_PASSWORD=

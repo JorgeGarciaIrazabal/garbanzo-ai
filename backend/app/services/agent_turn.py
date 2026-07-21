@@ -35,6 +35,7 @@ DEFAULT_MAX_TOOL_ITERATIONS = 5
 # stream simply ignore it.
 ProgressEmit = Callable[[ChatChunk], Awaitable[None]]
 ToolExecutor = Callable[[dict[str, Any], ProgressEmit], Awaitable[dict[str, Any]]]
+ErrorReporter = Callable[[Exception, str | None, str | None], Awaitable[None]]
 
 # Sentinel marking the end of a tool's progress queue.
 _PROGRESS_DONE = object()
@@ -110,6 +111,7 @@ async def run_agent_turn(
     extra_finish_metadata: dict | None = None,
     persist_partial_on_error: bool = False,
     result: TurnResult | None = None,
+    on_error: ErrorReporter | None = None,
 ) -> AsyncIterator[ChatChunk]:
     """Stream one assistant turn, persisting through ``sink``.
 
@@ -132,6 +134,7 @@ async def run_agent_turn(
     pending_thinking: list[str] = []
     full_response = ""
     thinking_content = ""
+    active_tool_call_id: str | None = None
 
     try:
         # Allocate the effective window explicitly — without num_ctx, Ollama
@@ -160,6 +163,26 @@ async def run_agent_turn(
                 cancel_event=cancel_event,
                 tools=None if capped else (tools or None),
             ):
+                if chunk.metadata and chunk.metadata.get("error"):
+                    # Providers such as Ollama intentionally convert network
+                    # failures to terminal error chunks instead of raising.
+                    # They still need the same report/rollback path as a
+                    # thrown stream exception, and must not be followed by a
+                    # misleading successful `done` event.
+                    error = RuntimeError(chunk.content or "LLM stream failed")
+                    result.error = True
+                    if on_error is not None:
+                        try:
+                            await on_error(
+                                error,
+                                active_tool_call_id,
+                                chunk.metadata.get("stack_trace"),
+                            )
+                        except Exception:
+                            logger.exception("Failed to auto-file provider stream error")
+                    await sink.rollback()
+                    yield chunk
+                    return
                 if chunk.tool_calls:
                     if capped:
                         # No tools were offered on this pass; drop stray calls
@@ -224,6 +247,7 @@ async def run_agent_turn(
             )
 
             for call in tool_calls_this_iter:
+                active_tool_call_id = call.get("id")
                 execution = {
                     "tool_call_id": call.get("id"),
                     "tool_name": call.get("name"),
@@ -319,6 +343,7 @@ async def run_agent_turn(
                     )
 
                 llm_messages.append(LLMMessage(role="tool", content=result_text))
+                active_tool_call_id = None
 
             await sink.commit()
 
@@ -359,6 +384,11 @@ async def run_agent_turn(
     except Exception as e:
         logger.exception("Error in agent turn streaming")
         result.error = True
+        if on_error is not None:
+            try:
+                await on_error(e, active_tool_call_id, None)
+            except Exception:
+                logger.exception("Failed to auto-file agent turn error")
         if persist_partial_on_error:
             content = full_response or f"[agent error: {e}]"
             msg_meta: dict[str, Any] = {

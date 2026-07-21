@@ -8,6 +8,7 @@ import 'package:marionette_flutter/marionette_flutter.dart';
 import 'package:provider/provider.dart';
 
 import 'package:garbanzo_ai/core/api_client.dart';
+import 'package:garbanzo_ai/core/error_reporter.dart';
 import 'package:garbanzo_ai/core/auth_state.dart';
 import 'package:garbanzo_ai/core/router.dart';
 import 'package:garbanzo_ai/core/theme.dart';
@@ -29,21 +30,39 @@ import 'package:garbanzo_ai/features/settings/providers/update_provider.dart';
 import 'package:garbanzo_ai/features/settings/widgets/update_banner.dart';
 import 'package:garbanzo_ai/features/tools/providers/tool_provider.dart';
 
-void main() {
-  if (kDebugMode) {
-    MarionetteBinding.ensureInitialized();
-  } else {
-    WidgetsFlutterBinding.ensureInitialized();
-  }
-  // Clean path URLs on web (no /#/). The backend's SPA catch-all serves
-  // index.html for unknown paths, so deep links survive a refresh.
-  usePathUrlStrategy();
-  // Kick off the initial token load before the first widget builds so
-  // auth-bearing requests from providers see an in-memory token immediately.
-  unawaited(ApiClient.instance.loadToken());
-  unawaited(PushService.instance.init());
-  runApp(const GarbanzoApp());
-}
+void main() => runZonedGuarded(
+  () {
+    if (kDebugMode) {
+      MarionetteBinding.ensureInitialized();
+    } else {
+      WidgetsFlutterBinding.ensureInitialized();
+    }
+    FlutterError.onError = (details) {
+      FlutterError.presentError(details);
+      unawaited(
+        ErrorReporter.instance.report(
+          details.exception,
+          details.stack ?? StackTrace.current,
+        ),
+      );
+    };
+    PlatformDispatcher.instance.onError = (error, stack) {
+      unawaited(ErrorReporter.instance.report(error, stack));
+      return true;
+    };
+    // Clean path URLs on web (no /#/). The backend's SPA catch-all serves
+    // index.html for unknown paths, so deep links survive a refresh.
+    usePathUrlStrategy();
+    // Kick off the initial token load before the first widget builds so
+    // auth-bearing requests from providers see an in-memory token immediately.
+    unawaited(ApiClient.instance.loadToken());
+    unawaited(PushService.instance.init());
+    runApp(const GarbanzoApp());
+  },
+  (error, stack) {
+    unawaited(ErrorReporter.instance.report(error, stack));
+  },
+);
 
 class GarbanzoApp extends StatefulWidget {
   const GarbanzoApp({super.key});

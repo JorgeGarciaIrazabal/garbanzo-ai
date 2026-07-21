@@ -134,6 +134,44 @@ async def test_tool_progress_interleaves_before_result(monkeypatch):
     ]
 
 
+async def test_provider_error_chunk_calls_error_reporter(monkeypatch):
+    monkeypatch.setattr(
+        "app.services.agent_turn.resolve_context_length",
+        lambda provider, model: _async_return(4096),
+    )
+    provider = _ScriptedProvider(
+        [
+            [
+                ChatChunk(
+                    content="Ollama stopped responding",
+                    is_finished=True,
+                    metadata={"error": True, "stack_trace": "provider trace"},
+                )
+            ]
+        ]
+    )
+    reported: list[tuple[Exception, str | None, str | None]] = []
+
+    async def on_error(error, tool_call_id, trace):
+        reported.append((error, tool_call_id, trace))
+
+    chunks = [
+        chunk
+        async for chunk in run_agent_turn(
+            provider=provider,
+            model="fake",
+            llm_messages=[LLMMessage(role="user", content="hello")],
+            sink=_NoopSink(),
+            options=ChatOptions(),
+            on_error=on_error,
+        )
+    ]
+
+    assert len(chunks) == 1
+    assert str(reported[0][0]) == "Ollama stopped responding"
+    assert reported[0][2] == "provider trace"
+
+
 class _CancellingProvider:
     """Streams a couple of chunks, then simulates a client disconnect."""
 

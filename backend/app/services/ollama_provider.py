@@ -3,6 +3,7 @@
 import asyncio
 import contextlib
 import logging
+import traceback
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -292,14 +293,22 @@ class OllamaProvider(LLMProvider):
             yield ChatChunk(
                 content=f"Ollama error: {e.error}",
                 is_finished=True,
-                metadata={"error": True, "status_code": e.status_code},
+                metadata={
+                    "error": True,
+                    "status_code": e.status_code,
+                    "stack_trace": traceback.format_exc(),
+                },
             )
         except TimeoutError:
             logger.error("Ollama stream timed out for model %s", model)
             yield ChatChunk(
                 content="Ollama stopped responding mid-stream (timeout).",
                 is_finished=True,
-                metadata={"error": True, "error_type": "stream_timeout"},
+                metadata={
+                    "error": True,
+                    "error_type": "stream_timeout",
+                    "stack_trace": traceback.format_exc(),
+                },
             )
         except _TRANSIENT_ERRORS as e:
             logger.error("Ollama request error after retries: %s", e)
@@ -307,14 +316,14 @@ class OllamaProvider(LLMProvider):
             yield ChatChunk(
                 content=f"Failed to connect to Ollama: {detail}",
                 is_finished=True,
-                metadata={"error": True},
+                metadata={"error": True, "stack_trace": traceback.format_exc()},
             )
         except Exception as e:
             logger.exception("Unexpected error in Ollama streaming")
             yield ChatChunk(
                 content=f"Unexpected error: {e}",
                 is_finished=True,
-                metadata={"error": True},
+                metadata={"error": True, "stack_trace": traceback.format_exc()},
             )
 
     async def list_models(self) -> list[ModelInfo]:
