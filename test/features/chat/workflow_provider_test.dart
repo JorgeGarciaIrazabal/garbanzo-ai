@@ -2,6 +2,7 @@
 library;
 
 import 'dart:convert';
+import 'dart:async';
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';
@@ -58,6 +59,9 @@ class _FakeWorkflowService extends WorkflowService {
   List<int> sinceValues = [];
   final List<String> createdModes = [];
   final List<String> outputRequests = [];
+  int listCalls = 0;
+  Completer<List<WorkflowRun>>? listCompleter;
+  Completer<void>? listStarted;
 
   WorkflowRun _run({
     required String id,
@@ -135,8 +139,13 @@ class _FakeWorkflowService extends WorkflowService {
   List<WorkflowRun>? listResponse;
 
   @override
-  Future<List<WorkflowRun>> listForConversation(String conversationId) async =>
-      listResponse ?? [_run(id: 'run-1', status: 'done', summary: 'all good')];
+  Future<List<WorkflowRun>> listForConversation(String conversationId) async {
+    listCalls++;
+    listStarted?.complete();
+    final pending = listCompleter;
+    if (pending != null) return pending.future;
+    return listResponse ?? [_run(id: 'run-1', status: 'done', summary: 'all good')];
+  }
 }
 
 class _FakeOutputDownloader extends WorkflowOutputDownloader {
@@ -236,6 +245,27 @@ void main() {
       expect(service.started, ['run-1']);
       expect(runs[0]?.id, 'run-1');
       expect(runs[1]?.id, 'run-1');
+    });
+
+    test('does not restart a proposal that already has a restored run', () async {
+      service.listResponse = [
+        service._run(
+          id: 'finished-run',
+          status: 'done',
+          conversationId: 'conv-1',
+        ),
+      ];
+      await provider.loadForConversation('conv-1');
+
+      final run = await provider.startFromProposal(
+        toolCallId: 'tc-1',
+        instruction: 'deep research',
+        conversationId: 'conv-1',
+      );
+
+      expect(run?.id, 'finished-run');
+      expect(service.createdModes, isEmpty);
+      expect(service.started, isEmpty);
     });
 
     test('reports files the snapshot had to leave out', () async {
@@ -669,6 +699,30 @@ void main() {
 
       await p.loadForConversation('conv-1', force: true);
       expect(calls, 2);
+    });
+
+    test('concurrent cards await one in-flight hydration', () async {
+      final pending = Completer<List<WorkflowRun>>();
+      final started = Completer<void>();
+      service.listCompleter = pending;
+      service.listStarted = started;
+
+      final first = provider.loadForConversation('conv-1');
+      final second = provider.loadForConversation('conv-1');
+
+      await started.future;
+      expect(service.listCalls, 1);
+      pending.complete([
+        service._run(
+          id: 'finished-run',
+          status: 'done',
+          conversationId: 'conv-1',
+        ),
+      ]);
+      await Future.wait([first, second]);
+
+      expect(provider.runFor('tc-1')?.id, 'finished-run');
+      expect(provider.phaseFor('tc-1'), WorkflowPhase.done);
     });
   });
 }

@@ -148,9 +148,12 @@ features/chat/
                       in SharedPreferences, so a reload or a card scrolling
                       back into view can't double-write. Lives above the
                       message list because a run outlasts its progress tile
-                      scrolling out of view; on completion it calls back into
-                      ChatProvider to reload the conversation, so the summary
-                      the runner wrote server-side actually appears)
+                      scrolling out of view; restored proposal cards share
+                      one hydration before deciding whether to auto-start, so
+                      a completed run is never launched again after restart;
+                      on completion it calls back into ChatProvider to reload
+                      the conversation, so the summary the runner wrote
+                      server-side actually appears)
   services/          chat_service.dart (CRUD + SSE streaming),
                      audio_service.dart (STT/TTS), style_service.dart,
                      folder_reader.dart / folder_writer.dart (facades that

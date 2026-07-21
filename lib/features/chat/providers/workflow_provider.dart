@@ -204,6 +204,11 @@ class WorkflowProvider extends ChangeNotifier {
   /// Conversations already hydrated, so N cards on screen trigger one fetch.
   final Set<String> _loadedConversations = {};
 
+  /// Hydrations currently awaiting the server. A restored conversation can
+  /// build several proposal cards at once; every card must await the same
+  /// request before deciding that its proposal has no existing run.
+  final Map<String, Future<void>> _conversationLoads = {};
+
   WorkflowRun? runFor(String toolCallId) {
     final id = _runIdByToolCall[toolCallId];
     return id == null ? null : _runs[id];
@@ -242,8 +247,26 @@ class WorkflowProvider extends ChangeNotifier {
   Future<void> loadForConversation(
     String conversationId, {
     bool force = false,
-  }) async {
-    if (!force && !_loadedConversations.add(conversationId)) return;
+  }) {
+    if (!force && _loadedConversations.contains(conversationId)) {
+      return Future.value();
+    }
+    final inFlightLoad = _conversationLoads[conversationId];
+    if (!force && inFlightLoad != null) {
+      return inFlightLoad;
+    }
+
+    late final Future<void> load;
+    load = _hydrateConversation(conversationId).whenComplete(() {
+      if (identical(_conversationLoads[conversationId], load)) {
+        _conversationLoads.remove(conversationId);
+      }
+    });
+    if (!force) _conversationLoads[conversationId] = load;
+    return load;
+  }
+
+  Future<void> _hydrateConversation(String conversationId) async {
     await _loadAppliedRuns();
     try {
       final runs = await _service.listForConversation(conversationId);
@@ -274,6 +297,7 @@ class WorkflowProvider extends ChangeNotifier {
           }
         }
       }
+      _loadedConversations.add(conversationId);
       notifyListeners();
     } catch (e) {
       // Let a failed hydrate be retried on the next card build.
@@ -294,6 +318,11 @@ class WorkflowProvider extends ChangeNotifier {
     String? conversationId,
     String? roomId,
   }) {
+    // A restored proposal can be built again after an app restart. Once its
+    // persisted run has been hydrated, it is never a new proposal to launch.
+    final existingRun = runFor(toolCallId);
+    if (existingRun != null) return Future.value(existingRun);
+
     final inFlight = _startsInFlight[toolCallId];
     if (inFlight != null) return inFlight;
 
