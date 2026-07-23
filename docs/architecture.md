@@ -173,8 +173,7 @@ features/chat/
                      (energy VAD), talk_barge_in.dart (talk-over-the-AI detector:
                      margin + absolute gate + echo-adaptive floor; sensitivity is
                      a Voice setting), talk_recorder.dart (mic + amplitude
-                     stream), talk_tts_queue.dart (sentence-streamed WAV playback
-                     with a one-time cold-output silent pre-roll)
+                     stream), talk_tts_queue.dart (sentence-streamed WAV playback)
   widgets/           ChatPage, ChatInputWidget, ChatMessageWidget,
                      ConversationListWidget, StylePicker (StylePickerButton
                      + popover/bottom-sheet panel; replaced the old

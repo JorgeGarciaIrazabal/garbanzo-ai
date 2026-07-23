@@ -43,8 +43,7 @@ Everything the state machine needs already exists — Talk Mode is mostly **orch
 
 **TTS (text → speech)**
 - `AudioService.speak(text, voice, speed)` → MP3 bytes by default; Talk Mode
-  requests WAV and adds one silent pre-roll before the first reply chunk;
-  `streamSpeak(...)` streams MP3 to a temp file.
+  requests WAV; `streamSpeak(...)` streams MP3 to a temp file.
 - Playback pattern already proven in `speak_button.dart`: `audioplayers` `AudioPlayer` +
   `BytesSource`, **fresh player per chunk**, text split into ~sentence chunks and
   synthesized back-to-back so playback starts on the first chunk.
