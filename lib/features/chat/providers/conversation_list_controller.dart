@@ -27,19 +27,23 @@ class ConversationListController extends ChangeNotifier {
   String? _error;
   String? get error => _error;
 
-  Future<void> load() async {
-    _isLoading = true;
+  Future<void> load({bool showLoading = true}) async {
+    if (showLoading) _isLoading = true;
     _error = null;
-    notifyListeners();
+    if (showLoading) notifyListeners();
 
     try {
       final list = await _chatService.listConversations();
-      _conversations = list.items;
+      _conversations = list.items
+          .where(
+            (conversation) => !_pendingDeletes.containsKey(conversation.id),
+          )
+          .toList();
     } catch (e) {
       _error = 'Failed to load conversations: $e';
       logDebug(_error!);
     } finally {
-      _isLoading = false;
+      if (showLoading) _isLoading = false;
       notifyListeners();
     }
   }

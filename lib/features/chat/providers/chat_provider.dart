@@ -153,6 +153,26 @@ class ChatProvider extends ChangeNotifier {
 
   Future<void> refreshConversations() async => conversationList.load();
 
+  bool _syncingFromServer = false;
+
+  /// Reconcile idle chat state with changes made by another signed-in client.
+  ///
+  /// The sidebar refresh stays silent so foreground polling does not flash a
+  /// loading state. An active local stream owns the message list and must not
+  /// be replaced by a remote snapshot midway through generation.
+  Future<void> syncFromServer() async {
+    if (_syncingFromServer) return;
+    _syncingFromServer = true;
+    try {
+      await Future.wait([
+        conversationList.load(showLoading: false),
+        if (!_isSending && !_stream.isActive) _reloadCurrentConversation(),
+      ]);
+    } finally {
+      _syncingFromServer = false;
+    }
+  }
+
   Future<void> loadConversation(String conversationId) async {
     // Switching away mid-stream: stop the old stream so its chunks can't
     // bleed into the newly loaded conversation's message list.

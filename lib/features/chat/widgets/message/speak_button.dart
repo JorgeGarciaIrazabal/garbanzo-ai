@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
 import 'package:garbanzo_ai/features/chat/services/audio_service.dart';
+import 'package:garbanzo_ai/features/chat/services/tts_audio_source.dart';
 import 'package:garbanzo_ai/features/chat/utils/text_cleaner.dart';
 import 'package:garbanzo_ai/features/chat/widgets/message/message_action_button.dart';
 
@@ -32,6 +33,7 @@ class _SpeakButtonState extends State<SpeakButton> {
   bool _isLoading = false;
   bool _cancelled = false;
   AudioPlayer? _player;
+  PreparedTtsAudioSource? _audioSource;
 
   @override
   void didUpdateWidget(SpeakButton old) {
@@ -50,7 +52,7 @@ class _SpeakButtonState extends State<SpeakButton> {
   @override
   void dispose() {
     _cancelled = true;
-    _player?.dispose();
+    unawaited(_releasePlayback());
     super.dispose();
   }
 
@@ -83,7 +85,10 @@ class _SpeakButtonState extends State<SpeakButton> {
     try {
       final settings = context.read<SettingsProvider>();
       final cleaned = cleanTextForSpeech(widget.content);
-      if (cleaned.isEmpty) return;
+      if (cleaned.isEmpty) {
+        if (mounted) setState(() => _isLoading = false);
+        return;
+      }
 
       final chunks = _splitIntoChunks(cleaned);
 
@@ -106,8 +111,15 @@ class _SpeakButtonState extends State<SpeakButton> {
 
         // Fresh player per chunk — reusing the same player for sequential
         // play() calls is unreliable across platforms (web, Android, Linux).
-        unawaited(_player?.dispose());
-        _player = AudioPlayer();
+        await _releasePlayback();
+        final source = await prepareTtsAudioSource(audioBytes, format: 'mp3');
+        if (_cancelled) {
+          await source.dispose();
+          break;
+        }
+        final player = AudioPlayer();
+        _player = player;
+        _audioSource = source;
 
         if (i == 0 && mounted) {
           setState(() {
@@ -121,14 +133,17 @@ class _SpeakButtonState extends State<SpeakButton> {
           if (!completer.isCompleted) completer.complete();
         });
 
-        await _player!.play(BytesSource(audioBytes));
+        await _player!.play(_audioSource!.source);
         await completer.future;
       }
+
+      await _releasePlayback();
 
       if (mounted) {
         setState(() => _isPlaying = false);
       }
     } catch (e) {
+      await _releasePlayback();
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -148,9 +163,19 @@ class _SpeakButtonState extends State<SpeakButton> {
   Future<void> _stop() async {
     _cancelled = true;
     await _player?.stop();
+    await _releasePlayback();
     if (mounted) {
       setState(() => _isPlaying = false);
     }
+  }
+
+  Future<void> _releasePlayback() async {
+    final player = _player;
+    final source = _audioSource;
+    _player = null;
+    _audioSource = null;
+    await player?.dispose();
+    await source?.dispose();
   }
 
   @override

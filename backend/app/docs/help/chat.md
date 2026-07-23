@@ -4,6 +4,12 @@
 Press **New Chat** at the top of the conversation list (the left sidebar on
 desktop, the drawer on mobile).
 
+## Do conversations sync across my devices?
+Yes. While the app is open, the conversation list and the chat you are viewing
+refresh automatically within about ten seconds of a change made on another
+signed-in device. Returning to the app also refreshes them immediately. A reply
+that is currently streaming on the local device is left untouched.
+
 ## How do I send a message?
 Type in the input bar and press Enter (or the send button). While the
 assistant is replying you can press the stop button to cancel generation.

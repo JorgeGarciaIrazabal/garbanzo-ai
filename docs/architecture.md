@@ -157,7 +157,9 @@ features/chat/
                       the conversation, so the summary the runner wrote
                       server-side actually appears)
   services/          chat_service.dart (CRUD + SSE streaming),
-                     audio_service.dart (STT/TTS), style_service.dart,
+                     audio_service.dart (STT/TTS), tts_audio_source.dart
+                     (seekable temporary files on Android; in-memory sources
+                     elsewhere), style_service.dart,
                      folder_reader.dart / folder_writer.dart (facades that
                      conditionally export a dart:io impl or a throwing web
                      stub — the folder only exists on desktop clients),
@@ -174,7 +176,9 @@ features/chat/
                      margin + absolute gate + echo-adaptive floor; sensitivity is
                      a Voice setting), talk_recorder.dart (mic + amplitude
                      stream), talk_tts_queue.dart (sentence-streamed WAV playback)
-  widgets/           ChatPage, ChatInputWidget, ChatMessageWidget,
+  widgets/           ChatPage (silently reconciles the conversation list and
+                     open idle chat every 10s while foregrounded, plus once on
+                     app resume), ChatInputWidget, ChatMessageWidget,
                      ConversationListWidget, StylePicker (StylePickerButton
                      + popover/bottom-sheet panel; replaced the old
                      ModelSelectorWidget dropdown),

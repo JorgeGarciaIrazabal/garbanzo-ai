@@ -4,6 +4,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
 
 import 'package:garbanzo_ai/features/chat/services/audio_service.dart';
+import 'package:garbanzo_ai/features/chat/services/tts_audio_source.dart';
 import 'package:garbanzo_ai/features/chat/utils/text_cleaner.dart';
 
 /// Sequential text-to-speech playback for Talk Mode.
@@ -39,6 +40,8 @@ class TalkTtsQueue {
   bool _draining = false;
   bool _stopped = false;
   AudioPlayer? _player;
+  PreparedTtsAudioSource? _audioSource;
+  Completer<void>? _playbackDone;
 
   bool get isSpeaking => _draining;
 
@@ -109,14 +112,27 @@ class TalkTtsQueue {
   Future<void> _playChunk(Uint8List audioBytes) async {
     // Fresh player per chunk — reusing one for sequential play() is unreliable
     // across platforms (matches speak_button).
-    unawaited(_player?.dispose());
-    _player = AudioPlayer();
+    await _releasePlayback();
+    final source = await prepareTtsAudioSource(audioBytes, format: 'wav');
+    if (_stopped) {
+      await source.dispose();
+      return;
+    }
+    final player = AudioPlayer();
+    _player = player;
+    _audioSource = source;
     final completer = Completer<void>();
-    _player!.onPlayerComplete.listen((_) {
+    _playbackDone = completer;
+    player.onPlayerComplete.listen((_) {
       if (!completer.isCompleted) completer.complete();
     });
-    await _player!.play(BytesSource(audioBytes));
-    await completer.future;
+    try {
+      await player.play(source.source);
+      await completer.future;
+    } finally {
+      if (identical(_playbackDone, completer)) _playbackDone = null;
+      await _releasePlayback();
+    }
   }
 
   /// Stop playback and clear the queue. The instance can be reused after
@@ -125,9 +141,21 @@ class TalkTtsQueue {
     _stopped = true;
     _pending.clear();
     await _player?.stop();
-    await _player?.dispose();
-    _player = null;
+    final playbackDone = _playbackDone;
+    if (playbackDone != null && !playbackDone.isCompleted) {
+      playbackDone.complete();
+    }
+    await _releasePlayback();
     _draining = false;
+  }
+
+  Future<void> _releasePlayback() async {
+    final player = _player;
+    final source = _audioSource;
+    _player = null;
+    _audioSource = null;
+    await player?.dispose();
+    await source?.dispose();
   }
 
   /// Re-arm a stopped queue so it can accept new text again.

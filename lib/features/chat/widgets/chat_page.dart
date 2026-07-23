@@ -146,8 +146,11 @@ class _ChatPageContent extends StatefulWidget {
 
 class _ChatPageContentState extends State<_ChatPageContent>
     with WidgetsBindingObserver {
+  static const _syncInterval = Duration(seconds: 10);
+
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final ScrollController _scrollController = ScrollController();
+  Timer? _syncTimer;
   bool _isDragOver = false;
 
   /// User-chosen width of the micro-app side panel (null = default). Adjusted
@@ -194,6 +197,17 @@ class _ChatPageContentState extends State<_ChatPageContent>
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _startSyncTimer();
+      _syncNow();
+    } else {
+      _syncTimer?.cancel();
+      _syncTimer = null;
+    }
+  }
+
+  @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     // Follow the live streaming bubble as it grows. Content updates flow
@@ -205,15 +219,30 @@ class _ChatPageContentState extends State<_ChatPageContent>
       _chatProviderRef = provider;
       provider.streamingMessage.addListener(_onStreamingUpdate);
     }
+    _startSyncTimer();
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _syncTimer?.cancel();
     _chatProviderRef?.streamingMessage.removeListener(_onStreamingUpdate);
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     super.dispose();
+  }
+
+  void _startSyncTimer() {
+    final lifecycleState = WidgetsBinding.instance.lifecycleState;
+    if (lifecycleState != null && lifecycleState != AppLifecycleState.resumed) {
+      return;
+    }
+    _syncTimer ??= Timer.periodic(_syncInterval, (_) => _syncNow());
+  }
+
+  void _syncNow() {
+    final provider = _chatProviderRef;
+    if (provider != null) unawaited(provider.syncFromServer());
   }
 
   bool get _isNearBottom {
