@@ -4,6 +4,15 @@ Release notes for Garbanzo AI. Each entry is generated automatically on
 `just deploy` — an LLM (via opencode) writes it from the release's commits and
 the user reports it addressed. See `scripts/changelog-instructions.md`.
 
+## v1.0.13 — 2026-07-23
+
+### 🙋 User requests completed
+- Fixed chat not syncing across Android, web, and Windows until the app was fully refreshed.
+- Fixed the Android audio playback error that could interrupt message playback.
+
+### 🐛 Fixes
+- Made audio playback and chat sync more reliable across platforms.
+
 ## v1.0.12 — 2026-07-23
 
 ### 🙋 User requests completed
