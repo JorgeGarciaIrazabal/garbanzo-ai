@@ -79,14 +79,21 @@ class TestMemoryExtractionServiceFetch:
         assert messages[2].content == "How are you?"
 
     async def test_format_messages_for_prompt(self, db_session: AsyncSession):
-        """Formats messages as 'Role: content' lines."""
+        """Only user-authored statements are eligible extraction input."""
         svc = MemoryExtractionService(db_session)
         messages = [
             Message(id="1", conversation_id="c1", role="user", content="Hello"),
-            Message(id="2", conversation_id="c1", role="assistant", content="Hi!"),
+            Message(
+                id="2",
+                conversation_id="c1",
+                role="assistant",
+                content="The Eiffel Tower is in Paris.",
+            ),
+            Message(id="3", conversation_id="c1", role="user", content="  I love jazz.  "),
+            Message(id="4", conversation_id="c1", role="tool_result", content="Search result"),
         ]
         formatted = svc._format_messages_for_prompt(messages)
-        assert formatted == "User: Hello\nAssistant: Hi!"
+        assert formatted == "User: Hello\nUser: I love jazz."
 
     async def _seed_user(self, db: AsyncSession, email: str):
         db.add(User(email=email, hashed_password=hash_password("pw")))
@@ -133,8 +140,15 @@ class TestMemoryExtractionServiceExtract:
         assert "User loves Python programming" in memories
         assert "User prefers concise answers" in memories
 
-    async def test_extract_memories_handles_dict_with_memories_key(self, db_session: AsyncSession):
-        """LLM sometimes wraps array in {memories: [...]}. Service handles both."""
+        options = mock_provider.chat.await_args.kwargs["options"]
+        assert options.temperature == 0.0
+        assert options.response_format["type"] == "array"
+        prompt = mock_provider.chat.await_args.kwargs["messages"][0].content
+        assert "General knowledge, public facts" in prompt
+        assert "Assistant: Nice!" not in prompt
+
+    async def test_extract_memories_rejects_non_array_json(self, db_session: AsyncSession):
+        """Responses outside the structured array contract create no memories."""
         await self._seed_user(db_session, "alice@example.com")
         conv = Conversation(id="conv-1", user_id="alice@example.com", title="Test")
         db_session.add(conv)
@@ -161,11 +175,10 @@ class TestMemoryExtractionServiceExtract:
                 conversations=[conv],
             )
 
-        assert len(memories) == 2
-        assert memories == ["Wrapped memory one", "Wrapped memory two"]
+        assert memories == []
 
-    async def test_extract_memories_invalid_json_fallback_to_lines(self, db_session: AsyncSession):
-        """Invalid JSON falls back to line-by-line parsing."""
+    async def test_extract_memories_invalid_json_returns_empty(self, db_session: AsyncSession):
+        """Prose is never reinterpreted as memory records."""
         await self._seed_user(db_session, "alice@example.com")
         conv = Conversation(id="conv-1", user_id="alice@example.com", title="Test")
         db_session.add(conv)
@@ -173,7 +186,9 @@ class TestMemoryExtractionServiceExtract:
         await db_session.commit()
 
         mock_provider = MagicMock(spec=LLMProvider)
-        mock_provider.chat = AsyncMock(return_value="Memory one\nMemory two\n\nMemory three")
+        mock_provider.chat = AsyncMock(
+            return_value="There are no durable personal facts worth remembering."
+        )
         mock_provider.get_model_context_length = AsyncMock(return_value=8192)
 
         with patch.object(ProviderRegistry, "get", return_value=mock_provider):
@@ -183,7 +198,58 @@ class TestMemoryExtractionServiceExtract:
                 conversations=[conv],
             )
 
-        assert memories == ["Memory one", "Memory two", "Memory three"]
+        assert memories == []
+
+    async def test_extract_memories_ignores_empty_content(self, db_session: AsyncSession):
+        await self._seed_user(db_session, "alice@example.com")
+        conv = Conversation(id="conv-1", user_id="alice@example.com", title="Test")
+        db_session.add(conv)
+        db_session.add(Message(id="1", conversation_id="conv-1", role="user", content="Hello"))
+        await db_session.commit()
+
+        mock_provider = MagicMock(spec=LLMProvider)
+        mock_provider.chat = AsyncMock(
+            return_value=json.dumps([{"content": "   "}, {"content": None}, {}])
+        )
+        mock_provider.get_model_context_length = AsyncMock(return_value=8192)
+
+        with patch.object(ProviderRegistry, "get", return_value=mock_provider):
+            svc = MemoryExtractionService(db_session, provider_name="ollama")
+            memories = await svc.extract_memories_from_conversations(
+                user_id="alice@example.com",
+                conversations=[conv],
+            )
+
+        assert memories == []
+
+    async def test_extract_memories_skips_conversations_without_user_text(
+        self, db_session: AsyncSession
+    ):
+        await self._seed_user(db_session, "alice@example.com")
+        conv = Conversation(id="conv-1", user_id="alice@example.com", title="Test")
+        db_session.add(conv)
+        db_session.add(
+            Message(
+                id="1",
+                conversation_id="conv-1",
+                role="assistant",
+                content="Some internet fact",
+            )
+        )
+        await db_session.commit()
+
+        mock_provider = MagicMock(spec=LLMProvider)
+        mock_provider.chat = AsyncMock()
+
+        with patch.object(ProviderRegistry, "get", return_value=mock_provider):
+            svc = MemoryExtractionService(db_session, provider_name="ollama")
+            memories = await svc.extract_memories_from_conversations(
+                user_id="alice@example.com",
+                conversations=[conv],
+            )
+
+        assert memories == []
+        mock_provider.chat.assert_not_awaited()
 
     async def test_extract_memories_empty_conversations_returns_empty(
         self, db_session: AsyncSession

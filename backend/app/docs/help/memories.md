@@ -4,6 +4,12 @@ Memories are facts the assistant remembers about you across conversations
 (preferences, projects, context). The most relevant ones are injected into
 each reply automatically.
 
+Garbanzo also reviews your recent user-authored messages daily for durable
+personal details, interests, goals, work, skills, and communication preferences.
+It does not save general internet knowledge, assistant-generated information,
+or one-off conversation details. If nothing is useful long-term, it saves
+nothing.
+
 ## How do I save a memory?
 - Press **Remember This** on a message to extract memories from it, or
 - Go to the **Memories** page and press **Create Memory** to write one
