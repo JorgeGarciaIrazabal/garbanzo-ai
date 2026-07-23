@@ -61,7 +61,17 @@ bump_patch() {
 # The version this deploy will be released as (tagged after a successful
 # deploy, below). Baked into the backend image so /api/v1/health reports the
 # same version the CI desktop builds of this release carry.
+#
+# If the computed tag already exists on the remote (e.g. a prior deploy
+# shipped v1.0.10 but pubspec was later rolled back to 1.0.9), keep bumping
+# the patch until we find a free tag. This prevents the "tag already exists"
+# push rejection that would otherwise abort a deploy after everything has
+# already shipped.
 NEW_VERSION=$(bump_patch "$CURRENT_VERSION")
+while git -C "$REPO" ls-remote --exit-code origin "refs/tags/v${NEW_VERSION}" >/dev/null 2>&1; do
+    echo "WARNING: tag v${NEW_VERSION} already exists on origin — bumping to next patch"
+    NEW_VERSION=$(bump_patch "$NEW_VERSION")
+done
 
 # --- Pristine snapshot of main ------------------------------------------------
 WT=$(mktemp -d "${TMPDIR:-/tmp}/garbanzo-deploy.XXXXXX")
@@ -267,7 +277,20 @@ git -C "$REPO" tag -a "v${NEW_VERSION}" \
 
 step "Pushing main + tag v${NEW_VERSION} to origin"
 git -C "$REPO" push origin main
-git -C "$REPO" push origin "v${NEW_VERSION}"
+# Force the tag only locally-override case: we already verified the remote tag
+# doesn't exist (see the ls-remote loop above), so a plain push is correct and
+# a rejection here means the remote state changed mid-deploy — surface it
+# clearly rather than masking a real conflict.
+if ! git -C "$REPO" push origin "v${NEW_VERSION}" 2>&1; then
+    echo ""
+    echo "WARNING: Failed to push tag v${NEW_VERSION}. The deploy itself"
+    echo "succeeded (web + backend + APK are live), but the GitHub Actions"
+    echo "desktop-build workflow was NOT triggered. To finish the release:"
+    echo "  1. Resolve the tag conflict on the remote."
+    echo "  2. Run: git push origin v${NEW_VERSION}"
+    echo "  CI: https://github.com/JorgeGarciaIrazabal/garbanzo-ai/actions"
+    exit 0
+fi
 
 echo ""
 echo "Release tag v${NEW_VERSION} pushed."
