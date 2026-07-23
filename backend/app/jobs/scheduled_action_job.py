@@ -42,7 +42,7 @@ async def run_scheduled_action(action_id: str) -> None:
         conversation = await convs.create(
             user_id=user_id,
             title=f"⏰ {title}",
-            model=action.model or get_settings().default_model,
+            model=action.model or get_settings().scheduled_action_model,
             system_prompt=action.system_prompt,
         )
 

@@ -94,8 +94,10 @@ services/      chat_service.py (turn orchestration + tool loop)
                fcm_service.py, device_service.py, notification_service.py
                image_utils.py (image attachment resize/encoding)
 db/            base.py, session.py (AsyncSession, init_db), migrations.py
-jobs/          extract_memories_job.py (daily at 2 AM)
-               scheduled_action_job.py (user-defined cron/one-shot actions)
+jobs/          extract_memories_job.py (daily at 2 AM; dedicated
+               MEMORY_EXTRACTION_MODEL, glm-5.2:cloud by default)
+               scheduled_action_job.py (user-defined cron/one-shot actions;
+               SCHEDULED_ACTION_MODEL fallback, glm-5.2:cloud by default)
                microapps_sync_job.py (periodic git pull of micro-apps repo)
 scheduler.py   APScheduler lifecycle + action registration
 ```

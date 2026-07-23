@@ -41,6 +41,13 @@ def test_strong_secret_is_clean():
     assert not warns
 
 
+def test_model_defaults_are_workload_specific():
+    settings = Settings(_env_file=None)
+    assert settings.default_model == "minimax-m3:cloud"
+    assert settings.memory_extraction_model == "glm-5.2:cloud"
+    assert settings.scheduled_action_model == "glm-5.2:cloud"
+
+
 def test_proxy_mode_without_repo_path_warns():
     _, warns = validate_startup_config(_settings(microapps_proxy_mode=True, microapps_repo_path=""))
     assert any("MICROAPPS_PROXY_MODE" in w for w in warns)

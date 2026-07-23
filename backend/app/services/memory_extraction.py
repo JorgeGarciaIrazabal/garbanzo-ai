@@ -136,7 +136,7 @@ class MemoryExtractionService:
 
         Returns a list of memory content strings.
         """
-        model = model or get_settings().default_model
+        model = model or get_settings().memory_extraction_model
         if not conversations:
             return []
 
@@ -212,7 +212,7 @@ class MemoryExtractionService:
 
         Returns the list of created memory records.
         """
-        model = model or get_settings().default_model
+        model = model or get_settings().memory_extraction_model
         # Fetch recent conversations
         conversations = await self.fetch_recent_conversations(user_id, hours=hours)
 
@@ -271,7 +271,7 @@ class MemoryExtractionService:
 
         Returns a dict mapping user_id to their created memories.
         """
-        model = model or get_settings().default_model
+        model = model or get_settings().memory_extraction_model
         # Find all users with recent conversations
         cutoff = datetime.now(UTC) - timedelta(hours=hours)
 

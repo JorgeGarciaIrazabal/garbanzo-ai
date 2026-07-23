@@ -97,13 +97,19 @@ async def test_run_memory_extraction_job_no_users_with_conversations(
     with (
         patch("app.jobs.extract_memories_job.MemoryExtractionService", return_value=mock_service),
         patch("app.jobs.extract_memories_job.async_session_maker") as mock_session_maker,
+        patch("app.jobs.extract_memories_job.get_settings") as mock_settings,
         caplog.at_level(logging.INFO),
     ):
+        mock_settings.return_value.memory_extraction_model = "glm-5.2:cloud"
         mock_session_maker.return_value.__aenter__ = AsyncMock(return_value=db_session)
         mock_session_maker.return_value.__aexit__ = AsyncMock(return_value=False)
 
         await run_memory_extraction_job(lookback_hours=24)
 
+    mock_service.extract_memories_for_all_users.assert_awaited_once_with(
+        hours=24,
+        model="glm-5.2:cloud",
+    )
     assert "Memory extraction complete: 0 users processed, 0 total memories created" in caplog.text
 
 

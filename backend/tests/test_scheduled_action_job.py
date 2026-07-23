@@ -77,6 +77,12 @@ async def test_run_scheduled_action_happy_path(db_session, test_user_email):
 
     session_maker_mock.return_value = _Ctx()
     patches.append(patch("app.jobs.scheduled_action_job.async_session_maker", session_maker_mock))
+    patches.append(
+        patch(
+            "app.jobs.scheduled_action_job.get_settings",
+            return_value=SimpleNamespace(scheduled_action_model="glm-5.2:cloud"),
+        )
+    )
 
     for p in patches:
         p.start()
@@ -93,6 +99,7 @@ async def test_run_scheduled_action_happy_path(db_session, test_user_email):
     create_kwargs = convs_instance.create.call_args.kwargs
     assert create_kwargs["user_id"] == test_user_email
     assert create_kwargs["title"].startswith("⏰")
+    assert create_kwargs["model"] == "glm-5.2:cloud"
 
     # A reminders notification went out, with the conversation id.
     send_stub.assert_awaited_once()

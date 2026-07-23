@@ -28,10 +28,10 @@ async def run_memory_extraction_job(
     Args:
         hour: The hour of day to run (for logging purposes)
         model: The LLM model to use for extraction (defaults to
-            ``settings.default_model``)
+            ``settings.memory_extraction_model``)
         lookback_hours: How many hours of conversation history to analyze
     """
-    model = model or get_settings().default_model
+    model = model or get_settings().memory_extraction_model
     logger.info("Starting memory extraction job (model=%s, lookback=%dh)", model, lookback_hours)
 
     async with async_session_maker() as db:

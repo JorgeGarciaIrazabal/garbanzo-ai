@@ -203,7 +203,10 @@ _SCHEDULED_ACTIONS_DESCRIPTOR: dict[str, Any] = {
                 },
                 "model": {
                     "type": "string",
-                    "description": "Model ID to use (optional; defaults to the user's default).",
+                    "description": (
+                        "Model ID to use (optional; defaults to the server's "
+                        "scheduled-action model)."
+                    ),
                 },
                 "system_prompt": {
                     "type": "string",

@@ -40,7 +40,8 @@ half-migrated schema.
   Nominatim, `NOMINATIM_URL` env, and only the result is stored) or manually
   via `PATCH /auth/me`. `NULL` = sharing off (the settings toggle's default
   and its "off" state) → no location line in the prompt.
-- `Conversation.model` defaults to `"llama3.2"` — must match a model ID returned by `GET /api/v1/chat/models`.
+- `Conversation.model` defaults to `DEFAULT_MODEL` (`"minimax-m3:cloud"` by
+  default) — it must match a model ID returned by `GET /api/v1/chat/models`.
 - `Conversation.use_memory` (boolean) controls whether user memories are injected into LLM context.
 - `Conversation.use_knowledge_base` (boolean) controls whether KB chunks are injected.
 - `Conversation.is_pinned` (boolean) surfaces conversations in the sidebar.

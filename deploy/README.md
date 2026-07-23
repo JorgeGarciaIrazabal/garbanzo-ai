@@ -62,6 +62,10 @@ proceeds. Set `CHANGELOG_OPENCODE_MODEL` in `.env` to override the model.
     docker compose -f deploy/docker-compose.yml --env-file deploy/.env exec ollama ollama pull nemotron-3-ultra:cloud
     docker compose -f deploy/docker-compose.yml --env-file deploy/.env exec ollama ollama pull kimi-k2.7-code:cloud
     ```
+    Normal chats default to `minimax-m3:cloud`; automatic memory extraction
+    and scheduled actions default to `glm-5.2:cloud`. Override them independently
+    with `DEFAULT_MODEL`, `MEMORY_EXTRACTION_MODEL`, and
+    `SCHEDULED_ACTION_MODEL` in `deploy/.env`.
 6. Merge your work to `main`, then run `just deploy`.
 
 > The free ngrok plan allows **one agent session**. `just deploy` refuses to

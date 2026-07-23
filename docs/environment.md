@@ -10,6 +10,9 @@ DATABASE_URL=postgresql+asyncpg://garbanzo:garbanzo_dev@localhost:5432/garbanzo_
 
 LLM_PROVIDER=ollama
 OLLAMA_BASE_URL=http://localhost:11434   # host.docker.internal when in Docker
+DEFAULT_MODEL=minimax-m3:cloud           # chats and general internal calls
+MEMORY_EXTRACTION_MODEL=glm-5.2:cloud    # daily automatic memory extraction
+SCHEDULED_ACTION_MODEL=glm-5.2:cloud     # scheduled actions without an explicit model
 
 # STT: "local" (in-process faster-whisper) or "remote" (Docker container)
 STT_MODE=local

@@ -39,10 +39,16 @@ class Settings(BaseSettings):
     llm_provider: str = "ollama"
     ollama_base_url: str = "http://host.docker.internal:11434"
 
-    # Default model for new conversations / scheduled actions / background
-    # jobs when no explicit model is chosen. Must match a model ID returned
-    # by GET /api/v1/chat/models.
-    default_model: str = "llama3.2"
+    # Default model for new conversations and internal calls when no explicit
+    # model is chosen. Must match a model ID returned by GET /api/v1/chat/models.
+    default_model: str = "minimax-m3:cloud"
+
+    # Dedicated model for the daily automatic-memory extraction job. Keeping
+    # this separate avoids coupling memory quality/cost to the chat default.
+    memory_extraction_model: str = "glm-5.2:cloud"
+
+    # Default model for scheduled actions that do not explicitly select one.
+    scheduled_action_model: str = "glm-5.2:cloud"
 
     # Context window cap in tokens. The effective window for a conversation
     # is min(model's maximum, this value); it is passed to the provider as
