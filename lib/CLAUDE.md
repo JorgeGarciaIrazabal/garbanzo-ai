@@ -52,3 +52,6 @@ provider map, chat/SSE flow, rooms WebSocket) and `../docs/api.md` (endpoints).
 - Web integration tests (`-d chrome`) are unsupported — use `-d linux` for E2E.
 - API base URL: `--dart-define=API_BASE_URL` > debug `localhost:8000` > web-release
   relative origin.
+- `MarkdownWidget` already gets tables, task lists, and strikethrough from
+  `ExtensionSet.gitHubWeb`. Do not register those syntaxes again: duplicate
+  table parsers crash on temporarily incomplete tables during SSE streaming.

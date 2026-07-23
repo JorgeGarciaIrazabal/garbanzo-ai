@@ -234,5 +234,31 @@ home: Scaffold(
         expect(find.byType(SizedBox), findsOneWidget);
       });
     });
+
+    testWidgets('handles an incomplete table while content is streaming', (
+      tester,
+    ) async {
+      Widget buildMarkdown(String content) {
+        return MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: MarkdownWidget(
+              content: content,
+              colorScheme: colorScheme,
+              textTheme: textTheme,
+            ),
+          ),
+        );
+      }
+
+      await tester.pumpWidget(
+        buildMarkdown('| First | Second |\n| --- | --- |'),
+      );
+      await tester.pumpWidget(buildMarkdown('| First | Second |\n| --- |'));
+
+      expect(tester.takeException(), isNull);
+      expect(find.byType(MarkdownWidget), findsOneWidget);
+    });
   });
 }

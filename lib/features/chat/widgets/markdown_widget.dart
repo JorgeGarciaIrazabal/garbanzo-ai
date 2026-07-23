@@ -88,7 +88,6 @@ class _MarkdownWidgetState extends State<MarkdownWidget> {
       extensionSet: md.ExtensionSet.gitHubWeb,
       styleSheet: _styleSheet,
       inlineSyntaxes: _inlineSyntaxes,
-      blockSyntaxes: _blockSyntaxes,
       builders: _builders!,
     );
   }
@@ -255,21 +254,10 @@ class _MarkdownWidgetState extends State<MarkdownWidget> {
   // Syntax instances are stateless pattern holders (the parser carries the
   // parse state), so they're safe to share across all instances and parses.
   static final List<md.InlineSyntax> _inlineSyntaxes = [
-    // Strikethrough support (~~text~~)
-    md.StrikethroughSyntax(),
     // Block math support ($$...$$) - must come before inline math
     BlockMathInlineSyntax(),
     // Inline math support ($...$)
     InlineMathSyntax(),
-  ];
-
-  static final List<md.BlockSyntax> _blockSyntaxes = [
-    // Table support
-    md.TableSyntax(),
-    // Task list support (unordered with checkboxes)
-    md.UnorderedListWithCheckboxSyntax(),
-    // Task list support (ordered with checkboxes)
-    md.OrderedListWithCheckboxSyntax(),
   ];
 }
 
