@@ -11,7 +11,8 @@ said is transcribed into it.
 ## How does a turn work?
 Speak naturally; when you pause, your speech is transcribed and sent. The
 reply streams back as speech (sentence by sentence) with live captions on
-screen.
+screen. Non-English speech stays in the language you spoke; Talk Mode does not
+translate the transcript to English.
 
 ## Can I interrupt the assistant?
 Yes — just start talking while it's speaking (barge-in). Playback stops and

@@ -8,6 +8,8 @@ request the way the pre-fix code always did.
 """
 
 import pytest
+import soundfile as sf
+from numpy import zeros
 
 from app.services.stt_service import RemoteSTTService, STTService
 
@@ -46,6 +48,32 @@ class TestSTTServiceLanguageResolution:
         service = _CapturingSTTService(language="fr")
         await service.transcribe(b"fake", "a.wav")
         assert service.captured_language == "fr"
+
+
+class TestSTTServiceInferenceOptions:
+    async def test_local_inference_explicitly_transcribes_instead_of_translating(self):
+        captured = {}
+
+        class _Segment:
+            text = "hola"
+
+        class _Info:
+            language = "es"
+            duration = 1.0
+
+        class _FakeModel:
+            def transcribe(self, audio, **options):
+                captured.update(options)
+                return iter([_Segment()]), _Info()
+
+        audio = _wav_bytes()
+        service = STTService(model=_FakeModel(), language="auto", beam_size=1)
+
+        result = service._transcribe_sync(audio, "a.wav", language=None)
+
+        assert result["text"] == "hola"
+        assert captured["task"] == "transcribe"
+        assert captured["language"] is None
 
 
 class TestRemoteSTTServiceLanguageOmission:
@@ -96,3 +124,12 @@ class TestRemoteSTTServiceLanguageOmission:
 
 async def _fake_client_future(client):
     return client
+
+
+def _wav_bytes() -> bytes:
+    """One second of silent 16 kHz audio for inference-option tests."""
+    from io import BytesIO
+
+    buffer = BytesIO()
+    sf.write(buffer, zeros(16_000, dtype="float32"), 16_000, format="WAV")
+    return buffer.getvalue()

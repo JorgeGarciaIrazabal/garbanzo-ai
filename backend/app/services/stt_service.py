@@ -161,6 +161,7 @@ class STTService:
         segments, info = self._model.transcribe(
             audio_data,
             language=language,
+            task="transcribe",
             vad_filter=use_vad,
             beam_size=self._beam_size,
             condition_on_previous_text=False,
@@ -174,6 +175,7 @@ class STTService:
             segments, info = self._model.transcribe(
                 audio_data,
                 language=language,
+                task="transcribe",
                 vad_filter=False,
                 beam_size=self._beam_size,
                 condition_on_previous_text=False,

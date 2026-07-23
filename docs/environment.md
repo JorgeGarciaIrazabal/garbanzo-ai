@@ -16,7 +16,7 @@ SCHEDULED_ACTION_MODEL=glm-5.2:cloud     # scheduled actions without an explicit
 
 # STT: "local" (in-process faster-whisper) or "remote" (Docker container)
 STT_MODE=local
-STT_MODEL=Systran/faster-distil-whisper-large-v3
+STT_MODEL=Systran/faster-whisper-small  # multilingual, CPU-friendly default
 STT_DEVICE=auto          # "auto", "cpu", or "cuda"
 STT_LANGUAGE=auto        # server default when a request omits `language`; "auto"
                          # detects per clip, or force an ISO code (e.g. "en").

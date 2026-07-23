@@ -25,7 +25,7 @@ services:
     container_name: garbanzo_ai_whisper
     restart: unless-stopped
     environment:
-      WHISPER__MODEL: Systran/faster-distil-whisper-large-v3
+      WHISPER__MODEL: Systran/faster-whisper-small
     ports:
       - "8010:8000"
     volumes:

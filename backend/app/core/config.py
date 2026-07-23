@@ -120,7 +120,10 @@ class Settings(BaseSettings):
     # Voice services
     faster_whisper_url: str = "http://localhost:8010"  # only used if stt_mode=remote
     stt_mode: str = "local"  # "local" (in-process) or "remote" (Docker)
-    stt_model: str = "Systran/faster-distil-whisper-large-v3"
+    # The multilingual small checkpoint keeps conversational CPU latency low.
+    # Do not use distil-large-v3 here: that checkpoint is English-only and can
+    # turn non-English speech into English text instead of preserving it.
+    stt_model: str = "Systran/faster-whisper-small"
     stt_device: str = "auto"  # "auto", "cpu", or "cuda"
     # Server-wide default when a request doesn't specify a language.
     # "auto" lets faster-whisper detect the spoken language per clip; set to
