@@ -4,6 +4,16 @@ Release notes for Garbanzo AI. Each entry is generated automatically on
 `just deploy` — an LLM (via opencode) writes it from the release's commits and
 the user reports it addressed. See `scripts/changelog-instructions.md`.
 
+## v1.0.12 — 2026-07-23
+
+### 🙋 User requests completed
+- Fixed speech-to-text transcripts taking too long to appear after you finished speaking.
+- Fixed Talk Mode translating non-English speech into English instead of transcribing the original words.
+
+### 🐛 Fixes
+- Preserved TTS start and auto-listen behavior in Talk Mode.
+- Improved multilingual speech-to-text transcription, reducing latency and keeping non-English speech in its original language.
+
 ## v1.0.11 — 2026-07-23
 
 ### 🙋 User requests completed
