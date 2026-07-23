@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -57,6 +58,11 @@ class _TalkModePageState extends State<TalkModePage> {
     // Keep the screen awake for the duration of the call. Ignore failures on
     // platforms where the plugin isn't available.
     WakelockPlus.enable().ignore();
+    // Wait until the route has painted before opening the mic (and potentially
+    // showing the platform permission prompt). No extra tap is required.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) unawaited(_controller.startCall());
+    });
   }
 
   @override

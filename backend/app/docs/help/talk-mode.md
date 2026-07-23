@@ -6,7 +6,8 @@ assistant answers out loud, no buttons needed between turns.
 ## How do I start Talk Mode?
 Press the waveform **call** button in the chat composer, right next to the
 dictation mic. The conversation continues in the same chat — everything
-said is transcribed into it.
+said is transcribed into it. Listening starts as soon as Talk Mode opens, so
+you do not need to tap the center circle first.
 
 ## How does a turn work?
 Speak naturally; when you pause, your speech is transcribed and sent. The

@@ -37,7 +37,7 @@ enum TalkPhase {
 /// working), [TalkRecorder] + [TalkVad] for hands-free capture, and
 /// [TalkTtsQueue] for speaking the reply sentence-by-sentence as it streams.
 ///
-/// Flow once a call is started (first tap): listen → VAD detects the user
+/// Flow once the page starts the call: listen → VAD detects the user
 /// stopped → transcribe → send → speak the reply → loop back to listening.
 /// A tap interrupts the current phase and the ✕ button ends the call.
 ///
@@ -52,16 +52,18 @@ class TalkModeController extends ChangeNotifier {
     required ChatProvider chat,
     required SettingsProvider settings,
     bool voiceBargeIn = true,
+    TalkRecorder? recorder,
   }) : _chat = chat,
        _settings = settings,
-       _voiceBargeIn = voiceBargeIn {
+       _voiceBargeIn = voiceBargeIn,
+       _recorder = recorder ?? TalkRecorder() {
     _prevSending = _chat.isSending;
     _chat.addListener(_onChatChanged);
   }
 
   final ChatProvider _chat;
   final SettingsProvider _settings;
-  final TalkRecorder _recorder = TalkRecorder();
+  final TalkRecorder _recorder;
   final TalkVad _vad = TalkVad();
 
   /// When true, keep the mic open during the reply and auto-interrupt if the
@@ -196,7 +198,7 @@ class TalkModeController extends ChangeNotifier {
 
   /// Human-readable status line for the UI.
   String get statusText => switch (_phase) {
-    TalkPhase.idle => 'Tap to start',
+    TalkPhase.idle => 'Starting…',
     TalkPhase.listening => _muted ? 'Muted' : 'Listening…',
     TalkPhase.transcribing => 'Transcribing…',
     TalkPhase.thinking => 'Thinking…',
@@ -229,13 +231,7 @@ class TalkModeController extends ChangeNotifier {
     switch (_phase) {
       case TalkPhase.idle:
       case TalkPhase.error:
-        if (!_callActive) {
-          // Fresh call — clear captions from the previous one.
-          _userTranscript = '';
-          _assistantText = '';
-        }
-        _callActive = true;
-        await _startListening();
+        await startCall();
       case TalkPhase.listening:
         await _stopAndSend(); // manual send without waiting for VAD
       case TalkPhase.thinking:
@@ -244,6 +240,19 @@ class TalkModeController extends ChangeNotifier {
       case TalkPhase.transcribing:
         break; // busy — ignore taps
     }
+  }
+
+  /// Start listening when the Talk Mode route opens. Repeated calls while an
+  /// active call is already starting/running are ignored; an error can still
+  /// be retried by tapping the orb.
+  Future<void> startCall() async {
+    if (_callActive && _phase != TalkPhase.error) return;
+    if (!_callActive) {
+      _userTranscript = '';
+      _assistantText = '';
+    }
+    _callActive = true;
+    await _startListening();
   }
 
   Future<void> _startListening() async {

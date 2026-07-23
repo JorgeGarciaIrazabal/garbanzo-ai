@@ -1,8 +1,54 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:garbanzo_ai/features/chat/models/chat_message.dart';
+import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
 import 'package:garbanzo_ai/features/chat/talk/talk_mode_controller.dart';
+import 'package:garbanzo_ai/features/chat/talk/talk_recorder.dart';
 import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
+import 'package:mocktail/mocktail.dart';
+
+class _MockChatProvider extends Mock implements ChatProvider {}
+
+class _MockSettingsProvider extends Mock implements SettingsProvider {}
+
+class _FakeTalkRecorder extends TalkRecorder {
+  int starts = 0;
+
+  @override
+  Future<void> start({required void Function(double db) onDb}) async {
+    starts++;
+  }
+
+  @override
+  void shutdown() {}
+}
 
 void main() {
+  group('TalkModeController.startCall', () {
+    test('starts listening immediately and ignores a duplicate start', () async {
+      final chat = _MockChatProvider();
+      final settings = _MockSettingsProvider();
+      final recorder = _FakeTalkRecorder();
+      final streamingMessage = ValueNotifier<ChatMessage?>(null);
+      when(() => chat.isSending).thenReturn(false);
+      when(() => chat.streamingMessage).thenReturn(streamingMessage);
+      final controller = TalkModeController(
+        chat: chat,
+        settings: settings,
+        recorder: recorder,
+      );
+
+      await controller.startCall();
+      await controller.startCall();
+
+      expect(controller.isCallActive, isTrue);
+      expect(controller.phase, TalkPhase.listening);
+      expect(recorder.starts, 1);
+      controller.dispose();
+      streamingMessage.dispose();
+    });
+  });
+
   group('TalkModeController.bargeForSensitivity', () {
     test('off yields no detector', () {
       expect(
