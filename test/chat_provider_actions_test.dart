@@ -112,6 +112,7 @@ class _FakeChatService extends ChatService {
     double? topP,
     bool hasClientFolder = false,
     String? clientFolderLabel,
+    String? talkModeInstruction,
   }) {
     streamChatCalls++;
     if (streamChatError != null) throw streamChatError!;

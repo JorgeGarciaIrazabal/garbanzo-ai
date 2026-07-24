@@ -233,7 +233,13 @@ class TestChatTurnEndToEnd:
         user.location = location
         await db_session.commit()
 
-    async def _send_turn(self, db_session, provider, conversation_patch=None) -> str:
+    async def _send_turn(
+        self,
+        db_session,
+        provider,
+        conversation_patch=None,
+        request_overrides=None,
+    ) -> str:
         """POST one message and return the system prompt the provider saw.
 
         ``conversation_patch`` is applied via PATCH after creation — the
@@ -257,7 +263,7 @@ class TestChatTurnEndToEnd:
                     assert resp.status_code == 200, resp.text
                 resp = await c.post(
                     f"/api/v1/chat/conversations/{conv['id']}/chat",
-                    json={"message": "hi"},
+                    json={"message": "hi", **(request_overrides or {})},
                     headers={"Accept": "text/event-stream"},
                 )
                 assert resp.status_code == 200
@@ -287,6 +293,24 @@ class TestChatTurnEndToEnd:
         assert "User's local time:" in prompt
         assert "User's location:" not in prompt
         assert "has not shared their location" in prompt
+
+    async def test_localized_talk_instruction_is_injected_for_one_turn(
+        self,
+        db_session,
+    ):
+        instruction = "Responde de forma breve y natural para ser escuchado."
+        prompt = await self._send_turn(
+            db_session,
+            _RecordingProvider(),
+            request_overrides={"talk_mode_instruction": instruction},
+        )
+
+        assert f"<talk_mode>\n{instruction}\n</talk_mode>" in prompt
+
+    async def test_regular_turn_has_no_talk_mode_context(self, db_session):
+        prompt = await self._send_turn(db_session, _RecordingProvider())
+
+        assert "<talk_mode>" not in prompt
 
     async def test_share_hint_present_when_user_never_reported_anything(self, db_session):
         await self._set_user_context(db_session, None, None)

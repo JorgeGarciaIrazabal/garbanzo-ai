@@ -13,7 +13,9 @@ you do not need to tap the center circle first.
 Speak naturally; when you pause, your speech is transcribed and sent. The
 reply streams back as speech (sentence by sentence) with live captions on
 screen. Non-English speech stays in the language you spoke; Talk Mode does not
-translate the transcript to English.
+translate the transcript to English. Talk Mode also asks the assistant to use
+concise, natural, speech-friendly replies. That instruction follows the app
+language selected in Settings and applies only while you are using Talk Mode.
 
 ## Can I interrupt the assistant?
 Yes — just start talking while it's speaking (barge-in). Playback stops and

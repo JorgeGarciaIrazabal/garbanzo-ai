@@ -9,18 +9,18 @@ void main() {
   tearDown(() => debugDefaultTargetPlatformOverride = null);
 
   test(
-    'Android TTS uses a seekable file source and removes it on dispose',
+    'Android MP3 TTS uses a seekable file source and removes it on dispose',
     () async {
       debugDefaultTargetPlatformOverride = TargetPlatform.android;
 
       final prepared = await prepareTtsAudioSource(
         Uint8List.fromList([1, 2, 3]),
-        format: 'wav',
+        format: 'mp3',
       );
 
       expect(prepared.source, isA<DeviceFileSource>());
       final path = (prepared.source as DeviceFileSource).path;
-      expect(path, endsWith('.wav'));
+      expect(path, endsWith('.mp3'));
       expect(await File(path).readAsBytes(), [1, 2, 3]);
 
       await prepared.dispose();

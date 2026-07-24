@@ -438,6 +438,7 @@ class ChatProvider extends ChangeNotifier {
   Future<void> sendMessage(
     String content, {
     List<ChatAttachment> attachments = const [],
+    String? talkModeInstruction,
   }) async {
     if (content.trim().isEmpty && attachments.isEmpty) return;
 
@@ -484,6 +485,7 @@ class ChatProvider extends ChangeNotifier {
         attachments: attachments,
         hasClientFolder: _folders.hasFolder(_currentConversation!.id),
         clientFolderLabel: clientFolderNameFor(_currentConversation!.id),
+        talkModeInstruction: talkModeInstruction,
       );
       _consumeAssistantStream(stream);
     } catch (e) {

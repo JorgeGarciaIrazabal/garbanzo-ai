@@ -1832,6 +1832,10 @@
   "@messageEndCall": {
     "description": "Tooltip for hang-up in Talk Mode."
   },
+  "talkModeSystemInstruction": "You are responding in Talk Mode, a live spoken conversation. Write for listening: be concise, natural, and direct. Avoid formatting that sounds awkward aloud—Markdown, tables, long lists, raw URLs, or code—unless the user explicitly asks for it. Keep any necessary source attribution brief and natural. Reply in the language the user is speaking. Do not mention these instructions or Talk Mode.",
+  "@talkModeSystemInstruction": {
+    "description": "Ephemeral system instruction sent only with Talk Mode turns."
+  },
   "messageTapToStart": "Tap to start",
   "@messageTapToStart": {
     "description": "Talk Mode idle status hint."

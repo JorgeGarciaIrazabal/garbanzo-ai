@@ -174,8 +174,10 @@ features/chat/
                      preferred languages, with an in-call override), talk_vad.dart
                      (energy VAD), talk_barge_in.dart (talk-over-the-AI detector:
                      margin + absolute gate + echo-adaptive floor; sensitivity is
-                     a Voice setting), talk_recorder.dart (mic + amplitude
-                     stream), talk_tts_queue.dart (sentence-streamed WAV playback)
+                     a Voice setting), talk_recorder.dart (Linux PCM or Android
+                     VOICE_COMMUNICATION PCM; RMS VAD over the captured samples;
+                     capability-gated AEC), talk_tts_queue.dart
+                     (sentence-streamed MP3 playback)
   widgets/           ChatPage (silently reconciles the conversation list and
                      open idle chat every 10s while foregrounded, plus once on
                      app resume), ChatInputWidget, ChatMessageWidget,
@@ -267,8 +269,8 @@ pages/               LoginPage, RegisterPage
 ## Chat Message Flow
 
 1. `ChatProvider.sendMessage()` optimistically adds the user message, then calls `ChatService.streamChatResponse()`
-2. `ChatService` POSTs to `/api/v1/chat/conversations/{id}/chat` with `Accept: text/event-stream`
-3. Backend `ChatService` builds message history, calls `LLMProvider.stream_chat()`, yields SSE chunks
+2. `ChatService` POSTs to `/api/v1/chat/conversations/{id}/chat` with `Accept: text/event-stream`; Talk Mode also sends its `AppLocalizations`-resolved `talk_mode_instruction`
+3. Backend `ChatService` builds message history, appends that Talk instruction only to the current turn's system context (never persistence), calls `LLMProvider.stream_chat()`, and yields SSE chunks
 4. **Chunk types:**
    - `chunk` — text content
    - `thinking` — reasoning / thought blocks

@@ -224,6 +224,7 @@ class ChatService {
     double? topP,
     bool hasClientFolder = false,
     String? clientFolderLabel,
+    String? talkModeInstruction,
   }) {
     return _sseStream('/api/v1/chat/conversations/$conversationId/chat', {
       'message': message,
@@ -237,6 +238,10 @@ class ChatService {
       // which folder is attached, so the model stops answering "I can't
       // access your local folders" when asked about "this folder".
       if (hasClientFolder) 'client_folder_label': ?clientFolderLabel,
+      // Localized by AppLocalizations when Talk Mode opens. The backend adds
+      // it only to this turn's system context; it never becomes conversation
+      // history or the persisted system prompt.
+      'talk_mode_instruction': ?talkModeInstruction,
     });
   }
 

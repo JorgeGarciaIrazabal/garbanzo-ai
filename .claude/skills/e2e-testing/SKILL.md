@@ -443,6 +443,39 @@ get_interactive_elements()
 # Error appears as Text widget with red color
 ```
 
+### Physical Talk Mode Acoustic Test
+
+Talk Mode needs a real acoustic loop; UI automation alone cannot prove that a
+response is audible or that Android is cancelling its own speaker output.
+
+1. Prefer a physical Android phone. Run the app with `just dev-apk`, connect
+   Marionette, and pre-grant `RECORD_AUDIO` if needed.
+2. Discover the computer's actual playback and capture devices instead of
+   assuming the ALSA defaults. Play a known spoken prompt through the computer
+   speaker facing the phone, and record the phone's reply with a separate
+   computer microphone.
+3. Correlate the visible Talk phases (`Listening`, `Transcribing`, `Thinking`,
+   `Speaking`) with the VAD dB logs. A complete turn must automatically leave
+   `Listening`, produce the expected user caption, play the response, and
+   return to `Listening`.
+4. While Talk is active, inspect `adb shell dumpsys media.audio_flinger` and
+   verify the app uses `AUDIO_SOURCE_VOICE_COMMUNICATION`, speaker output, and
+   an enabled/processing Acoustic Echo Canceler (plus Noise Suppression when
+   available). During TTS, the recorded input level should remain near the
+   noise floor rather than tracking the phone speaker.
+5. Test barge-in by playing a second spoken prompt while the UI says
+   `Speaking… talk or tap to interrupt`. Verify playback stops, the whole
+   prompt is transcribed (including its opening words), and a new reply begins.
+6. End the call and inspect audio-server state again. The app's record tracks
+   must be removed/idle. Also listen to or meter the external-microphone
+   capture to prove the response was physically audible.
+
+Keep generated prompts and recordings in `/tmp`; do not add acoustic-test
+artifacts to the repository. A first debug install can uninstall a newer
+installed build to resolve an Android version downgrade, which also clears
+that app's local data, so warn before using `just dev-apk` when preserving the
+installed profile matters.
+
 ---
 
 ## Troubleshooting

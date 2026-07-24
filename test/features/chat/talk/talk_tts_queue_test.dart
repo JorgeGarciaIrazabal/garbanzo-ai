@@ -2,6 +2,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:garbanzo_ai/features/chat/talk/talk_tts_queue.dart';
 
 void main() {
+  test('uses MP3 for the Android-compatible playback path', () {
+    expect(TalkTtsQueue.audioFormat, 'mp3');
+  });
+
   group('TalkTtsQueue.splitIntoChunks', () {
     test('splits at sentence boundaries', () {
       final chunks = TalkTtsQueue.splitIntoChunks('Hello there. How are you?');

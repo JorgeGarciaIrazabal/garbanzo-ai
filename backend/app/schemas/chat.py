@@ -151,6 +151,15 @@ class ChatRequest(BaseModel):
             "instead of claiming it has no file access."
         ),
     )
+    talk_mode_instruction: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=2000,
+        description=(
+            "Localized spoken-response instruction for this turn. It is wrapped "
+            "as ephemeral system context and is not persisted."
+        ),
+    )
 
 
 class ClientToolResult(BaseModel):

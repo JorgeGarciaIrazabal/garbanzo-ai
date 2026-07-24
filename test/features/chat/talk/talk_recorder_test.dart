@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:garbanzo_ai/features/chat/talk/talk_recorder.dart';
+import 'package:record/record.dart';
 
 Uint8List _pcmFromSamples(List<int> samples) {
   final data = ByteData(samples.length * 2);
@@ -12,6 +13,24 @@ Uint8List _pcmFromSamples(List<int> samples) {
 }
 
 void main() {
+  test('Android capture uses the VoIP audio path and raw PCM', () {
+    final config = TalkRecorder.androidRecordConfig;
+
+    expect(config.encoder, AudioEncoder.pcm16bits);
+    expect(config.echoCancel, isTrue);
+    expect(config.noiseSuppress, isTrue);
+    expect(config.audioInterruption, AudioInterruptionMode.none);
+    expect(
+      config.androidConfig.audioSource,
+      AndroidAudioSource.voiceCommunication,
+    );
+    expect(config.androidConfig.speakerphone, isTrue);
+    expect(
+      config.androidConfig.audioManagerMode,
+      AudioManagerMode.modeInCommunication,
+    );
+  });
+
   group('TalkRecorder.rmsDbfs', () {
     test('empty input returns the silence floor', () {
       expect(TalkRecorder.rmsDbfs(Uint8List(0)), -160);

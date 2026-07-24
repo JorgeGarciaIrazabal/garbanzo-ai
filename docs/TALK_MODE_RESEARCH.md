@@ -163,18 +163,21 @@ enabled only when a chat conversation is active. Opens `TalkModePage` as a full-
    state. *(Controller watches `ChatProvider.streamingMessage`, enqueues each completed
    sentence; phase stays `thinking` until the first speakable sentence.)*
 3. ✅ **VAD + call loop:** energy-based `TalkVad` (dBFS thresholds) over a dedicated
-   `TalkRecorder` (record pkg, amplitude stream on all platforms) auto starts/stops
-   listening; the phase loops listen → speak → listen until the ✕ ends the call.
+   `TalkRecorder` auto starts/stops listening; the phase loops listen → speak →
+   listen until the ✕ ends the call. Android streams raw 16 kHz PCM and computes
+   fixed-window RMS from the exact captured samples instead of polling the recorder's
+   peak-amplitude callback.
    *Caveat: Linux amplitude via `parecord` is less battle-tested — tap-to-send remains
    the guaranteed fallback, and on-device threshold tuning is still pending.*
 4. ✅ **Interruption:** tap barge-in always works. Automatic **voice** barge-in works
    over speakers via **acoustic echo cancellation** — on Linux `TalkRecorder` loads
    PipeWire's `libpipewire-module-echo-cancel` (WebRTC AEC) in monitor mode and captures
    from the echo-cancelled source (`pw-record`), which removes the AI's own playback
-   (~31 dB measured) so it no longer self-triggers; on mobile it uses hardware AEC
-   (`RecordConfig(echoCancel: true)`). Barge-in is armed only while *speaking* and only
-   when echo cancellation is active (else it stays off to avoid self-interruption). See
-   `pipewire_echo_cancel.dart`.
+   (~31 dB measured) so it no longer self-triggers; on Android it uses
+   `VOICE_COMMUNICATION`, `MODE_IN_COMMUNICATION`, speaker routing, and requests the
+   platform AEC/noise suppressor. Voice barge-in is enabled only when Android reports
+   that an acoustic echo canceler is available (else it stays off to avoid
+   self-interruption). See `pipewire_echo_cancel.dart`.
 5. ✅ **Polish:** live level-reactive orb (phase 3), wake lock (`wakelock_plus`, keeps the
    screen on during a call), mute toggle (parks the loop in listening with the mic closed),
    and tap-to-retry error UX. *(Remaining nice-to-have: waveform-bars visualizer variant.)*
@@ -185,6 +188,9 @@ enabled only when a chat conversation is active. Opens `TalkModePage` as a full-
    "Device or resource busy", and card auto-detection can grab a dead/floating input.
    `default` routes to the user's configured mic and shares the device. Verified E2E on
    Linux: capture → STT → LLM → sentence-streamed TTS, mute, and teardown all work.
+7. ✅ **Android playback compatibility:** Talk Mode uses the same seekable MP3 file
+   playback path as the regular message speak button. Valid WAV output was rejected by
+   MediaPlayer with `MEDIA_ERROR_SYSTEM` on a Pixel 9 / Android 17.
 
 ---
 

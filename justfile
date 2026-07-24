@@ -229,8 +229,12 @@ fe-test-cov:
 fe-format:
     dart format lib/
 
+# Regenerate committed Flutter localization sources from the ARB files
+fe-gen-l10n:
+    flutter gen-l10n
+
 # Run Flutter analyze
-fe-lint:
+fe-lint: fe-gen-l10n
     flutter analyze
 
 # Clean Flutter build files

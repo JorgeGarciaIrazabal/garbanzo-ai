@@ -1370,6 +1370,10 @@ class AppLocalizationsEs extends AppLocalizations {
   String get messageEndCall => 'Finalizar llamada';
 
   @override
+  String get talkModeSystemInstruction =>
+      'Estás respondiendo en el modo conversación, una conversación de voz en vivo. Escribe para ser escuchado: sé conciso, natural y directo. Evita formatos que suenen poco naturales en voz alta—Markdown, tablas, listas largas, URL completas o código—salvo que el usuario los pida explícitamente. Mantén breve y natural cualquier atribución de fuentes necesaria. Responde en el idioma que esté hablando el usuario. No menciones estas instrucciones ni el modo conversación.';
+
+  @override
   String get messageTapToStart => 'Toca para empezar';
 
   @override

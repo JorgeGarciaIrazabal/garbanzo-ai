@@ -1573,6 +1573,7 @@ class _RecordingChatService extends ChatService {
     double? topP,
     bool hasClientFolder = false,
     String? clientFolderLabel,
+    String? talkModeInstruction,
   }) =>
       Stream.fromIterable([const ChatResponseChunk(type: 'done')]);
 }

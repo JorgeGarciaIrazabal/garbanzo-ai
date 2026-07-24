@@ -4,6 +4,7 @@ import 'package:garbanzo_ai/features/chat/models/chat_message.dart';
 import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
 import 'package:garbanzo_ai/features/chat/talk/talk_mode_controller.dart';
 import 'package:garbanzo_ai/features/chat/talk/talk_recorder.dart';
+import 'package:garbanzo_ai/features/chat/widgets/input/voice_recording_helper.dart';
 import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
 import 'package:mocktail/mocktail.dart';
 
@@ -23,6 +24,12 @@ class _FakeTalkRecorder extends TalkRecorder {
   void shutdown() {}
 }
 
+class _TranscriptTalkRecorder extends _FakeTalkRecorder {
+  @override
+  Future<VoiceRecordingResult?> stopAndTranscribe() async =>
+      const VoiceRecordingResult(transcript: 'Hola');
+}
+
 void main() {
   group('TalkModeController.startCall', () {
     test('starts listening immediately and ignores a duplicate start', () async {
@@ -35,6 +42,7 @@ void main() {
       final controller = TalkModeController(
         chat: chat,
         settings: settings,
+        systemInstruction: 'Talk instruction',
         recorder: recorder,
       );
 
@@ -44,6 +52,46 @@ void main() {
       expect(controller.isCallActive, isTrue);
       expect(controller.phase, TalkPhase.listening);
       expect(recorder.starts, 1);
+      controller.dispose();
+      streamingMessage.dispose();
+    });
+
+    test('sends the localized system instruction with the Talk turn', () async {
+      final chat = _MockChatProvider();
+      final settings = _MockSettingsProvider();
+      final recorder = _TranscriptTalkRecorder();
+      final streamingMessage = ValueNotifier<ChatMessage?>(null);
+      when(() => chat.isSending).thenReturn(false);
+      when(() => chat.streamingMessage).thenReturn(streamingMessage);
+      when(() => settings.bargeInSensitivity).thenReturn(
+        BargeInSensitivity.normal,
+      );
+      when(() => settings.ttsVoice).thenReturn(SettingsProvider.defaultVoice);
+      when(() => settings.ttsSpeed).thenReturn(SettingsProvider.defaultSpeed);
+      when(() => settings.autoLanguage).thenReturn(false);
+      when(() => settings.preferredLanguages).thenReturn(const []);
+      when(
+        () => chat.sendMessage(
+          any(),
+          talkModeInstruction: any(named: 'talkModeInstruction'),
+        ),
+      ).thenAnswer((_) async {});
+      final controller = TalkModeController(
+        chat: chat,
+        settings: settings,
+        systemInstruction: 'Instrucción localizada',
+        recorder: recorder,
+      );
+
+      await controller.startCall();
+      await controller.onTap();
+
+      verify(
+        () => chat.sendMessage(
+          'Hola',
+          talkModeInstruction: 'Instrucción localizada',
+        ),
+      ).called(1);
       controller.dispose();
       streamingMessage.dispose();
     });

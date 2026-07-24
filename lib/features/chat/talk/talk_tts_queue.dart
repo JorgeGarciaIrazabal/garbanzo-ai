@@ -43,6 +43,12 @@ class TalkTtsQueue {
   PreparedTtsAudioSource? _audioSource;
   Completer<void>? _playbackDone;
 
+  /// MP3 is the proven cross-platform playback path used by the regular
+  /// message speak button. Android's MediaPlayer rejects some otherwise-valid
+  /// WAV files with MEDIA_ERROR_SYSTEM before playback starts.
+  @visibleForTesting
+  static const audioFormat = 'mp3';
+
   bool get isSpeaking => _draining;
 
   /// Split cleaned text into ~sentence chunks (same heuristic as speak_button).
@@ -79,8 +85,7 @@ class TalkTtsQueue {
     chunk,
     voice: voice,
     speed: speed,
-    // WAV avoids MP3 encoder priming that clips the first word on playback.
-    format: 'wav',
+    format: audioFormat,
     language: language,
   );
 
@@ -113,7 +118,7 @@ class TalkTtsQueue {
     // Fresh player per chunk — reusing one for sequential play() is unreliable
     // across platforms (matches speak_button).
     await _releasePlayback();
-    final source = await prepareTtsAudioSource(audioBytes, format: 'wav');
+    final source = await prepareTtsAudioSource(audioBytes, format: audioFormat);
     if (_stopped) {
       await source.dispose();
       return;

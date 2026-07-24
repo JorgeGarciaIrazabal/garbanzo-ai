@@ -32,9 +32,9 @@ provider map, chat/SSE flow, rooms WebSocket) and `../docs/api.md` (endpoints).
 - Official Flutter l10n: `flutter_localizations` + gen-l10n. ARB sources live in
   `lib/l10n/app_en.arb` (template) and `app_es.arb`; output is generated to
   `lib/l10n/gen/` (import `package:garbanzo_ai/l10n/gen/app_localizations.dart`).
-- Config in `l10n.yaml`. `pubspec.yaml` has `flutter: generate: true`, so gen-l10n
-  runs automatically on build/analyze. Run `flutter gen-l10n` manually after
-  editing ARB files and **commit** the generated files.
+- Config in `l10n.yaml`. Run `just fe-gen-l10n` after editing ARB files and
+  **commit** the generated files. `just fe-lint` runs generation first so stale
+  localization output cannot make analysis misleading.
 - Usage: `AppLocalizations.of(context)!.language`. Supported locales: en, es.
 - Locale override: `SettingsProvider.appLocale` (enum `AppLocale` =
   system/english/spanish) persisted to SharedPreferences, mapped to

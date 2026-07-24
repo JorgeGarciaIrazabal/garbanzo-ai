@@ -25,6 +25,7 @@ class _FakeChatService extends ChatService {
       [];
   bool? lastHasClientFolder;
   String? lastClientFolderLabel;
+  String? lastTalkModeInstruction;
 
   final _conversation = Conversation(
     id: 'conv-1',
@@ -59,9 +60,11 @@ class _FakeChatService extends ChatService {
     double? topP,
     bool hasClientFolder = false,
     String? clientFolderLabel,
+    String? talkModeInstruction,
   }) {
     lastHasClientFolder = hasClientFolder;
     lastClientFolderLabel = clientFolderLabel;
+    lastTalkModeInstruction = talkModeInstruction;
     controller = StreamController<ChatResponseChunk>();
     return controller.stream;
   }
@@ -142,6 +145,22 @@ void main() {
       folder.path.split(Platform.pathSeparator).last,
     );
     expect(service.lastClientFolderLabel, isNot(contains('/')));
+  });
+
+  test('forwards the localized instruction only for a Talk turn', () async {
+    final service = _FakeChatService();
+    final provider = await openProvider(service);
+
+    await provider.sendMessage('typed');
+    expect(service.lastTalkModeInstruction, isNull);
+    await service.controller.close();
+    await _pump();
+
+    await provider.sendMessage(
+      'spoken',
+      talkModeInstruction: 'Instrucción localizada',
+    );
+    expect(service.lastTalkModeInstruction, 'Instrucción localizada');
   });
 
   test('serves a read_file request by reading locally and posting bytes',

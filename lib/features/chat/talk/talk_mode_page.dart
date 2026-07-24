@@ -19,10 +19,16 @@ import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 /// who is talking), live captions show what was heard and what is being said,
 /// and a call-style bottom bar carries mute + hang-up.
 class TalkModePage extends StatefulWidget {
-  const TalkModePage({super.key, required this.chat, required this.settings});
+  const TalkModePage({
+    super.key,
+    required this.chat,
+    required this.settings,
+    required this.systemInstruction,
+  });
 
   final ChatProvider chat;
   final SettingsProvider settings;
+  final String systemInstruction;
 
   /// Opens Talk Mode as a full-screen route, wiring the current providers in.
   static Future<void> open(
@@ -30,10 +36,17 @@ class TalkModePage extends StatefulWidget {
     required ChatProvider chat,
     required SettingsProvider settings,
   }) {
+    final systemInstruction = AppLocalizations.of(
+      context,
+    )!.talkModeSystemInstruction;
     return Navigator.of(context).push(
       MaterialPageRoute(
         fullscreenDialog: true,
-        builder: (_) => TalkModePage(chat: chat, settings: settings),
+        builder: (_) => TalkModePage(
+          chat: chat,
+          settings: settings,
+          systemInstruction: systemInstruction,
+        ),
       ),
     );
   }
@@ -51,6 +64,7 @@ class _TalkModePageState extends State<TalkModePage> {
     _controller = TalkModeController(
       chat: widget.chat,
       settings: widget.settings,
+      systemInstruction: widget.systemInstruction,
     );
     // Talk Mode owns TTS playback; suppress the chat's per-message auto-play so
     // replies aren't spoken twice (overlapping) while this call is open.

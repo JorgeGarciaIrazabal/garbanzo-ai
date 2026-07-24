@@ -21,7 +21,10 @@ from app.services.agent_turn import (
     stringify_tool_result,
     truncate_tool_result,
 )
-from app.services.chat_context import ChatContextBuilder, build_dynamic_context_block
+from app.services.chat_context import (
+    ChatContextBuilder,
+    build_dynamic_context_block,
+)
 from app.services.chat_title import generate_and_persist_title
 from app.services.client_file_extract import extract_file_text
 from app.services.client_tool_bridge import client_tool_bridge
@@ -230,6 +233,7 @@ class ChatService:
         attachments: list[AttachmentIn] | None = None,
         has_client_folder: bool = False,
         client_folder_label: str | None = None,
+        talk_mode_instruction: str | None = None,
     ) -> AsyncIterator[ChatChunk]:
         """Save user message, stream LLM response, and persist the result."""
         conversation = await self._conversations.get(conversation_id, user_id)
@@ -280,6 +284,7 @@ class ChatService:
             options=options,
             has_client_folder=has_client_folder,
             client_folder_label=client_folder_label,
+            talk_mode_instruction=talk_mode_instruction,
             forced_workflow_instruction=_forced_agent_instruction(content),
         ):
             yield chunk
@@ -424,6 +429,7 @@ class ChatService:
         options: ChatOptions | None = None,
         has_client_folder: bool = False,
         client_folder_label: str | None = None,
+        talk_mode_instruction: str | None = None,
         forced_workflow_instruction: str | None = None,
     ) -> AsyncIterator[ChatChunk]:
         """Stream an LLM response for the current state of ``conversation``.
@@ -489,6 +495,9 @@ class ChatService:
             dynamic_context += f"\n\n{client_folder_nudge(client_folder_label)}"
         elif DELEGATE_WORKFLOW_TOOL in tool_lookup:
             dynamic_context += f"\n\n{DELEGATE_RESEARCH_NUDGE}"
+        talk_instruction = (talk_mode_instruction or "").strip()
+        if talk_instruction:
+            dynamic_context += f"\n\n<talk_mode>\n{talk_instruction}\n</talk_mode>"
 
         llm_messages, context_stats = await self._context.build_history_with_system_prompt(
             conversation.messages,

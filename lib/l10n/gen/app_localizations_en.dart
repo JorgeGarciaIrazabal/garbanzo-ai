@@ -1351,6 +1351,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get messageEndCall => 'End call';
 
   @override
+  String get talkModeSystemInstruction =>
+      'You are responding in Talk Mode, a live spoken conversation. Write for listening: be concise, natural, and direct. Avoid formatting that sounds awkward aloud—Markdown, tables, long lists, raw URLs, or code—unless the user explicitly asks for it. Keep any necessary source attribution brief and natural. Reply in the language the user is speaking. Do not mention these instructions or Talk Mode.';
+
+  @override
   String get messageTapToStart => 'Tap to start';
 
   @override

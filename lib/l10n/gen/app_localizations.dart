@@ -2582,6 +2582,12 @@ abstract class AppLocalizations {
   /// **'End call'**
   String get messageEndCall;
 
+  /// Ephemeral system instruction sent only with Talk Mode turns.
+  ///
+  /// In en, this message translates to:
+  /// **'You are responding in Talk Mode, a live spoken conversation. Write for listening: be concise, natural, and direct. Avoid formatting that sounds awkward aloud—Markdown, tables, long lists, raw URLs, or code—unless the user explicitly asks for it. Keep any necessary source attribution brief and natural. Reply in the language the user is speaking. Do not mention these instructions or Talk Mode.'**
+  String get talkModeSystemInstruction;
+
   /// Talk Mode idle status hint.
   ///
   /// In en, this message translates to:

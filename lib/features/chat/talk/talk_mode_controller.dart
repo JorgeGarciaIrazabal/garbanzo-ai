@@ -51,10 +51,12 @@ class TalkModeController extends ChangeNotifier {
   TalkModeController({
     required ChatProvider chat,
     required SettingsProvider settings,
+    required String systemInstruction,
     bool voiceBargeIn = true,
     TalkRecorder? recorder,
   }) : _chat = chat,
        _settings = settings,
+       _systemInstruction = systemInstruction,
        _voiceBargeIn = voiceBargeIn,
        _recorder = recorder ?? TalkRecorder() {
     _prevSending = _chat.isSending;
@@ -63,6 +65,7 @@ class TalkModeController extends ChangeNotifier {
 
   final ChatProvider _chat;
   final SettingsProvider _settings;
+  final String _systemInstruction;
   final TalkRecorder _recorder;
   final TalkVad _vad = TalkVad();
 
@@ -309,11 +312,13 @@ class TalkModeController extends ChangeNotifier {
     final now = DateTime.now();
     if (now.difference(_lastDbLog) < const Duration(seconds: 2)) return;
     _lastDbLog = now;
-    logDebug(
-      'TalkMode: db=${db.toStringAsFixed(1)} '
-      'floor=${_vad.noiseFloorDb.toStringAsFixed(1)} '
-      'phase=${_phase.name} speaking=${_vad.isSpeaking}',
-    );
+    if (kDebugMode) {
+      debugPrint(
+        'TalkMode: db=${db.toStringAsFixed(1)} '
+        'floor=${_vad.noiseFloorDb.toStringAsFixed(1)} '
+        'phase=${_phase.name} speaking=${_vad.isSpeaking}',
+      );
+    }
   }
 
   /// Interrupt the AI once the user has been loud for a sustained stretch —
@@ -352,7 +357,10 @@ class TalkModeController extends ChangeNotifier {
     _userTranscript = transcript;
     _beginReply();
     _setPhase(TalkPhase.thinking);
-    await _chat.sendMessage(transcript);
+    await _chat.sendMessage(
+      transcript,
+      talkModeInstruction: _systemInstruction,
+    );
     _prevSending = _chat.isSending;
   }
 
