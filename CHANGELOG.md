@@ -4,6 +4,11 @@ Release notes for Garbanzo AI. Each entry is generated automatically on
 `just deploy` — an LLM (via opencode) writes it from the release's commits and
 the user reports it addressed. See `scripts/changelog-instructions.md`.
 
+## v1.0.14 — 2026-07-24
+
+### 🐛 Fixes
+- Improved Android Talk Mode audio handling and prompts.
+
 ## v1.0.13 — 2026-07-23
 
 ### 🙋 User requests completed
