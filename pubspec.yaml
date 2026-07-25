@@ -79,6 +79,7 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   intl: any
+  flutter_inappwebview: ^6.1.5
 
 dev_dependencies:
   flutter_test:

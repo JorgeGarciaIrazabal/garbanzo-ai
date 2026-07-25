@@ -2701,6 +2701,13 @@ class AppLocalizationsEs extends AppLocalizations {
   String get labelMicroApp => 'Micro-app';
 
   @override
+  String get titleMicroAppLoadFailed => 'No se pudo cargar la micro-app';
+
+  @override
+  String get messageMicroAppLoadFailed =>
+      'La vista previa no se cargó. El servidor de desarrollo puede estar arrancando, no ser accesible desde este dispositivo, o la app aún no existe en tu espacio de trabajo.';
+
+  @override
   String get tooltipReopenMicroAppPanel => 'Reabrir el panel de la micro-app';
 
   @override

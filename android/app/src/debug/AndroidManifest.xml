@@ -4,4 +4,15 @@
          to allow setting breakpoints, to provide hot reload, etc.
     -->
     <uses-permission android:name="android.permission.INTERNET"/>
+
+    <!-- Debug builds reach the local backend + the per-user micro-apps dev
+         server (ports 8100–8500) over plain HTTP. Android 9+ blocks cleartext
+         by default, and the WebView that renders the micro-app panel would
+         silently fail to load — see "Micro-apps integration not working on
+         Android" (user report #1). Release builds stay strict: prod serves
+         both the API and the panel over HTTPS (ngrok + proxy mode), so the
+         release manifest below intentionally does NOT set this flag. -->
+    <application
+        android:usesCleartextTraffic="true">
+    </application>
 </manifest>

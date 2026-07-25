@@ -2667,6 +2667,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get labelMicroApp => 'Micro-app';
 
   @override
+  String get titleMicroAppLoadFailed => 'Couldn\'t load the micro-app';
+
+  @override
+  String get messageMicroAppLoadFailed =>
+      'The live preview didn\'t load. The dev server may be starting, unreachable from this device, or the app doesn\'t exist in your workspace yet.';
+
+  @override
   String get tooltipReopenMicroAppPanel => 'Reopen the micro-app panel';
 
   @override

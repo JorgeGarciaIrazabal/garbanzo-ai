@@ -2399,6 +2399,18 @@
   "@labelMicroApp": {
     "description": "Fallback label for a micro-app panel."
   },
+  "titleMicroAppLoadFailed": "No se pudo cargar la micro-app",
+  "@titleMicroAppLoadFailed": {
+    "description": "Title shown in the WebView panel when the micro-app fails to load (e.g. dev server unreachable, 404)."
+  },
+  "messageMicroAppLoadFailed": "La vista previa no se cargó. El servidor de desarrollo puede estar arrancando, no ser accesible desde este dispositivo, o la app aún no existe en tu espacio de trabajo.",
+  "@messageMicroAppLoadFailed": {
+    "description": "Explanation shown under titleMicroAppLoadFailed in the WebView panel fallback."
+  },
+  "labelRetry": "Reintentar",
+  "@labelRetry": {
+    "description": "Button label to retry loading the micro-app in the WebView panel."
+  },
   "tooltipReopenMicroAppPanel": "Reabrir el panel de la micro-app",
   "@tooltipReopenMicroAppPanel": {
     "description": "Tooltip for reopening a closed micro-app panel."

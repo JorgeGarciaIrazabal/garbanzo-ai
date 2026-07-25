@@ -7,6 +7,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
   desktop_drop
   file_selector_windows
   firebase_core
+  flutter_inappwebview_windows
   flutter_timezone
   geolocator_windows
   irondash_engine_context

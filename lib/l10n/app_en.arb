@@ -3678,6 +3678,18 @@
   "@labelMicroApp": {
     "description": "Fallback label for a micro-app panel."
   },
+  "titleMicroAppLoadFailed": "Couldn't load the micro-app",
+  "@titleMicroAppLoadFailed": {
+    "description": "Title shown in the WebView panel when the micro-app fails to load (e.g. dev server unreachable, 404)."
+  },
+  "messageMicroAppLoadFailed": "The live preview didn't load. The dev server may be starting, unreachable from this device, or the app doesn't exist in your workspace yet.",
+  "@messageMicroAppLoadFailed": {
+    "description": "Explanation shown under titleMicroAppLoadFailed in the WebView panel fallback."
+  },
+  "labelRetry": "Retry",
+  "@labelRetry": {
+    "description": "Button label to retry loading the micro-app in the WebView panel."
+  },
   "tooltipReopenMicroAppPanel": "Reopen the micro-app panel",
   "@tooltipReopenMicroAppPanel": {
     "description": "Tooltip for reopening a closed micro-app panel."

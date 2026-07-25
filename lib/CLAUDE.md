@@ -55,3 +55,19 @@ provider map, chat/SSE flow, rooms WebSocket) and `../docs/api.md` (endpoints).
 - `MarkdownWidget` already gets tables, task lists, and strikethrough from
   `ExtensionSet.gitHubWeb`. Do not register those syntaxes again: duplicate
   table parsers crash on temporarily incomplete tables during SSE streaming.
+
+- Micro-app panel on Android: the WebView loads a plain-HTTP dev-server URL in
+  dev (port 8100–8500). Android 9+ blocks cleartext by default, so debug builds
+  set `android:usesCleartextTraffic="true"` in `android/app/src/debug/AndroidManifest.xml`;
+  release builds stay strict (prod serves the panel over HTTPS via the
+  `/micro-apps` reverse proxy on the API origin). `MicroAppView`'s native
+  branch wires a `NavigationDelegate` (`onHttpError`/`onWebResourceError`) so a
+  blocked/failed load surfaces a retry card instead of a blank panel — keep
+  that wiring when touching the WebView.
+- Micro-app panel platform routing (`micro_app_view_native.dart`): Android/iOS
+  → `webview_flutter`; Windows → `flutter_inappwebview` (WebView2) for an
+  inline panel (the only desktop OS we ship to); Linux/macOS → "open in
+  browser" card with an `url_launcher` Open button and a copy fallback, since
+  no stable inline-webview plugin targets those platforms. Both the Android
+  and Windows paths share the same load-state model (`onHttpError`/`onReceivedError`
+  → retry card) — keep them in sync when changing the failure UI.

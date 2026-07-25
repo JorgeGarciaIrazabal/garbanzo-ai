@@ -74,6 +74,13 @@ sudo apt-get install -y \
     libgtk-3-dev liblzma-dev libstdc++-12-dev
 ```
 
+> **Windows builds:** the micro-app panel uses `flutter_inappwebview`
+> (WebView2 backend) to render the live app inline beside the chat. Build on
+> Windows 10/11 — no extra SDK install needed; WebView2 Runtime is
+> preinstalled on Win11 and the plugin fetches its NuGet package at build
+> time. Linux dev stays the developer's host; the panel shows an "open in
+> browser" card there because no stable inline webview plugin targets Linux.
+
 Or use the justfile shortcut for GStreamer:
 ```bash
 just dev-deps

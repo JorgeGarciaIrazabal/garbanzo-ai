@@ -3993,7 +3993,7 @@ abstract class AppLocalizations {
   /// **'Parse failed for {tool}'**
   String messageParseFailedForTool(String tool);
 
-  /// Generic retry label.
+  /// Button label to retry loading the micro-app in the WebView panel.
   ///
   /// In en, this message translates to:
   /// **'Retry'**
@@ -4748,6 +4748,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Micro-app'**
   String get labelMicroApp;
+
+  /// Title shown in the WebView panel when the micro-app fails to load (e.g. dev server unreachable, 404).
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t load the micro-app'**
+  String get titleMicroAppLoadFailed;
+
+  /// Explanation shown under titleMicroAppLoadFailed in the WebView panel fallback.
+  ///
+  /// In en, this message translates to:
+  /// **'The live preview didn\'t load. The dev server may be starting, unreachable from this device, or the app doesn\'t exist in your workspace yet.'**
+  String get messageMicroAppLoadFailed;
 
   /// Tooltip for reopening a closed micro-app panel.
   ///

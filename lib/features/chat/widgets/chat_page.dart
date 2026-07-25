@@ -758,12 +758,23 @@ class _ChatPageContentState extends State<_ChatPageContent>
                               child: Row(
                                 children: [
                                   PanelResizeHandle(
-                                    onDrag: (dx) => setState(
-                                      () => _panelWidth = (width - dx).clamp(
+                                    // Accumulate each drag delta against
+                                    // `_panelWidth` (the state) — NOT against
+                                    // `width` (the rendered snapshot captured
+                                    // by this closure at build time). Multiple
+                                    // `onHorizontalDragUpdate` events can fire
+                                    // within one frame before the rebuild
+                                    // lands; reading the stale `width` here
+                                    // made consecutive deltas overwrite each
+                                    // other instead of accumulating, so the
+                                    // panel barely moved even on a long drag.
+                                    onDrag: (dx) => setState(() {
+                                      final current = _panelWidth ?? defaultW;
+                                      _panelWidth = (current + dx).clamp(
                                         _minPanelWidth,
                                         maxW,
-                                      ),
-                                    ),
+                                      );
+                                    }),
                                     onReset: () =>
                                         setState(() => _panelWidth = null),
                                   ),

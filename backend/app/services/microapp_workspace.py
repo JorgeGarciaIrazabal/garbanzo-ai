@@ -258,6 +258,17 @@ class MicroappWorkspaceManager:
             getattr(ws.dev_proc, "pid", "?"),
         )
 
+    def _restart_dev_server(self, ws: Workspace) -> None:
+        """Kill and relaunch the dev server (e.g. after the app set changed)."""
+        try:
+            if ws.dev_proc is not None:
+                with contextlib.suppress(Exception):
+                    os.killpg(os.getpgid(ws.dev_proc.pid), signal.SIGKILL)
+        except Exception:  # noqa: BLE001
+            pass
+        ws.dev_proc = None
+        self._start_dev_server(ws)
+
     def _wait_opencode_ready(self, base: str, proc: subprocess.Popen) -> bool:
         """Poll opencode ``/config`` until ready. Injectable-friendly (sync)."""
         return wait_opencode_ready(base, proc)
@@ -341,9 +352,32 @@ class MicroappWorkspaceManager:
         ws.state = "starting"
         try:
             self._ensure_worktree(ws)
+            # Sync the worktree with main before starting the dev server so a
+            # freshly added app lands in the app scan and the panel can serve
+            # it. Without this, an app added to main after the worktree was
+            # first created never appears here: the dev server's pickApp()
+            # returns null and the panel 404s ("not found"). See the
+            # ``madrid-agosto-2026`` incident (user report #4): the worktree
+            # branch was 3 commits behind main, so the app dir was absent.
+            # Re-syncing in [ensure] (rather than only in sync_repo_sync)
+            # closes the gap on dev, where the periodic sync job is off.
+            apps_before = self._app_dir_keys(ws.path)
+            self._rebase_clean_worktree(ws.path, log_name=ws.slug)
+            apps_after = self._app_dir_keys(ws.path)
             ws.setup_progress = "Installing dependencies…"
+            # Install deps BEFORE (re)starting the dev server: the orchestrator
+            # spawns a per-app Vite on its first scan, and Vite exits at once if
+            # node_modules is missing — the dev-server proxy then 502s with
+            # ECONNREFUSED on that app's port (the ``madrid-agosto-2026`` 502
+            # root cause after the rebase brought the app without its deps).
             self._install_deps(ws)
-            self._start_dev_server(ws)
+            # A running orchestrator scans apps/* only at startup; if the
+            # rebase added/removed an app we must restart it so the new app is
+            # registered. Done after deps land so the new Vite can start.
+            if apps_before != apps_after and ws.dev_proc is not None:
+                self._restart_dev_server(ws)
+            else:
+                self._start_dev_server(ws)
             self._start_opencode(ws)
             ws.state = "ready"
             ws.setup_progress = None
@@ -433,35 +467,77 @@ class MicroappWorkspaceManager:
         for wt in sorted(p for p in worktrees_dir.iterdir() if p.is_dir()):
             if not (wt / ".git").exists():
                 continue
-            if self._git(wt, "status", "--porcelain", check=False).stdout.strip():
-                logger.info("microapps: skipping sync of dirty worktree %s", wt.name)
-                continue
-            rebase = self._git(wt, "rebase", f"{remote}/main", check=False)
-            if rebase.returncode != 0:
-                self._git(wt, "rebase", "--abort", check=False)
-                logger.warning(
-                    "microapps: rebase of %s onto %s/main failed: %s",
-                    wt.name,
-                    remote,
-                    rebase.stderr.strip(),
-                )
-                continue
-            # Running workspaces may need new deps after the rebase; others
-            # get theirs on the next ensure().
-            ws = self._workspaces.get(wt.name)
-            if ws is not None:
-                self._install_deps(ws)
+            if self._rebase_clean_worktree(wt):
+                # Running workspaces may need new deps after the rebase;
+                # others get theirs on the next ensure().
+                ws = self._workspaces.get(wt.name)
+                if ws is not None:
+                    self._install_deps(ws)
 
     # -- git: changes / publish / revert -----------------------------------
 
-    def _base_ref(self, ws: Workspace) -> str:
-        """The ref to diff/rebase against: origin/main if it exists, else main."""
+    def _base_ref_for(self, path: Path) -> str:
+        """The ref to diff/rebase against: ``<remote>/main`` if it exists in
+        this checkout, else the local ``main`` ref. Shared by [changes],
+        [publish], and the worktree-sync paths so they agree on the base."""
         remote = self._settings.microapps_publish_remote
         candidate = f"{remote}/main"
-        res = self._git(ws.path, "rev-parse", "--verify", "--quiet", candidate, check=False)
+        res = self._git(path, "rev-parse", "--verify", "--quiet", candidate, check=False)
         if res.returncode == 0:
             return candidate
         return "main"
+
+    def _base_ref(self, ws: Workspace) -> str:
+        return self._base_ref_for(ws.path)
+
+    def _rebase_clean_worktree(self, wt_path: Path, *, log_name: str | None = None) -> bool:
+        """Fast-forward/rebase a clean worktree onto the publish base.
+
+        Used by [ensure] (so an app newly added to ``main`` lands in the
+        worktree *before* the dev server starts — otherwise the dev server's
+        app scan would miss it and the panel would 404) and by
+        [sync_repo_sync] (periodic deployments sync). Dirty or conflicting
+        worktrees are left untouched: a dirty tree means the user has
+        uncommitted edits in flight, and a conflict is out of scope here —
+        [publish] handles those interactively. Non-fatal: returns False on
+        any failure instead of raising, so [ensure] never breaks a workspace
+        open just because a rebase couldn't happen.
+
+        Returns True when the worktree is now at/after base (rebased or
+        already up to date), False when it was skipped (dirty) or conflicted.
+        """
+        name = log_name or wt_path.name
+        # Only tracked modifications / staged changes block a rebase — untracked
+        # files (e.g. the gitignored ``opencode.json`` seeded in every
+        # workspace, or a brand-new app dir that came in on the rebase itself)
+        # never conflict. ``-uno`` keeps untracked files out of the dirty check
+        # so a workspace with a freshly-seeded config still syncs.
+        if self._git(wt_path, "status", "--porcelain", "-uno", check=False).stdout.strip():
+            logger.info("microapps: skipping sync of dirty worktree %s", name)
+            return False
+        base = self._base_ref_for(wt_path)
+        rebase = self._git(wt_path, "rebase", base, check=False)
+        if rebase.returncode != 0:
+            self._git(wt_path, "rebase", "--abort", check=False)
+            logger.warning(
+                "microapps: rebase of %s onto %s failed: %s",
+                name,
+                base,
+                rebase.stderr.strip(),
+            )
+            return False
+        return True
+
+    def _app_dir_keys(self, wt_path: Path) -> set[str]:
+        """The set of app subdirs (with ``package.json``) in a worktree.
+
+        Used to detect that a rebase brought a new/removed app, which
+        requires a dev-server restart (the orchestrator scans ``apps/*``
+        once at startup and never re-scans)."""
+        apps = wt_path / "apps"
+        if not apps.is_dir():
+            return set()
+        return {p.name for p in apps.iterdir() if p.is_dir() and (p / "package.json").is_file()}
 
     def _parse_numstat(self, ws: Workspace, base: str) -> dict[str, tuple[int, int]]:
         out = self._git(ws.path, "diff", "--numstat", base, check=False).stdout

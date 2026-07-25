@@ -133,6 +133,108 @@ def test_ensure_worktree_idempotent(manager):
     assert listing2.count("worktree ") == count_before  # no duplicate worktree
 
 
+def test_ensure_rebases_stale_worktree_to_pick_up_new_app(manager, repos):
+    """Regression for user report #4 ("Micro-app panel shows 'not found' after
+    edits"): a worktree created before an app was added to main must catch up
+    on the next ``ensure_sync`` so the dev-server's app scan sees the new app.
+
+    Without the in-ensure rebase the worktree branch stays at the old HEAD,
+    the new app dir is absent, the dev-server's pickApp() returns null, and
+    the panel 404s with "not found"."""
+    repo, bare = repos
+    ws = manager.ensure_sync(EMAIL)
+    assert not (ws.path / "apps" / "new-app").exists()
+
+    # Add a new app on main and push it (simulates main advancing with
+    # ``madrid-agosto-2026`` while the user's worktree sits stale).
+    new_app = repo / "apps" / "new-app"
+    new_app.mkdir(parents=True)
+    (new_app / "package.json").write_text('{"name":"new-app"}\n')
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-m", "add new-app")
+    _git(repo, "push", "origin", "main")
+    # Update the remote-tracking ref so origin/main points at the new commit.
+    # In prod the periodic sync job does `git fetch`; in dev the developer's
+    # `git pull` does the same. Without this, the worktree's origin/main ref
+    # is stale and the rebase in ensure_sync is a no-op.
+    _git(repo, "fetch", "origin")
+
+    # The next ensure must fast-forward the user's clean worktree.
+    ws2 = manager.ensure_sync(EMAIL)
+    assert (ws2.path / "apps" / "new-app" / "package.json").is_file(), (
+        "ensure_sync should rebase a clean stale worktree onto main so a "
+        "newly-added app is present in the worktree (regression for the "
+        "'not found' micro-app panel bug)"
+    )
+
+
+def test_ensure_does_not_rebase_dirty_worktree(manager, repos):
+    """A worktree with uncommitted edits must NOT be rebased — that would
+    risk losing the user's in-flight changes. ensure_sync keeps the stale
+    app set (and the dirty tree) intact; publish/revert handle it later."""
+    repo, bare = repos
+    ws = manager.ensure_sync(EMAIL)
+    # Simulate the user mid-edit: a tracked file modified, uncommitted.
+    (ws.path / "registry.json").write_text('{"version":2,"apps":[]}\n')
+
+    new_app = repo / "apps" / "new-app"
+    new_app.mkdir(parents=True)
+    (new_app / "package.json").write_text('{"name":"new-app"}\n')
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-m", "add new-app")
+    _git(repo, "push", "origin", "main")
+
+    ws2 = manager.ensure_sync(EMAIL)
+    # Dirty tree was left alone: the in-flight edit is preserved...
+    assert (ws2.path / "registry.json").read_text() == '{"version":2,"apps":[]}\n'
+    # ...and the new app is NOT present (rebase was skipped).
+    assert not (ws2.path / "apps" / "new-app").exists()
+
+
+def test_rebase_clean_worktree_returns_false_on_conflict(manager, repos):
+    """When a clean worktree's branch has diverged from main with a conflict,
+    _rebase_clean_worktree must abort and return False — never raise — so
+    ensure_sync can't be broken by a rebase it can't auto-resolve."""
+    repo, bare = repos
+    ws = manager.ensure_sync(EMAIL)
+
+    # Diverge: commit on the worktree branch AND a conflicting edit on main.
+    (ws.path / "registry.json").write_text('{"version":2}\n')
+    _git(ws.path, "add", "-A")
+    _git(ws.path, "commit", "-m", "worktree edit")
+
+    (repo / "registry.json").write_text('{"version":3}\n')
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-m", "main edit")
+    _git(repo, "push", "origin", "main")
+    _git(repo, "fetch", "origin")
+
+    wt_path = manager.worktree_path(slugify_email(EMAIL))
+    # The worktree is clean (committed) but the rebase will conflict.
+    assert manager._rebase_clean_worktree(wt_path) is False
+    # Aborted: tree is back to the worktree's own commit, no rebase in progress.
+    assert _git(wt_path, "status", "--porcelain").strip() == ""
+
+
+def test_app_dir_keys_lists_apps_with_package_json(manager):
+    """_app_dir_keys reports the app subdirs that have a package.json, the
+    signal the dev-server uses to register an app. Used by ensure_sync to
+    decide whether a rebase brought a new/removed app and the dev server
+    needs a restart."""
+    ws = manager.ensure_sync(EMAIL)
+    assert manager._app_dir_keys(ws.path) == {"house-designer"}
+
+    # A dir without package.json is not an app.
+    (ws.path / "apps" / "not-an-app").mkdir()
+    (ws.path / "apps" / "not-an-app" / "README.md").write_text("hi")
+    assert manager._app_dir_keys(ws.path) == {"house-designer"}
+
+    # A second real app appears.
+    (ws.path / "apps" / "new-app").mkdir()
+    (ws.path / "apps" / "new-app" / "package.json").write_text("{}")
+    assert manager._app_dir_keys(ws.path) == {"house-designer", "new-app"}
+
+
 def test_seeds_opencode_config(manager):
     ws = manager.ensure_sync(EMAIL)
     cfg = ws.path / "opencode.json"
