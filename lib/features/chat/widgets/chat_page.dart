@@ -659,6 +659,7 @@ class _ChatPageContentState extends State<_ChatPageContent>
                                     _scaffoldKey.currentState?.openEndDrawer(),
                                 onDeleteConversation: (id) =>
                                     _deleteWithUndo(chatProvider, id),
+                                onNewChat: _newChat,
                               ),
                               if (chatProvider.error != null)
                                 _ErrorBanner(

@@ -131,6 +131,11 @@ half-migrated schema.
   `client_tool_request` SSE chunk + the `POST …/client-tool-result` endpoint
   (bridged in-process by `ClientToolBridge`).
 - `ScheduledAction` stores user-defined cron or one-shot prompts.
+  `conversation_id` (migration 034; user-report 89b954f7) optionally pins
+  a recurring action to a single conversation so its run history
+  accumulates in one chat instead of spawning a new conversation each fire.
+  Set on the first run; NULL for one-off (`run_at`) actions. `ON DELETE SET
+  NULL` so deleting the conversation lets the next run start a fresh one.
 - `Report` (026; extended by 033, idea 22) stores in-app bug reports / feature requests:
   `type` is `bug|feature`, `status` flows `open → in_progress → closed` and is
   admin-controlled (`PATCH /admin/reports/{id}`); values are enforced by

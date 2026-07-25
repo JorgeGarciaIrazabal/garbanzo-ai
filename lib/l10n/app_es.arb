@@ -160,6 +160,7 @@
   "labelName": "Nombre",
   "labelNew": "Nueva",
   "labelNewChat": "Nuevo chat",
+  "tooltipNewChat": "Nuevo chat",
   "labelNewPassword": "Nueva contraseña",
   "labelNewRoom": "Nueva sala",
   "labelOneOff": "Puntual",

@@ -1058,6 +1058,12 @@ abstract class AppLocalizations {
   /// **'New Chat'**
   String get labelNewChat;
 
+  /// Tooltip for the New chat icon button in the chat app bar on narrow layouts.
+  ///
+  /// In en, this message translates to:
+  /// **'New chat'**
+  String get tooltipNewChat;
+
   /// features/settings/widgets/change_password_dialog.dart:90 (Text)
   ///
   /// In en, this message translates to:

@@ -20,8 +20,9 @@ logger = logging.getLogger(__name__)
 async def run_scheduled_action(action_id: str) -> None:
     """Execute a single scheduled action by ID.
 
-    Creates a new conversation seeded with the action's prompt, streams the
-    assistant reply, notifies the user, and records the run result.
+    Creates (or reuses, for recurring actions whose ``conversation_id`` is
+    already set) a conversation, seeds it with the action's prompt, streams
+    the assistant reply, notifies the user, and records the run result.
     """
     logger.info("Running scheduled action %s", action_id)
     async with async_session_maker() as db:
@@ -39,12 +40,31 @@ async def run_scheduled_action(action_id: str) -> None:
         title = action.title or (prompt_text[:50] + ("..." if len(prompt_text) > 50 else ""))
 
         convs = ConversationService(db)
-        conversation = await convs.create(
-            user_id=user_id,
-            title=f"⏰ {title}",
-            model=action.model or get_settings().scheduled_action_model,
-            system_prompt=action.system_prompt,
-        )
+
+        # Recurring actions reuse their persistent conversation so the full
+        # run history accumulates in one chat (user-report 89b954f7). The
+        # first run — and every run of a one-off (``run_at``) action —
+        # creates a fresh conversation.
+        conversation = None
+        if action.cron_expr and action.conversation_id:
+            conversation = await convs.get(action.conversation_id, user_id, include_messages=False)
+            if conversation is not None and conversation.is_deleted:
+                # The user deleted the action's chat — start a new one so
+                # the action keeps firing instead of erroring forever.
+                conversation = None
+
+        if conversation is None:
+            conversation = await convs.create(
+                user_id=user_id,
+                title=f"⏰ {title}",
+                model=action.model or get_settings().scheduled_action_model,
+                system_prompt=action.system_prompt,
+            )
+            # Persist the conversation id back onto a recurring action so
+            # subsequent runs post into the same chat.
+            if action.cron_expr:
+                action.conversation_id = conversation.id
+                await db.commit()
 
         chat = ChatService(db)
         status_label = "success"
@@ -76,7 +96,7 @@ async def run_scheduled_action(action_id: str) -> None:
             next_run=next_run,
         )
 
-        # Fire a notification that deep-links to the new conversation.
+        # Fire a notification that deep-links to the conversation.
         body = (last_assistant_excerpt or prompt_text).strip()
         if len(body) > 200:
             body = body[:200] + "…"

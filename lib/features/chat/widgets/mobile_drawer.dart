@@ -7,6 +7,9 @@ import 'package:garbanzo_ai/features/rooms/providers/room_provider.dart';
 import 'package:garbanzo_ai/features/rooms/widgets/create_room_dialog.dart';
 import 'package:garbanzo_ai/features/rooms/widgets/rooms_list_view.dart';
 import 'package:garbanzo_ai/features/chat/models/conversation.dart';
+import 'package:garbanzo_ai/features/chat/providers/search_provider.dart';
+import 'package:garbanzo_ai/features/chat/widgets/search_results_widget.dart';
+import 'package:garbanzo_ai/features/chat/widgets/search_widget.dart';
 import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// Bottom-sheet drawer for mobile screens. Contains a Chats / Rooms tab
@@ -185,90 +188,87 @@ class _MobileDrawerBodyState extends State<_MobileDrawerBody> {
   Widget _buildChats(BuildContext context) {
     return Column(
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-          child: SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: () {
-                widget.onNewChat();
-                Navigator.pop(context);
-              },
-              icon: const Icon(Icons.add),
-              label: Text(AppLocalizations.of(context)!.labelNewChat),
-            ),
-          ),
-        ),
+        const SearchWidget(autofocus: false),
         Expanded(
-          child: ListView.builder(
-            controller: widget.scrollController,
-            itemCount: widget.conversations.length,
-            itemBuilder: (context, index) {
-              final conversation = widget.conversations[index];
-              final isSelected = conversation.id == widget.selectedId;
-              return ListTile(
-                leading: Icon(
-                  conversation.isPinned ? Icons.push_pin : Icons.chat,
-                  color: isSelected
-                      ? Theme.of(context).colorScheme.primary
-                      : null,
-                ),
-                title: Row(
-                  children: [
-                    Flexible(
-                      child: Text(
-                        conversation.displayTitle,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+          child: Consumer<SearchProvider>(
+            builder: (context, searchProvider, _) {
+              if (searchProvider.searchQuery.isNotEmpty) {
+                return SearchResultsWidget(
+                  onResultSelected: () => Navigator.of(context).pop(),
+                );
+              }
+              return ListView.builder(
+                controller: widget.scrollController,
+                itemCount: widget.conversations.length,
+                itemBuilder: (context, index) {
+                  final conversation = widget.conversations[index];
+                  final isSelected = conversation.id == widget.selectedId;
+                  return ListTile(
+                    leading: Icon(
+                      conversation.isPinned ? Icons.push_pin : Icons.chat,
+                      color: isSelected
+                          ? Theme.of(context).colorScheme.primary
+                          : null,
                     ),
-                    if (conversation.isMuted) ...[
-                      const SizedBox(width: 6),
-                      Icon(
-                        key: ValueKey('conversation_muted_glyph'),
-                        Icons.notifications_off,
-                        size: 14,
-                        semanticLabel: AppLocalizations.of(
-                          context,
-                        )!.messageRoomMuted,
-                      ),
-                    ],
-                  ],
-                ),
-                subtitle: Text(
-                  AppLocalizations.of(
-                    context,
-                  )!.messageCount(conversation.messageCount),
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-                selected: isSelected,
-                onTap: () {
-                  widget.onSelect(conversation.id);
-                  Navigator.pop(context);
-                },
-                onLongPress: widget.onMuteConversation == null
-                    ? null
-                    : () => _showMuteSheet(context, conversation),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (widget.onTogglePin != null)
-                      IconButton(
-                        icon: Icon(
-                          conversation.isPinned
-                              ? Icons.push_pin
-                              : Icons.push_pin_outlined,
+                    title: Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            conversation.displayTitle,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                        tooltip: conversation.isPinned ? 'Unpin' : 'Pin',
-                        onPressed: () => widget.onTogglePin!(conversation.id),
-                      ),
-                    IconButton(
-                      tooltip: 'Delete conversation',
-                      icon: const Icon(Icons.delete_outline),
-                      onPressed: () => widget.onDelete(conversation.id),
+                        if (conversation.isMuted) ...[
+                          const SizedBox(width: 6),
+                          Icon(
+                            key: ValueKey('conversation_muted_glyph'),
+                            Icons.notifications_off,
+                            size: 14,
+                            semanticLabel: AppLocalizations.of(
+                              context,
+                            )!.messageRoomMuted,
+                          ),
+                        ],
+                      ],
                     ),
-                  ],
-                ),
+                    subtitle: Text(
+                      AppLocalizations.of(
+                        context,
+                      )!.messageCount(conversation.messageCount),
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    selected: isSelected,
+                    onTap: () {
+                      widget.onSelect(conversation.id);
+                      Navigator.pop(context);
+                    },
+                    onLongPress: widget.onMuteConversation == null
+                        ? null
+                        : () => _showMuteSheet(context, conversation),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (widget.onTogglePin != null)
+                          IconButton(
+                            icon: Icon(
+                              conversation.isPinned
+                                  ? Icons.push_pin
+                                  : Icons.push_pin_outlined,
+                            ),
+                            tooltip: conversation.isPinned ? 'Unpin' : 'Pin',
+                            onPressed: () =>
+                                widget.onTogglePin!(conversation.id),
+                          ),
+                        IconButton(
+                          tooltip: 'Delete conversation',
+                          icon: const Icon(Icons.delete_outline),
+                          onPressed: () => widget.onDelete(conversation.id),
+                        ),
+                      ],
+                    ),
+                  );
+                },
               );
             },
           ),

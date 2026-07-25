@@ -728,6 +728,10 @@
   "@labelNewChat": {
     "description": "features/chat/widgets/mobile_drawer.dart:197 (Text); features/chat/widgets/conversation_list_widget.dart:68 (Text)"
   },
+  "tooltipNewChat": "New chat",
+  "@tooltipNewChat": {
+    "description": "Tooltip for the New chat icon button in the chat app bar on narrow layouts."
+  },
   "labelNewPassword": "New password",
   "@labelNewPassword": {
     "description": "features/settings/widgets/change_password_dialog.dart:90 (Text)"

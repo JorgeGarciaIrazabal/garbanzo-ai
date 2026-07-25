@@ -529,6 +529,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get labelNewChat => 'New Chat';
 
   @override
+  String get tooltipNewChat => 'New chat';
+
+  @override
   String get labelNewPassword => 'New password';
 
   @override

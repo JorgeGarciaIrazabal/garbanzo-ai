@@ -10,9 +10,10 @@ class ScheduledAction(Base):
     """A user-defined prompt that runs on a schedule.
 
     Either ``cron_expr`` (recurring) or ``run_at`` (one-off) must be set.
-    When the action fires, the backend creates a new conversation owned by
-    the user, seeds it with ``prompt``, streams an assistant reply, and
-    sends a ``reminders`` notification pointing at the new conversation.
+    When the action fires, the backend creates (or reuses, for recurring
+    actions whose ``conversation_id`` is already set) a conversation owned
+    by the user, seeds it with ``prompt``, streams an assistant reply, and
+    sends a ``reminders`` notification pointing at the conversation.
     """
 
     __tablename__ = "scheduled_actions"
@@ -32,6 +33,17 @@ class ScheduledAction(Base):
 
     model: Mapped[str | None] = mapped_column(String(100), nullable=True)
     system_prompt: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Optional FK to the conversation recurring runs post into. Populated on
+    # the first run and reused thereafter so a scheduled action's history
+    # accumulates in one chat instead of spawning a new one each fire. NULL
+    # for one-off (``run_at``) actions — those still create a fresh
+    # conversation per run since they only fire once.
+    conversation_id: Mapped[str | None] = mapped_column(
+        ForeignKey("conversations.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
 
     is_active: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True, server_default="true"

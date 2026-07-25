@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import 'package:garbanzo_ai/core/responsive.dart';
 import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
 import 'package:garbanzo_ai/features/chat/widgets/mobile_drawer.dart';
-import 'package:garbanzo_ai/features/chat/widgets/mobile_search_sheet.dart';
 import 'package:garbanzo_ai/features/chat/widgets/style_picker.dart';
 import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
@@ -18,6 +17,7 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
     super.key,
     required this.onOpenSettings,
     required this.onDeleteConversation,
+    required this.onNewChat,
   });
 
   /// Opens the settings end-drawer (owned by the page's Scaffold).
@@ -25,6 +25,11 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   /// Delete-with-undo flow owned by the page (needs its ScaffoldMessenger).
   final ValueChanged<String> onDeleteConversation;
+
+  /// Starts a new conversation (clears the current one). On narrow layouts
+  /// this is surfaced as an icon button in the app bar; on wide layouts the
+  /// sidebar already hosts a full "New chat" button.
+  final VoidCallback onNewChat;
 
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
@@ -60,9 +65,9 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
       actions: [
         if (!showSidebar)
           IconButton(
-            icon: const Icon(Icons.search),
-            tooltip: AppLocalizations.of(context)!.tooltipSearchConversations,
-            onPressed: () => showMobileSearchSheet(context),
+            icon: const Icon(Icons.add_comment_outlined),
+            tooltip: AppLocalizations.of(context)!.tooltipNewChat,
+            onPressed: onNewChat,
           ),
         const Padding(
           padding: EdgeInsets.only(right: 8),

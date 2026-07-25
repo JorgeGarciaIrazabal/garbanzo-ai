@@ -62,6 +62,9 @@ class ScheduledActionResponse(BaseModel):
     next_run: datetime | None
     last_run_at: datetime | None
     last_run_status: str | None
+    # Conversation recurring runs post into (NULL until the first run, or
+    # for one-off ``run_at`` actions).
+    conversation_id: str | None
     created_at: datetime
     updated_at: datetime
 
