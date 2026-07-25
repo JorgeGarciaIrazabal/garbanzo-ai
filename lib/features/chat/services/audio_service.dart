@@ -34,10 +34,12 @@ class AudioService {
   /// uses the latter to reply in the language the user spoke (idea 13.4).
   Future<({String text, String? language})> transcribeAudio(
     Uint8List audioBytes,
-    String filename,
-  ) async {
+    String filename, {
+    String? language,
+  }) async {
     final formData = FormData.fromMap({
       'file': MultipartFile.fromBytes(audioBytes, filename: filename),
+      'language': ?language,
     });
 
     final response = await _api.postMultipart(

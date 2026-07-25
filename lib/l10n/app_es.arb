@@ -586,12 +586,12 @@
   "@messageAuto": {
     "description": "Talk Mode language menu Auto item."
   },
-  "messageReplyLanguageAuto": "Idioma de respuesta: Auto",
-  "@messageReplyLanguageAuto": {
+  "messageCallLanguageAuto": "Idioma de la llamada: Automático",
+  "@messageCallLanguageAuto": {
     "description": "Talk Mode language tooltip when auto."
   },
-  "messageReplyLanguageNamed": "Idioma de respuesta: {language}",
-  "@messageReplyLanguageNamed": {
+  "messageCallLanguageNamed": "Idioma de la llamada: {language}",
+  "@messageCallLanguageNamed": {
     "description": "Talk Mode language tooltip when pinned.",
     "placeholders": {
       "language": {

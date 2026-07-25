@@ -1399,11 +1399,11 @@ class AppLocalizationsEs extends AppLocalizations {
   String get messageAuto => 'Auto';
 
   @override
-  String get messageReplyLanguageAuto => 'Idioma de respuesta: Auto';
+  String get messageCallLanguageAuto => 'Idioma de la llamada: Automático';
 
   @override
-  String messageReplyLanguageNamed(String language) {
-    return 'Idioma de respuesta: $language';
+  String messageCallLanguageNamed(String language) {
+    return 'Idioma de la llamada: $language';
   }
 
   @override

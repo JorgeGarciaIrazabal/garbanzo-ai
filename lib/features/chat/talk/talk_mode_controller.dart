@@ -36,6 +36,7 @@ enum TalkPhase {
 /// Reuses [ChatProvider] for the LLM turn (so memory, KB, and tools keep
 /// working), [TalkRecorder] + [TalkVad] for hands-free capture, and
 /// [TalkTtsQueue] for speaking the reply sentence-by-sentence as it streams.
+/// The in-call language pin applies to both Whisper transcription and TTS.
 ///
 /// Flow once the page starts the call: listen → VAD detects the user
 /// stopped → transcribe → send → speak the reply → loop back to listening.
@@ -116,9 +117,8 @@ class TalkModeController extends ChangeNotifier {
   String? _languageOverride;
   String? get languageOverride => _languageOverride;
 
-  /// Pin the reply language for the rest of the call ([code] ISO, null returns
-  /// to Auto). Takes effect from the next reply — the current one keeps
-  /// whatever voice it started with.
+  /// Pin recognition and reply speech to [code] for the rest of the call;
+  /// null returns to Auto. Takes effect from the next user utterance.
   void setLanguageOverride(String? code) {
     if (_languageOverride == code) return;
     _languageOverride = code;
@@ -147,6 +147,38 @@ class TalkModeController extends ChangeNotifier {
     autoLanguage: _settings.autoLanguage,
     detected: _detectedLanguage,
     preferred: _settings.preferredLanguages,
+  );
+
+  /// Resolve a single language to force in Whisper. A manual in-call pin is
+  /// authoritative. One preferred language is also unambiguous; multiple
+  /// preferences retain automatic detection because Whisper accepts one
+  /// language constraint, not a set. With automatic switching off, the fixed
+  /// TTS voice determines the expected conversation language.
+  @visibleForTesting
+  static String? resolveTranscriptionLanguage({
+    required String? override,
+    required bool autoLanguage,
+    required List<String> preferred,
+    required String voice,
+  }) {
+    if (override != null) return override;
+    if (autoLanguage) return preferred.length == 1 ? preferred.single : null;
+    return switch (voice.isEmpty ? '' : voice[0].toLowerCase()) {
+      'a' || 'b' => 'en',
+      'e' => 'es',
+      'f' => 'fr',
+      'h' => 'hi',
+      'i' => 'it',
+      'p' => 'pt',
+      _ => null,
+    };
+  }
+
+  String? get _transcriptionLanguage => resolveTranscriptionLanguage(
+    override: _languageOverride,
+    autoLanguage: _settings.autoLanguage,
+    preferred: _settings.preferredLanguages,
+    voice: _settings.ttsVoice,
   );
 
   /// How many characters of the current reply have already been queued for
@@ -334,7 +366,9 @@ class TalkModeController extends ChangeNotifier {
     _level = 0;
     String? transcript;
     try {
-      final result = await _recorder.stopAndTranscribe();
+      final result = await _recorder.stopAndTranscribe(
+        language: _transcriptionLanguage,
+      );
       transcript = result?.transcript.trim();
       if (result?.language != null) _detectedLanguage = result!.language;
     } catch (e) {

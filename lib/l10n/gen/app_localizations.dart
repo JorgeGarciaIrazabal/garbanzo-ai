@@ -2639,14 +2639,14 @@ abstract class AppLocalizations {
   /// Talk Mode language tooltip when auto.
   ///
   /// In en, this message translates to:
-  /// **'Reply language: Auto'**
-  String get messageReplyLanguageAuto;
+  /// **'Call language: Auto'**
+  String get messageCallLanguageAuto;
 
   /// Talk Mode language tooltip when pinned.
   ///
   /// In en, this message translates to:
-  /// **'Reply language: {language}'**
-  String messageReplyLanguageNamed(String language);
+  /// **'Call language: {language}'**
+  String messageCallLanguageNamed(String language);
 
   /// Report status update failure snackbar.
   ///

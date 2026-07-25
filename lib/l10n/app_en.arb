@@ -1868,12 +1868,12 @@
   "@messageAuto": {
     "description": "Talk Mode language menu Auto item."
   },
-  "messageReplyLanguageAuto": "Reply language: Auto",
-  "@messageReplyLanguageAuto": {
+  "messageCallLanguageAuto": "Call language: Auto",
+  "@messageCallLanguageAuto": {
     "description": "Talk Mode language tooltip when auto."
   },
-  "messageReplyLanguageNamed": "Reply language: {language}",
-  "@messageReplyLanguageNamed": {
+  "messageCallLanguageNamed": "Call language: {language}",
+  "@messageCallLanguageNamed": {
     "description": "Talk Mode language tooltip when pinned.",
     "placeholders": {
       "language": {

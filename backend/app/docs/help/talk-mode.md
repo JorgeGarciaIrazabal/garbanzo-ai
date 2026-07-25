@@ -35,5 +35,8 @@ Yes. Speak in any supported language (English, Spanish, French, Hindi,
 Italian, Brazilian Portuguese) and — with automatic language switching on —
 the reply is spoken by a matching voice. If you've set preferred languages in
 Settings, switching only happens between those. The **translate** button in
-the call bar pins a specific reply language for the call (or returns to
-Auto).
+the call bar pins both speech recognition and the reply voice to that language
+for the call (or returns to Auto). With exactly one language under **My
+languages**, Talk Mode also uses it for speech recognition by default. With
+multiple preferred languages, recognition remains automatic until you pin one
+in the call bar.

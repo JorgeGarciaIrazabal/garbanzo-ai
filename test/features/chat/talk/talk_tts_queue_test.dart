@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:typed_data';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:garbanzo_ai/features/chat/talk/talk_tts_queue.dart';
 
@@ -12,21 +15,60 @@ void main() {
       expect(chunks, ['Hello there. How are you?']);
     });
 
-    test('groups short sentences up to the target size', () {
+    test('groups short sentences into one request', () {
       final chunks = TalkTtsQueue.splitIntoChunks('One. Two. Three.');
-      // All well under 500 chars, so they coalesce into a single chunk.
+      // All fit under the API limit, so they coalesce into a single chunk.
       expect(chunks.length, 1);
       expect(chunks.first, 'One. Two. Three.');
     });
 
-    test('starts a new chunk once the target size is exceeded', () {
-      final long = 'A sentence that is fairly wordy. ' * 30; // > 500 chars
+    test('starts a new chunk once the API limit is exceeded', () {
+      final long = List.filled(
+        200,
+        'A sentence that is fairly wordy.',
+      ).join(' ');
       final chunks = TalkTtsQueue.splitIntoChunks(long.trim());
       expect(chunks.length, greaterThan(1));
+      expect(chunks.every((chunk) => chunk.length <= 5000), isTrue);
     });
 
     test('returns empty for blank input', () {
       expect(TalkTtsQueue.splitIntoChunks('   '), isEmpty);
     });
+  });
+
+  test('prefetches text enqueued while the current chunk is playing', () async {
+    final playbackStarted = Completer<void>();
+    final finishPlayback = Completer<void>();
+    final queueDrained = Completer<void>();
+    final synthesized = <String>[];
+    var playbackCount = 0;
+    final queue = TalkTtsQueue(
+      voice: 'af_heart',
+      speed: 1,
+      synthesizer: (chunk) async {
+        synthesized.add(chunk);
+        return Uint8List(1);
+      },
+      chunkPlayer: (_) async {
+        playbackCount++;
+        if (playbackCount == 1) {
+          playbackStarted.complete();
+          await finishPlayback.future;
+        }
+      },
+      onComplete: queueDrained.complete,
+    );
+
+    queue.enqueue('First sentence.');
+    await playbackStarted.future;
+    queue.enqueue('Second sentence.');
+    await Future<void>.delayed(Duration.zero);
+
+    expect(synthesized, ['First sentence.', 'Second sentence.']);
+
+    finishPlayback.complete();
+    await queueDrained.future;
+    expect(playbackCount, 2);
   });
 }

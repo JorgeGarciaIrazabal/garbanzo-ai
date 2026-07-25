@@ -232,7 +232,7 @@ class _ControlBar extends StatelessWidget {
 
   final bool muted;
 
-  /// Pinned reply language (ISO code), null when following the speech (Auto).
+  /// Pinned call language (ISO code), null for automatic recognition.
   final String? languageOverride;
   final Future<void> Function() onToggleMute;
   final void Function(String? code) onLanguageSelected;
@@ -257,14 +257,16 @@ class _ControlBar extends StatelessWidget {
             onPressed: onToggleMute,
           ),
           const SizedBox(width: 28),
-          // Reply-language override: Auto (follow the user's speech) or pin
+          // Call-language override: Auto detection or pin both STT and TTS.
           // one of the supported TTS languages for the rest of the call.
           PopupMenuButton<String>(
             key: const ValueKey('talk_language_button'),
             tooltip: languageOverride == null
-                ? 'Reply language: Auto'
-                : 'Reply language: '
-                      '${TalkModeController.supportedLanguages[languageOverride] ?? languageOverride}',
+                ? AppLocalizations.of(context)!.messageCallLanguageAuto
+                : AppLocalizations.of(context)!.messageCallLanguageNamed(
+                    TalkModeController.supportedLanguages[languageOverride] ??
+                        languageOverride!,
+                  ),
             initialValue: languageOverride ?? 'auto',
             onSelected: (code) =>
                 onLanguageSelected(code == 'auto' ? null : code),

@@ -104,8 +104,10 @@ class TalkRecorder {
   }
 
   /// Stop capturing and transcribe. Returns `null` if nothing was recorded.
-  Future<VoiceRecordingResult?> stopAndTranscribe() async {
-    return _useSubprocess ? _stopSubprocess() : _stopRecordPackage();
+  Future<VoiceRecordingResult?> stopAndTranscribe({String? language}) async {
+    return _useSubprocess
+        ? _stopSubprocess(language)
+        : _stopRecordPackage(language);
   }
 
   /// Whether the running capture can be carried across an interrupt→listen
@@ -278,7 +280,7 @@ class TalkRecorder {
     _levelRemainder = Uint8List.sublistView(buf, off);
   }
 
-  Future<VoiceRecordingResult?> _stopSubprocess() async {
+  Future<VoiceRecordingResult?> _stopSubprocess(String? language) async {
     await _pcmSub?.cancel();
     _pcmSub = null;
     _capture?.kill(ProcessSignal.sigint);
@@ -288,7 +290,11 @@ class TalkRecorder {
     final pcm = _pcm.takeBytes();
     if (pcm.isEmpty) return null;
     final wav = wrapPcmInWav(pcm, sampleRate: _sampleRate, channels: _channels);
-    final result = await AudioService.instance.transcribeAudio(wav, 'talk.wav');
+    final result = await AudioService.instance.transcribeAudio(
+      wav,
+      'talk.wav',
+      language: language,
+    );
     return VoiceRecordingResult(
       transcript: result.text,
       language: result.language,
@@ -402,7 +408,7 @@ class TalkRecorder {
     }
   }
 
-  Future<VoiceRecordingResult?> _stopRecordPackage() async {
+  Future<VoiceRecordingResult?> _stopRecordPackage(String? language) async {
     await _ampSub?.cancel();
     _ampSub = null;
     final recorder = _recorder;
@@ -424,6 +430,7 @@ class TalkRecorder {
       final result = await AudioService.instance.transcribeAudio(
         wav,
         'talk.wav',
+        language: language,
       );
       return VoiceRecordingResult(
         transcript: result.text,
@@ -445,6 +452,7 @@ class TalkRecorder {
       final result = await AudioService.instance.transcribeAudio(
         audioBytes,
         path.split('/').last,
+        language: language,
       );
       return VoiceRecordingResult(
         transcript: result.text,

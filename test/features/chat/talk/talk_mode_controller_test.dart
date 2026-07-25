@@ -25,9 +25,13 @@ class _FakeTalkRecorder extends TalkRecorder {
 }
 
 class _TranscriptTalkRecorder extends _FakeTalkRecorder {
+  String? transcriptionLanguage;
+
   @override
-  Future<VoiceRecordingResult?> stopAndTranscribe() async =>
-      const VoiceRecordingResult(transcript: 'Hola');
+  Future<VoiceRecordingResult?> stopAndTranscribe({String? language}) async {
+    transcriptionLanguage = language;
+    return const VoiceRecordingResult(transcript: 'Hola');
+  }
 }
 
 void main() {
@@ -84,6 +88,7 @@ void main() {
       );
 
       await controller.startCall();
+      controller.setLanguageOverride('es');
       await controller.onTap();
 
       verify(
@@ -92,6 +97,7 @@ void main() {
           talkModeInstruction: 'Instrucción localizada',
         ),
       ).called(1);
+      expect(recorder.transcriptionLanguage, 'es');
       controller.dispose();
       streamingMessage.dispose();
     });
@@ -229,6 +235,56 @@ void main() {
           autoLanguage: true,
           detected: 'es',
           preferred: const ['en', 'es'],
+        ),
+        'es',
+      );
+    });
+  });
+
+  group('TalkModeController.resolveTranscriptionLanguage', () {
+    test('manual in-call selection always forces Whisper', () {
+      expect(
+        TalkModeController.resolveTranscriptionLanguage(
+          override: 'es',
+          autoLanguage: true,
+          preferred: const ['en', 'fr'],
+          voice: 'af_heart',
+        ),
+        'es',
+      );
+    });
+
+    test('one preferred language is used instead of auto-detection', () {
+      expect(
+        TalkModeController.resolveTranscriptionLanguage(
+          override: null,
+          autoLanguage: true,
+          preferred: const ['fr'],
+          voice: 'af_heart',
+        ),
+        'fr',
+      );
+    });
+
+    test('multiple preferred languages retain auto-detection', () {
+      expect(
+        TalkModeController.resolveTranscriptionLanguage(
+          override: null,
+          autoLanguage: true,
+          preferred: const ['en', 'es'],
+          voice: 'af_heart',
+        ),
+        isNull,
+      );
+    });
+
+    test('fixed voice supplies the language when auto switching is off', () {
+      expect(
+        TalkModeController.resolveTranscriptionLanguage(
+          override: null,
+          autoLanguage: false,
+          preferred: const [],
+          voice: 'ef_dora',
         ),
         'es',
       );

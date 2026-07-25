@@ -169,9 +169,10 @@ features/chat/
   utils/             text_cleaner.dart (strips markdown/emojis before TTS)
   talk/              Talk Mode — full-screen hands-free voice call over
                      ChatProvider: talk_mode_page.dart, talk_mode_controller.dart
-                     (auto-starting state machine + call loop + voice barge-in + reply-language
-                     follow: STT-detected language → TTS voice swap, bounded to
-                     preferred languages, with an in-call override), talk_vad.dart
+                     (auto-starting state machine + call loop + voice barge-in +
+                     language routing: an in-call pin or sole preferred language
+                     forces STT, then the resolved language selects the TTS voice),
+                     talk_vad.dart
                      (energy VAD), talk_barge_in.dart (talk-over-the-AI detector:
                      margin + absolute gate + echo-adaptive floor; sensitivity is
                      a Voice setting), talk_recorder.dart (Linux PCM or Android
@@ -440,3 +441,6 @@ Prod (`deploy/docker-compose.yml`, project `garbanzo-prod` — fully separate DB
 > `small` checkpoint, balancing transcription accuracy with CPU latency. TTS
 > inference is serialized around the singleton Kokoro model, and clients keep
 > at most one bounded text chunk prefetched to cap long-session memory use.
+> Normal read-aloud uses one multi-sentence request whenever it fits the 5,000
+> character API limit; Talk Mode starts prefetching each newly arrived chunk
+> during current playback so sentence boundaries do not wait on inference.

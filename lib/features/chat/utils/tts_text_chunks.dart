@@ -1,6 +1,12 @@
+/// Matches the backend's maximum text length for one TTS request.
+const maxTtsRequestLength = 5000;
+
 /// Split speech text into bounded chunks, preferring sentence and word
 /// boundaries while guaranteeing that even unpunctuated text stays bounded.
-List<String> splitTextForTts(String text, {int maxLength = 500}) {
+List<String> splitTextForTts(
+  String text, {
+  int maxLength = maxTtsRequestLength,
+}) {
   final chunks = <String>[];
   final sentences = text.split(RegExp(r'(?<=[.!?])\s+'));
   var current = '';

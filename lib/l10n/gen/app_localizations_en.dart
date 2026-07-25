@@ -1380,11 +1380,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get messageAuto => 'Auto';
 
   @override
-  String get messageReplyLanguageAuto => 'Reply language: Auto';
+  String get messageCallLanguageAuto => 'Call language: Auto';
 
   @override
-  String messageReplyLanguageNamed(String language) {
-    return 'Reply language: $language';
+  String messageCallLanguageNamed(String language) {
+    return 'Call language: $language';
   }
 
   @override
