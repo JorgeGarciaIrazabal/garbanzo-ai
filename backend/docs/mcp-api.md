@@ -121,9 +121,16 @@ types. Each event is `data: <json>\n\n`.
 `"{server_id}:{tool_name}"`. The backend executes the tools via MCP before
 the next `chunk`/`done` pair.
 
-If a conversation keeps requesting tools beyond 5 iterations, the stream
-ends with an `error` chunk whose metadata is
-`{"error": true, "error_type": "tool_iteration_cap", "max_iterations": 5}`.
+If a conversation keeps requesting tools beyond 5 iterations, the engine runs
+one final tools-stripped pass so the model answers from the results it has. If
+that capped pass still produces no assistant content (e.g. the model spent
+every iteration on `web_search` and then stopped), the engine synthesizes a
+fallback assistant message naming the tools that ran, so the user is never
+left with a silent turn after tool activity. That message's finish chunk is
+flagged with
+`{"tool_iteration_cap": true, "max_iterations": 5}` (no `error_type`). The
+terminal `{"error_type": "tool_iteration_cap"}` chunk fires only when the
+loop exits without that clean synthesized finish.
 
 ## Message Roles
 
