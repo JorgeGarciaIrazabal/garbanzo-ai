@@ -4,6 +4,17 @@ Release notes for Garbanzo AI. Each entry is generated automatically on
 `just deploy` — an LLM (via opencode) writes it from the release's commits and
 the user reports it addressed. See `scripts/changelog-instructions.md`.
 
+## v1.0.15 — 2026-07-25
+
+### 🙋 User requests completed
+- Fixed choppy text-to-speech timing by synthesizing speech continuously and prefetching audio before sentence boundaries.
+- Added guardrails so long text-to-speech sessions no longer crash the server.
+
+### 🐛 Fixes
+- Smoothed Talk Mode speech transitions and applied language preferences more consistently to Whisper transcription.
+- Bound TTS inference memory to prevent long playback sessions from exhausting server resources.
+- Fixed a handful of minor issues.
+
 ## v1.0.14 — 2026-07-24
 
 ### 🐛 Fixes
