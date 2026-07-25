@@ -1,0 +1,19 @@
+# Pylint config — enforces ONLY import-outside-toplevel (C0415).
+#
+# Ruff has no equivalent rule. This catches imports placed inside
+# functions/methods, which should normally live at module top level.
+#
+# A small set of files have *documented* legitimate lazy imports (see
+# backend/CLAUDE.md: late imports so test fixtures swapping the session
+# maker are honored, breaking circular deps, avoiding heavy module side
+# effects at import time). They are listed in `.pylint-allowlist` and
+# suppressed per-module by the `be-lint-imports` justfile recipe.
+# Shrink the list when a file is refactored; for new one-off justified
+# cases prefer an inline `# pylint: disable=import-outside-toplevel` with
+# a comment.
+
+[MAIN]
+# Only check this one rule — ruff + pyright cover the rest.
+disable = all
+enable = import-outside-toplevel
+ignore-paths = .venv,app/db/migrations.py

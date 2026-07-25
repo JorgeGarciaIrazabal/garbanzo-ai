@@ -177,6 +177,33 @@ be-run:
 be-lint:
     cd backend; uv run ruff check .
 
+# Enforce no in-function imports (Pylint C0415) — the one rule ruff lacks.
+# Baseline of pre-existing offenders is in `.pylint-allowlist` so the check
+# is green today and fails only on *new* files that add in-function imports.
+be-lint-imports:
+    #!/usr/bin/env bash
+    cd backend
+    # Build the list of files to lint: all .py under app/ and tests/,
+    # minus the allowlist.
+    allow_re="^($(paste -sd'|' .pylint-allowlist | sed 's/\./\\./g'))$"
+    files=""
+    while IFS= read -r f; do
+        case "$f" in ""|\#*) continue ;; esac
+        files="$files $f"
+    done < <(find app tests -name '*.py' -not -path '*/.venv/*' | sort)
+    # Filter out allowlisted files.
+    lint_files=""
+    for f in $files; do
+        if ! grep -qx "$f" .pylint-allowlist; then
+            lint_files="$lint_files $f"
+        fi
+    done
+    if [ -z "$lint_files" ]; then
+        echo "No files to lint (everything allowlisted)."
+        exit 0
+    fi
+    uv run pylint --rcfile=.pylintrc $lint_files || exit $?
+
 # Run ruff formatter on backend
 be-format:
     cd backend; uv run ruff format .
@@ -262,7 +289,7 @@ fe-clean:
 # ============================================================================
 
 # Format + lint everything (run before committing to satisfy pre-commit hooks)
-check: be-format fe-format be-lint fe-lint
+check: be-format fe-format be-lint be-lint-imports fe-lint
     @echo "All checks passed — ready to commit."
 
 # Run all tests (backend + frontend unit tests)

@@ -1,0 +1,77 @@
+# Modules with pre-existing in-function imports (Pylint C0415 baseline).
+#
+# `be-lint-imports` suppresses import-outside-toplevel for each listed
+# file. This is a **baseline** captured when the lint was introduced so
+# the check is green today and fails on any *new* file that adds
+# in-function imports. Shrink this list over time by refactoring files
+# to move imports to top level.
+#
+# Many of these are documented legitimate lazy imports (see
+# backend/CLAUDE.md: late imports so test fixtures swapping the session
+# maker are honored, breaking circular deps, avoiding heavy module side
+# effects at import time). Others are pre-existing style debt.
+#
+# One path per line; comments start with `#`.
+
+app/api/v1/endpoints/chat.py
+app/api/v1/endpoints/rooms.py
+app/api/v1/endpoints/stt.py
+app/core/config.py
+app/core/security.py
+app/db/session.py
+app/main.py
+app/models/memory.py
+app/scheduler.py
+app/schemas/chat.py
+app/services/chat_title.py
+app/services/client_file_extract.py
+app/services/document_parser.py
+app/services/error_reporting.py
+app/services/knowledge_base_service.py
+app/services/mcp_service.py
+app/services/memory_extraction.py
+app/services/microapp_workspace.py
+app/services/native_tools.py
+app/services/ollama_provider.py
+app/services/room_chat_service.py
+app/services/stt_service.py
+app/services/style_service.py
+app/services/system_prompt_service.py
+app/services/token_counter.py
+app/services/tts_service.py
+app/services/workflow_runner.py
+app/jobs/extract_memories_job.py
+tests/conftest.py
+tests/test_action_proposals.py
+tests/test_audio_endpoints.py
+tests/test_auth_endpoints.py
+tests/test_chat_sse_endpoint.py
+tests/test_chat_tool_loop.py
+tests/test_client_folder_reads.py
+tests/test_conversation_thinking_level.py
+tests/test_delegate_workflow_tool.py
+tests/test_devices_endpoints.py
+tests/test_dynamic_context.py
+tests/test_fcm_service.py
+tests/test_friends_endpoints.py
+tests/test_knowledge_base_service.py
+tests/test_mcp_service.py
+tests/test_memories_endpoints.py
+tests/test_memory_extraction.py
+tests/test_microapp_chat_tool.py
+tests/test_microapps_proxy.py
+tests/test_native_tools.py
+tests/test_notification_service.py
+tests/test_ollama_provider.py
+tests/test_reports_endpoints.py
+tests/test_scheduled_action_job.py
+tests/test_scheduled_actions_endpoints.py
+tests/test_share_service.py
+tests/test_shares_endpoints.py
+tests/test_stt_service.py
+tests/test_style_service.py
+tests/test_styles_endpoints.py
+tests/test_system_prompt_service.py
+tests/test_workflow_endpoints.py
+tests/test_workflow_runner.py
+tests/test_workflow_service.py

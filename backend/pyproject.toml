@@ -42,6 +42,7 @@ dependencies = [
 dev = [
     "ruff>=0.8.0",
     "pyright>=1.1.390",
+    "pylint>=3.3.0",
     "pytest>=8.3.0",
     "pytest-asyncio>=0.24.0",
     "pytest-cov>=5.0.0",
@@ -100,3 +101,13 @@ extend-immutable-calls = ["fastapi.Depends", "fastapi.params.Depends"]
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
+
+[dependency-groups]
+dev = [
+    "pylint>=4.0.6",
+]
+
+# Pylint runs *only* C0415 (import-outside-toplevel) to enforce keeping
+# imports at module top level — the one rule neither ruff nor pyright
+# covers. Config lives in `.pylintrc` (per-module allowlist for the
+# documented legitimate lazy imports). Run via `just be-lint-imports`.
