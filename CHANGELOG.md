@@ -4,6 +4,22 @@ Release notes for Garbanzo AI. Each entry is generated automatically on
 `just deploy` — an LLM (via opencode) writes it from the release's commits and
 the user reports it addressed. See `scripts/changelog-instructions.md`.
 
+## v1.0.17 — 2026-07-25
+
+### 🙋 User requests completed
+- Set any style — including built-in presets — as the default for new conversations.
+- Moved conversation search into the Android conversation list and added a "New chat" button to the header.
+- Made recurring scheduled actions post into the same chat, keeping all of an action's history in one place.
+
+### ✨ Features
+- Allowed built-in styles to be used as the default for new chats while keeping their content read-only.
+- Added mobile search inside the conversation list and a "New chat" button in the chat header on Android.
+- Reused an existing conversation for recurring scheduled actions instead of creating a new one each run.
+
+### 🐛 Fixes
+- Replaced cryptic chat-stream error messages with friendly, readable explanations when the AI service is unavailable or a connection fails.
+- Stopped background conversation sync from showing noisy error dialogs for transient connection hiccups.
+
 ## v1.0.16 — 2026-07-25
 
 ### 🙋 User requests completed
