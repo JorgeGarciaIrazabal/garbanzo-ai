@@ -136,6 +136,15 @@ half-migrated schema.
   accumulates in one chat instead of spawning a new conversation each fire.
   Set on the first run; NULL for one-off (`run_at`) actions. `ON DELETE SET
   NULL` so deleting the conversation lets the next run start a fresh one.
+- `User.default_style_id` (migration 035; user-report f1af13d5) is the
+  per-user default style for new conversations — a reference to any
+  *visible* style (built-in or user-owned), so a shared built-in like
+  "Truth Seeker" can be a user's default without mutating the shared row
+  (which would affect every user). `ON DELETE SET NULL`. The response's
+  `style.is_default` is recomputed per-user from this pointer by
+  `StyleService`; the stored `Style.is_default` column + its partial
+  unique index are vestigial legacy, kept only so older code paths that
+  still set `Style.is_default` stay consistent.
 - `Report` (026; extended by 033, idea 22) stores in-app bug reports / feature requests:
   `type` is `bug|feature`, `status` flows `open → in_progress → closed` and is
   admin-controlled (`PATCH /admin/reports/{id}`); values are enforced by

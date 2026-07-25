@@ -353,11 +353,53 @@ class TestStyleServiceBuiltins:
             assert tpl.is_builtin is True
             assert tpl.locale == s.locale
 
-    async def test_builtins_are_never_default(self, db_session):
+    async def test_builtins_are_not_default_by_default(self, db_session):
+        # Fresh seed: no built-in has a per-user default pointer set for a
+        # brand-new user, so list_for_user reports is_default=False on all.
         await self._seed_builtins(db_session)
         svc = StyleService(db_session)
         listed = await svc.list_for_user("anyone@example.com")
         assert all(not s.is_default for s in listed if s.is_builtin)
+
+    async def test_set_builtin_as_default_for_user(self, db_session, test_user_email):
+        # A built-in style can be set as the per-user default for new chats
+        # (user-report f1af13d5) — it writes user.default_style_id, not the
+        # shared row's is_default flag.
+        await self._seed_builtins(db_session)
+        svc = StyleService(db_session)
+        listed = await svc.list_for_user(test_user_email)
+        builtin = next(s for s in listed if s.is_builtin)
+
+        updated = await svc.update(builtin.id, test_user_email, is_default=True)
+        assert updated.is_default is True
+
+        # The shared row is *not* mutated — only the per-user pointer moves.
+        # Any other user still sees the built-in as non-default.
+        other_list = await svc.list_for_user("someone_else@example.com")
+        same_builtin = next(s for s in other_list if s.id == builtin.id)
+        assert same_builtin.is_default is False
+
+        # Setting a different user-owned style as default unsets the built-in.
+        owned = await svc.create(
+            user_id=test_user_email, name="mine", model_id="llama3.2", is_default=True
+        )
+        relisted = await svc.list_for_user(test_user_email)
+        assert owned.is_default is True
+        same_builtin_after = next(s for s in relisted if s.id == builtin.id)
+        assert same_builtin_after.is_default is False
+
+        # The per-user pointer is the source of truth.
+        user = await db_session.get(User, test_user_email)
+        assert user is not None
+        assert user.default_style_id == owned.id
+        # is_default=False on a built-in that *is* the user's default clears it.
+        await self._seed_builtins(db_session)
+        svc = StyleService(db_session)
+        listed = await svc.list_for_user(test_user_email)
+        builtin = next(s for s in listed if s.is_builtin)
+        await svc.update(builtin.id, test_user_email, is_default=True)
+        cleared = await svc.update(builtin.id, test_user_email, is_default=False)
+        assert cleared.is_default is False
 
     async def test_update_builtins_raises(self, db_session, test_user_email):
         await self._seed_builtins(db_session)
@@ -366,6 +408,29 @@ class TestStyleServiceBuiltins:
         builtin = next(s for s in listed if s.is_builtin)
         with pytest.raises(BuiltinReadOnlyError):
             await svc.update(builtin.id, test_user_email, name="hijacked")
+
+    async def test_update_builtins_model_raises(self, db_session, test_user_email):
+        # Only is_default is writable on a built-in; other content fields 403.
+        await self._seed_builtins(db_session)
+        svc = StyleService(db_session)
+        listed = await svc.list_for_user(test_user_email)
+        builtin = next(s for s in listed if s.is_builtin)
+        with pytest.raises(BuiltinReadOnlyError):
+            await svc.update(builtin.id, test_user_email, model_id="other-model")
+        with pytest.raises(BuiltinReadOnlyError):
+            await svc.update(
+                builtin.id, test_user_email, set_thinking_level=True, thinking_level="low"
+            )
+
+    async def test_clear_builtin_default(self, db_session, test_user_email):
+        # is_default=False on a built-in that *is* the user's default clears it.
+        await self._seed_builtins(db_session)
+        svc = StyleService(db_session)
+        listed = await svc.list_for_user(test_user_email)
+        builtin = next(s for s in listed if s.is_builtin)
+        await svc.update(builtin.id, test_user_email, is_default=True)
+        cleared = await svc.update(builtin.id, test_user_email, is_default=False)
+        assert cleared.is_default is False
 
     async def test_delete_builtins_raises(self, db_session, test_user_email):
         await self._seed_builtins(db_session)

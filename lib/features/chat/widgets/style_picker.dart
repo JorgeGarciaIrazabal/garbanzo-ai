@@ -1146,55 +1146,57 @@ class _StyleCard extends StatelessWidget {
                       color: colorScheme.error,
                     ),
                   ),
-                // Built-in styles are read-only — no default/edit/share/delete
-                // menu. They can still be applied (onTap) and a copy can be
-                // saved from them via Customize, so the card stays tappable.
-                if (!style.isBuiltin)
-                  PopupMenuButton<String>(
-                    tooltip: AppLocalizations.of(context)!.tooltipStyleOptions,
-                    iconSize: 18,
-                    onSelected: (action) {
-                      switch (action) {
-                        case 'default':
-                          onSetDefault(!style.isDefault);
-                        case 'edit':
-                          onEdit();
-                        case 'share':
-                          showShareWithFriendDialog(
-                            context,
-                            kind: 'style',
-                            itemId: style.id,
-                            itemName: style.name,
-                          );
-                        case 'delete':
-                          onDelete();
-                      }
-                    },
-                    itemBuilder: (_) => [
-                      PopupMenuItem(
-                        value: 'default',
-                        child: Text(
-                          style.isDefault
-                              ? 'Stop using for new chats'
-                              : 'Use for new chats',
-                        ),
+                // Built-in styles are read-only for content (no edit/delete),
+                // but the "Use for new chats" action is allowed — it writes
+                // a per-user pointer instead of mutating the shared row.
+                // Sharing a built-in is allowed too.
+                PopupMenuButton<String>(
+                  tooltip: AppLocalizations.of(context)!.tooltipStyleOptions,
+                  iconSize: 18,
+                  onSelected: (action) {
+                    switch (action) {
+                      case 'default':
+                        onSetDefault(!style.isDefault);
+                      case 'edit':
+                        onEdit();
+                      case 'share':
+                        showShareWithFriendDialog(
+                          context,
+                          kind: 'style',
+                          itemId: style.id,
+                          itemName: style.name,
+                        );
+                      case 'delete':
+                        onDelete();
+                    }
+                  },
+                  itemBuilder: (_) => [
+                    PopupMenuItem(
+                      value: 'default',
+                      child: Text(
+                        style.isDefault
+                            ? 'Stop using for new chats'
+                            : 'Use for new chats',
                       ),
+                    ),
+                    if (!style.isBuiltin) ...[
                       PopupMenuItem(
                         value: 'edit',
                         child: Text(AppLocalizations.of(context)!.editEllipsis),
-                      ),
-                      PopupMenuItem(
-                        value: 'share',
-                        child: Text(
-                          AppLocalizations.of(context)!.shareWithAFriend,
-                        ),
                       ),
                       PopupMenuItem(
                         value: 'delete',
                         child: Text(AppLocalizations.of(context)!.delete),
                       ),
                     ],
-                  ),
+                    PopupMenuItem(
+                      value: 'share',
+                      child: Text(
+                        AppLocalizations.of(context)!.shareWithAFriend,
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),

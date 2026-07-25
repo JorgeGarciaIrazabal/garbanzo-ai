@@ -24,7 +24,7 @@ when you add or change an endpoint, update the matching row in the same commit.
 | **Shares** | `POST /shares` (share a style/prompt template with a friend, 400 if not friends or item not owned), `GET /shares/incoming`, `POST /shares/{id}/accept` (materializes an independent copy, deletes the share), `POST /shares/{id}/decline` (204) |
 | **Reports** | `POST /reports` (submit a bug/feature report; optional diagnostics: `metadata`, `conversation_id`, `severity: info|warning|error`, `source: frontend|backend`), `GET /reports/mine`; admin triage: `GET /admin/reports?status=` (optional filter), `PATCH /admin/reports/{id}` (status only) |
 | **Scheduled Actions** | `POST /scheduled-actions`, `GET /scheduled-actions`, `GET /scheduled-actions/{id}`, `PATCH /scheduled-actions/{id}`, `DELETE /scheduled-actions/{id}` |
-| **Styles** | `POST /styles`, `GET /styles` (returns the user's saved styles plus the shared built-ins, built-ins first), `GET /styles/{id}`, `PATCH /styles/{id}` (403 on built-ins — they're read-only), `DELETE /styles/{id}` (403 on built-ins) |
+| **Styles** | `POST /styles`, `GET /styles` (returns the user's saved styles plus the shared built-ins), `GET /styles/{id}`, `PATCH /styles/{id}` (built-ins: only `is_default` writable — sets a per-user default pointer; content fields 403), `DELETE /styles/{id}` (403 on built-ins) |
 | **Usage** | `GET /usage/summary` |
 | **Health** | `GET /health` (includes `version` — the release baked in at deploy, `APP_VERSION`) |
 | **Version** | `GET /version/latest` (no auth; latest GitHub release for `GITHUB_REPO`, ~5-min cache — tag/notes/assets; feeds the desktop auto-updater) |

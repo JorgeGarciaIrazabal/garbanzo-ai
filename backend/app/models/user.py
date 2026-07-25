@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, String, Text, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -25,6 +25,16 @@ class User(Base):
     )
     default_system_prompt: Mapped[str | None] = mapped_column(Text, nullable=True)
     default_model: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    # Per-user default style for new conversations (user-report f1af13d5).
+    # A reference to any style the user can see — including a shared
+    # built-in like "Truth Seeker" — instead of mutating the built-in
+    # row's is_default flag (which would affect every user). ON DELETE
+    # SET NULL: deleting the style clears the pointer.
+    default_style_id: Mapped[str | None] = mapped_column(
+        ForeignKey("styles.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     profile_picture_b64: Mapped[str | None] = mapped_column(Text, nullable=True)
     # IANA zone name / BCP 47 locale reported by the client at login; NULL
     # until a client reports one. Feeds the dynamic <context> block.

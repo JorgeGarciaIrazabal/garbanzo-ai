@@ -39,7 +39,11 @@ class StyleCreate(BaseModel):
 
 class StyleUpdate(BaseModel):
     """Partial update for a saved style. Omitted fields are left unchanged.
-    Built-in styles are read-only — the endpoint returns 403 for them.
+
+    Built-in styles are read-only for content fields (name/model/thinking/
+    template) — the endpoint returns 403 for those. ``is_default`` is the
+    exception: it writes a per-user pointer, so a built-in can be set as
+    the user's default for new chats.
     """
 
     name: str | None = Field(None, min_length=1, max_length=100)
@@ -58,7 +62,11 @@ class StyleUpdate(BaseModel):
     )
     is_default: bool | None = Field(
         None,
-        description="Make/unmake this the default style for new conversations",
+        description=(
+            "Make/unmake this the default style for new conversations. "
+            "Allowed for built-in styles too — it sets a per-user pointer "
+            "rather than mutating the shared row."
+        ),
     )
 
 

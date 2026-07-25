@@ -74,7 +74,7 @@ async def get_style(
 @router.patch(
     "/{style_id}",
     response_model=StyleOut,
-    summary="Update a saved style (built-ins are read-only)",
+    summary="Update a saved style (built-ins: only the default flag)",
 )
 async def update_style(
     style_id: str,
@@ -106,7 +106,9 @@ async def update_style(
     except BuiltinReadOnlyError as exc:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Built-in styles are read-only",
+            detail=(
+                "Built-in styles are read-only (only the default flag can be set on a built-in)."
+            ),
         ) from exc
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc

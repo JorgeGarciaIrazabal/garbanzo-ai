@@ -20,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.style import Style
 from app.models.system_prompt import SystemPromptTemplate
+from app.models.user import User
 
 logger = logging.getLogger(__name__)
 
@@ -153,14 +154,40 @@ class StyleService:
         if result.scalar_one_or_none() is None:
             raise ValueError("System prompt template not found")
 
+    async def _get_user(self, user_id: str) -> User | None:
+        """Fetch the user row (for the per-user default-style pointer)."""
+        result = await self.db.execute(select(User).where(User.email == user_id))
+        return result.scalar_one_or_none()
+
+    def _is_default_for(self, style: Style, user: User | None) -> bool:
+        """True when ``style`` is this user's default (per-user pointer)."""
+        return user is not None and style.id == user.default_style_id
+
+    async def _set_user_default(self, user_id: str, style_id: str | None) -> None:
+        """Point ``user.default_style_id`` at ``style_id`` (or clear it)."""
+        user = await self._get_user(user_id)
+        if user is None:
+            return
+        user.default_style_id = style_id
+        await self.db.flush()
+
+    def _annotate_default(self, styles: list[Style], user: User | None) -> list[Style]:
+        """Set ``is_default`` on each style in-memory from the per-user
+        pointer, leaving the stored rows untouched (built-ins are shared).
+        """
+        default_id = user.default_style_id if user is not None else None
+        for s in styles:
+            s.is_default = s.id == default_id
+        return styles
+
     async def _clear_other_defaults(self, user_id: str, exclude_id: str | None) -> None:
         """Unset ``is_default`` on every other style owned by ``user_id``.
 
-        Only the user's own styles are considered — built-ins are never
-        flagged default, so they stay out of this query naturally. Flushed
-        (not just staged) before the caller sets the new default so the
-        partial unique index (at most one default per user) never sees two
-        true rows at once within the same transaction.
+        Vestigial since the per-user pointer enforces uniqueness on its
+        own; kept for callers that still set Style.is_default (e.g. legacy
+        create paths) so the partial unique index never sees two true rows
+        in one transaction. Built-ins are never flagged default, so they
+        stay out of this query naturally.
         """
         query = select(Style).where(
             Style.user_id == user_id,
@@ -200,13 +227,26 @@ class StyleService:
         self.db.add(style)
         await self.db.commit()
         await self.db.refresh(style)
+        # Set the per-user pointer so the new style is the default for this
+        # user (does not mutate shared built-in rows).
+        if is_default:
+            await self._set_user_default(user_id, style.id)
+            await self.db.commit()
+            await self.db.refresh(style)
         logger.info("Created style %s for user %s", style.id, user_id)
         return style
 
     async def get(self, style_id: str, user_id: str) -> Style | None:
-        """Return the style if it's a built-in or one owned by ``user_id``."""
+        """Return the style if it's a built-in or one owned by ``user_id``,
+        with ``is_default`` resolved from the per-user pointer.
+        """
         result = await self.db.execute(Style.owned_by(user_id).where(Style.id == style_id))
-        return result.scalar_one_or_none()
+        style = result.scalar_one_or_none()
+        if style is None:
+            return None
+        user = await self._get_user(user_id)
+        self._annotate_default([style], user)
+        return style
 
     async def list_for_user(self, user_id: str) -> list[Style]:
         """The user's own styles first (in creation order), then built-ins by
@@ -214,7 +254,8 @@ class StyleService:
         styles at the top of the Styles segment and the shared, read-only
         presets below. The picker splits the two groups by `is_builtin` for
         its own headers, so this ordering only affects clients that render the
-        raw list (e.g. the API response).
+        raw list (e.g. the API response). ``is_default`` on each returned
+        style is resolved from the per-user pointer (not the stored row).
         """
         result = await self.db.execute(
             Style.owned_by(user_id).order_by(
@@ -224,7 +265,9 @@ class StyleService:
                 Style.name.asc(),
             )
         )
-        return list(result.scalars().all())
+        styles = list(result.scalars().all())
+        user = await self._get_user(user_id)
+        return self._annotate_default(styles, user)
 
     async def update(
         self,
@@ -244,33 +287,49 @@ class StyleService:
         None means "leave alone" (mirrors ScheduledActionService.update).
 
         Returns None when the style isn't visible to the user (404 in the
-        endpoint). Built-in styles are read-only — raises
-        [BuiltinReadOnlyError] the endpoint maps to 403.
+        endpoint). Built-in styles are read-only for *content* fields
+        (name/model/thinking/template) — raises [BuiltinReadOnlyError] the
+        endpoint maps to 403. ``is_default`` is the exception: it writes
+        the per-user pointer (``user.default_style_id``), not the shared
+        row, so a built-in can be set as the user's default for new chats.
         """
         style = await self.get(style_id, user_id)
         if style is None:
             return None
-        if style.is_builtin:
+
+        # Only is_default may touch a built-in; any content change is 403.
+        content_requested = (
+            any(v is not None for v in (name, model_id, system_prompt_template_id))
+            or set_thinking_level
+            or set_template_id
+        )
+        if style.is_builtin and content_requested:
             raise BuiltinReadOnlyError(style_id)
 
-        if name is not None:
-            style.name = name
-        if model_id is not None:
-            style.model_id = model_id
-        if set_thinking_level:
-            style.thinking_level = thinking_level
-        if set_template_id:
-            await self._validate_template(system_prompt_template_id, user_id)
-            style.system_prompt_template_id = system_prompt_template_id
+        if not style.is_builtin:
+            if name is not None:
+                style.name = name
+            if model_id is not None:
+                style.model_id = model_id
+            if set_thinking_level:
+                style.thinking_level = thinking_level
+            if set_template_id:
+                await self._validate_template(system_prompt_template_id, user_id)
+                style.system_prompt_template_id = system_prompt_template_id
 
         if is_default is True:
-            await self._clear_other_defaults(user_id, exclude_id=style.id)
-            style.is_default = True
+            await self._set_user_default(user_id, style.id)
         elif is_default is False:
-            style.is_default = False
+            # Only clear if it currently points here (no-op otherwise).
+            user = await self._get_user(user_id)
+            if user is not None and user.default_style_id == style.id:
+                await self._set_user_default(user_id, None)
 
         await self.db.commit()
+        # Refresh and re-annotate is_default from the per-user pointer.
         await self.db.refresh(style)
+        user = await self._get_user(user_id)
+        self._annotate_default([style], user)
         return style
 
     async def delete(self, style_id: str, user_id: str) -> bool:
@@ -283,6 +342,12 @@ class StyleService:
             return False
         if style.is_builtin:
             raise BuiltinReadOnlyError(style_id)
+        # Clear the per-user default pointer if it pointed here (the FK
+        # ON DELETE SET NULL handles the DB side, but the in-session user
+        # row is what the response reflects).
+        user = await self._get_user(user_id)
+        if user is not None and user.default_style_id == style.id:
+            user.default_style_id = None
         await self.db.delete(style)
         await self.db.commit()
         logger.info("Deleted style %s for user %s", style_id, user_id)
