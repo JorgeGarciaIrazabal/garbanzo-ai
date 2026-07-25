@@ -1,5 +1,7 @@
 from pydantic import BaseModel, Field
 
+MAX_TTS_TEXT_LENGTH = 5000
+
 
 class TranscriptionResponse(BaseModel):
     text: str = Field(..., description="Transcribed text")
@@ -8,7 +10,12 @@ class TranscriptionResponse(BaseModel):
 
 
 class SpeechRequest(BaseModel):
-    text: str = Field(..., min_length=1, description="Text to synthesize")
+    text: str = Field(
+        ...,
+        min_length=1,
+        max_length=MAX_TTS_TEXT_LENGTH,
+        description=f"Text to synthesize (maximum {MAX_TTS_TEXT_LENGTH} characters)",
+    )
     voice: str = Field(default="af_heart", description="Voice ID")
     speed: float = Field(default=1.0, ge=0.5, le=2.0, description="Speaking speed")
     response_format: str = Field(default="mp3", description="Audio format (mp3, wav, opus)")

@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:garbanzo_ai/features/chat/services/audio_service.dart';
 import 'package:garbanzo_ai/features/chat/services/tts_audio_source.dart';
 import 'package:garbanzo_ai/features/chat/utils/text_cleaner.dart';
+import 'package:garbanzo_ai/features/chat/utils/tts_text_chunks.dart';
 
 /// Sequential text-to-speech playback for Talk Mode.
 ///
@@ -53,24 +54,7 @@ class TalkTtsQueue {
 
   /// Split cleaned text into ~sentence chunks (same heuristic as speak_button).
   @visibleForTesting
-  static List<String> splitIntoChunks(String text) {
-    const targetSize = 500;
-    final sentences = text.split(RegExp(r'(?<=[.!?])\s+'));
-    final chunks = <String>[];
-    final buf = StringBuffer();
-    for (final sentence in sentences) {
-      final trimmed = sentence.trim();
-      if (trimmed.isEmpty) continue;
-      if (buf.length + trimmed.length > targetSize && buf.isNotEmpty) {
-        chunks.add(buf.toString().trim());
-        buf.clear();
-      }
-      if (buf.isNotEmpty) buf.write(' ');
-      buf.write(trimmed);
-    }
-    if (buf.isNotEmpty) chunks.add(buf.toString().trim());
-    return chunks;
-  }
+  static List<String> splitIntoChunks(String text) => splitTextForTts(text);
 
   /// Queue [text] for speech. Cleans markdown/emojis first; no-op if empty.
   void enqueue(String text) {

@@ -437,4 +437,6 @@ Prod (`deploy/docker-compose.yml`, project `garbanzo-prod` — fully separate DB
 > Kokoro TTS runs **in-process** in the backend (not a Docker service). STT can
 > also run in-process (`stt_mode=local`, the default) bypassing the Docker
 > container entirely. Both modes default to the multilingual Faster Whisper
-> `small` checkpoint, balancing transcription accuracy with CPU latency.
+> `small` checkpoint, balancing transcription accuracy with CPU latency. TTS
+> inference is serialized around the singleton Kokoro model, and clients keep
+> at most one bounded text chunk prefetched to cap long-session memory use.

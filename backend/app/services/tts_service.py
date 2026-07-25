@@ -156,6 +156,11 @@ class TTSService:
     def __init__(self, model):
         self._model = model
         self._pipelines: dict = {}
+        # Kokoro's singleton model is CPU-heavy and not safe to run for
+        # multiple requests at once. Serializing inference prevents a burst of
+        # long TTS requests from multiplying model working memory until the
+        # backend is killed by the OOM killer.
+        self._inference_lock = asyncio.Lock()
 
     @classmethod
     def start_loading(cls) -> None:
@@ -239,11 +244,12 @@ class TTSService:
         speed: float = 1.0,
         response_format: str = "mp3",
     ) -> bytes:
-        chunks = await asyncio.to_thread(self._generate_chunks, text, voice, speed)
-        encoder = _AudioEncoder(response_format)
-        parts = [encoder.encode_chunk(c) for c in chunks]
-        parts.append(encoder.finalize())
-        return b"".join(parts)
+        async with self._inference_lock:
+            chunks = await asyncio.to_thread(self._generate_chunks, text, voice, speed)
+            encoder = _AudioEncoder(response_format)
+            parts = [encoder.encode_chunk(c) for c in chunks]
+            parts.append(encoder.finalize())
+            return b"".join(parts)
 
     async def stream_speak(
         self,
@@ -252,31 +258,32 @@ class TTSService:
         speed: float = 1.0,
         response_format: str = "mp3",
     ) -> AsyncIterator[bytes]:
-        encoder = _AudioEncoder(response_format)
-        lang_code = voice[0].lower() if voice else "a"
-        pipeline = self._get_pipeline(lang_code)
-        voice_ref = self._resolve_voice(voice)
+        async with self._inference_lock:
+            encoder = _AudioEncoder(response_format)
+            lang_code = voice[0].lower() if voice else "a"
+            pipeline = self._get_pipeline(lang_code)
+            voice_ref = self._resolve_voice(voice)
 
-        def _next_chunk(iterator):
-            try:
-                return next(iterator)
-            except StopIteration:
-                return None
+            def _next_chunk(iterator):
+                try:
+                    return next(iterator)
+                except StopIteration:
+                    return None
 
-        iterator = iter(pipeline(text, voice=voice_ref, speed=speed, model=self._model))
-        while True:
-            result = await asyncio.to_thread(_next_chunk, iterator)
-            if result is None:
-                break
-            if result.audio is not None:
-                audio_int16 = (result.audio.numpy() * 32767).astype(np.int16)
-                data = encoder.encode_chunk(audio_int16)
-                if data:
-                    yield data
+            iterator = iter(pipeline(text, voice=voice_ref, speed=speed, model=self._model))
+            while True:
+                result = await asyncio.to_thread(_next_chunk, iterator)
+                if result is None:
+                    break
+                if result.audio is not None:
+                    audio_int16 = (result.audio.numpy() * 32767).astype(np.int16)
+                    data = encoder.encode_chunk(audio_int16)
+                    if data:
+                        yield data
 
-        tail = encoder.finalize()
-        if tail:
-            yield tail
+            tail = encoder.finalize()
+            if tail:
+                yield tail
 
     def list_voices(self) -> list[VoiceInfo]:
         return list(_VOICES)

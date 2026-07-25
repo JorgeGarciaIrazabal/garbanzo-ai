@@ -296,6 +296,16 @@ class TestTTSSpeak:
             )
         assert response.status_code == 422  # Pydantic validation error
 
+    async def test_oversized_text_rejected(self):
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.post(
+                "/api/v1/tts/speak",
+                json={"text": "x" * 5001},
+                headers=_auth_header(),
+            )
+        assert response.status_code == 422
+
 
 # ---------------------------------------------------------------------------
 # TTS voices endpoint -- GET /api/v1/tts/voices

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
@@ -8,6 +9,7 @@ import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
 import 'package:garbanzo_ai/features/chat/services/audio_service.dart';
 import 'package:garbanzo_ai/features/chat/services/tts_audio_source.dart';
 import 'package:garbanzo_ai/features/chat/utils/text_cleaner.dart';
+import 'package:garbanzo_ai/features/chat/utils/tts_text_chunks.dart';
 import 'package:garbanzo_ai/features/chat/widgets/message/message_action_button.dart';
 
 /// Speak button for TTS playback of assistant messages.
@@ -56,26 +58,6 @@ class _SpeakButtonState extends State<SpeakButton> {
     super.dispose();
   }
 
-  /// Split text into chunks (~500 chars) at sentence boundaries.
-  static List<String> _splitIntoChunks(String text) {
-    const targetSize = 500;
-    final sentences = text.split(RegExp(r'(?<=[.!?])\s+'));
-    final chunks = <String>[];
-    final buf = StringBuffer();
-    for (final sentence in sentences) {
-      final trimmed = sentence.trim();
-      if (trimmed.isEmpty) continue;
-      if (buf.length + trimmed.length > targetSize && buf.isNotEmpty) {
-        chunks.add(buf.toString().trim());
-        buf.clear();
-      }
-      if (buf.isNotEmpty) buf.write(' ');
-      buf.write(trimmed);
-    }
-    if (buf.isNotEmpty) chunks.add(buf.toString().trim());
-    return chunks.isEmpty ? [text] : chunks;
-  }
-
   Future<void> _speak() async {
     setState(() {
       _isLoading = true;
@@ -90,24 +72,20 @@ class _SpeakButtonState extends State<SpeakButton> {
         return;
       }
 
-      final chunks = _splitIntoChunks(cleaned);
+      final chunks = splitTextForTts(cleaned);
+      Future<Uint8List> synthesize(String chunk) => AudioService.instance.speak(
+        chunk,
+        voice: settings.ttsVoice,
+        speed: settings.ttsSpeed,
+      );
+      Future<Uint8List>? next = synthesize(chunks.first);
 
-      // Fire ALL requests up-front so the backend queues them back-to-back.
-      final futures = chunks
-          .map(
-            (c) => AudioService.instance.speak(
-              c,
-              voice: settings.ttsVoice,
-              speed: settings.ttsSpeed,
-            ),
-          )
-          .toList();
-
-      for (int i = 0; i < futures.length; i++) {
+      for (int i = 0; i < chunks.length; i++) {
         if (_cancelled) break;
 
-        final audioBytes = await futures[i];
+        final audioBytes = await next!;
         if (_cancelled) break;
+        next = i + 1 < chunks.length ? synthesize(chunks[i + 1]) : null;
 
         // Fresh player per chunk — reusing the same player for sequential
         // play() calls is unreliable across platforms (web, Android, Linux).
