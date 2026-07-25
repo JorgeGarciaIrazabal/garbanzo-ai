@@ -60,6 +60,7 @@ class _FakeChatService extends ChatService {
   Future<ConversationList> listConversations({
     int page = 1,
     int pageSize = 50,
+    bool silent = false,
   }) async {
     final items = conversationsById.values.toList();
     return ConversationList(
@@ -74,6 +75,7 @@ class _FakeChatService extends ChatService {
   Future<Conversation> getConversation(
     String conversationId, {
     int? messageLimit,
+    bool silent = false,
   }) async {
     return conversationsById[conversationId]!;
   }
@@ -452,7 +454,9 @@ void main() {
 
       await provider.sendMessage('hello');
 
-      expect(provider.error, contains('Failed to send message'));
+      // Transient connection errors surface as a friendly, user-facing
+      // message rather than a raw DioException/Exception string.
+      expect(provider.error, contains('Couldn\'t reach the AI service'));
       expect(provider.isSending, isFalse);
     });
 

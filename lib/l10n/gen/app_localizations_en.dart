@@ -2739,4 +2739,21 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get labelAddServer => 'Add server';
+
+  @override
+  String get errorChatServiceUnavailable =>
+      'The AI service is temporarily unavailable. Please try again in a moment.';
+
+  @override
+  String get errorChatServiceUnreachable =>
+      'Couldn\'t reach the AI service. Check your connection and try again.';
+
+  @override
+  String get errorChatServerError =>
+      'The server encountered an error. Please try again.';
+
+  @override
+  String errorChatStreaming(String error) {
+    return 'Streaming error: $error';
+  }
 }

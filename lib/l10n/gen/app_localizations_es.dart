@@ -2775,4 +2775,21 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get labelAddServer => 'Añadir servidor';
+
+  @override
+  String get errorChatServiceUnavailable =>
+      'El servicio de IA no está disponible temporalmente. Inténtalo de nuevo en un momento.';
+
+  @override
+  String get errorChatServiceUnreachable =>
+      'No se pudo conectar con el servicio de IA. Revisa tu conexión e inténtalo de nuevo.';
+
+  @override
+  String get errorChatServerError =>
+      'El servidor tuvo un error. Inténtalo de nuevo.';
+
+  @override
+  String errorChatStreaming(String error) {
+    return 'Error de transmisión: $error';
+  }
 }

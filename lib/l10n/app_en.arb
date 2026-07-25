@@ -3767,5 +3767,26 @@
   "labelAddServer": "Add server",
   "@labelAddServer": {
     "description": "Button label to add a new personal MCP server."
+  },
+  "errorChatServiceUnavailable": "The AI service is temporarily unavailable. Please try again in a moment.",
+  "@errorChatServiceUnavailable": {
+    "description": "Shown when the chat backend returns 503/502/504 during streaming."
+  },
+  "errorChatServiceUnreachable": "Couldn't reach the AI service. Check your connection and try again.",
+  "@errorChatServiceUnreachable": {
+    "description": "Shown when the chat backend can't be reached (connection error)."
+  },
+  "errorChatServerError": "The server encountered an error. Please try again.",
+  "@errorChatServerError": {
+    "description": "Generic 5xx chat streaming error."
+  },
+  "errorChatStreaming": "Streaming error: {error}",
+  "@errorChatStreaming": {
+    "description": "Fallback streaming error with detail.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   }
 }

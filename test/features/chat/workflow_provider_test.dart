@@ -33,13 +33,14 @@ class _FakeChatService extends ChatService {
   );
 
   @override
-  Future<Conversation> getConversation(String id, {int? messageLimit}) async =>
+  Future<Conversation> getConversation(String id, {int? messageLimit, bool silent = false}) async =>
       _conversation;
 
   @override
   Future<ConversationList> listConversations({
     int page = 1,
     int pageSize = 50,
+    bool silent = false,
   }) async =>
       ConversationList(items: [_conversation], total: 1, page: 1, pageSize: 50);
 }

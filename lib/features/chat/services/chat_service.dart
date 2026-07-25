@@ -58,6 +58,7 @@ class ChatService {
   Future<ConversationList> listConversations({
     int page = 1,
     int pageSize = 20,
+    bool silent = false,
   }) async {
     final response = await _api.get(
       '/api/v1/chat/conversations',
@@ -65,6 +66,7 @@ class ChatService {
         'page': page.toString(),
         'page_size': pageSize.toString(),
       },
+      silent: silent,
     );
 
     if (response.statusCode == 200) {
@@ -80,12 +82,14 @@ class ChatService {
   Future<Conversation> getConversation(
     String conversationId, {
     int? messageLimit,
+    bool silent = false,
   }) async {
     final response = await _api.get(
       '/api/v1/chat/conversations/$conversationId',
       queryParameters: messageLimit != null
           ? {'message_limit': messageLimit.toString()}
           : null,
+      silent: silent,
     );
 
     if (response.statusCode == 200) {
@@ -294,18 +298,37 @@ class ChatService {
     String path,
     Map<String, dynamic> data,
   ) async* {
-    final response = await _api.streamPost(path, data: data);
-
-    final byteStream = (response.data as ResponseBody).stream;
-
-    if (response.statusCode != 200) {
-      final errorBody = await byteStream
-          .cast<List<int>>()
-          .transform(utf8.decoder)
-          .join();
-      throw Exception('Chat failed: ${response.statusCode} - $errorBody');
+    final Response<dynamic> response;
+    try {
+      response = await _api.streamPost(path, data: data);
+    } on DioException catch (e) {
+      // Connection-level failures (no response at all): the AI service
+      // couldn't be reached. Translate to a friendly, typed exception so the
+      // UI can show a clean message instead of a raw DioException.
+      throw ChatException.connection(e);
     }
 
+    if (response.statusCode != 200) {
+      final body = response.data;
+      String? detail;
+      if (body is ResponseBody) {
+        try {
+          detail = await body.stream
+              .cast<List<int>>()
+              .transform(utf8.decoder)
+              .join();
+        } catch (_) {
+          detail = null;
+        }
+      } else if (body is String) {
+        detail = body;
+      } else if (body is Map<String, dynamic>) {
+        detail = body['detail'] as String?;
+      }
+      throw ChatException.fromStatus(response.statusCode ?? 0, detail: detail);
+    }
+
+    final byteStream = (response.data as ResponseBody).stream;
     yield* parseSseChunks(byteStream.cast<List<int>>().transform(utf8.decoder));
   }
 
@@ -354,6 +377,34 @@ class ChatService {
     }
     return Exception('API Error (${response.statusCode}): $body');
   }
+}
+
+/// Typed exception for chat-stream failures, carrying a short machine-readable
+/// [kind] so the UI can localize a friendly message without parsing strings.
+class ChatException implements Exception {
+  ChatException._(this.kind, {this.detail, this.cause});
+
+  /// Connection couldn't be established / was torn down before a response.
+  factory ChatException.connection(DioException cause) =>
+      ChatException._('connection', cause: cause);
+
+  /// Non-200 status from the chat backend.
+  factory ChatException.fromStatus(int status, {String? detail}) {
+    final kind = switch (status) {
+      502 || 503 || 504 => 'unavailable',
+      >= 500 => 'server',
+      _ => 'http',
+    };
+    return ChatException._(kind, detail: detail);
+  }
+
+  final String kind;
+  final String? detail;
+  final Object? cause;
+
+  @override
+  String toString() =>
+      'ChatException($kind${detail != null ? ': $detail' : ''})';
 }
 
 /// Parse a stream of decoded UTF-8 text chunks (as delivered by the HTTP

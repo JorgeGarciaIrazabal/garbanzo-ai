@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
 import 'package:garbanzo_ai/core/log.dart';
@@ -33,12 +34,25 @@ class ConversationListController extends ChangeNotifier {
     if (showLoading) notifyListeners();
 
     try {
-      final list = await _chatService.listConversations();
+      final list = await _chatService.listConversations(
+        // Background (silent) syncs must not surface transient network
+        // blips as user-visible errors or fire error reports.
+        silent: !showLoading,
+      );
       _conversations = list.items
           .where(
             (conversation) => !_pendingDeletes.containsKey(conversation.id),
           )
           .toList();
+    } on DioException catch (e) {
+      // Only foreground loads surface network errors to the user. Background
+      // syncs just log — the next tick will retry.
+      if (showLoading) {
+        _error = 'Failed to load conversations: ${e.message ?? e.type}';
+        logDebug(_error!);
+      } else {
+        logDebug('Background sync failed (transient): ${e.message ?? e.type}');
+      }
     } catch (e) {
       _error = 'Failed to load conversations: $e';
       logDebug(_error!);

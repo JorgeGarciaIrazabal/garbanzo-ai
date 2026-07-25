@@ -40,6 +40,7 @@ class _FakeChatService extends ChatService {
   Future<ConversationList> listConversations({
     int page = 1,
     int pageSize = 50,
+    bool silent = false,
   }) async =>
       ConversationList(items: [_conversation], total: 1, page: 1, pageSize: 50);
 
@@ -47,6 +48,7 @@ class _FakeChatService extends ChatService {
   Future<Conversation> getConversation(
     String conversationId, {
     int? messageLimit,
+    bool silent = false,
   }) async =>
       _conversation;
 

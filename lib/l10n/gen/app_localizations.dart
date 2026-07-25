@@ -4862,6 +4862,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Add server'**
   String get labelAddServer;
+
+  /// Shown when the chat backend returns 503/502/504 during streaming.
+  ///
+  /// In en, this message translates to:
+  /// **'The AI service is temporarily unavailable. Please try again in a moment.'**
+  String get errorChatServiceUnavailable;
+
+  /// Shown when the chat backend can't be reached (connection error).
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t reach the AI service. Check your connection and try again.'**
+  String get errorChatServiceUnreachable;
+
+  /// Generic 5xx chat streaming error.
+  ///
+  /// In en, this message translates to:
+  /// **'The server encountered an error. Please try again.'**
+  String get errorChatServerError;
+
+  /// Fallback streaming error with detail.
+  ///
+  /// In en, this message translates to:
+  /// **'Streaming error: {error}'**
+  String errorChatStreaming(String error);
 }
 
 class _AppLocalizationsDelegate

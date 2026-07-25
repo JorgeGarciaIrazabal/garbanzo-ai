@@ -16,6 +16,11 @@ class _FakeChatService extends ChatService {
       StreamController<ChatResponseChunk>();
   bool stopCalled = false;
 
+  /// When non-null, [streamChatResponse] throws this synchronously instead of
+  /// returning the controller's stream — simulates a connection / 5xx error
+  /// before any chunk is emitted.
+  Object? streamChatError;
+
   final _conversation = Conversation(
     id: 'conv-1',
     title: 'Test',
@@ -31,7 +36,7 @@ class _FakeChatService extends ChatService {
 
   @override
   Future<ConversationList> listConversations(
-      {int page = 1, int pageSize = 50}) async {
+      {int page = 1, int pageSize = 50, bool silent = false}) async {
     return ConversationList(
         items: [_conversation], total: 1, page: 1, pageSize: 50);
   }
@@ -40,6 +45,7 @@ class _FakeChatService extends ChatService {
   Future<Conversation> getConversation(
     String conversationId, {
     int? messageLimit,
+    bool silent = false,
   }) async {
     return reloadedConversation ?? _conversation;
   }
@@ -56,6 +62,7 @@ class _FakeChatService extends ChatService {
     String? clientFolderLabel,
     String? talkModeInstruction,
   }) {
+    if (streamChatError != null) throw streamChatError!;
     return controller.stream;
   }
 
@@ -175,7 +182,9 @@ void main() {
           .addError(Exception('Connection closed while receiving data'));
       await Future<void>.delayed(Duration.zero);
 
-      expect(provider.error, contains('Streaming error'));
+      // Connection drops surface as a friendly message instead of a raw
+      // DioException/Exception string.
+      expect(provider.error, contains('Couldn\'t reach the AI service'));
       expect(provider.isSending, isFalse);
       expect(
         provider.messages.any((m) => m.content == 'Recovered from disconnect'),
@@ -288,6 +297,40 @@ void main() {
       // Coalesced into a handful of pushes, but nothing was dropped.
       expect(pushes, lessThan(20));
       expect(provider.streamingMessage.value?.content, 'x' * 20);
+    });
+
+    test('a 503 from the backend surfaces a friendly "service unavailable" '
+        'message (user-report #71e9d25d)', () async {
+      final service = _FakeChatService();
+      // Simulate the backend returning 503 — ChatService maps that to a
+      // ChatException(kind: 'unavailable'), which the provider translates.
+      service.streamChatError =
+          ChatException.fromStatus(503, detail: 'ollama down');
+      final provider = await _providerWithOpenConversation(service);
+
+      await provider.sendMessage('hi');
+
+      expect(provider.error, contains('temporarily unavailable'));
+      expect(provider.isSending, isFalse);
+    });
+  });
+
+  group('ChatException', () {
+    test('fromStatus maps 502/503/504 to "unavailable"', () {
+      expect(ChatException.fromStatus(502).kind, 'unavailable');
+      expect(ChatException.fromStatus(503).kind, 'unavailable');
+      expect(ChatException.fromStatus(504).kind, 'unavailable');
+    });
+
+    test('fromStatus maps other 5xx to "server"', () {
+      expect(ChatException.fromStatus(500).kind, 'server');
+      expect(ChatException.fromStatus(599).kind, 'server');
+    });
+
+    test('fromStatus maps 4xx to "http" and preserves detail', () {
+      final e = ChatException.fromStatus(422, detail: 'bad request');
+      expect(e.kind, 'http');
+      expect(e.detail, 'bad request');
     });
   });
 }

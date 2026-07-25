@@ -1553,6 +1553,7 @@ class _RecordingChatService extends ChatService {
   Future<Conversation> getConversation(
     String conversationId, {
     int? messageLimit,
+    bool silent = false,
   }) async =>
       _conversation(model: createArgs?['model'] as String? ?? 'qwen3');
 
@@ -1560,6 +1561,7 @@ class _RecordingChatService extends ChatService {
   Future<ConversationList> listConversations({
     int page = 1,
     int pageSize = 20,
+    bool silent = false,
   }) async =>
       const ConversationList(items: [], total: 0, page: 1, pageSize: 20);
 

@@ -489,7 +489,7 @@ class ChatProvider extends ChangeNotifier {
       );
       _consumeAssistantStream(stream);
     } catch (e) {
-      _error = 'Failed to send message: $e';
+      _error = _friendlyStreamError(e);
       _isSending = false;
       logDebug(_error!);
       notifyListeners();
@@ -521,7 +521,7 @@ class ChatProvider extends ChangeNotifier {
       );
       _consumeAssistantStream(stream);
     } catch (e) {
-      _error = 'Failed to regenerate: $e';
+      _error = _friendlyStreamError(e);
       _isSending = false;
       logDebug(_error!);
       notifyListeners();
@@ -555,7 +555,7 @@ class ChatProvider extends ChangeNotifier {
       );
       _consumeAssistantStream(stream);
     } catch (e) {
-      _error = 'Failed to edit message: $e';
+      _error = _friendlyStreamError(e);
       _isSending = false;
       logDebug(_error!);
       notifyListeners();
@@ -681,7 +681,7 @@ class ChatProvider extends ChangeNotifier {
       },
       onError: (e) {
         _syncStreamingIntoList();
-        _error = 'Streaming error: $e';
+        _error = _friendlyStreamError(e);
         _isSending = false;
         logDebug('Stream error: $e');
         _clearStreamingState();
@@ -728,6 +728,34 @@ class ChatProvider extends ChangeNotifier {
       messageId: messageId,
       context: {'surface': 'chat'},
     );
+  }
+
+  /// Translate a stream error into a short, user-facing English message.
+  /// Raw [DioException]s and [Exception] strings like
+  /// "Exception: Chat failed: 503 - ..." are replaced with friendly text;
+  /// [ChatException] carries a machine-readable kind that maps directly.
+  /// Localized at the widget layer where a context is available.
+  String _friendlyStreamError(Object e) {
+    if (e is ChatException) {
+      return switch (e.kind) {
+        'connection' =>
+          'Couldn\'t reach the AI service. Check your connection and try again.',
+        'unavailable' =>
+          'The AI service is temporarily unavailable. Please try again in a moment.',
+        'server' => 'The server encountered an error. Please try again.',
+        _ => e.detail != null ? 'Chat error: ${e.detail}' : 'Chat error.',
+      };
+    }
+    final s = '$e'.toLowerCase();
+    if (s.contains('connection closed') ||
+        s.contains('connection error') ||
+        s.contains('connection refused') ||
+        s.contains('failed host lookup') ||
+        s.contains('network is unreachable') ||
+        s.contains('software caused connection abort')) {
+      return 'Couldn\'t reach the AI service. Check your connection and try again.';
+    }
+    return 'Streaming error: $e';
   }
 
   Future<void> stopStreaming() async {
@@ -893,6 +921,9 @@ class ChatProvider extends ChangeNotifier {
       final conversation = await _chatService.getConversation(
         id,
         messageLimit: needed > _maxMessageLimit ? null : needed,
+        // Silent: this runs on background sync ticks and after every turn.
+        // Transient 5xx shouldn't fire user-facing error reports.
+        silent: true,
       );
       if (epoch != _actionEpoch || _currentConversation?.id != id) {
         return; // stale — a newer action owns the state now

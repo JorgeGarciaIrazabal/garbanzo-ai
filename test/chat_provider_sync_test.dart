@@ -26,6 +26,7 @@ class _SyncChatService extends ChatService {
   Future<ConversationList> listConversations({
     int page = 1,
     int pageSize = 50,
+    bool silent = false,
   }) async => ConversationList(
     items: [conversation.copyWith(messages: null)],
     total: 1,
@@ -37,6 +38,7 @@ class _SyncChatService extends ChatService {
   Future<Conversation> getConversation(
     String conversationId, {
     int? messageLimit,
+    bool silent = false,
   }) async {
     getConversationCalls++;
     return conversation;

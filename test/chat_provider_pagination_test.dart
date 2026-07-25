@@ -30,6 +30,7 @@ class _FakeChatService extends ChatService {
   Future<ConversationList> listConversations({
     int page = 1,
     int pageSize = 50,
+    bool silent = false,
   }) async {
     return const ConversationList(items: [], total: 0, page: 1, pageSize: 50);
   }
@@ -38,6 +39,7 @@ class _FakeChatService extends ChatService {
   Future<Conversation> getConversation(
     String conversationId, {
     int? messageLimit,
+    bool silent = false,
   }) async {
     getConversationLimits.add('$messageLimit');
     return conversationToReturn!;

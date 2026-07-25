@@ -234,6 +234,7 @@ class ApiClient {
 
   bool _shouldReportResponse(Response<dynamic> response) =>
       (response.statusCode ?? 0) >= 500 &&
+      response.requestOptions.responseType != ResponseType.stream &&
       _isReportableRequest(response.requestOptions);
 
   bool _shouldReportError(DioException error) {
@@ -302,8 +303,16 @@ class ApiClient {
   // Convenience HTTP methods
   // ---------------------------------------------------------------------------
 
-  Future<Response> get(String path, {Map<String, dynamic>? queryParameters}) {
-    return _dio.get(path, queryParameters: queryParameters);
+  Future<Response> get(
+    String path, {
+    Map<String, dynamic>? queryParameters,
+    bool silent = false,
+  }) {
+    return _dio.get(
+      path,
+      queryParameters: queryParameters,
+      options: silent ? Options(extra: {'__error_report__': true}) : null,
+    );
   }
 
   Future<Response> post(String path, {Object? data}) {
