@@ -41,7 +41,7 @@ dependencies:
   share_plus: ^12.0.2
   image_picker: ^1.2.0
   # OS-level drag-and-drop of files and folders onto the chat (desktop).
-  desktop_drop: ^0.6.0
+  desktop_drop: ^0.7.1
   # Path normalization for the client-side folder-read sandbox guard.
   path: ^1.9.0
   # sha256 of local files, so a delegated workflow's changes are only applied
@@ -55,7 +55,7 @@ dependencies:
   audioplayers: ^6.1.0
   audioplayers_web: ^5.2.0
   super_clipboard: ^0.9.1
-  flutter_markdown: ^0.7.4+3
+  flutter_markdown_plus: ^1.0.12
   markdown: ^7.2.2
   flutter_highlight: ^0.7.0
   highlight: ^0.7.0

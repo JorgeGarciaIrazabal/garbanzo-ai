@@ -87,7 +87,7 @@ cp "$REPO/android/app/google-services.json" "$WT/android/app/"
 
 # --- Build --------------------------------------------------------------------
 step "Building Flutter web"
-(cd "$WT" && flutter build web --release --output backend/web)
+(cd "$WT" && flutter build web --release --wasm --output backend/web)
 
 step "Building backend image (garbanzo-backend:latest, :$SHA)"
 docker build --build-arg "APP_VERSION=$NEW_VERSION" \

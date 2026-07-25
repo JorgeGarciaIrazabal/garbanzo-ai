@@ -197,6 +197,22 @@ be-test-cov:
 fe-install:
     flutter pub get
 
+# Upgrade frontend dependencies within their declared constraints
+fe-upgrade:
+    flutter pub upgrade
+
+# Upgrade frontend dependencies and their declared constraints to current versions
+fe-upgrade-major:
+    flutter pub upgrade --major-versions
+
+# Show frontend dependencies that require a constraint update
+fe-outdated:
+    flutter pub outdated
+
+# Update the installed Flutter SDK before refreshing dependency constraints
+fe-upgrade-sdk:
+    flutter upgrade
+
 # Run Flutter app on Linux desktop (default for development)
 fe-run:
     flutter run -d linux
@@ -212,7 +228,7 @@ fe-run-ngrok url:
 
 # Build Flutter web and copy to backend
 fe-build:
-    flutter build web --output backend/web
+    flutter build web --wasm --output backend/web
 
 # Run Flutter widget/unit tests
 # Concurrency is capped: on a 32-core box `flutter test` defaults to 32 parallel
