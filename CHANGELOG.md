@@ -4,6 +4,18 @@ Release notes for Garbanzo AI. Each entry is generated automatically on
 `just deploy` — an LLM (via opencode) writes it from the release's commits and
 the user reports it addressed. See `scripts/changelog-instructions.md`.
 
+## v1.0.16 — 2026-07-25
+
+### 🙋 User requests completed
+- Fixed micro-apps integration on Android so micro-app panels load reliably and show a retry card if the page fails.
+- Fixed the micro-app panel showing "not found" after edits by re-syncing the underlying worktree before serving.
+
+### 🐛 Fixes
+- Ensured the assistant always produces a reply when it runs out of tool-call turns by synthesizing a fallback message.
+- Improved micro-app handling on Windows by adding an inline WebView2 panel instead of opening the browser.
+- Fixed the micro-app panel resize handle so dragging right widens the panel.
+- Steered the assistant toward calling the micro-app tool directly with your request, reducing wasted tool iterations.
+
 ## v1.0.15 — 2026-07-25
 
 ### 🙋 User requests completed
