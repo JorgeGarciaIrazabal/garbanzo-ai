@@ -257,6 +257,10 @@ fe-run-ngrok url:
 fe-build:
     flutter build web --wasm --output backend/web
 
+# Build a debug Android APK without starting an emulator or backend
+fe-build-apk:
+    flutter build apk --debug
+
 # Run Flutter widget/unit tests
 # Concurrency is capped: on a 32-core box `flutter test` defaults to 32 parallel
 # processes, which stampedes memory (each spawns a full engine test binding) and

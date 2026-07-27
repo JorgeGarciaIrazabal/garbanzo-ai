@@ -8,11 +8,13 @@ import 'package:garbanzo_ai/core/log.dart';
 import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
 import 'package:garbanzo_ai/features/chat/models/chat_attachment.dart';
 import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
+import 'package:garbanzo_ai/features/chat/services/shared_content_service.dart';
 import 'package:garbanzo_ai/features/chat/talk/talk_mode_page.dart';
 import 'package:garbanzo_ai/features/chat/providers/system_prompt_provider.dart';
 import 'package:garbanzo_ai/features/chat/widgets/input/attach_menu_button.dart';
 import 'package:garbanzo_ai/features/chat/widgets/input/attachment_preview.dart';
 import 'package:garbanzo_ai/features/chat/widgets/input/folder_chip.dart';
+import 'package:garbanzo_ai/features/chat/widgets/input/file_picker_helper.dart';
 import 'package:garbanzo_ai/features/chat/widgets/input/message_composer.dart';
 import 'package:garbanzo_ai/features/chat/widgets/input/pulsing_dot.dart';
 import 'package:garbanzo_ai/features/chat/widgets/input/voice_recording_helper.dart';
@@ -60,6 +62,7 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
   final FocusNode _focusNode = FocusNode();
   final GlobalKey<MessageComposerState> _composerKey = GlobalKey();
   final List<ChatAttachment> _attachments = [];
+  StreamSubscription<SharedContent>? _sharedContentSub;
 
   // Voice recording
   final VoiceRecordingHelper _voiceHelper = VoiceRecordingHelper();
@@ -74,6 +77,12 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
     if (widget.initialAttachments != null) {
       _attachments.addAll(widget.initialAttachments!);
     }
+    _sharedContentSub = SharedContentService.instance.incoming.listen(
+      (_) => _consumeSharedContent(),
+    );
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _consumeSharedContent(),
+    );
   }
 
   @override
@@ -81,6 +90,7 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
     _controller.dispose();
     _focusNode.dispose();
     _recordingTimer?.cancel();
+    _sharedContentSub?.cancel();
     _voiceHelper.dispose();
     super.dispose();
   }
@@ -248,6 +258,57 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
   }
 
   // -- File picking ----------------------------------------------------------
+
+  void _consumeSharedContent() {
+    if (!mounted) return;
+    final batches = SharedContentService.instance.takePending();
+    if (batches.isEmpty) return;
+
+    final result = FilePickerHelper.validate(
+      files: [
+        for (final batch in batches)
+          for (final file in batch.files) (name: file.name, bytes: file.bytes),
+      ],
+      existingNames: _attachments.map((attachment) => attachment.name).toSet(),
+    );
+
+    final sharedText = batches
+        .map((batch) => batch.text?.trim())
+        .whereType<String>()
+        .where((text) => text.isNotEmpty)
+        .join('\n');
+    setState(() {
+      _attachments.addAll(result.added);
+      if (sharedText.isNotEmpty) {
+        final current = _controller.text.trimRight();
+        _controller.text = current.isEmpty
+            ? sharedText
+            : '$current\n$sharedText';
+        _controller.selection = TextSelection.collapsed(
+          offset: _controller.text.length,
+        );
+      }
+    });
+
+    final messenger = ScaffoldMessenger.of(context);
+    for (final error in result.validationErrors) {
+      messenger.showSnackBar(SnackBar(content: Text(error)));
+    }
+    if (result.rejected.isNotEmpty) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(
+              context,
+            )!.messageFilesTooLarge(result.rejected.join('\n')),
+          ),
+          backgroundColor: Theme.of(context).colorScheme.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+    _focusNode.requestFocus();
+  }
 
   void _removeAttachment(int index) {
     setState(() => _attachments.removeAt(index));

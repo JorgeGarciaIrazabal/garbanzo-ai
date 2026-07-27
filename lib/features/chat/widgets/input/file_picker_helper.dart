@@ -142,6 +142,7 @@ class FilePickerHelper {
     final added = <ChatAttachment>[];
     final rejected = <String>[];
     final validationErrors = <String>[];
+    final seenNames = {...existingNames};
 
     for (final file in files) {
       final bytes = file.bytes;
@@ -173,7 +174,7 @@ class FilePickerHelper {
         continue;
       }
 
-      if (existingNames.contains(name)) {
+      if (seenNames.contains(name)) {
         validationErrors.add('Duplicate file: $name');
         continue;
       }
@@ -181,6 +182,7 @@ class FilePickerHelper {
       added.add(
         ChatAttachment.fromPicked(name: name, mimeType: mime, bytes: bytes),
       );
+      seenNames.add(name);
     }
 
     return FilePickResult(

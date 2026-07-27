@@ -10,6 +10,9 @@ change layouts, flows, or services (see "Maintaining agent docs" in the root
 
 - **Backend:** FastAPI (async) + SQLAlchemy/AsyncPG + PostgreSQL (pgvector) + JWT auth
 - **Frontend:** Flutter (web/desktop/Android) + Provider state management + Freezed data classes
+- **Android share target:** `MainActivity` handles `ACTION_SEND` and
+  `ACTION_SEND_MULTIPLE`, reads granted content URIs, and forwards files/text
+  through `SharedContentService`; the chat composer validates and stages them.
 - **LLM:** Ollama (default) via a pluggable provider pattern
 - **TTS:** Kokoro (in-process, loaded on backend startup)
 - **STT:** Faster Whisper (in-process local by default; remote Docker fallback on port 8010)

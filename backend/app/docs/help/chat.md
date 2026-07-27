@@ -28,6 +28,10 @@ Use the paperclip (**Attach photos or files**) next to the input bar. Images
 are sent to vision-capable models; documents (PDF, text, etc.) have their
 text extracted and included with your message.
 
+On Android, you can also choose **Garbanzo AI** from another app's Share menu.
+Shared pictures, files, and any accompanying text are staged in the chat
+composer so you can review them and add instructions before sending.
+
 ## How do I include a folder in a chat? (desktop)
 On the desktop app, open the paperclip menu and choose **Folder**, or drag a
 folder onto the chat. The assistant can then read files inside that folder on

@@ -19,6 +19,7 @@ import 'package:garbanzo_ai/features/chat/providers/search_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/style_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/system_prompt_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/workflow_provider.dart';
+import 'package:garbanzo_ai/features/chat/services/shared_content_service.dart';
 import 'package:garbanzo_ai/features/friends/providers/friends_provider.dart';
 import 'package:garbanzo_ai/features/knowledge_base/providers/knowledge_base_provider.dart';
 import 'package:garbanzo_ai/features/memory/providers/memory_provider.dart';
@@ -75,6 +76,7 @@ class _GarbanzoAppState extends State<GarbanzoApp> {
   final AuthState _authState = AuthState();
   late final GoRouter _router = buildRouter(_authState);
   StreamSubscription<String>? _pushRouteSub;
+  StreamSubscription<SharedContent>? _sharedContentSub;
 
   @override
   void initState() {
@@ -90,6 +92,14 @@ class _GarbanzoAppState extends State<GarbanzoApp> {
         _router.go(route);
       }
     });
+    // A share intent may arrive on a cold start or while another page is
+    // visible. Keep the content queued and bring the regular chat composer
+    // forward; it stages the files/text so the user can review before sending.
+    _sharedContentSub = SharedContentService.instance.incoming.listen((_) {
+      final path = _router.routeInformationProvider.value.uri.path;
+      if (!path.startsWith('/chat')) _router.go('/chat');
+    });
+    unawaited(SharedContentService.instance.start());
     // Allow AuthState to defer-navigate after a manual login.
     _authState.pendingRouteNavigator = (route) {
       _router.go(route);
@@ -107,6 +117,7 @@ class _GarbanzoAppState extends State<GarbanzoApp> {
   @override
   void dispose() {
     _pushRouteSub?.cancel();
+    _sharedContentSub?.cancel();
     _router.dispose();
     _authState.dispose();
     super.dispose();
