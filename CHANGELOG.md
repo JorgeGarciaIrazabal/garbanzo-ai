@@ -4,6 +4,11 @@ Release notes for Garbanzo AI. Each entry is generated automatically on
 `just deploy` — an LLM (via opencode) writes it from the release's commits and
 the user reports it addressed. See `scripts/changelog-instructions.md`.
 
+## v1.0.18 — 2026-07-28
+
+### ✨ Features
+- Added an Android share target, so you can share text, links, and images from other apps straight into a new Garbanzo chat.
+
 ## v1.0.17 — 2026-07-25
 
 ### 🙋 User requests completed
