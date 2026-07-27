@@ -20,6 +20,7 @@ import 'package:garbanzo_ai/features/chat/widgets/chat_app_bar.dart';
 import 'package:garbanzo_ai/features/chat/widgets/chat_input_widget.dart';
 import 'package:garbanzo_ai/features/chat/widgets/input/file_picker_helper.dart';
 import 'package:garbanzo_ai/features/chat/widgets/panel_resize_handle.dart';
+import 'package:garbanzo_ai/features/chat/widgets/response_recovery_notice.dart';
 import 'package:garbanzo_ai/features/chat/widgets/chat_message_widget.dart';
 import 'package:garbanzo_ai/features/chat/widgets/chat_sidebar.dart';
 import 'package:garbanzo_ai/features/chat/widgets/mobile_drawer.dart';
@@ -666,6 +667,10 @@ class _ChatPageContentState extends State<_ChatPageContent>
                                   message: chatProvider.error!,
                                   onDismiss: chatProvider.clearError,
                                 ),
+                              if (chatProvider.responseRecoveryState != null)
+                                ResponseRecoveryNotice(
+                                  state: chatProvider.responseRecoveryState!,
+                                ),
                               Builder(
                                 builder: (ctx) {
                                   final tokensUsed = _getLastTokensPrompt(
@@ -952,15 +957,22 @@ class _ChatPageContentState extends State<_ChatPageContent>
         }
         final item = items[index - itemOffset];
         if (item is _ToolGroupItem) {
-          // Streaming when this group is the trailing item AND a stream
-          // is in flight (means the model is still working on the loop).
-          final isTrailing = item.endIdx == messages.length - 1;
+          // The streaming assistant placeholder stays anchored after tool
+          // messages, so an active tool group is technically penultimate.
+          // Treat it as live while everything after it is that still-empty
+          // placeholder; once answer text arrives the activity is complete.
+          final messagesAfter = messages.skip(item.endIdx + 1);
+          final isActive =
+              chatProvider.isSending &&
+              messagesAfter.every(
+                (message) =>
+                    message.id == chatProvider.streamingMessageId &&
+                    message.isAssistant &&
+                    message.content.isEmpty,
+              );
           return FadeSlideIn(
             child: centered(
-              ToolActivityGroup(
-                messages: item.messages,
-                isStreaming: isTrailing && chatProvider.isSending,
-              ),
+              ToolActivityGroup(messages: item.messages, isStreaming: isActive),
             ),
           );
         }

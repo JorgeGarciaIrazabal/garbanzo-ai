@@ -180,9 +180,9 @@ async def test_run_micro_app_forwards_progress(tmp_path, monkeypatch):
         ("thinking" if c.is_thinking else "tool_call" if c.tool_calls else "tool_result")
         for c in emitted
     ]
-    assert types == ["thinking", "tool_call", "tool_result"]
-    assert emitted[1].tool_calls[0]["name"] == "read"
-    assert emitted[2].metadata["tool_result"]["tool_call_id"] == "t1"
+    assert types == ["tool_call", "tool_result"]
+    assert emitted[0].tool_calls[0]["name"] == "read"
+    assert emitted[1].metadata["tool_result"]["tool_call_id"] == "t1"
 
 
 def test_coerce_edit():

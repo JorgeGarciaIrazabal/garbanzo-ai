@@ -119,6 +119,7 @@ def translate_event(ev: dict, state: StreamState) -> list[ChatResponseChunk]:
                             "tool_call_id": call_id,
                             "tool_name": tool,
                             "result": result,
+                            "is_error": status == "error",
                         },
                     )
                 )

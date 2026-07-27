@@ -4892,6 +4892,132 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Streaming error: {error}'**
   String errorChatStreaming(String error);
+
+  /// Title of the live agent activity card.
+  ///
+  /// In en, this message translates to:
+  /// **'Agent is working…'**
+  String get agentActivityWorking;
+
+  /// Title while the micro-app agent is changing an app.
+  ///
+  /// In en, this message translates to:
+  /// **'Building {name}…'**
+  String agentActivityBuildingApp(String name);
+
+  /// Title after the micro-app agent changed an app.
+  ///
+  /// In en, this message translates to:
+  /// **'Updated {name}'**
+  String agentActivityUpdatedApp(String name);
+
+  /// Title after the micro-app agent opened an app.
+  ///
+  /// In en, this message translates to:
+  /// **'Opened {name}'**
+  String agentActivityOpenedApp(String name);
+
+  /// Title when a micro-app operation failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t update {name}'**
+  String agentActivityAppFailed(String name);
+
+  /// Title of a completed agent activity card.
+  ///
+  /// In en, this message translates to:
+  /// **'Completed {count, plural, =1{1 step} other{{count} steps}}'**
+  String agentActivityCompletedSteps(int count);
+
+  /// Live step while preparing a micro-app workspace.
+  ///
+  /// In en, this message translates to:
+  /// **'Preparing {name}…'**
+  String agentActivityPreparingApp(String name);
+
+  /// Completed step after preparing a micro-app workspace.
+  ///
+  /// In en, this message translates to:
+  /// **'Prepared {name}'**
+  String agentActivityPreparedApp(String name);
+
+  /// Agent web-search activity.
+  ///
+  /// In en, this message translates to:
+  /// **'Researching information…'**
+  String get agentActivityResearching;
+
+  /// Agent web-fetch activity.
+  ///
+  /// In en, this message translates to:
+  /// **'Gathering source data…'**
+  String get agentActivityGatheringData;
+
+  /// Agent file-search activity.
+  ///
+  /// In en, this message translates to:
+  /// **'Exploring app files…'**
+  String get agentActivityExploringFiles;
+
+  /// Agent file-read activity.
+  ///
+  /// In en, this message translates to:
+  /// **'Reviewing {file}…'**
+  String agentActivityReviewingFile(String file);
+
+  /// Agent file-edit activity.
+  ///
+  /// In en, this message translates to:
+  /// **'Updating {file}…'**
+  String agentActivityUpdatingFile(String file);
+
+  /// Agent validation activity.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking the app…'**
+  String get agentActivityCheckingApp;
+
+  /// Generic agent command activity.
+  ///
+  /// In en, this message translates to:
+  /// **'Running a build step…'**
+  String get agentActivityRunningStep;
+
+  /// Fallback agent tool activity.
+  ///
+  /// In en, this message translates to:
+  /// **'Using {name}…'**
+  String agentActivityUsingTool(String name);
+
+  /// Button revealing raw tool activity.
+  ///
+  /// In en, this message translates to:
+  /// **'Technical details'**
+  String get agentActivityTechnicalDetails;
+
+  /// Generic micro-app name.
+  ///
+  /// In en, this message translates to:
+  /// **'micro-app'**
+  String get agentActivityMicroApp;
+
+  /// Generic target for file activity.
+  ///
+  /// In en, this message translates to:
+  /// **'app files'**
+  String get agentActivityAppFiles;
+
+  /// Chat status shown after the connection drops during an AI response.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection lost. Your response is still running — we\'ll add it here when you\'re back online.'**
+  String get messageResponseWaitingForConnection;
+
+  /// Chat status shown after reconnecting while waiting for the saved AI response.
+  ///
+  /// In en, this message translates to:
+  /// **'Back online. Syncing your response…'**
+  String get messageResponseSyncing;
 }
 
 class _AppLocalizationsDelegate

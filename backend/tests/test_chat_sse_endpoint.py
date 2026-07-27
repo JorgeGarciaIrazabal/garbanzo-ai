@@ -7,12 +7,14 @@ the serialized chunk field names, the chunk/thinking/done/error event types,
 and auth.
 """
 
+import asyncio
 import json
 import uuid
 from collections.abc import AsyncIterator
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import select
 
 from app.api.v1.endpoints.chat import get_chat_service
 from app.core.config import Settings, get_settings
@@ -20,8 +22,10 @@ from app.core.security import get_current_user
 from app.db.session import get_db
 from app.main import app
 from app.models.conversation import Conversation
+from app.models.message import Message
 from app.schemas.chat import ChatOptions
 from app.services.chat_service import ChatService
+from app.services.detached_chat_stream import DetachedChatStream
 from app.services.llm_provider import ChatChunk, LLMProvider, ModelInfo, ProviderRegistry
 from app.services.llm_provider import Message as LLMMessage
 
@@ -85,6 +89,27 @@ class _ScriptedProvider(LLMProvider):
 
     async def health_check(self) -> bool:
         return True
+
+
+class _GatedProvider(_ScriptedProvider):
+    """Pause after the first token so the SSE consumer can disconnect."""
+
+    def __init__(self):
+        super().__init__([])
+        self.finish = asyncio.Event()
+
+    async def stream_chat(
+        self,
+        messages: list[LLMMessage],
+        model: str,
+        options: ChatOptions | None = None,
+        cancel_event=None,
+        tools=None,
+    ) -> AsyncIterator[ChatChunk]:
+        yield ChatChunk(content="partial ")
+        await self.finish.wait()
+        yield ChatChunk(content="response")
+        yield ChatChunk(content="", is_finished=True, metadata={})
 
 
 def _install_overrides(db_session, provider: LLMProvider):
@@ -184,6 +209,54 @@ async def test_sse_framing_and_event_sequence(db_session):
         assert done["metadata"]["tokens_generated"] == 2
     finally:
         _clear_overrides()
+
+
+async def test_detached_turn_finishes_after_sse_consumer_disconnect(db_session):
+    """Losing Android's response socket must not cancel model generation."""
+    from app.api.v1.endpoints.chat import _sse_stream
+
+    provider = _GatedProvider()
+    ProviderRegistry.register(provider)
+    conv_id = await _make_conversation(db_session)
+    pushed: list[str] = []
+
+    async def on_disconnected(content: str) -> None:
+        pushed.append(content)
+
+    chunks = DetachedChatStream(
+        lambda service: service.send_message(
+            conversation_id=conv_id,
+            user_id="test@example.com",
+            content="hi",
+        ),
+        provider_name=provider.name,
+        on_disconnected=on_disconnected,
+    )
+    frames = _sse_stream(chunks)
+
+    first = await anext(frames)
+    assert '"content":"partial "' in first
+
+    # Cancel while the serializer awaits the next queue item, matching the
+    # cancellation Starlette delivers after the client socket disappears.
+    waiting = asyncio.create_task(anext(frames))
+    await asyncio.sleep(0)
+    waiting.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await waiting
+
+    provider.finish.set()
+    await chunks.wait_finished()
+
+    rows = (
+        await db_session.execute(
+            select(Message).where(Message.conversation_id == conv_id).order_by(Message.seq)
+        )
+    ).scalars()
+    history = [(message.role, message.content) for message in rows]
+
+    assert history == [("user", "hi"), ("assistant", "partial response")]
+    assert pushed == ["partial response"]
 
 
 async def test_client_tool_request_chunk_serializes_with_its_type():

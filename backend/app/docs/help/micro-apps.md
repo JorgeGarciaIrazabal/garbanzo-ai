@@ -11,7 +11,11 @@ with **Reopen the micro-app panel**.
 
 ## How do I change a micro-app?
 Ask in chat ("add a dark theme", "sort items by date"). The assistant edits
-the app's code in a workspace; the panel reloads with the result.
+the app's code in a workspace; the panel reloads with the result. While it
+works, an activity card shows high-level milestones such as researching,
+reviewing files, updating the app, and checking the build. Expand the card to
+follow the steps, or open **Technical details** to inspect tool inputs and
+results.
 
 ## How do I publish a micro-app?
 Press **Publish changes** in the panel (optionally with a commit message) —

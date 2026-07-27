@@ -286,7 +286,12 @@ pages/               LoginPage, RegisterPage
      and on confirm executes via its normal REST services
    - `done` — terminal event with metadata
    - `error` — failure metadata
-5. `ChatProvider` accumulates content, upserts the assistant message live, renders tool call UI inline, then reloads conversation on `done`
+5. `ChatProvider` accumulates content, upserts the assistant message live, and
+   groups tool events into a high-level activity card. The card maps grounded
+   actions to user-facing milestones (researching, reviewing files, updating
+   code, validating), while raw inputs/results stay behind **Technical
+   details**. Micro-app agent reasoning is not forwarded into the parent
+   assistant stream. The provider reloads the conversation on `done`.
 6. **Regenerate** — `POST /chat/conversations/{id}/messages/{mid}/regenerate` re-streams the last assistant message
 7. **Edit** — `POST /chat/conversations/{id}/messages/{mid}/edit` updates a user message and truncates all later messages, then re-streams
 8. **Branch** — `POST /chat/conversations/{id}/messages/{mid}/branch` creates a new conversation from a given message ID
@@ -321,16 +326,13 @@ Each server event: `data: {"type":"chunk","content":"...","metadata":null}\n\n`
 Terminal event: `data: {"type":"done","content":null,"metadata":{...}}\n\n`
 Client parses lines, strips `data: ` prefix, skips `[DONE]` sentinel.
 
-On client disconnect mid-stream (B-01, e.g. Android backgrounding tears down
-the socket), `run_agent_turn` (`agent_turn.py`) catches the resulting
-`asyncio.CancelledError` and persists+commits whatever content had
-accumulated before reraising — the reply is no longer silently dropped. The
-SSE endpoint's own `CancelledError` handler (`_sse_stream` in `chat.py`) then
-sends an FCM push notification with a truncated preview of that same content.
-On the frontend, `ChatProvider`'s stream `onError` (not just `onDone`)
-reloads the conversation from the server, so whatever the backend managed to
-persist replaces the raw error instead of the user needing to manually
-regenerate.
+Chat turns run through `DetachedChatStream` in their own database session, so
+an Android network drop cancels only the SSE consumer—not model generation.
+The completed response is committed even while the client is offline, and the
+disconnect notification is sent only after that work finishes. On the
+frontend, `ChatProvider` replaces the red transport error with a neutral
+recovery notice, polls the conversation with a short interval, and swaps in
+the canonical saved response automatically after connectivity returns.
 
 ### Automatic error reports
 

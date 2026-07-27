@@ -23,6 +23,7 @@ from httpx import ASGITransport, AsyncClient
 from app.api.v1.endpoints.chat import get_chat_service
 from app.core.config import Settings, get_settings
 from app.core.security import get_current_user, hash_password
+from app.db import session as db_session_module
 from app.db.session import get_db
 from app.main import app
 from app.models.conversation import Conversation
@@ -92,17 +93,19 @@ class _StubProvider(LLMProvider):
         return True
 
 
-def _install_overrides(db_session, email: str = "test@example.com"):
+def _install_overrides(_db_session, email: str = "test@example.com"):
     ProviderRegistry.register(_StubProvider())
 
     async def _override_db():
-        yield db_session
+        async with db_session_module.async_session_maker() as session:
+            yield session
 
     async def _override_user():
         return {"email": email, "token_payload": {}}
 
-    def _override_chat_service():
-        return ChatService(db_session, provider_name="stub-endpoint")
+    async def _override_chat_service():
+        async with db_session_module.async_session_maker() as session:
+            yield ChatService(session, provider_name="stub-endpoint")
 
     app.dependency_overrides[get_db] = _override_db
     app.dependency_overrides[get_settings] = lambda: _TEST_SETTINGS

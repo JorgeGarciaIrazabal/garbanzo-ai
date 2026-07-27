@@ -2510,5 +2510,83 @@
         "type": "String"
       }
     }
+  },
+  "agentActivityWorking": "El agente está trabajando…",
+  "@agentActivityWorking": {
+    "description": "Title of the live agent activity card."
+  },
+  "agentActivityBuildingApp": "Creando {name}…",
+  "@agentActivityBuildingApp": {
+    "description": "Title while the micro-app agent is changing an app.",
+    "placeholders": {"name": {"type": "String"}}
+  },
+  "agentActivityUpdatedApp": "Se actualizó {name}",
+  "@agentActivityUpdatedApp": {
+    "description": "Title after the micro-app agent changed an app.",
+    "placeholders": {"name": {"type": "String"}}
+  },
+  "agentActivityOpenedApp": "Se abrió {name}",
+  "@agentActivityOpenedApp": {
+    "description": "Title after the micro-app agent opened an app.",
+    "placeholders": {"name": {"type": "String"}}
+  },
+  "agentActivityAppFailed": "No se pudo actualizar {name}",
+  "@agentActivityAppFailed": {
+    "description": "Title when a micro-app operation failed.",
+    "placeholders": {"name": {"type": "String"}}
+  },
+  "agentActivityCompletedSteps": "{count, plural, =1{1 paso completado} other{{count} pasos completados}}",
+  "@agentActivityCompletedSteps": {
+    "description": "Title of a completed agent activity card.",
+    "placeholders": {"count": {"type": "int"}}
+  },
+  "agentActivityPreparingApp": "Preparando {name}…",
+  "@agentActivityPreparingApp": {
+    "description": "Live step while preparing a micro-app workspace.",
+    "placeholders": {"name": {"type": "String"}}
+  },
+  "agentActivityPreparedApp": "Se preparó {name}",
+  "@agentActivityPreparedApp": {
+    "description": "Completed step after preparing a micro-app workspace.",
+    "placeholders": {"name": {"type": "String"}}
+  },
+  "agentActivityResearching": "Investigando información…",
+  "@agentActivityResearching": {"description": "Agent web-search activity."},
+  "agentActivityGatheringData": "Recopilando datos de las fuentes…",
+  "@agentActivityGatheringData": {"description": "Agent web-fetch activity."},
+  "agentActivityExploringFiles": "Explorando los archivos de la app…",
+  "@agentActivityExploringFiles": {"description": "Agent file-search activity."},
+  "agentActivityReviewingFile": "Revisando {file}…",
+  "@agentActivityReviewingFile": {
+    "description": "Agent file-read activity.",
+    "placeholders": {"file": {"type": "String"}}
+  },
+  "agentActivityUpdatingFile": "Actualizando {file}…",
+  "@agentActivityUpdatingFile": {
+    "description": "Agent file-edit activity.",
+    "placeholders": {"file": {"type": "String"}}
+  },
+  "agentActivityCheckingApp": "Comprobando la app…",
+  "@agentActivityCheckingApp": {"description": "Agent validation activity."},
+  "agentActivityRunningStep": "Ejecutando un paso de compilación…",
+  "@agentActivityRunningStep": {"description": "Generic agent command activity."},
+  "agentActivityUsingTool": "Usando {name}…",
+  "@agentActivityUsingTool": {
+    "description": "Fallback agent tool activity.",
+    "placeholders": {"name": {"type": "String"}}
+  },
+  "agentActivityTechnicalDetails": "Detalles técnicos",
+  "@agentActivityTechnicalDetails": {"description": "Button revealing raw tool activity."},
+  "agentActivityMicroApp": "micro-app",
+  "@agentActivityMicroApp": {"description": "Generic micro-app name."},
+  "agentActivityAppFiles": "los archivos de la app",
+  "@agentActivityAppFiles": {"description": "Generic target for file activity."},
+  "messageResponseWaitingForConnection": "Se perdió la conexión. Tu respuesta sigue generándose; la añadiremos aquí cuando vuelvas a tener conexión.",
+  "@messageResponseWaitingForConnection": {
+    "description": "Chat status shown after the connection drops during an AI response."
+  },
+  "messageResponseSyncing": "Conexión restablecida. Sincronizando tu respuesta…",
+  "@messageResponseSyncing": {
+    "description": "Chat status shown after reconnecting while waiting for the saved AI response."
   }
 }

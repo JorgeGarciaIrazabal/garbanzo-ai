@@ -35,6 +35,7 @@ from app.schemas.mute import MuteUpdate
 from app.services.chat_service import ChatService
 from app.services.client_tool_bridge import client_tool_bridge
 from app.services.conversation_service import _build_snippet
+from app.services.detached_chat_stream import DetachedChatStream
 
 logger = logging.getLogger(__name__)
 
@@ -357,10 +358,10 @@ async def _sse_stream(
 ) -> AsyncIterator[str]:
     """Serialize provider chunks into SSE `data: ...\\n\\n` frames.
 
-    If the client disconnects mid-stream (yield raises CancelledError),
-    ``on_client_disconnect`` is invoked with the assistant content accumulated
-    so far. Used to trigger a push notification when the user backgrounds the
-    app during generation.
+    If the client disconnects mid-stream (yield raises ``CancelledError``), a
+    ``DetachedChatStream`` is only marked disconnected; its producer keeps
+    running and owns the eventual completion notification. Plain iterators use
+    ``on_client_disconnect`` immediately with content accumulated so far.
     """
     accumulated = ""
     try:
@@ -423,7 +424,9 @@ async def _sse_stream(
 
             yield f"data: {response.model_dump_json()}\n\n"
     except asyncio.CancelledError:
-        if on_client_disconnect is not None:
+        if isinstance(chunks, DetachedChatStream):
+            chunks.mark_disconnected()
+        elif on_client_disconnect is not None:
             asyncio.create_task(on_client_disconnect(accumulated))
         raise
     except Exception as e:
@@ -502,20 +505,22 @@ async def chat_stream(
 ) -> StreamingResponse:
     """Stream AI response as Server-Sent Events."""
 
-    return StreamingResponse(
-        _sse_stream(
-            service.send_message(
-                conversation_id=conversation_id,
-                user_id=current_user["email"],
-                content=data.message,
-                options=data.options,
-                attachments=data.attachments or None,
-                has_client_folder=data.has_client_folder,
-                client_folder_label=data.client_folder_label,
-                talk_mode_instruction=data.talk_mode_instruction,
-            ),
-            on_client_disconnect=_make_push_callback(current_user["email"], conversation_id),
+    chunks = DetachedChatStream(
+        lambda detached: detached.send_message(
+            conversation_id=conversation_id,
+            user_id=current_user["email"],
+            content=data.message,
+            options=data.options,
+            attachments=data.attachments or None,
+            has_client_folder=data.has_client_folder,
+            client_folder_label=data.client_folder_label,
+            talk_mode_instruction=data.talk_mode_instruction,
         ),
+        provider_name=service.provider_name,
+        on_disconnected=_make_push_callback(current_user["email"], conversation_id),
+    )
+    return StreamingResponse(
+        _sse_stream(chunks),
         media_type="text/event-stream",
         headers=_SSE_HEADERS,
     )
@@ -572,16 +577,18 @@ async def regenerate_message(
 ) -> StreamingResponse:
     """Delete the given assistant message and re-stream a new response."""
 
-    return StreamingResponse(
-        _sse_stream(
-            service.regenerate_message(
-                conversation_id=conversation_id,
-                user_id=current_user["email"],
-                message_id=message_id,
-                options=data.options,
-            ),
-            on_client_disconnect=_make_push_callback(current_user["email"], conversation_id),
+    chunks = DetachedChatStream(
+        lambda detached: detached.regenerate_message(
+            conversation_id=conversation_id,
+            user_id=current_user["email"],
+            message_id=message_id,
+            options=data.options,
         ),
+        provider_name=service.provider_name,
+        on_disconnected=_make_push_callback(current_user["email"], conversation_id),
+    )
+    return StreamingResponse(
+        _sse_stream(chunks),
         media_type="text/event-stream",
         headers=_SSE_HEADERS,
     )
@@ -602,17 +609,19 @@ async def edit_message(
 ) -> StreamingResponse:
     """Update a user message's content, drop every later message, and re-stream."""
 
-    return StreamingResponse(
-        _sse_stream(
-            service.edit_and_resend(
-                conversation_id=conversation_id,
-                user_id=current_user["email"],
-                message_id=message_id,
-                new_content=data.content,
-                options=data.options,
-            ),
-            on_client_disconnect=_make_push_callback(current_user["email"], conversation_id),
+    chunks = DetachedChatStream(
+        lambda detached: detached.edit_and_resend(
+            conversation_id=conversation_id,
+            user_id=current_user["email"],
+            message_id=message_id,
+            new_content=data.content,
+            options=data.options,
         ),
+        provider_name=service.provider_name,
+        on_disconnected=_make_push_callback(current_user["email"], conversation_id),
+    )
+    return StreamingResponse(
+        _sse_stream(chunks),
         media_type="text/event-stream",
         headers=_SSE_HEADERS,
     )

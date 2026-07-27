@@ -18,6 +18,8 @@ import 'package:garbanzo_ai/features/chat/services/folder_reader.dart';
 
 const _uuid = Uuid();
 
+enum ChatResponseRecoveryState { waitingForConnection, syncing }
+
 /// Provider for managing chat conversation and message state.
 ///
 /// Model selection is handled by [ModelProvider]. The currently-selected
@@ -28,8 +30,10 @@ class ChatProvider extends ChangeNotifier {
     String? selectedModelId,
     ChatService? chatService,
     FolderReader folderReader = const FolderReader(),
+    Duration recoveryPollInterval = const Duration(seconds: 2),
   }) : _selectedModelIdValue = selectedModelId,
-       _chatService = chatService ?? ChatService.instance {
+       _chatService = chatService ?? ChatService.instance,
+       _recoveryPollInterval = recoveryPollInterval {
     conversationList = ConversationListController(chatService: _chatService);
     // Rebuild chat widgets when the micro-app panel opens/closes/reloads
     // or the sidebar list changes.
@@ -45,6 +49,7 @@ class ChatProvider extends ChangeNotifier {
   }
 
   final ChatService _chatService;
+  final Duration _recoveryPollInterval;
   late final ClientFolderController _folders;
 
   /// Sidebar conversation list (loading, pin, optimistic delete + undo).
@@ -105,7 +110,15 @@ class ChatProvider extends ChangeNotifier {
   bool get loadingOlderMessages => _loadingOlderMessages;
 
   bool _isSending = false;
-  bool get isSending => _isSending;
+  bool get isSending => _isSending || isRecoveringResponse;
+
+  ChatResponseRecoveryState? _responseRecoveryState;
+  ChatResponseRecoveryState? get responseRecoveryState =>
+      _responseRecoveryState;
+  bool get isRecoveringResponse => _responseRecoveryState != null;
+  Timer? _responseRecoveryTimer;
+  String? _recoveryConversationId;
+  Set<String> _assistantIdsBeforeRecovery = const {};
 
   List<Conversation> get conversations => conversationList.conversations;
 
@@ -180,6 +193,7 @@ class ChatProvider extends ChangeNotifier {
       await stopStreaming();
     }
 
+    _cancelResponseRecovery();
     _error = null;
     _actionEpoch++;
     notifyListeners();
@@ -395,6 +409,7 @@ class ChatProvider extends ChangeNotifier {
     }
     _currentConversation = null;
     _messages = [];
+    _cancelResponseRecovery();
     _error = null;
     _actionEpoch++;
     notifyListeners();
@@ -443,7 +458,7 @@ class ChatProvider extends ChangeNotifier {
     if (content.trim().isEmpty && attachments.isEmpty) return;
 
     // Guard: prevent sending while already streaming.
-    if (_isSending) return;
+    if (isSending) return;
 
     _error = null;
     _actionEpoch++;
@@ -498,7 +513,7 @@ class ChatProvider extends ChangeNotifier {
 
   /// Regenerate the last assistant reply in the current conversation.
   Future<void> regenerateLastAssistant() async {
-    if (_currentConversation == null || _isSending) return;
+    if (_currentConversation == null || isSending) return;
 
     final lastAssistantIdx = _messages.lastIndexWhere(
       (m) => m.isAssistant && !m.id.startsWith('temp-'),
@@ -530,7 +545,7 @@ class ChatProvider extends ChangeNotifier {
 
   /// Edit a user message's text and re-run the conversation from that point.
   Future<void> editUserMessage(String messageId, String newContent) async {
-    if (_currentConversation == null || _isSending) return;
+    if (_currentConversation == null || isSending) return;
     if (newContent.trim().isEmpty) return;
 
     final idx = _messages.indexWhere((m) => m.id == messageId);
@@ -681,16 +696,17 @@ class ChatProvider extends ChangeNotifier {
       },
       onError: (e) {
         _syncStreamingIntoList();
-        _error = _friendlyStreamError(e);
         _isSending = false;
         logDebug('Stream error: $e');
         _clearStreamingState();
+        if (_isConnectionError(e)) {
+          _error = null;
+          _beginResponseRecovery();
+        } else {
+          _error = _friendlyStreamError(e);
+        }
         notifyListeners();
-        // The connection can drop mid-generation (e.g. Android backgrounding
-        // tears down the socket) after the backend already persisted a
-        // partial or complete reply. Reload so that content replaces the
-        // error instead of the reply looking lost, forcing a manual regenerate.
-        _reloadCurrentConversation();
+        if (!_isConnectionError(e)) _reloadCurrentConversation();
       },
       onDone: () {
         // Real end of the SSE stream — finalize and reconcile with server.
@@ -758,9 +774,76 @@ class ChatProvider extends ChangeNotifier {
     return 'Streaming error: $e';
   }
 
+  bool _isConnectionError(Object error) {
+    if (error is ChatException) return error.kind == 'connection';
+    final text = '$error'.toLowerCase();
+    return text.contains('connection closed') ||
+        text.contains('connection error') ||
+        text.contains('connection refused') ||
+        text.contains('failed host lookup') ||
+        text.contains('network is unreachable') ||
+        text.contains('software caused connection abort');
+  }
+
+  void _beginResponseRecovery() {
+    final conversationId = _currentConversation?.id;
+    if (conversationId == null) return;
+    _responseRecoveryTimer?.cancel();
+    _recoveryConversationId = conversationId;
+    _assistantIdsBeforeRecovery = {
+      for (final message in _messages)
+        if (message.isAssistant && !message.id.startsWith('temp-')) message.id,
+    };
+    _responseRecoveryState = ChatResponseRecoveryState.waitingForConnection;
+    _scheduleResponseRecovery(Duration.zero);
+  }
+
+  void _scheduleResponseRecovery(Duration delay) {
+    _responseRecoveryTimer?.cancel();
+    _responseRecoveryTimer = Timer(delay, () => unawaited(_recoverResponse()));
+  }
+
+  Future<void> _recoverResponse() async {
+    if (!isRecoveringResponse ||
+        _currentConversation?.id != _recoveryConversationId) {
+      return;
+    }
+    final reachedServer = await _reloadCurrentConversation();
+    if (!isRecoveringResponse) return;
+    if (reachedServer &&
+        _responseRecoveryState != ChatResponseRecoveryState.syncing) {
+      _responseRecoveryState = ChatResponseRecoveryState.syncing;
+      notifyListeners();
+    }
+    _scheduleResponseRecovery(_recoveryPollInterval);
+  }
+
+  void _completeRecoveryIfResponseArrived() {
+    if (!isRecoveringResponse ||
+        _currentConversation?.id != _recoveryConversationId) {
+      return;
+    }
+    final hasNewAssistant = _messages.any(
+      (message) =>
+          message.isAssistant &&
+          !message.id.startsWith('temp-') &&
+          !_assistantIdsBeforeRecovery.contains(message.id),
+    );
+    if (hasNewAssistant) _cancelResponseRecovery();
+  }
+
+  void _cancelResponseRecovery() {
+    _responseRecoveryTimer?.cancel();
+    _responseRecoveryTimer = null;
+    _responseRecoveryState = null;
+    _recoveryConversationId = null;
+    _assistantIdsBeforeRecovery = const {};
+  }
+
   Future<void> stopStreaming() async {
     unawaited(_stream.cancel());
     _isSending = false;
+    _cancelResponseRecovery();
     _actionEpoch++;
     // Keep what was already streamed, marked as interrupted so the partial
     // answer isn't mistaken for a complete one.
@@ -904,9 +987,9 @@ class ChatProvider extends ChangeNotifier {
   /// in flight.
   int _actionEpoch = 0;
 
-  Future<void> _reloadCurrentConversation() async {
+  Future<bool> _reloadCurrentConversation() async {
     final id = _currentConversation?.id;
-    if (id == null) return;
+    if (id == null) return false;
     final epoch = _actionEpoch;
     try {
       // Request at least as many messages as are already displayed (which
@@ -926,13 +1009,16 @@ class ChatProvider extends ChangeNotifier {
         silent: true,
       );
       if (epoch != _actionEpoch || _currentConversation?.id != id) {
-        return; // stale — a newer action owns the state now
+        return false; // stale — a newer action owns the state now
       }
       _currentConversation = conversation;
       _messages = _hydrateAttachments(conversation.messages ?? []);
+      _completeRecoveryIfResponseArrived();
       notifyListeners();
+      return true;
     } catch (e) {
       logDebug('Failed to reload conversation: $e');
+      return false;
     }
   }
 
@@ -997,6 +1083,7 @@ class ChatProvider extends ChangeNotifier {
   @override
   void dispose() {
     _stream.dispose();
+    _responseRecoveryTimer?.cancel();
     _titleRefreshTimer?.cancel();
     panel.dispose();
     // Flushes pending undo-window deletions.

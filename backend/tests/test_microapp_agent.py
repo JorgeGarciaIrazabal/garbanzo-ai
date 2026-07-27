@@ -105,6 +105,7 @@ def test_translate_full_sequence():
     assert chunks[3].tool_calls[0]["id"] == "c1"
     assert chunks[4].tool_result["tool_call_id"] == "c1"
     assert chunks[4].tool_result["result"] == "done"
+    assert chunks[4].tool_result["is_error"] is False
     assert chunks[5].metadata == {"session_id": SID}
     assert state.done is True
 
@@ -183,6 +184,7 @@ def test_tool_error_result():
     chunks, _ = _drive(events)
     assert [c.type for c in chunks] == ["tool_call", "tool_result"]
     assert chunks[1].tool_result["result"] == "boom"
+    assert chunks[1].tool_result["is_error"] is True
 
 
 def test_sse_data_framing():

@@ -2795,4 +2795,96 @@ class AppLocalizationsEs extends AppLocalizations {
   String errorChatStreaming(String error) {
     return 'Error de transmisión: $error';
   }
+
+  @override
+  String get agentActivityWorking => 'El agente está trabajando…';
+
+  @override
+  String agentActivityBuildingApp(String name) {
+    return 'Creando $name…';
+  }
+
+  @override
+  String agentActivityUpdatedApp(String name) {
+    return 'Se actualizó $name';
+  }
+
+  @override
+  String agentActivityOpenedApp(String name) {
+    return 'Se abrió $name';
+  }
+
+  @override
+  String agentActivityAppFailed(String name) {
+    return 'No se pudo actualizar $name';
+  }
+
+  @override
+  String agentActivityCompletedSteps(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count pasos completados',
+      one: '1 paso completado',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String agentActivityPreparingApp(String name) {
+    return 'Preparando $name…';
+  }
+
+  @override
+  String agentActivityPreparedApp(String name) {
+    return 'Se preparó $name';
+  }
+
+  @override
+  String get agentActivityResearching => 'Investigando información…';
+
+  @override
+  String get agentActivityGatheringData => 'Recopilando datos de las fuentes…';
+
+  @override
+  String get agentActivityExploringFiles =>
+      'Explorando los archivos de la app…';
+
+  @override
+  String agentActivityReviewingFile(String file) {
+    return 'Revisando $file…';
+  }
+
+  @override
+  String agentActivityUpdatingFile(String file) {
+    return 'Actualizando $file…';
+  }
+
+  @override
+  String get agentActivityCheckingApp => 'Comprobando la app…';
+
+  @override
+  String get agentActivityRunningStep => 'Ejecutando un paso de compilación…';
+
+  @override
+  String agentActivityUsingTool(String name) {
+    return 'Usando $name…';
+  }
+
+  @override
+  String get agentActivityTechnicalDetails => 'Detalles técnicos';
+
+  @override
+  String get agentActivityMicroApp => 'micro-app';
+
+  @override
+  String get agentActivityAppFiles => 'los archivos de la app';
+
+  @override
+  String get messageResponseWaitingForConnection =>
+      'Se perdió la conexión. Tu respuesta sigue generándose; la añadiremos aquí cuando vuelvas a tener conexión.';
+
+  @override
+  String get messageResponseSyncing =>
+      'Conexión restablecida. Sincronizando tu respuesta…';
 }

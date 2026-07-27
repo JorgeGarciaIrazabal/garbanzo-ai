@@ -5,19 +5,28 @@ import 'package:garbanzo_ai/features/chat/widgets/tool_activity_group.dart';
 import 'package:garbanzo_ai/features/chat/widgets/tool_bubble_widget.dart';
 import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
-ChatMessage _call(String name, {String id = 'c'}) => ChatMessage(
+ChatMessage _call(
+  String name, {
+  String id = 'c',
+  Map<String, dynamic> arguments = const {},
+}) => ChatMessage(
       id: id,
       role: 'tool_call',
       content: name,
       createdAt: DateTime(2024, 1, 1),
       metadata: {
         'tool_calls': [
-          {'id': id, 'name': name, 'arguments': const {}},
+          {'id': id, 'name': name, 'arguments': arguments},
         ],
       },
     );
 
-ChatMessage _result(String name, {String id = 'r'}) => ChatMessage(
+ChatMessage _result(
+  String name, {
+  String id = 'r',
+  Object result = 'ok',
+  bool isError = false,
+}) => ChatMessage(
       id: id,
       role: 'tool_result',
       content: name,
@@ -26,25 +35,26 @@ ChatMessage _result(String name, {String id = 'r'}) => ChatMessage(
         'tool_result': {
           'tool_call_id': id,
           'tool_name': name,
-          'result': 'ok',
+          'result': result,
+          'is_error': isError,
         },
       },
     );
 
 Widget _wrap(Widget child) => MaterialApp(
-  localizationsDelegates: AppLocalizations.localizationsDelegates,
-  supportedLocales: AppLocalizations.supportedLocales,
-home: Scaffold(body: child));
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: Scaffold(body: child),
+    );
 
 void main() {
   group('ToolActivityGroup', () {
-    testWidgets(
-        'singular header reads "Used <name>" for one completed call',
+    testWidgets('completed generic activity uses a friendly step count',
         (tester) async {
       await tester.pumpWidget(_wrap(ToolActivityGroup(
         messages: [_call('get_time'), _result('get_time')],
       )));
-      expect(find.text('Used get_time'), findsOneWidget);
+      expect(find.text('Completed 1 step'), findsOneWidget);
     });
 
     testWidgets('plural header for multiple completed calls', (tester) async {
@@ -56,18 +66,18 @@ void main() {
           _result('b', id: '2'),
         ],
       )));
-      expect(find.text('Used 2 tools'), findsOneWidget);
+      expect(find.text('Completed 2 steps'), findsOneWidget);
     });
 
     testWidgets(
-        'header shows "Calling X…" with spinner while a call is pending',
+        'pending search uses a high-level researching label',
         (tester) async {
       await tester.pumpWidget(_wrap(ToolActivityGroup(
-        messages: [_call('search')],
+        messages: [_call('web_search')],
         isStreaming: true,
       )));
-      expect(find.text('Calling search…'), findsOneWidget);
-      // ≥1 spinner — there's also one in the (offstage) body's bubble.
+      expect(find.text('Agent is working…'), findsOneWidget);
+      expect(find.text('Researching information…'), findsOneWidget);
       expect(find.byType(CircularProgressIndicator), findsWidgets);
     });
 
@@ -79,11 +89,11 @@ void main() {
         isStreaming: false,
       )));
       expect(find.byType(CircularProgressIndicator), findsNothing);
-      expect(find.text('Used search'), findsOneWidget);
+      expect(find.text('Completed 1 step'), findsOneWidget);
     });
 
     testWidgets(
-        'shows "Working on response…" while waiting for the model after '
+        'continues to show agent activity while waiting for the model after '
         'a tool result has come back', (tester) async {
       // The trailing message is a tool_result and the stream is still in
       // flight — meaning we just got the tool's output and are waiting for
@@ -93,7 +103,7 @@ void main() {
         messages: [_call('search'), _result('search')],
         isStreaming: true,
       )));
-      expect(find.text('Working on response…'), findsOneWidget);
+      expect(find.text('Agent is working…'), findsOneWidget);
       expect(find.byType(CircularProgressIndicator), findsWidgets);
     });
 
@@ -105,12 +115,83 @@ void main() {
       // The expanded body holds ToolBubbleWidgets; the AnimatedCrossFade
       // keeps the second child's widgets in the tree but with size zero, so
       // we assert by text content of the header rather than absence.
-      expect(find.text('Used search'), findsOneWidget);
+      expect(find.text('Completed 1 step'), findsOneWidget);
 
       // Tap to expand and verify the bubble renders.
-      await tester.tap(find.text('Used search'));
+      await tester.tap(find.text('Completed 1 step'));
+      await tester.pumpAndSettle();
+      expect(find.text('Exploring app files…'), findsWidgets);
+
+      await tester.tap(find.text('Technical details'));
       await tester.pumpAndSettle();
       expect(find.byType(ToolBubbleWidget), findsNWidgets(2));
+    });
+
+    testWidgets('micro-app work opens as a live milestone timeline',
+        (tester) async {
+      await tester.pumpWidget(
+        _wrap(
+          ToolActivityGroup(
+            messages: [
+              _call(
+                'micro_app',
+                id: 'outer',
+                arguments: {
+                  'app': 'family-dashboard',
+                  'instruction': 'Build the first tab',
+                  'edit': true,
+                },
+              ),
+              _call(
+                'read',
+                id: 'read',
+                arguments: {'filePath': 'apps/family-dashboard/lib/main.dart'},
+              ),
+              _result('read', id: 'read'),
+              _call(
+                'edit',
+                id: 'edit',
+                arguments: {'filePath': 'apps/family-dashboard/lib/home_tab.dart'},
+              ),
+            ],
+            isStreaming: true,
+          ),
+        ),
+      );
+
+      expect(find.text('Building Family dashboard…'), findsOneWidget);
+      expect(find.text('Reviewing main.dart…'), findsOneWidget);
+      expect(find.text('Updating home_tab.dart…'), findsWidgets);
+      expect(find.text('Technical details'), findsOneWidget);
+    });
+
+    testWidgets('completed micro-app activity reports success', (tester) async {
+      await tester.pumpWidget(
+        _wrap(
+          ToolActivityGroup(
+            messages: [
+              _call(
+                'micro_app',
+                id: 'outer',
+                arguments: {'app': 'family-dashboard', 'edit': true},
+              ),
+              _call(
+                'bash',
+                id: 'check',
+                arguments: {'command': 'npm run build'},
+              ),
+              _result('bash', id: 'check'),
+              _result(
+                'micro_app',
+                id: 'outer',
+                result: {'ok': true, 'app': 'family-dashboard'},
+              ),
+            ],
+          ),
+        ),
+      );
+
+      expect(find.text('Updated Family dashboard'), findsOneWidget);
     });
   });
 }

@@ -3,10 +3,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'package:garbanzo_ai/features/chat/models/agent_activity.dart';
 import 'package:garbanzo_ai/features/chat/models/chat_message.dart';
 import 'package:garbanzo_ai/features/chat/models/workflow_run.dart';
 import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/workflow_provider.dart';
+import 'package:garbanzo_ai/features/chat/widgets/agent_activity_labels.dart';
 import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// A delegated opencode run, shown as one quiet expandable line in the
@@ -106,6 +108,7 @@ class _WorkflowRunTileState extends State<WorkflowRunTile> {
         : live
         ? colorScheme.primary
         : colorScheme.onSurfaceVariant.withValues(alpha: 0.75);
+    final currentActivity = live ? _lastActivity(run) : null;
 
     return Padding(
       padding: const EdgeInsets.only(top: 10, bottom: 2),
@@ -146,13 +149,27 @@ class _WorkflowRunTileState extends State<WorkflowRunTile> {
                       ),
                     const SizedBox(width: 7),
                     Flexible(
-                      child: Text(
-                        _headerLabel(workflows, phase, run),
-                        style: theme.textTheme.labelMedium?.copyWith(
-                          color: headerColor,
-                          fontWeight: FontWeight.w500,
-                        ),
-                        overflow: TextOverflow.ellipsis,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _headerLabel(workflows, phase, run),
+                            style: theme.textTheme.labelMedium?.copyWith(
+                              color: headerColor,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if (currentActivity != null)
+                            Text(
+                              currentActivity,
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                        ],
                       ),
                     ),
                     const SizedBox(width: 3),
@@ -452,20 +469,25 @@ class _WorkflowRunTileState extends State<WorkflowRunTile> {
     );
   }
 
-  /// The most recent thing the agent did, for a one-line "what's happening".
+  /// The most recent grounded action, translated into user-facing language.
+  /// Agent narration is intentionally excluded: it may contain internal
+  /// reasoning and is less reliable than an observed tool action.
   String? _lastActivity(WorkflowRun? run) {
     if (run == null || run.progress.isEmpty) return null;
     for (final entry in run.progress.reversed) {
-      final type = entry['type'];
-      if (type == 'tool_call') {
+      if (entry['type'] == 'tool_call') {
         final calls = entry['tool_calls'];
         if (calls is List && calls.isNotEmpty) {
-          final name = (calls.first as Map)['name'];
-          if (name != null) return '$name…';
+          final call = calls.first;
+          if (call is Map) {
+            final step = AgentActivityStep.fromToolCall(call);
+            return agentActivityStepLabel(
+              step,
+              AppLocalizations.of(context)!,
+              active: run.isRunning,
+            );
+          }
         }
-      } else if (type == 'chunk') {
-        final content = (entry['content'] as String?)?.trim();
-        if (content != null && content.isNotEmpty) return content;
       }
     }
     return null;

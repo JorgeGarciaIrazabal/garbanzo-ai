@@ -105,6 +105,11 @@ class ChatService:
         self._kb = KnowledgeBaseService(db)
         self._context = ChatContextBuilder(self._memories, self._kb, self._system_prompts)
 
+    @property
+    def provider_name(self) -> str:
+        """Provider key used when a turn moves to an independent DB session."""
+        return self._provider_name
+
     @classmethod
     def cancel_stream(cls, conversation_id: str) -> bool:
         """Signal an active stream to stop. Returns True if found."""

@@ -10,6 +10,12 @@ refresh automatically within about ten seconds of a change made on another
 signed-in device. Returning to the app also refreshes them immediately. A reply
 that is currently streaming on the local device is left untouched.
 
+## What happens if I lose internet while the assistant is replying?
+The response keeps generating on the server. The chat keeps any text you
+already received and shows a small connection status instead of an error. Once
+your device is online again, the completed response appears automatically; you
+do not need to resend the message or regenerate the answer.
+
 ## How do I send a message?
 Type in the input bar and press Enter (or the send button). While the
 assistant is replying you can press the stop button to cancel generation.
@@ -47,8 +53,10 @@ desktop-only — web can't reach your files.
 Not directly, but it can hand the job to an agent that does. When you ask for
 something big — "refactor this module", "add tests across the package", "fix
 every occurrence of X" — the assistant **delegates the task** to an autonomous
-coding agent, and a line appears in the chat showing that it's working. Expand
-that line to watch what the agent is doing.
+coding agent, and an activity card appears in the chat. Expand it to watch
+grounded milestones such as researching, reviewing
+files, updating code, and checking the result. Raw agent reasoning is not
+shown; the status is based on actions the agent actually performed.
 
 Your own files are never at risk *while it works*: the app uploads a **copy** of
 the attached folder and the agent only ever touches that copy. When it finishes,

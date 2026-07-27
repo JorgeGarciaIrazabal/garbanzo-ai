@@ -269,8 +269,8 @@ async def _forward_progress(chunk, emit: ProgressEmit) -> None:
         await emit(ChatChunk(content="", tool_calls=chunk.tool_calls))
     elif chunk.type == "tool_result" and chunk.tool_result:
         await emit(ChatChunk(content="", metadata={"tool_result": chunk.tool_result}))
-    elif chunk.type == "thinking" and chunk.content:
-        await emit(ChatChunk(content=chunk.content, is_thinking=True))
+    # Do not relay the specialist agent's private reasoning. Grounded actions
+    # above give the user useful progress without exposing chain-of-thought.
 
 
 async def run_micro_app(

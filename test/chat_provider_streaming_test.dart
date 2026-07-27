@@ -33,6 +33,7 @@ class _FakeChatService extends ChatService {
   // Set by tests that want a later reload (post-error, post-done) to surface
   // content the backend persisted independently of the live stream.
   Conversation? reloadedConversation;
+  Object? getConversationError;
 
   @override
   Future<ConversationList> listConversations(
@@ -47,6 +48,7 @@ class _FakeChatService extends ChatService {
     int? messageLimit,
     bool silent = false,
   }) async {
+    if (getConversationError != null) throw getConversationError!;
     return reloadedConversation ?? _conversation;
   }
 
@@ -80,9 +82,14 @@ class _FakeChatService extends ChatService {
 }
 
 Future<ChatProvider> _providerWithOpenConversation(
-    _FakeChatService service) async {
-  final provider =
-      ChatProvider(selectedModelId: 'llama3.2', chatService: service);
+  _FakeChatService service, {
+  Duration recoveryPollInterval = const Duration(seconds: 2),
+}) async {
+  final provider = ChatProvider(
+    selectedModelId: 'llama3.2',
+    chatService: service,
+    recoveryPollInterval: recoveryPollInterval,
+  );
   await provider.loadConversation('conv-1');
   return provider;
 }
@@ -180,17 +187,76 @@ void main() {
       await provider.sendMessage('hi');
       service.controller
           .addError(Exception('Connection closed while receiving data'));
-      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
 
-      // Connection drops surface as a friendly message instead of a raw
-      // DioException/Exception string.
-      expect(provider.error, contains('Couldn\'t reach the AI service'));
+      // A transport drop is recovered quietly instead of showing the red
+      // error banner, and the canonical server reply replaces local state.
+      expect(provider.error, isNull);
+      expect(provider.responseRecoveryState, isNull);
       expect(provider.isSending, isFalse);
       expect(
         provider.messages.any((m) => m.content == 'Recovered from disconnect'),
         isTrue,
       );
     });
+
+    test(
+      'connection loss keeps partial text then auto-populates after reconnect',
+      () async {
+        final service = _FakeChatService();
+        final provider = await _providerWithOpenConversation(
+          service,
+          recoveryPollInterval: const Duration(milliseconds: 10),
+        );
+
+        await provider.sendMessage('hi');
+        service.controller.add(
+          const ChatResponseChunk(type: 'chunk', content: 'partial'),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+
+        // Refreshes fail while the device is offline. The partial response
+        // remains visible and the provider exposes a calm recovery state.
+        service.getConversationError = Exception('network is unreachable');
+        service.controller.addError(
+          Exception('Connection closed while receiving data'),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 30));
+
+        expect(
+          provider.responseRecoveryState,
+          ChatResponseRecoveryState.waitingForConnection,
+        );
+        expect(provider.error, isNull);
+        expect(provider.messages.last.content, 'partial');
+        expect(provider.isSending, isTrue);
+
+        // Once requests work again, polling replaces the partial temp bubble
+        // with the full response the detached backend turn persisted.
+        service
+          ..getConversationError = null
+          ..reloadedConversation = Conversation(
+            id: 'conv-1',
+            title: 'Test',
+            model: 'llama3.2',
+            createdAt: DateTime.utc(2026),
+            updatedAt: DateTime.utc(2026),
+            messages: [
+              ChatMessage(
+                id: 'm2',
+                role: 'assistant',
+                content: 'The full recovered response',
+                createdAt: DateTime.utc(2026),
+              ),
+            ],
+          );
+        await Future<void>.delayed(const Duration(milliseconds: 40));
+
+        expect(provider.responseRecoveryState, isNull);
+        expect(provider.isSending, isFalse);
+        expect(provider.messages.single.content, 'The full recovered response');
+      },
+    );
 
     test('undo within the window restores the conversation without API call',
         () async {

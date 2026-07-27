@@ -2759,4 +2759,94 @@ class AppLocalizationsEn extends AppLocalizations {
   String errorChatStreaming(String error) {
     return 'Streaming error: $error';
   }
+
+  @override
+  String get agentActivityWorking => 'Agent is working…';
+
+  @override
+  String agentActivityBuildingApp(String name) {
+    return 'Building $name…';
+  }
+
+  @override
+  String agentActivityUpdatedApp(String name) {
+    return 'Updated $name';
+  }
+
+  @override
+  String agentActivityOpenedApp(String name) {
+    return 'Opened $name';
+  }
+
+  @override
+  String agentActivityAppFailed(String name) {
+    return 'Couldn\'t update $name';
+  }
+
+  @override
+  String agentActivityCompletedSteps(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count steps',
+      one: '1 step',
+    );
+    return 'Completed $_temp0';
+  }
+
+  @override
+  String agentActivityPreparingApp(String name) {
+    return 'Preparing $name…';
+  }
+
+  @override
+  String agentActivityPreparedApp(String name) {
+    return 'Prepared $name';
+  }
+
+  @override
+  String get agentActivityResearching => 'Researching information…';
+
+  @override
+  String get agentActivityGatheringData => 'Gathering source data…';
+
+  @override
+  String get agentActivityExploringFiles => 'Exploring app files…';
+
+  @override
+  String agentActivityReviewingFile(String file) {
+    return 'Reviewing $file…';
+  }
+
+  @override
+  String agentActivityUpdatingFile(String file) {
+    return 'Updating $file…';
+  }
+
+  @override
+  String get agentActivityCheckingApp => 'Checking the app…';
+
+  @override
+  String get agentActivityRunningStep => 'Running a build step…';
+
+  @override
+  String agentActivityUsingTool(String name) {
+    return 'Using $name…';
+  }
+
+  @override
+  String get agentActivityTechnicalDetails => 'Technical details';
+
+  @override
+  String get agentActivityMicroApp => 'micro-app';
+
+  @override
+  String get agentActivityAppFiles => 'app files';
+
+  @override
+  String get messageResponseWaitingForConnection =>
+      'Connection lost. Your response is still running — we\'ll add it here when you\'re back online.';
+
+  @override
+  String get messageResponseSyncing => 'Back online. Syncing your response…';
 }

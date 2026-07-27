@@ -28,11 +28,15 @@ class ChatStreamController {
     _messageId = messageId;
     _subscription = stream.listen(
       onChunk,
-      onError: onError,
+      onError: (Object error) {
+        _subscription = null;
+        onError(error);
+      },
       onDone: () {
         _subscription = null;
         onDone();
       },
+      cancelOnError: true,
     );
   }
 
