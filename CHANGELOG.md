@@ -4,6 +4,11 @@ Release notes for Garbanzo AI. Each entry is generated automatically on
 `just deploy` — an LLM (via opencode) writes it from the release's commits and
 the user reports it addressed. See `scripts/changelog-instructions.md`.
 
+## v1.0.19 — 2026-07-28
+
+### ✨ Features
+- Improved chat recovery after disconnects and made agent activity indicators more reliable.
+
 ## v1.0.18 — 2026-07-28
 
 ### ✨ Features
