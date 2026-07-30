@@ -444,8 +444,12 @@ Prod (`deploy/docker-compose.yml`, project `garbanzo-prod` — fully separate DB
 > also run in-process (`stt_mode=local`, the default) bypassing the Docker
 > container entirely. Both modes default to the multilingual Faster Whisper
 > `small` checkpoint, balancing transcription accuracy with CPU latency. TTS
-> inference is serialized around the singleton Kokoro model, and clients keep
-> at most one bounded text chunk prefetched to cap long-session memory use.
+> and STT independently select CPU or CUDA through `TTS_DEVICE` and
+> `STT_DEVICE`. Production GPU deployments use a shared CUDA 12.6 stack because
+> CTranslate2 requires CUDA 12; CPU remains the portable default. TTS inference
+> is serialized around the singleton Kokoro model, and
+> clients keep at most one bounded text chunk prefetched to cap long-session
+> memory use.
 > Normal read-aloud uses one multi-sentence request whenever it fits the 5,000
 > character API limit; Talk Mode starts prefetching each newly arrived chunk
 > during current playback so sentence boundaries do not wait on inference.

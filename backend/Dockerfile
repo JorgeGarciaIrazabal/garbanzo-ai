@@ -32,6 +32,20 @@ ENV UV_COMPILE_BYTECODE=1
 COPY pyproject.toml uv.lock ./
 RUN --mount=type=cache,target=/root/.cache/uv uv sync --no-dev --frozen
 
+# Local development stays on the compact CPU wheel pinned by uv.lock. Production
+# builds use CUDA 12.6 because the prebuilt CTranslate2 used by Faster Whisper
+# requires CUDA 12, while the same Torch wheel also accelerates Kokoro.
+ARG TORCH_VARIANT=cpu
+RUN --mount=type=cache,target=/root/.cache/uv \
+    case "$TORCH_VARIANT" in \
+      cpu|auto) ;; \
+      cuda) \
+        TORCH_VERSION="$(.venv/bin/python -c 'import torch; print(torch.__version__.split("+")[0])')"; \
+        uv pip install --python .venv/bin/python --reinstall \
+          "torch==$TORCH_VERSION" --index-url https://download.pytorch.org/whl/cu126 ;; \
+      *) echo "TORCH_VARIANT must be cpu, auto, or cuda" >&2; exit 2 ;; \
+    esac
+
 # Application code + SQL migrations (applied automatically at startup)
 COPY app/ ./app/
 COPY migrations/ ./migrations/
@@ -48,5 +62,6 @@ ENV APP_VERSION=$APP_VERSION
 # Run straight from the venv — no resolver at container start.
 # Secrets and environment come from the compose file at runtime, never the image.
 ENV PATH="/app/.venv/bin:$PATH"
+ENV LD_LIBRARY_PATH="/app/.venv/lib/python3.12/site-packages/nvidia/cublas/lib:/app/.venv/lib/python3.12/site-packages/nvidia/cudnn/lib"
 EXPOSE 8000
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

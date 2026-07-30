@@ -89,6 +89,20 @@ def resolve_voice_for_language(voice: str, language: str | None) -> str:
 SAMPLE_RATE = 24000
 
 
+def _select_device(requested: str, *, cuda_available: bool) -> str:
+    """Resolve the configured TTS device against the installed PyTorch runtime."""
+    if requested == "cuda":
+        if not cuda_available:
+            raise RuntimeError(
+                "TTS_DEVICE=cuda, but CUDA is unavailable. Check the CUDA-enabled "
+                "PyTorch image and Docker GPU access, or set TTS_DEVICE=cpu."
+            )
+        return "cuda"
+    if requested == "auto":
+        return "cuda" if cuda_available else "cpu"
+    return "cpu"
+
+
 class _AudioEncoder:
     """Encodes raw audio samples to mp3/wav/opus using PyAV."""
 
@@ -153,10 +167,11 @@ class TTSService:
     _ready = asyncio.Event()
     _error: Exception | None = None
 
-    def __init__(self, model):
+    def __init__(self, model, device: str = "cpu"):
         self._model = model
+        self._device = device
         self._pipelines: dict = {}
-        # Kokoro's singleton model is CPU-heavy and not safe to run for
+        # Kokoro's singleton model is compute-heavy and not safe to run for
         # multiple requests at once. Serializing inference prevents a burst of
         # long TTS requests from multiplying model working memory until the
         # backend is killed by the OOM killer.
@@ -183,9 +198,11 @@ class TTSService:
     @staticmethod
     def _load_sync() -> "TTSService":
         """Synchronous heavy lifting — runs in a worker thread."""
+        import torch
         from kokoro import KModel
 
         settings = get_settings()
+        device = _select_device(settings.tts_device, cuda_available=torch.cuda.is_available())
         model_dir = os.path.abspath(settings.kokoro_model_dir)
         config_path = os.path.join(model_dir, "config.json")
         model_path = os.path.join(model_dir, "kokoro-v1_0.pth")
@@ -193,12 +210,13 @@ class TTSService:
         # Try local files first, fall back to auto-download from HuggingFace
         if os.path.exists(model_path) and os.path.exists(config_path):
             logger.info("Loading Kokoro model from %s …", model_path)
-            model = KModel(config=config_path, model=model_path).eval().cpu()
+            model = KModel(config=config_path, model=model_path).eval().to(device)
         else:
             logger.info("Local Kokoro model not found, downloading from HuggingFace …")
-            model = KModel(repo_id="hexgrad/Kokoro-82M").eval().cpu()
+            model = KModel(repo_id="hexgrad/Kokoro-82M").eval().to(device)
 
-        return TTSService(model)
+        logger.info("Kokoro TTS using %s.", device.upper())
+        return TTSService(model, device=device)
 
     @classmethod
     async def get_instance(cls) -> "TTSService":
@@ -214,7 +232,7 @@ class TTSService:
 
         if lang_code not in self._pipelines:
             self._pipelines[lang_code] = KPipeline(
-                lang_code=lang_code, model=self._model, device="cpu"
+                lang_code=lang_code, model=self._model, device=self._device
             )
         return self._pipelines[lang_code]
 
@@ -233,7 +251,7 @@ class TTSService:
         chunks = []
         for result in pipeline(text, voice=voice_ref, speed=speed, model=self._model):
             if result.audio is not None:
-                audio_int16 = (result.audio.numpy() * 32767).astype(np.int16)
+                audio_int16 = (result.audio.detach().cpu().numpy() * 32767).astype(np.int16)
                 chunks.append(audio_int16)
         return chunks
 
@@ -276,7 +294,7 @@ class TTSService:
                 if result is None:
                     break
                 if result.audio is not None:
-                    audio_int16 = (result.audio.numpy() * 32767).astype(np.int16)
+                    audio_int16 = (result.audio.detach().cpu().numpy() * 32767).astype(np.int16)
                     data = encoder.encode_chunk(audio_int16)
                     if data:
                         yield data

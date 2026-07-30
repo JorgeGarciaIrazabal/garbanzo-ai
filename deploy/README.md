@@ -89,6 +89,10 @@ reboots (as long as the Docker daemon starts on boot).
 - **Models** (Kokoro TTS + Whisper STT, ~2 GB) download on first boot into the
   `hf_cache` volume and persist across deploys. Voice features come up a few
   minutes after the first start.
+- **Voice compute** defaults to CPU. On an NVIDIA host with Docker GPU support,
+  set both `STT_DEVICE=cuda` and `TTS_DEVICE=cuda` in `deploy/.env`; `just
+  deploy` installs a CUDA 12.6 Torch stack shared by Faster Whisper and Kokoro
+  and grants the backend access to the GPU. Leave both as `cpu` elsewhere.
 - **Micro-apps**: the repo is cloned into the `microapps_repo` volume on first
   boot and synced every `MICROAPPS_PULL_INTERVAL_MINUTES` (default 10): fetch,
   fast-forward main, rebase *clean* user worktrees. The panel is served through

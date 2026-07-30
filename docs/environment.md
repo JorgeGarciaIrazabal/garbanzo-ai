@@ -26,6 +26,7 @@ FASTER_WHISPER_URL=http://localhost:8010  # only used if stt_mode=remote
 
 DEFAULT_TTS_VOICE=af_heart
 DEFAULT_TTS_SPEED=1.0
+TTS_DEVICE=auto          # "auto", "cpu", or "cuda"; forced cuda fails if unavailable
 KOKORO_MODEL_DIR=data/kokoro/models/v1_0
 KOKORO_VOICES_DIR=data/kokoro/voices
 
@@ -82,3 +83,9 @@ MICROAPPS_OPENCODE_MODEL=ollama/kimi-k2.7-code:cloud
 
 > Prod secrets (ngrok authtoken/domain, prod DB password, SECRET_KEY, git/SSH
 > settings) live in `deploy/.env` — see `deploy/.env.example`.
+
+For production Docker deployments, use `STT_DEVICE=cpu` and `TTS_DEVICE=cpu`
+for the compact portable image, or set both to `cuda` to install the shared
+CUDA 12.6 PyTorch/cuBLAS/cuDNN stack and grant the backend GPU access. `auto` is
+useful for direct backend runs; the deployment script builds it with the CPU
+wheel to avoid adding CUDA to machines that may not have a GPU.

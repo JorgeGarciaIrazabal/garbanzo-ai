@@ -49,6 +49,8 @@ services:
       DATABASE_URL: postgresql+asyncpg://garbanzo:${POSTGRES_PASSWORD}@postgres:5432/garbanzo_ai_prod
       OLLAMA_BASE_URL: http://ollama:11434
       STT_MODE: local
+      STT_DEVICE: ${STT_DEVICE:-cpu}
+      TTS_DEVICE: ${TTS_DEVICE:-cpu}
       TEST_USER_EMAIL: ""
       TEST_USER_PASSWORD: ""
       CORS_ORIGINS: https://${NGROK_DOMAIN}

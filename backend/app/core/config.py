@@ -1,4 +1,5 @@
 from functools import lru_cache
+from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -135,6 +136,7 @@ class Settings(BaseSettings):
     kokoro_url: str = "http://localhost:8020"  # kept for fallback / external kokoro
     default_tts_voice: str = "af_heart"
     default_tts_speed: float = 1.0
+    tts_device: Literal["auto", "cpu", "cuda"] = "auto"
 
     # Kokoro native model paths (relative to backend/ or absolute)
     kokoro_model_dir: str = "data/kokoro/models/v1_0"

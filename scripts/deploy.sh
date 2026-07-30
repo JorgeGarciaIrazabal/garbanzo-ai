@@ -25,6 +25,19 @@ step() { echo ""; echo "==> $*"; }
 # --- Preflight ---------------------------------------------------------------
 [[ -f "$ENV_FILE" ]] || die "deploy/.env missing — cp deploy/.env.example deploy/.env and fill it in"
 set -a; source "$ENV_FILE"; set +a
+STT_DEVICE="${STT_DEVICE:-cpu}"
+TTS_DEVICE="${TTS_DEVICE:-cpu}"
+for device_var in STT_DEVICE TTS_DEVICE; do
+    case "${!device_var}" in
+        cpu|auto|cuda) ;;
+        *) die "$device_var must be cpu, auto, or cuda" ;;
+    esac
+done
+TORCH_VARIANT=cpu
+if [[ "$STT_DEVICE" == cuda || "$TTS_DEVICE" == cuda ]]; then
+    TORCH_VARIANT=cuda
+    COMPOSE+=(-f "$REPO/deploy/docker-compose.gpu.yml")
+fi
 for var in NGROK_AUTHTOKEN NGROK_DOMAIN POSTGRES_PASSWORD SECRET_KEY GIT_SSH_KEY_PATH GIT_USER_NAME GIT_USER_EMAIL; do
     [[ -n "${!var:-}" ]] || die "$var is empty in deploy/.env"
 done
@@ -91,6 +104,7 @@ step "Building Flutter web"
 
 step "Building backend image (garbanzo-backend:latest, :$SHA)"
 docker build --build-arg "APP_VERSION=$NEW_VERSION" \
+    --build-arg "TORCH_VARIANT=$TORCH_VARIANT" \
     -t garbanzo-backend:latest -t "garbanzo-backend:$SHA" "$WT/backend"
 
 # --- Ship ---------------------------------------------------------------------

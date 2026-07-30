@@ -7,7 +7,26 @@ import time
 import numpy as np
 import pytest
 
-from app.services.tts_service import TTSService
+from app.services.tts_service import TTSService, _select_device
+
+
+@pytest.mark.parametrize(
+    ("requested", "cuda_available", "expected"),
+    [
+        ("cpu", False, "cpu"),
+        ("cpu", True, "cpu"),
+        ("auto", False, "cpu"),
+        ("auto", True, "cuda"),
+        ("cuda", True, "cuda"),
+    ],
+)
+def test_select_device(requested: str, cuda_available: bool, expected: str):
+    assert _select_device(requested, cuda_available=cuda_available) == expected
+
+
+def test_select_device_rejects_unavailable_forced_cuda():
+    with pytest.raises(RuntimeError, match="CUDA is unavailable"):
+        _select_device("cuda", cuda_available=False)
 
 
 @pytest.mark.asyncio

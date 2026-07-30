@@ -17,6 +17,8 @@ it for procedures. This file is the agent quick reference.
 - `docker-compose.yml` — services: **postgres** (pgvector), **backend** (image
   built by `just deploy`, `127.0.0.1:8001`), **ollama** (containerized, own
   volume), **ngrok** (tunnels the static domain to `backend:8000`).
+- `docker-compose.gpu.yml` — optional backend GPU access; `just deploy` adds it
+  and builds the shared CUDA 12.6 image when either voice device is `cuda`.
 - `.env` (gitignored) — all prod secrets. `.env.example` documents the keys.
 
 ## Deploy side effects
