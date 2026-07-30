@@ -99,7 +99,10 @@ jobs:
 
   build-windows:
     needs: prepare
-    runs-on: windows-latest
+    # flutter_inappwebview_windows 0.6.0 still includes the deprecated
+    # experimental coroutine header, which MSVC 14.51 on the VS 2026 image
+    # rejects. Keep this build on VS 2022 until the plugin supports VS 2026.
+    runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
 
