@@ -28,7 +28,7 @@ dependencies = [
     # Downscaling image attachments before they reach the vision model
     "pillow>=10.0.0",
     "faster-whisper>=1.0.0",
-    "mcp>=1.0",
+    "mcp>=1.0,<2",
     "firebase-admin>=6.5.0",
     "pgvector>=0.3.0",
     "tiktoken>=0.8.0",

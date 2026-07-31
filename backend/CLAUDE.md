@@ -52,6 +52,10 @@ EXISTS`. Applied once each at startup (`db/migrations.py`), tracked in
 - Spawning opencode? Use `opencode_process.py` (setsid + `PR_SET_PDEATHSIG`,
   port picking, readiness probe) and `opencode_config.py` — shared by micro-apps
   and workflows, so the child-never-outlives-us guarantee holds in one place.
+- PEP 723 scripts such as `mcp_stdio_servers/web_search.py` get an isolated
+  `uv` environment and do not inherit `backend/uv.lock`. Keep their dependency
+  bounds aligned with the backend; the web-search server currently requires
+  the MCP 1.x `FastMCP` API.
 
 - Micro-apps worktrees must stay in sync with `main` or the panel 404s.
   `MicroappWorkspaceManager.ensure_sync` rebases a *clean* worktree onto
