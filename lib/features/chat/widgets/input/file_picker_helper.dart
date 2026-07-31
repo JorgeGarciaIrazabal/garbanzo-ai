@@ -1,5 +1,6 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
+import 'package:image/image.dart' as image_lib;
 import 'package:image_picker/image_picker.dart';
 
 import 'package:garbanzo_ai/features/chat/models/chat_attachment.dart';
@@ -21,14 +22,65 @@ class FilePickResult {
 /// files from somewhere other than the picker (e.g. drag-and-drop).
 typedef RawPickedFile = ({String name, Uint8List bytes});
 
+typedef _ImageFitInput = ({
+  String name,
+  String mimeType,
+  Uint8List bytes,
+  int limitBytes,
+});
+typedef _ImageFitOutput = ({String name, String mimeType, Uint8List bytes});
+
+const _maxImageBytes = 3 * 1024 * 1024;
+
+_ImageFitOutput? _fitImageToLimit(_ImageFitInput input) {
+  try {
+    return _fitImageToLimitUnchecked(input);
+  } catch (_) {
+    return null;
+  }
+}
+
+_ImageFitOutput? _fitImageToLimitUnchecked(_ImageFitInput input) {
+  final decoded = image_lib.decodeImage(input.bytes);
+  if (decoded == null) return null;
+
+  var outputName = input.name;
+  var outputMime = input.mimeType;
+  if (outputMime == 'image/webp') {
+    outputMime = 'image/png';
+    outputName = outputName.replaceFirst(
+      RegExp(r'\.webp$', caseSensitive: false),
+      '.png',
+    );
+  }
+
+  var scale = 0.9;
+  while (scale > 0.01) {
+    final width = (decoded.width * scale).round().clamp(1, decoded.width);
+    final height = (decoded.height * scale).round().clamp(1, decoded.height);
+    final resized = image_lib.copyResize(
+      decoded,
+      width: width,
+      height: height,
+      interpolation: image_lib.Interpolation.average,
+    );
+    final encoded = switch (outputMime) {
+      'image/jpeg' => image_lib.encodeJpg(resized, quality: 85),
+      'image/gif' => image_lib.encodeGif(resized),
+      'image/bmp' => image_lib.encodeBmp(resized),
+      _ => image_lib.encodePng(resized, level: 9),
+    };
+    if (encoded.length <= input.limitBytes) {
+      return (name: outputName, mimeType: outputMime, bytes: encoded);
+    }
+    scale *= 0.82;
+  }
+  return null;
+}
+
 /// Handles file picking, validation, and MIME type inference.
 class FilePickerHelper {
   static const _imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'];
-
-  /// Camera photos and gallery picks are downscaled/re-encoded to stay well
-  /// under the 5 MB image attachment limit.
-  static const _maxImageDimension = 2048.0;
-  static const _imageQuality = 85;
 
   /// Whether the running platform is a phone/tablet where the device camera
   /// and native photo picker make sense. On the web, [defaultTargetPlatform]
@@ -42,12 +94,7 @@ class FilePickerHelper {
   static Future<FilePickResult?> takePhoto({
     required Set<String> existingNames,
   }) async {
-    final photo = await ImagePicker().pickImage(
-      source: ImageSource.camera,
-      maxWidth: _maxImageDimension,
-      maxHeight: _maxImageDimension,
-      imageQuality: _imageQuality,
-    );
+    final photo = await ImagePicker().pickImage(source: ImageSource.camera);
     if (photo == null) return null;
 
     final now = DateTime.now();
@@ -56,7 +103,7 @@ class FilePickerHelper {
         'photo_${now.year}${pad(now.month)}${pad(now.day)}'
         '_${pad(now.hour)}${pad(now.minute)}${pad(now.second)}.jpg';
 
-    return validate(
+    return await validate(
       files: [(name: name, bytes: await photo.readAsBytes())],
       existingNames: existingNames,
     );
@@ -68,13 +115,9 @@ class FilePickerHelper {
     required Set<String> existingNames,
   }) async {
     if (isMobilePlatform) {
-      final photos = await ImagePicker().pickMultiImage(
-        maxWidth: _maxImageDimension,
-        maxHeight: _maxImageDimension,
-        imageQuality: _imageQuality,
-      );
+      final photos = await ImagePicker().pickMultiImage();
       if (photos.isEmpty) return null;
-      return validate(
+      return await validate(
         files: [
           for (final photo in photos)
             (name: photo.name, bytes: await photo.readAsBytes()),
@@ -91,7 +134,7 @@ class FilePickerHelper {
     );
     if (result == null) return null;
 
-    return validate(
+    return await validate(
       files: [
         for (final file in result.files)
           if (file.bytes != null) (name: file.name, bytes: file.bytes!),
@@ -122,7 +165,7 @@ class FilePickerHelper {
 
     if (result == null) return null;
 
-    return validate(
+    return await validate(
       files: [
         for (final file in result.files)
           if (file.bytes != null) (name: file.name, bytes: file.bytes!),
@@ -135,19 +178,20 @@ class FilePickerHelper {
   ///
   /// Single source of truth for attachment validation — shared by the file
   /// picker above and the chat page's drag-and-drop path.
-  static FilePickResult validate({
+  static Future<FilePickResult> validate({
     required Iterable<RawPickedFile> files,
     required Set<String> existingNames,
-  }) {
+    @visibleForTesting int imageLimitBytes = _maxImageBytes,
+  }) async {
     final added = <ChatAttachment>[];
     final rejected = <String>[];
     final validationErrors = <String>[];
     final seenNames = {...existingNames};
 
     for (final file in files) {
-      final bytes = file.bytes;
-      final name = file.name;
-      final mime = inferMime(name, bytes);
+      var bytes = file.bytes;
+      var name = file.name;
+      var mime = inferMime(name, bytes);
       final isImage = mime.startsWith('image/');
       final isPdf = mime == 'application/pdf';
       final isSpreadsheet =
@@ -159,15 +203,31 @@ class FilePickerHelper {
           name.toLowerCase().endsWith('.xls') ||
           name.toLowerCase().endsWith('.ods');
 
-      final maxBytes = isImage
-          ? 5 * 1024 * 1024
-          : isPdf
+      if (isImage && bytes.length > imageLimitBytes) {
+        final fitted = await compute(_fitImageToLimit, (
+          name: name,
+          mimeType: mime,
+          bytes: bytes,
+          limitBytes: imageLimitBytes,
+        ));
+        if (fitted == null) {
+          rejected.add(
+            '$name (${formatBytes(bytes.length)} - could not resize)',
+          );
+          continue;
+        }
+        name = fitted.name;
+        mime = fitted.mimeType;
+        bytes = fitted.bytes;
+      }
+
+      final maxBytes = isPdf
           ? 20 * 1024 * 1024
           : isSpreadsheet
           ? 10 * 1024 * 1024
           : 10 * 1024 * 1024;
 
-      if (bytes.length > maxBytes) {
+      if (!isImage && bytes.length > maxBytes) {
         rejected.add(
           '$name (${formatBytes(bytes.length)} - max ${formatBytes(maxBytes)})',
         );

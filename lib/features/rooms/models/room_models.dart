@@ -255,6 +255,25 @@ class Room {
 }
 
 @immutable
+class RoomAudioNote {
+  const RoomAudioNote({
+    required this.id,
+    required this.mimeType,
+    required this.durationSeconds,
+  });
+
+  final String id;
+  final String mimeType;
+  final double durationSeconds;
+
+  factory RoomAudioNote.fromJson(Map<String, dynamic> json) => RoomAudioNote(
+    id: json['id'] as String,
+    mimeType: json['mime_type'] as String? ?? 'audio/wav',
+    durationSeconds: (json['duration_seconds'] as num).toDouble(),
+  );
+}
+
+@immutable
 class RoomMessage {
   final String id;
   final String roomId;
@@ -318,5 +337,11 @@ class RoomMessage {
               : Uint8List(0),
         ),
     ];
+  }
+
+  RoomAudioNote? get audioNote {
+    final raw = meta?['audio_note'];
+    if (raw is! Map<String, dynamic>) return null;
+    return RoomAudioNote.fromJson(raw);
   }
 }

@@ -1,5 +1,4 @@
 import 'dart:async';
-
 import 'package:flutter/foundation.dart';
 
 import 'package:garbanzo_ai/core/auth_service.dart';
@@ -299,6 +298,29 @@ class RoomProvider extends ChangeNotifier {
     if (sock == null) return;
     _stopTypingSignal();
     sock.post(content, attachments: attachments);
+  }
+
+  Future<void> sendAudioNote(
+    Uint8List bytes, {
+    required String filename,
+  }) async {
+    final room = _currentRoom;
+    if (room == null) throw StateError('No room is open');
+    _stopTypingSignal();
+    try {
+      final message = await _service.postAudioNote(
+        room.id,
+        bytes,
+        filename: filename,
+      );
+      if (_currentRoom?.id != room.id) return;
+      _upsertMessage(message);
+      notifyListeners();
+    } catch (error) {
+      _error = error.toString();
+      notifyListeners();
+      rethrow;
+    }
   }
 
   // ------------------------------------------------------------ Socket events

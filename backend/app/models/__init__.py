@@ -8,7 +8,7 @@ from app.models.memory import UserMemory
 from app.models.message import Message
 from app.models.notification import Notification, NotificationPreferences
 from app.models.report import Report
-from app.models.room import Room, RoomAgent, RoomMember, RoomMessage
+from app.models.room import Room, RoomAgent, RoomAudioNote, RoomMember, RoomMessage
 from app.models.scheduled_action import ScheduledAction
 from app.models.shared_item import SharedItem
 from app.models.style import Style
@@ -38,5 +38,6 @@ __all__ = [
     "RoomMember",
     "RoomAgent",
     "RoomMessage",
+    "RoomAudioNote",
     "WorkflowRun",
 ]

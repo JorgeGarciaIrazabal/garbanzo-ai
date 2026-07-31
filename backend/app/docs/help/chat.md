@@ -33,6 +33,8 @@ and Enter (or tap) to pick a suggestion; Esc dismisses it.
 Use the paperclip (**Attach photos or files**) next to the input bar. Images
 are sent to vision-capable models; documents (PDF, text, etc.) have their
 text extracted and included with your message.
+Pictures larger than 3 MB are automatically resized before they are attached.
+Their format is preserved when possible; an oversized WebP is converted to PNG.
 
 On Android, you can also choose **Garbanzo AI** from another app's Share menu.
 Shared pictures, files, and any accompanying text are staged in the chat

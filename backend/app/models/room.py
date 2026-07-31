@@ -4,8 +4,10 @@ from typing import TYPE_CHECKING
 from sqlalchemy import (
     Boolean,
     DateTime,
+    Float,
     ForeignKey,
     Integer,
+    LargeBinary,
     Select,
     String,
     Text,
@@ -199,3 +201,28 @@ class RoomMessage(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     room: Mapped["Room"] = relationship(back_populates="messages")
+    audio_note: Mapped["RoomAudioNote | None"] = relationship(
+        back_populates="message",
+        cascade="all, delete-orphan",
+        uselist=False,
+    )
+
+
+class RoomAudioNote(Base):
+    """Raw audio retained for a playable, transcribed room message."""
+
+    __tablename__ = "room_audio_notes"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    message_id: Mapped[str] = mapped_column(
+        ForeignKey("room_messages.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    mime_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    duration_seconds: Mapped[float] = mapped_column(Float, nullable=False)
+    audio_data: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    message: Mapped["RoomMessage"] = relationship(back_populates="audio_note")

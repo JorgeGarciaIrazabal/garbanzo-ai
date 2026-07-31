@@ -12,6 +12,7 @@ import 'package:garbanzo_ai/features/chat/widgets/tool_bubble_widget.dart';
 import 'package:garbanzo_ai/features/mentions/models/mention_markdown.dart';
 import 'package:garbanzo_ai/core/widgets/user_avatar.dart';
 import 'package:garbanzo_ai/features/rooms/models/room_models.dart';
+import 'package:garbanzo_ai/features/rooms/widgets/room_audio_note_player.dart';
 import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// Rendering for a single room message.
@@ -305,6 +306,8 @@ class _RoomMessageBubbleState extends State<RoomMessageBubble> {
                         createdAt: message.createdAt,
                       ),
                       const SizedBox(height: 6),
+                      if (message.audioNote case final note?)
+                        RoomAudioNotePlayer(roomId: message.roomId, note: note),
                       if (message.attachments.isNotEmpty)
                         AttachmentDisplay(
                           attachments: message.attachments,

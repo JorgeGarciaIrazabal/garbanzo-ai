@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -63,6 +64,37 @@ Room _room() => Room(
 }
 
 void main() {
+  test('sendAudioNote upserts the HTTP response message', () async {
+    final channel = FakeRoomChannel();
+    final wired = _wire(channel);
+    final bytes = Uint8List.fromList([1, 2, 3]);
+    final posted = RoomMessage(
+      id: 'voice-1',
+      roomId: 'r1',
+      role: 'user',
+      senderUserId: 'owner@x.com',
+      content: 'hello by voice',
+      meta: const {
+        'audio_note': {
+          'id': 'note-1',
+          'mime_type': 'audio/wav',
+          'duration_seconds': 1.5,
+        },
+      },
+      createdAt: _now,
+    );
+    when(
+      () => wired.service.postAudioNote('r1', bytes, filename: 'note.wav'),
+    ).thenAnswer((_) async => posted);
+
+    await wired.provider.openRoom('r1');
+    await wired.provider.sendAudioNote(bytes, filename: 'note.wav');
+
+    expect(wired.provider.messages.single.id, 'voice-1');
+    expect(wired.provider.messages.single.audioNote?.durationSeconds, 1.5);
+    wired.provider.dispose();
+  });
+
   group('RoomProvider streaming channel', () {
     test('stream_start adds an empty placeholder and claims the live channel',
         () async {

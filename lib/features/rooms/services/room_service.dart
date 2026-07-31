@@ -1,3 +1,7 @@
+import 'dart:typed_data';
+
+import 'package:dio/dio.dart';
+
 import 'package:garbanzo_ai/core/api_client.dart';
 import 'package:garbanzo_ai/features/chat/models/thinking_level.dart';
 import 'package:garbanzo_ai/features/rooms/models/room_models.dart';
@@ -193,6 +197,35 @@ class RoomService {
     return (resp.data['items'] as List)
         .map((e) => RoomMessage.fromJson(e as Map<String, dynamic>))
         .toList();
+  }
+
+  Future<RoomMessage> postAudioNote(
+    String roomId,
+    Uint8List audioBytes, {
+    String filename = 'audio-note.wav',
+  }) async {
+    final response = await _api.postMultipart(
+      '/api/v1/rooms/$roomId/audio-notes',
+      data: FormData.fromMap({
+        'file': MultipartFile.fromBytes(audioBytes, filename: filename),
+      }),
+    );
+    if (response.statusCode != 201) {
+      final detail = response.data is Map ? response.data['detail'] : null;
+      throw Exception(detail ?? 'Failed to post audio note');
+    }
+    final data = response.data as Map<String, dynamic>;
+    return RoomMessage.fromJson(data['message'] as Map<String, dynamic>);
+  }
+
+  Future<Uint8List> loadAudioNote(String roomId, String noteId) async {
+    final response = await _api.getBytes(
+      '/api/v1/rooms/$roomId/audio-notes/$noteId',
+    );
+    if (response.statusCode != 200 || response.data == null) {
+      throw Exception('Failed to load audio note: ${response.statusCode}');
+    }
+    return Uint8List.fromList(response.data!);
   }
 
   Future<String> exportMarkdown(String roomId) async {

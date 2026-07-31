@@ -259,18 +259,19 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
 
   // -- File picking ----------------------------------------------------------
 
-  void _consumeSharedContent() {
+  Future<void> _consumeSharedContent() async {
     if (!mounted) return;
     final batches = SharedContentService.instance.takePending();
     if (batches.isEmpty) return;
 
-    final result = FilePickerHelper.validate(
+    final result = await FilePickerHelper.validate(
       files: [
         for (final batch in batches)
           for (final file in batch.files) (name: file.name, bytes: file.bytes),
       ],
       existingNames: _attachments.map((attachment) => attachment.name).toSet(),
     );
+    if (!mounted) return;
 
     final sharedText = batches
         .map((batch) => batch.text?.trim())

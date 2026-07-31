@@ -3080,6 +3080,34 @@
       }
     }
   },
+  "labelRecordAudioNote": "Record audio note",
+  "@labelRecordAudioNote": {
+    "description": "Room microphone tooltip for starting an audio note."
+  },
+  "labelStopRecording": "Stop recording",
+  "@labelStopRecording": {
+    "description": "Room microphone tooltip while an audio note is recording."
+  },
+  "labelAudioNote": "Audio note",
+  "@labelAudioNote": {
+    "description": "Accessible label for a playable room audio note."
+  },
+  "labelPlay": "Play",
+  "@labelPlay": {
+    "description": "Audio playback action."
+  },
+  "labelPause": "Pause",
+  "@labelPause": {
+    "description": "Audio playback action."
+  },
+  "messageAudioNoteSendFailed": "Could not send the audio note",
+  "@messageAudioNoteSendFailed": {
+    "description": "Error shown when recording, transcription, or upload fails."
+  },
+  "messageAudioNoteLoadFailed": "Could not load the audio note",
+  "@messageAudioNoteLoadFailed": {
+    "description": "Error shown when raw room audio cannot be loaded."
+  },
   "messageFailedToDeleteRoom": "Failed to delete room: {error}",
   "@messageFailedToDeleteRoom": {
     "description": "Error snackbar after deleting room.",

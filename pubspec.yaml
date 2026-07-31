@@ -40,6 +40,7 @@ dependencies:
   file_picker: ^11.0.2
   share_plus: ^12.0.2
   image_picker: ^1.2.0
+  image: ^4.8.0
   # OS-level drag-and-drop of files and folders onto the chat (desktop).
   desktop_drop: ^0.7.1
   # Path normalization for the client-side folder-read sandbox guard.

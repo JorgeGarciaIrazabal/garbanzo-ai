@@ -8,6 +8,7 @@ from app.core.config import Settings, get_settings
 from app.core.rate_limit import rate_limit
 from app.core.security import get_current_user
 from app.schemas.audio import TranscriptionResponse
+from app.services.stt_service import transcribe_audio_bytes
 
 router = APIRouter()
 
@@ -35,21 +36,12 @@ async def transcribe_audio(
     audio_bytes = await file.read()
     if not audio_bytes:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Empty audio file")
-    effective_language = language or settings.stt_language
     try:
-        if settings.stt_mode == "remote":
-            from app.services.stt_service import RemoteSTTService
-
-            service = RemoteSTTService(base_url=settings.faster_whisper_url)
-            return await service.transcribe(
-                audio_bytes, file.filename or "audio.wav", language=effective_language
-            )
-
-        from app.services.stt_service import STTService
-
-        service = await STTService.get_instance()
-        return await service.transcribe(
-            audio_bytes, file.filename or "audio.wav", language=effective_language
+        return await transcribe_audio_bytes(
+            audio_bytes,
+            file.filename or "audio.wav",
+            language=language or settings.stt_language,
+            settings=settings,
         )
     except Exception as e:
         raise HTTPException(

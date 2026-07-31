@@ -38,6 +38,14 @@ and Enter, or by tapping. Mentions show highlighted in messages. Agents see
 other participants' messages labeled with their names and reply as
 themselves.
 
+## How do I send an audio note?
+Press the microphone beside an empty room composer to start recording, then
+press Stop to send. Recordings stop automatically after two minutes. Garbanzo
+transcribes the note, shows the transcript under a play/seek control, and uses
+that transcript when room agents decide how to respond. Tap the speed control
+to cycle playback through 1x, 1.5x, and 2x. Audio notes are only available in
+rooms; the microphone in a regular chat remains dictation.
+
 ## How do I mute a room?
 From the room's menu choose **Mute** and pick a duration (or forever).
 Messages still arrive and count as unread — you just get no notifications.

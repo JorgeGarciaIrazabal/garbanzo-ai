@@ -315,6 +315,13 @@ class ApiClient {
     );
   }
 
+  Future<Response<List<int>>> getBytes(String path) {
+    return _dio.get<List<int>>(
+      path,
+      options: Options(responseType: ResponseType.bytes),
+    );
+  }
+
   Future<Response> post(String path, {Object? data}) {
     return _dio.post(path, data: data);
   }

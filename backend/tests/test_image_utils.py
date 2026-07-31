@@ -54,3 +54,30 @@ async def test_invalid_data_returns_original():
     garbage = base64.b64encode(b"not an image").decode("ascii")
     result = await downscale_image_b64(garbage, max_dim=1024)
     assert result == garbage
+
+
+@pytest.mark.asyncio
+async def test_png_attachment_preserves_format_and_alpha():
+    original = _make_image_b64(2000, 1000, mode="RGBA")
+    result = await downscale_image_b64(original, max_dim=1024, mime_type="image/png")
+
+    img = _decode(result)
+    assert img.format == "PNG"
+    assert img.mode == "RGBA"
+    assert img.size == (1024, 512)
+
+
+@pytest.mark.asyncio
+async def test_animated_gif_preserves_frames():
+    first = Image.new("RGB", (1600, 800), (255, 0, 0))
+    second = Image.new("RGB", (1600, 800), (0, 0, 255))
+    buf = io.BytesIO()
+    first.save(buf, format="GIF", save_all=True, append_images=[second], duration=[80, 120])
+    original = base64.b64encode(buf.getvalue()).decode("ascii")
+
+    result = await downscale_image_b64(original, max_dim=800, mime_type="image/gif")
+
+    img = _decode(result)
+    assert img.format == "GIF"
+    assert img.n_frames == 2
+    assert img.size == (800, 400)

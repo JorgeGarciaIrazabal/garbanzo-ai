@@ -2230,6 +2230,27 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get labelRecordAudioNote => 'Record audio note';
+
+  @override
+  String get labelStopRecording => 'Stop recording';
+
+  @override
+  String get labelAudioNote => 'Audio note';
+
+  @override
+  String get labelPlay => 'Play';
+
+  @override
+  String get labelPause => 'Pause';
+
+  @override
+  String get messageAudioNoteSendFailed => 'Could not send the audio note';
+
+  @override
+  String get messageAudioNoteLoadFailed => 'Could not load the audio note';
+
+  @override
   String messageFailedToDeleteRoom(String error) {
     return 'Failed to delete room: $error';
   }

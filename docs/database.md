@@ -61,6 +61,10 @@ half-migrated schema.
 - `UserMemory` stores extracted/manual user memories with `content`, `source_conversation_id`, `is_active`.
 - `KnowledgeDocument` / `KnowledgeChunk` store uploaded documents and vector embeddings for RAG.
 - `Room`, `RoomMember`, `RoomAgent`, `RoomMessage` support multi-person/agent chat rooms.
+- `RoomAudioNote` stores the raw WAV bytes, MIME type, and duration for one
+  `RoomMessage` (unique FK, cascade delete). The message content is the visible
+  STT transcript used by room agents; `RoomMessage.meta.audio_note` carries only
+  the note id/MIME/duration so message lists never embed multi-megabyte audio.
 - `Friendship` (Idea 5) — one row per relationship, directional at request
   time (`requester_email` → `addressee_email`), status
   `pending`/`accepted`/`blocked` (plain VARCHAR, validated at the API

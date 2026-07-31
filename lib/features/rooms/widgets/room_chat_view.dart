@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'package:garbanzo_ai/core/auth_service.dart';
+import 'package:garbanzo_ai/core/log.dart';
 import 'package:garbanzo_ai/core/mute_util.dart';
 import 'package:garbanzo_ai/core/reading_column.dart';
 import 'package:garbanzo_ai/core/smart_scroll_controller.dart';
@@ -17,6 +18,8 @@ import 'package:garbanzo_ai/features/chat/models/thinking_level.dart';
 import 'package:garbanzo_ai/features/chat/widgets/input/attach_menu_button.dart';
 import 'package:garbanzo_ai/features/chat/widgets/input/attachment_preview.dart';
 import 'package:garbanzo_ai/features/chat/widgets/input/message_composer.dart';
+import 'package:garbanzo_ai/features/chat/widgets/input/pulsing_dot.dart';
+import 'package:garbanzo_ai/features/chat/widgets/input/voice_recording_helper.dart';
 import 'package:garbanzo_ai/features/friends/providers/friends_provider.dart';
 import 'package:garbanzo_ai/features/friends/widgets/friend_picker_field.dart';
 import 'package:garbanzo_ai/features/mentions/models/mention_candidate.dart';
@@ -63,6 +66,11 @@ class _RoomChatViewState extends State<RoomChatView>
   final List<ChatAttachment> _attachments = [];
   final _composerController = MentionTextController(triggers: {'@'});
   final _composerFocus = FocusNode();
+  final VoiceRecordingHelper _voiceHelper = VoiceRecordingHelper();
+  bool _isRecording = false;
+  bool _isPostingAudio = false;
+  int _recordingDuration = 0;
+  Timer? _recordingTimer;
   RoomProvider? _providerRef;
 
   /// Monotonic mount counter: a disposed view must never close a socket a
@@ -123,6 +131,8 @@ class _RoomChatViewState extends State<RoomChatView>
     _providerRef?.streamingMessage.removeListener(_onStreamingUpdate);
     _composerController.dispose();
     _composerFocus.dispose();
+    _recordingTimer?.cancel();
+    _voiceHelper.dispose();
     _scroll.dispose();
     final provider = _providerRef;
     final roomId = widget.roomId;
@@ -140,6 +150,71 @@ class _RoomChatViewState extends State<RoomChatView>
   void _onStreamingUpdate() {
     if (mounted) _scroll.followStreaming();
   }
+
+  Future<void> _toggleAudioNote() async {
+    if (_isRecording) {
+      await _stopAudioNote();
+    } else {
+      await _startAudioNote();
+    }
+  }
+
+  Future<void> _startAudioNote() async {
+    try {
+      await _voiceHelper.startRecording();
+    } on VoiceRecordingException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.message)));
+      }
+      return;
+    }
+    if (!mounted) return;
+    setState(() {
+      _isRecording = true;
+      _recordingDuration = 0;
+    });
+    _recordingTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted || !_isRecording) return;
+      setState(() => _recordingDuration++);
+      if (_recordingDuration >= 120) unawaited(_stopAudioNote());
+    });
+  }
+
+  Future<void> _stopAudioNote() async {
+    if (!_isRecording) return;
+    _recordingTimer?.cancel();
+    _recordingTimer = null;
+    setState(() {
+      _isRecording = false;
+      _isPostingAudio = true;
+    });
+    try {
+      final recording = await _voiceHelper.stopRecording();
+      if (recording == null || !mounted) return;
+      await context.read<RoomProvider>().sendAudioNote(
+        recording.bytes,
+        filename: recording.filename,
+      );
+    } catch (error) {
+      logDebug('Room audio note failed: $error');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(context)!.messageAudioNoteSendFailed,
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isPostingAudio = false);
+    }
+  }
+
+  String _formatRecordingDuration(int seconds) =>
+      '${seconds ~/ 60}:${(seconds % 60).toString().padLeft(2, '0')}';
 
   /// `@` candidates for the composer: `@all`, then members and agents of
   /// the open room. Evaluated on each keystroke so it tracks live room
@@ -252,12 +327,53 @@ class _RoomChatViewState extends State<RoomChatView>
                         ),
                   leading: AttachMenuButton(
                     buttonKey: const ValueKey('room_attach_button'),
-                    enabled: room != null,
+                    enabled: room != null && !_isRecording && !_isPostingAudio,
                     existingNames: () =>
                         _attachments.map((a) => a.name).toSet(),
                     onAdded: (added) =>
                         setState(() => _attachments.addAll(added)),
                   ),
+                  overlay: !_isRecording
+                      ? null
+                      : Container(
+                          decoration: BoxDecoration(
+                            color: colorScheme.errorContainer.withValues(
+                              alpha: 0.9,
+                            ),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              PulsingDot(color: colorScheme.error),
+                              const SizedBox(width: 6),
+                              Text(
+                                AppLocalizations.of(context)!.messageRecording(
+                                  _formatRecordingDuration(_recordingDuration),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                  idleTrailingBuilder: (_) => _isPostingAudio
+                      ? const SizedBox.square(
+                          dimension: 40,
+                          child: Padding(
+                            padding: EdgeInsets.all(8),
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        )
+                      : IconButton(
+                          key: const ValueKey('room_audio_note_button'),
+                          onPressed: room == null ? null : _toggleAudioNote,
+                          tooltip: _isRecording
+                              ? AppLocalizations.of(context)!.labelStopRecording
+                              : AppLocalizations.of(
+                                  context,
+                                )!.labelRecordAudioNote,
+                          icon: Icon(_isRecording ? Icons.stop : Icons.mic),
+                          color: _isRecording ? colorScheme.error : null,
+                        ),
                 ),
               ),
             ],

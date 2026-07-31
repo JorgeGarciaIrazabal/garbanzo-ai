@@ -4107,6 +4107,48 @@ abstract class AppLocalizations {
   /// **'Recording {duration}'**
   String messageRecording(String duration);
 
+  /// Room microphone tooltip for starting an audio note.
+  ///
+  /// In en, this message translates to:
+  /// **'Record audio note'**
+  String get labelRecordAudioNote;
+
+  /// Room microphone tooltip while an audio note is recording.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop recording'**
+  String get labelStopRecording;
+
+  /// Accessible label for a playable room audio note.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio note'**
+  String get labelAudioNote;
+
+  /// Audio playback action.
+  ///
+  /// In en, this message translates to:
+  /// **'Play'**
+  String get labelPlay;
+
+  /// Audio playback action.
+  ///
+  /// In en, this message translates to:
+  /// **'Pause'**
+  String get labelPause;
+
+  /// Error shown when recording, transcription, or upload fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not send the audio note'**
+  String get messageAudioNoteSendFailed;
+
+  /// Error shown when raw room audio cannot be loaded.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load the audio note'**
+  String get messageAudioNoteLoadFailed;
+
   /// Error snackbar after deleting room.
   ///
   /// In en, this message translates to:

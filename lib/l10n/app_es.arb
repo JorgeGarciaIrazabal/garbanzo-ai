@@ -1795,6 +1795,34 @@
       }
     }
   },
+  "labelRecordAudioNote": "Grabar nota de audio",
+  "@labelRecordAudioNote": {
+    "description": "Room microphone tooltip for starting an audio note."
+  },
+  "labelStopRecording": "Detener grabación",
+  "@labelStopRecording": {
+    "description": "Room microphone tooltip while an audio note is recording."
+  },
+  "labelAudioNote": "Nota de audio",
+  "@labelAudioNote": {
+    "description": "Accessible label for a playable room audio note."
+  },
+  "labelPlay": "Reproducir",
+  "@labelPlay": {
+    "description": "Audio playback action."
+  },
+  "labelPause": "Pausar",
+  "@labelPause": {
+    "description": "Audio playback action."
+  },
+  "messageAudioNoteSendFailed": "No se pudo enviar la nota de audio",
+  "@messageAudioNoteSendFailed": {
+    "description": "Error shown when recording, transcription, or upload fails."
+  },
+  "messageAudioNoteLoadFailed": "No se pudo cargar la nota de audio",
+  "@messageAudioNoteLoadFailed": {
+    "description": "Error shown when raw room audio cannot be loaded."
+  },
   "messageFailedToDeleteRoom": "No se pudo eliminar la sala: {error}",
   "@messageFailedToDeleteRoom": {
     "description": "Error snackbar after deleting room.",

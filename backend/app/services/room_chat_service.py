@@ -28,7 +28,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.config import get_settings
-from app.models.room import Room, RoomAgent, RoomMessage
+from app.models.room import Room, RoomAgent, RoomAudioNote, RoomMessage
 from app.schemas.chat import AttachmentIn, ChatOptions
 from app.schemas.room import (
     RoomChunkEvent,
@@ -62,6 +62,8 @@ from app.services.room_connection_manager import room_manager
 MAX_TOOL_ITERATIONS = 5
 
 logger = logging.getLogger(__name__)
+
+_detached_room_turns: set[asyncio.Task[None]] = set()
 
 
 _MENTION_PATTERN = re.compile(r"@([A-Za-z0-9_\-]+|all)", re.IGNORECASE)
@@ -261,7 +263,10 @@ class RoomChatService:
             for att in attachments:
                 entry = {"name": att.name, "mime_type": att.mime_type, "type": att.type}
                 if att.type == "image" and att.data:
-                    entry["data"] = await downscale_image_b64(att.data)
+                    entry["data"] = await downscale_image_b64(
+                        att.data,
+                        mime_type=att.mime_type,
+                    )
                 elif att.type == "document" and att.data:
                     extracted_text = await extract_attachment_text(att)
                     doc_texts.append(f"[Attached file: {att.name}]\n{extracted_text}")
@@ -300,6 +305,60 @@ class RoomChatService:
             # agent-side failure must not surface as "Failed to post message".
             logger.exception("Agent turns failed after user post (room=%s)", room_id)
         return user_msg
+
+    async def create_audio_note_post(
+        self,
+        room_id: str,
+        user_id: str,
+        transcript: str,
+        *,
+        audio_bytes: bytes,
+        duration_seconds: float,
+        mime_type: str = "audio/wav",
+    ) -> RoomMessage:
+        """Persist and broadcast a playable room note without running agents."""
+        room = await self._load_room(room_id)
+        if room is None:
+            raise ValueError("Room not found")
+
+        message_id = str(uuid.uuid4())
+        note_id = str(uuid.uuid4())
+        message = RoomMessage(
+            id=message_id,
+            room_id=room_id,
+            role="user",
+            content=transcript,
+            sender_user_id=user_id,
+            meta={
+                "audio_note": {
+                    "id": note_id,
+                    "mime_type": mime_type,
+                    "duration_seconds": duration_seconds,
+                }
+            },
+        )
+        self.db.add(message)
+        self.db.add(
+            RoomAudioNote(
+                id=note_id,
+                message_id=message_id,
+                mime_type=mime_type,
+                duration_seconds=duration_seconds,
+                audio_data=audio_bytes,
+            )
+        )
+        await self.db.commit()
+        await self.db.refresh(message)
+
+        await room_manager.broadcast(room_id, self._message_event(message))
+        await self._notify_offline_members(
+            room,
+            sender_label=user_id,
+            body="🎤 Audio note",
+            message_id=message.id,
+            exclude_user_ids={user_id},
+        )
+        return message
 
     # -------------------------------------------------------------- selection
 
@@ -932,3 +991,28 @@ class RoomChatService:
                     )
             except Exception:
                 logger.exception("Failed to FCM-notify offline member %s", target)
+
+
+def schedule_room_agent_turns(room_id: str, triggering_content: str) -> None:
+    """Continue an HTTP-originated room turn after its response is detached."""
+
+    async def run() -> None:
+        from app.db import session as db_session
+
+        try:
+            async with db_session.async_session_maker() as db:
+                service = RoomChatService(db)
+                room = await service._load_room(room_id)
+                if room is None:
+                    return
+                await service._run_agent_turns(
+                    _TurnContext(room=room, depth=0),
+                    triggering_content=triggering_content,
+                    triggering_agent_id=None,
+                )
+        except Exception:
+            logger.exception("Detached agent turns failed after audio note (room=%s)", room_id)
+
+    task = asyncio.create_task(run())
+    _detached_room_turns.add(task)
+    task.add_done_callback(_detached_room_turns.discard)

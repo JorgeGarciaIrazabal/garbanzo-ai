@@ -271,6 +271,12 @@ class RoomMessageOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class RoomAudioNotePostResponse(BaseModel):
+    """The persisted room message created from an uploaded recording."""
+
+    message: RoomMessageOut
+
+
 class RoomMessageList(BaseModel):
     items: list[RoomMessageOut]
     total: int

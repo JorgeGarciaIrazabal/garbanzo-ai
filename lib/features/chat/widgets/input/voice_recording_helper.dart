@@ -16,6 +16,13 @@ class VoiceRecordingResult {
   final String? language;
 }
 
+class RecordedAudio {
+  const RecordedAudio({required this.bytes, required this.filename});
+
+  final Uint8List bytes;
+  final String filename;
+}
+
 /// Manages voice recording and transcription, keeping platform-specific
 /// logic (ALSA, PulseAudio, mobile recorder) out of the input widget.
 class VoiceRecordingHelper {
@@ -42,6 +49,24 @@ class VoiceRecordingHelper {
   /// Returns the transcription result, or `null` if no audio was captured.
   /// Throws a [VoiceRecordingException] on failure.
   Future<VoiceRecordingResult?> stopAndTranscribe() async {
+    final recording = await stopRecording();
+    if (recording == null) return null;
+    final result = await AudioService.instance.transcribeAudio(
+      recording.bytes,
+      recording.filename,
+    );
+    debugPrint(
+      'STT: transcript="${result.text}" (${result.text.length} chars, '
+      'lang=${result.language})',
+    );
+    return VoiceRecordingResult(
+      transcript: result.text,
+      language: result.language,
+    );
+  }
+
+  /// Stop recording and return the exact WAV bytes without transcribing them.
+  Future<RecordedAudio?> stopRecording() async {
     String? path;
 
     if (_arecordProcess != null) {
@@ -77,18 +102,7 @@ class VoiceRecordingHelper {
     }
 
     try {
-      final result = await AudioService.instance.transcribeAudio(
-        audioBytes,
-        filename,
-      );
-      debugPrint(
-        'STT: transcript="${result.text}" (${result.text.length} chars, '
-        'lang=${result.language})',
-      );
-      return VoiceRecordingResult(
-        transcript: result.text,
-        language: result.language,
-      );
+      return RecordedAudio(bytes: audioBytes, filename: filename);
     } finally {
       // Clean up temp file
       try {

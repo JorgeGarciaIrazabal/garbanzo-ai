@@ -10,10 +10,28 @@ import logging
 
 import numpy as np
 
-from app.core.config import get_settings
+from app.core.config import Settings, get_settings
 from app.schemas.audio import TranscriptionResponse
 
 logger = logging.getLogger(__name__)
+
+
+async def transcribe_audio_bytes(
+    audio_bytes: bytes,
+    filename: str,
+    *,
+    language: str | None = None,
+    settings: Settings | None = None,
+) -> TranscriptionResponse:
+    """Transcribe bytes through the configured local or remote STT provider."""
+    settings = settings or get_settings()
+    effective_language = language or settings.stt_language
+    if settings.stt_mode == "remote":
+        service = RemoteSTTService(base_url=settings.faster_whisper_url)
+        return await service.transcribe(audio_bytes, filename, language=effective_language)
+
+    service = await STTService.get_instance()
+    return await service.transcribe(audio_bytes, filename, language=effective_language)
 
 
 class STTService:

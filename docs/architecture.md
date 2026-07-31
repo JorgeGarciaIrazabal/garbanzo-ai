@@ -95,7 +95,7 @@ services/      chat_service.py (turn orchestration + tool loop)
                port picking, readiness probe — used by both micro-apps and
                delegated workflows)
                fcm_service.py, device_service.py, notification_service.py
-               image_utils.py (image attachment resize/encoding)
+               image_utils.py (format-preserving image attachment resize/encoding)
 db/            base.py, session.py (AsyncSession, init_db), migrations.py
 jobs/          extract_memories_job.py (daily at 2 AM; dedicated
                MEMORY_EXTRACTION_MODEL, glm-5.2:cloud by default)
@@ -246,7 +246,8 @@ features/rooms/
   services/          room_service.dart, room_socket_service.dart (WebSocket)
   models/            RoomModels
   widgets/           RoomsSidebar, RoomsListView, CreateRoomDialog,
-                     AddAgentDialog, RoomComposeBar, RoomMessageBubble
+                     AddAgentDialog, RoomComposeBar, RoomMessageBubble,
+                     RoomAudioNotePlayer
 features/admin/
   pages/             AdminPage
   providers/         AdminProvider
@@ -359,6 +360,19 @@ links while manual reports remain unchanged.
 2. Messages are broadcast as JSON: `{ "id", "sender_user_id", "sender_agent_id", "content", "created_at", "type" }`
 3. Agent responses stream over the same socket with `type="chunk"`; terminal messages have `role="assistant"`
 4. REST fallback at `POST /rooms/{id}/chat` exists for smoke-testing but returns non-streaming JSON
+
+Room audio notes use multipart HTTP rather than WebSocket base64. The backend
+validates a 16 kHz mono WAV (maximum two minutes), transcribes it, stores the
+raw bytes in `RoomAudioNote`, and broadcasts a normal `RoomMessage` whose
+content is the transcript and whose metadata holds the lightweight playback
+descriptor. Agent turns continue in a detached session after the upload
+response. Clients fetch raw audio lazily through the member-protected download
+endpoint when Play is pressed.
+
+All frontend image entry paths share one asynchronous 3 MiB fitting pipeline.
+JPEG/PNG/BMP/GIF retain their formats (including PNG alpha and GIF frames);
+oversized WebP becomes PNG. Backend vision resizing also preserves the stored
+format instead of silently converting attachments to JPEG.
 
 ### Room notification muting
 

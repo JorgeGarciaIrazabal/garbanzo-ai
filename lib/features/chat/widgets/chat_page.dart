@@ -501,7 +501,7 @@ class _ChatPageContentState extends State<_ChatPageContent>
       rawFiles.add((name: file.path.split('/').last, bytes: bytes));
     }
 
-    final result = FilePickerHelper.validate(
+    final result = await FilePickerHelper.validate(
       files: rawFiles,
       existingNames: {...?chatProvider.pendingAttachments?.map((a) => a.name)},
     );

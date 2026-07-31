@@ -49,6 +49,7 @@ from app.models.report import Report  # noqa: F401 — register model
 from app.models.room import (  # noqa: F401 — register models
     Room,
     RoomAgent,
+    RoomAudioNote,
     RoomMember,
     RoomMessage,
 )

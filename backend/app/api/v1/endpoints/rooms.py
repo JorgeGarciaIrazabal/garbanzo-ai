@@ -2,20 +2,26 @@
 
 from __future__ import annotations
 
+import io
 import logging
+import wave
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-from fastapi.responses import PlainTextResponse
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi.responses import PlainTextResponse, Response
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import Settings, get_settings
 from app.core.security import get_current_user
 from app.db.session import get_db
+from app.models.room import RoomAudioNote, RoomMessage
 from app.schemas.mute import MuteUpdate
 from app.schemas.room import (
     RoomAgentCreate,
     RoomAgentOut,
     RoomAgentUpdate,
+    RoomAudioNotePostResponse,
     RoomChatPost,
     RoomCreate,
     RoomDetailOut,
@@ -38,6 +44,9 @@ from app.services.room_service import (
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
+MAX_ROOM_AUDIO_NOTE_SECONDS = 120.0
+MAX_ROOM_AUDIO_NOTE_BYTES = 4 * 1024 * 1024
+
 
 def _service(db: AsyncSession = Depends(get_db)) -> RoomService:
     return RoomService(db)
@@ -55,6 +64,21 @@ async def _require_member(service: RoomService, room_id: str, user_id: str):
     if not any(m.user_id == user_id for m in room.members):
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Not a room member")
     return room
+
+
+def _wav_duration_seconds(audio_bytes: bytes) -> float:
+    try:
+        with wave.open(io.BytesIO(audio_bytes), "rb") as recording:
+            if (
+                recording.getnchannels() != 1
+                or recording.getframerate() != 16_000
+                or recording.getsampwidth() != 2
+            ):
+                raise ValueError("Audio notes must be 16 kHz mono 16-bit WAV")
+            frames = recording.getnframes()
+            return frames / recording.getframerate()
+    except (EOFError, wave.Error) as error:
+        raise ValueError("Invalid WAV recording") from error
 
 
 # ---------------------------------------------------------------------- Rooms
@@ -433,6 +457,96 @@ async def post_room_message(
     return {"posted_message_id": posted.id}
 
 
+@router.post(
+    "/{room_id}/audio-notes",
+    response_model=RoomAudioNotePostResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Post a transcribed, playable audio note to a room",
+)
+async def post_room_audio_note(
+    room_id: str,
+    file: Annotated[UploadFile, File(description="16 kHz mono WAV, maximum 2 minutes")],
+    current_user: Annotated[dict[str, Any], Depends(get_current_user)],
+    service: Annotated[RoomService, Depends(_service)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> RoomAudioNotePostResponse:
+    await _require_member(service, room_id, current_user["email"])
+    audio_bytes = await file.read(MAX_ROOM_AUDIO_NOTE_BYTES + 1)
+    if not audio_bytes:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Empty audio recording")
+    if len(audio_bytes) > MAX_ROOM_AUDIO_NOTE_BYTES:
+        raise HTTPException(
+            status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="Audio note is too large"
+        )
+
+    try:
+        duration = _wav_duration_seconds(audio_bytes)
+    except ValueError as error:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error)) from error
+    if duration <= 0 or duration > MAX_ROOM_AUDIO_NOTE_SECONDS:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Audio notes must be between 0 and 120 seconds",
+        )
+
+    from app.services.room_chat_service import RoomChatService, schedule_room_agent_turns
+    from app.services.stt_service import transcribe_audio_bytes
+
+    try:
+        transcription = await transcribe_audio_bytes(
+            audio_bytes,
+            file.filename or "audio-note.wav",
+            settings=settings,
+        )
+    except Exception as error:
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY,
+            detail=f"STT service unavailable: {error}",
+        ) from error
+    transcript = transcription.text.strip()
+    if not transcript:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="No speech detected")
+
+    message = await RoomChatService(db).create_audio_note_post(
+        room_id,
+        current_user["email"],
+        transcript,
+        audio_bytes=audio_bytes,
+        duration_seconds=duration,
+    )
+    schedule_room_agent_turns(room_id, transcript)
+    return RoomAudioNotePostResponse(message=RoomMessageOut.model_validate(message))
+
+
+@router.get(
+    "/{room_id}/audio-notes/{note_id}",
+    summary="Download a room audio note",
+)
+async def get_room_audio_note(
+    room_id: str,
+    note_id: str,
+    current_user: Annotated[dict[str, Any], Depends(get_current_user)],
+    service: Annotated[RoomService, Depends(_service)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> Response:
+    await _require_member(service, room_id, current_user["email"])
+    note = (
+        await db.execute(
+            select(RoomAudioNote)
+            .join(RoomMessage, RoomMessage.id == RoomAudioNote.message_id)
+            .where(RoomAudioNote.id == note_id, RoomMessage.room_id == room_id)
+        )
+    ).scalar_one_or_none()
+    if note is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Audio note not found")
+    return Response(
+        content=note.audio_data,
+        media_type=note.mime_type,
+        headers={"Cache-Control": "private, max-age=3600"},
+    )
+
+
 # -------------------------------------------------------------------- Export
 
 
@@ -467,6 +581,11 @@ async def export_room(
         ts = m.created_at.isoformat()
         lines.append(f"**{author}** · {ts}")
         lines.append("")
+        audio_note = (m.meta or {}).get("audio_note")
+        if audio_note:
+            duration = round(float(audio_note.get("duration_seconds", 0)))
+            lines.append(f"🎤 Audio note ({duration // 60}:{duration % 60:02d})")
+            lines.append("")
         lines.append(m.content)
         lines.append("")
         lines.append("---")

@@ -261,7 +261,10 @@ class ChatService:
             for att in attachments:
                 entry = {"name": att.name, "mime_type": att.mime_type, "type": att.type}
                 if att.type == "image" and att.data:
-                    entry["data"] = await downscale_image_b64(att.data)
+                    entry["data"] = await downscale_image_b64(
+                        att.data,
+                        mime_type=att.mime_type,
+                    )
                 elif att.type == "document" and att.data:
                     extracted_text = await extract_attachment_text(att)
                     doc_texts.append(f"[Attached file: {att.name}]\n{extracted_text}")
