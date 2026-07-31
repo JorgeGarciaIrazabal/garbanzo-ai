@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:garbanzo_ai/core/api_client.dart';
+import 'package:garbanzo_ai/core/api_error.dart';
 
 /// A TTS voice available from the backend.
 class VoiceOption {
@@ -55,7 +56,11 @@ class AudioService {
       );
     }
 
-    throw Exception('Transcription failed: ${response.statusCode}');
+    throw ApiResponseException(
+      statusCode: response.statusCode ?? 0,
+      operation: 'Transcription failed',
+      detail: apiErrorDetail(response.data),
+    );
   }
 
   /// Synthesize text to speech audio bytes (non-streaming).
@@ -87,7 +92,11 @@ class AudioService {
       return Uint8List.fromList(response.data!);
     }
 
-    throw Exception('Speech synthesis failed: ${response.statusCode}');
+    throw ApiResponseException(
+      statusCode: response.statusCode ?? 0,
+      operation: 'Speech synthesis failed',
+      detail: apiErrorDetail(response.data),
+    );
   }
 
   /// Fetch the list of available TTS voices from the backend.

@@ -20,10 +20,7 @@ class _TestProvider extends ChangeNotifier with GuardedStateMixin {
     addListener(() => notifyCount++);
   }
 
-  Future<int?> run(
-    Future<int> Function() fn, {
-    bool trackLoading = true,
-  }) {
+  Future<int?> run(Future<int> Function() fn, {bool trackLoading = true}) {
     return runGuarded('Failed to do the thing', fn, trackLoading: trackLoading);
   }
 }
@@ -57,10 +54,12 @@ void main() {
 
     test('unknown DioException wrapping a socket/DNS error → unreachable', () {
       expect(
-        describeFailure(_dio(
-          DioExceptionType.unknown,
-          message: 'SocketException: Failed host lookup',
-        )),
+        describeFailure(
+          _dio(
+            DioExceptionType.unknown,
+            message: 'SocketException: Failed host lookup',
+          ),
+        ),
         "Can't reach the server. Check your connection.",
       );
     });
@@ -95,6 +94,17 @@ void main() {
       expect(
         describeFailure(Exception('API Error (500): boom')),
         'Server error — please try again.',
+      );
+    });
+
+    test('500 with an action label keeps the message contextual', () {
+      expect(
+        describeFailure(
+          Exception('API Error (502): Library libcublas.so.12 is missing'),
+          label: 'Could not transcribe',
+          contextualServerError: true,
+        ),
+        'Could not transcribe — please try again.',
       );
     });
 

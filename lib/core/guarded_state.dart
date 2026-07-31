@@ -30,6 +30,7 @@ String describeFailure(
   Object error, {
   String? label,
   String unauthorizedMessage = kSessionExpiredMessage,
+  bool contextualServerError = false,
 }) {
   // Transport-level failures (no HTTP response reached us).
   if (error is DioException && _isTransportFailure(error)) {
@@ -40,7 +41,11 @@ String describeFailure(
   if (status != null) {
     if (status == 401) return unauthorizedMessage;
     if (status == 403) return "You don't have permission to do that.";
-    if (status >= 500) return 'Server error — please try again.';
+    if (status >= 500) {
+      return contextualServerError && label != null
+          ? '$label — please try again.'
+          : 'Server error — please try again.';
+    }
     // Other client errors (400/404/409/422…): prefer a concise server-provided
     // reason if there is one, otherwise fall back to the label.
     final detail = _serverDetail(error);

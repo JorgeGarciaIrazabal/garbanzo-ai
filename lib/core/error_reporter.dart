@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import 'package:garbanzo_ai/core/api_client.dart';
+import 'package:garbanzo_ai/core/api_error.dart';
 import 'package:garbanzo_ai/core/platform_info.dart';
 
 typedef ErrorReportSubmitter =
@@ -139,6 +140,13 @@ class ErrorReporter {
   }
 
   String _title(Object error) {
+    if (error is DioException) {
+      final status = error.response?.statusCode;
+      final detail = apiErrorDetail(error.response?.data);
+      if (status != null && detail != null) {
+        return _truncate('Backend error ($status): $detail', 200);
+      }
+    }
     final oneLine = '$error'.replaceAll(RegExp(r'\s+'), ' ').trim();
     return _truncate('Frontend error: ${error.runtimeType}: $oneLine', 200);
   }

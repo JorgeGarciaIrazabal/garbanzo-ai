@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import 'package:garbanzo_ai/core/guarded_state.dart';
 import 'package:garbanzo_ai/core/log.dart';
 import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
 import 'package:garbanzo_ai/features/chat/talk/talk_barge_in.dart';
@@ -372,7 +373,14 @@ class TalkModeController extends ChangeNotifier {
       transcript = result?.transcript.trim();
       if (result?.language != null) _detectedLanguage = result!.language;
     } catch (e) {
-      _fail('Could not transcribe: ${_brief(e)}', recoverable: true);
+      _fail(
+        describeFailure(
+          e,
+          label: 'Could not transcribe',
+          contextualServerError: true,
+        ),
+        recoverable: true,
+      );
       return;
     }
 
@@ -577,12 +585,6 @@ class TalkModeController extends ChangeNotifier {
         }
       });
     }
-  }
-
-  /// First ~120 chars of an exception, single line, for the status display.
-  static String _brief(Object e) {
-    final s = e.toString().replaceAll('\n', ' ');
-    return s.length > 120 ? '${s.substring(0, 117)}…' : s;
   }
 
   void _setPhase(TalkPhase phase) {
