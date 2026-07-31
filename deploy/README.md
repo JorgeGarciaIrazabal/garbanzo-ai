@@ -47,8 +47,9 @@ proceeds. Set `CHANGELOG_OPENCODE_MODEL` in `.env` to override the model.
     docker compose -f deploy/docker-compose.yml --env-file deploy/.env exec ollama ollama pull granite4:micro
     docker compose -f deploy/docker-compose.yml --env-file deploy/.env exec ollama ollama pull nomic-embed-text
     ```
-    Cloud models (e.g. `kimi-k2.7-code:cloud`, `glm-5.2:cloud`, `gemma4:cloud`,
-    `minimax-m3:cloud`, `nemotron-3-ultra:cloud`)
+    Cloud models (e.g. `deepseek-v4-flash:cloud`, `kimi-k2.7-code:cloud`,
+    `glm-5.2:cloud`, `gemma4:cloud`, `minimax-m3:cloud`,
+    `nemotron-3-ultra:cloud`)
     require a **one-time** `ollama signin` inside the container: run
     `docker compose -f deploy/docker-compose.yml --env-file deploy/.env exec ollama ollama signin`
     and confirm the printed URL in a browser while logged into ollama.com. The
@@ -56,6 +57,7 @@ proceeds. Set `CHANGELOG_OPENCODE_MODEL` in `.env` to override the model.
     redeploys — only wiping the volume requires signing in again. Local-only
     models work without it. After signing in, pull each cloud model:
     ```
+    docker compose -f deploy/docker-compose.yml --env-file deploy/.env exec ollama ollama pull deepseek-v4-flash:cloud
     docker compose -f deploy/docker-compose.yml --env-file deploy/.env exec ollama ollama pull glm-5.2:cloud
     docker compose -f deploy/docker-compose.yml --env-file deploy/.env exec ollama ollama pull gemma4:cloud
     docker compose -f deploy/docker-compose.yml --env-file deploy/.env exec ollama ollama pull minimax-m3:cloud
