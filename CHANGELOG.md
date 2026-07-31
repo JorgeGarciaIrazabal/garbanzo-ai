@@ -4,6 +4,10 @@ Release notes for Garbanzo AI. Each entry is generated automatically on
 `just deploy` — an LLM (via opencode) writes it from the release's commits and
 the user reports it addressed. See `scripts/changelog-instructions.md`.
 
+## v1.0.22 — 2026-07-31
+
+- No user-facing changes.
+
 ## v1.0.21 — 2026-07-30
 
 - add configurable GPU voice inference
