@@ -4,6 +4,21 @@ Release notes for Garbanzo AI. Each entry is generated automatically on
 `just deploy` — an LLM (via opencode) writes it from the release's commits and
 the user reports it addressed. See `scripts/changelog-instructions.md`.
 
+## v1.0.25 — 2026-08-30
+
+### 🙋 User requests completed
+- PDFs with accents or special characters in the filename or content (like Spanish documents) now extract correctly, and the autonomous agent can now read files attached to the conversation that launched it.
+- Sending an image to a text-only model now returns a clear message asking you to switch to a Vision model, instead of a scary stream error.
+- Rooms on Android now reconnect quietly after network blips, screen sleep, or backgrounding, show a calm "Reconnecting…" banner with a "Back online" note instead of a blocking dialog, and messages written while offline are delivered automatically once you're back.
+
+### ✨ Features
+- Added the DeepSeek V4 Flash cloud model.
+- Refreshed the model lineup: built-in styles now use GLM 5.3 and GLM 5.3 Flash, Qwen moved to 3.8, DeepSeek moved to stable tags, and existing conversations, styles, and scheduled actions were migrated automatically so nothing keeps pointing at a retired model.
+
+### 🐛 Fixes
+- Retired model aliases no longer show up as duplicate entries in the model picker.
+- Room agents that hit a model limitation now post a normal explanatory message instead of leaving a stuck "typing" bubble for everyone in the room.
+
 ## v1.0.24 — 2026-07-31
 
 ### 🐛 Fixes
