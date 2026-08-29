@@ -87,6 +87,14 @@ async def _run(run_id: str) -> None:
 
         workdir = Path(run.workdir)
         instruction = run.instruction
+        attachment_paths = (run.scope or {}).get("attachment_paths") or []
+        if attachment_paths:
+            available = "\n".join(f"- `{path}`" for path in attachment_paths)
+            instruction = (
+                "Files attached to the message that launched this workflow are "
+                "available as input copies in the workspace:\n"
+                f"{available}\n\n{instruction}"
+            )
         mode = (run.scope or {}).get("mode", "folder")
         conversation_id = run.conversation_id
         user_id = run.user_id

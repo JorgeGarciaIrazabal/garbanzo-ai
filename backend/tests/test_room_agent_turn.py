@@ -177,6 +177,49 @@ async def test_agent_turn_persists_partial_on_provider_error(db_session, monkeyp
     assert final_message["message"]["content"] == "Hel"
 
 
+async def test_expected_capability_error_is_visible_and_persisted(db_session, monkeypatch):
+    provider = _ScriptedRoomProvider(
+        [
+            ChatChunk(
+                content="Switch to a model marked Vision and try again.",
+                is_finished=True,
+                metadata={
+                    "error": True,
+                    "error_type": "unsupported_image_input",
+                    "auto_report": False,
+                },
+            )
+        ]
+    )
+    room_id, svc = await _make_room_with_agent(db_session, provider)
+    fake = _FakeRoomManager()
+    monkeypatch.setattr("app.services.room_chat_service.room_manager", fake)
+
+    await svc.handle_user_post(room_id, "test@example.com", "describe this image")
+
+    persisted = (
+        (
+            await db_session.execute(
+                select(RoomMessage).where(
+                    RoomMessage.room_id == room_id,
+                    RoomMessage.role == "assistant",
+                )
+            )
+        )
+        .scalars()
+        .one()
+    )
+    assert persisted.content == "Switch to a model marked Vision and try again."
+    assert persisted.meta["error_type"] == "unsupported_image_input"
+    assert _event_types(fake) == [
+        "message",
+        "stream_start",
+        "chunk",
+        "message",
+        "done",
+    ]
+
+
 async def test_agent_turn_skips_empty_reply(db_session, monkeypatch):
     provider = _ScriptedRoomProvider([ChatChunk(content="", is_finished=True, metadata={})])
     room_id, svc = await _make_room_with_agent(db_session, provider)

@@ -349,6 +349,46 @@ void main() {
         expect(listCalls, 2, reason: 'messages refetched after reconnect');
       });
     });
+
+    test('briefly exposes a back-online notice after recovery', () {
+      fakeAsync((async) {
+        final channels = <FakeRoomChannel>[];
+        final service = _MockRoomService();
+        when(() => service.getRoom(any())).thenAnswer((_) async => _room());
+        when(() => service.listMessages(any()))
+            .thenAnswer((_) async => const <RoomMessage>[]);
+        final provider = RoomProvider(
+          service: service,
+          recoveryNoticeDuration: const Duration(seconds: 2),
+          socketFactory: (id) => RoomSocketService(
+            id,
+            channelFactory: (_) {
+              final channel = FakeRoomChannel();
+              channels.add(channel);
+              return channel;
+            },
+            tokenProvider: () async => 'test-token',
+            uriBuilder: (_) => Uri.parse('ws://test/$id'),
+          ),
+        );
+
+        provider.openRoom('r1');
+        async.flushMicrotasks();
+        expect(provider.backOnline, isFalse);
+        channels.single.serverClose();
+        async.flushMicrotasks();
+        async.elapse(const Duration(seconds: 1));
+        async.flushMicrotasks();
+
+        expect(provider.connectionState, RoomConnectionState.connected);
+        expect(provider.backOnline, isTrue);
+        async.elapse(const Duration(seconds: 2));
+        async.flushMicrotasks();
+        expect(provider.backOnline, isFalse);
+        provider.dispose();
+        async.flushMicrotasks();
+      });
+    });
   });
 
   group('RoomProvider typing', () {

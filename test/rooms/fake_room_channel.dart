@@ -32,6 +32,11 @@ class FakeRoomChannel implements RoomChannel {
     if (!_incoming.isClosed) _incoming.add(frame);
   }
 
+  /// Simulate a transport error, which mobile sockets may emit before done.
+  void serverError(Object error) {
+    if (!_incoming.isClosed) _incoming.addError(error);
+  }
+
   /// Simulate the server closing the socket (optionally with a close code).
   void serverClose({int? code}) {
     _closeCode = code;

@@ -20,11 +20,13 @@ from app.core.config import Settings
 # its display name. The active model is always merged in, even if not listed.
 CLOUD_MODELS = (
     "deepseek-v4-flash:cloud",
-    "glm-5.2:cloud",
+    "deepseek-v4-pro:cloud",
+    "glm-5.3:cloud",
+    "glm-5.3-flash:cloud",
     "gemma4:cloud",
-    "minimax-m3:cloud",
     "nemotron-3-ultra:cloud",
-    "kimi-k2.7-code:cloud",
+    "nemotron-3-super:cloud",
+    "qwen3.5:cloud",
 )
 
 # Default envelope: opencode may edit files, run commands, and fetch. Callers

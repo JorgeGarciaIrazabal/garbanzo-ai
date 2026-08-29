@@ -1347,6 +1347,22 @@
   "@messageConnectionLost": {
     "description": "Room connection lost indicator."
   },
+  "messageRoomReconnecting": "Reconectando…",
+  "@messageRoomReconnecting": {
+    "description": "Calm inline room status while a transient socket reconnect is in progress."
+  },
+  "messageRoomBackOnline": "Conexión restablecida",
+  "@messageRoomBackOnline": {
+    "description": "Brief inline room status after a socket reconnect succeeds."
+  },
+  "messageRoomReconnectFailed": "No se pudo reconectar.",
+  "@messageRoomReconnectFailed": {
+    "description": "Inline room status after automatic socket retries are exhausted."
+  },
+  "messageRoomConnectionEnded": "La conexión finalizó.",
+  "@messageRoomConnectionEnded": {
+    "description": "Inline room status when the server permanently closes the socket."
+  },
   "messageDeactivate": "Desactivar",
   "@messageDeactivate": {
     "description": "Memory deactivate action."

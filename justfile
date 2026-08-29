@@ -369,5 +369,5 @@ claude:
     claude --dangerously-skip-permissions
 
 # Launch Claude Code with a specific model
-claude-ollama model="qwen3.5:397b-cloud":
+claude-ollama model="qwen3.8:27b":
     ollama launch claude --model {{model}} 

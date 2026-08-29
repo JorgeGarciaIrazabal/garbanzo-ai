@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -65,6 +66,27 @@ void main() {
         async.flushMicrotasks();
         expect(channels, hasLength(2));
         expect(service.connectionState.value, RoomConnectionState.connected);
+      });
+    });
+
+    test('transport error and following done schedule only one reconnect', () {
+      fakeAsync((async) {
+        final channels = <FakeRoomChannel>[];
+        final service = _service(channels);
+
+        service.connect();
+        async.flushMicrotasks();
+        channels.single.serverError(StateError('network changed'));
+        async.flushMicrotasks();
+
+        expect(service.connectionState.value, RoomConnectionState.reconnecting);
+        async.elapse(const Duration(seconds: 1));
+        async.flushMicrotasks();
+        expect(channels, hasLength(2));
+
+        async.elapse(const Duration(seconds: 10));
+        async.flushMicrotasks();
+        expect(channels, hasLength(2), reason: 'late done must be ignored');
       });
     });
 
@@ -156,6 +178,79 @@ void main() {
       });
     });
 
+    test('posts made during a transient drop flush after recovery', () {
+      fakeAsync((async) {
+        final channels = <FakeRoomChannel>[];
+        final service = _service(channels);
+        service.connect();
+        async.flushMicrotasks();
+
+        channels.single.serverClose();
+        async.flushMicrotasks();
+        service.post('send when back');
+        expect(channels.single.sent, isEmpty);
+
+        async.elapse(const Duration(seconds: 1));
+        async.flushMicrotasks();
+        expect(jsonDecode(channels[1].sent.single), {
+          'type': 'post',
+          'content': 'send when back',
+        });
+      });
+    });
+
+    test('background suspend pauses retries and resume reconnects immediately',
+        () {
+      fakeAsync((async) {
+        final channels = <FakeRoomChannel>[];
+        final service = _service(channels);
+        service.connect();
+        async.flushMicrotasks();
+        expect(service.connectionState.value, RoomConnectionState.connected);
+
+        service.suspend();
+        async.flushMicrotasks();
+        expect(channels.single.closed, isTrue);
+        expect(service.connectionState.value, RoomConnectionState.reconnecting);
+
+        async.elapse(const Duration(minutes: 5));
+        async.flushMicrotasks();
+        expect(channels, hasLength(1), reason: 'no retries while backgrounded');
+
+        service.resume();
+        async.flushMicrotasks();
+        expect(channels, hasLength(2));
+        expect(service.connectionState.value, RoomConnectionState.connected);
+      });
+    });
+
+    test('close invalidates an in-flight token lookup', () {
+      fakeAsync((async) {
+        final token = Completer<String?>();
+        final channels = <FakeRoomChannel>[];
+        final service = RoomSocketService(
+          'room-1',
+          tokenProvider: () => token.future,
+          uriBuilder: (_) => Uri.parse('ws://test/room-1'),
+          channelFactory: (_) {
+            final channel = FakeRoomChannel();
+            channels.add(channel);
+            return channel;
+          },
+        );
+
+        service.connect();
+        async.flushMicrotasks();
+        service.close();
+        async.flushMicrotasks();
+        token.complete('late-token');
+        async.flushMicrotasks();
+
+        expect(channels, isEmpty);
+        expect(service.connectionState.value, RoomConnectionState.closed);
+      });
+    });
+
     test('post serializes attachments in the backend AttachmentIn shape', () {
       fakeAsync((async) {
         final channels = <FakeRoomChannel>[];
@@ -191,15 +286,15 @@ void main() {
               'name': 'photo.png',
               'mime_type': 'image/png',
               'type': 'image',
-              // Images travel base64-encoded…
+              'encoding': 'base64',
               'data': base64Encode([1, 2, 3]),
             },
             {
               'name': 'notes.txt',
               'mime_type': 'text/plain',
               'type': 'document',
-              // …documents travel as plain text.
-              'data': 'doc body',
+              'encoding': 'base64',
+              'data': base64Encode(utf8.encode('doc body')),
             },
           ],
         });

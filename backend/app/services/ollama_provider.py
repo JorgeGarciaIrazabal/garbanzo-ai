@@ -33,6 +33,38 @@ _RETRY_BACKOFF_SECONDS = 0.75
 FIRST_CHUNK_TIMEOUT = 300.0
 CHUNK_TIMEOUT = 120.0
 
+# Dated preview aliases remain in `ollama list` after the stable tags are
+# pulled. They point at the same published artifacts but must not reappear as
+# duplicate user choices after migration to the stable IDs.
+_RETIRED_MODEL_ALIASES = {
+    "deepseek-v4-flash:0731-cloud",
+    "deepseek-v4-pro:0813-cloud",
+}
+
+_UNSUPPORTED_IMAGE_MESSAGE = (
+    "This model cannot process image attachments. Switch to a model marked Vision and try again."
+)
+
+
+def _unsupported_image_chunk(status_code: int = 400) -> ChatChunk:
+    """Return the expected, user-actionable error for a text-only model."""
+    return ChatChunk(
+        content=_UNSUPPORTED_IMAGE_MESSAGE,
+        is_finished=True,
+        metadata={
+            "error": True,
+            "error_type": "unsupported_image_input",
+            "status_code": status_code,
+            # This is a model-selection mismatch, not an application defect.
+            # The turn engine uses this flag to avoid filing duplicate reports.
+            "auto_report": False,
+        },
+    )
+
+
+def _is_unsupported_image_error(error: ResponseError) -> bool:
+    return "does not support image input" in str(error.error).lower()
+
 
 class OllamaProvider(LLMProvider):
     """Ollama LLM provider.
@@ -209,6 +241,13 @@ class OllamaProvider(LLMProvider):
             # unset (None) we keep the historical default of enabling
             # thinking for any capable model.
             _, capabilities = await self._get_model_meta(model)
+            if (
+                any(message.images for message in messages)
+                and capabilities
+                and "vision" not in capabilities
+            ):
+                yield _unsupported_image_chunk()
+                return
             if "thinking" in capabilities:
                 if opts.think is not None:
                     chat_kwargs["think"] = False if opts.think == "off" else opts.think
@@ -290,6 +329,9 @@ class OllamaProvider(LLMProvider):
 
         except ResponseError as e:
             logger.error("Ollama response error: %s", e)
+            if _is_unsupported_image_error(e):
+                yield _unsupported_image_chunk(e.status_code)
+                return
             yield ChatChunk(
                 content=f"Ollama error: {e.error}",
                 is_finished=True,
@@ -333,14 +375,17 @@ class OllamaProvider(LLMProvider):
         try:
             response = await client.list()
 
-            model_names = [m.model or "" for m in response.models]
+            visible_models = [
+                m for m in response.models if (m.model or "") not in _RETIRED_MODEL_ALIASES
+            ]
+            model_names = [m.model or "" for m in visible_models]
             # Fetch real metadata (context length + capabilities) for every
             # model concurrently; results are cached so this is only slow on
             # the first listing after startup.
             metas = await asyncio.gather(*(self._get_model_meta(name) for name in model_names))
 
             models = []
-            for m, (real_context, capabilities) in zip(response.models, metas, strict=True):
+            for m, (real_context, capabilities) in zip(visible_models, metas, strict=True):
                 model_name = m.model or ""
                 details = m.details
 

@@ -1913,6 +1913,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get messageConnectionLost => 'Connection lost.';
 
   @override
+  String get messageRoomReconnecting => 'Reconnecting…';
+
+  @override
+  String get messageRoomBackOnline => 'Back online';
+
+  @override
+  String get messageRoomReconnectFailed => 'Couldn\'t reconnect.';
+
+  @override
+  String get messageRoomConnectionEnded => 'Connection ended.';
+
+  @override
   String get messageDeactivate => 'Deactivate';
 
   @override

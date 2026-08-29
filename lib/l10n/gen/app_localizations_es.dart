@@ -1944,6 +1944,18 @@ class AppLocalizationsEs extends AppLocalizations {
   String get messageConnectionLost => 'Conexión perdida.';
 
   @override
+  String get messageRoomReconnecting => 'Reconectando…';
+
+  @override
+  String get messageRoomBackOnline => 'Conexión restablecida';
+
+  @override
+  String get messageRoomReconnectFailed => 'No se pudo reconectar.';
+
+  @override
+  String get messageRoomConnectionEnded => 'La conexión finalizó.';
+
+  @override
   String get messageDeactivate => 'Desactivar';
 
   @override

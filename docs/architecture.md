@@ -79,8 +79,11 @@ services/      chat_service.py (turn orchestration + tool loop)
                bytes into text (KB extractors + markitdown). The backend never
                reads the host filesystem — the folder lives only on the client)
                 workflow_service.py + workflow_runner.py (idea 18: delegated
-                opencode workflows. Folder mode uploads + git-baselines a
-                client snapshot; research mode baselines an empty workdir.
+                opencode workflows. The originating user message's file
+                attachments are copied into a reserved, diff-excluded input
+                directory using Unicode-safe collision handling. Folder mode
+                then uploads + git-baselines a client snapshot; research mode
+                baselines the input-only workdir.
                 workflow_runner seeds the conversation's allowed MCPs and
                 spawns opencode as a DETACHED
                 asyncio task — it outlives the request, so progress is
@@ -98,9 +101,9 @@ services/      chat_service.py (turn orchestration + tool loop)
                image_utils.py (format-preserving image attachment resize/encoding)
 db/            base.py, session.py (AsyncSession, init_db), migrations.py
 jobs/          extract_memories_job.py (daily at 2 AM; dedicated
-               MEMORY_EXTRACTION_MODEL, glm-5.2:cloud by default)
+               MEMORY_EXTRACTION_MODEL, glm-5.3:cloud by default)
                scheduled_action_job.py (user-defined cron/one-shot actions;
-               SCHEDULED_ACTION_MODEL fallback, glm-5.2:cloud by default)
+               SCHEDULED_ACTION_MODEL fallback, glm-5.3:cloud by default)
                microapps_sync_job.py (periodic git pull of micro-apps repo)
 scheduler.py   APScheduler lifecycle + action registration
 ```
@@ -275,7 +278,7 @@ pages/               LoginPage, RegisterPage
 
 1. `ChatProvider.sendMessage()` optimistically adds the user message, then calls `ChatService.streamChatResponse()`
 2. `ChatService` POSTs to `/api/v1/chat/conversations/{id}/chat` with `Accept: text/event-stream`; Talk Mode also sends its `AppLocalizations`-resolved `talk_mode_instruction`
-3. Backend `ChatService` builds message history, appends that Talk instruction only to the current turn's system context (never persistence), calls `LLMProvider.stream_chat()`, and yields SSE chunks
+3. Backend `ChatService` builds message history, appends that Talk instruction only to the current turn's system context (never persistence), calls `LLMProvider.stream_chat()`, and yields SSE chunks. Image turns are capability-checked first: a known text-only model returns a user-actionable `unsupported_image_input` error without calling Ollama or filing an automatic bug report; the provider also translates Ollama's equivalent 400 when metadata was unavailable.
 4. **Chunk types:**
    - `chunk` — text content
    - `thinking` — reasoning / thought blocks
@@ -356,10 +359,18 @@ links while manual reports remain unchanged.
 
 ## WebSocket Rooms (Multi-Agent)
 
-1. `RoomSocketService` opens a WebSocket to `ws://host/rooms/{room_id}` ( authenticated via `?token=<jwt>` query param )
+1. `RoomSocketService` opens a WebSocket to `/api/v1/ws/rooms/{room_id}` (authenticated via `?token=<jwt>` query param), converting the configured HTTP(S) API origin to WS(S)
 2. Messages are broadcast as JSON: `{ "id", "sender_user_id", "sender_agent_id", "content", "created_at", "type" }`
 3. Agent responses stream over the same socket with `type="chunk"`; terminal messages have `role="assistant"`
 4. REST fallback at `POST /rooms/{id}/chat` exists for smoke-testing but returns non-streaming JSON
+
+The client treats routine mobile network changes as recoverable: it retries
+with bounded exponential backoff, queues posts made during the gap, and
+refetches messages after recovery. Android background/sleep suspends retry
+timers and closes the old transport; foreground resume opens a fresh socket so
+a stale connection is never reused. The room shows calm inline “Reconnecting…”
+and brief “Back online” statuses; a retry action appears only after automatic
+retries are exhausted or the server permanently closes the connection.
 
 Room audio notes use multipart HTTP rather than WebSocket base64. The backend
 validates a 16 kHz mono WAV (maximum two minutes), transcribes it, stores the
@@ -373,6 +384,14 @@ All frontend image entry paths share one asynchronous 3 MiB fitting pipeline.
 JPEG/PNG/BMP/GIF retain their formats (including PNG alpha and GIF frames);
 oversized WebP becomes PNG. Backend vision resizing also preserves the stored
 format instead of silently converting attachments to JPEG.
+
+Every chat attachment crosses the wire as explicitly tagged base64 bytes,
+including PDFs and office documents. The backend still accepts the previous
+untagged UTF-8 document payload during client upgrades; this prevents Unicode
+text from entering an ASCII-only base64 decode path. Document bytes are kept
+with the launching message so a confirmed delegated workflow can copy the exact
+files into its isolated `.garbanzo-workflow-inputs/` directory. The directory
+is reserved against folder uploads and excluded from returned git diffs.
 
 ### Room notification muting
 

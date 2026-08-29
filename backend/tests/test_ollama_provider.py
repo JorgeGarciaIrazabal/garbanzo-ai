@@ -8,6 +8,7 @@ from collections.abc import AsyncIterator
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from ollama import ResponseError
 
 from app.services.llm_provider import Message
 from app.services.ollama_provider import OllamaProvider
@@ -92,6 +93,67 @@ async def test_stream_chat_omits_think_for_non_thinking_models():
             pass
 
     assert "think" not in captured_kwargs
+
+
+async def test_stream_chat_rejects_images_before_calling_text_only_model():
+    """A known text-only model gets a useful capability error, not Ollama's
+    raw 400 response (user report ac2647df)."""
+    provider = OllamaProvider()
+    provider._model_meta["text-only"] = (131072, ["completion", "tools"])
+
+    mock_client = MagicMock()
+    mock_client.chat = AsyncMock()
+
+    chunks = []
+    with patch.object(provider, "_get_client", return_value=mock_client):
+        async for chunk in provider.stream_chat(
+            messages=[Message(role="user", content="describe this", images=["base64-image"])],
+            model="text-only",
+        ):
+            chunks.append(chunk)
+
+    mock_client.chat.assert_not_awaited()
+    assert len(chunks) == 1
+    assert chunks[0].content == (
+        "This model cannot process image attachments. "
+        "Switch to a model marked Vision and try again."
+    )
+    assert chunks[0].metadata == {
+        "error": True,
+        "error_type": "unsupported_image_input",
+        "status_code": 400,
+        "auto_report": False,
+    }
+
+
+async def test_stream_chat_translates_image_400_when_metadata_is_unknown():
+    """The runtime response remains a safety net when `ollama show` was
+    temporarily unavailable and the provider could not preflight capabilities."""
+    provider = OllamaProvider()
+    mock_client = MagicMock()
+    mock_client.chat = AsyncMock(
+        side_effect=ResponseError("this model does not support image input", 400)
+    )
+
+    chunks = []
+    with (
+        patch.object(provider, "_get_model_meta", new=AsyncMock(return_value=(None, []))),
+        patch.object(provider, "_get_client", return_value=mock_client),
+    ):
+        async for chunk in provider.stream_chat(
+            messages=[Message(role="user", content="describe this", images=["base64-image"])],
+            model="unknown-capabilities",
+        ):
+            chunks.append(chunk)
+
+    mock_client.chat.assert_awaited_once()
+    assert len(chunks) == 1
+    assert chunks[0].metadata == {
+        "error": True,
+        "error_type": "unsupported_image_input",
+        "status_code": 400,
+        "auto_report": False,
+    }
 
 
 async def test_stream_chat_passes_num_ctx_option():
@@ -236,6 +298,41 @@ async def test_model_meta_failures_are_not_cached():
             ["completion", "thinking"],
         )
     assert provider._model_meta["qwen3:1.7b"] == (40960, ["completion", "thinking"])
+
+
+async def test_list_models_hides_dated_deepseek_preview_aliases():
+    """Stable DeepSeek tags replace their dated preview aliases in the UI."""
+    response = MagicMock()
+    response.models = []
+    for model_id in (
+        "deepseek-v4-flash:0731-cloud",
+        "deepseek-v4-flash:cloud",
+        "deepseek-v4-pro:0813-cloud",
+        "deepseek-v4-pro:cloud",
+    ):
+        model = MagicMock()
+        model.model = model_id
+        model.details = None
+        response.models.append(model)
+
+    provider = OllamaProvider()
+    mock_client = MagicMock()
+    mock_client.list = AsyncMock(return_value=response)
+
+    with (
+        patch.object(provider, "_get_client", return_value=mock_client),
+        patch.object(
+            provider,
+            "_get_model_meta",
+            new=AsyncMock(return_value=(100_000, ["completion"])),
+        ),
+    ):
+        models = await provider.list_models()
+
+    assert [model.id for model in models] == [
+        "deepseek-v4-flash:cloud",
+        "deepseek-v4-pro:cloud",
+    ]
 
 
 async def test_stream_chat_retries_transient_connection_errors(monkeypatch):

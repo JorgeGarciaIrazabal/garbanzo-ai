@@ -46,6 +46,13 @@ that transcript when room agents decide how to respond. Tap the speed control
 to cycle playback through 1x, 1.5x, and 2x. Audio notes are only available in
 rooms; the microphone in a regular chat remains dictation.
 
+## What happens if the room connection drops?
+The room reconnects automatically after routine network changes, Android
+backgrounding, or screen sleep. A small **Reconnecting…** status appears while
+the app retries, followed briefly by **Back online**; messages missed during
+the gap are synced automatically. If automatic retries cannot recover, the
+same inline status offers **Try again** without blocking the room.
+
 ## How do I mute a room?
 From the room's menu choose **Mute** and pick a duration (or forever).
 Messages still arrive and count as unread — you just get no notifications.

@@ -172,6 +172,47 @@ async def test_provider_error_chunk_calls_error_reporter(monkeypatch):
     assert reported[0][2] == "provider trace"
 
 
+async def test_expected_capability_error_does_not_file_report(monkeypatch):
+    monkeypatch.setattr(
+        "app.services.agent_turn.resolve_context_length",
+        lambda provider, model: _async_return(4096),
+    )
+    provider = _ScriptedProvider(
+        [
+            [
+                ChatChunk(
+                    content="Switch to a model marked Vision and try again.",
+                    is_finished=True,
+                    metadata={
+                        "error": True,
+                        "error_type": "unsupported_image_input",
+                        "auto_report": False,
+                    },
+                )
+            ]
+        ]
+    )
+    reports: list[Exception] = []
+
+    async def on_error(error, tool_call_id, trace):  # noqa: ARG001
+        reports.append(error)
+
+    chunks = [
+        chunk
+        async for chunk in run_agent_turn(
+            provider=provider,
+            model="text-only",
+            llm_messages=[LLMMessage(role="user", content="describe the image")],
+            sink=_NoopSink(),
+            options=ChatOptions(),
+            on_error=on_error,
+        )
+    ]
+
+    assert len(chunks) == 1
+    assert reports == []
+
+
 class _CancellingProvider:
     """Streams a couple of chunks, then simulates a client disconnect."""
 

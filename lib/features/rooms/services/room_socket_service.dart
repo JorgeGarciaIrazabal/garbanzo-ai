@@ -118,6 +118,10 @@ class RoomSocketService {
   Timer? _reconnectTimer;
   int _attempt = 0;
   bool _closed = false;
+  bool _disposed = false;
+  bool _suspended = false;
+  int _openGeneration = 0;
+  final List<String> _pendingPosts = [];
 
   /// True once we've had at least one successful connection, so a later
   /// `connected` transition can be recognised as a *re*connect (gap to fill).
@@ -135,7 +139,8 @@ class RoomSocketService {
   }
 
   Future<void> _open() async {
-    if (_closed) return;
+    if (_closed || _suspended) return;
+    final generation = ++_openGeneration;
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
 
@@ -147,7 +152,7 @@ class RoomSocketService {
       _scheduleReconnect();
       return;
     }
-    if (_closed) return;
+    if (_closed || _suspended || generation != _openGeneration) return;
     if (token == null) {
       // No credentials → this is an auth problem, not a transient drop.
       _fail(closed: true);
@@ -166,6 +171,10 @@ class RoomSocketService {
       _scheduleReconnect();
       return;
     }
+    if (_closed || _suspended || generation != _openGeneration) {
+      unawaited(channel.close());
+      return;
+    }
     _channel = channel;
 
     // Await the handshake so we distinguish "connected" from "immediately
@@ -179,12 +188,13 @@ class RoomSocketService {
           .catchError((Object e) {
             if (_closed || !identical(_channel, channel)) return;
             logDebug('Room socket handshake failed: $e');
-            _scheduleReconnect();
+            _handleDisconnect(channel, channel.closeCode);
           }),
     );
 
     _channelSub = channel.stream.listen(
       (raw) {
+        if (!identical(_channel, channel)) return;
         // A frame is proof the socket is live (covers transports whose `ready`
         // resolves eagerly).
         if (connectionState.value != RoomConnectionState.connected) {
@@ -198,11 +208,13 @@ class RoomSocketService {
         }
       },
       onError: (Object e) {
-        // Surface the error to listeners, but let onDone drive reconnect so we
-        // can inspect the close code.
-        if (!_controller.isClosed) _controller.addError(e);
+        // Transport errors are routine during mobile network changes. Handle
+        // them as a disconnect here; a following onDone is identity-guarded
+        // so it cannot schedule a second reconnect.
+        logDebug('Room socket transport error: $e');
+        _handleDisconnect(channel, channel.closeCode);
       },
-      onDone: () => _handleDisconnect(channel.closeCode),
+      onDone: () => _handleDisconnect(channel, channel.closeCode),
       cancelOnError: false,
     );
   }
@@ -213,12 +225,30 @@ class RoomSocketService {
     if (connectionState.value != RoomConnectionState.connected) {
       connectionState.value = RoomConnectionState.connected;
     }
+    final channel = _channel;
+    if (channel == null || _pendingPosts.isEmpty) return;
+    final pending = List<String>.of(_pendingPosts);
+    _pendingPosts.clear();
+    for (var i = 0; i < pending.length; i++) {
+      try {
+        channel.send(pending[i]);
+      } catch (error) {
+        _pendingPosts.insertAll(0, pending.sublist(i));
+        logDebug('Room socket queued post flush failed: $error');
+        _handleDisconnect(channel, channel.closeCode);
+        return;
+      }
+    }
   }
 
-  void _handleDisconnect(int? closeCode) {
-    if (_closed) return;
-    _channelSub?.cancel();
+  void _handleDisconnect(RoomChannel channel, int? closeCode) {
+    if (_closed || !identical(_channel, channel)) return;
+    _openGeneration++;
+    _channel = null;
+    final subscription = _channelSub;
     _channelSub = null;
+    unawaited(subscription?.cancel());
+    unawaited(channel.close());
     // Policy-violation (1008) is how the backend refuses/kicks a socket
     // (bad/expired token, removed from room). Reconnecting would loop, so stop.
     if (closeCode == ws_status.policyViolation) {
@@ -231,6 +261,8 @@ class RoomSocketService {
   void _scheduleReconnect() {
     if (_closed) return;
     _channel = null;
+    connectionState.value = RoomConnectionState.reconnecting;
+    if (_suspended) return;
     if (_attempt >= maxReconnectAttempts) {
       _fail(closed: false);
       return;
@@ -239,7 +271,6 @@ class RoomSocketService {
     final seconds = 1 << _attempt;
     final delay = Duration(seconds: seconds > 8 ? 8 : seconds);
     _attempt++;
-    connectionState.value = RoomConnectionState.reconnecting;
     _reconnectTimer?.cancel();
     _reconnectTimer = Timer(delay, () => unawaited(_open()));
   }
@@ -257,27 +288,74 @@ class RoomSocketService {
   Future<void> retry() async {
     if (_closed) return;
     _attempt = 0;
+    _openGeneration++;
+    await _open();
+  }
+
+  /// Pause reconnect work while the app is backgrounded.
+  ///
+  /// Android commonly tears down an idle socket during sleep. Closing it here
+  /// is intentional: it prevents background timers from exhausting the retry
+  /// budget and guarantees [resume] starts from a fresh transport.
+  Future<void> suspend() async {
+    if (_closed || _suspended) return;
+    _suspended = true;
+    _openGeneration++;
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
+    final channel = _channel;
+    _channel = null;
+    final subscription = _channelSub;
+    _channelSub = null;
+    connectionState.value = RoomConnectionState.reconnecting;
+    final closeFuture = channel?.close(ws_status.goingAway, 'App backgrounded');
+    await subscription?.cancel();
+    await closeFuture;
+  }
+
+  /// Resume immediately with a fresh socket after an app background/sleep.
+  Future<void> resume() async {
+    if (_closed || !_suspended) return;
+    _suspended = false;
+    _attempt = 0;
     await _open();
   }
 
   void post(String content, {List<ChatAttachment> attachments = const []}) {
-    _channel?.send(
-      jsonEncode({
-        'type': 'post',
-        'content': content,
-        if (attachments.isNotEmpty)
-          'attachments': attachments.map((a) => a.toJson()).toList(),
-      }),
-    );
+    final frame = jsonEncode({
+      'type': 'post',
+      'content': content,
+      if (attachments.isNotEmpty)
+        'attachments': attachments.map((a) => a.toJson()).toList(),
+    });
+    final channel = _channel;
+    if (channel != null &&
+        connectionState.value == RoomConnectionState.connected) {
+      try {
+        channel.send(frame);
+      } catch (error) {
+        _pendingPosts.add(frame);
+        logDebug('Room socket post failed: $error');
+        _handleDisconnect(channel, channel.closeCode);
+      }
+    } else {
+      _pendingPosts.add(frame);
+    }
   }
 
   void typing(bool active) {
-    _channel?.send(jsonEncode({'type': 'typing', 'typing': active}));
+    final channel = _channel;
+    if (channel != null &&
+        connectionState.value == RoomConnectionState.connected) {
+      channel.send(jsonEncode({'type': 'typing', 'typing': active}));
+    }
   }
 
   Future<void> close() async {
-    if (_closed) return;
+    if (_disposed) return;
+    _disposed = true;
     _closed = true;
+    _openGeneration++;
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
     connectionState.value = RoomConnectionState.closed;
@@ -286,6 +364,7 @@ class RoomSocketService {
     await _channel?.close();
     if (!_controller.isClosed) await _controller.close();
     _channel = null;
+    _pendingPosts.clear();
     // Note: [connectionState] is intentionally NOT disposed here — the owning
     // provider removes its listener and drops the reference; leaving the
     // notifier intact avoids any use-after-dispose if a late callback reads it.

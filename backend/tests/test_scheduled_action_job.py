@@ -29,7 +29,7 @@ async def _make_stub_module(action, patches, db_session=None, existing_conversat
             id=str(uuid.uuid4()),
             user_id=action.user_id,
             title=f"⏰ {action.title or action.prompt}",
-            model=action.model or "glm-5.2:cloud",
+            model=action.model or "glm-5.3:cloud",
         )
         db_session.add(conversation)
         await db_session.commit()
@@ -104,7 +104,7 @@ async def test_run_scheduled_action_happy_path(db_session, test_user_email):
     patches.append(
         patch(
             "app.jobs.scheduled_action_job.get_settings",
-            return_value=SimpleNamespace(scheduled_action_model="glm-5.2:cloud"),
+            return_value=SimpleNamespace(scheduled_action_model="glm-5.3:cloud"),
         )
     )
 
@@ -123,7 +123,7 @@ async def test_run_scheduled_action_happy_path(db_session, test_user_email):
     create_kwargs = convs_instance.create.call_args.kwargs
     assert create_kwargs["user_id"] == test_user_email
     assert create_kwargs["title"].startswith("⏰")
-    assert create_kwargs["model"] == "glm-5.2:cloud"
+    assert create_kwargs["model"] == "glm-5.3:cloud"
 
     # A reminders notification went out, with the conversation id.
     send_stub.assert_awaited_once()
@@ -227,7 +227,7 @@ async def test_run_scheduled_action_reuses_conversation(db_session, test_user_em
         id="existing-conv-456",
         user_id=test_user_email,
         title="⏰ Standup",
-        model="glm-5.2:cloud",
+        model="glm-5.3:cloud",
     )
     db_session.add(existing)
     await db_session.commit()
@@ -254,7 +254,7 @@ async def test_run_scheduled_action_reuses_conversation(db_session, test_user_em
     patches.append(
         patch(
             "app.jobs.scheduled_action_job.get_settings",
-            return_value=SimpleNamespace(scheduled_action_model="glm-5.2:cloud"),
+            return_value=SimpleNamespace(scheduled_action_model="glm-5.3:cloud"),
         )
     )
 
@@ -299,7 +299,7 @@ async def test_run_scheduled_action_recreates_if_conversation_deleted(db_session
         id="dead-conv",
         user_id=test_user_email,
         title="⏰ Standup",
-        model="glm-5.2:cloud",
+        model="glm-5.3:cloud",
         is_deleted=True,
     )
     db_session.add(dead)
@@ -312,7 +312,7 @@ async def test_run_scheduled_action_recreates_if_conversation_deleted(db_session
         id="new-conv-789",
         user_id=test_user_email,
         title="⏰ Standup",
-        model="glm-5.2:cloud",
+        model="glm-5.3:cloud",
     )
     db_session.add(fresh)
     await db_session.commit()
@@ -354,7 +354,7 @@ async def test_run_scheduled_action_recreates_if_conversation_deleted(db_session
     patches.append(
         patch(
             "app.jobs.scheduled_action_job.get_settings",
-            return_value=SimpleNamespace(scheduled_action_model="glm-5.2:cloud"),
+            return_value=SimpleNamespace(scheduled_action_model="glm-5.3:cloud"),
         )
     )
 

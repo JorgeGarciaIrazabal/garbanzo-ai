@@ -210,7 +210,7 @@ async def run_agent_turn(
                     # misleading successful `done` event.
                     error = RuntimeError(chunk.content or "LLM stream failed")
                     result.error = True
-                    if on_error is not None:
+                    if on_error is not None and chunk.metadata.get("auto_report", True):
                         try:
                             await on_error(
                                 error,
@@ -219,7 +219,12 @@ async def run_agent_turn(
                             )
                         except Exception:
                             logger.exception("Failed to auto-file provider stream error")
-                    await sink.rollback()
+                    # Expected capability mismatches are validation outcomes,
+                    # not transaction failures. Keeping the session alive lets
+                    # room adapters persist the safe guidance message and lets
+                    # chat retain the launching user message.
+                    if chunk.metadata.get("auto_report", True):
+                        await sink.rollback()
                     yield chunk
                     return
                 if chunk.tool_calls:

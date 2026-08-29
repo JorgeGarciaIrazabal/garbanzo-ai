@@ -3548,6 +3548,30 @@ abstract class AppLocalizations {
   /// **'Connection lost.'**
   String get messageConnectionLost;
 
+  /// Calm inline room status while a transient socket reconnect is in progress.
+  ///
+  /// In en, this message translates to:
+  /// **'Reconnecting…'**
+  String get messageRoomReconnecting;
+
+  /// Brief inline room status after a socket reconnect succeeds.
+  ///
+  /// In en, this message translates to:
+  /// **'Back online'**
+  String get messageRoomBackOnline;
+
+  /// Inline room status after automatic socket retries are exhausted.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t reconnect.'**
+  String get messageRoomReconnectFailed;
+
+  /// Inline room status when the server permanently closes the socket.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection ended.'**
+  String get messageRoomConnectionEnded;
+
   /// Memory deactivate action.
   ///
   /// In en, this message translates to:

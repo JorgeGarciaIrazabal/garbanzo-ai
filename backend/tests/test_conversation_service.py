@@ -32,7 +32,7 @@ class TestCreate:
         conv = await service.create(USER_ID, title="Hello")
         assert conv.id is not None
         assert conv.title == "Hello"
-        assert conv.model == "minimax-m3:cloud"
+        assert conv.model == "glm-5.3-flash:cloud"
         assert conv.user_id == USER_ID
 
     async def test_auto_title_from_initial_message(self, service: ConversationService):

@@ -14,7 +14,7 @@ pick when it runs:
 ## What happens when it runs?
 The assistant executes your prompt in the background; the result lands in a
 conversation and you get a notification. Actions without an explicitly chosen
-model use GLM 5.2 by default. The card shows the next run time.
+model use GLM 5.3 by default. The card shows the next run time.
 
 ## How do I pause, edit, or delete one?
 Each action's card has a switch to pause/resume it without losing the

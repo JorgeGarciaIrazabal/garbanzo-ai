@@ -6,6 +6,9 @@ on ``attachment.mime_type`` (falling back to the filename extension for
 plain text) and never raises — extraction failures degrade to an inline
 error marker or the raw attachment data so a single bad upload can't take
 down message sending.
+
+Attachment bytes are base64 on the current wire contract. Payloads without an
+explicit encoding use the legacy Flutter contract and are UTF-8 document text.
 """
 
 import base64
@@ -28,12 +31,28 @@ _SPREADSHEET_MIME_TYPES = (
 )
 
 
-async def _extract_pdf_text(data: str) -> str:
-    """Extract text from a base64-encoded PDF."""
+def decode_attachment_bytes(attachment: AttachmentIn) -> bytes:
+    """Decode an attachment payload without imposing an ASCII-only path.
+
+    Explicit encodings are authoritative. Older Flutter clients omitted the
+    field and sent document text as UTF-8, so an untagged ASCII string must not
+    be guessed as base64 (values such as ``test`` are valid in both formats).
+    Passing legacy Unicode text directly to ``b64decode`` produced the reported
+    ``string argument should contain only ASCII characters`` failure.
+    """
+    if attachment.encoding == "utf-8":
+        return attachment.data.encode("utf-8")
+    if attachment.encoding == "base64":
+        return base64.b64decode(attachment.data, validate=True)
+
+    return attachment.data.encode("utf-8")
+
+
+async def _extract_pdf_text(pdf_bytes: bytes) -> str:
+    """Extract Unicode text from PDF bytes."""
     try:
         from pypdf import PdfReader
 
-        pdf_bytes = base64.b64decode(data)
         reader = PdfReader(io.BytesIO(pdf_bytes))
         text_pages = []
         for page in reader.pages:
@@ -46,10 +65,9 @@ async def _extract_pdf_text(data: str) -> str:
         return f"[PDF extraction error: {e}]"
 
 
-async def _extract_csv_text(data: str, filename: str) -> str:
+async def _extract_csv_text(data: bytes, filename: str) -> str:
     """Extract and summarize CSV content."""
-    text_bytes = base64.b64decode(data)
-    text_content = text_bytes.decode("utf-8", errors="replace")
+    text_content = data.decode("utf-8", errors="replace")
     lines = text_content.splitlines()
     row_count = len(lines)
     summary = f"[CSV: {filename}, {row_count} rows]\n"
@@ -62,13 +80,12 @@ async def _extract_csv_text(data: str, filename: str) -> str:
     return summary
 
 
-async def _extract_spreadsheet_text(data: str, filename: str) -> str:
+async def _extract_spreadsheet_text(data: bytes, filename: str) -> str:
     """Extract and summarize Excel/openoffice spreadsheet content."""
     try:
         from openpyxl import load_workbook
 
-        xls_bytes = base64.b64decode(data)
-        wb = load_workbook(filename=io.BytesIO(xls_bytes), read_only=True, data_only=True)
+        wb = load_workbook(filename=io.BytesIO(data), read_only=True, data_only=True)
         summary_parts = []
         total_rows = 0
         for sheet_name in wb.sheetnames:
@@ -113,14 +130,15 @@ async def extract_attachment_text(attachment: AttachmentIn) -> str:
     data = attachment.data
 
     try:
+        file_bytes = decode_attachment_bytes(attachment)
         if mime == "application/pdf":
-            return await _extract_pdf_text(data)
+            return await _extract_pdf_text(file_bytes)
         if mime == "text/csv":
-            return await _extract_csv_text(data, filename)
+            return await _extract_csv_text(file_bytes, filename)
         if mime in _SPREADSHEET_MIME_TYPES:
-            return await _extract_spreadsheet_text(data, filename)
-        if mime.startswith("text/") or filename.endswith(_PLAIN_TEXT_EXTENSIONS):
-            return base64.b64decode(data).decode("utf-8", errors="replace")
+            return await _extract_spreadsheet_text(file_bytes, filename)
+        if mime.startswith("text/") or filename.lower().endswith(_PLAIN_TEXT_EXTENSIONS):
+            return file_bytes.decode("utf-8", errors="replace")
     except Exception as e:
         logger.warning("Attachment text extraction failed for %s (%s): %s", filename, mime, e)
         return data

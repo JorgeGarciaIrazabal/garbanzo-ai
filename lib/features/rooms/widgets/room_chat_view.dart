@@ -28,8 +28,8 @@ import 'package:garbanzo_ai/features/mentions/widgets/mention_autocomplete.dart'
 import 'package:garbanzo_ai/features/mentions/widgets/mention_text_controller.dart';
 import 'package:garbanzo_ai/features/rooms/models/room_models.dart';
 import 'package:garbanzo_ai/features/rooms/providers/room_provider.dart';
-import 'package:garbanzo_ai/features/rooms/services/room_socket_service.dart';
 import 'package:garbanzo_ai/features/rooms/widgets/add_agent_dialog.dart';
+import 'package:garbanzo_ai/features/rooms/widgets/room_connection_banner.dart';
 import 'package:garbanzo_ai/features/rooms/widgets/room_message_bubble.dart';
 import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
@@ -123,6 +123,25 @@ class _RoomChatViewState extends State<RoomChatView>
   void didChangeMetrics() {
     // Keep the newest messages visible while the on-screen keyboard opens.
     _scroll.handleKeyboardInset(View.of(context).viewInsets.bottom);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final provider = _providerRef;
+    if (provider == null) return;
+    switch (state) {
+      case AppLifecycleState.resumed:
+        provider.resumeConnection();
+        break;
+      case AppLifecycleState.paused:
+      case AppLifecycleState.hidden:
+      case AppLifecycleState.detached:
+        provider.suspendConnection();
+      case AppLifecycleState.inactive:
+        // Notification shade, app switcher, and brief OS interruptions should
+        // not churn a healthy socket. A real background transition follows.
+        break;
+    }
   }
 
   @override
@@ -260,8 +279,9 @@ class _RoomChatViewState extends State<RoomChatView>
                   message: provider.error!,
                   onDismiss: () => provider.openRoom(widget.roomId),
                 ),
-              _ConnectionBanner(
+              RoomConnectionBanner(
                 state: provider.connectionState,
+                backOnline: provider.backOnline,
                 onRetry: provider.retryConnection,
               ),
               Expanded(
@@ -302,7 +322,7 @@ class _RoomChatViewState extends State<RoomChatView>
                 child: MessageComposer(
                   controller: _composerController,
                   focusNode: _composerFocus,
-                  enabled: room != null,
+                  enabled: provider.canPost,
                   hintText: AppLocalizations.of(
                     context,
                   )!.hintMessageTheRoomUseAgentnameOr,
@@ -327,7 +347,8 @@ class _RoomChatViewState extends State<RoomChatView>
                         ),
                   leading: AttachMenuButton(
                     buttonKey: const ValueKey('room_attach_button'),
-                    enabled: room != null && !_isRecording && !_isPostingAudio,
+                    enabled:
+                        provider.canPost && !_isRecording && !_isPostingAudio,
                     existingNames: () =>
                         _attachments.map((a) => a.name).toSet(),
                     onAdded: (added) =>
@@ -365,7 +386,7 @@ class _RoomChatViewState extends State<RoomChatView>
                         )
                       : IconButton(
                           key: const ValueKey('room_audio_note_button'),
-                          onPressed: room == null ? null : _toggleAudioNote,
+                          onPressed: provider.canPost ? _toggleAudioNote : null,
                           tooltip: _isRecording
                               ? AppLocalizations.of(context)!.labelStopRecording
                               : AppLocalizations.of(
@@ -513,79 +534,6 @@ class _RoomChatViewState extends State<RoomChatView>
       isScrollControlled: true,
       builder: (_) => const _MembersAgentsPanel(),
     );
-  }
-}
-
-/// Slim banner shown while the socket is reconnecting or has given up.
-class _ConnectionBanner extends StatelessWidget {
-  const _ConnectionBanner({required this.state, required this.onRetry});
-
-  final RoomConnectionState state;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    switch (state) {
-      case RoomConnectionState.reconnecting:
-        return Container(
-          width: double.infinity,
-          color: cs.secondaryContainer,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          child: Row(
-            children: [
-              SizedBox(
-                width: 13,
-                height: 13,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: cs.onSecondaryContainer,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'Reconnecting…',
-                  style: TextStyle(
-                    color: cs.onSecondaryContainer,
-                    fontSize: 13,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      case RoomConnectionState.failed:
-        return Container(
-          width: double.infinity,
-          color: cs.errorContainer,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          child: Row(
-            children: [
-              Icon(Icons.cloud_off, size: 16, color: cs.onErrorContainer),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  AppLocalizations.of(context)!.messageConnectionLost,
-                  style: TextStyle(color: cs.onErrorContainer, fontSize: 13),
-                ),
-              ),
-              TextButton(
-                onPressed: onRetry,
-                style: TextButton.styleFrom(
-                  foregroundColor: cs.onErrorContainer,
-                  visualDensity: VisualDensity.compact,
-                ),
-                child: Text(AppLocalizations.of(context)!.tryAgain),
-              ),
-            ],
-          ),
-        );
-      case RoomConnectionState.connecting:
-      case RoomConnectionState.connected:
-      case RoomConnectionState.closed:
-        return const SizedBox.shrink();
-    }
   }
 }
 

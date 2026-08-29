@@ -33,8 +33,13 @@ and Enter (or tap) to pick a suggestion; Esc dismisses it.
 Use the paperclip (**Attach photos or files**) next to the input bar. Images
 are sent to vision-capable models; documents (PDF, text, etc.) have their
 text extracted and included with your message.
+New chats use the vision-capable GLM 5.3 Flash model by default. If you switch
+to a text-only model, the app asks you to choose a model marked **Vision**
+instead of sending the image to a model that cannot read it.
 Pictures larger than 3 MB are automatically resized before they are attached.
 Their format is preserved when possible; an oversized WebP is converted to PNG.
+Filenames and extracted document text preserve accents, ñ, and other Unicode
+characters.
 
 On Android, you can also choose **Garbanzo AI** from another app's Share menu.
 Shared pictures, files, and any accompanying text are staged in the chat
@@ -86,12 +91,18 @@ assistant can delegate it with no folder attached. To force delegation, start
 the message with `/agent`, for example `/agent deep research on the 2026 World
 Cup`.
 
-Folderless work runs on the server in an empty workspace, can use web research
+Folderless work runs in a private server workspace, can use web research
 and the MCP tools allowed in this conversation, and keeps running if you close
 the app. It never reads or writes files on your device, so it works on web and
 Android as well as desktop. When it finishes, use **Download** on the progress
 line to export the markdown report (share sheet on web/Android, Save As on
 desktop).
+
+If you attach files to the same message that launches the agent, the agent gets
+private input copies in its workspace in both folder and folderless mode. Those
+copies never overwrite the originals and are not included in changes written
+back to an attached folder. Each delegated input file is limited to 5 MB. If an
+older app version did not retain the original bytes, attach the file again.
 
 ## Can it work on slides, spreadsheets, or images?
 Your files come back **byte-for-byte intact** — a `.xlsx` or `.pptx` the agent

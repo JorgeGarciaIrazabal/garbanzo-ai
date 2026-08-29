@@ -65,20 +65,20 @@ void main() {
 
     test('ignores a user default that is not in the list', () async {
       when(() => auth.cachedUser).thenReturn(_user(defaultModel: 'gone'));
-      stubModels(['qwen3.6:4b', 'llama3.2'], serverDefault: 'gone');
+      stubModels(['qwen3.8:27b', 'llama3.2'], serverDefault: 'gone');
 
       final p = await loaded();
 
-      // Neither hint is valid → fallback chain picks qwen3.6 first.
-      expect(p.selectedModelId, 'qwen3.6:4b');
+      // Neither hint is valid → fallback chain picks qwen3.8 first.
+      expect(p.selectedModelId, 'qwen3.8:27b');
     });
 
-    test('fallback chain prefers qwen3.6 over qwen3 and llama3.2', () async {
-      stubModels(['llama3.2', 'qwen3:8b', 'qwen3.6:4b']);
+    test('fallback chain prefers qwen3.8 over qwen3 and llama3.2', () async {
+      stubModels(['llama3.2', 'qwen3:8b', 'qwen3.8:27b']);
 
       final p = await loaded();
 
-      expect(p.selectedModelId, 'qwen3.6:4b');
+      expect(p.selectedModelId, 'qwen3.8:27b');
     });
 
     test('fallback lands on first model when no pattern matches', () async {

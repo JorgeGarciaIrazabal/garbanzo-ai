@@ -1,6 +1,7 @@
 """Unit tests for app.services.document_parser.extract_attachment_text."""
 
 import base64
+from types import SimpleNamespace
 
 import pytest
 
@@ -15,6 +16,7 @@ def _attachment(*, name: str, mime_type: str, raw: bytes) -> AttachmentIn:
         name=name,
         mime_type=mime_type,
         type="document",
+        encoding="base64",
         data=base64.b64encode(raw).decode("ascii"),
     )
 
@@ -42,6 +44,48 @@ async def test_plain_text_decodes_utf8_with_replacement_on_bad_bytes():
     att = _attachment(name="notes.md", mime_type="text/markdown", raw=b"\xff\xfehello")
     result = await extract_attachment_text(att)
     assert "hello" in result
+
+
+async def test_legacy_utf8_document_with_accents_is_not_treated_as_base64():
+    att = AttachmentIn(
+        name="contrato-señor.txt",
+        mime_type="text/plain",
+        type="document",
+        data="Islas Hébridas, España",
+    )
+    result = await extract_attachment_text(att)
+    assert result == "Islas Hébridas, España"
+
+
+async def test_legacy_ascii_document_that_looks_like_base64_stays_text():
+    att = AttachmentIn(
+        name="notes.txt",
+        mime_type="text/plain",
+        type="document",
+        data="test",
+    )
+    result = await extract_attachment_text(att)
+    assert result == "test"
+
+
+async def test_pdf_base64_preserves_unicode_filename_and_extracted_text(monkeypatch):
+    class _Page:
+        def extract_text(self):
+            return "CONTRATO DE INTERMEDIACIÓN — HÉBRIDAS, España, señor"
+
+    monkeypatch.setattr(
+        "pypdf.PdfReader",
+        lambda _stream: SimpleNamespace(pages=[_Page()]),
+    )
+    att = AttachmentIn(
+        name="CONTRATO DE INTERMEDIACION ISLAS HÉBRIDAS 70.pdf",
+        mime_type="application/pdf",
+        type="document",
+        encoding="base64",
+        data=base64.b64encode(b"%PDF-test").decode("ascii"),
+    )
+    result = await extract_attachment_text(att)
+    assert result == "CONTRATO DE INTERMEDIACIÓN — HÉBRIDAS, España, señor"
 
 
 # ============================================================================
@@ -80,6 +124,7 @@ async def test_corrupt_base64_falls_back_to_raw_data_for_csv():
         name="broken.csv",
         mime_type="text/csv",
         type="document",
+        encoding="base64",
         data="not-valid-base64!!!",
     )
     result = await extract_attachment_text(att)

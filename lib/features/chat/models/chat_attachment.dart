@@ -26,18 +26,16 @@ abstract class ChatAttachment with _$ChatAttachment {
   /// Whether this attachment has actual file data (false for reloaded messages).
   bool get hasBytes => bytes.isNotEmpty;
 
-  /// Base64-encoded bytes (used when sending images to the backend).
+  /// Base64-encoded bytes used for every attachment on the wire.
   String get base64Data => base64Encode(bytes);
-
-  /// Decoded text (used for document attachments).
-  String get textData => utf8.decode(bytes, allowMalformed: true);
 
   /// Serialise to the JSON shape the backend expects.
   Map<String, dynamic> toJson() => {
     'name': name,
     'mime_type': mimeType,
     'type': type.name,
-    'data': isImage ? base64Data : textData,
+    'encoding': 'base64',
+    'data': base64Data,
   };
 
   static AttachmentType _typeFromMime(String mime) {
@@ -60,9 +58,9 @@ abstract class ChatAttachment with _$ChatAttachment {
 
   /// Reconstruct from the metadata stored in [Message.meta['attachments']].
   ///
-  /// Images carry their (server-downscaled) base64 data so they can still be
-  /// rendered after a reload; documents are name-only — their text was
-  /// appended to the message content server-side.
+  /// Images carry their server-downscaled bytes; current document messages
+  /// also retain exact bytes so a delegated workflow can use them. Older
+  /// document messages remain name-only.
   factory ChatAttachment.fromMetadata(Map<String, dynamic> json) {
     final mimeType = json['mime_type'] as String? ?? 'application/octet-stream';
     final data = json['data'];

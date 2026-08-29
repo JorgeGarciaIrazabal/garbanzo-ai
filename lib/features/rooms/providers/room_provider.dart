@@ -16,15 +16,18 @@ class RoomProvider extends ChangeNotifier {
     RoomSocketService Function(String roomId)? socketFactory,
     Duration typingExpiry = const Duration(seconds: 5),
     Duration typingSendInterval = const Duration(seconds: 3),
+    Duration recoveryNoticeDuration = const Duration(seconds: 2),
   }) : _service = service ?? RoomService.instance,
        _socketFactory = socketFactory ?? ((id) => RoomSocketService(id)),
        _typingExpiry = typingExpiry,
-       _typingSendInterval = typingSendInterval;
+       _typingSendInterval = typingSendInterval,
+       _recoveryNoticeDuration = recoveryNoticeDuration;
 
   final RoomService _service;
   final RoomSocketService Function(String roomId) _socketFactory;
   final Duration _typingExpiry;
   final Duration _typingSendInterval;
+  final Duration _recoveryNoticeDuration;
 
   List<Room> _rooms = [];
   Room? _currentRoom;
@@ -37,6 +40,9 @@ class RoomProvider extends ChangeNotifier {
 
   RoomConnectionState _connectionState = RoomConnectionState.closed;
   bool _wasConnected = false;
+  bool _backOnline = false;
+  Timer? _recoveryNoticeTimer;
+  bool _disposed = false;
 
   /// In-progress agent streams keyed by message_id so chunks can accumulate.
   final Map<String, _StreamingMessage> _streaming = {};
@@ -48,6 +54,11 @@ class RoomProvider extends ChangeNotifier {
   bool get loading => _loading;
   String? get error => _error;
   RoomConnectionState get connectionState => _connectionState;
+  bool get backOnline => _backOnline;
+  bool get canPost =>
+      _currentRoom != null &&
+      _connectionState != RoomConnectionState.failed &&
+      _connectionState != RoomConnectionState.closed;
 
   // ==========================================================================
   // Streaming message channel
@@ -242,6 +253,9 @@ class RoomProvider extends ChangeNotifier {
     _socket = null;
     _connectionState = RoomConnectionState.closed;
     _wasConnected = false;
+    _recoveryNoticeTimer?.cancel();
+    _recoveryNoticeTimer = null;
+    _backOnline = false;
     _currentRoom = null;
     ErrorReporter.instance.clearContext();
     _messages = [];
@@ -252,7 +266,20 @@ class RoomProvider extends ChangeNotifier {
   }
 
   /// Retry the socket from the failed state (user tapped "Try again").
-  void retryConnection() => unawaited(_socket?.retry());
+  void retryConnection() {
+    if (_connectionState == RoomConnectionState.closed) {
+      final roomId = _currentRoom?.id;
+      if (roomId != null) unawaited(openRoom(roomId));
+      return;
+    }
+    unawaited(_socket?.retry());
+  }
+
+  /// Stop reconnect timers while the app is backgrounded or the screen sleeps.
+  void suspendConnection() => unawaited(_socket?.suspend());
+
+  /// Start a fresh connection immediately when the app returns to foreground.
+  void resumeConnection() => unawaited(_socket?.resume());
 
   // ------------------------------------------------------- Connection state
 
@@ -265,10 +292,21 @@ class RoomProvider extends ChangeNotifier {
         // A reconnection filled the gap — refetch messages we may have missed
         // while offline.
         unawaited(_refetchMessagesAfterReconnect());
+        _showRecoveryNotice();
       }
       _wasConnected = true;
     }
     notifyListeners();
+  }
+
+  void _showRecoveryNotice() {
+    _recoveryNoticeTimer?.cancel();
+    _backOnline = true;
+    _recoveryNoticeTimer = Timer(_recoveryNoticeDuration, () {
+      if (_disposed) return;
+      _backOnline = false;
+      notifyListeners();
+    });
   }
 
   Future<void> _refetchMessagesAfterReconnect() async {
@@ -277,12 +315,13 @@ class RoomProvider extends ChangeNotifier {
     try {
       final fresh = await _service.listMessages(room.id);
       // Guard against a room switch mid-fetch.
-      if (_currentRoom?.id != room.id) return;
+      if (_disposed || _currentRoom?.id != room.id) return;
       _messages = fresh;
       _streaming.clear();
       _clearStreamingChannel();
       notifyListeners();
     } catch (e) {
+      if (_disposed) return;
       _error = e.toString();
       notifyListeners();
     }
@@ -617,7 +656,9 @@ class RoomProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
     _streamFlushTimer?.cancel();
+    _recoveryNoticeTimer?.cancel();
     _clearTypingState();
     _socketSub?.cancel();
     _socket?.connectionState.removeListener(_onConnectionStateChanged);

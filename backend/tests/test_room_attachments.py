@@ -94,6 +94,7 @@ def _document(text: str = "hello from the doc") -> AttachmentIn:
         name="notes.txt",
         mime_type="text/plain",
         type="document",
+        encoding="base64",
         data=base64.b64encode(text.encode()).decode(),
     )
 
@@ -323,6 +324,7 @@ async def test_rest_post_with_attachment_persists_message(db_session, monkeypatc
                             "name": "notes.txt",
                             "mime_type": "text/plain",
                             "type": "document",
+                            "encoding": "base64",
                             "data": base64.b64encode(b"doc body").decode(),
                         }
                     ],

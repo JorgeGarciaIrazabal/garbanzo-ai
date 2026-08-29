@@ -242,6 +242,9 @@ def test_seeds_opencode_config(manager):
     data = json.loads(cfg.read_text())
     assert "ollama" in data["provider"]
     assert "deepseek-v4-flash:cloud" in data["provider"]["ollama"]["models"]
+    assert "deepseek-v4-pro:cloud" in data["provider"]["ollama"]["models"]
+    assert "glm-5.3-flash:cloud" in data["provider"]["ollama"]["models"]
+    assert "qwen3.5:cloud" in data["provider"]["ollama"]["models"]
     # Internal planning tools disabled — see _seed_opencode_config rationale.
     assert data["tools"] == {"todowrite": False, "todoread": False}
 

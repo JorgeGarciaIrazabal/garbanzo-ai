@@ -43,7 +43,7 @@ class BuiltinReadOnlyError(Exception):
 # and stays in lock-step with SystemPromptService.BUILTIN_TEMPLATES.
 #
 # Model IDs name Ollama models as the /chat/models endpoint reports them
-# (e.g. "minimax-m3:cloud"); the picker hides a built-in whose model isn't
+# (e.g. "glm-5.3-flash:cloud"); the picker hides a built-in whose model isn't
 # installed, so a built-in pointing at a model the deployment lacks simply
 # won't surface until the model is pulled.
 #
@@ -56,7 +56,7 @@ BUILTIN_STYLES: list[dict[str, str | None]] = [
         "locale": "en",
         "name": "Concise",
         "description": "Short, direct, to-the-point answers.",
-        "model_id": "minimax-m3:cloud",
+        "model_id": "glm-5.3-flash:cloud",
         "template_name": "Concise",
         "thinking_level": None,
     },
@@ -64,7 +64,7 @@ BUILTIN_STYLES: list[dict[str, str | None]] = [
         "locale": "en",
         "name": "Truth Seeker",
         "description": "Verifies claims, cites sources, flags uncertainty.",
-        "model_id": "glm-5.2:cloud",
+        "model_id": "glm-5.3:cloud",
         "template_name": "Truth Seeker",
         "thinking_level": "medium",
     },
@@ -72,7 +72,7 @@ BUILTIN_STYLES: list[dict[str, str | None]] = [
         "locale": "en",
         "name": "Writing & Stories",
         "description": "Storytelling partner for fiction and non-fiction.",
-        "model_id": "minimax-m3:cloud",
+        "model_id": "glm-5.3-flash:cloud",
         "template_name": "Writing Coach",
         "thinking_level": None,
     },
@@ -80,7 +80,7 @@ BUILTIN_STYLES: list[dict[str, str | None]] = [
         "locale": "en",
         "name": "Tutoring",
         "description": "Teaches by asking guiding questions.",
-        "model_id": "glm-5.2:cloud",
+        "model_id": "glm-5.3:cloud",
         "template_name": "Socratic Tutor",
         "thinking_level": "medium",
     },
@@ -88,7 +88,7 @@ BUILTIN_STYLES: list[dict[str, str | None]] = [
         "locale": "en",
         "name": "Brainstorm",
         "description": "Generates varied ideas quickly.",
-        "model_id": "minimax-m3:cloud",
+        "model_id": "glm-5.3-flash:cloud",
         "template_name": "Brainstorm Partner",
         "thinking_level": None,
     },
@@ -96,7 +96,7 @@ BUILTIN_STYLES: list[dict[str, str | None]] = [
         "locale": "es",
         "name": "Conciso",
         "description": "Respuestas breves, directas y al punto.",
-        "model_id": "minimax-m3:cloud",
+        "model_id": "glm-5.3-flash:cloud",
         "template_name": "Conciso",
         "thinking_level": None,
     },
@@ -104,7 +104,7 @@ BUILTIN_STYLES: list[dict[str, str | None]] = [
         "locale": "es",
         "name": "Buscador de la verdad",
         "description": "Verifica afirmaciones, cita fuentes y marca la incertidumbre.",
-        "model_id": "glm-5.2:cloud",
+        "model_id": "glm-5.3:cloud",
         "template_name": "Buscador de la verdad",
         "thinking_level": "medium",
     },
@@ -112,7 +112,7 @@ BUILTIN_STYLES: list[dict[str, str | None]] = [
         "locale": "es",
         "name": "Escritura e historias",
         "description": "Compañero de narración para ficción y no ficción.",
-        "model_id": "minimax-m3:cloud",
+        "model_id": "glm-5.3-flash:cloud",
         "template_name": "Coach de escritura",
         "thinking_level": None,
     },
@@ -120,7 +120,7 @@ BUILTIN_STYLES: list[dict[str, str | None]] = [
         "locale": "es",
         "name": "Tutoría",
         "description": "Enseña haciendo preguntas guía.",
-        "model_id": "glm-5.2:cloud",
+        "model_id": "glm-5.3:cloud",
         "template_name": "Tutor socrático",
         "thinking_level": "medium",
     },
@@ -128,7 +128,7 @@ BUILTIN_STYLES: list[dict[str, str | None]] = [
         "locale": "es",
         "name": "Lluvia de ideas",
         "description": "Genera ideas variadas rápidamente.",
-        "model_id": "minimax-m3:cloud",
+        "model_id": "glm-5.3-flash:cloud",
         "template_name": "Compañero de lluvia de ideas",
         "thinking_level": None,
     },

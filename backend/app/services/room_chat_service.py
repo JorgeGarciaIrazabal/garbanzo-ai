@@ -86,7 +86,11 @@ class _RoomTurnSink:
     def __init__(self, db: AsyncSession, room_id: str, agent: RoomAgent, message_id: str):
         self.db = db
         self.room_id = room_id
-        self.agent = agent
+        # Provider error chunks roll the session back before the caller can
+        # persist a user-safe capability message. Snapshot scalar identity now
+        # so that path never lazy-loads an expired ORM instance.
+        self.agent_id = agent.id
+        self.agent_name = agent.name
         self.message_id = message_id
         self.message: RoomMessage | None = None
 
@@ -95,13 +99,13 @@ class _RoomTurnSink:
         if not content.strip():
             return
         msg_meta = dict(meta) if meta else {}
-        msg_meta["agent_name"] = self.agent.name
+        msg_meta["agent_name"] = self.agent_name
         msg = RoomMessage(
             id=self.message_id,
             room_id=self.room_id,
             role="assistant",
             content=content,
-            sender_agent_id=self.agent.id,
+            sender_agent_id=self.agent_id,
             meta=msg_meta or None,
         )
         self.db.add(msg)
@@ -114,7 +118,7 @@ class _RoomTurnSink:
             room_id=self.room_id,
             role="tool_call",
             content=json.dumps(tool_calls),
-            sender_agent_id=self.agent.id,
+            sender_agent_id=self.agent_id,
             meta={"tool_calls": tool_calls},
         )
         self.db.add(msg)
@@ -126,7 +130,7 @@ class _RoomTurnSink:
             room_id=self.room_id,
             role="tool_result",
             content=content,
-            sender_agent_id=self.agent.id,
+            sender_agent_id=self.agent_id,
             meta=meta,
         )
         self.db.add(msg)
@@ -640,16 +644,17 @@ class RoomChatService:
         triggering_content: str,
         triggering_agent_id: str | None,
     ) -> None:
+        room_id = ctx.room.id
         if ctx.depth >= ctx.room.max_agent_turn_depth:
             logger.info(
                 "Agent turn depth cap hit for room %s (depth=%d)",
-                ctx.room.id,
+                room_id,
                 ctx.depth,
             )
             return
 
         # Build round-robin history from past messages (agent sender IDs).
-        history = await self._load_history(ctx.room.id, limit=50)
+        history = await self._load_history(room_id, limit=50)
         rr_history = [m.sender_agent_id for m in history if m.sender_agent_id]
 
         agents = await self._select_agents(
@@ -663,10 +668,12 @@ class RoomChatService:
             return
 
         for agent in agents:
+            agent_id = agent.id
+            agent_name = agent.name
             try:
                 final_msg = await self._run_single_agent(ctx, agent, history)
             except Exception:
-                logger.exception("Agent turn failed (room=%s agent=%s)", ctx.room.id, agent.name)
+                logger.exception("Agent turn failed (room=%s agent=%s)", room_id, agent_name)
                 # A failed flush leaves the shared session in an aborted
                 # transaction — clear it so later agents and history queries
                 # don't fail on a poisoned session.
@@ -675,19 +682,25 @@ class RoomChatService:
 
             if final_msg is None:
                 continue
+            if (final_msg.meta or {}).get("error"):
+                history = await self._load_history(room_id, limit=100)
+                continue
 
             # Recurse if this agent mentioned another agent.
             await self._run_agent_turns(
                 _TurnContext(room=ctx.room, depth=ctx.depth + 1),
                 triggering_content=final_msg.content,
-                triggering_agent_id=agent.id,
+                triggering_agent_id=agent_id,
             )
             # Refresh history so the next agent in the sequence sees the new message.
-            history = await self._load_history(ctx.room.id, limit=100)
+            history = await self._load_history(room_id, limit=100)
 
     async def _run_single_agent(
         self, ctx: _TurnContext, agent: RoomAgent, history: list[RoomMessage]
     ) -> RoomMessage | None:
+        room_id = ctx.room.id
+        agent_id = agent.id
+        agent_name = agent.name
         provider = self._get_provider(agent.provider or "ollama")
         llm_messages = self._build_llm_history(ctx.room, agent, history)
 
@@ -697,15 +710,15 @@ class RoomChatService:
         message_id = str(uuid.uuid4())
         # Announce the incoming streaming message so the UI can open a bubble.
         await room_manager.broadcast(
-            ctx.room.id,
+            room_id,
             RoomStreamStartEvent(
                 message_id=message_id,
-                agent_id=agent.id,
-                agent_name=agent.name,
+                agent_id=agent_id,
+                agent_name=agent_name,
             ).model_dump(),
         )
 
-        sink = _RoomTurnSink(self.db, ctx.room.id, agent, message_id)
+        sink = _RoomTurnSink(self.db, room_id, agent, message_id)
         # persist_partial_on_error: other participants already saw the
         # partial reply stream in, so it must survive as a message.
         async for chunk in run_agent_turn(
@@ -722,16 +735,31 @@ class RoomChatService:
             persist_partial_on_error=True,
         ):
             if chunk.metadata and chunk.metadata.get("error"):
+                # Expected capability mismatches (for example an image sent
+                # to a text-only model) are user-actionable, not silent room
+                # failures. Persist and stream the provider's safe message so
+                # the placeholder bubble resolves consistently for everyone.
+                if chunk.metadata.get("auto_report") is False and chunk.content:
+                    await sink.persist_assistant(chunk.content, chunk.metadata)
+                    await sink.commit()
+                    await room_manager.broadcast(
+                        room_id,
+                        RoomChunkEvent(
+                            message_id=message_id,
+                            agent_id=agent_id,
+                            content=chunk.content,
+                        ).model_dump(),
+                    )
                 continue
             # Tool execution progress / result events
             tool_exec = chunk.metadata.get("tool_execution") if chunk.metadata else None
             tool_result_meta = chunk.metadata.get("tool_result") if chunk.metadata else None
             if tool_exec:
                 await room_manager.broadcast(
-                    ctx.room.id,
+                    room_id,
                     RoomToolEvent(
                         message_id=message_id,
-                        agent_id=agent.id,
+                        agent_id=agent_id,
                         tool_call_id=tool_exec.get("tool_call_id"),
                         tool_name=tool_exec.get("tool_name"),
                         status=tool_exec.get("status", "started"),
@@ -741,10 +769,10 @@ class RoomChatService:
                 continue
             if tool_result_meta:
                 await room_manager.broadcast(
-                    ctx.room.id,
+                    room_id,
                     RoomToolEvent(
                         message_id=message_id,
-                        agent_id=agent.id,
+                        agent_id=agent_id,
                         tool_call_id=tool_result_meta.get("tool_call_id"),
                         tool_name=tool_result_meta.get("tool_name"),
                         status="result",
@@ -755,19 +783,19 @@ class RoomChatService:
             if chunk.is_thinking:
                 if chunk.content:
                     await room_manager.broadcast(
-                        ctx.room.id,
+                        room_id,
                         RoomThinkingEvent(
                             message_id=message_id,
-                            agent_id=agent.id,
+                            agent_id=agent_id,
                             content=chunk.content,
                         ).model_dump(),
                     )
             elif chunk.content:
                 await room_manager.broadcast(
-                    ctx.room.id,
+                    room_id,
                     RoomChunkEvent(
                         message_id=message_id,
-                        agent_id=agent.id,
+                        agent_id=agent_id,
                         content=chunk.content,
                     ).model_dump(),
                 )
@@ -778,22 +806,22 @@ class RoomChatService:
             # stream so clients tear down the placeholder bubble instead of
             # showing typing dots forever.
             await room_manager.broadcast(
-                ctx.room.id,
-                RoomDoneEvent(message_id=message_id, agent_id=agent.id).model_dump(),
+                room_id,
+                RoomDoneEvent(message_id=message_id, agent_id=agent_id).model_dump(),
             )
             return None
         await self.db.refresh(msg)
 
-        await room_manager.broadcast(ctx.room.id, self._message_event(msg))
+        await room_manager.broadcast(room_id, self._message_event(msg))
         await room_manager.broadcast(
-            ctx.room.id,
-            RoomDoneEvent(message_id=message_id, agent_id=agent.id).model_dump(),
+            room_id,
+            RoomDoneEvent(message_id=message_id, agent_id=agent_id).model_dump(),
         )
 
         # Notify offline members: agent replied + any @mentions in the reply.
         await self._notify_offline_members(
             ctx.room,
-            sender_label=agent.name,
+            sender_label=agent_name,
             body=msg.content,
             message_id=msg.id,
             exclude_user_ids=set(),

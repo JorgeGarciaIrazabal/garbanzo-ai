@@ -6,6 +6,7 @@ reading a diff out of a run that is still going.
 """
 
 import base64
+import uuid
 from pathlib import Path
 
 import pytest
@@ -15,6 +16,7 @@ from app.core.config import Settings, get_settings
 from app.core.security import get_current_user, hash_password
 from app.db.session import get_db
 from app.main import app
+from app.models.message import Message
 from app.models.user import User
 from app.services import workflow_runner
 
@@ -331,5 +333,59 @@ async def test_create_captures_conversation_mcp_allowance(db_session, test_conve
                 conversation_id=test_conversation.id,
             )
         assert run["scope"]["mcp_tools"] == ["server-1:web_search"]
+    finally:
+        _clear_overrides()
+
+
+@pytest.mark.asyncio
+async def test_create_imports_launching_message_attachment(db_session, test_conversation):
+    payload = "Contrato para España".encode()
+    db_session.add_all(
+        [
+            Message(
+                id=str(uuid.uuid4()),
+                conversation_id=test_conversation.id,
+                role="user",
+                content="analiza esto",
+                seq=100,
+                meta={
+                    "attachments": [
+                        {
+                            "name": "contrato Hébridas.pdf",
+                            "type": "document",
+                            "mime_type": "application/pdf",
+                            "encoding": "base64",
+                            "data": base64.b64encode(payload).decode("ascii"),
+                        }
+                    ]
+                },
+            ),
+            Message(
+                id=str(uuid.uuid4()),
+                conversation_id=test_conversation.id,
+                role="tool_call",
+                content="[]",
+                seq=200,
+                meta={"tool_calls": [{"id": "delegate-unicode"}]},
+            ),
+        ]
+    )
+    await db_session.commit()
+    _install_overrides(db_session, _UserSwitch())
+    try:
+        async with _client() as c:
+            created = await _create(
+                c,
+                conversation_id=test_conversation.id,
+                tool_call_id="delegate-unicode",
+                mode="research",
+            )
+
+        from app.models.workflow_run import WorkflowRun
+
+        row = await db_session.get(WorkflowRun, created["id"])
+        rel_path = row.scope["attachment_paths"][0]
+        assert rel_path.endswith("contrato Hébridas.pdf")
+        assert (Path(row.workdir) / rel_path).read_bytes() == payload
     finally:
         _clear_overrides()

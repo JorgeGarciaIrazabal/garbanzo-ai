@@ -8,13 +8,16 @@ git-diff change detection that write-back depends on.
 import base64
 import hashlib
 import io
+import uuid
 import zipfile
 from pathlib import Path
 
 import pytest
 
+from app.models.message import Message
 from app.schemas.workflow import MAX_FILE_BYTES, MAX_FILE_COUNT
 from app.services.workflow_service import (
+    WORKFLOW_INPUT_DIR,
     WorkflowError,
     WorkflowService,
     _collect_changes,
@@ -145,6 +148,154 @@ async def test_research_run_rejects_folder_upload_and_diff(db_session):
     assert (Path(run.workdir) / ".git").exists()
     with pytest.raises(WorkflowError, match="do not have file changes"):
         await service.compute_changes(run)
+
+
+@pytest.mark.asyncio
+async def test_launching_message_attachments_are_copied_with_unicode_names(
+    db_session,
+    test_conversation,
+):
+    pdf = b"%PDF exact bytes\x00\xff"
+    user_message = Message(
+        id=str(uuid.uuid4()),
+        conversation_id=test_conversation.id,
+        role="user",
+        content="Revisa el contrato",
+        seq=100,
+        meta={
+            "attachments": [
+                {
+                    "name": "CONTRATO DE INTERMEDIACION ISLAS HÉBRIDAS 70.pdf",
+                    "mime_type": "application/pdf",
+                    "type": "document",
+                    "encoding": "base64",
+                    "data": base64.b64encode(pdf).decode("ascii"),
+                }
+            ]
+        },
+    )
+    tool_message = Message(
+        id=str(uuid.uuid4()),
+        conversation_id=test_conversation.id,
+        role="tool_call",
+        content="[]",
+        seq=200,
+        meta={"tool_calls": [{"id": "delegate-1", "name": "delegate_workflow"}]},
+    )
+    db_session.add_all([user_message, tool_message])
+    await db_session.commit()
+
+    service = WorkflowService(db_session)
+    files = await service.conversation_attachments(
+        test_conversation.id,
+        OWNER,
+        "delegate-1",
+    )
+    run = await service.create(
+        user_id=OWNER,
+        instruction="analyze it",
+        mode="research",
+        attached_files=files,
+    )
+
+    rel_path = run.scope["attachment_paths"][0]
+    assert rel_path == (f"{WORKFLOW_INPUT_DIR}/CONTRATO DE INTERMEDIACION ISLAS HÉBRIDAS 70.pdf")
+    assert (Path(run.workdir) / rel_path).read_bytes() == pdf
+    await service.start_snapshot(run)
+    assert _collect_changes(Path(run.workdir)) == []
+
+
+@pytest.mark.asyncio
+async def test_workflow_attachment_names_drop_paths_and_resolve_unicode_collisions(db_session):
+    service = WorkflowService(db_session)
+    run = await service.create(
+        user_id=OWNER,
+        instruction="analyze",
+        attached_files=[
+            ("../../señor.pdf", b"one"),
+            ("SEÑOR.pdf", b"two"),
+        ],
+    )
+
+    assert run.scope["attachment_paths"] == [
+        f"{WORKFLOW_INPUT_DIR}/señor.pdf",
+        f"{WORKFLOW_INPUT_DIR}/SEÑOR (2).pdf",
+    ]
+    assert not (Path(run.workdir).parent / "señor.pdf").exists()
+
+
+@pytest.mark.asyncio
+async def test_folder_upload_cannot_overwrite_reserved_message_attachments(db_session):
+    service, run = await _new_run(db_session)
+    with pytest.raises(WorkflowError, match="reserved"):
+        await service.add_files(
+            run,
+            [(f"{WORKFLOW_INPUT_DIR}/contract.pdf", _b64("overwrite"))],
+        )
+
+    with pytest.raises(WorkflowError, match="reserved"):
+        await service.add_files(
+            run,
+            [(f"safe/../{WORKFLOW_INPUT_DIR}/contract.pdf", _b64("overwrite"))],
+        )
+
+
+@pytest.mark.asyncio
+async def test_legacy_attachment_without_bytes_requires_reattach(db_session, test_conversation):
+    db_session.add(
+        Message(
+            id=str(uuid.uuid4()),
+            conversation_id=test_conversation.id,
+            role="user",
+            content="old message",
+            meta={"attachments": [{"name": "old.pdf", "type": "document"}]},
+        )
+    )
+    await db_session.commit()
+
+    service = WorkflowService(db_session)
+    with pytest.raises(WorkflowError, match="Attach it again"):
+        await service.conversation_attachments(test_conversation.id, OWNER)
+
+
+@pytest.mark.asyncio
+async def test_conversation_attachments_reject_other_users(db_session, test_conversation):
+    service = WorkflowService(db_session)
+    with pytest.raises(WorkflowError, match="Conversation not found"):
+        await service.conversation_attachments(
+            test_conversation.id,
+            "someone-else@example.com",
+        )
+
+
+@pytest.mark.asyncio
+async def test_conversation_attachment_enforces_per_file_limit(
+    db_session,
+    test_conversation,
+    monkeypatch,
+):
+    monkeypatch.setattr("app.services.workflow_service.MAX_FILE_BYTES", 2)
+    db_session.add(
+        Message(
+            id=str(uuid.uuid4()),
+            conversation_id=test_conversation.id,
+            role="user",
+            content="oversized",
+            meta={
+                "attachments": [
+                    {
+                        "name": "large.pdf",
+                        "data": base64.b64encode(b"123").decode("ascii"),
+                    }
+                ]
+            },
+        )
+    )
+    await db_session.commit()
+
+    service = WorkflowService(db_session)
+    with pytest.raises(WorkflowError, match="workflow limit"):
+        await service.conversation_attachments(test_conversation.id, OWNER)
 
 
 # ---------------------------------------------------------------------------

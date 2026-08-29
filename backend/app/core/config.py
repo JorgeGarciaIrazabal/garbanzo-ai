@@ -42,14 +42,14 @@ class Settings(BaseSettings):
 
     # Default model for new conversations and internal calls when no explicit
     # model is chosen. Must match a model ID returned by GET /api/v1/chat/models.
-    default_model: str = "minimax-m3:cloud"
+    default_model: str = "glm-5.3-flash:cloud"
 
     # Dedicated model for the daily automatic-memory extraction job. Keeping
     # this separate avoids coupling memory quality/cost to the chat default.
-    memory_extraction_model: str = "glm-5.2:cloud"
+    memory_extraction_model: str = "glm-5.3:cloud"
 
     # Default model for scheduled actions that do not explicitly select one.
-    scheduled_action_model: str = "glm-5.2:cloud"
+    scheduled_action_model: str = "glm-5.3:cloud"
 
     # Context window cap in tokens. The effective window for a conversation
     # is min(model's maximum, this value); it is passed to the provider as
@@ -178,7 +178,7 @@ class Settings(BaseSettings):
     # Model id passed to opencode's session request, in "provider/name" form.
     # The bare name is also written into the seeded opencode.json under the
     # "ollama" provider.
-    microapps_opencode_model: str = "ollama/kimi-k2.7-code:cloud"
+    microapps_opencode_model: str = "ollama/glm-5.3:cloud"
     # Git URL used by deployments to clone the repo into MICROAPPS_REPO_PATH on
     # first boot. Setting it also enables the periodic sync job (fetch +
     # fast-forward + rebase of clean worktrees). Leave empty in dev, where the

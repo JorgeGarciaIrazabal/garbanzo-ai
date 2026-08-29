@@ -40,20 +40,26 @@ void main() {
       expect(json['name'], 'img.png');
       expect(json['mime_type'], 'image/png');
       expect(json['type'], 'image');
+      expect(json['encoding'], 'base64');
       expect(json['data'], base64Encode(bytes));
     });
 
-    test('toJson for document produces text data', () {
-      final text = 'Hello, document!';
+    test('toJson for document preserves binary and Unicode bytes as base64', () {
+      final bytes = Uint8List.fromList([
+        ...utf8.encode('HÉBRIDAS, España'),
+        0,
+        255,
+      ]);
       final att = ChatAttachment(
-        name: 'doc.txt',
-        mimeType: 'text/plain',
+        name: 'CONTRATO ISLAS HÉBRIDAS 70.pdf',
+        mimeType: 'application/pdf',
         type: AttachmentType.document,
-        bytes: Uint8List.fromList(utf8.encode(text)),
+        bytes: bytes,
       );
       final json = att.toJson();
       expect(json['type'], 'document');
-      expect(json['data'], text);
+      expect(json['encoding'], 'base64');
+      expect(base64Decode(json['data'] as String), bytes);
     });
   });
 }

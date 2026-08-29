@@ -334,6 +334,9 @@ class TestStyleServiceBuiltins:
         assert ("Coding", "en") not in names
         assert ("Programación", "es") not in names
         assert sum(1 for s in listed if s.is_builtin) == 10
+        by_name = {s.name: s.model_id for s in listed if s.is_builtin}
+        assert by_name["Concise"] == "glm-5.3-flash:cloud"
+        assert by_name["Truth Seeker"] == "glm-5.3:cloud"
 
     async def test_seed_is_idempotent(self, db_session):
         await self._seed_builtins(db_session)

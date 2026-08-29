@@ -77,11 +77,18 @@ async def create_workflow(
     service: Annotated[WorkflowService, Depends(get_service)],
 ) -> WorkflowOut:
     try:
-        mcp_tools = (
-            await service.conversation_mcp_tools(data.conversation_id, current_user["email"])
-            if data.conversation_id
-            else []
-        )
+        if data.conversation_id:
+            mcp_tools = await service.conversation_mcp_tools(
+                data.conversation_id, current_user["email"]
+            )
+            attached_files = await service.conversation_attachments(
+                data.conversation_id,
+                current_user["email"],
+                data.tool_call_id,
+            )
+        else:
+            mcp_tools = []
+            attached_files = []
         run = await service.create(
             user_id=current_user["email"],
             instruction=data.instruction,
@@ -91,6 +98,7 @@ async def create_workflow(
             folder_label=data.folder_label,
             mode=data.mode,
             mcp_tools=mcp_tools,
+            attached_files=attached_files,
         )
     except WorkflowError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc

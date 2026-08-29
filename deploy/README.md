@@ -47,27 +47,38 @@ proceeds. Set `CHANGELOG_OPENCODE_MODEL` in `.env` to override the model.
     docker compose -f deploy/docker-compose.yml --env-file deploy/.env exec ollama ollama pull granite4:micro
     docker compose -f deploy/docker-compose.yml --env-file deploy/.env exec ollama ollama pull nomic-embed-text
     ```
-    Cloud models (e.g. `deepseek-v4-flash:cloud`, `kimi-k2.7-code:cloud`,
-    `glm-5.2:cloud`, `gemma4:cloud`, `minimax-m3:cloud`,
-    `nemotron-3-ultra:cloud`)
-    require a **one-time** `ollama signin` inside the container: run
-    `docker compose -f deploy/docker-compose.yml --env-file deploy/.env exec ollama ollama signin`
-    and confirm the printed URL in a browser while logged into ollama.com. The
-    sign-in binds to the key in the `ollama_data` volume, so it survives
-    redeploys — only wiping the volume requires signing in again. Local-only
-    models work without it. After signing in, pull each cloud model:
-    ```
-    docker compose -f deploy/docker-compose.yml --env-file deploy/.env exec ollama ollama pull deepseek-v4-flash:cloud
-    docker compose -f deploy/docker-compose.yml --env-file deploy/.env exec ollama ollama pull glm-5.2:cloud
-    docker compose -f deploy/docker-compose.yml --env-file deploy/.env exec ollama ollama pull gemma4:cloud
-    docker compose -f deploy/docker-compose.yml --env-file deploy/.env exec ollama ollama pull minimax-m3:cloud
-    docker compose -f deploy/docker-compose.yml --env-file deploy/.env exec ollama ollama pull nemotron-3-ultra:cloud
-    docker compose -f deploy/docker-compose.yml --env-file deploy/.env exec ollama ollama pull kimi-k2.7-code:cloud
-    ```
-    Normal chats default to `minimax-m3:cloud`; automatic memory extraction
-    and scheduled actions default to `glm-5.2:cloud`. Override them independently
-    with `DEFAULT_MODEL`, `MEMORY_EXTRACTION_MODEL`, and
-    `SCHEDULED_ACTION_MODEL` in `deploy/.env`.
+     Cloud models (e.g. `glm-5.3:cloud`, `glm-5.3-flash:cloud`,
+     `deepseek-v4-flash:cloud`, `deepseek-v4-pro:cloud`, `gemma4:cloud`,
+     `nemotron-3-ultra:cloud`,
+     `nemotron-3-super:cloud`, `qwen3.5:cloud`)
+     require a **one-time** `ollama signin` inside the container: run
+     `docker compose -f deploy/docker-compose.yml --env-file deploy/.env exec ollama ollama signin`
+     and confirm the printed URL in a browser while logged into ollama.com. The
+     sign-in binds to the key in the `ollama_data` volume, so it survives
+     redeploys — only wiping the volume requires signing in again. Local-only
+     models work without it. After signing in, pull each cloud model:
+     ```
+     docker compose -f deploy/docker-compose.yml --env-file deploy/.env exec ollama ollama pull glm-5.3:cloud
+     docker compose -f deploy/docker-compose.yml --env-file deploy/.env exec ollama ollama pull glm-5.3-flash:cloud
+     docker compose -f deploy/docker-compose.yml --env-file deploy/.env exec ollama ollama pull deepseek-v4-flash:cloud
+     docker compose -f deploy/docker-compose.yml --env-file deploy/.env exec ollama ollama pull deepseek-v4-pro:cloud
+     docker compose -f deploy/docker-compose.yml --env-file deploy/.env exec ollama ollama pull gemma4:cloud
+     docker compose -f deploy/docker-compose.yml --env-file deploy/.env exec ollama ollama pull nemotron-3-ultra:cloud
+     docker compose -f deploy/docker-compose.yml --env-file deploy/.env exec ollama ollama pull nemotron-3-super:cloud
+     docker compose -f deploy/docker-compose.yml --env-file deploy/.env exec ollama ollama pull qwen3.5:cloud
+     ```
+     Normal chats default to the multimodal `glm-5.3-flash:cloud`; automatic
+     memory extraction and scheduled actions default to `glm-5.3:cloud`.
+     Migration 037 upgrades the app's retired MiniMax M3, GLM 5.2, dated
+     DeepSeek V4 Flash/Pro preview aliases, Kimi K2.7 Code, and Qwen 3.6
+     identifiers in persisted user configurations and pending shared-style
+     snapshots. The generic DeepSeek V4 Flash selection stays on Flash; Pro is
+     available as a separate higher-usage model. If
+     Qwen 3.6 was installed, pull the corresponding Qwen 3.8 tag before the
+     deploy (the common replacement is `ollama pull qwen3.8:27b`). Override
+     the workload defaults independently
+     with `DEFAULT_MODEL`, `MEMORY_EXTRACTION_MODEL`, and
+     `SCHEDULED_ACTION_MODEL` in `deploy/.env`.
 6. Merge your work to `main`, then run `just deploy`.
 
 > The free ngrok plan allows **one agent session**. `just deploy` refuses to

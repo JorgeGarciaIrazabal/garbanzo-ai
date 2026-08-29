@@ -30,7 +30,7 @@ from app.services.client_file_extract import extract_file_text
 from app.services.client_tool_bridge import client_tool_bridge
 from app.services.conversation_service import ConversationService
 from app.services.conversation_turn_sink import ConversationTurnSink
-from app.services.document_parser import extract_attachment_text
+from app.services.document_parser import decode_attachment_bytes, extract_attachment_text
 from app.services.error_reporting import report_chat_error
 from app.services.image_utils import downscale_image_b64
 from app.services.knowledge_base_service import KnowledgeBaseService
@@ -265,9 +265,20 @@ class ChatService:
                         att.data,
                         mime_type=att.mime_type,
                     )
+                    entry["encoding"] = "base64"
                 elif att.type == "document" and att.data:
                     extracted_text = await extract_attachment_text(att)
                     doc_texts.append(f"[Attached file: {att.name}]\n{extracted_text}")
+                    try:
+                        raw = decode_attachment_bytes(att)
+                    except (ValueError, UnicodeError):
+                        # Extraction already produced a user-visible marker.
+                        # Keep the message usable, but this corrupt payload
+                        # cannot be made available to a delegated workflow.
+                        entry["workflow_unavailable"] = "The attachment payload is invalid."
+                    else:
+                        entry["data"] = base64.b64encode(raw).decode("ascii")
+                        entry["encoding"] = "base64"
                 attachment_meta.append(entry)
 
             if doc_texts:
@@ -286,6 +297,13 @@ class ChatService:
 
         conversation.updated_at = func.now()  # type: ignore[assignment]
         await self.db.flush()
+
+        if attachment_meta:
+            # A delegate proposal is emitted before the rest of the turn is
+            # committed, and the user can confirm it immediately. Persist the
+            # launching message now so the separate /workflows request can
+            # copy its attachments into the detached workspace.
+            await self.db.commit()
 
         async for chunk in self._stream_assistant_turn(
             conversation=conversation,

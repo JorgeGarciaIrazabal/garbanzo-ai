@@ -26,6 +26,7 @@ import logging
 import shutil
 import subprocess
 import tempfile
+import unicodedata
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
@@ -35,6 +36,7 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.conversation import Conversation
+from app.models.message import Message
 from app.models.workflow_run import WorkflowRun
 from app.schemas.workflow import (
     MAX_FILE_BYTES,
@@ -47,6 +49,11 @@ logger = logging.getLogger(__name__)
 
 # Prefix for the per-run temp directories, so a leaked one is identifiable.
 _WORKDIR_PREFIX = "garbanzo-workflow-"
+
+# Conversation attachments are copied into this reserved directory before the
+# detached runner starts. It is excluded from git diffs: these are input copies,
+# not files from the user's attached folder that should be written back.
+WORKFLOW_INPUT_DIR = ".garbanzo-workflow-inputs"
 
 # Identity for the baseline commit — never pushed anywhere, but git refuses to
 # commit without one.
@@ -70,6 +77,7 @@ _COALESCING_TYPES = frozenset({"chunk", "thinking"})
 # user's real folder). ``opencode.json`` is added at runtime, and only when we
 # were the ones who wrote it — a project with its own stays diffable.
 _TOOL_RESIDUE = [
+    f"{WORKFLOW_INPUT_DIR}/",
     ".opencode/",
     "node_modules/",
     "__pycache__/",
@@ -129,9 +137,15 @@ class WorkflowService:
         folder_label: str | None = None,
         mode: str = "folder",
         mcp_tools: list[str] | None = None,
+        attached_files: list[tuple[str, bytes]] | None = None,
     ) -> WorkflowRun:
-        """Create a ``draft`` run and its (empty) server-side snapshot dir."""
+        """Create a ``draft`` run and its isolated server-side snapshot dir."""
         workdir = await asyncio.to_thread(tempfile.mkdtemp, prefix=_WORKDIR_PREFIX)
+        attachment_paths = await asyncio.to_thread(
+            _write_workflow_inputs,
+            Path(workdir),
+            attached_files or [],
+        )
         run = WorkflowRun(
             id=str(uuid.uuid4()),
             user_id=user_id,
@@ -147,6 +161,9 @@ class WorkflowService:
                 "folder_label": folder_label,
                 "file_count": 0,
                 "total_bytes": 0,
+                "attachment_paths": attachment_paths,
+                "attachment_count": len(attached_files or []),
+                "attachment_bytes": sum(len(data) for _, data in (attached_files or [])),
                 "permissions": ["edit", "bash", "webfetch"],
                 # None means every enabled MCP visible to this user; a list is
                 # the conversation's explicit tool whitelist (native entries
@@ -158,6 +175,81 @@ class WorkflowService:
         await self.db.commit()
         await self.db.refresh(run)
         return run
+
+    async def conversation_attachments(
+        self,
+        conversation_id: str,
+        user_id: str,
+        tool_call_id: str | None = None,
+    ) -> list[tuple[str, bytes]]:
+        """Return exact files from the user message that launched a workflow.
+
+        Ownership is checked before message metadata is inspected. When the
+        proposal tool call can be located, its immediately preceding user
+        message is used; otherwise the latest user message is a compatibility
+        fallback for older proposals and direct API callers.
+        """
+        result = await self.db.execute(
+            select(Conversation.id).where(
+                Conversation.id == conversation_id,
+                Conversation.user_id == user_id,
+                Conversation.is_deleted.is_(False),
+            )
+        )
+        if result.scalar_one_or_none() is None:
+            raise WorkflowError("Conversation not found.")
+
+        anchor_seq: int | None = None
+        if tool_call_id:
+            result = await self.db.execute(
+                select(Message)
+                .where(
+                    Message.conversation_id == conversation_id,
+                    Message.role == "tool_call",
+                )
+                .order_by(Message.seq.desc())
+            )
+            for message in result.scalars():
+                calls = (message.meta or {}).get("tool_calls") or []
+                if any(call.get("id") == tool_call_id for call in calls):
+                    anchor_seq = message.seq
+                    break
+
+        query = select(Message).where(
+            Message.conversation_id == conversation_id,
+            Message.role == "user",
+        )
+        if anchor_seq is not None:
+            query = query.where(Message.seq < anchor_seq)
+        result = await self.db.execute(query.order_by(Message.seq.desc()).limit(1))
+        source = result.scalar_one_or_none()
+        if source is None:
+            return []
+
+        files: list[tuple[str, bytes]] = []
+        total = 0
+        for entry in (source.meta or {}).get("attachments") or []:
+            name = entry.get("name") or "attachment"
+            data = entry.get("data")
+            if not isinstance(data, str) or not data:
+                raise WorkflowError(
+                    f"Attached file {name!r} is not available to delegate. "
+                    "Attach it again with the current app version."
+                )
+            try:
+                raw = base64.b64decode(data, validate=True)
+            except (binascii.Error, ValueError) as exc:
+                raise WorkflowError(f"Attached file {name!r} has an invalid payload.") from exc
+            if len(raw) > MAX_FILE_BYTES:
+                raise WorkflowError(
+                    f"Attached file {name!r} is larger than the "
+                    f"{MAX_FILE_BYTES // (1024 * 1024)} MB workflow limit."
+                )
+            total += len(raw)
+            if len(files) >= MAX_FILE_COUNT or total > MAX_TOTAL_BYTES:
+                raise WorkflowError("Conversation attachments exceed the workflow input limits.")
+            files.append((str(name), raw))
+        return files
 
     async def conversation_mcp_tools(
         self,
@@ -231,6 +323,10 @@ class WorkflowService:
 
         decoded: list[tuple[Path, bytes]] = []
         for rel_path, b64 in files:
+            target = safe_join(root, rel_path)
+            input_root = (root / WORKFLOW_INPUT_DIR).resolve()
+            if target == input_root or input_root in target.parents:
+                raise WorkflowError(f"{WORKFLOW_INPUT_DIR} is reserved for message attachments.")
             try:
                 data = base64.b64decode(b64, validate=True)
             except (binascii.Error, ValueError) as exc:
@@ -239,11 +335,11 @@ class WorkflowService:
                 raise WorkflowError(f"{rel_path} is larger than the {MAX_FILE_BYTES} byte limit.")
             count += 1
             total += len(data)
-            if count > MAX_FILE_COUNT:
+            if count + int(scope.get("attachment_count", 0)) > MAX_FILE_COUNT:
                 raise WorkflowError(f"Folder has more than {MAX_FILE_COUNT} files.")
-            if total > MAX_TOTAL_BYTES:
+            if total + int(scope.get("attachment_bytes", 0)) > MAX_TOTAL_BYTES:
                 raise WorkflowError(f"Folder is larger than {MAX_TOTAL_BYTES // (1024 * 1024)} MB.")
-            decoded.append((safe_join(root, rel_path), data))
+            decoded.append((target, data))
 
         await asyncio.to_thread(_write_files, decoded)
 
@@ -370,6 +466,51 @@ def _write_files(decoded: list[tuple[Path, bytes]]) -> None:
     for path, data in decoded:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(data)
+
+
+def _write_workflow_inputs(root: Path, files: list[tuple[str, bytes]]) -> list[str]:
+    """Write collision-safe attachment copies and return their relative paths."""
+    if not files:
+        return []
+    input_root = root / WORKFLOW_INPUT_DIR
+    used: set[str] = set()
+    paths: list[str] = []
+    for original_name, data in files:
+        filename = _safe_attachment_filename(original_name, used)
+        target = safe_join(input_root, filename)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(data)
+        rel = target.relative_to(root).as_posix()
+        paths.append(rel)
+    return paths
+
+
+def _safe_attachment_filename(original_name: str, used: set[str]) -> str:
+    """Preserve Unicode names while removing paths and resolving collisions."""
+    leaf = original_name.replace("\\", "/").rsplit("/", 1)[-1]
+    leaf = unicodedata.normalize("NFC", leaf).strip()
+    leaf = "".join(char for char in leaf if unicodedata.category(char) != "Cc")
+    if leaf in ("", ".", ".."):
+        leaf = "attachment"
+    leaf = _truncate_utf8(leaf, 220)
+
+    stem = Path(leaf).stem or "attachment"
+    suffix = Path(leaf).suffix
+    candidate = leaf
+    index = 2
+    while candidate.casefold() in used:
+        marker = f" ({index})"
+        candidate = f"{_truncate_utf8(stem, 220 - len(marker.encode()) - len(suffix.encode()))}{marker}{suffix}"
+        index += 1
+    used.add(candidate.casefold())
+    return candidate
+
+
+def _truncate_utf8(value: str, max_bytes: int) -> str:
+    encoded = value.encode("utf-8")
+    if len(encoded) <= max_bytes:
+        return value
+    return encoded[:max_bytes].decode("utf-8", "ignore") or "attachment"
 
 
 def absorb_into_baseline(workdir: Path, paths: list[str]) -> None:

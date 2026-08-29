@@ -10,9 +10,9 @@ DATABASE_URL=postgresql+asyncpg://garbanzo:garbanzo_dev@localhost:5432/garbanzo_
 
 LLM_PROVIDER=ollama
 OLLAMA_BASE_URL=http://localhost:11434   # host.docker.internal when in Docker
-DEFAULT_MODEL=minimax-m3:cloud           # chats and general internal calls
-MEMORY_EXTRACTION_MODEL=glm-5.2:cloud    # daily automatic memory extraction
-SCHEDULED_ACTION_MODEL=glm-5.2:cloud     # scheduled actions without an explicit model
+DEFAULT_MODEL=glm-5.3-flash:cloud        # multimodal chats and general internal calls
+MEMORY_EXTRACTION_MODEL=glm-5.3:cloud    # daily automatic memory extraction
+SCHEDULED_ACTION_MODEL=glm-5.3:cloud     # scheduled actions without an explicit model
 
 # STT: "local" (in-process faster-whisper) or "remote" (Docker container)
 STT_MODE=local
@@ -72,7 +72,7 @@ ROOM_AUTO_JUDGE_MODEL=granite4:micro
 
 # Micro-apps agentic workspace (dev points at a locally-managed repo)
 MICROAPPS_REPO_PATH=/abs/path/to/micro-apps
-MICROAPPS_OPENCODE_MODEL=ollama/kimi-k2.7-code:cloud
+MICROAPPS_OPENCODE_MODEL=ollama/glm-5.3:cloud
 # Deployment-only (set via deploy/docker-compose.yml, not backend/.env):
 #   MICROAPPS_GIT_URL      — clone URL; also enables the periodic sync job
 #   MICROAPPS_PROXY_MODE   — serve the panel via the backend /micro-apps proxy

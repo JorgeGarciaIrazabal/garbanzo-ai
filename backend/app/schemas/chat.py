@@ -22,9 +22,16 @@ class AttachmentIn(BaseModel):
     name: str = Field(..., description="Original filename")
     mime_type: str = Field(..., description="MIME type of the file")
     type: Literal["image", "document"] = Field(..., description="Attachment category")
+    encoding: Literal["base64", "utf-8"] | None = Field(
+        default=None,
+        description=(
+            "Encoding of data. New clients send base64 for every file; omitted "
+            "keeps compatibility with clients that sent document text as UTF-8."
+        ),
+    )
     data: str = Field(
         ...,
-        description="Base64-encoded bytes for images; plain text for documents",
+        description="File payload using the declared encoding.",
     )
 
 

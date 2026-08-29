@@ -1,20 +1,19 @@
 # Styles (model, thinking level, system prompt)
 
 A **style** bundles a model, a thinking level, and a system prompt template
-into one reusable preset (e.g. "Concise", "Truth Seeker"). The app ships six
-**built-in styles** — Concise, Truth Seeker, Writing & Stories, Coding,
-Tutoring, and Brainstorm — shown as one-tap cards at the top of the Styles
+into one reusable preset (e.g. "Concise", "Truth Seeker"). The app ships five
+**built-in styles** — Concise, Truth Seeker, Writing & Stories, Tutoring, and
+Brainstorm — shown as one-tap cards at the top of the Styles
 section in the style picker. They are read-only: tap to apply, or start
 from the Customize section to save your own variant.
 
 | Built-in | Model | Template | For |
 |----------|-------|----------|-----|
-| **Concise** | Minimax M3 | Concise | Short, direct answers |
-| **Truth Seeker** | GLM 5.2 (medium thinking) | Truth Seeker | Verifies claims, cites sources |
-| **Writing & Stories** | Minimax M3 | Writing Coach | Fiction + non-fiction writing |
-| **Coding** | Kimi K2.7 Code | Coding Assistant | Software engineering |
-| **Tutoring** | GLM 5.2 (medium thinking) | Socratic Tutor | Learns by guiding questions |
-| **Brainstorm** | Minimax M3 | Brainstorm Partner | Generates varied ideas quickly |
+| **Concise** | GLM 5.3 Flash | Concise | Short, direct answers |
+| **Truth Seeker** | GLM 5.3 (medium thinking) | Truth Seeker | Verifies claims, cites sources |
+| **Writing & Stories** | GLM 5.3 Flash | Writing Coach | Fiction + non-fiction writing |
+| **Tutoring** | GLM 5.3 (medium thinking) | Socratic Tutor | Learns by guiding questions |
+| **Brainstorm** | GLM 5.3 Flash | Brainstorm Partner | Generates varied ideas quickly |
 
 Built-in styles surface in the app's current language (English or Spanish).
 A built-in whose model isn't installed is hidden until the model is pulled —

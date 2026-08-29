@@ -69,11 +69,11 @@ services:
       ADMIN_EMAILS: ${ADMIN_EMAILS:-}
       # Ollama hosted web_search/web_fetch API key (websearch MCP stdio server).
       OLLAMA_API_KEY: ${OLLAMA_API_KEY:-}
-      DEFAULT_MODEL: ${DEFAULT_MODEL:-minimax-m3:cloud}
-      MEMORY_EXTRACTION_MODEL: ${MEMORY_EXTRACTION_MODEL:-glm-5.2:cloud}
-      SCHEDULED_ACTION_MODEL: ${SCHEDULED_ACTION_MODEL:-glm-5.2:cloud}
+      DEFAULT_MODEL: ${DEFAULT_MODEL:-glm-5.3-flash:cloud}
+      MEMORY_EXTRACTION_MODEL: ${MEMORY_EXTRACTION_MODEL:-glm-5.3:cloud}
+      SCHEDULED_ACTION_MODEL: ${SCHEDULED_ACTION_MODEL:-glm-5.3:cloud}
       MICROAPPS_GIT_URL: ${MICROAPPS_GIT_URL:-}
-      MICROAPPS_OPENCODE_MODEL: ${MICROAPPS_OPENCODE_MODEL:-ollama/kimi-k2.7-code:cloud}
+      MICROAPPS_OPENCODE_MODEL: ${MICROAPPS_OPENCODE_MODEL:-ollama/glm-5.3:cloud}
       # Repo whose GitHub Releases feed the desktop auto-updater.
       GITHUB_REPO: ${GITHUB_REPO:-JorgeGarciaIrazabal/garbanzo-ai}
       TZ: ${TZ:-UTC}

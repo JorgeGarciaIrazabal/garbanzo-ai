@@ -150,6 +150,38 @@ async def test_run_records_progress_and_summary(db_session, monkeypatch, capture
 
 
 @pytest.mark.asyncio
+async def test_run_tells_agent_where_message_attachments_are(
+    db_session,
+    monkeypatch,
+    captured_push,
+):
+    service = WorkflowService(db_session)
+    run = await service.create(
+        user_id=OWNER,
+        instruction="summarize the contract",
+        attached_files=[("contrato Hébridas.pdf", b"pdf")],
+    )
+    await service.start_snapshot(run)
+    captured: list[str] = []
+    monkeypatch.setattr(
+        workflow_runner,
+        "_start_opencode",
+        lambda workdir, settings: (_FakeProc(), "http://127.0.0.1:0"),
+    )
+
+    async def _stream(self, endpoint, instruction, session_id=None):
+        captured.append(instruction)
+        yield ChatResponseChunk(type="done", metadata={})
+
+    monkeypatch.setattr(workflow_runner.MicroappAgent, "stream_instruction", _stream)
+
+    await workflow_runner._run(run.id)
+
+    assert ".garbanzo-workflow-inputs/contrato Hébridas.pdf" in captured[0]
+    assert captured[0].endswith("summarize the contract")
+
+
+@pytest.mark.asyncio
 async def test_run_marks_error_when_the_agent_fails(db_session, monkeypatch, captured_push):
     run = await _queued_run(db_session)
     _stub_opencode(

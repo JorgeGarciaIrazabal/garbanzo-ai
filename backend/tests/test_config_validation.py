@@ -43,9 +43,9 @@ def test_strong_secret_is_clean():
 
 def test_model_defaults_are_workload_specific():
     settings = Settings(_env_file=None)
-    assert settings.default_model == "minimax-m3:cloud"
-    assert settings.memory_extraction_model == "glm-5.2:cloud"
-    assert settings.scheduled_action_model == "glm-5.2:cloud"
+    assert settings.default_model == "glm-5.3-flash:cloud"
+    assert settings.memory_extraction_model == "glm-5.3:cloud"
+    assert settings.scheduled_action_model == "glm-5.3:cloud"
 
 
 def test_proxy_mode_without_repo_path_warns():
