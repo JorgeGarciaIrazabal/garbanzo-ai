@@ -4,6 +4,14 @@ Release notes for Garbanzo AI. Each entry is generated automatically on
 `just deploy` — an LLM (via opencode) writes it from the release's commits and
 the user reports it addressed. See `scripts/changelog-instructions.md`.
 
+## v1.0.28 — 2026-08-30
+
+### 🙋 User requests completed
+- Fixed streaming responses auto-scrolling past what you were reading: as an answer grows, the view no longer drags you along with it.
+
+### ✨ Features
+- Added a reader-friendly streaming scroll: when a response starts streaming, the top of the answer is pinned to the top of the screen and held there for the whole stream, so the part you're reading stays put. If you scroll yourself, the pin cancels for the rest of the stream — you're in control. The jump-to-bottom button now rides the live stream's tail when tapped, keeping you at the newest text until you scroll away.
+
 ## v1.0.27 — 2026-08-30
 
 ### 🙋 User requests completed
