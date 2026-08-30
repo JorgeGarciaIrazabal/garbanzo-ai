@@ -6,9 +6,9 @@ import 'package:garbanzo_ai/features/settings/providers/update_provider.dart';
 import 'package:garbanzo_ai/features/settings/widgets/update_dialog.dart';
 import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
-/// Wraps the app with a slim top banner when a newer desktop build exists:
-/// "v1.0.4 is available — Update / Later". Renders nothing off-desktop
-/// (UpdateProvider never reports an update there).
+/// Wraps the app with a slim top banner when a newer native build exists:
+/// "v1.0.4 is available — Update / Later". Renders nothing on web, iOS, or
+/// macOS because UpdateProvider never reports an update there.
 class UpdateBanner extends StatelessWidget {
   const UpdateBanner({super.key, required this.child});
 

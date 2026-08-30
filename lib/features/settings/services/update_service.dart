@@ -29,15 +29,17 @@ int compareVersions(String a, String b) {
   return 0;
 }
 
-/// Picks the release asset for the running desktop platform:
-/// Linux → `*linux*.tar.gz`, Windows → `*windows*.zip`.
+/// Picks the release asset for the running platform.
+/// Linux → `*linux*.tar.gz`, Windows → `*windows*.zip`, Android → `*.apk`.
 ReleaseAsset? assetForPlatform(
   List<ReleaseAsset> assets, {
   bool? isLinux,
   bool? isWindows,
+  bool? isAndroid,
 }) {
   final linux = isLinux ?? PlatformInfo.isLinux;
   final windows = isWindows ?? PlatformInfo.isWindows;
+  final android = isAndroid ?? PlatformInfo.isAndroid;
   for (final asset in assets) {
     final name = asset.name.toLowerCase();
     if (linux && name.contains('linux') && name.endsWith('.tar.gz')) {
@@ -46,11 +48,14 @@ ReleaseAsset? assetForPlatform(
     if (windows && name.contains('windows') && name.endsWith('.zip')) {
       return asset;
     }
+    if (android && name.contains('android') && name.endsWith('.apk')) {
+      return asset;
+    }
   }
   return null;
 }
 
-/// Checks GitHub Releases (via the backend proxy) for a newer desktop build.
+/// Checks GitHub Releases (via the backend proxy) for a newer native build.
 class UpdateService {
   UpdateService({
     Future<Response> Function(String path)? apiGet,

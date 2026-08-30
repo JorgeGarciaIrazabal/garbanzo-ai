@@ -4341,6 +4341,24 @@ abstract class AppLocalizations {
   /// **'You have v{currentVersion}. The app restarts after installing.'**
   String messageUpdateRestartAfterInstall(String currentVersion);
 
+  /// Android update dialog content before launching the system installer.
+  ///
+  /// In en, this message translates to:
+  /// **'You have v{currentVersion}. Android will ask you to confirm the installation.'**
+  String messageUpdateAndroidConfirm(String currentVersion);
+
+  /// Status label while Android owns the package installation flow.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for Android to finish installing…'**
+  String get messageInstallAndroidConfirm;
+
+  /// Instructions after opening Android's per-source package install permission.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow Garbanzo AI to install unknown apps in Android Settings, then tap Download & install again.'**
+  String get messageAllowInstallPermission;
+
   /// Update section subtitle.
   ///
   /// In en, this message translates to:

@@ -25,6 +25,7 @@ class MainActivity : FlutterActivity() {
     }
 
     private lateinit var sharedContentChannel: MethodChannel
+    private lateinit var appUpdateInstaller: AppUpdateInstaller
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -33,6 +34,7 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        appUpdateInstaller = AppUpdateInstaller(this, flutterEngine.dartExecutor.binaryMessenger)
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             TALK_AUDIO_CHANNEL,
@@ -53,6 +55,11 @@ class MainActivity : FlutterActivity() {
                 else -> result.notImplemented()
             }
         }
+    }
+
+    override fun onDestroy() {
+        if (::appUpdateInstaller.isInitialized) appUpdateInstaller.dispose()
+        super.onDestroy()
     }
 
     override fun onNewIntent(intent: Intent) {

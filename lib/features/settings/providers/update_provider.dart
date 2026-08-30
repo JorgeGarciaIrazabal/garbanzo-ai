@@ -17,13 +17,15 @@ enum UpdateStatus {
   error,
 }
 
-/// Desktop auto-update state: silent check on startup, manual "Check now",
+enum UpdateErrorKind { check, install, installPermission }
+
+/// Native auto-update state: silent check on startup, manual "Check now",
 /// download/install progress, and banner snoozing ("Later" hides the banner
 /// for [snoozeDuration] per version; the Settings section always shows the
 /// real state).
 ///
-/// On non-desktop platforms every entry point is a no-op and [showBanner]
-/// stays false — the whole feature is desktop-only.
+/// Web, iOS, and macOS are no-ops because this project does not publish an
+/// installable release asset for them.
 class UpdateProvider extends ChangeNotifier {
   UpdateProvider({UpdateService? service, UpdateInstaller? installer})
     : _service = service ?? UpdateService.instance,
@@ -40,6 +42,7 @@ class UpdateProvider extends ChangeNotifier {
   UpdateCheckResult? _result;
   double? _downloadProgress;
   String? _errorMessage;
+  UpdateErrorKind? _errorKind;
   String? _snoozedVersion;
   DateTime? _snoozeUntil;
   bool _bannerDismissed = false;
@@ -48,6 +51,7 @@ class UpdateProvider extends ChangeNotifier {
   UpdateCheckResult? get result => _result;
   double? get downloadProgress => _downloadProgress;
   String? get errorMessage => _errorMessage;
+  UpdateErrorKind? get errorKind => _errorKind;
   bool get busy =>
       _status == UpdateStatus.downloading || _status == UpdateStatus.installing;
 
@@ -64,9 +68,9 @@ class UpdateProvider extends ChangeNotifier {
     return true;
   }
 
-  /// Startup check: quiet on any failure, skipped off-desktop.
+  /// Startup check: quiet on any failure, skipped on unsupported platforms.
   Future<void> silentCheck() async {
-    if (!PlatformInfo.isDesktop) return;
+    if (!PlatformInfo.supportsSelfUpdate) return;
     try {
       await _check();
     } catch (e) {
@@ -78,11 +82,12 @@ class UpdateProvider extends ChangeNotifier {
 
   /// Manual check from Settings — surfaces errors.
   Future<void> checkNow() async {
-    if (!PlatformInfo.isDesktop || busy) return;
+    if (!PlatformInfo.supportsSelfUpdate || busy) return;
     try {
       await _check();
     } catch (e) {
       _status = UpdateStatus.error;
+      _errorKind = UpdateErrorKind.check;
       _errorMessage = '$e';
       notifyListeners();
     }
@@ -91,6 +96,7 @@ class UpdateProvider extends ChangeNotifier {
   Future<void> _check() async {
     _status = UpdateStatus.checking;
     _errorMessage = null;
+    _errorKind = null;
     notifyListeners();
     await _loadSnooze();
     final result = await _service.checkForUpdates();
@@ -123,11 +129,13 @@ class UpdateProvider extends ChangeNotifier {
   Future<void> downloadAndInstall() async {
     final asset = _result?.asset;
     if (asset == null || busy) return;
-    _status = UpdateStatus.downloading;
-    _downloadProgress = 0;
-    _errorMessage = null;
-    notifyListeners();
     try {
+      await _installer.prepareInstall();
+      _status = UpdateStatus.downloading;
+      _downloadProgress = 0;
+      _errorMessage = null;
+      _errorKind = null;
+      notifyListeners();
       await _installer.installAndRestart(
         asset,
         onProgress: (p) {
@@ -136,9 +144,16 @@ class UpdateProvider extends ChangeNotifier {
           notifyListeners();
         },
       );
+    } on UpdateInstallPermissionRequired {
+      _status = UpdateStatus.error;
+      _downloadProgress = null;
+      _errorMessage = null;
+      _errorKind = UpdateErrorKind.installPermission;
+      notifyListeners();
     } catch (e) {
       _status = UpdateStatus.error;
       _downloadProgress = null;
+      _errorKind = UpdateErrorKind.install;
       _errorMessage =
           'Update failed: $e\nYou can download it manually from the '
           'releases page.';

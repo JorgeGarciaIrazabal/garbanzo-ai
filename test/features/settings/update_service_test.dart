@@ -34,6 +34,11 @@ Map<String, dynamic> _releaseJson(String version) => {
       'download_url': 'https://example.com/windows.zip',
       'size': 20,
     },
+    {
+      'name': 'garbanzo-ai-android-$version.apk',
+      'download_url': 'https://example.com/android.apk',
+      'size': 30,
+    },
   ],
 };
 
@@ -65,18 +70,43 @@ void main() {
     final assets = ReleaseInfo.fromJson(_releaseJson('1.0.4')).assets;
 
     test('picks the linux tar.gz on Linux', () {
-      final asset = assetForPlatform(assets, isLinux: true, isWindows: false);
+      final asset = assetForPlatform(
+        assets,
+        isLinux: true,
+        isWindows: false,
+        isAndroid: false,
+      );
       expect(asset?.name, 'garbanzo-ai-linux-1.0.4.tar.gz');
     });
 
     test('picks the windows zip on Windows', () {
-      final asset = assetForPlatform(assets, isLinux: false, isWindows: true);
+      final asset = assetForPlatform(
+        assets,
+        isLinux: false,
+        isWindows: true,
+        isAndroid: false,
+      );
       expect(asset?.name, 'garbanzo-ai-windows-1.0.4.zip');
+    });
+
+    test('picks the APK on Android', () {
+      final asset = assetForPlatform(
+        assets,
+        isLinux: false,
+        isWindows: false,
+        isAndroid: true,
+      );
+      expect(asset?.name, 'garbanzo-ai-android-1.0.4.apk');
     });
 
     test('returns null when nothing matches', () {
       expect(
-        assetForPlatform(const [], isLinux: true, isWindows: false),
+        assetForPlatform(
+          const [],
+          isLinux: true,
+          isWindows: false,
+          isAndroid: false,
+        ),
         isNull,
       );
     });
@@ -173,13 +203,72 @@ void main() {
       expect(p.errorMessage, isNotNull);
     });
 
-    test('everything is a no-op off desktop', () async {
+    test('Android checks releases and selects the APK', () async {
       debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      final p = provider('1.0.3', '1.0.4');
+      await p.silentCheck();
+      expect(p.status, UpdateStatus.available);
+      expect(p.result?.asset?.name, 'garbanzo-ai-android-1.0.4.apk');
+      expect(p.showBanner, isTrue);
+    });
+
+    test('iOS remains a no-op', () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
       final p = provider('1.0.3', '1.0.4');
       await p.silentCheck();
       await p.checkNow();
       expect(p.status, UpdateStatus.idle);
       expect(p.showBanner, isFalse);
+    });
+
+    test('Android opens install authorization before downloading', () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      final p = UpdateProvider(
+        service: _service('1.0.3', '1.0.4'),
+        installer: UpdateInstaller(
+          isAndroid: true,
+          ensureAndroidInstallPermission: () async => false,
+        ),
+      );
+      await p.silentCheck();
+      await p.downloadAndInstall();
+      expect(p.status, UpdateStatus.error);
+      expect(p.errorKind, UpdateErrorKind.installPermission);
+      expect(p.downloadProgress, isNull);
+    });
+  });
+
+  group('UpdateInstaller.prepareInstall', () {
+    test('is a no-op off Android', () async {
+      var called = false;
+      final installer = UpdateInstaller(
+        isAndroid: false,
+        ensureAndroidInstallPermission: () async {
+          called = true;
+          return false;
+        },
+      );
+      await installer.prepareInstall();
+      expect(called, isFalse);
+    });
+
+    test('continues when Android has authorized this install source', () async {
+      final installer = UpdateInstaller(
+        isAndroid: true,
+        ensureAndroidInstallPermission: () async => true,
+      );
+      await expectLater(installer.prepareInstall(), completes);
+    });
+
+    test('reports when Android install authorization is required', () async {
+      final installer = UpdateInstaller(
+        isAndroid: true,
+        ensureAndroidInstallPermission: () async => false,
+      );
+      await expectLater(
+        installer.prepareInstall(),
+        throwsA(isA<UpdateInstallPermissionRequired>()),
+      );
     });
   });
 

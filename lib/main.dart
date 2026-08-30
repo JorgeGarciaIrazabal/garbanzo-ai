@@ -129,7 +129,7 @@ class _GarbanzoAppState extends State<GarbanzoApp> {
       providers: [
         ChangeNotifierProvider.value(value: _authState),
         ChangeNotifierProvider(create: (_) => SettingsProvider()),
-        // Desktop auto-update: silent check at startup (no-op off-desktop).
+        // Native auto-update: silent check at startup (no-op where unsupported).
         ChangeNotifierProvider(create: (_) => UpdateProvider()..silentCheck()),
       ],
       child: Consumer<SettingsProvider>(

@@ -261,6 +261,15 @@ fe-build:
 fe-build-apk:
     flutter build apk --debug
 
+# Build a locally signed release APK without deploying it
+fe-build-apk-release:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    set -a
+    source "{{ justfile_directory() }}/deploy/.env"
+    set +a
+    flutter build apk --release
+
 # Run all Flutter widget/unit tests, or pass test paths/options for a focused run
 # Concurrency is capped: on a 32-core box `flutter test` defaults to 32 parallel
 # processes, which stampedes memory (each spawns a full engine test binding) and
@@ -310,6 +319,10 @@ fe-run-test-server:
 # Deploy local main: web build → backend image → prod stack → APK (+ install on Android if connected)
 deploy:
     "{{ justfile_directory() }}/scripts/deploy.sh"
+
+# Create the permanent local Android release keystore and configure deploy/.env
+deploy-android-signing-setup:
+    "{{ justfile_directory() }}/scripts/setup-android-signing.sh"
 
 # Pull one model into the isolated production Ollama volume
 deploy-model model:

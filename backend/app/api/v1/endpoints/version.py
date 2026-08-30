@@ -8,5 +8,5 @@ router = APIRouter()
 
 @router.get("/latest", response_model=LatestVersionResponse)
 async def latest_version() -> LatestVersionResponse:
-    """Latest GitHub release (cached ~5 min). Feeds the desktop auto-updater."""
+    """Latest GitHub release (cached ~5 min). Feeds native auto-updaters."""
     return await version_service.get_latest_release()

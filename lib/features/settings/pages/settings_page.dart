@@ -42,9 +42,9 @@ enum _Section {
 class _SettingsPageState extends State<SettingsPage> {
   _Section _selected = _Section.profile;
 
-  /// Software update is desktop-only (self-upgrade of the installed bundle).
+  /// Software update is available where this project publishes native builds.
   List<_Section> get _sections => _Section.values
-      .where((s) => s != _Section.updates || PlatformInfo.isDesktop)
+      .where((s) => s != _Section.updates || PlatformInfo.supportsSelfUpdate)
       .toList();
   UserInfo? _user;
   List<VoiceOption> _voices = const [];

@@ -204,9 +204,9 @@ features/memory/
   pages/             MemoryPage (CRUD UI for user memories)
 features/settings/
   providers/         SettingsProvider (voice, theme, auto-play toggles),
-                     UpdateProvider (desktop auto-update state)
+                     UpdateProvider (Linux/Windows/Android auto-update state)
   services/          update_service.dart (version check), update_installer.dart
-                     (download + staged swap + relaunch)
+                     (desktop staged swap/relaunch; Android PackageInstaller)
 features/knowledge_base/
   pages/             KnowledgeBasePage
   providers/         KnowledgeBaseProvider
@@ -449,11 +449,14 @@ model isn't installed is hidden by the picker rather than shown as broken.
 Additional providers:
 - **`MemoryProvider`** — user memories CRUD
 - **`SettingsProvider`** — voice, theme, auto-play toggles; persisted via `SharedPreferences`
-- **`UpdateProvider`** — desktop (Linux/Windows) auto-update: silent check at
+- **`UpdateProvider`** — Linux/Windows/Android auto-update: silent check at
   startup against `GET /api/v1/version/latest`, top banner + Settings section,
   download/install via `UpdateInstaller` (staging-dir swap: Linux renames the
   install dir aside and relaunches; Windows hands off to a swap-on-exit batch
-  script). Banner snooze is per-version in `SharedPreferences`. No-op off desktop.
+  script; Android asks once for per-source install authorization, verifies the
+  APK package/version/signing certificate, then streams it to the system
+  PackageInstaller for user confirmation). Banner snooze is per-version in
+  `SharedPreferences`. Web, iOS, and macOS are no-ops.
 - **`SearchProvider`** — conversation search results
 - **`SystemPromptProvider`** — system prompt template library + user default
 - **`NotificationProvider`** — in-app notifications + unread count

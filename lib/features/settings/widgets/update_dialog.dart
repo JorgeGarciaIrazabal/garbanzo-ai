@@ -3,6 +3,7 @@ import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'package:garbanzo_ai/core/platform_info.dart';
 import 'package:garbanzo_ai/features/settings/providers/update_provider.dart';
 import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
@@ -40,7 +41,11 @@ class UpdateDialog extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              l10n.messageUpdateRestartAfterInstall(result.currentVersion),
+              PlatformInfo.isAndroid
+                  ? l10n.messageUpdateAndroidConfirm(result.currentVersion)
+                  : l10n.messageUpdateRestartAfterInstall(
+                      result.currentVersion,
+                    ),
               style: theme.textTheme.bodySmall,
             ),
             const SizedBox(height: 12),
@@ -66,16 +71,19 @@ class UpdateDialog extends StatelessWidget {
               const SizedBox(height: 8),
               Text(
                 provider.status == UpdateStatus.installing
-                    ? l10n.messageInstallAppRestart
+                    ? PlatformInfo.isAndroid
+                          ? l10n.messageInstallAndroidConfirm
+                          : l10n.messageInstallAppRestart
                     : l10n.messageDownloadingUpdate,
                 style: theme.textTheme.bodySmall,
               ),
             ],
-            if (provider.status == UpdateStatus.error &&
-                provider.errorMessage != null) ...[
+            if (provider.status == UpdateStatus.error) ...[
               const SizedBox(height: 12),
               Text(
-                provider.errorMessage!,
+                provider.errorKind == UpdateErrorKind.installPermission
+                    ? l10n.messageAllowInstallPermission
+                    : provider.errorMessage ?? l10n.messageUnknownError,
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.error,
                 ),

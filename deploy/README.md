@@ -18,7 +18,8 @@ just deploy-down     # stop the stack (keeps volumes/data)
 worktree and builds everything from it, so you can run it from any branch with
 a dirty tree. Each deploy also tags `garbanzo-backend:<short-sha>` and drops an
 APK at `dist/garbanzo-ai-<short-sha>.apk` with the ngrok URL baked in — web and
-Android hit the same backend simultaneously.
+Android hit the same backend simultaneously. The signed APK is also attached
+to the version's GitHub Release; its signing key remains only on this host.
 
 Every deploy also generates a release changelog: `opencode` reads this release's
 git log plus the user reports it addressed and prepends a section (User requests
@@ -37,10 +38,18 @@ proceeds. Set `CHANGELOG_OPENCODE_MODEL` in `.env` to override the model.
    - `backend/firebase-service-account.json` — FCM push notifications
      (mounted read-only into the container).
    - `android/app/google-services.json` — required for the APK build.
-4. **SSH key** — `GIT_SSH_KEY_PATH` must point to a private key with push
+4. **Android release signing** — run `just deploy-android-signing-setup` once.
+   It creates a permanent production keystore under the user's private config
+   directory and writes its path, alias, and generated passwords to the
+   gitignored `deploy/.env`. Back up both securely: APK updates must always use
+   this same key. This does not require Google Play.
+5. **GitHub CLI** — run `gh auth login` on the deploy host with write access to
+   `GITHUB_REPO`. Deploy uses it only to create the release and upload the
+   already-signed APK; Android build credentials never go to GitHub Actions.
+6. **SSH key** — `GIT_SSH_KEY_PATH` must point to a private key with push
    access to the micro-apps repo, `chmod 600` (it is mounted read-only; the
    container publishes as that GitHub user).
-5. **Ollama** — runs as its own container (`ollama`, `ollama_data` volume),
+7. **Ollama** — runs as its own container (`ollama`, `ollama_data` volume),
    fully isolated from any host Ollama install. On first deploy, pull the
    models the app needs:
    ```
@@ -81,7 +90,7 @@ proceeds. Set `CHANGELOG_OPENCODE_MODEL` in `.env` to override the model.
      the workload defaults independently
      with `DEFAULT_MODEL`, `MEMORY_EXTRACTION_MODEL`, and
      `SCHEDULED_ACTION_MODEL` in `deploy/.env`.
-6. Merge your work to `main`, then run `just deploy`.
+8. Merge your work to `main`, then run `just deploy`.
 
 > The free ngrok plan allows **one agent session**. `just deploy` refuses to
 > run while a host `ngrok` process is alive (`pkill -x ngrok` to stop it).

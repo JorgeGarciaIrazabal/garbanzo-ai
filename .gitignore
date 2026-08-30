@@ -47,6 +47,11 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
+# Android signing material (production keys must never enter source control)
+*.jks
+*.keystore
+/android/key.properties
+
 
 .cursor/mcp.json
 .cursor/_mcp.json

@@ -10,9 +10,8 @@
 # opencode, from this release's git log + user reports) into CHANGELOG.md, bumps
 # the patch version in pubspec.yaml, commits both on main, creates an annotated
 # tag v<version> (with the ngrok URL + changelog in the tag message so CI can
-# extract them), and pushes both to origin. The tag push triggers the GitHub
-# Actions workflow that builds Linux + Windows desktop binaries and attaches them
-# to a GitHub Release.
+# extract them), and pushes both to origin. The signed APK is attached to the
+# GitHub Release locally; CI adds the Linux + Windows desktop binaries.
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -27,6 +26,7 @@ step() { echo ""; echo "==> $*"; }
 set -a; source "$ENV_FILE"; set +a
 STT_DEVICE="${STT_DEVICE:-cpu}"
 TTS_DEVICE="${TTS_DEVICE:-cpu}"
+GITHUB_REPO="${GITHUB_REPO:-JorgeGarciaIrazabal/garbanzo-ai}"
 for device_var in STT_DEVICE TTS_DEVICE; do
     case "${!device_var}" in
         cpu|auto|cuda) ;;
@@ -38,12 +38,16 @@ if [[ "$STT_DEVICE" == cuda || "$TTS_DEVICE" == cuda ]]; then
     TORCH_VARIANT=cuda
     COMPOSE+=(-f "$REPO/deploy/docker-compose.gpu.yml")
 fi
-for var in NGROK_AUTHTOKEN NGROK_DOMAIN POSTGRES_PASSWORD SECRET_KEY GIT_SSH_KEY_PATH GIT_USER_NAME GIT_USER_EMAIL; do
+for var in NGROK_AUTHTOKEN NGROK_DOMAIN POSTGRES_PASSWORD SECRET_KEY GIT_SSH_KEY_PATH GIT_USER_NAME GIT_USER_EMAIL ANDROID_KEYSTORE_PATH ANDROID_KEYSTORE_ALIAS ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_PASSWORD; do
     [[ -n "${!var:-}" ]] || die "$var is empty in deploy/.env"
 done
 [[ -f "$GIT_SSH_KEY_PATH" ]] || die "GIT_SSH_KEY_PATH ($GIT_SSH_KEY_PATH) does not exist"
+[[ -f "$ANDROID_KEYSTORE_PATH" ]] || die "ANDROID_KEYSTORE_PATH ($ANDROID_KEYSTORE_PATH) does not exist"
 [[ -f "$REPO/backend/firebase-service-account.json" ]] || die "backend/firebase-service-account.json missing (mounted into prod for push notifications)"
 [[ -f "$REPO/android/app/google-services.json" ]] || die "android/app/google-services.json missing (required for the APK build)"
+command -v gh >/dev/null 2>&1 || die "GitHub CLI (gh) is required to publish the APK release asset"
+gh auth status --hostname github.com >/dev/null 2>&1 \
+    || die "GitHub CLI is not authenticated — run 'gh auth login'"
 git -C "$REPO" rev-parse --verify --quiet main >/dev/null || die "no local main branch"
 for pid in $(pgrep -x ngrok || true); do
     # Containerized ngrok (e.g. our own garbanzo-prod-ngrok-1, about to be
@@ -141,12 +145,14 @@ done
 step "Building Android APK (versionCode $BUILD_NUMBER)"
 (cd "$WT" && flutter build apk --release \
     --dart-define=API_BASE_URL="https://$NGROK_DOMAIN" \
+    --build-name="$NEW_VERSION" \
     --build-number="$BUILD_NUMBER")
 mkdir -p "$REPO/dist"
-cp "$WT/build/app/outputs/flutter-apk/app-release.apk" "$REPO/dist/garbanzo-ai-$SHA.apk"
+APK_NAME="garbanzo-ai-android-${NEW_VERSION}.apk"
+cp "$WT/build/app/outputs/flutter-apk/app-release.apk" "$REPO/dist/$APK_NAME"
 
 # --- Install APK on a connected device (if any) -----------------------------
-APK_PATH="$REPO/dist/garbanzo-ai-$SHA.apk"
+APK_PATH="$REPO/dist/$APK_NAME"
 export ANDROID_HOME="${ANDROID_HOME:-$HOME/Android/Sdk}"
 export PATH="$ANDROID_HOME/platform-tools:$PATH"
 if command -v adb >/dev/null 2>&1 && adb get-state >/dev/null 2>&1; then
@@ -302,13 +308,33 @@ if ! git -C "$REPO" push origin "v${NEW_VERSION}" 2>&1; then
     echo "desktop-build workflow was NOT triggered. To finish the release:"
     echo "  1. Resolve the tag conflict on the remote."
     echo "  2. Run: git push origin v${NEW_VERSION}"
-    echo "  CI: https://github.com/JorgeGarciaIrazabal/garbanzo-ai/actions"
+    echo "  CI: https://github.com/${GITHUB_REPO}/actions"
     exit 0
+fi
+
+# The local machine owns the Android artifact because its signing key never
+# leaves the host. Create the release immediately with the APK; the desktop CI
+# release job finds the same tag and appends its Linux/Windows assets later.
+step "Publishing signed Android APK to GitHub Release"
+if gh release view "v${NEW_VERSION}" --repo "$GITHUB_REPO" >/dev/null 2>&1; then
+    if gh release view "v${NEW_VERSION}" --repo "$GITHUB_REPO" \
+        --json assets --jq '.assets[].name' | grep -Fxq "$APK_NAME"; then
+        echo "$APK_NAME is already attached to v${NEW_VERSION}."
+    else
+        gh release upload "v${NEW_VERSION}" "$APK_PATH#Android APK" \
+            --repo "$GITHUB_REPO"
+    fi
+else
+    gh release create "v${NEW_VERSION}" "$APK_PATH#Android APK" \
+        --repo "$GITHUB_REPO" \
+        --verify-tag \
+        --title "Release v${NEW_VERSION}" \
+        --notes "$CHANGELOG_SECTION"
 fi
 
 echo ""
 echo "Release tag v${NEW_VERSION} pushed."
-echo "  Desktop builds: GitHub Actions will build Linux + Windows binaries and"
-echo "  attach them to a GitHub Release."
-echo "  CI:     https://github.com/JorgeGarciaIrazabal/garbanzo-ai/actions"
-echo "  Release: https://github.com/JorgeGarciaIrazabal/garbanzo-ai/releases/tag/v${NEW_VERSION}"
+echo "  Android APK: attached to the GitHub Release."
+echo "  Desktop builds: GitHub Actions will append Linux + Windows binaries."
+echo "  CI:     https://github.com/${GITHUB_REPO}/actions"
+echo "  Release: https://github.com/${GITHUB_REPO}/releases/tag/v${NEW_VERSION}"

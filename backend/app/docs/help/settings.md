@@ -1,7 +1,7 @@
 # Settings & Profile
 
 Open Settings from the gear icon. Sections: Profile, Appearance, Models,
-Tools, Voice, Memory, Notifications, and (desktop only) Software update.
+Tools, Voice, Memory, Notifications, and Software update on native builds.
 
 ## How do I connect my own tool server?
 **Tools → My MCP servers → Add server**. Enter the connection details
@@ -62,10 +62,15 @@ voices") and the assistant files it for you through the same channel.
 Unexpected app and chat errors are also reported automatically with diagnostic
 details, unless the self-hoster has disabled automatic error reports.
 
-## How do I update the desktop app?
-The desktop app (Linux/Windows) checks for new releases when it starts and
-shows a banner when one is available — **Update** opens the changelog with
-**Download & install** (the app restarts itself), **Later** snoozes that
-version for a few days. You can also check manually: Settings →
-**Software update** → **Check now**. Web and Android update differently
-(web is always current; Android installs a new APK).
+## How do I update the app?
+Linux, Windows, and Android check for new releases when they start and show a
+banner when one is available. **Update** opens the changelog;
+**Download & install** installs it, while **Later** snoozes that version for a
+few days. You can also check manually under Settings → **Software update**.
+
+On Android, the first update opens the system's **Install unknown apps** page.
+Allow Garbanzo AI there, return to the app, and tap **Download & install**
+again. Android always shows its own final installation confirmation. Updates
+must have a higher version and the same signing certificate, so a package from
+another source cannot silently replace the app. Web is always current with the
+deployed server and does not download an update.

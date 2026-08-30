@@ -1,4 +1,4 @@
-"""Latest-release lookup for the desktop auto-updater.
+"""Latest-release lookup for the native auto-updaters.
 
 Proxies the GitHub Releases API so clients don't hit GitHub's unauthenticated
 rate limit (60 req/h per IP) directly; a short in-memory cache keeps repeated

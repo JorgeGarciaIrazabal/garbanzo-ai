@@ -5,6 +5,8 @@
          suppression, which Talk Mode's voice barge-in depends on. -->
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <!-- Required for user-confirmed APK updates distributed outside Google Play. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
     <!-- Coarse only: the opt-in location share is city-level by design. -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
     <application

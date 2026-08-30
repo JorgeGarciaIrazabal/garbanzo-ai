@@ -27,7 +27,7 @@ when you add or change an endpoint, update the matching row in the same commit.
 | **Styles** | `POST /styles`, `GET /styles` (returns the user's saved styles plus the shared built-ins), `GET /styles/{id}`, `PATCH /styles/{id}` (built-ins: only `is_default` writable — sets a per-user default pointer; content fields 403), `DELETE /styles/{id}` (403 on built-ins) |
 | **Usage** | `GET /usage/summary` |
 | **Health** | `GET /health` (includes `version` — the release baked in at deploy, `APP_VERSION`) |
-| **Version** | `GET /version/latest` (no auth; latest GitHub release for `GITHUB_REPO`, ~5-min cache — tag/notes/assets; feeds the desktop auto-updater) |
+| **Version** | `GET /version/latest` (no auth; latest GitHub release for `GITHUB_REPO`, ~5-min cache — tag/notes/assets; feeds Linux, Windows, and Android auto-updaters) |
 
 **MCP server scoping.** `mcp_servers.owner_email` splits servers into *global*
 (NULL owner, admin-managed) and *personal* (owner = a user). `admin/mcp-servers`

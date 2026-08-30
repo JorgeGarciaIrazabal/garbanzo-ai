@@ -7,7 +7,7 @@ it for procedures. This file is the agent quick reference.
 
 ## Commands (from repo root, via `just`)
 
-- `just deploy` — ship local `main`: web build → backend image → stack → health → APK
+- `just deploy` — ship local `main`: web build → backend image → stack → health → signed APK + GitHub Release
 - `just deploy-model <model>` — pull one model into the production Ollama volume
 - `just deploy-status` — compose ps + local & public health checks
 - `just deploy-logs [backend|postgres|ngrok]` — tail prod logs
@@ -21,6 +21,9 @@ it for procedures. This file is the agent quick reference.
 - `docker-compose.gpu.yml` — optional backend GPU access; `just deploy` adds it
   and builds the shared CUDA 12.6 image when either voice device is `cuda`.
 - `.env` (gitignored) — all prod secrets. `.env.example` documents the keys.
+- Android release signing is local-only: `just deploy-android-signing-setup`
+  creates the permanent keystore outside the repo and records its credentials
+  in `deploy/.env`. Release builds fail instead of falling back to a debug key.
 
 ## Deploy side effects
 
@@ -35,12 +38,13 @@ it for procedures. This file is the agent quick reference.
   `CHANGELOG.md` (User requests completed / Features / Fixes). Best-effort — if
   opencode or its model is unavailable it falls back to a raw commit list, never
   blocking the deploy. Override the model with `CHANGELOG_OPENCODE_MODEL`.
-- The pushed `v*` tag triggers `.github/workflows/build-desktop-apps.yml`:
+- The deploy host creates the GitHub Release and attaches its locally signed
+  `garbanzo-ai-android-<version>.apk`; the Android signing key never leaves the
+  host. The pushed `v*` tag triggers `.github/workflows/build-desktop-apps.yml`:
   Linux `.tar.gz` + Windows `.zip` baked with `--dart-define=API_BASE_URL`
-  from the tag annotation, attached to a GitHub Release whose body is the top
-  `CHANGELOG.md` section. No APK/Firebase in CI — Android stays local
-  (`dist/garbanzo-ai-<sha>.apk`).
-- The desktop auto-updater consumes those same GitHub Releases: the backend
+  from the tag annotation, appended to that release. No APK/Firebase/signing
+  credentials enter CI.
+- Native auto-updaters consume those same GitHub Releases: the backend
   proxies `releases/latest` at `GET /api/v1/version/latest` (repo from
   `GITHUB_REPO`), and the image gets the release version baked in via the
   `APP_VERSION` build arg so `/api/v1/health` reports it.
@@ -48,6 +52,10 @@ it for procedures. This file is the agent quick reference.
 ## Gotchas
 
 - Never commit `.env`; edit `.env.example` when adding a key.
+- Never replace or lose the Android release keystore: installed APKs accept
+  updates only from the same signing key. Keep an encrypted off-machine backup.
+- `gh` must be authenticated on the deploy host with release write access;
+  deploy preflight checks it before shipping anything.
 - No secrets in the image — web is baked in, everything else comes from env.
 - Migrations auto-apply at backend startup; on first deploy the `ollama` volume is
   empty, so pull the app's models into the container (see `README.md`).

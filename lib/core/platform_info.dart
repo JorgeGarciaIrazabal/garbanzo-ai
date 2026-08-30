@@ -28,4 +28,10 @@ class PlatformInfo {
 
   static bool get isWindows =>
       !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
+
+  static bool get isAndroid =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+
+  /// Platforms for which Garbanzo AI publishes and installs release assets.
+  static bool get supportsSelfUpdate => isLinux || isWindows || isAndroid;
 }

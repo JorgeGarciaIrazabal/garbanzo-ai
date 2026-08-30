@@ -160,7 +160,9 @@ jobs:
           fi
           [ -s release-body.md ] || echo "Release ${GITHUB_REF_NAME}" > release-body.md
 
-      - name: Create GitHub Release
+      # `just deploy` creates this release with the locally signed Android APK.
+      # action-gh-release updates an existing tag release with desktop assets.
+      - name: Add desktop assets to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}

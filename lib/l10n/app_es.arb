@@ -2019,6 +2019,23 @@
       }
     }
   },
+  "messageUpdateAndroidConfirm": "Tienes v{currentVersion}. Android te pedirá que confirmes la instalación.",
+  "@messageUpdateAndroidConfirm": {
+    "description": "Android update dialog content before launching the system installer.",
+    "placeholders": {
+      "currentVersion": {
+        "type": "String"
+      }
+    }
+  },
+  "messageInstallAndroidConfirm": "Esperando a que Android termine la instalación…",
+  "@messageInstallAndroidConfirm": {
+    "description": "Status label while Android owns the package installation flow."
+  },
+  "messageAllowInstallPermission": "Permite que Garbanzo AI instale aplicaciones desconocidas en los ajustes de Android y vuelve a tocar Descargar e instalar.",
+  "@messageAllowInstallPermission": {
+    "description": "Instructions after opening Android's per-source package install permission."
+  },
   "messageLatestRelease": "Última versión: v{version}",
   "@messageLatestRelease": {
     "description": "Update section subtitle.",

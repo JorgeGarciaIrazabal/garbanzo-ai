@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 
+import 'package:garbanzo_ai/core/platform_info.dart';
 import 'package:garbanzo_ai/features/settings/providers/update_provider.dart';
 import 'package:garbanzo_ai/features/settings/widgets/update_dialog.dart';
 import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
-/// "Software update" settings section (desktop only): current vs latest
+/// "Software update" settings section: current vs latest
 /// version, changelog access, and Check now / Download & install actions.
 class UpdateSection extends StatelessWidget {
   const UpdateSection({super.key});
@@ -43,7 +44,7 @@ class UpdateSection extends StatelessWidget {
             title: Text(_statusLabel(l10n, provider)),
             subtitle: provider.status == UpdateStatus.error
                 ? Text(
-                    provider.errorMessage ?? l10n.messageUnknownError,
+                    _errorLabel(l10n, provider),
                     style: TextStyle(color: theme.colorScheme.error),
                   )
                 : (result?.hasUpdate ?? false)
@@ -101,9 +102,20 @@ class UpdateSection extends StatelessWidget {
       case UpdateStatus.downloading:
         return l10n.messageDownloadingUpdate;
       case UpdateStatus.installing:
-        return l10n.messageInstallAppRestart;
+        return PlatformInfo.isAndroid
+            ? l10n.messageInstallAndroidConfirm
+            : l10n.messageInstallAppRestart;
       case UpdateStatus.error:
-        return l10n.messageUpdateCheckFailed;
+        return provider.errorKind == UpdateErrorKind.check
+            ? l10n.messageUpdateCheckFailed
+            : l10n.messageInstallFailed;
     }
+  }
+
+  String _errorLabel(AppLocalizations l10n, UpdateProvider provider) {
+    if (provider.errorKind == UpdateErrorKind.installPermission) {
+      return l10n.messageAllowInstallPermission;
+    }
+    return provider.errorMessage ?? l10n.messageUnknownError;
   }
 }

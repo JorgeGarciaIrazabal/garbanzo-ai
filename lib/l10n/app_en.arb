@@ -3304,6 +3304,23 @@
       }
     }
   },
+  "messageUpdateAndroidConfirm": "You have v{currentVersion}. Android will ask you to confirm the installation.",
+  "@messageUpdateAndroidConfirm": {
+    "description": "Android update dialog content before launching the system installer.",
+    "placeholders": {
+      "currentVersion": {
+        "type": "String"
+      }
+    }
+  },
+  "messageInstallAndroidConfirm": "Waiting for Android to finish installing…",
+  "@messageInstallAndroidConfirm": {
+    "description": "Status label while Android owns the package installation flow."
+  },
+  "messageAllowInstallPermission": "Allow Garbanzo AI to install unknown apps in Android Settings, then tap Download & install again.",
+  "@messageAllowInstallPermission": {
+    "description": "Instructions after opening Android's per-source package install permission."
+  },
   "messageLatestRelease": "Latest release: v{version}",
   "@messageLatestRelease": {
     "description": "Update section subtitle.",

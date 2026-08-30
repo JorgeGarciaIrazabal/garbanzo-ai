@@ -1,11 +1,16 @@
 import 'dart:io';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/services.dart';
 
 import 'package:garbanzo_ai/core/log.dart';
 import 'package:garbanzo_ai/features/settings/models/release_info.dart';
 
-/// Downloads a release asset and swaps it into the current install directory.
+class UpdateInstallPermissionRequired implements Exception {
+  const UpdateInstallPermissionRequired();
+}
+
+/// Downloads a release asset and installs it using the platform-native flow.
 ///
 /// Linux: extract the `.tar.gz` to a staging dir **next to** the install dir
 /// (same filesystem, so `rename` is atomic and legal while the app runs —
@@ -16,26 +21,75 @@ import 'package:garbanzo_ai/features/settings/models/release_info.dart';
 /// Windows: a running exe's files are locked, so extract to staging, write a
 /// batch script that waits for this process to exit, copies staging over the
 /// install dir, and relaunches — then exit to let it run.
+///
+/// Android: ask for the per-source package-install authorization before the
+/// download, then stream the APK into Android's PackageInstaller. Android owns
+/// the final confirmation UI and restarts the updated app.
 class UpdateInstaller {
-  UpdateInstaller({Dio? dio}) : _dio = dio ?? Dio();
+  UpdateInstaller({
+    Dio? dio,
+    bool? isAndroid,
+    Future<bool> Function()? ensureAndroidInstallPermission,
+    Future<void> Function(String apkPath)? installAndroidPackage,
+  }) : _dio = dio ?? Dio(),
+       _isAndroidOverride = isAndroid,
+       _ensureAndroidInstallPermission = ensureAndroidInstallPermission,
+       _installAndroidPackage = installAndroidPackage;
+
+  static const _androidChannel = MethodChannel(
+    'com.example.garbanzo_ai/app_update',
+  );
 
   final Dio _dio;
+  final bool? _isAndroidOverride;
+  final Future<bool> Function()? _ensureAndroidInstallPermission;
+  final Future<void> Function(String apkPath)? _installAndroidPackage;
 
-  /// Downloads [asset], stages it, swaps it in, and restarts the app.
-  /// On success this method does not return — the process exits.
+  bool get _isAndroid => _isAndroidOverride ?? Platform.isAndroid;
+
+  /// Opens Android's per-source authorization page when permission is absent.
+  /// This runs before downloading so a first-time permission grant never wastes
+  /// an 80+ MB APK download.
+  Future<void> prepareInstall() async {
+    if (!_isAndroid) return;
+    final ensurePermission =
+        _ensureAndroidInstallPermission ??
+        () async =>
+            await _androidChannel.invokeMethod<bool>(
+              'ensureInstallPermission',
+            ) ??
+            false;
+    if (!await ensurePermission()) {
+      throw const UpdateInstallPermissionRequired();
+    }
+  }
+
+  /// Downloads [asset], installs it, and restarts where the platform supports
+  /// that. Desktop success exits the process; Android waits for the package
+  /// installer result (a successful update replaces this process).
   ///
   /// [onProgress] receives 0..1 while downloading (null = indeterminate).
   Future<void> installAndRestart(
     ReleaseAsset asset, {
     void Function(double? progress)? onProgress,
   }) async {
-    final exe = File(Platform.resolvedExecutable);
-    final installDir = exe.parent;
-
     final tempDir = await Directory.systemTemp.createTemp('garbanzo-update-');
     try {
       final archive = File('${tempDir.path}/${asset.name}');
       await _download(asset, archive, onProgress);
+      onProgress?.call(1.0);
+
+      if (_isAndroid) {
+        final installPackage =
+            _installAndroidPackage ??
+            (path) => _androidChannel.invokeMethod<void>('installApk', path);
+        await installPackage(archive.path);
+        if (tempDir.existsSync()) tempDir.deleteSync(recursive: true);
+        return;
+      }
+
+      final exe = File(Platform.resolvedExecutable);
+      final installDir = exe.parent;
 
       final staging = Directory('${installDir.path}.staging');
       if (staging.existsSync()) staging.deleteSync(recursive: true);
@@ -57,7 +111,9 @@ class UpdateInstaller {
           exePath: exe.path,
         );
       } else {
-        throw UnsupportedError('Self-upgrade is Linux/Windows only');
+        throw UnsupportedError(
+          'Self-upgrade is Linux, Windows, or Android only',
+        );
       }
     } catch (e) {
       // Only reached on failure — clean the downloaded archive and rethrow.

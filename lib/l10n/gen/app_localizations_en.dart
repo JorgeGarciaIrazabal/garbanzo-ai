@@ -2385,6 +2385,19 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String messageUpdateAndroidConfirm(String currentVersion) {
+    return 'You have v$currentVersion. Android will ask you to confirm the installation.';
+  }
+
+  @override
+  String get messageInstallAndroidConfirm =>
+      'Waiting for Android to finish installing…';
+
+  @override
+  String get messageAllowInstallPermission =>
+      'Allow Garbanzo AI to install unknown apps in Android Settings, then tap Download & install again.';
+
+  @override
   String messageLatestRelease(String version) {
     return 'Latest release: v$version';
   }

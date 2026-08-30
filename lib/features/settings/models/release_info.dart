@@ -1,4 +1,4 @@
-/// A downloadable file attached to a GitHub release.
+/// A downloadable native build attached to a GitHub release.
 class ReleaseAsset {
   const ReleaseAsset({
     required this.name,

@@ -60,7 +60,7 @@ NOMINATIM_URL=https://nominatim.openstreetmap.org
 # Firebase Cloud Messaging (push notifications)
 FIREBASE_CREDENTIALS_PATH=firebase-service-account.json
 
-# Desktop auto-updater (idea 19)
+# Native auto-updater release feed
 GITHUB_REPO=JorgeGarciaIrazabal/garbanzo-ai  # owner/name whose Releases feed
                                              # GET /api/v1/version/latest
 # APP_VERSION — reported by GET /api/v1/health. Not set by hand: deploys bake
@@ -79,6 +79,10 @@ MICROAPPS_OPENCODE_MODEL=ollama/glm-5.3:cloud
 # Deploy-script-only (read from deploy/.env by scripts/deploy.sh on the host):
 #   CHANGELOG_OPENCODE_MODEL — opencode model that writes CHANGELOG.md on deploy
 #                              (unset → opencode's own default; `opencode models`)
+#   ANDROID_KEYSTORE_PATH / ANDROID_KEYSTORE_ALIAS
+#   ANDROID_KEYSTORE_PASSWORD / ANDROID_KEY_PASSWORD
+#       — permanent local APK signing, generated once by
+#         `just deploy-android-signing-setup`; never commit or rotate casually
 ```
 
 > Prod secrets (ngrok authtoken/domain, prod DB password, SECRET_KEY, git/SSH
