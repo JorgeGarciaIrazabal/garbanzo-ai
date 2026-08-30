@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 
 import 'package:garbanzo_ai/core/platform_info.dart';
 import 'package:garbanzo_ai/core/reading_column.dart';
+import 'package:garbanzo_ai/core/smart_scroll_controller.dart';
 import 'package:garbanzo_ai/core/widgets/fade_slide_in.dart';
 import 'package:garbanzo_ai/core/responsive.dart';
 import 'package:garbanzo_ai/features/microapps/widgets/micro_app_panel.dart';
@@ -151,7 +152,11 @@ class _ChatPageContentState extends State<_ChatPageContent>
   static const _syncInterval = Duration(seconds: 10);
 
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-  final ScrollController _scrollController = ScrollController();
+
+  /// Smart auto-scroll (streaming follow with reader-friendly release,
+  /// jump-to-bottom pill, keyboard follow) — shared with the rooms view.
+  final SmartScrollController _scroll = SmartScrollController();
+  ScrollController get _scrollController => _scroll.controller;
   Timer? _syncTimer;
   bool _isDragOver = false;
   bool _visionWarningScheduled = false;
@@ -165,39 +170,21 @@ class _ChatPageContentState extends State<_ChatPageContent>
 
   // Smart auto-scroll: follow new content only when the user is already
   // reading the latest messages; never yank them away from scrollback.
-  static const _nearBottomThreshold = 150.0;
-  bool _showJumpToBottom = false;
-  int _lastMessageCount = 0;
-  String? _lastConversationId;
   ChatProvider? _chatProviderRef;
-
-  // Keyboard-aware scroll follow: when the on-screen keyboard opens the
-  // viewport shrinks, hiding the latest messages unless we keep the list
-  // pinned to the bottom.
-  double _lastBottomInset = 0;
-  bool _keyboardFollowsBottom = false;
 
   @override
   void initState() {
     super.initState();
-    _scrollController.addListener(_onScroll);
+    _scroll.attach();
+    // Page in older messages when the user scrolls near the top (the smart
+    // controller owns its own listener for the jump-pill flag).
+    _scrollController.addListener(_maybeLoadOlderMessages);
     WidgetsBinding.instance.addObserver(this);
   }
 
   @override
   void didChangeMetrics() {
-    final bottomInset = View.of(context).viewInsets.bottom;
-    if (bottomInset > _lastBottomInset) {
-      // Keyboard opening/growing: keep the latest messages in view, but only
-      // when the user was already reading them — never yank scrollback.
-      if (_lastBottomInset == 0) _keyboardFollowsBottom = _isNearBottom;
-      if (_keyboardFollowsBottom) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) _scrollToBottom(animate: false);
-        });
-      }
-    }
-    _lastBottomInset = bottomInset;
+    _scroll.handleKeyboardInset(View.of(context).viewInsets.bottom);
   }
 
   @override
@@ -231,8 +218,8 @@ class _ChatPageContentState extends State<_ChatPageContent>
     WidgetsBinding.instance.removeObserver(this);
     _syncTimer?.cancel();
     _chatProviderRef?.streamingMessage.removeListener(_onStreamingUpdate);
-    _scrollController.removeListener(_onScroll);
-    _scrollController.dispose();
+    _scrollController.removeListener(_maybeLoadOlderMessages);
+    _scroll.dispose();
     super.dispose();
   }
 
@@ -249,23 +236,9 @@ class _ChatPageContentState extends State<_ChatPageContent>
     if (provider != null) unawaited(provider.syncFromServer());
   }
 
-  bool get _isNearBottom {
-    if (!_scrollController.hasClients) return true;
-    final position = _scrollController.position;
-    return position.maxScrollExtent - position.pixels <= _nearBottomThreshold;
-  }
-
   // B-03: page in older messages once the user scrolls near the top,
   // instead of loading a whole multi-hundred-message history up front.
   static const _nearTopThreshold = 300.0;
-
-  void _onScroll() {
-    final show = !_isNearBottom;
-    if (show != _showJumpToBottom) {
-      setState(() => _showJumpToBottom = show);
-    }
-    _maybeLoadOlderMessages();
-  }
 
   void _maybeLoadOlderMessages() {
     if (!_scrollController.hasClients) return;
@@ -295,12 +268,11 @@ class _ChatPageContentState extends State<_ChatPageContent>
     );
   }
 
+  /// Streaming tick: hand the update to the shared smart-scroll helper, which
+  /// chases the growing bubble until its top can reach the viewport top, then
+  /// pins it there once and releases the scroll to the user.
   void _onStreamingUpdate() {
-    if (_isNearBottom) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _scrollToBottom(animate: false);
-      });
-    }
+    _scroll.handleStreamingTick(_chatProviderRef?.streamingMessageId);
   }
 
   int? _getLastTokensPrompt(ChatProvider chatProvider) {
@@ -331,48 +303,16 @@ class _ChatPageContentState extends State<_ChatPageContent>
     return null;
   }
 
-  void _scrollToBottom({bool animate = true}) {
-    if (!_scrollController.hasClients) return;
-    final target = _scrollController.position.maxScrollExtent;
-    if (animate) {
-      _scrollController.animateTo(
-        target,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
-    } else {
-      // Streaming follow: jump instead of animating — at ~12 content
-      // updates per second, overlapping animations would thrash.
-      _scrollController.jumpTo(target);
-    }
-  }
-
   /// Scroll on structural changes only: jump on conversation switch, follow
   /// new messages when the user sent one or is already near the bottom.
+  /// Delegates to the shared smart-scroll helper (keyed by conversation id).
   void _handleAutoScroll(ChatProvider chatProvider) {
-    final messageCount = chatProvider.messages.length;
-    final conversationId = chatProvider.currentConversation?.id;
-
-    if (conversationId != _lastConversationId) {
-      _lastConversationId = conversationId;
-      _lastMessageCount = messageCount;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _scrollToBottom(animate: false);
-      });
-      return;
-    }
-
-    if (messageCount != _lastMessageCount) {
-      final lastIsUser =
-          chatProvider.messages.isNotEmpty && chatProvider.messages.last.isUser;
-      final shouldScroll = lastIsUser || _isNearBottom;
-      _lastMessageCount = messageCount;
-      if (shouldScroll) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) _scrollToBottom();
-        });
-      }
-    }
+    final messages = chatProvider.messages;
+    _scroll.handleStructural(
+      itemCount: messages.length,
+      containerId: chatProvider.currentConversation?.id,
+      forceFollow: messages.isNotEmpty && messages.last.isUser,
+    );
   }
 
   bool _showSidebar(BuildContext context) => context.isWide;
@@ -752,19 +692,24 @@ class _ChatPageContentState extends State<_ChatPageContent>
                                 child: Stack(
                                   children: [
                                     _buildMessageList(chatProvider, theme),
-                                    if (_showJumpToBottom)
-                                      Positioned(
-                                        right: 16,
-                                        bottom: 12,
-                                        child: FloatingActionButton.small(
-                                          heroTag: 'jump_to_bottom',
-                                          tooltip: 'Jump to latest message',
-                                          onPressed: () => _scrollToBottom(),
-                                          child: const Icon(
-                                            Icons.keyboard_arrow_down,
-                                          ),
-                                        ),
-                                      ),
+                                    ValueListenableBuilder<bool>(
+                                      valueListenable: _scroll.showJumpToBottom,
+                                      builder: (context, show, _) => show
+                                          ? Positioned(
+                                              right: 16,
+                                              bottom: 12,
+                                              child: FloatingActionButton.small(
+                                                heroTag: 'jump_to_bottom',
+                                                tooltip:
+                                                    'Jump to latest message',
+                                                onPressed: _scroll.resumeFollow,
+                                                child: const Icon(
+                                                  Icons.keyboard_arrow_down,
+                                                ),
+                                              ),
+                                            )
+                                          : const SizedBox.shrink(),
+                                    ),
                                   ],
                                 ),
                               ),
@@ -1051,12 +996,16 @@ class _ChatPageContentState extends State<_ChatPageContent>
 
         // The in-flight assistant bubble subscribes to the streaming
         // channel directly, so per-chunk updates repaint only this one
-        // widget instead of the whole list.
+        // widget instead of the whole list. The anchor key lets the smart
+        // scroll helper locate the bubble to chase/pin it while streaming.
         if (message.id == chatProvider.streamingMessageId) {
-          return ValueListenableBuilder<ChatMessage?>(
-            valueListenable: chatProvider.streamingMessage,
-            builder: (context, live, _) => buildBubble(
-              live != null && live.id == message.id ? live : message,
+          return KeyedSubtree(
+            key: _scroll.streamAnchorKey,
+            child: ValueListenableBuilder<ChatMessage?>(
+              valueListenable: chatProvider.streamingMessage,
+              builder: (context, live, _) => buildBubble(
+                live != null && live.id == message.id ? live : message,
+              ),
             ),
           );
         }

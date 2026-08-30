@@ -166,8 +166,11 @@ class _RoomChatViewState extends State<RoomChatView>
     super.dispose();
   }
 
+  /// Streaming tick: hand the update to the shared smart-scroll helper, which
+  /// chases the growing bubble until its top can reach the viewport top, then
+  /// pins it there once and releases the scroll to the user.
   void _onStreamingUpdate() {
-    if (mounted) _scroll.followStreaming();
+    _scroll.handleStreamingTick(_providerRef?.streamingMessageId);
   }
 
   Future<void> _toggleAudioNote() async {
@@ -301,8 +304,7 @@ class _RoomChatViewState extends State<RoomChatView>
                                     ? FloatingActionButton.small(
                                         heroTag: 'room_jump_to_bottom',
                                         tooltip: 'Jump to latest message',
-                                        onPressed: () =>
-                                            _scroll.scrollToBottom(),
+                                        onPressed: () => _scroll.resumeFollow(),
                                         child: const Icon(
                                           Icons.keyboard_arrow_down,
                                         ),
@@ -490,13 +492,17 @@ class _RoomChatViewState extends State<RoomChatView>
 
         // The in-flight agent bubble subscribes to the streaming channel
         // directly, so per-chunk updates repaint only this one widget instead
-        // of the whole list.
+        // of the whole list. The anchor key lets the smart scroll helper
+        // locate the bubble to chase/pin it while streaming.
         if (m.id == provider.streamingMessageId) {
-          return ValueListenableBuilder<RoomMessage?>(
-            valueListenable: provider.streamingMessage,
-            builder: (context, live, _) => bubble(
-              live != null && live.id == m.id ? live : m,
-              isStreaming: true,
+          return KeyedSubtree(
+            key: _scroll.streamAnchorKey,
+            child: ValueListenableBuilder<RoomMessage?>(
+              valueListenable: provider.streamingMessage,
+              builder: (context, live, _) => bubble(
+                live != null && live.id == m.id ? live : m,
+                isStreaming: true,
+              ),
             ),
           );
         }

@@ -312,6 +312,16 @@ and after every single turn — slow for long-running conversations. Now:
   (`_maybeLoadOlderMessages` in `chat_page.dart`) pages earlier messages in
   via `GET /conversations/{id}/messages?before=<oldest loaded id>`,
   prepending them and compensating the scroll offset so the view doesn't jump.
+- Streaming auto-scroll is handled by `SmartScrollController`
+  (`lib/core/smart_scroll_controller.dart`), shared by the chat page and the
+  rooms view. It never chases the growing text: at stream start it pins the
+  answer's top to the viewport top and holds it there until the stream ends,
+  so the reader's position is constant (tool messages inserted mid-answer are
+  absorbed by the same pin). Any user scroll-up cancels the pin for the rest
+  of the stream. The jump-to-bottom pill rides the stream's tail (opt-in
+  bottom-chase) until the user scrolls away. Non-streaming rules are
+  unchanged: jump on container switch, follow new messages only when the
+  user just sent one or is near the bottom.
 - The post-turn reload (`_reloadCurrentConversation`, runs in the stream's
   `onDone`) requests `max(60, however many messages are already displayed)`
   instead of the entire history — cheap for an active conversation, and
