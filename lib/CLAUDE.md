@@ -9,8 +9,9 @@ provider map, chat/SSE flow, rooms WebSocket) and `../docs/api.md` (endpoints).
 
 - `just fe-run` — Linux desktop (default); `just fe-run-chrome` — web
 - `just fe-build-apk` — compile a debug Android APK without launching it
-- `just fe-test` — unit/widget tests; `just fe-lint` / `just fe-format`
-- Single test: `flutter test test/path/widget_test.dart`
+- `just fe-test` — unit/widget test suite
+- `just fe-test test/path/widget_test.dart` — focused Flutter test
+- `just fe-lint` / `just fe-format` — analysis and formatting
 
 ## Where code goes
 

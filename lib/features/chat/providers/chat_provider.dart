@@ -127,6 +127,10 @@ class ChatProvider extends ChangeNotifier {
   String? _error;
   String? get error => _error ?? conversationList.error;
 
+  Map<String, dynamic>? _errorMetadata;
+  String? get errorType =>
+      _error == null ? null : _errorMetadata?['error_type'] as String?;
+
   final ChatStreamController _stream = ChatStreamController();
 
   // ==========================================================================
@@ -195,6 +199,7 @@ class ChatProvider extends ChangeNotifier {
 
     _cancelResponseRecovery();
     _error = null;
+    _errorMetadata = null;
     _actionEpoch++;
     notifyListeners();
 
@@ -211,6 +216,7 @@ class ChatProvider extends ChangeNotifier {
       // start, not this one. (The create path adopts it instead.)
       unawaited(_folders.clear(null));
     } catch (e) {
+      _errorMetadata = null;
       _error = 'Failed to load conversation: $e';
       logDebug(_error!);
     } finally {
@@ -259,6 +265,7 @@ class ChatProvider extends ChangeNotifier {
     List<ChatAttachment> initialAttachments = const [],
   }) async {
     _error = null;
+    _errorMetadata = null;
     notifyListeners();
 
     try {
@@ -299,6 +306,7 @@ class ChatProvider extends ChangeNotifier {
 
       await conversationList.load();
     } catch (e) {
+      _errorMetadata = null;
       _error = 'Failed to create conversation: $e';
       _isSending = false;
       logDebug(_error!);
@@ -322,6 +330,7 @@ class ChatProvider extends ChangeNotifier {
     if (_currentConversation == null) return;
 
     _error = null;
+    _errorMetadata = null;
     notifyListeners();
 
     try {
@@ -342,9 +351,58 @@ class ChatProvider extends ChangeNotifier {
       _currentConversation = updated;
       await conversationList.load();
     } catch (e) {
+      _errorMetadata = null;
       _error = 'Failed to update conversation: $e';
       logDebug(_error!);
       notifyListeners();
+    }
+  }
+
+  /// Change only this conversation's model and retry its latest user turn.
+  /// The backend edit path preserves attachment metadata, while the partial
+  /// update leaves the conversation prompt, thinking level, and tools intact.
+  /// Saved styles and new-chat defaults live in separate providers and are
+  /// deliberately not changed here.
+  Future<bool> switchModelAndRetryLastTurn(String modelId) async {
+    final conversation = _currentConversation;
+    if (conversation == null || isSending) return false;
+
+    _error = null;
+    _errorMetadata = null;
+    _isSending = true;
+    notifyListeners();
+
+    try {
+      await _stream.cancel();
+      _syncStreamingIntoList();
+      _clearStreamingState();
+
+      await _chatService.updateConversation(conversation.id, model: modelId);
+      final refreshed = await _chatService.getConversation(
+        conversation.id,
+        messageLimit: _messageWindow,
+      );
+      _currentConversation = refreshed;
+      _messages = _hydrateAttachments(refreshed.messages ?? []);
+
+      final userIndex = _messages.lastIndexWhere((message) => message.isUser);
+      if (userIndex < 0) {
+        throw StateError('No user message is available to retry');
+      }
+      final userMessage = _messages[userIndex];
+      _isSending = false;
+      await editUserMessage(
+        userMessage.id,
+        _editableUserContent(userMessage.content),
+      );
+      return true;
+    } catch (e) {
+      _isSending = false;
+      _errorMetadata = null;
+      _error = 'Failed to switch models and retry: $e';
+      logDebug(_error!);
+      notifyListeners();
+      return false;
     }
   }
 
@@ -389,6 +447,7 @@ class ChatProvider extends ChangeNotifier {
 
   Future<void> deleteConversation(String conversationId) async {
     _error = null;
+    _errorMetadata = null;
     _actionEpoch++;
 
     if (_currentConversation?.id == conversationId) {
@@ -411,6 +470,7 @@ class ChatProvider extends ChangeNotifier {
     _messages = [];
     _cancelResponseRecovery();
     _error = null;
+    _errorMetadata = null;
     _actionEpoch++;
     notifyListeners();
   }
@@ -461,6 +521,7 @@ class ChatProvider extends ChangeNotifier {
     if (isSending) return;
 
     _error = null;
+    _errorMetadata = null;
     _actionEpoch++;
 
     if (_currentConversation == null) {
@@ -504,6 +565,7 @@ class ChatProvider extends ChangeNotifier {
       );
       _consumeAssistantStream(stream);
     } catch (e) {
+      _errorMetadata = null;
       _error = _friendlyStreamError(e);
       _isSending = false;
       logDebug(_error!);
@@ -522,6 +584,7 @@ class ChatProvider extends ChangeNotifier {
     final messageId = _messages[lastAssistantIdx].id;
 
     _error = null;
+    _errorMetadata = null;
     _actionEpoch++;
     _isSending = true;
     // Trim the old assistant reply and any trailing tool turns we've already
@@ -536,6 +599,7 @@ class ChatProvider extends ChangeNotifier {
       );
       _consumeAssistantStream(stream);
     } catch (e) {
+      _errorMetadata = null;
       _error = _friendlyStreamError(e);
       _isSending = false;
       logDebug(_error!);
@@ -554,6 +618,7 @@ class ChatProvider extends ChangeNotifier {
     if (!target.isUser) return;
 
     _error = null;
+    _errorMetadata = null;
     _actionEpoch++;
     _isSending = true;
 
@@ -570,6 +635,7 @@ class ChatProvider extends ChangeNotifier {
       );
       _consumeAssistantStream(stream);
     } catch (e) {
+      _errorMetadata = null;
       _error = _friendlyStreamError(e);
       _isSending = false;
       logDebug(_error!);
@@ -582,6 +648,7 @@ class ChatProvider extends ChangeNotifier {
     if (_currentConversation == null) return;
 
     _error = null;
+    _errorMetadata = null;
     notifyListeners();
 
     try {
@@ -594,6 +661,7 @@ class ChatProvider extends ChangeNotifier {
       // Navigate to new branch
       await loadConversation(newConv.id);
     } catch (e) {
+      _errorMetadata = null;
       _error = 'Failed to branch conversation: $e';
       logDebug(_error!);
       notifyListeners();
@@ -690,6 +758,7 @@ class ChatProvider extends ChangeNotifier {
         } else if (chunk.isError) {
           _syncStreamingIntoList();
           _error = chunk.error ?? 'An error occurred';
+          _errorMetadata = chunk.metadata;
           _isSending = false;
           notifyListeners();
         }
@@ -701,8 +770,10 @@ class ChatProvider extends ChangeNotifier {
         _clearStreamingState();
         if (_isConnectionError(e)) {
           _error = null;
+          _errorMetadata = null;
           _beginResponseRecovery();
         } else {
+          _errorMetadata = null;
           _error = _friendlyStreamError(e);
         }
         notifyListeners();
@@ -1064,12 +1135,19 @@ class ChatProvider extends ChangeNotifier {
     }).toList();
   }
 
+  String _editableUserContent(String content) {
+    const marker = '\n\n[Attached file: ';
+    final markerIndex = content.indexOf(marker);
+    return markerIndex < 0 ? content : content.substring(0, markerIndex);
+  }
+
   // ==========================================================================
   // Error handling
   // ==========================================================================
 
   void clearError() {
     _error = null;
+    _errorMetadata = null;
     if (conversationList.error != null) {
       conversationList.clearError();
     }

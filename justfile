@@ -208,13 +208,13 @@ be-lint-imports:
 be-format:
     cd backend; uv run ruff format .
 
-# Run pytest on backend
-be-test:
-    cd backend; uv run pytest
+# Run all backend tests, or pass pytest paths/options for a focused run
+be-test *args:
+    cd backend; uv run pytest {{args}}
 
-# Run pytest on backend with coverage (writes backend/coverage.xml)
-be-test-cov:
-    cd backend; uv run pytest --cov=app --cov-report=xml --cov-report=term-missing
+# Run backend tests with coverage; accepts optional pytest paths/options
+be-test-cov *args:
+    cd backend; uv run pytest --cov=app --cov-report=xml --cov-report=term-missing {{args}}
 
 # ============================================================================
 # Frontend Commands (Flutter)
@@ -261,16 +261,16 @@ fe-build:
 fe-build-apk:
     flutter build apk --debug
 
-# Run Flutter widget/unit tests
+# Run all Flutter widget/unit tests, or pass test paths/options for a focused run
 # Concurrency is capped: on a 32-core box `flutter test` defaults to 32 parallel
 # processes, which stampedes memory (each spawns a full engine test binding) and
 # froze the machine. 4 is fast enough for the suite (~10s) and safe.
-fe-test:
-    flutter test --concurrency=4
+fe-test *args:
+    flutter test --concurrency=4 {{args}}
 
-# Run Flutter tests with coverage (writes coverage/lcov.info)
-fe-test-cov:
-    flutter test --concurrency=4 --coverage
+# Run Flutter tests with coverage; accepts optional test paths/options
+fe-test-cov *args:
+    flutter test --concurrency=4 --coverage {{args}}
 
 # Format Dart files (lib/ only — mirrors pre-commit hook)
 fe-format:
@@ -310,6 +310,10 @@ fe-run-test-server:
 # Deploy local main: web build → backend image → prod stack → APK (+ install on Android if connected)
 deploy:
     "{{ justfile_directory() }}/scripts/deploy.sh"
+
+# Pull one model into the isolated production Ollama volume
+deploy-model model:
+    {{ prod_compose }} exec ollama ollama pull "{{ model }}"
 
 # Install the latest built APK from dist/ onto a connected Android device
 deploy-apk-install:

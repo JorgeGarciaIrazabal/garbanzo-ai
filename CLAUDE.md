@@ -38,12 +38,13 @@ just dev             # Docker + backend + frontend on Linux desktop
 just be-dev          # backend only, hot reload (port 8000)
 just fe-run          # frontend only, Linux desktop
 just test            # all unit tests (individually: be-test / fe-test)
+                     # focused: just be-test tests/path/test_file.py::test_name
+                     #          just fe-test test/path/widget_test.dart
 just docker-up       # Postgres + Whisper (docker-up-db: Postgres only)
 just deploy          # ship local main → web + backend image + prod stack + APK
 ```
 
-Single tests: `cd backend; uv run pytest tests/path/test_file.py::test_name`
-and `flutter test test/path/widget_test.dart`.
+Use focused tests while iterating; run `just test` as the full pre-deploy gate.
 
 ## Documentation map
 

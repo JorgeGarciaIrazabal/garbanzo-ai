@@ -23,6 +23,7 @@ CLOUD_MODELS = (
     "deepseek-v4-pro:cloud",
     "glm-5.3:cloud",
     "glm-5.3-flash:cloud",
+    "kimi-k3:cloud",
     "gemma4:cloud",
     "nemotron-3-ultra:cloud",
     "nemotron-3-super:cloud",

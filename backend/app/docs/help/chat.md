@@ -34,8 +34,13 @@ Use the paperclip (**Attach photos or files**) next to the input bar. Images
 are sent to vision-capable models; documents (PDF, text, etc.) have their
 text extracted and included with your message.
 New chats use the vision-capable GLM 5.3 Flash model by default. If you switch
-to a text-only model, the app asks you to choose a model marked **Vision**
-instead of sending the image to a model that cannot read it.
+to a text-only model, the app opens a warning with enabled **Vision** choices:
+**GLM 5.3 Flash** for faster, lower-cost responses or **Kimi K3** for smarter,
+higher-cost responses. Choosing one switches and retries automatically. Only
+the current conversation's model changes: your selected style and its prompt
+and settings, tools, and original attachment stay in place. If neither preferred
+model is enabled, the warning offers another compatible Vision model when one
+is available.
 Pictures larger than 3 MB are automatically resized before they are attached.
 Their format is preserved when possible; an oversized WebP is converted to PNG.
 Filenames and extracted document text preserve accents, ñ, and other Unicode

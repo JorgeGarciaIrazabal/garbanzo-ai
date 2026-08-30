@@ -2830,6 +2830,39 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
+  String get titleVisionModelWarning => 'Elige un modelo Vision';
+
+  @override
+  String messageVisionModelRequired(String currentModel) {
+    return '$currentModel no puede analizar esta imagen. Elige un modelo y Garbanzo volverá a intentarlo automáticamente.';
+  }
+
+  @override
+  String get messageVisionSettingsPreserved =>
+      'Solo cambia el modelo de esta conversación. Se mantienen el estilo elegido con sus instrucciones y ajustes, las herramientas y la imagen.';
+
+  @override
+  String errorNoVisionModelAvailable(String currentModel) {
+    return '$currentModel no puede analizar imágenes y no hay ningún modelo Vision habilitado. Habilita o instala uno y vuelve a intentarlo.';
+  }
+
+  @override
+  String get titleVisionModelFast => 'GLM 5.3 Flash';
+
+  @override
+  String get descriptionVisionModelFast => 'Más rápido · menor coste · Nube';
+
+  @override
+  String get titleVisionModelSmart => 'Kimi K3';
+
+  @override
+  String get descriptionVisionModelSmart =>
+      'Más inteligente · mayor coste · Nube';
+
+  @override
+  String get descriptionVisionModelCompatible => 'Modelo compatible con Vision';
+
+  @override
   String get agentActivityWorking => 'El agente está trabajando…';
 
   @override

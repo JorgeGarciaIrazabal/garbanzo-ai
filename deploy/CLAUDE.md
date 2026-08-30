@@ -8,6 +8,7 @@ it for procedures. This file is the agent quick reference.
 ## Commands (from repo root, via `just`)
 
 - `just deploy` — ship local `main`: web build → backend image → stack → health → APK
+- `just deploy-model <model>` — pull one model into the production Ollama volume
 - `just deploy-status` — compose ps + local & public health checks
 - `just deploy-logs [backend|postgres|ngrok]` — tail prod logs
 - `just deploy-restart` — restart services (keeps data); `just deploy-down` — stop (keeps volumes)

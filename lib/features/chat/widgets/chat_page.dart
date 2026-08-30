@@ -29,6 +29,7 @@ import 'package:garbanzo_ai/features/chat/widgets/context_window_indicator.dart'
 import 'package:garbanzo_ai/features/chat/widgets/empty_chat_state.dart';
 import 'package:garbanzo_ai/features/chat/widgets/system_prompt_banner.dart';
 import 'package:garbanzo_ai/features/chat/widgets/tool_activity_group.dart';
+import 'package:garbanzo_ai/features/chat/widgets/vision_model_warning_dialog.dart';
 import 'package:garbanzo_ai/features/rooms/providers/room_provider.dart';
 import 'package:garbanzo_ai/features/rooms/widgets/room_chat_view.dart';
 import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
@@ -153,6 +154,8 @@ class _ChatPageContentState extends State<_ChatPageContent>
   final ScrollController _scrollController = ScrollController();
   Timer? _syncTimer;
   bool _isDragOver = false;
+  bool _visionWarningScheduled = false;
+  bool _visionWarningOpen = false;
 
   /// User-chosen width of the micro-app side panel (null = default). Adjusted
   /// by dragging the divider between the chat and the panel.
@@ -581,12 +584,63 @@ class _ChatPageContentState extends State<_ChatPageContent>
     );
   }
 
+  void _scheduleVisionModelWarning(
+    ChatProvider chatProvider,
+    ModelProvider modelProvider,
+    String currentModelName,
+  ) {
+    if (_visionWarningScheduled || _visionWarningOpen) return;
+    _visionWarningScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      _visionWarningScheduled = false;
+      if (!mounted ||
+          chatProvider.errorType != 'unsupported_image_input' ||
+          _visionWarningOpen) {
+        return;
+      }
+
+      _visionWarningOpen = true;
+      final choice = await showDialog<VisionModelChoice>(
+        context: context,
+        builder: (_) => VisionModelWarningDialog(
+          currentModelName: currentModelName,
+          choices: modelProvider.visionModelChoices(
+            currentModelId: chatProvider.currentConversation?.model,
+            preferThinking:
+                chatProvider.currentConversation?.thinkingLevel != null,
+          ),
+        ),
+      );
+      _visionWarningOpen = false;
+      if (!mounted) return;
+
+      if (choice == null) {
+        chatProvider.clearError();
+      } else {
+        await chatProvider.switchModelAndRetryLastTurn(choice.model.id);
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final chatProvider = context.watch<ChatProvider>();
     final modelProvider = context.watch<ModelProvider>();
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final l10n = AppLocalizations.of(context)!;
+
+    final currentModelId = chatProvider.currentConversation?.model;
+    final currentModel = modelProvider.availableModels
+        .where((model) => model.id == currentModelId)
+        .firstOrNull;
+    if (chatProvider.errorType == 'unsupported_image_input') {
+      _scheduleVisionModelWarning(
+        chatProvider,
+        modelProvider,
+        currentModel?.name ?? currentModelId ?? l10n.labelModel,
+      );
+    }
 
     _handleAutoScroll(chatProvider);
 
@@ -662,7 +716,9 @@ class _ChatPageContentState extends State<_ChatPageContent>
                                     _deleteWithUndo(chatProvider, id),
                                 onNewChat: _newChat,
                               ),
-                              if (chatProvider.error != null)
+                              if (chatProvider.error != null &&
+                                  chatProvider.errorType !=
+                                      'unsupported_image_input')
                                 _ErrorBanner(
                                   message: chatProvider.error!,
                                   onDismiss: chatProvider.clearError,
@@ -1044,11 +1100,15 @@ class _ErrorBanner extends StatelessWidget {
       color: colorScheme.errorContainer,
       padding: const EdgeInsets.all(12),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            Icons.error_outline,
-            color: colorScheme.onErrorContainer,
-            size: 20,
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Icon(
+              Icons.error_outline,
+              color: colorScheme.onErrorContainer,
+              size: 20,
+            ),
           ),
           const SizedBox(width: 8),
           Expanded(

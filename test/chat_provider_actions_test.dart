@@ -28,14 +28,21 @@ class _FakeChatService extends ChatService {
     String id, {
     List<ChatMessage> messages = const [],
     bool isPinned = false,
+    String model = 'llama3.2',
+    String? systemPrompt,
+    ThinkingLevel? thinkingLevel,
+    List<String>? enabledTools,
   }) {
     return Conversation(
       id: id,
       title: 'Test',
-      model: 'llama3.2',
+      model: model,
       createdAt: DateTime.utc(2026),
       updatedAt: DateTime.utc(2026),
       isPinned: isPinned,
+      systemPrompt: systemPrompt,
+      thinkingLevel: thinkingLevel,
+      enabledTools: enabledTools,
       messages: messages,
     );
   }
@@ -49,7 +56,8 @@ class _FakeChatService extends ChatService {
   final List<({String conversationId, String messageId, String content})>
   editCalls = [];
   final List<({String conversationId, String messageId})> branchCalls = [];
-  final List<({String conversationId, bool? isPinned})> updateCalls = [];
+  final List<({String conversationId, bool? isPinned, String? model})>
+  updateCalls = [];
   int streamChatCalls = 0;
 
   /// When set, the corresponding call throws instead of succeeding.
@@ -95,9 +103,14 @@ class _FakeChatService extends ChatService {
     ThinkingLevel? thinkingLevel,
     bool setThinkingLevel = false,
   }) async {
-    updateCalls.add((conversationId: conversationId, isPinned: isPinned));
+    updateCalls.add((
+      conversationId: conversationId,
+      isPinned: isPinned,
+      model: model,
+    ));
     final updated = conversationsById[conversationId]!.copyWith(
       title: title ?? conversationsById[conversationId]!.title,
+      model: model ?? conversationsById[conversationId]!.model,
       isPinned: isPinned ?? conversationsById[conversationId]!.isPinned,
     );
     conversationsById[conversationId] = updated;
@@ -172,11 +185,17 @@ class _FakeChatService extends ChatService {
   Future<void> deleteConversation(String conversationId) async {}
 }
 
-ChatMessage _msg(String id, String role, String content) => ChatMessage(
+ChatMessage _msg(
+  String id,
+  String role,
+  String content, {
+  Map<String, dynamic>? metadata,
+}) => ChatMessage(
   id: id,
   role: role,
   content: content,
   createdAt: DateTime.utc(2026),
+  metadata: metadata,
 );
 
 Future<ChatProvider> _openConversation(_FakeChatService service) async {
@@ -318,6 +337,64 @@ void main() {
     });
   });
 
+  group('Vision model transition', () {
+    test('switches only the model and retries the persisted user turn', () async {
+      final service = _FakeChatService();
+      service.conversationsById['conv-1'] = _FakeChatService._conversation(
+        'conv-1',
+        model: 'text-only:cloud',
+        systemPrompt: 'Keep answers concise',
+        thinkingLevel: ThinkingLevel.high,
+        enabledTools: ['web_search'],
+        messages: [
+          _msg(
+            'u1',
+            'user',
+            'Describe this\n\n[Attached file: notes.txt]\ncontext',
+            metadata: {
+              'attachments': [
+                {
+                  'name': 'photo.png',
+                  'mime_type': 'image/png',
+                  'type': 'image',
+                  'data': 'AQID',
+                },
+              ],
+            },
+          ),
+        ],
+      );
+      final provider = await _openConversation(service);
+
+      final switched = await provider.switchModelAndRetryLastTurn(
+        'vision:cloud',
+      );
+
+      expect(switched, isTrue);
+      expect(service.updateCalls.last, (
+        conversationId: 'conv-1',
+        isPinned: null,
+        model: 'vision:cloud',
+      ));
+      expect(service.editCalls, [
+        (
+          conversationId: 'conv-1',
+          messageId: 'u1',
+          content: 'Describe this',
+        ),
+      ]);
+      expect(provider.currentConversation?.model, 'vision:cloud');
+      expect(provider.currentConversation?.systemPrompt, 'Keep answers concise');
+      expect(provider.currentConversation?.thinkingLevel, ThinkingLevel.high);
+      expect(provider.currentConversation?.enabledTools, ['web_search']);
+      expect(provider.messages.first.attachments.single.name, 'photo.png');
+      expect(provider.isSending, isTrue);
+
+      await service.controller.close();
+      await _pump();
+    });
+  });
+
   group('branchFromMessage', () {
     test('creates the branch, prepends it, and navigates to it', () async {
       final service = _FakeChatService();
@@ -361,7 +438,7 @@ void main() {
 
       expect(
         service.updateCalls,
-        [(conversationId: 'conv-1', isPinned: true)],
+        [(conversationId: 'conv-1', isPinned: true, model: null)],
       );
       expect(provider.currentConversation?.isPinned, isTrue);
       expect(provider.conversations.first.isPinned, isTrue);
@@ -469,11 +546,17 @@ void main() {
       service.controller
           .add(const ChatResponseChunk(type: 'chunk', content: 'partial'));
       await Future<void>.delayed(const Duration(milliseconds: 150));
-      service.controller
-          .add(const ChatResponseChunk(type: 'error', error: 'model exploded'));
+      service.controller.add(
+        const ChatResponseChunk(
+          type: 'error',
+          error: 'model exploded',
+          metadata: {'error_type': 'unsupported_image_input'},
+        ),
+      );
       await _pump();
 
       expect(provider.error, 'model exploded');
+      expect(provider.errorType, 'unsupported_image_input');
       expect(provider.isSending, isFalse);
       expect(provider.messages.last.content, 'partial');
 

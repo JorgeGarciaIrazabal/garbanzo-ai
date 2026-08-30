@@ -10,13 +10,12 @@ demand: `../docs/architecture.md` (layout, flows, startup), `../docs/api.md`
 
 - `just be-dev` — dev server, hot reload (port 8000)
 - `just be-test` — pytest suite
+- `just be-test tests/path/test_file.py::test_name` — focused pytest test
 - `just be-lint` / `just be-format` — ruff check / format
 - `just be-lint-imports` — Pylint C0415 (no in-function imports); the one
   rule ruff lacks. Baseline of pre-existing offenders in
   `.pylint-allowlist`; shrink it by moving imports to top level. Run via
   `just check` (which also runs ruff, the FE linters, and both formatters).
-- Single test: `cd backend; uv run pytest tests/path/test_file.py::test_name`
-
 ## Where code goes
 
 - `app/api/v1/endpoints/*.py` — one router per resource, wired in `router.py`.

@@ -4959,6 +4959,60 @@ abstract class AppLocalizations {
   /// **'Streaming error: {error}'**
   String errorChatStreaming(String error);
 
+  /// Title of the warning dialog shown when the current model cannot process an image.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a Vision model'**
+  String get titleVisionModelWarning;
+
+  /// Warning explaining that the current model cannot process the attached image.
+  ///
+  /// In en, this message translates to:
+  /// **'{currentModel} can’t analyze this image. Choose a model below and Garbanzo will retry automatically.'**
+  String messageVisionModelRequired(String currentModel);
+
+  /// Reassures the user which chat settings are preserved during the model switch.
+  ///
+  /// In en, this message translates to:
+  /// **'Only this conversation’s model changes. Your selected style and its prompt and settings, tools, and image stay in place.'**
+  String get messageVisionSettingsPreserved;
+
+  /// Chat error when an image is sent but no compatible model is enabled.
+  ///
+  /// In en, this message translates to:
+  /// **'{currentModel} can’t analyze images, and no enabled Vision model is available. Enable or install a Vision model, then retry.'**
+  String errorNoVisionModelAvailable(String currentModel);
+
+  /// Display name for the fast Vision model choice.
+  ///
+  /// In en, this message translates to:
+  /// **'GLM 5.3 Flash'**
+  String get titleVisionModelFast;
+
+  /// Tradeoff summary for the fast Vision model choice.
+  ///
+  /// In en, this message translates to:
+  /// **'Faster · lower cost · Cloud'**
+  String get descriptionVisionModelFast;
+
+  /// Display name for the smart Vision model choice.
+  ///
+  /// In en, this message translates to:
+  /// **'Kimi K3'**
+  String get titleVisionModelSmart;
+
+  /// Tradeoff summary for the smart Vision model choice.
+  ///
+  /// In en, this message translates to:
+  /// **'Smarter · higher cost · Cloud'**
+  String get descriptionVisionModelSmart;
+
+  /// Tradeoff summary for a fallback Vision model choice.
+  ///
+  /// In en, this message translates to:
+  /// **'Vision-capable model'**
+  String get descriptionVisionModelCompatible;
+
   /// Title of the live agent activity card.
   ///
   /// In en, this message translates to:

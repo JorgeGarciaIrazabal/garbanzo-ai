@@ -7,6 +7,7 @@ reserved static domain to the backend — no host ngrok agent involved.
 
 ```
 just deploy          # ship local main: web build → image → stack → health → APK
+just deploy-model MODEL # pull one model into the production Ollama volume
 just deploy-status   # compose ps + local & public health
 just deploy-logs     # tail all logs (or: just deploy-logs backend|postgres|ngrok)
 just deploy-restart  # restart services (keeps data)
@@ -43,11 +44,11 @@ proceeds. Set `CHANGELOG_OPENCODE_MODEL` in `.env` to override the model.
    fully isolated from any host Ollama install. On first deploy, pull the
    models the app needs:
    ```
-    docker compose -f deploy/docker-compose.yml --env-file deploy/.env exec ollama ollama pull llama3.2
-    docker compose -f deploy/docker-compose.yml --env-file deploy/.env exec ollama ollama pull granite4:micro
-    docker compose -f deploy/docker-compose.yml --env-file deploy/.env exec ollama ollama pull nomic-embed-text
+    just deploy-model llama3.2
+    just deploy-model granite4:micro
+    just deploy-model nomic-embed-text
     ```
-     Cloud models (e.g. `glm-5.3:cloud`, `glm-5.3-flash:cloud`,
+     Cloud models (e.g. `glm-5.3:cloud`, `glm-5.3-flash:cloud`, `kimi-k3:cloud`,
      `deepseek-v4-flash:cloud`, `deepseek-v4-pro:cloud`, `gemma4:cloud`,
      `nemotron-3-ultra:cloud`,
      `nemotron-3-super:cloud`, `qwen3.5:cloud`)
@@ -58,14 +59,15 @@ proceeds. Set `CHANGELOG_OPENCODE_MODEL` in `.env` to override the model.
      redeploys — only wiping the volume requires signing in again. Local-only
      models work without it. After signing in, pull each cloud model:
      ```
-     docker compose -f deploy/docker-compose.yml --env-file deploy/.env exec ollama ollama pull glm-5.3:cloud
-     docker compose -f deploy/docker-compose.yml --env-file deploy/.env exec ollama ollama pull glm-5.3-flash:cloud
-     docker compose -f deploy/docker-compose.yml --env-file deploy/.env exec ollama ollama pull deepseek-v4-flash:cloud
-     docker compose -f deploy/docker-compose.yml --env-file deploy/.env exec ollama ollama pull deepseek-v4-pro:cloud
-     docker compose -f deploy/docker-compose.yml --env-file deploy/.env exec ollama ollama pull gemma4:cloud
-     docker compose -f deploy/docker-compose.yml --env-file deploy/.env exec ollama ollama pull nemotron-3-ultra:cloud
-     docker compose -f deploy/docker-compose.yml --env-file deploy/.env exec ollama ollama pull nemotron-3-super:cloud
-     docker compose -f deploy/docker-compose.yml --env-file deploy/.env exec ollama ollama pull qwen3.5:cloud
+     just deploy-model glm-5.3:cloud
+     just deploy-model glm-5.3-flash:cloud
+     just deploy-model kimi-k3:cloud
+     just deploy-model deepseek-v4-flash:cloud
+     just deploy-model deepseek-v4-pro:cloud
+     just deploy-model gemma4:cloud
+     just deploy-model nemotron-3-ultra:cloud
+     just deploy-model nemotron-3-super:cloud
+     just deploy-model qwen3.5:cloud
      ```
      Normal chats default to the multimodal `glm-5.3-flash:cloud`; automatic
      memory extraction and scheduled actions default to `glm-5.3:cloud`.

@@ -5,12 +5,24 @@ import 'package:garbanzo_ai/core/guarded_state.dart';
 import 'package:garbanzo_ai/features/chat/models/model_info.dart';
 import 'package:garbanzo_ai/features/chat/services/chat_service.dart';
 
+enum VisionModelChoiceKind { faster, smarter, compatible }
+
+class VisionModelChoice {
+  const VisionModelChoice({required this.model, required this.kind});
+
+  final ModelInfo model;
+  final VisionModelChoiceKind kind;
+}
+
 /// Provider for managing LLM model selection.
 ///
 /// Separated from [ChatProvider] so that model state can be loaded once
 /// and shared across the app without tying it to a single conversation.
 /// The user's default model is persisted on the backend via `/auth/me`.
 class ModelProvider extends ChangeNotifier with GuardedStateMixin {
+  static const fastVisionModelId = 'glm-5.3-flash:cloud';
+  static const smartVisionModelId = 'kimi-k3:cloud';
+
   ModelProvider({ChatService? chatService, AuthService? authService})
     : _chatService = chatService ?? ChatService.instance,
       _authService = authService ?? AuthService.instance {
@@ -23,6 +35,8 @@ class ModelProvider extends ChangeNotifier with GuardedStateMixin {
   List<ModelInfo> _availableModels = [];
   List<ModelInfo> get availableModels => List.unmodifiable(_availableModels);
 
+  String? _serverDefaultModelId;
+
   String? _selectedModelId;
   String? get selectedModelId => _selectedModelId;
 
@@ -30,6 +44,7 @@ class ModelProvider extends ChangeNotifier with GuardedStateMixin {
     await runGuarded('Failed to load models', () async {
       final modelList = await _chatService.listModels();
       _availableModels = modelList.models;
+      _serverDefaultModelId = modelList.defaultModel;
 
       if (_selectedModelId == null && _availableModels.isNotEmpty) {
         // Preference order: the user's persisted default (via /auth/me) >
@@ -85,4 +100,88 @@ class ModelProvider extends ChangeNotifier with GuardedStateMixin {
   }
 
   Future<void> refreshModels() async => _loadModels();
+
+  /// Preferred choices for recovering from an image sent to a text-only
+  /// model. Only return models that the server currently exposes: a choice in
+  /// this list is safe for the UI to switch to immediately.
+  ///
+  /// GLM 5.3 Flash is the fast/lower-cost path and Kimi K3 is the
+  /// smarter/higher-cost path. If neither preferred cloud model is enabled,
+  /// retain the general capability-aware recommendation as a fallback.
+  List<VisionModelChoice> visionModelChoices({
+    String? currentModelId,
+    bool preferThinking = false,
+  }) {
+    final choices = <VisionModelChoice>[];
+
+    void addPreferred(String id, VisionModelChoiceKind kind) {
+      final model = _availableModels
+          .where((candidate) => candidate.id == id)
+          .firstOrNull;
+      if (model?.supportsVision == true) {
+        choices.add(VisionModelChoice(model: model!, kind: kind));
+      }
+    }
+
+    addPreferred(fastVisionModelId, VisionModelChoiceKind.faster);
+    addPreferred(smartVisionModelId, VisionModelChoiceKind.smarter);
+    if (choices.isNotEmpty) return choices;
+
+    final fallback = recommendedVisionModel(
+      currentModelId: currentModelId,
+      preferThinking: preferThinking,
+    );
+    return fallback == null
+        ? const []
+        : [
+            VisionModelChoice(
+              model: fallback,
+              kind: VisionModelChoiceKind.compatible,
+            ),
+          ];
+  }
+
+  /// Best available model for an image-bearing turn. Stay on the same
+  /// local/cloud side when possible so suggesting a model never quietly
+  /// changes where the user's attachment is processed. Within that pool,
+  /// preserve tool/thinking support when possible, then prefer the server
+  /// default and a larger context window.
+  ModelInfo? recommendedVisionModel({
+    String? currentModelId,
+    bool preferThinking = false,
+  }) {
+    final candidates = _availableModels
+        .where((model) => model.supportsVision == true)
+        .toList();
+    if (candidates.isEmpty) return null;
+
+    final currentIsCloud = currentModelId?.endsWith(':cloud');
+    final sameLocation = currentIsCloud == null
+        ? <ModelInfo>[]
+        : candidates
+              .where((model) => model.id.endsWith(':cloud') == currentIsCloud)
+              .toList();
+    var pool = sameLocation.isEmpty ? candidates : sameLocation;
+
+    final toolCapable = pool
+        .where((model) => model.supportsTools == true)
+        .toList();
+    if (toolCapable.isNotEmpty) pool = toolCapable;
+    if (preferThinking) {
+      final thinkingCapable = pool
+          .where((model) => model.supportsThinking == true)
+          .toList();
+      if (thinkingCapable.isNotEmpty) pool = thinkingCapable;
+    }
+
+    int score(ModelInfo model) {
+      var value = 0;
+      if (model.id == _serverDefaultModelId) value += 1000;
+      value += (model.contextLength ?? 0) ~/ 10000;
+      return value;
+    }
+
+    pool.sort((a, b) => score(b).compareTo(score(a)));
+    return pool.first;
+  }
 }

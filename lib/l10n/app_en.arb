@@ -3837,6 +3837,48 @@
       }
     }
   },
+  "titleVisionModelWarning": "Choose a Vision model",
+  "@titleVisionModelWarning": {
+    "description": "Title of the warning dialog shown when the current model cannot process an image."
+  },
+  "messageVisionModelRequired": "{currentModel} can’t analyze this image. Choose a model below and Garbanzo will retry automatically.",
+  "@messageVisionModelRequired": {
+    "description": "Warning explaining that the current model cannot process the attached image.",
+    "placeholders": {
+      "currentModel": {"type": "String"}
+    }
+  },
+  "messageVisionSettingsPreserved": "Only this conversation’s model changes. Your selected style and its prompt and settings, tools, and image stay in place.",
+  "@messageVisionSettingsPreserved": {
+    "description": "Reassures the user which chat settings are preserved during the model switch."
+  },
+  "errorNoVisionModelAvailable": "{currentModel} can’t analyze images, and no enabled Vision model is available. Enable or install a Vision model, then retry.",
+  "@errorNoVisionModelAvailable": {
+    "description": "Chat error when an image is sent but no compatible model is enabled.",
+    "placeholders": {
+      "currentModel": {"type": "String"}
+    }
+  },
+  "titleVisionModelFast": "GLM 5.3 Flash",
+  "@titleVisionModelFast": {
+    "description": "Display name for the fast Vision model choice."
+  },
+  "descriptionVisionModelFast": "Faster · lower cost · Cloud",
+  "@descriptionVisionModelFast": {
+    "description": "Tradeoff summary for the fast Vision model choice."
+  },
+  "titleVisionModelSmart": "Kimi K3",
+  "@titleVisionModelSmart": {
+    "description": "Display name for the smart Vision model choice."
+  },
+  "descriptionVisionModelSmart": "Smarter · higher cost · Cloud",
+  "@descriptionVisionModelSmart": {
+    "description": "Tradeoff summary for the smart Vision model choice."
+  },
+  "descriptionVisionModelCompatible": "Vision-capable model",
+  "@descriptionVisionModelCompatible": {
+    "description": "Tradeoff summary for a fallback Vision model choice."
+  },
   "agentActivityWorking": "Agent is working…",
   "@agentActivityWorking": {
     "description": "Title of the live agent activity card."

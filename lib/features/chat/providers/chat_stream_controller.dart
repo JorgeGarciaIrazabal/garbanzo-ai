@@ -65,7 +65,11 @@ class ChatStreamController {
     if (pending != null && pending.id == _messageId) upsert(pending);
   }
 
-  Future<void> cancel() async => _subscription?.cancel();
+  Future<void> cancel() async {
+    final subscription = _subscription;
+    _subscription = null;
+    await subscription?.cancel();
+  }
 
   void clear() {
     _flushTimer?.cancel();

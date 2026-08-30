@@ -278,7 +278,7 @@ pages/               LoginPage, RegisterPage
 
 1. `ChatProvider.sendMessage()` optimistically adds the user message, then calls `ChatService.streamChatResponse()`
 2. `ChatService` POSTs to `/api/v1/chat/conversations/{id}/chat` with `Accept: text/event-stream`; Talk Mode also sends its `AppLocalizations`-resolved `talk_mode_instruction`
-3. Backend `ChatService` builds message history, appends that Talk instruction only to the current turn's system context (never persistence), calls `LLMProvider.stream_chat()`, and yields SSE chunks. Image turns are capability-checked first: a known text-only model returns a user-actionable `unsupported_image_input` error without calling Ollama or filing an automatic bug report; the provider also translates Ollama's equivalent 400 when metadata was unavailable.
+3. Backend `ChatService` builds message history, appends that Talk instruction only to the current turn's system context (never persistence), calls `LLMProvider.stream_chat()`, and yields SSE chunks. Image turns are capability-checked first: a known text-only model returns a structured `unsupported_image_input` error without calling Ollama or filing an automatic bug report; the provider also translates Ollama's equivalent 400 when metadata was unavailable. Flutter turns that error into an amber Vision-model warning rather than a red error. `ModelProvider` offers enabled GLM 5.3 Flash (faster/lower cost) and Kimi K3 (smarter/higher cost), with its capability-aware recommendation as a fallback. `ChatProvider` PATCHes only the conversation model and retries the persisted user message through the existing edit stream. Attachments and resolved style settings remain intact; saved styles and new-chat defaults are not mutated.
 4. **Chunk types:**
    - `chunk` — text content
    - `thinking` — reasoning / thought blocks
@@ -422,7 +422,7 @@ never disagree about the local user after a mute/unmute round trip.
 ## State Management (Flutter)
 
 Main providers per `ChatPage` tree:
-- **`ModelProvider`** — available models + selected model. Kept separate so model selection survives conversation switches.
+- **`ModelProvider`** — available models + selected model. Kept separate so model selection survives conversation switches. For image capability errors it exposes only enabled Vision choices, preferring GLM 5.3 Flash for speed/cost and Kimi K3 for capability, then falling back to its location- and capability-aware ranking.
 - **`StyleProvider`** — saved styles + built-in styles (model + thinking level + prompt template bundles, `/api/v1/styles`) plus the *pending* thinking level / system prompt the style picker composes for the next new conversation. Same survives-switches rationale as `ModelProvider`. On load it seeds the pendings from the default style (`is_default`) or, absent one, from the last saved style the user explicitly applied (id persisted locally in `SharedPreferences` via `recordLastUsed`, `style_last_used_style_id`) — an explicit default always wins over last-used. There is no backend column for "the active style": the app-bar pill and the picker's saved-style cards both derive it by matching a conversation's (or the pending) model/thinking/resolved-prompt against each saved style's settings (`_styleMatches` in `style_picker.dart`).
 
 ### Built-in styles
