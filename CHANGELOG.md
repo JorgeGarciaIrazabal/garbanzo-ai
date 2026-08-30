@@ -4,6 +4,19 @@ Release notes for Garbanzo AI. Each entry is generated automatically on
 `just deploy` — an LLM (via opencode) writes it from the release's commits and
 the user reports it addressed. See `scripts/changelog-instructions.md`.
 
+## v1.0.27 — 2026-08-30
+
+### 🙋 User requests completed
+- Fixed being unable to add agents to a room: the Add button in the add-agent dialog stayed disabled no matter what you typed, so the agent could never be added. The same stuck-button issue in the prompt editor's "Save to library" button is fixed too.
+- Stopped transient network blips and gateway outages from being auto-filed as bug reports. A dropped connection or a briefly unreachable server is now handled quietly instead of generating a report for every hiccup.
+
+### ✨ Features
+- Garbanzo on Android can now update itself: the app checks for new versions, shows an update banner and dialog, downloads the new APK with a progress bar, and installs it in place — asking for your permission the first time. Android builds are published with every release, right alongside the desktop installers.
+
+### 🐛 Fixes
+- Room screens now show a friendly "Can't reach the server" message instead of raw exception text when the connection drops.
+- Fixed the "When to respond" dropdown in the add-agent dialog overflowing the dialog when its labels were long.
+
 ## v1.0.26 — 2026-08-30
 
 ### 🙋 User requests completed
