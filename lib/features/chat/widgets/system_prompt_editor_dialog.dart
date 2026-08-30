@@ -91,6 +91,13 @@ class _SystemPromptEditorDialogState extends State<SystemPromptEditorDialog> {
   void initState() {
     super.initState();
     _controller = TextEditingController(text: widget.initialContent ?? '');
+    // Typing must re-evaluate the "Save to library" button's enabled state;
+    // a TextEditingController pushes no rebuilds on its own.
+    _controller.addListener(_onContentChanged);
+  }
+
+  void _onContentChanged() {
+    if (mounted) setState(() {});
   }
 
   @override

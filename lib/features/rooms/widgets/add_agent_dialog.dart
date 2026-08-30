@@ -18,23 +18,42 @@ Future<void> showAddAgentDialog(
   BuildContext context,
   RoomProvider provider, {
   RoomAgent? existing,
+  Future<ModelList> Function()? modelsLoader,
+  Future<List<SystemPromptTemplate>> Function()? templatesLoader,
 }) {
   return showAnimatedDialog<void>(
     context: context,
-    builder: (_) => _AddAgentDialog(provider: provider, existing: existing),
+    builder: (_) => AddAgentDialog(
+      provider: provider,
+      existing: existing,
+      modelsLoader: modelsLoader,
+      templatesLoader: templatesLoader,
+    ),
   );
 }
 
-class _AddAgentDialog extends StatefulWidget {
-  const _AddAgentDialog({required this.provider, this.existing});
+class AddAgentDialog extends StatefulWidget {
+  const AddAgentDialog({
+    super.key,
+    required this.provider,
+    this.existing,
+    this.modelsLoader,
+    this.templatesLoader,
+  });
+
   final RoomProvider provider;
   final RoomAgent? existing;
 
+  /// Overridable model/prompt-template loaders so widget tests can inject
+  /// canned data instead of hitting the API singletons.
+  final Future<ModelList> Function()? modelsLoader;
+  final Future<List<SystemPromptTemplate>> Function()? templatesLoader;
+
   @override
-  State<_AddAgentDialog> createState() => _AddAgentDialogState();
+  State<AddAgentDialog> createState() => _AddAgentDialogState();
 }
 
-class _AddAgentDialogState extends State<_AddAgentDialog> {
+class _AddAgentDialogState extends State<AddAgentDialog> {
   final _nameCtrl = TextEditingController();
   final _promptCtrl = TextEditingController();
   String _mode = 'mention';
@@ -68,6 +87,13 @@ class _AddAgentDialogState extends State<_AddAgentDialog> {
     }
     _loadModels();
     _loadTemplates();
+    // Typing a name must re-evaluate the submit button's enabled state; a
+    // TextEditingController pushes no rebuilds on its own.
+    _nameCtrl.addListener(_onNameChanged);
+  }
+
+  void _onNameChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
@@ -77,9 +103,15 @@ class _AddAgentDialogState extends State<_AddAgentDialog> {
     super.dispose();
   }
 
+  bool get _canSubmit =>
+      _selectedModelId != null &&
+      _selectedModelId!.isNotEmpty &&
+      _nameCtrl.text.trim().isNotEmpty;
+
   Future<void> _loadModels() async {
     try {
-      final list = await ChatService.instance.listModels();
+      final list =
+          await (widget.modelsLoader ?? ChatService.instance.listModels)();
       if (!mounted) return;
       setState(() {
         _models = list.models;
@@ -103,7 +135,9 @@ class _AddAgentDialogState extends State<_AddAgentDialog> {
   /// just leaves the picker hidden — the free-text prompt still works.
   Future<void> _loadTemplates() async {
     try {
-      final templates = await SystemPromptService.instance.listTemplates();
+      final templates =
+          await (widget.templatesLoader ??
+              SystemPromptService.instance.listTemplates)();
       if (!mounted) return;
       setState(() {
         _templates = templates;
@@ -213,6 +247,7 @@ class _AddAgentDialogState extends State<_AddAgentDialog> {
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 initialValue: _mode,
+                isExpanded: true,
                 decoration: InputDecoration(
                   labelText: AppLocalizations.of(context)!.labelWhenToRespond,
                 ),
@@ -262,12 +297,7 @@ class _AddAgentDialogState extends State<_AddAgentDialog> {
           child: Text(AppLocalizations.of(context)!.cancel),
         ),
         FilledButton(
-          onPressed:
-              _saving ||
-                  _selectedModelId == null ||
-                  _nameCtrl.text.trim().isEmpty
-              ? null
-              : _submit,
+          onPressed: _saving || !_canSubmit ? null : _submit,
           child: _saving
               ? const SizedBox(
                   width: 16,

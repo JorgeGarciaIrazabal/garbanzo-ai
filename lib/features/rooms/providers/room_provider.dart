@@ -585,7 +585,9 @@ class RoomProvider extends ChangeNotifier {
     List<String>? enabledTools,
   }) async {
     final room = _currentRoom;
-    if (room == null) return;
+    // Fail loudly instead of silently dropping the agent: the dialog is only
+    // reachable inside an open room, so a null here is a programming error.
+    if (room == null) throw StateError('No room is open');
     await _service.addAgent(
       room.id,
       name: name,
@@ -617,7 +619,7 @@ class RoomProvider extends ChangeNotifier {
     List<String>? enabledTools,
   }) async {
     final room = _currentRoom;
-    if (room == null) return;
+    if (room == null) throw StateError('No room is open');
     await _service.updateAgent(room.id, agentId, {
       'name': name,
       'model': model,
@@ -633,7 +635,7 @@ class RoomProvider extends ChangeNotifier {
 
   Future<void> deleteAgent(String agentId) async {
     final room = _currentRoom;
-    if (room == null) return;
+    if (room == null) throw StateError('No room is open');
     await _service.deleteAgent(room.id, agentId);
     _currentRoom = await _service.getRoom(room.id);
     notifyListeners();
@@ -641,7 +643,7 @@ class RoomProvider extends ChangeNotifier {
 
   Future<void> addMember(String email) async {
     final room = _currentRoom;
-    if (room == null) return;
+    if (room == null) throw StateError('No room is open');
     await _service.addMember(room.id, email);
     _currentRoom = await _service.getRoom(room.id);
     notifyListeners();
@@ -649,7 +651,7 @@ class RoomProvider extends ChangeNotifier {
 
   Future<void> removeMember(String email) async {
     final room = _currentRoom;
-    if (room == null) return;
+    if (room == null) throw StateError('No room is open');
     await _service.removeMember(room.id, email);
     _currentRoom = await _service.getRoom(room.id);
     notifyListeners();
