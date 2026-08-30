@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:garbanzo_ai/core/http_adapter/http_adapter_stub.dart'
     if (dart.library.js_interop) 'package:garbanzo_ai/core/http_adapter/http_adapter_web.dart';
 import 'package:garbanzo_ai/core/error_reporter.dart';
+import 'package:garbanzo_ai/core/guarded_state.dart';
 
 const _apiBaseUrl = String.fromEnvironment('API_BASE_URL', defaultValue: '');
 
@@ -233,18 +234,41 @@ class ApiClient {
   }
 
   bool _shouldReportResponse(Response<dynamic> response) =>
-      (response.statusCode ?? 0) >= 500 &&
-      response.requestOptions.responseType != ResponseType.stream &&
-      _isReportableRequest(response.requestOptions);
+      shouldReportResponse(response);
 
-  bool _shouldReportError(DioException error) {
-    if (error.type == DioExceptionType.cancel) return false;
-    final status = error.response?.statusCode;
-    return (status == null || status >= 500) &&
-        _isReportableRequest(error.requestOptions);
+  /// Whether a completed HTTP response is worth auto-filing as a bug report.
+  /// Static + public so tests can cover the classification rules directly.
+  @visibleForTesting
+  static bool shouldReportResponse(Response<dynamic> response) {
+    final status = response.statusCode ?? 0;
+    return status >= 500 &&
+        !isGatewayFailure(status, body: response.data) &&
+        response.requestOptions.responseType != ResponseType.stream &&
+        isReportableRequest(response.requestOptions);
   }
 
-  bool _isReportableRequest(RequestOptions request) =>
+  bool _shouldReportError(DioException error) => shouldReportError(error);
+
+  /// Whether a failed request is worth auto-filing as a bug report.
+  /// Static + public so tests can cover the classification rules directly.
+  @visibleForTesting
+  static bool shouldReportError(DioException error) {
+    if (error.type == DioExceptionType.cancel) return false;
+    // Transport-level failures (no HTTP response reached us) are routine on
+    // mobile — airplane mode, tunnel drops, network changes. The user
+    // already gets a friendly "can't reach the server" message; filing an
+    // error report for each one floods the inbox with non-actionable noise.
+    if (isTransportFailure(error)) return false;
+    final status = error.response?.statusCode;
+    if (status != null &&
+        isGatewayFailure(status, body: error.response?.data)) {
+      return false;
+    }
+    return (status == null || status >= 500) &&
+        isReportableRequest(error.requestOptions);
+  }
+
+  static bool isReportableRequest(RequestOptions request) =>
       request.extra['__error_report__'] != true &&
       !request.path.contains('/api/v1/reports') &&
       !request.path.contains('/api/v1/auth/refresh');

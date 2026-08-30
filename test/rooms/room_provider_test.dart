@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:dio/dio.dart';
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -64,6 +65,35 @@ Room _room() => Room(
 }
 
 void main() {
+  test('a transport failure opening a room surfaces a friendly message',
+      () async {
+    final service = _MockRoomService();
+    // The exact DioException shape behind the "Connection closed before full
+    // header was received" user reports: connection-level, no HTTP response.
+    when(() => service.getRoom(any())).thenThrow(
+      DioException.connectionError(
+        requestOptions: RequestOptions(path: '/api/v1/rooms/r1'),
+        reason: 'Connection closed before full header was received',
+      ),
+    );
+
+    final provider = RoomProvider(
+      service: service,
+      socketFactory: (id) => RoomSocketService(
+        id,
+        channelFactory: (_) => throw StateError('never reached'),
+        tokenProvider: () async => 'test-token',
+        uriBuilder: (_) => Uri.parse('ws://test/$id'),
+      ),
+    );
+
+    await provider.openRoom('r1');
+
+    expect(provider.error, "Can't reach the server. Check your connection.");
+    expect(provider.currentRoom, isNull);
+    provider.dispose();
+  });
+
   test('sendAudioNote upserts the HTTP response message', () async {
     final channel = FakeRoomChannel();
     final wired = _wire(channel);

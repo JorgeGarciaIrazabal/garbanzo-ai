@@ -33,7 +33,7 @@ String describeFailure(
   bool contextualServerError = false,
 }) {
   // Transport-level failures (no HTTP response reached us).
-  if (error is DioException && _isTransportFailure(error)) {
+  if (error is DioException && isTransportFailure(error)) {
     return "Can't reach the server. Check your connection.";
   }
 
@@ -60,7 +60,7 @@ String describeFailure(
 
 /// Whether [e] represents a transport failure (connection/DNS/timeout) rather
 /// than an HTTP response with a status code.
-bool _isTransportFailure(DioException e) {
+bool isTransportFailure(DioException e) {
   switch (e.type) {
     case DioExceptionType.connectionError:
     case DioExceptionType.connectionTimeout:
@@ -86,6 +86,27 @@ bool _isTransportFailure(DioException e) {
       // anything unrecognized as non-transport so it maps to a generic message.
       return false;
   }
+}
+
+/// Whether a 502/503/504 response body looks like it came from a reverse
+/// proxy or tunnel (ngrok, Cloudflare, nginx…) rather than the backend itself.
+///
+/// Gateway error pages are plain text/HTML with telltale markers; the backend's
+/// own 5xx bodies are JSON (FastAPI `{"detail": …}`). Used to keep transient
+/// infrastructure hiccups from being auto-filed as app bug reports while still
+/// reporting genuine backend errors.
+bool isGatewayFailure(int status, {Object? body}) {
+  if (status != 502 && status != 503 && status != 504) return false;
+  if (body is Map) return false; // JSON → the backend answered itself
+  final text = '$body'.toLowerCase();
+  return text.contains('ngrok') ||
+      text.contains('bad gateway') ||
+      text.contains('gateway error') ||
+      text.contains('gateway timeout') ||
+      text.contains('502 bad gateway') ||
+      text.contains('504 gateway') ||
+      text.contains('cloudflare') ||
+      text.contains('<html');
 }
 
 /// Extracts an HTTP status code from [error] if one is discernible, either from

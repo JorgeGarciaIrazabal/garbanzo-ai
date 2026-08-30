@@ -257,8 +257,8 @@ void main() {
     });
 
     test(
-        'a failing request surfaces the error and leaves the listed Room '
-        'untouched', () async {
+        'a failing request surfaces a friendly error and leaves the listed '
+        'Room untouched', () async {
       final service = _MockRoomService();
       when(() => service.listRooms()).thenAnswer((_) async => [_room()]);
       when(() => service.setMute(any(), any())).thenThrow(Exception('boom'));
@@ -267,7 +267,9 @@ void main() {
       await provider.loadRooms();
       await provider.setMute('r1', muteDuration8h);
 
-      expect(provider.error, contains('boom'));
+      // describeFailure maps an unclassified exception to the label + retry
+      // hint — raw exception text ('boom') is deliberately not user-facing.
+      expect(provider.error, contains('Failed to update mute'));
       expect(provider.rooms.single.isMuted, isFalse);
 
       provider.dispose();

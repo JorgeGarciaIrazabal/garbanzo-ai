@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 
 import 'package:garbanzo_ai/core/auth_service.dart';
 import 'package:garbanzo_ai/core/error_reporter.dart';
+import 'package:garbanzo_ai/core/guarded_state.dart';
 import 'package:garbanzo_ai/features/chat/models/chat_attachment.dart';
 import 'package:garbanzo_ai/features/chat/models/thinking_level.dart';
 import 'package:garbanzo_ai/features/rooms/models/room_models.dart';
@@ -161,7 +162,7 @@ class RoomProvider extends ChangeNotifier {
       }
       _error = null;
     } catch (e) {
-      _error = e.toString();
+      _error = describeFailure(e, label: 'Failed to update mute');
     }
     notifyListeners();
   }
@@ -175,7 +176,7 @@ class RoomProvider extends ChangeNotifier {
     try {
       _rooms = await _service.listRooms();
     } catch (e) {
-      _error = e.toString();
+      _error = describeFailure(e, label: 'Failed to load rooms');
     } finally {
       _loading = false;
       notifyListeners();
@@ -236,7 +237,7 @@ class RoomProvider extends ChangeNotifier {
       _socketSub = socket.events.listen(_onSocketEvent);
       await socket.connect();
     } catch (e) {
-      _error = e.toString();
+      _error = describeFailure(e, label: 'Failed to open room');
     } finally {
       _loading = false;
       notifyListeners();
@@ -322,7 +323,7 @@ class RoomProvider extends ChangeNotifier {
       notifyListeners();
     } catch (e) {
       if (_disposed) return;
-      _error = e.toString();
+      _error = describeFailure(e, label: 'Failed to load room messages');
       notifyListeners();
     }
   }
@@ -356,7 +357,7 @@ class RoomProvider extends ChangeNotifier {
       _upsertMessage(message);
       notifyListeners();
     } catch (error) {
-      _error = error.toString();
+      _error = describeFailure(error, label: 'Failed to send audio note');
       notifyListeners();
       rethrow;
     }
