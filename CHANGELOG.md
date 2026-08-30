@@ -4,6 +4,11 @@ Release notes for Garbanzo AI. Each entry is generated automatically on
 `just deploy` — an LLM (via opencode) writes it from the release's commits and
 the user reports it addressed. See `scripts/changelog-instructions.md`.
 
+## v1.0.26 — 2026-08-30
+
+### 🙋 User requests completed
+- If you send an image to a model that can't analyze images, Garbanzo now shows a friendly dialog letting you pick a Vision model (with a speed/smartness tradeoff for each choice) and automatically retries with it. Your style, prompt, tools, and image stay in place — only that conversation's model changes. If no Vision model is enabled, you get a clear explanation instead of a scary stream error.
+
 ## v1.0.25 — 2026-08-30
 
 ### 🙋 User requests completed
