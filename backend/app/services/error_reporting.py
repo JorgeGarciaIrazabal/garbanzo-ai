@@ -101,20 +101,31 @@ async def report_chat_error(
     error: BaseException,
     tool_call_id: str | None = None,
     trace: str | None = None,
+    error_metadata: Mapping[str, Any] | None = None,
 ) -> None:
-    """Persist an LLM/chat stream failure with enough context to reproduce it."""
+    """Persist an LLM/chat stream failure with enough context to reproduce it.
+
+    ``error_metadata`` is the provider error chunk's metadata (request-shape
+    diagnostics like message_count / prompt_chars, when the provider supplies
+    them); provider keys never override the caller's own values.
+    """
     trace = trace or "".join(traceback.format_exception(type(error), error, error.__traceback__))
+    metadata: dict[str, Any] = {
+        "conversation_id": conversation_id,
+        "message_id": message_id,
+        "tool_call_id": tool_call_id,
+        "model": model,
+        "last_user_turn": last_user_turn[:2000],
+    }
+    if error_metadata:
+        for key in ("status_code", "model", "message_count", "prompt_chars"):
+            if key in error_metadata and key not in metadata:
+                metadata[key] = error_metadata[key]
     await create_auto_error_report(
         user_id=user_id,
         error=error,
         trace=trace,
         title_prefix="Chat stream error",
         conversation_id=conversation_id,
-        metadata={
-            "conversation_id": conversation_id,
-            "message_id": message_id,
-            "tool_call_id": tool_call_id,
-            "model": model,
-            "last_user_turn": last_user_turn[:2000],
-        },
+        metadata=metadata,
     )

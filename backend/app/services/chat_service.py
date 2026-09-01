@@ -570,7 +570,7 @@ class ChatService:
                 max_tool_iterations=MAX_TOOL_ITERATIONS,
                 extra_finish_metadata=extra_meta or None,
                 result=result,
-                on_error=lambda error, tool_call_id, trace: report_chat_error(
+                on_error=lambda error, tool_call_id, trace, error_metadata: report_chat_error(
                     user_id=conversation.user_id,
                     conversation_id=conversation_id,
                     message_id=last_user_message_id,
@@ -579,6 +579,7 @@ class ChatService:
                     error=error,
                     tool_call_id=tool_call_id,
                     trace=trace,
+                    error_metadata=error_metadata,
                 ),
             ):
                 yield chunk

@@ -21,11 +21,20 @@ from app.services.llm_provider import (
 logger = logging.getLogger(__name__)
 
 # Transient failures worth retrying: the SDK's request-level error plus the
-# underlying transport errors. ResponseError (an HTTP status from Ollama,
-# e.g. 400 unknown model) is NOT retryable.
+# underlying transport errors. Client-error ResponseError statuses (e.g. 400
+# unknown model) are NOT retryable, but server-side 5xx errors are — cloud
+# models intermittently return a bare 500 during stream establishment, and
+# the same request succeeds seconds later. Retrying is only safe before any
+# token has been delivered, so 5xx retries are confined to stream setup.
 _TRANSIENT_ERRORS = (RequestError, httpx.TransportError, ConnectionError)
 _CONNECT_ATTEMPTS = 3
 _RETRY_BACKOFF_SECONDS = 0.75
+
+
+def _is_server_error(e: Exception) -> bool:
+    """True for Ollama HTTP 5xx responses (transient server-side faults)."""
+    return isinstance(e, ResponseError) and (e.status_code or 0) >= 500
+
 
 # Per-chunk timeouts. The first chunk may wait on a cold model load (large
 # models take minutes), so it gets a much longer budget than steady-state
@@ -148,6 +157,19 @@ class OllamaProvider(LLMProvider):
                 break
             except StopAsyncIteration:
                 return
+            except ResponseError as e:
+                if not _is_server_error(e) or attempt == _CONNECT_ATTEMPTS:
+                    raise
+                delay = _RETRY_BACKOFF_SECONDS * (2 ** (attempt - 1))
+                logger.warning(
+                    "Ollama server error %d (attempt %d/%d): %s — retrying in %.1fs",
+                    e.status_code,
+                    attempt,
+                    _CONNECT_ATTEMPTS,
+                    e,
+                    delay,
+                )
+                await asyncio.sleep(delay)
             except _TRANSIENT_ERRORS as e:
                 if attempt == _CONNECT_ATTEMPTS:
                     raise
@@ -332,12 +354,28 @@ class OllamaProvider(LLMProvider):
             if _is_unsupported_image_error(e):
                 yield _unsupported_image_chunk(e.status_code)
                 return
+            if _is_server_error(e):
+                # Server-side faults are transient and the retry budget has
+                # been exhausted; the raw "Internal Server Error" text is
+                # meaningless to a user, so surface something actionable.
+                content = (
+                    "The model backend failed repeatedly. Please try again in a "
+                    "minute, or switch to a different model."
+                )
+            else:
+                content = f"Ollama error: {e.error}"
             yield ChatChunk(
-                content=f"Ollama error: {e.error}",
+                content=content,
                 is_finished=True,
                 metadata={
                     "error": True,
                     "status_code": e.status_code,
+                    # Request shape diagnostics so transient-looking failures
+                    # (e.g. cloud models intermittently 500ing on long
+                    # conversations) can be correlated without prod log access.
+                    "model": model,
+                    "message_count": len(ollama_messages),
+                    "prompt_chars": sum(len(m["content"]) for m in ollama_messages),
                     "stack_trace": traceback.format_exc(),
                 },
             )

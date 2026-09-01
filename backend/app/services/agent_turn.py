@@ -66,7 +66,7 @@ def _cap_fallback_message(tool_call_log: list[str]) -> str:
 # stream simply ignore it.
 ProgressEmit = Callable[[ChatChunk], Awaitable[None]]
 ToolExecutor = Callable[[dict[str, Any], ProgressEmit], Awaitable[dict[str, Any]]]
-ErrorReporter = Callable[[Exception, str | None, str | None], Awaitable[None]]
+ErrorReporter = Callable[[Exception, str | None, str | None, dict | None], Awaitable[None]]
 
 # Sentinel marking the end of a tool's progress queue.
 _PROGRESS_DONE = object()
@@ -216,6 +216,7 @@ async def run_agent_turn(
                                 error,
                                 active_tool_call_id,
                                 chunk.metadata.get("stack_trace"),
+                                chunk.metadata,
                             )
                         except Exception:
                             logger.exception("Failed to auto-file provider stream error")
@@ -460,7 +461,7 @@ async def run_agent_turn(
         result.error = True
         if on_error is not None:
             try:
-                await on_error(e, active_tool_call_id, None)
+                await on_error(e, active_tool_call_id, None, None)
             except Exception:
                 logger.exception("Failed to auto-file agent turn error")
         if persist_partial_on_error:

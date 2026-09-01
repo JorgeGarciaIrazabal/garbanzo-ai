@@ -150,10 +150,10 @@ async def test_provider_error_chunk_calls_error_reporter(monkeypatch):
             ]
         ]
     )
-    reported: list[tuple[Exception, str | None, str | None]] = []
+    reported: list[tuple[Exception, str | None, str | None, dict | None]] = []
 
-    async def on_error(error, tool_call_id, trace):
-        reported.append((error, tool_call_id, trace))
+    async def on_error(error, tool_call_id, trace, error_metadata):  # noqa: ARG001
+        reported.append((error, tool_call_id, trace, error_metadata))
 
     chunks = [
         chunk
@@ -170,6 +170,9 @@ async def test_provider_error_chunk_calls_error_reporter(monkeypatch):
     assert len(chunks) == 1
     assert str(reported[0][0]) == "Ollama stopped responding"
     assert reported[0][2] == "provider trace"
+    # The full error-chunk metadata is passed through so the auto-report can
+    # carry request-shape diagnostics (model, message_count, prompt_chars).
+    assert reported[0][3] == {"error": True, "stack_trace": "provider trace"}
 
 
 async def test_expected_capability_error_does_not_file_report(monkeypatch):
@@ -194,7 +197,7 @@ async def test_expected_capability_error_does_not_file_report(monkeypatch):
     )
     reports: list[Exception] = []
 
-    async def on_error(error, tool_call_id, trace):  # noqa: ARG001
+    async def on_error(error, tool_call_id, trace, error_metadata):  # noqa: ARG001
         reports.append(error)
 
     chunks = [

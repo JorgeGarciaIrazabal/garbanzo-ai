@@ -398,6 +398,105 @@ async def test_stream_chat_gives_up_after_max_retries(monkeypatch):
     assert (chunks[-1].metadata or {}).get("error") is True
 
 
+async def test_stream_chat_retries_server_500_errors(monkeypatch):
+    """Ollama intermittently returns a bare HTTP 500 while establishing a
+    stream with cloud models (user reports 332c4484, 3313e70a, 7dfce5b8,
+    4ed52bee): the same request succeeds seconds later. Server-side 5xx
+    errors are therefore retried during stream setup, before any token has
+    been delivered."""
+    import app.services.ollama_provider as op
+
+    monkeypatch.setattr(op, "_RETRY_BACKOFF_SECONDS", 0.001)
+
+    provider = OllamaProvider()
+    provider._model_meta["kimi-k3:cloud"] = (1048576, ["thinking", "tools"])
+
+    attempts = 0
+
+    async def _flaky_chat(**kwargs):
+        nonlocal attempts
+        attempts += 1
+        if attempts < 3:
+            raise ResponseError("Internal Server Error (ref: abc)", 500)
+        return _FakeStream()
+
+    mock_client = MagicMock()
+    mock_client.chat = AsyncMock(side_effect=_flaky_chat)
+
+    chunks = []
+    with patch.object(provider, "_get_client", return_value=mock_client):
+        async for chunk in provider.stream_chat(
+            messages=[Message(role="user", content="hi")],
+            model="kimi-k3:cloud",
+        ):
+            chunks.append(chunk)
+
+    assert attempts == 3
+    assert chunks[-1].is_finished
+    assert not (chunks[-1].metadata or {}).get("error")
+
+
+async def test_stream_chat_5xx_error_chunk_is_actionable_with_diagnostics(monkeypatch):
+    """After the retry budget is exhausted on server 5xx errors, the user sees
+    an actionable message (not a raw 'Internal Server Error') and the error
+    chunk carries request-shape diagnostics for the auto-report."""
+    import app.services.ollama_provider as op
+
+    monkeypatch.setattr(op, "_RETRY_BACKOFF_SECONDS", 0.001)
+
+    provider = OllamaProvider()
+    provider._model_meta["kimi-k3:cloud"] = (1048576, ["thinking", "tools"])
+
+    mock_client = MagicMock()
+    mock_client.chat = AsyncMock(side_effect=ResponseError("Internal Server Error", 500))
+
+    chunks = []
+    with patch.object(provider, "_get_client", return_value=mock_client):
+        async for chunk in provider.stream_chat(
+            messages=[Message(role="user", content="hi" * 50)],
+            model="kimi-k3:cloud",
+        ):
+            chunks.append(chunk)
+
+    assert mock_client.chat.await_count == 3
+    final = chunks[-1]
+    assert final.is_finished
+    assert final.metadata["error"] is True
+    assert final.metadata["status_code"] == 500
+    assert "try again" in final.content.lower()
+    assert "Internal Server Error" not in final.content
+    # Request-shape diagnostics for the auto-filed report.
+    assert final.metadata["model"] == "kimi-k3:cloud"
+    assert final.metadata["message_count"] == 1
+    assert final.metadata["prompt_chars"] == 100
+
+
+async def test_stream_chat_does_not_retry_client_4xx_errors(monkeypatch):
+    """Client errors (400 unknown model, etc.) are deterministic — the retry
+    budget is reserved for transient server-side faults."""
+    import app.services.ollama_provider as op
+
+    monkeypatch.setattr(op, "_RETRY_BACKOFF_SECONDS", 0.001)
+
+    provider = OllamaProvider()
+    provider._model_meta["unknown-model"] = (None, [])
+
+    mock_client = MagicMock()
+    mock_client.chat = AsyncMock(side_effect=ResponseError("model not found", 404))
+
+    chunks = []
+    with patch.object(provider, "_get_client", return_value=mock_client):
+        async for chunk in provider.stream_chat(
+            messages=[Message(role="user", content="hi")],
+            model="unknown-model",
+        ):
+            chunks.append(chunk)
+
+    assert mock_client.chat.await_count == 1
+    assert chunks[-1].is_finished
+    assert (chunks[-1].metadata or {}).get("status_code") == 404
+
+
 async def test_stream_chat_times_out_on_wedged_stream(monkeypatch):
     """A stream that stops producing chunks must surface a timeout error
     instead of hanging forever."""
