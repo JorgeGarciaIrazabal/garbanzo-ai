@@ -127,6 +127,7 @@ Original backlog and notes: [.ai/backlog-source.md](.ai/backlog-source.md).
 - [ ] **garbanzo-e44** P2 [open] Production report 2a10f9ae-e4d5-4977-b4a6-cb382cf4efb1
 - [ ] **garbanzo-e6b** P2 [open] Production report 0d00403a-70af-48ed-9731-a837013dcf09
 - [x] **garbanzo-e8b** P2 [closed] **TTS: Kokoro-82M service** — Dockerized `kokoro-fastapi` (Apache 2.0) exposing `/v1/audio/speech` (OpenAI-compatible); 48 voices across 8 languages
+- [ ] **garbanzo-echa** P2 [open] Retry empty topic curator responses safely
 - [x] **garbanzo-eef** P2 [closed] **Message branching** — Fork conversation from any message into a new branch
 - [ ] **garbanzo-efr** P2 [open] Production report 996bb13c-7dcb-4379-8537-2d0821400f1c
 - [ ] **garbanzo-emv** P2 [open] Production report dd378e0d-c7e3-4662-bf1a-103e880fb745

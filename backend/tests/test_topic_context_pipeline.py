@@ -2321,3 +2321,79 @@ async def test_deterministic_hierarchy_dedupes_against_existing_grouped_sibling(
     )
     assert moved == msg.id
     assert deduped[0].id == grouped.id
+
+
+@pytest.mark.parametrize("initial_thinking", ["medium", "off"])
+async def test_graph_curator_empty_reasoning_response_retries_pristine_prompt(
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+    initial_thinking: str,
+):
+    """Prod regression (jorge.girazabal): GLM spent the whole budget on hidden
+    reasoning and returned an empty final answer. The one retry must NOT
+    append the empty assistant turn (that poisoned the retry into another
+    ValidationError); it must re-ask the pristine prompt with thinking off.
+    """
+    retirement = await _topic(db_session, label="Doing")
+    retirement_message = await _message(
+        db_session,
+        await _conversation(db_session, title="Doing"),
+        "I want to maximize my retirement contributions this year.",
+    )
+    db_session.add(
+        MessageTopic(
+            message_id=retirement_message.id,
+            topic_id=retirement.id,
+            confidence=0.8,
+            is_primary=True,
+            segment_start=0,
+            segment_end=len(retirement_message.content),
+            source_authority="explicit_user_statement",
+        )
+    )
+    await db_session.commit()
+
+    call_count = {"n": 0}
+
+    def response(payload):
+        call_count["n"] += 1
+        if call_count["n"] == 1:
+            return ""  # reasoning-only answer, empty final content
+        return {
+            "topics": [
+                {
+                    "topic_id": retirement.id,
+                    "label": "Retirement Planning",
+                    "merge_topic_ids": [],
+                    "assertions": [],
+                }
+            ]
+        }
+
+    provider = _StructuredCuratorProvider(response)
+    settings = Settings(
+        secret_key="test-secret-key-do-not-use-in-prod",
+        database_url="sqlite+aiosqlite:///:memory:",
+        topic_curator_provider="curator-test",
+        topic_curator_model="glm-5.3-flash:cloud",
+        topic_context_privacy_mode="cloud_allowed",
+        topic_curator_thinking=initial_thinking,
+    )
+    monkeypatch.setattr("app.topics.topic_semantic_curator.get_settings", lambda: settings)
+    monkeypatch.setattr(ProviderRegistry, "get", lambda name: provider)
+
+    await TopicConsolidationService(db_session).consolidate_user(
+        OWNER,
+        event_watermark=0,
+    )
+
+    assert call_count["n"] == 2
+    # Second call re-asks the pristine 2-message prompt with thinking off —
+    # no poisoned "assistant: <empty>" turn in between.
+    second_messages, _, second_options, _ = provider.calls[1]
+    assert len(second_messages) == 2
+    assert provider.calls[0][2].max_tokens == 32000
+    assert second_options.max_tokens == 12000
+    assert second_options.think == "off"
+    await db_session.refresh(retirement)
+    assert retirement.label == "Retirement Planning"

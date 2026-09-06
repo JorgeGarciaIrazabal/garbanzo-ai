@@ -431,11 +431,13 @@ Core Directives:
         options = ChatOptions(
             temperature=0,
             # Reasoning-capable cloud models count their private reasoning
-            # against ``num_predict``.  A graph response can cover dozens of
-            # evidence-backed topics, so 8k may be consumed before the model
-            # emits its final JSON at medium/high effort.  Keep enough room
-            # for both reasoning and the one structured final response.
-            max_tokens=16000,
+            # against ``num_predict``.  Observed in prod: at medium effort a
+            # 45-topic graph can spend the whole budget on reasoning and
+            # either emit an empty final answer or truncate the JSON
+            # mid-string (EOF at ~7k chars with a 16k budget).  32k leaves
+            # room for full reasoning plus the structured final response;
+            # the think-off retry stays as the fallback either way.
+            max_tokens=32000,
             think=settings.topic_curator_thinking,
             response_format=UserTopicGraphCuratorOutput.model_json_schema(),
         )
@@ -444,7 +446,7 @@ Core Directives:
             try:
                 response = await asyncio.wait_for(
                     provider.chat(messages=messages, model=model, options=options),
-                    timeout=120.0,
+                    timeout=120.0 if attempt == 0 else 60.0,
                 )
                 parsed = self._parse_graph_output(response)
                 await validator(parsed)
@@ -461,23 +463,26 @@ Core Directives:
                         type(exc).__name__,
                     )
                     return None
-                # GLM Cloud can spend its entire response in the hidden
-                # reasoning field and return an empty final content field,
-                # even with a large output budget.  Preserve the configured
-                # effort for the first quality pass, then make the one retry
-                # completion-first so a strict JSON result can be produced.
-                if not response.strip() and options.think not in (None, "off"):
+                # Preserve the configured effort and larger allowance for the
+                # first quality pass, then keep the single repair attempt
+                # completion-first and bounded.  An empty response has no
+                # correctable content, regardless of the initial thinking
+                # setting, so retry the pristine prompt in that case.
+                empty_response = not response.strip()
+                if empty_response:
                     logger.info(
                         "Topic graph curator returned no final content at %s effort; "
                         "retrying with thinking disabled",
                         options.think,
                     )
-                    options = ChatOptions(
-                        temperature=options.temperature,
-                        max_tokens=options.max_tokens,
-                        think="off",
-                        response_format=options.response_format,
-                    )
+                options = ChatOptions(
+                    temperature=options.temperature,
+                    max_tokens=12000,
+                    think="off",
+                    response_format=options.response_format,
+                )
+                if empty_response:
+                    continue
                 messages = [
                     *messages,
                     LLMMessage(role="assistant", content=response[:12000]),
