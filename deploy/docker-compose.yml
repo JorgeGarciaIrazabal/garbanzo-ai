@@ -74,6 +74,9 @@ services:
       SCHEDULED_ACTION_MODEL: ${SCHEDULED_ACTION_MODEL:-glm-5.3:cloud}
       MICROAPPS_GIT_URL: ${MICROAPPS_GIT_URL:-}
       MICROAPPS_OPENCODE_MODEL: ${MICROAPPS_OPENCODE_MODEL:-ollama/glm-5.3:cloud}
+      # Topic context: semantic curator (empty model = deterministic only).
+      TOPIC_CURATOR_MODEL: ${TOPIC_CURATOR_MODEL:-}
+      TOPIC_CONTEXT_PRIVACY_MODE: ${TOPIC_CONTEXT_PRIVACY_MODE:-local_only}
       # Repo whose GitHub Releases feed the desktop auto-updater.
       GITHUB_REPO: ${GITHUB_REPO:-JorgeGarciaIrazabal/garbanzo-ai}
       TZ: ${TZ:-UTC}
