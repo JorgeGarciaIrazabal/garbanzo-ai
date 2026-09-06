@@ -16,7 +16,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$ModelInfo {
 
- String get id; String get name; String? get description; int? get contextLength; String get provider; bool? get supportsTools; bool? get supportsVision; bool? get supportsThinking;
+ String get id; String get name; String? get description; int? get contextLength; String get provider; bool? get supportsTools; bool? get supportsVision; bool? get supportsThinking; List<ThinkingLevel>? get thinkingLevels;@JsonKey(unknownEnumValue: JsonKey.nullForUndefinedEnumValue) ThinkingLevel? get defaultThinkingLevel;
 /// Create a copy of ModelInfo
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -29,16 +29,16 @@ $ModelInfoCopyWith<ModelInfo> get copyWith => _$ModelInfoCopyWithImpl<ModelInfo>
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ModelInfo&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.description, description) || other.description == description)&&(identical(other.contextLength, contextLength) || other.contextLength == contextLength)&&(identical(other.provider, provider) || other.provider == provider)&&(identical(other.supportsTools, supportsTools) || other.supportsTools == supportsTools)&&(identical(other.supportsVision, supportsVision) || other.supportsVision == supportsVision)&&(identical(other.supportsThinking, supportsThinking) || other.supportsThinking == supportsThinking));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ModelInfo&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.description, description) || other.description == description)&&(identical(other.contextLength, contextLength) || other.contextLength == contextLength)&&(identical(other.provider, provider) || other.provider == provider)&&(identical(other.supportsTools, supportsTools) || other.supportsTools == supportsTools)&&(identical(other.supportsVision, supportsVision) || other.supportsVision == supportsVision)&&(identical(other.supportsThinking, supportsThinking) || other.supportsThinking == supportsThinking)&&const DeepCollectionEquality().equals(other.thinkingLevels, thinkingLevels)&&(identical(other.defaultThinkingLevel, defaultThinkingLevel) || other.defaultThinkingLevel == defaultThinkingLevel));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,name,description,contextLength,provider,supportsTools,supportsVision,supportsThinking);
+int get hashCode => Object.hash(runtimeType,id,name,description,contextLength,provider,supportsTools,supportsVision,supportsThinking,const DeepCollectionEquality().hash(thinkingLevels),defaultThinkingLevel);
 
 @override
 String toString() {
-  return 'ModelInfo(id: $id, name: $name, description: $description, contextLength: $contextLength, provider: $provider, supportsTools: $supportsTools, supportsVision: $supportsVision, supportsThinking: $supportsThinking)';
+  return 'ModelInfo(id: $id, name: $name, description: $description, contextLength: $contextLength, provider: $provider, supportsTools: $supportsTools, supportsVision: $supportsVision, supportsThinking: $supportsThinking, thinkingLevels: $thinkingLevels, defaultThinkingLevel: $defaultThinkingLevel)';
 }
 
 
@@ -49,7 +49,7 @@ abstract mixin class $ModelInfoCopyWith<$Res>  {
   factory $ModelInfoCopyWith(ModelInfo value, $Res Function(ModelInfo) _then) = _$ModelInfoCopyWithImpl;
 @useResult
 $Res call({
- String id, String name, String? description, int? contextLength, String provider, bool? supportsTools, bool? supportsVision, bool? supportsThinking
+ String id, String name, String? description, int? contextLength, String provider, bool? supportsTools, bool? supportsVision, bool? supportsThinking, List<ThinkingLevel>? thinkingLevels,@JsonKey(unknownEnumValue: JsonKey.nullForUndefinedEnumValue) ThinkingLevel? defaultThinkingLevel
 });
 
 
@@ -66,7 +66,7 @@ class _$ModelInfoCopyWithImpl<$Res>
 
 /// Create a copy of ModelInfo
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? description = freezed,Object? contextLength = freezed,Object? provider = null,Object? supportsTools = freezed,Object? supportsVision = freezed,Object? supportsThinking = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? description = freezed,Object? contextLength = freezed,Object? provider = null,Object? supportsTools = freezed,Object? supportsVision = freezed,Object? supportsThinking = freezed,Object? thinkingLevels = freezed,Object? defaultThinkingLevel = freezed,}) {
   return _then(ModelInfo(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
@@ -76,7 +76,9 @@ as int?,provider: null == provider ? _self.provider : provider // ignore: cast_n
 as String,supportsTools: freezed == supportsTools ? _self.supportsTools : supportsTools // ignore: cast_nullable_to_non_nullable
 as bool?,supportsVision: freezed == supportsVision ? _self.supportsVision : supportsVision // ignore: cast_nullable_to_non_nullable
 as bool?,supportsThinking: freezed == supportsThinking ? _self.supportsThinking : supportsThinking // ignore: cast_nullable_to_non_nullable
-as bool?,
+as bool?,thinkingLevels: freezed == thinkingLevels ? _self.thinkingLevels : thinkingLevels // ignore: cast_nullable_to_non_nullable
+as List<ThinkingLevel>?,defaultThinkingLevel: freezed == defaultThinkingLevel ? _self.defaultThinkingLevel : defaultThinkingLevel // ignore: cast_nullable_to_non_nullable
+as ThinkingLevel?,
   ));
 }
 
@@ -161,10 +163,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String name,  String? description,  int? contextLength,  String provider,  bool? supportsTools,  bool? supportsVision,  bool? supportsThinking)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String name,  String? description,  int? contextLength,  String provider,  bool? supportsTools,  bool? supportsVision,  bool? supportsThinking,  List<ThinkingLevel>? thinkingLevels, @JsonKey(unknownEnumValue: JsonKey.nullForUndefinedEnumValue)  ThinkingLevel? defaultThinkingLevel)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _ModelInfo() when $default != null:
-return $default(_that.id,_that.name,_that.description,_that.contextLength,_that.provider,_that.supportsTools,_that.supportsVision,_that.supportsThinking);case _:
+return $default(_that.id,_that.name,_that.description,_that.contextLength,_that.provider,_that.supportsTools,_that.supportsVision,_that.supportsThinking,_that.thinkingLevels,_that.defaultThinkingLevel);case _:
   return orElse();
 
 }
@@ -182,10 +184,10 @@ return $default(_that.id,_that.name,_that.description,_that.contextLength,_that.
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String name,  String? description,  int? contextLength,  String provider,  bool? supportsTools,  bool? supportsVision,  bool? supportsThinking)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String name,  String? description,  int? contextLength,  String provider,  bool? supportsTools,  bool? supportsVision,  bool? supportsThinking,  List<ThinkingLevel>? thinkingLevels, @JsonKey(unknownEnumValue: JsonKey.nullForUndefinedEnumValue)  ThinkingLevel? defaultThinkingLevel)  $default,) {final _that = this;
 switch (_that) {
 case _ModelInfo():
-return $default(_that.id,_that.name,_that.description,_that.contextLength,_that.provider,_that.supportsTools,_that.supportsVision,_that.supportsThinking);case _:
+return $default(_that.id,_that.name,_that.description,_that.contextLength,_that.provider,_that.supportsTools,_that.supportsVision,_that.supportsThinking,_that.thinkingLevels,_that.defaultThinkingLevel);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -202,10 +204,10 @@ return $default(_that.id,_that.name,_that.description,_that.contextLength,_that.
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String name,  String? description,  int? contextLength,  String provider,  bool? supportsTools,  bool? supportsVision,  bool? supportsThinking)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String name,  String? description,  int? contextLength,  String provider,  bool? supportsTools,  bool? supportsVision,  bool? supportsThinking,  List<ThinkingLevel>? thinkingLevels, @JsonKey(unknownEnumValue: JsonKey.nullForUndefinedEnumValue)  ThinkingLevel? defaultThinkingLevel)?  $default,) {final _that = this;
 switch (_that) {
 case _ModelInfo() when $default != null:
-return $default(_that.id,_that.name,_that.description,_that.contextLength,_that.provider,_that.supportsTools,_that.supportsVision,_that.supportsThinking);case _:
+return $default(_that.id,_that.name,_that.description,_that.contextLength,_that.provider,_that.supportsTools,_that.supportsVision,_that.supportsThinking,_that.thinkingLevels,_that.defaultThinkingLevel);case _:
   return null;
 
 }
@@ -217,7 +219,7 @@ return $default(_that.id,_that.name,_that.description,_that.contextLength,_that.
 @JsonSerializable()
 
 class _ModelInfo implements ModelInfo {
-  const _ModelInfo({required this.id, required this.name, this.description, this.contextLength, required this.provider, this.supportsTools, this.supportsVision, this.supportsThinking});
+  const _ModelInfo({required this.id, required this.name, this.description, this.contextLength, required this.provider, this.supportsTools, this.supportsVision, this.supportsThinking,  List<ThinkingLevel>? thinkingLevels, @JsonKey(unknownEnumValue: JsonKey.nullForUndefinedEnumValue) this.defaultThinkingLevel}): _thinkingLevels = thinkingLevels;
   factory _ModelInfo.fromJson(Map<String, dynamic> json) => _$ModelInfoFromJson(json);
 
 @override final  String id;
@@ -228,6 +230,16 @@ class _ModelInfo implements ModelInfo {
 @override final  bool? supportsTools;
 @override final  bool? supportsVision;
 @override final  bool? supportsThinking;
+ final  List<ThinkingLevel>? _thinkingLevels;
+@override List<ThinkingLevel>? get thinkingLevels {
+  final value = _thinkingLevels;
+  if (value == null) return null;
+  if (_thinkingLevels is EqualUnmodifiableListView) return _thinkingLevels;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(value);
+}
+
+@override@JsonKey(unknownEnumValue: JsonKey.nullForUndefinedEnumValue) final  ThinkingLevel? defaultThinkingLevel;
 
 /// Create a copy of ModelInfo
 /// with the given fields replaced by the non-null parameter values.
@@ -242,16 +254,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ModelInfo&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.description, description) || other.description == description)&&(identical(other.contextLength, contextLength) || other.contextLength == contextLength)&&(identical(other.provider, provider) || other.provider == provider)&&(identical(other.supportsTools, supportsTools) || other.supportsTools == supportsTools)&&(identical(other.supportsVision, supportsVision) || other.supportsVision == supportsVision)&&(identical(other.supportsThinking, supportsThinking) || other.supportsThinking == supportsThinking));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ModelInfo&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.description, description) || other.description == description)&&(identical(other.contextLength, contextLength) || other.contextLength == contextLength)&&(identical(other.provider, provider) || other.provider == provider)&&(identical(other.supportsTools, supportsTools) || other.supportsTools == supportsTools)&&(identical(other.supportsVision, supportsVision) || other.supportsVision == supportsVision)&&(identical(other.supportsThinking, supportsThinking) || other.supportsThinking == supportsThinking)&&const DeepCollectionEquality().equals(other._thinkingLevels, _thinkingLevels)&&(identical(other.defaultThinkingLevel, defaultThinkingLevel) || other.defaultThinkingLevel == defaultThinkingLevel));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,name,description,contextLength,provider,supportsTools,supportsVision,supportsThinking);
+int get hashCode => Object.hash(runtimeType,id,name,description,contextLength,provider,supportsTools,supportsVision,supportsThinking,const DeepCollectionEquality().hash(_thinkingLevels),defaultThinkingLevel);
 
 @override
 String toString() {
-  return 'ModelInfo(id: $id, name: $name, description: $description, contextLength: $contextLength, provider: $provider, supportsTools: $supportsTools, supportsVision: $supportsVision, supportsThinking: $supportsThinking)';
+  return 'ModelInfo(id: $id, name: $name, description: $description, contextLength: $contextLength, provider: $provider, supportsTools: $supportsTools, supportsVision: $supportsVision, supportsThinking: $supportsThinking, thinkingLevels: $thinkingLevels, defaultThinkingLevel: $defaultThinkingLevel)';
 }
 
 
@@ -262,7 +274,7 @@ abstract mixin class _$ModelInfoCopyWith<$Res> implements $ModelInfoCopyWith<$Re
   factory _$ModelInfoCopyWith(_ModelInfo value, $Res Function(_ModelInfo) _then) = __$ModelInfoCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String name, String? description, int? contextLength, String provider, bool? supportsTools, bool? supportsVision, bool? supportsThinking
+ String id, String name, String? description, int? contextLength, String provider, bool? supportsTools, bool? supportsVision, bool? supportsThinking, List<ThinkingLevel>? thinkingLevels,@JsonKey(unknownEnumValue: JsonKey.nullForUndefinedEnumValue) ThinkingLevel? defaultThinkingLevel
 });
 
 
@@ -279,7 +291,7 @@ class __$ModelInfoCopyWithImpl<$Res>
 
 /// Create a copy of ModelInfo
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? description = freezed,Object? contextLength = freezed,Object? provider = null,Object? supportsTools = freezed,Object? supportsVision = freezed,Object? supportsThinking = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? description = freezed,Object? contextLength = freezed,Object? provider = null,Object? supportsTools = freezed,Object? supportsVision = freezed,Object? supportsThinking = freezed,Object? thinkingLevels = freezed,Object? defaultThinkingLevel = freezed,}) {
   return _then(_ModelInfo(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
@@ -289,7 +301,9 @@ as int?,provider: null == provider ? _self.provider : provider // ignore: cast_n
 as String,supportsTools: freezed == supportsTools ? _self.supportsTools : supportsTools // ignore: cast_nullable_to_non_nullable
 as bool?,supportsVision: freezed == supportsVision ? _self.supportsVision : supportsVision // ignore: cast_nullable_to_non_nullable
 as bool?,supportsThinking: freezed == supportsThinking ? _self.supportsThinking : supportsThinking // ignore: cast_nullable_to_non_nullable
-as bool?,
+as bool?,thinkingLevels: freezed == thinkingLevels ? _self._thinkingLevels : thinkingLevels // ignore: cast_nullable_to_non_nullable
+as List<ThinkingLevel>?,defaultThinkingLevel: freezed == defaultThinkingLevel ? _self.defaultThinkingLevel : defaultThinkingLevel // ignore: cast_nullable_to_non_nullable
+as ThinkingLevel?,
   ));
 }
 

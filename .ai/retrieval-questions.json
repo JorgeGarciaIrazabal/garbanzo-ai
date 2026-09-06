@@ -1,0 +1,246 @@
+{
+  "version": 1,
+  "questions": [
+    {
+      "id": "q01",
+      "query": "How does JWT authentication work?",
+      "expected_files": [
+        "docs/architecture.md",
+        "docs/api.md",
+        "docs/environment.md"
+      ]
+    },
+    {
+      "id": "q02",
+      "query": "How are database SQL migrations applied?",
+      "expected_files": [
+        "docs/database.md",
+        "docs/architecture.md"
+      ]
+    },
+    {
+      "id": "q03",
+      "query": "How does the chat SSE streaming flow work?",
+      "expected_files": [
+        "docs/architecture.md",
+        "docs/api.md"
+      ]
+    },
+    {
+      "id": "q04",
+      "query": "Where are Ollama provider settings configured?",
+      "expected_files": [
+        "docs/environment.md",
+        "docs/architecture.md"
+      ]
+    },
+    {
+      "id": "q05",
+      "query": "How do multi agent rooms communicate over WebSocket?",
+      "expected_files": [
+        "docs/architecture.md",
+        "backend/app/docs/help/rooms.md"
+      ]
+    },
+    {
+      "id": "q06",
+      "query": "How does the RAG knowledge base retrieve documents?",
+      "expected_files": [
+        "docs/architecture.md",
+        "backend/app/docs/help/knowledge-base.md"
+      ]
+    },
+    {
+      "id": "q07",
+      "query": "How are user memories stored and injected?",
+      "expected_files": [
+        "docs/architecture.md",
+        "docs/database.md",
+        "backend/app/docs/help/memories.md"
+      ]
+    },
+    {
+      "id": "q08",
+      "query": "How can I manage scheduled actions?",
+      "expected_files": [
+        "backend/app/docs/help/scheduled-actions.md",
+        "docs/api.md"
+      ]
+    },
+    {
+      "id": "q09",
+      "query": "What notifications does the app send?",
+      "expected_files": [
+        "backend/app/docs/help/notifications.md",
+        "docs/architecture.md"
+      ]
+    },
+    {
+      "id": "q10",
+      "query": "How do I use hands free Talk Mode?",
+      "expected_files": [
+        "backend/app/docs/help/talk-mode.md"
+      ]
+    },
+    {
+      "id": "q11",
+      "query": "How do I customize system prompts?",
+      "expected_files": [
+        "backend/app/docs/help/system-prompts.md",
+        "backend/app/docs/help/settings.md"
+      ]
+    },
+    {
+      "id": "q12",
+      "query": "What are conversation styles?",
+      "expected_files": [
+        "backend/app/docs/help/styles.md"
+      ]
+    },
+    {
+      "id": "q13",
+      "query": "How do I create and edit micro apps?",
+      "expected_files": [
+        "backend/app/docs/help/micro-apps.md",
+        "docs/architecture.md"
+      ]
+    },
+    {
+      "id": "q14",
+      "query": "How do I add friends?",
+      "expected_files": [
+        "backend/app/docs/help/friends.md"
+      ]
+    },
+    {
+      "id": "q15",
+      "query": "Which tools can the assistant use?",
+      "expected_files": [
+        "backend/app/docs/help/tools.md",
+        "docs/architecture.md"
+      ]
+    },
+    {
+      "id": "q16",
+      "query": "What can administrators configure?",
+      "expected_files": [
+        "backend/app/docs/help/admin.md",
+        "backend/app/docs/help/settings.md"
+      ]
+    },
+    {
+      "id": "q17",
+      "query": "How is the Android release APK signed?",
+      "expected_files": [
+        "deploy/README.md",
+        "deploy/AGENTS.md",
+        "setup.md"
+      ]
+    },
+    {
+      "id": "q18",
+      "query": "Where are production secrets configured?",
+      "expected_files": [
+        "deploy/README.md",
+        "deploy/AGENTS.md",
+        "docs/environment.md"
+      ]
+    },
+    {
+      "id": "q19",
+      "query": "How do I set up Flutter and Docker on a new machine?",
+      "expected_files": [
+        "setup.md",
+        "AGENTS.md"
+      ]
+    },
+    {
+      "id": "q20",
+      "query": "What does just check validate before committing?",
+      "expected_files": [
+        "AGENTS.md",
+        "docs/ai-development.md",
+        ".agents/skills/testing/SKILL.md"
+      ]
+    },
+    {
+      "id": "q21",
+      "query": "Where are backend API endpoints and services implemented?",
+      "expected_files": [
+        "backend/AGENTS.md",
+        "docs/architecture.md"
+      ]
+    },
+    {
+      "id": "q22",
+      "query": "How does Flutter Freezed code generation work?",
+      "expected_files": [
+        "lib/AGENTS.md",
+        "docs/architecture.md"
+      ]
+    },
+    {
+      "id": "q23",
+      "query": "How do we prioritize test coverage gaps?",
+      "expected_files": [
+        "docs/coverage-strategy.md"
+      ]
+    },
+    {
+      "id": "q24",
+      "query": "How do production report statuses relate to deployment?",
+      "expected_files": [
+        "docs/ai-development.md",
+        ".agents/skills/production-triage/SKILL.md"
+      ]
+    },
+    {
+      "id": "q25",
+      "query": "How are worker patches checked for stale requirements?",
+      "expected_files": [
+        "docs/ai-development.md",
+        ".agents/skills/coordination/SKILL.md"
+      ]
+    },
+    {
+      "id": "q26",
+      "query": "Which models handle architecture and routine implementation?",
+      "expected_files": [
+        "docs/ai-development.md",
+        "AGENTS.md",
+        ".agents/skills/guided-development/SKILL.md"
+      ]
+    },
+    {
+      "id": "q27",
+      "query": "How can I resume interrupted worker sessions?",
+      "expected_files": [
+        "docs/ai-development.md",
+        ".agents/skills/coordination/SKILL.md"
+      ]
+    },
+    {
+      "id": "q28",
+      "query": "How are private reports excluded from the knowledge index?",
+      "expected_files": [
+        "docs/ai-development.md",
+        ".agents/skills/knowledge-retrieval/SKILL.md"
+      ]
+    },
+    {
+      "id": "q29",
+      "query": "When does overnight automation stop for quota usage?",
+      "expected_files": [
+        "docs/ai-development.md"
+      ]
+    },
+    {
+      "id": "q30",
+      "query": "Why does Serena need the Flutter Dart SDK adapter?",
+      "expected_files": [
+        "docs/ai-development.md",
+        ".agents/skills/code-navigation/SKILL.md"
+      ]
+    }
+  ]
+}

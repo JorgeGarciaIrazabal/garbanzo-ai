@@ -41,6 +41,7 @@ class _FakeChatService extends ChatService {
     int page = 1,
     int pageSize = 50,
     bool silent = false,
+    String kind = 'all',
   }) async =>
       ConversationList(items: [_conversation], total: 1, page: 1, pageSize: 50);
 }

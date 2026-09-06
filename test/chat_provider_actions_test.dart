@@ -69,6 +69,7 @@ class _FakeChatService extends ChatService {
     int page = 1,
     int pageSize = 50,
     bool silent = false,
+    String kind = 'all',
   }) async {
     final items = conversationsById.values.toList();
     return ConversationList(

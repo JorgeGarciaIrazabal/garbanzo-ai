@@ -5,11 +5,13 @@ exact kwargs the provider sends, without needing a running Ollama process.
 """
 
 from collections.abc import AsyncIterator
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from ollama import ResponseError
 
+from app.schemas.chat import ChatOptions
 from app.services.llm_provider import Message
 from app.services.ollama_provider import OllamaProvider
 
@@ -38,6 +40,29 @@ class _FakeStream:
         chunk.eval_count = None
         chunk.prompt_eval_count = None
         chunk.total_duration = None
+        return chunk
+
+
+class _MultiChunkStream:
+    """Async-iterable yielding multiple scripted chunks."""
+
+    def __init__(self, chunks: list[dict]):
+        self._chunks = list(chunks)
+        self._idx = 0
+
+    def __aiter__(self) -> AsyncIterator[Any]:
+        return self
+
+    async def __anext__(self) -> Any:
+        if self._idx >= len(self._chunks):
+            raise StopAsyncIteration
+        data = self._chunks[self._idx]
+        self._idx += 1
+        chunk = MagicMock()
+        chunk.get = lambda key, default=None: data.get(key, default)
+        chunk.eval_count = data.get("eval_count")
+        chunk.prompt_eval_count = data.get("prompt_eval_count")
+        chunk.total_duration = data.get("total_duration")
         return chunk
 
 
@@ -93,6 +118,32 @@ async def test_stream_chat_omits_think_for_non_thinking_models():
             pass
 
     assert "think" not in captured_kwargs
+
+
+async def test_non_streaming_chat_passes_normalized_thinking_effort():
+    """Internal curator calls use ``chat`` and must honor their effort setting."""
+    provider = OllamaProvider()
+    provider._model_meta["glm-5.3-flash:cloud"] = (
+        100000,
+        ["completion", "thinking"],
+    )
+    response = MagicMock()
+    response.message.content = '{"topics":[]}'
+    mock_client = MagicMock()
+    mock_client.chat = AsyncMock(return_value=response)
+
+    with patch.object(provider, "_get_client", return_value=mock_client):
+        content = await provider.chat(
+            messages=[Message(role="user", content="curate")],
+            model="glm-5.3-flash:cloud",
+            options=ChatOptions(think="medium", response_format={"type": "object"}),
+        )
+
+    assert content == '{"topics":[]}'
+    kwargs = mock_client.chat.await_args.kwargs
+    assert kwargs["think"] == "medium"
+    assert kwargs["format"] == {"type": "object"}
+    assert kwargs["stream"] is False
 
 
 async def test_stream_chat_rejects_images_before_calling_text_only_model():
@@ -271,6 +322,108 @@ async def test_stream_chat_think_level_ignored_for_non_thinking_model():
             pass
 
     assert "think" not in captured_kwargs
+
+
+async def test_stream_chat_glm_think_off_passes_low_and_suppresses_thinking():
+    """GLM models leak raw reasoning if think=False is sent to Ollama.
+    The provider maps think='off' to think='low' with suppression so
+    reasoning chunks are discarded and zero thinking is surfaced to user."""
+    provider = OllamaProvider()
+    provider._model_meta["glm-5.2:cloud"] = (1048576, ["completion", "thinking", "tools"])
+
+    captured_kwargs: dict = {}
+
+    chunks_data = [
+        {"message": {"thinking": "Internal reasoning step", "content": ""}, "done": False},
+        {"message": {"thinking": "", "content": "Clean answer"}, "done": False},
+        {"message": {"thinking": "", "content": ""}, "done": True, "eval_count": 10},
+    ]
+
+    async def _fake_chat(**kwargs):
+        captured_kwargs.update(kwargs)
+        return _MultiChunkStream(chunks_data)
+
+    mock_client = MagicMock()
+    mock_client.chat = AsyncMock(side_effect=_fake_chat)
+
+    emitted_chunks = []
+    with patch.object(provider, "_get_client", return_value=mock_client):
+        async for chunk in provider.stream_chat(
+            messages=[Message(role="user", content="Who is Clara?")],
+            model="glm-5.2:cloud",
+            options=ChatOptions(think="off"),
+        ):
+            emitted_chunks.append(chunk)
+
+    assert captured_kwargs.get("think") == "low"
+    assert not any(c.is_thinking for c in emitted_chunks)
+    content_chunks = [c for c in emitted_chunks if not c.is_finished]
+    assert len(content_chunks) == 1
+    assert content_chunks[0].content == "Clean answer"
+    done_chunk = emitted_chunks[-1]
+    assert done_chunk.is_finished
+    assert "thinking" not in done_chunk.metadata
+
+
+async def test_stream_chat_splits_think_tags_across_chunks():
+    """When a model emits raw <think>...</think> tags in content, the state
+    machine extracts thinking chunks and emits only clean answer content."""
+    provider = OllamaProvider()
+    provider._model_meta["glm-5.2:cloud"] = (1048576, ["completion", "thinking"])
+
+    chunks_data = [
+        {"message": {"content": "<think>First thought "}, "done": False},
+        {"message": {"content": "second thought</think>The answer"}, "done": False},
+        {"message": {"content": ""}, "done": True},
+    ]
+
+    mock_client = MagicMock()
+    mock_client.chat = AsyncMock(return_value=_MultiChunkStream(chunks_data))
+
+    emitted_chunks = []
+    with patch.object(provider, "_get_client", return_value=mock_client):
+        async for chunk in provider.stream_chat(
+            messages=[Message(role="user", content="hi")],
+            model="glm-5.2:cloud",
+            options=ChatOptions(think="high"),
+        ):
+            emitted_chunks.append(chunk)
+
+    thinking_chunks = [c for c in emitted_chunks if c.is_thinking]
+    content_chunks = [c for c in emitted_chunks if not c.is_thinking and not c.is_finished]
+    assert len(thinking_chunks) >= 1
+    assert "First thought" in "".join(c.content for c in thinking_chunks)
+    assert "second thought" in "".join(c.content for c in thinking_chunks)
+    assert len(content_chunks) == 1
+    assert content_chunks[0].content == "The answer"
+
+
+async def test_list_models_advertises_all_thinking_levels():
+    """Models with 'thinking' capability advertise off, low, medium, high."""
+    response = MagicMock()
+    model = MagicMock()
+    model.model = "glm-5.2:cloud"
+    model.details = None
+    response.models = [model]
+
+    provider = OllamaProvider()
+    mock_client = MagicMock()
+    mock_client.list = AsyncMock(return_value=response)
+
+    with (
+        patch.object(provider, "_get_client", return_value=mock_client),
+        patch.object(
+            provider,
+            "_get_model_meta",
+            new=AsyncMock(return_value=(1048576, ["completion", "thinking"])),
+        ),
+    ):
+        models = await provider.list_models()
+
+    assert len(models) == 1
+    assert models[0].supports_thinking is True
+    assert models[0].thinking_levels == ["off", "low", "medium", "high"]
+    assert models[0].default_thinking_level == "high"
 
 
 async def test_model_meta_failures_are_not_cached():

@@ -55,8 +55,8 @@ class TestSTTTranscribe:
                 "/api/v1/stt/transcribe",
                 files={"file": ("audio.wav", b"fake-audio-data")},
             )
-        # HTTPBearer returns 403 when no credentials are provided
-        assert response.status_code == 403
+        # Missing bearer credentials are an authentication failure.
+        assert response.status_code == 401
 
     async def test_empty_file_returns_400(self):
         transport = ASGITransport(app=app)
@@ -194,8 +194,8 @@ class TestTTSSpeak:
                 "/api/v1/tts/speak",
                 json={"text": "Hello"},
             )
-        # HTTPBearer returns 403 when no credentials are provided
-        assert response.status_code == 403
+        # Missing bearer credentials are an authentication failure.
+        assert response.status_code == 401
 
     @patch("app.services.tts_service.TTSService.get_instance", new_callable=AsyncMock)
     async def test_successful_speech_synthesis(self, mock_get_instance):
@@ -319,8 +319,8 @@ class TestTTSVoices:
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             response = await client.get("/api/v1/tts/voices")
-        # HTTPBearer returns 403 when no credentials are provided
-        assert response.status_code == 403
+        # Missing bearer credentials are an authentication failure.
+        assert response.status_code == 401
 
     @patch("app.services.tts_service.TTSService.get_instance", new_callable=AsyncMock)
     async def test_returns_voice_list(self, mock_get_instance):

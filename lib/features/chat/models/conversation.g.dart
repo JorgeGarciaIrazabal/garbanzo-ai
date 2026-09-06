@@ -34,6 +34,13 @@ _Conversation _$ConversationFromJson(Map<String, dynamic> json) =>
       mutedUntil: json['muted_until'] == null
           ? null
           : DateTime.parse(json['muted_until'] as String),
+      isPrimary: json['is_primary'] as bool? ?? false,
+      activeTopicId: json['active_topic_id'] as String?,
+      activeTopic: json['active_topic'] == null
+          ? null
+          : TopicNode.fromJson(json['active_topic'] as Map<String, dynamic>),
+      topicIsPinned: json['topic_is_pinned'] as bool? ?? false,
+      contextVersion: (json['context_version'] as num?)?.toInt() ?? 0,
     );
 
 Map<String, dynamic> _$ConversationToJson(_Conversation instance) =>
@@ -54,6 +61,11 @@ Map<String, dynamic> _$ConversationToJson(_Conversation instance) =>
       'messages': instance.messages,
       'has_more_messages': instance.hasMoreMessages,
       'muted_until': instance.mutedUntil?.toIso8601String(),
+      'is_primary': instance.isPrimary,
+      'active_topic_id': instance.activeTopicId,
+      'active_topic': instance.activeTopic,
+      'topic_is_pinned': instance.topicIsPinned,
+      'context_version': instance.contextVersion,
     };
 
 const _$ThinkingLevelEnumMap = {

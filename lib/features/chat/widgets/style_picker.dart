@@ -51,11 +51,19 @@ enum _Capability {
   };
 }
 
-/// Trims to null so "unset", empty, and whitespace prompts all compare equal.
 String? _normalize(String? s) {
   final t = s?.trim();
   return (t == null || t.isEmpty) ? null : t;
 }
+
+String _monogram(String name) =>
+    name.isEmpty ? '?' : String.fromCharCode(name.runes.first).toUpperCase();
+String _composition(Style s, String? modelName, String? templateName) => [
+  modelName ?? s.modelId,
+  if (s.thinkingLevel != null)
+    'Thinking ${s.thinkingLevel!.label.toLowerCase()}',
+  ?templateName,
+].join(' · ');
 
 /// Resolves a system-prompt-template id to its (normalized) content, or null
 /// for "no template" / a template that no longer exists. Shared by the panel
@@ -116,6 +124,58 @@ bool _styleMatches(
           systemPrompt;
 }
 
+/// Named style identity is the base model + prompt persona. Thinking effort
+/// is deliberately excluded: the composer exposes it as a fast per-chat
+/// override and changing it must not replace a style label with a model name.
+bool _styleIdentityMatches(
+  Style style,
+  List<SystemPromptTemplate> templates, {
+  required String? modelId,
+  required String? systemPrompt,
+}) {
+  return style.modelId == modelId &&
+      _resolveTemplateContent(templates, style.systemPromptTemplateId) ==
+          systemPrompt;
+}
+
+Style? _resolveActiveStyle(
+  StyleProvider provider,
+  List<Style> visibleStyles,
+  List<SystemPromptTemplate> templates, {
+  required String? modelId,
+  required ThinkingLevel? thinkingLevel,
+  required String? systemPrompt,
+}) {
+  final selected = visibleStyles
+      .where((style) => style.id == provider.selectedStyleId)
+      .firstOrNull;
+  if (selected != null &&
+      _styleIdentityMatches(
+        selected,
+        templates,
+        modelId: modelId,
+        systemPrompt: systemPrompt,
+      )) {
+    return selected;
+  }
+
+  // Reload recovery: exact resolved settings are the strongest evidence when
+  // no compatible explicit identity is available. Effort-only recovery comes
+  // from StyleProvider's persisted last-used identity; guessing from a unique
+  // model+prompt pair would label a style the user never selected.
+  return visibleStyles
+      .where(
+        (style) => _styleMatches(
+          style,
+          templates,
+          modelId: modelId,
+          thinkingLevel: thinkingLevel,
+          systemPrompt: systemPrompt,
+        ),
+      )
+      .firstOrNull;
+}
+
 // ============================================================================
 // Trigger button (app bar)
 // ============================================================================
@@ -125,7 +185,11 @@ bool _styleMatches(
 /// thinking marker) exactly as before. Opens the style picker on tap. Hidden
 /// while the model list is empty, matching the old dropdown's behavior.
 class StylePickerButton extends StatelessWidget {
-  const StylePickerButton({super.key});
+  const StylePickerButton({super.key, this.compact = false});
+
+  /// Uses the same named style label with tighter chrome in the phone
+  /// composer toolbar.
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -156,28 +220,20 @@ class StylePickerButton extends StatelessWidget {
     // the panel uses to highlight a style's card. Built-ins are filtered to
     // the active locale so an 'en' user never reports 'Conciso' as active.
     final languageCode = _effectiveLanguageCode(context);
-    final activeStyle = styleP.styles
-        .where(
-          (s) =>
-              _styleMatchesLocale(s, languageCode) &&
-              _styleMatches(
-                s,
-                promptP.templates,
-                modelId: effectiveId,
-                thinkingLevel: thinking,
-                systemPrompt: prompt,
-              ),
-        )
-        .firstOrNull;
+    final visibleStyles = styleP.styles
+        .where((style) => _styleMatchesLocale(style, languageCode))
+        .toList();
+    final activeStyle = _resolveActiveStyle(
+      styleP,
+      visibleStyles,
+      promptP.templates,
+      modelId: effectiveId,
+      thinkingLevel: thinking,
+      systemPrompt: prompt,
+    );
     final label =
         activeStyle?.name ?? effectiveModel?.name ?? effectiveId ?? 'Model';
-    final monogram = activeStyle == null
-        ? null
-        : (activeStyle.name.isEmpty
-              ? '?'
-              : String.fromCharCode(
-                  activeStyle.name.runes.first,
-                ).toUpperCase());
+    final monogram = activeStyle == null ? null : _monogram(activeStyle.name);
     final thinkingActive = thinking != null && thinking != ThinkingLevel.off;
     final enabled = !chat.isSending;
     final fg = enabled
@@ -185,7 +241,7 @@ class StylePickerButton extends StatelessWidget {
         : colorScheme.onSurfaceVariant.withValues(alpha: 0.5);
     // Wide layouts have room for a roomier pill; narrow stays compact so the
     // app bar keeps space for the title.
-    final wide = context.isWide;
+    final wide = context.isWide && !compact;
 
     return Tooltip(
       message: AppLocalizations.of(context)!.chatStyle,
@@ -196,7 +252,7 @@ class StylePickerButton extends StatelessWidget {
         child: AnimatedContainer(
           duration: Motion.fast,
           padding: EdgeInsets.symmetric(
-            horizontal: wide ? 12 : 10,
+            horizontal: wide ? 12 : 8,
             vertical: wide ? 8 : 6,
           ),
           decoration: BoxDecoration(
@@ -235,7 +291,9 @@ class StylePickerButton extends StatelessWidget {
                 ),
               const SizedBox(width: 6),
               ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: wide ? 220 : 160),
+                constraints: BoxConstraints(
+                  maxWidth: wide ? 220 : (compact ? 72 : 160),
+                ),
                 child: Text(
                   label,
                   style:
@@ -246,7 +304,7 @@ class StylePickerButton extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              if (thinkingActive) ...[
+              if (thinkingActive && !compact) ...[
                 const SizedBox(width: 4),
                 Icon(
                   Icons.psychology_outlined,
@@ -267,27 +325,16 @@ class StylePickerButton extends StatelessWidget {
 // Opening (popover on desktop, bottom sheet on mobile)
 // ============================================================================
 
-/// Opens the style picker. The panel lives on its own route, so the chat
-/// page's providers are re-exposed to it (same gotcha as
-/// `SystemPromptEditorDialog.show`).
 Future<void> showStylePicker(BuildContext context) {
   final chat = context.read<ChatProvider>();
   final models = context.read<ModelProvider>();
   final styles = context.read<StyleProvider>();
   final prompts = context.read<SystemPromptProvider>();
-  // SettingsProvider is needed for locale-based built-in filtering; read it
-  // off the caller's context and re-expose to the panel. Optional (the panel
-  // tolerates its absence via try/catch in _effectiveLanguageCode) so a tree
-  // that doesn't register SettingsProvider (e.g. isolated widget tests) keeps
-  // working.
   SettingsProvider? settings;
   try {
     settings = context.read<SettingsProvider>();
-  } catch (_) {
-    settings = null;
-  }
-
-  Widget withProviders(Widget child) => MultiProvider(
+  } catch (_) {}
+  Widget wrap(Widget c) => MultiProvider(
     providers: [
       ChangeNotifierProvider.value(value: chat),
       ChangeNotifierProvider.value(value: models),
@@ -296,20 +343,17 @@ Future<void> showStylePicker(BuildContext context) {
       if (settings != null)
         ChangeNotifierProvider<SettingsProvider>.value(value: settings),
     ],
-    child: child,
+    child: c,
   );
-
   if (context.isWide) {
-    // Anchored popover: slides down from where the trigger pill sits, so it
-    // reads as an expansion of the pill rather than a modal interruption.
     return showGeneralDialog<void>(
       context: context,
       barrierDismissible: true,
       barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
       barrierColor: Colors.black26,
       transitionDuration: Motion.medium,
-      transitionBuilder: (context, animation, _, child) {
-        final curve = CurvedAnimation(parent: animation, curve: Motion.easeOut);
+      transitionBuilder: (c, a, _, child) {
+        final curve = CurvedAnimation(parent: a, curve: Motion.easeOut);
         return FadeTransition(
           opacity: curve,
           child: SlideTransition(
@@ -338,22 +382,14 @@ Future<void> showStylePicker(BuildContext context) {
                 clipBehavior: Clip.antiAlias,
                 child: ConstrainedBox(
                   constraints: BoxConstraints(
-                    // Scale with the window: a fixed 400dp reads tiny on a
-                    // large desktop monitor, but never exceed 560 so rows
-                    // stay scannable.
                     maxWidth: (screen.width * 0.38).clamp(440.0, 560.0),
                     maxHeight: screen.height - kToolbarHeight - 48,
                   ),
                   child: MediaQuery(
-                    // Pointer-driven desktops are fine with denser type, but
-                    // the panel still sizes up a notch so it does not read as
-                    // a phone UI lost on a big screen.
                     data: MediaQuery.of(
                       dialogContext,
                     ).copyWith(textScaler: const TextScaler.linear(1.12)),
-                    child: withProviders(
-                      const StylePickerPanel(showCloseButton: true),
-                    ),
+                    child: wrap(const StylePickerPanel(showCloseButton: true)),
                   ),
                 ),
               ),
@@ -363,28 +399,19 @@ Future<void> showStylePicker(BuildContext context) {
       },
     );
   }
-
   return showModalBottomSheet<void>(
     context: context,
     showDragHandle: true,
     isScrollControlled: true,
     useSafeArea: true,
     constraints: BoxConstraints(
-      // Content-sized up to this cap; the segmented layout keeps the sheet
-      // from becoming a fullscreen takeover.
       maxHeight: MediaQuery.of(context).size.height * 0.8,
     ),
     builder: (sheetContext) => Padding(
-      // Keep the model search field above the keyboard.
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(sheetContext).viewInsets.bottom,
       ),
-      // `useSafeArea: true` wraps the sheet in `SafeArea(bottom: false)`, so a
-      // short, content-sized sheet would sit flush behind the Android system
-      // navigation bar (home/back/recents). This inner SafeArea pads the
-      // bottom clear of it (the `mute_sheet` idiom); when the keyboard is up
-      // the outer padding takes over and this collapses to zero.
-      child: SafeArea(child: withProviders(const StylePickerPanel())),
+      child: SafeArea(child: wrap(const StylePickerPanel())),
     ),
   );
 }
@@ -500,14 +527,54 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
   }
 
   Future<void> _selectModel(String modelId) async {
+    final model = context
+        .read<ModelProvider>()
+        .availableModels
+        .where((candidate) => candidate.id == modelId)
+        .firstOrNull;
+    final current = _editing != null
+        ? _editThinking
+        : context.read<ChatProvider>().currentConversation?.thinkingLevel ??
+              context.read<StyleProvider>().pendingThinkingLevel;
+    final supported = model?.supportedThinkingLevels ?? const <ThinkingLevel>[];
+    final adjusted = current != null && !supported.contains(current)
+        ? model?.defaultThinkingLevel ?? supported.firstOrNull
+        : current;
     if (_editing != null) {
-      setState(() => _editModelId = modelId);
+      setState(() {
+        _editModelId = modelId;
+        _editThinking = adjusted;
+      });
       return;
     }
     final chat = context.read<ChatProvider>();
+    final currentModelId =
+        chat.currentConversation?.model ??
+        context.read<ModelProvider>().selectedModelId;
+    if (modelId != currentModelId) {
+      context.read<StyleProvider>().clearSelectedStyle();
+    }
     context.read<ModelProvider>().selectModel(modelId);
     if (chat.currentConversation != null) {
-      await chat.updateConversation(model: modelId);
+      await chat.updateConversation(
+        model: modelId,
+        thinkingLevel: adjusted,
+        setThinkingLevel: adjusted != current,
+      );
+    }
+    if (adjusted != current && mounted) {
+      context.read<StyleProvider>().setPendingThinkingLevel(adjusted);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            adjusted == null
+                ? 'Thinking effort reset for this model'
+                : AppLocalizations.of(
+                    context,
+                  )!.thinkingEffortAdjusted(adjusted.label),
+          ),
+        ),
+      );
     }
   }
 
@@ -534,7 +601,15 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
     final chat = context.read<ChatProvider>();
     final templates = context.read<SystemPromptProvider>().templates;
     final content = _resolveTemplateContent(templates, templateId);
-    context.read<StyleProvider>().setPendingSystemPrompt(content);
+    final styleProvider = context.read<StyleProvider>();
+    final currentPrompt = _normalize(
+      chat.currentConversation?.systemPrompt ??
+          styleProvider.pendingSystemPrompt,
+    );
+    if (_normalize(content) != currentPrompt) {
+      styleProvider.clearSelectedStyle();
+    }
+    styleProvider.setPendingSystemPrompt(content);
     if (chat.currentConversation != null) {
       await chat.updateConversation(
         systemPrompt: content,
@@ -711,13 +786,15 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
         (styles.isEmpty ? _PickerSection.customize : _PickerSection.styles);
     final busy = chat.isSending;
 
-    bool styleIsActive(Style s) => _styleMatches(
-      s,
+    final activeStyle = _resolveActiveStyle(
+      styleP,
+      styles,
       templates,
       modelId: effectiveModelId,
       thinkingLevel: effectiveThinking,
       systemPrompt: effectivePrompt,
     );
+    bool styleIsActive(Style style) => style.id == activeStyle?.id;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -841,6 +918,8 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
                           enabled:
                               !busy && composeModel?.supportsThinking != false,
                           supported: composeModel?.supportsThinking != false,
+                          supportedLevels:
+                              composeModel?.supportedThinkingLevels ?? const [],
                           onChanged: _setThinking,
                         ),
                         const SizedBox(height: 16),
@@ -1045,15 +1124,8 @@ class _StyleCard extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final available = modelName != null;
-    final monogram = style.name.isEmpty
-        ? '?'
-        : String.fromCharCode(style.name.runes.first).toUpperCase();
-    final composition = [
-      modelName ?? style.modelId,
-      if (style.thinkingLevel != null)
-        'Thinking ${style.thinkingLevel!.label.toLowerCase()}',
-      ?templateName,
-    ].join(' · ');
+    final monogram = _monogram(style.name);
+    final composition = _composition(style, modelName, templateName);
     // Builtins show their short description under the name (their "model ·
     // thinking · template" composition is fixed and less informative); user
     // styles keep the live composition they always showed.
@@ -1414,47 +1486,23 @@ class _ModelList extends StatelessWidget {
 /// the picker no longer filters by capability, so unknown flags earn no badge.
 class _CapabilityBadges extends StatelessWidget {
   const _CapabilityBadges({required this.model});
-
   final ModelInfo model;
-
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
+    final cs = Theme.of(context).colorScheme;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        for (final capability in _Capability.values)
-          if (capability.of(model) == true)
-            _Badge(
-              capability: capability,
-              color: colorScheme.onSurfaceVariant,
-              tooltip: capability.label,
+        for (final c in _Capability.values)
+          if (c.of(model) == true)
+            Padding(
+              padding: const EdgeInsets.only(left: 6),
+              child: Tooltip(
+                message: c.label,
+                child: Icon(c.icon, size: 16, color: cs.onSurfaceVariant),
+              ),
             ),
       ],
-    );
-  }
-}
-
-class _Badge extends StatelessWidget {
-  const _Badge({
-    required this.capability,
-    required this.color,
-    required this.tooltip,
-  });
-
-  final _Capability capability;
-  final Color color;
-  final String tooltip;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 6),
-      child: Tooltip(
-        message: tooltip,
-        child: Icon(capability.icon, size: 16, color: color),
-      ),
     );
   }
 }
@@ -1464,15 +1512,15 @@ class _ThinkingControl extends StatelessWidget {
     required this.value,
     required this.enabled,
     required this.supported,
+    required this.supportedLevels,
     required this.onChanged,
   });
 
   final ThinkingLevel? value;
   final bool enabled;
   final bool supported;
+  final List<ThinkingLevel> supportedLevels;
   final ValueChanged<ThinkingLevel?> onChanged;
-
-  static const _auto = 'auto';
 
   @override
   Widget build(BuildContext context) {
@@ -1514,23 +1562,15 @@ class _ThinkingControl extends StatelessWidget {
           spacing: 6,
           runSpacing: 4,
           children: [
-            for (final (name, label) in [
-              (_auto, 'Auto'),
-              for (final level in ThinkingLevel.values)
-                (level.name, level.label),
-            ])
+            for (final level in ThinkingLevel.values)
               ChoiceChip(
-                label: Text(label),
-                selected: (value?.name ?? _auto) == name,
+                label: Text(level.label),
+                selected: value == level,
                 visualDensity: context.isWide
                     ? VisualDensity.standard
                     : VisualDensity.compact,
-                onSelected: enabled
-                    ? (_) => onChanged(
-                        name == _auto
-                            ? null
-                            : ThinkingLevel.values.byName(name),
-                      )
+                onSelected: enabled && supportedLevels.contains(level)
+                    ? (_) => onChanged(level)
                     : null,
               ),
           ],

@@ -3,6 +3,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:garbanzo_ai/core/mute_util.dart';
 import 'package:garbanzo_ai/features/chat/models/chat_message.dart';
 import 'package:garbanzo_ai/features/chat/models/thinking_level.dart';
+import 'package:garbanzo_ai/features/topics/models/topic_node.dart';
 
 part 'conversation.freezed.dart';
 part 'conversation.g.dart';
@@ -39,6 +40,11 @@ abstract class Conversation with _$Conversation {
     // [isMutedForever] instead of comparing this directly (mirrors
     // `Room.mutedUntil` / `RoomMember.mutedUntil`).
     DateTime? mutedUntil,
+    @Default(false) bool isPrimary,
+    String? activeTopicId,
+    TopicNode? activeTopic,
+    @Default(false) bool topicIsPinned,
+    @Default(0) int contextVersion,
   }) = _Conversation;
 
   factory Conversation.fromJson(Map<String, dynamic> json) =>

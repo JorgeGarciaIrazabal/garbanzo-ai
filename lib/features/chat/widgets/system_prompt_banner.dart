@@ -78,23 +78,21 @@ class _SystemPromptBannerState extends State<SystemPromptBanner> {
             onTap: () => setState(() => _expanded = !_expanded),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.assignment_outlined,
-                    size: 18,
-                    color: colorScheme.primary,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final compact = constraints.maxWidth < 360;
+                  final title = Text(
                     AppLocalizations.of(context)!.labelSystemPrompt,
+                    key: const ValueKey('system_prompt_banner_title'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.labelLarge?.copyWith(
                       color: colorScheme.primary,
                       fontWeight: FontWeight.w600,
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
+                  );
+                  final source = Container(
+                    key: const ValueKey('system_prompt_banner_source'),
                     padding: const EdgeInsets.symmetric(
                       horizontal: 6,
                       vertical: 2,
@@ -105,25 +103,67 @@ class _SystemPromptBannerState extends State<SystemPromptBanner> {
                     ),
                     child: Text(
                       sourceLabel,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.labelSmall?.copyWith(
                         color: colorScheme.onSecondaryContainer,
                       ),
                     ),
-                  ),
-                  const Spacer(),
-                  IconButton(
+                  );
+                  final editButton = IconButton(
+                    key: const ValueKey('system_prompt_banner_edit'),
                     icon: const Icon(Icons.edit, size: 18),
                     tooltip: AppLocalizations.of(context)!.tooltipEdit,
                     onPressed: edit,
                     visualDensity: VisualDensity.compact,
-                  ),
-                  Icon(
+                  );
+                  final expandIcon = Icon(
                     _expanded
                         ? Icons.keyboard_arrow_up
                         : Icons.keyboard_arrow_down,
+                    key: const ValueKey('system_prompt_banner_expand'),
                     color: colorScheme.onSurfaceVariant,
-                  ),
-                ],
+                  );
+
+                  final titleRow = <Widget>[
+                    Icon(
+                      Icons.assignment_outlined,
+                      size: 18,
+                      color: colorScheme.primary,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(child: title),
+                  ];
+                  if (compact) {
+                    return Column(
+                      key: const ValueKey('system_prompt_banner_compact'),
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(children: [...titleRow, editButton, expandIcon]),
+                        Padding(
+                          padding: const EdgeInsets.only(left: 26, top: 2),
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(
+                              maxWidth: constraints.maxWidth - 26,
+                            ),
+                            child: source,
+                          ),
+                        ),
+                      ],
+                    );
+                  }
+                  return Row(
+                    key: const ValueKey('system_prompt_banner_wide'),
+                    children: [
+                      ...titleRow,
+                      const SizedBox(width: 8),
+                      Flexible(child: source),
+                      const Spacer(),
+                      editButton,
+                      expandIcon,
+                    ],
+                  );
+                },
               ),
             ),
           ),

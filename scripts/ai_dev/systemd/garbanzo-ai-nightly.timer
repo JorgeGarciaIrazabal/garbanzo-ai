@@ -1,0 +1,10 @@
+[Unit]
+Description=Run one Garbanzo AI overnight batch
+
+[Timer]
+OnCalendar=*-*-* 00:00:00 America/New_York
+Persistent=false
+Unit=garbanzo-ai-nightly.service
+
+[Install]
+WantedBy=timers.target

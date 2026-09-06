@@ -17,6 +17,7 @@ from app.services.scheduled_action_service import (
     ScheduledActionService,
     build_trigger,
 )
+from app.topics.jobs import run_topic_consolidation_job
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +61,17 @@ def start_scheduler() -> None:
     # Micro-apps repo sync (deployments only): clone on first run, then
     # periodically fetch + rebase clean worktrees. See microapps_sync_job.
     settings = get_settings()
+    if settings.topic_context_enabled and settings.topic_consolidation_interval_minutes > 0:
+        scheduler.add_job(
+            run_topic_consolidation_job,
+            IntervalTrigger(minutes=settings.topic_consolidation_interval_minutes),
+            id="topic-context-consolidation",
+            name="Topic Context Consolidation",
+            replace_existing=True,
+            coalesce=True,
+            max_instances=1,
+            misfire_grace_time=300,
+        )
     if settings.microapps_git_url and settings.microapps_pull_interval_minutes > 0:
         scheduler.add_job(
             run_microapps_sync_job,
@@ -79,6 +91,11 @@ def start_scheduler() -> None:
     # instead of waiting a full interval.
     if scheduler.get_job("microapps-repo-sync") is not None:
         scheduler.modify_job("microapps-repo-sync", next_run_time=_now())
+    # Existing installations may have years of messages that were queued by
+    # the topic-history backfill migration. Process them at startup instead of
+    # showing an empty Personal map until the first hourly tick.
+    if scheduler.get_job("topic-context-consolidation") is not None:
+        scheduler.modify_job("topic-context-consolidation", next_run_time=_now())
     logger.info("Scheduler started with %d jobs", len(scheduler.get_jobs()))
 
 

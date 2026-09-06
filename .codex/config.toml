@@ -1,5 +1,23 @@
-# Codex-compatible view of the MCP servers defined in ../.mcp.json.
-# Keep the server definitions in sync if that source file changes.
+# Canonical project Codex configuration. Model access is checked at setup.
+model = "gpt-6-astra"
+model_reasoning_effort = "medium"
+
+[agents]
+max_threads = 4
+
+[mcp_servers.serena]
+command = "just"
+args = ["ai-serena"]
+startup_timeout_sec = 180
+
+[mcp_servers.qmd]
+command = "just"
+args = ["ai-qmd-mcp"]
+
+[mcp_servers.context7]
+command = "npx"
+args = ["-y", "@upstash/context7-mcp@2.1.4"]
+enabled = false
 
 [mcp_servers.dart-mcp-server]
 command = "dart"

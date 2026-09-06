@@ -56,21 +56,15 @@ half-migrated schema.
 - `Conversation.use_memory` (boolean) controls whether user memories are injected into LLM context.
 - `Conversation.use_knowledge_base` (boolean) controls whether KB chunks are injected.
 - `Conversation.is_pinned` (boolean) surfaces conversations in the sidebar.
-- `Conversation.context_summary` stores a rolling summary to save context-window space.
-- `Conversation.enabled_tools` (JSONB) stores per-conversation tool whitelists: `null` = all enabled (MCP + native), `[]` = none, `["srv:tool"]` = subset. Native garbo tools use key `"__garbo__:<tool_name>"` (e.g. `"__garbo__:scheduled_actions"`).
-- `Message.meta` is JSONB and stores token counts, generation timing, thinking block content.
-- `Message.role` can be: `user`, `assistant`, `system`, `tool_call`, `tool_result`.
-- `Message.seq` (B-03) is an app-assigned monotonic insertion order
-  (`time.time_ns()` at construction), used to paginate a conversation's
-  messages. `created_at` alone can't serve as a pagination cursor — rows
-  persisted within the same DB transaction (an agent turn's
-  assistant/tool_call/tool_result rows) share an identical value, since
-  Postgres `now()` is transaction-start time, not per-statement time.
-  NOT NULL at the schema level (migration 025) — pagination orders by
-  `seq DESC` and Postgres sorts NULLs first in DESC, so a stray NULL row
-  would masquerade as the newest message.
-- `UserMemory` stores extracted/manual user memories with `content`, `source_conversation_id`, `is_active`.
-- `KnowledgeDocument` / `KnowledgeChunk` store uploaded documents and vector embeddings for RAG.
+- `Conversation.is_primary`/`active_topic_id`/`topic_is_pinned`/`context_version`/`session_epoch` — single primary per user (partial unique index), pinned topic + monotonic context version. `context_summary` is rolling summary to save window. `session_epoch` (migration 043) isolates active messages across topic switches without deleting historical rows.
+- `Conversation.enabled_tools` (JSONB): `null`=all, `[]`=none, `["srv:tool"]`=subset; garbo key `"__garbo__:<tool>"`.
+- `Message.meta` JSONB (tokens/timing/thinking), `role` in `user|assistant|system|tool_call|tool_result`, `seq` is `time.time_ns()` monotonic for pagination (`created_at` shares txn time, `seq DESC` with NOT NULL), `session_epoch` matches owning conversation epoch for primary isolation.
+- `UserMemory`/`KnowledgeDocument`/`KnowledgeChunk` — memories + RAG docs/embeddings.
+- Topics: `Topic`/`TopicAlias` graph, `TopicRelation` (044) cross-topic graph edges (`id`,`user_id`,`source_topic_id`,`target_topic_id`,`relation_type`,`confidence`,`metadata`), `Topic.centroid_embedding` vector(768) (044) for semantic topic routing, `MessageTopic` membership, `TopicAssertion`+`Evidence` claims (with vector cosine index on assertions and centroids), `TopicExclusion` suppression, `TopicContextVersion` immutable pack. Curator: 1 call/user canonicalizes labels, 3-level hierarchy, merges duplicates, synthesizes assertions. Promotes atomically.
+- Assertions `uncertain|active|rejected` with `valid_from`/`valid_until`; exclusions filter before ranking.
+- `TopicIngestionEvent`/`State` — idempotent queue + watermarks/lease; `ActiveContextItem` pinned/dynamic.
+- `TopicArchive` (042) — read-only snapshot on switch (`id`,`user_id`,`topic_id`,`from_topic_id`,`conversation_id`,`message_count`,`payload{JSONB}`,`short_summary`,`created_at`), attached to old topic.
+- Migration 041 backfills non-deleted messages as `backfill` events; legacy titles provisional until curation.
 - `Room`, `RoomMember`, `RoomAgent`, `RoomMessage` support multi-person/agent chat rooms.
 - `RoomAudioNote` stores the raw WAV bytes, MIME type, and duration for one
   `RoomMessage` (unique FK, cascade delete). The message content is the visible
@@ -132,12 +126,15 @@ half-migrated schema.
   whatever a client's request-level `ChatOptions` carried, since clients
   aren't expected to set `think` directly. Either way, the value is only
   ever sent to Ollama for models that advertise the `thinking` capability
-  (`ModelInfo.supports_thinking` on `GET /chat/models`, already computed by
-  `OllamaProvider.list_models`); this task deliberately did not add a
-  separate "does this model support thinking" flag/endpoint since one
-  already exists — a later task (Idea 2 subtask 5) extends `GET
-  /chat/models` with more capability flags (`supports_tools`,
-  `supports_vision`) alongside it.
+  (`ModelInfo.supports_thinking` on `GET /chat/models`, computed by
+  `OllamaProvider.list_models`). The same response exposes the provider's
+  `supports_tools` and `supports_vision` flags plus normalized effort metadata;
+  unknown providers leave the normalized list null rather than guessing.
+- `GET /chat/models` also returns `thinking_levels` when the provider reports a
+  normalized set and `default_thinking_level` when it reports a default. The
+  Ollama adapter currently reports the explicit binary set `off`/`high` for
+  models advertising `thinking`; it does not claim unsupported low/medium
+  levels. `null` means capability detail is unknown.
 - Idea 17 ("include a folder in a chat") deliberately stores **nothing** in the
   DB: the attached folder lives only on the desktop client (SharedPreferences),
   so the backend never learns or reads a host path. Each chat request sets

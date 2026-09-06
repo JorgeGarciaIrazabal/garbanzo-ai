@@ -55,6 +55,30 @@ class TestChatMessageOut:
                 meta=None,
             )
 
+    def test_cleans_thinking_tags_from_content(self):
+        """Regression: assistant messages containing raw <think> tags must have
+        their reasoning separated into meta['thinking'] and stripped from content."""
+        msg = ChatMessageOut(
+            id="msg-1",
+            role="assistant",
+            content="<think>User is asking about Clara again.</think>Clara is your daughter!",
+            created_at=datetime.now(),
+            meta=None,
+        )
+        assert msg.content == "Clara is your daughter!"
+        assert msg.meta == {"thinking": "User is asking about Clara again."}
+
+    def test_cleans_thinking_tags_without_opening_tag(self):
+        msg = ChatMessageOut(
+            id="msg-2",
+            role="assistant",
+            content="Missing opening tag.</think>Clean answer",
+            created_at=datetime.now(),
+            meta={"other": 123},
+        )
+        assert msg.content == "Clean answer"
+        assert msg.meta == {"other": 123, "thinking": "Missing opening tag."}
+
 
 class TestAttachmentIn:
     def test_invalid_type(self):

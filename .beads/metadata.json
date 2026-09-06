@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "garbanzo",
+  "project_id": "e7018748-f406-4e9e-98cb-05bf4198a570"
+}

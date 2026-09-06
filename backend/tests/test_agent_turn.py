@@ -291,5 +291,77 @@ async def test_cancellation_persists_partial_content(monkeypatch):
     assert sink.rolled_back is False
 
 
+async def test_agent_turn_separates_thinking_tags_on_persist(monkeypatch):
+    """When a model leaks raw <think>...</think> in content, run_agent_turn
+    separates reasoning into message metadata and persists clean text."""
+    monkeypatch.setattr(
+        "app.services.agent_turn.resolve_context_length",
+        lambda provider, model: _async_return(4096),
+    )
+
+    provider = _ScriptedProvider(
+        [
+            [
+                ChatChunk(
+                    content="<think>Evaluating Clara</think>Clara is daughter",
+                    is_finished=False,
+                ),
+                ChatChunk(content="", is_finished=True),
+            ]
+        ]
+    )
+
+    sink = _RecordingSink()
+
+    async for _ in run_agent_turn(
+        provider=provider,
+        model="fake",
+        llm_messages=[LLMMessage(role="user", content="Who is Clara?")],
+        sink=sink,
+        options=ChatOptions(think="high"),
+    ):
+        pass
+
+    assert sink.persisted == [
+        ("Clara is daughter", {"context_length": 4096, "thinking": "Evaluating Clara"})
+    ]
+    assert sink.committed is True
+
+
+async def test_agent_turn_discards_leaked_thinking_when_think_off(monkeypatch):
+    """When think='off', any leaked thinking tags are stripped and discarded
+    so neither content nor metadata contains reasoning."""
+    monkeypatch.setattr(
+        "app.services.agent_turn.resolve_context_length",
+        lambda provider, model: _async_return(4096),
+    )
+
+    provider = _ScriptedProvider(
+        [
+            [
+                ChatChunk(
+                    content="<think>Evaluating Clara</think>Clara is daughter",
+                    is_finished=False,
+                ),
+                ChatChunk(content="", is_finished=True),
+            ]
+        ]
+    )
+
+    sink = _RecordingSink()
+
+    async for _ in run_agent_turn(
+        provider=provider,
+        model="fake",
+        llm_messages=[LLMMessage(role="user", content="Who is Clara?")],
+        sink=sink,
+        options=ChatOptions(think="off"),
+    ):
+        pass
+
+    assert sink.persisted == [("Clara is daughter", {"context_length": 4096})]
+    assert sink.committed is True
+
+
 async def _async_return(value):
     return value

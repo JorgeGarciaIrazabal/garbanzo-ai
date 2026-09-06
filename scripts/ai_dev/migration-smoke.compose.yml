@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: garbanzo_migration_smoke
+      POSTGRES_USER: garbanzo
+      POSTGRES_PASSWORD: smoke-only
+    ports:
+      - "127.0.0.1:${AI_MIGRATION_SMOKE_PORT:-55439}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U garbanzo -d garbanzo_migration_smoke"]
+      interval: 1s
+      timeout: 3s
+      retries: 30
+    tmpfs:
+      - /var/lib/postgresql/data

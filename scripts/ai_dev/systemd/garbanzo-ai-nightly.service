@@ -1,0 +1,10 @@
+[Unit]
+Description=Garbanzo AI bounded overnight development batch
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/code/garbanzo-ai
+ExecStart=/usr/bin/env just ai-nightly --json
+TimeoutStartSec=60min
+TimeoutStopSec=10s
+KillMode=control-group

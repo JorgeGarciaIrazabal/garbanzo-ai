@@ -22,9 +22,9 @@ class AuthState extends ChangeNotifier {
 
   bool get loggedIn => _loggedIn;
 
-  /// Increments on logout. The app-level provider subtree is keyed on this so
-  /// all user-scoped state (conversations, notifications, …) is disposed and
-  /// rebuilt fresh on the next login.
+  /// Increments at every session boundary. The app-level provider subtree is
+  /// keyed on this so all user-scoped state (conversations, notifications,
+  /// and transient errors) is disposed and rebuilt for a fresh login.
   int get epoch => _epoch;
 
   /// Completes once the stored token has been validated against the backend.
@@ -43,6 +43,11 @@ class AuthState extends ChangeNotifier {
 
   /// Called by the login page after a successful login.
   void markLoggedIn() {
+    // The provider subtree remains mounted behind the login route. Bump its
+    // key here as well as at logout: otherwise an unauthenticated request
+    // completed between the two can leave its 403 error visible in the newly
+    // authenticated chat until a hot restart.
+    _epoch++;
     _loggedIn = true;
     _ready = true;
     // Fire-and-forget: populate cached user (including is_admin) without

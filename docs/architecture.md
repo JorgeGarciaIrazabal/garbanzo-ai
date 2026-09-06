@@ -18,7 +18,7 @@ change layouts, flows, or services (see "Maintaining agent docs" in the root
 - **STT:** Faster Whisper (in-process local by default; remote Docker fallback on port 8010)
 - **Streaming:** Server-Sent Events (SSE) from backend to frontend
 - **Push Notifications:** Firebase Cloud Messaging (FCM) via `fcm_service.py`
-- **Scheduler:** APScheduler for daily memory extraction + user-defined scheduled actions
+- **Scheduler:** APScheduler for daily memory extraction, hourly dirty-user topic consolidation, and user-defined scheduled actions
 - **Knowledge Base:** pgvector-based semantic search (`nomic-embed-text` embeddings)
 - **Rooms:** Multi-agent chat rooms with WebSocket transport (`rooms_ws.py`)
 
@@ -29,7 +29,7 @@ core/          config.py (pydantic-settings), security.py (JWT/bcrypt),
                rate_limit.py (in-memory request throttling)
 api/           microapps_proxy.py (authenticated /micro-apps reverse proxy)
 api/v1/        endpoints/
-               auth.py, admin.py, chat.py, devices.py, health.py,
+               auth.py, admin.py, chat.py, topics.py, devices.py, health.py,
                knowledge_base.py, mcp.py, memories.py, microapps.py,
                notifications.py, rooms.py, rooms_ws.py, scheduled_actions.py,
                stt.py, system_prompts.py, tts.py, usage.py
@@ -100,6 +100,13 @@ services/      chat_service.py (turn orchestration + tool loop)
                fcm_service.py, device_service.py, notification_service.py
                image_utils.py (format-preserving image attachment resize/encoding)
 db/            base.py, session.py (AsyncSession, init_db), migrations.py
+topics/        Self-contained dynamic-context feature: ORM models and Pydantic
+               schemas; topic API router; durable/realtime ingestion;
+               decomposed semantic graph consolidation (reconciler, clusterer,
+               pack builder, worker); hybrid GraphRAG context compiler
+               (vector + FTS + 1-hop traversal + pre-warming); active-context
+               mutations; scheduler job. `topics/CLAUDE.md` records its safety
+               and ownership invariants.
 jobs/          extract_memories_job.py (daily at 2 AM; dedicated
                MEMORY_EXTRACTION_MODEL, glm-5.3:cloud by default)
                scheduled_action_job.py (user-defined cron/one-shot actions;
@@ -278,7 +285,7 @@ pages/               LoginPage, RegisterPage
 
 1. `ChatProvider.sendMessage()` optimistically adds the user message, then calls `ChatService.streamChatResponse()`
 2. `ChatService` POSTs to `/api/v1/chat/conversations/{id}/chat` with `Accept: text/event-stream`; Talk Mode also sends its `AppLocalizations`-resolved `talk_mode_instruction`
-3. Backend `ChatService` builds message history, appends that Talk instruction only to the current turn's system context (never persistence), calls `LLMProvider.stream_chat()`, and yields SSE chunks. Image turns are capability-checked first: a known text-only model returns a structured `unsupported_image_input` error without calling Ollama or filing an automatic bug report; the provider also translates Ollama's equivalent 400 when metadata was unavailable. Flutter turns that error into an amber Vision-model warning rather than a red error. `ModelProvider` offers enabled GLM 5.3 Flash (faster/lower cost) and Kimi K3 (smarter/higher cost), with its capability-aware recommendation as a fallback. `ChatProvider` PATCHes only the conversation model and retries the persisted user message through the existing edit stream. Attachments and resolved style settings remain intact; saved styles and new-chat defaults are not mutated.
+3. Backend `ChatService` builds history, appends Talk instruction to system context only, calls `LLMProvider.stream_chat()`, yields SSE. Primary chats run `TopicContextCompiler` first: hybrid pgvector cosine similarity + full-text retrieval, 1-hop subgraph traversal along `TopicRelation` and causal superseding links, active context pack, pins, and recent evidence under token budget (<10ms when served from pre-warmed cache). On completion of primary turns, `_spawn_topic_prewarm` pre-compiles baseline context for the next turn in the background. Hourly `TopicConsolidationService` drains queue, builds manifest, calls `TopicSemanticCurator` once per user to rename nodes, link hierarchy (≤3 levels), merge duplicates, synthesize assertions. Strict JSON/ownership/grounding/hierarchy validation gates writes; materializer promotes packs atomically. Compiler filters by ownership/deletion/validity/exclusions; stale pack uses bounded fallback. Threads/regenerate/edit/tool loops use `ChatContextBuilder`. Image turns return `unsupported_image_input` without Ollama; Flutter shows amber warning. `ModelProvider` prefers GLM 5.3 Flash vs Kimi K3; `ChatProvider` PATCHes model and retries via edit stream.
 4. **Chunk types:**
    - `chunk` — text content
    - `thinking` — reasoning / thought blocks
@@ -290,6 +297,17 @@ pages/               LoginPage, RegisterPage
      and on confirm executes via its normal REST services
    - `done` — terminal event with metadata
    - `error` — failure metadata
+   - `topic_update` — primary topic payload under `metadata.topic_update`
+   - `context_preparing` — primary context is using a safe live fallback while
+     a pack is unavailable, under `metadata.context_preparing`
+   - `context_update` — primary context counts, pack watermark, freshness, and
+     fallback state under `metadata.context_update`
+   All three topic/context events use `schema_version: 1` and are metadata-only
+   frames emitted before the first answer token. Their event-specific payload
+   is nested under the matching metadata key; legacy threads never receive
+   these events. The terminal `done` metadata includes `context_snapshot` for
+   the primary turn (selected source IDs, reasons, scores, token totals, and
+   the valid-pack watermark).
 5. `ChatProvider` accumulates content, upserts the assistant message live, and
    groups tool events into a high-level activity card. The card maps grounded
    actions to user-facing milestones (researching, reviewing files, updating
@@ -333,6 +351,42 @@ and after every single turn — slow for long-running conversations. Now:
 - Pagination orders by `Message.seq` (see `docs/database.md`), not
   `created_at`, since rows from the same DB transaction can share a
   timestamp.
+
+### Topic switch flow
+
+`POST /api/v1/chat/conversations/{id}/topics/switch` is the primary-chat
+topic change action. It runs server-side as a single orchestration:
+
+1. **Archive** — If `archive: true` (default), the entire current primary
+   message history is snapshotted into a `topic_archives` row attached to
+   the *prior* topic. This read-only archive is the substrate for future
+   "enhance this topic" passes — the user's prior thread is never lost.
+2. **Clear** — All messages are deleted from the primary conversation.
+   Each deletion enqueues a `delete` ingestion event so the hourly
+   consolidation pipeline invalidates the prior topic's evidence. All
+   `ActiveContextItem` rows (pins + dynamic) are also deleted.
+3. **Activate** — The new topic is created or attached (same semantics as
+   the existing `activate` endpoint). `context_version` is bumped and the
+   new topic is pinned.
+4. **Carryover** — If `carryover.enabled: true` (default), a bounded LLM
+   call extracts the most important facts/decisions/preferences from the
+   just-archived messages (`carryover_max_items`, `carryover_max_tokens`).
+   The output is validated against a strict schema (`CarryoverOutput`);
+   on any failure a deterministic fallback uses the most recent user
+   messages. Carryover items are written as `ActiveContextItem` rows with
+   `source_type = 'carryover'` so the UI renders them as a dedicated
+   "Carryover" branch at the top of the context tree.
+5. **Prepare** — An async pack build is kicked off for the new topic.
+   The switch response returns immediately; the next user turn will
+   receive fresh `topic_update`, `context_update`, and `context_snapshot`
+   SSE events with the new state.
+
+**Frontend coordination** — `TopicDiscoveryProvider.switchTopic()` calls
+the endpoint, updates `_selectedTopic` locally, and notifies.
+`ActiveContextProvider.resetFromServer()` replaces the local context
+snapshot with the server response (including carryover items).
+`ChatProvider.clearMessagesLocally()` optimistically wipes the message
+list so the UI shows the cleared state before the server confirms.
 
 ## SSE Streaming Protocol
 

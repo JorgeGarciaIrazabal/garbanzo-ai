@@ -5156,6 +5156,390 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Back online. Syncing your response…'**
   String get messageResponseSyncing;
+
+  /// Topics navigation tab.
+  ///
+  /// In en, this message translates to:
+  /// **'Topics'**
+  String get topics;
+
+  /// Legacy conversation threads navigation tab.
+  ///
+  /// In en, this message translates to:
+  /// **'Threads'**
+  String get threads;
+
+  /// Starts topic discovery without deleting chat history.
+  ///
+  /// In en, this message translates to:
+  /// **'New topic'**
+  String get newTopic;
+
+  /// Creates a compatibility conversation thread.
+  ///
+  /// In en, this message translates to:
+  /// **'New thread'**
+  String get newThread;
+
+  /// The user's continuous unified chat.
+  ///
+  /// In en, this message translates to:
+  /// **'Primary chat'**
+  String get primaryChat;
+
+  /// Label for the currently active topic.
+  ///
+  /// In en, this message translates to:
+  /// **'Current topic'**
+  String get currentTopic;
+
+  /// Current topic status.
+  ///
+  /// In en, this message translates to:
+  /// **'Active now'**
+  String get activeNow;
+
+  /// Topic context preparation status.
+  ///
+  /// In en, this message translates to:
+  /// **'Preparing context'**
+  String get preparingContext;
+
+  /// History-derived topic discovery mode.
+  ///
+  /// In en, this message translates to:
+  /// **'Personal'**
+  String get personal;
+
+  /// Suggested topic discovery mode.
+  ///
+  /// In en, this message translates to:
+  /// **'Explore'**
+  String get explore;
+
+  /// Starts a free-text Explore topic.
+  ///
+  /// In en, this message translates to:
+  /// **'Something new'**
+  String get somethingNew;
+
+  /// Root topic breadcrumb.
+  ///
+  /// In en, this message translates to:
+  /// **'All topics'**
+  String get allTopics;
+
+  /// Empty personal topic discovery state.
+  ///
+  /// In en, this message translates to:
+  /// **'Your topics will appear as you keep talking.'**
+  String get topicEmpty;
+
+  /// New-topic navigation subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose what Garbanzo should focus on'**
+  String get topicFocusHint;
+
+  /// Promoted subtopic parent label.
+  ///
+  /// In en, this message translates to:
+  /// **'Subtopic in {parent}'**
+  String subtopicIn(String parent);
+
+  /// Number of child topics.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} subtopics'**
+  String subtopicCount(int count);
+
+  /// Current generation context panel title.
+  ///
+  /// In en, this message translates to:
+  /// **'Active context'**
+  String get activeContext;
+
+  /// Heading for the expandable context contents sections.
+  ///
+  /// In en, this message translates to:
+  /// **'What\'s included'**
+  String get contextIncluded;
+
+  /// Context source type: memories.
+  ///
+  /// In en, this message translates to:
+  /// **'Memories'**
+  String get sourceTypeMemory;
+
+  /// Context source type: messages.
+  ///
+  /// In en, this message translates to:
+  /// **'Messages'**
+  String get sourceTypeMessage;
+
+  /// Context source type: history.
+  ///
+  /// In en, this message translates to:
+  /// **'History'**
+  String get sourceTypeHistory;
+
+  /// Context source type: knowledge base.
+  ///
+  /// In en, this message translates to:
+  /// **'Knowledge'**
+  String get sourceTypeKnowledge;
+
+  /// Context source type: other.
+  ///
+  /// In en, this message translates to:
+  /// **'Other'**
+  String get sourceTypeOther;
+
+  /// Context item count badge.
+  ///
+  /// In en, this message translates to:
+  /// **'{count}'**
+  String contextItemCount(int count);
+
+  /// Branch label for carryover context items.
+  ///
+  /// In en, this message translates to:
+  /// **'Carryover'**
+  String get carryover;
+
+  /// Empty state for carryover branch.
+  ///
+  /// In en, this message translates to:
+  /// **'No carryover items'**
+  String get noCarryover;
+
+  /// Topic archive count badge.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} archived {count, plural, one {thread} other {threads}}'**
+  String topicArchiveCount(int count);
+
+  /// Error message when topic switch fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not switch topic'**
+  String get topicSwitchFailed;
+
+  /// Changes the active topic.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch topic'**
+  String get redirect;
+
+  /// Title for topic drift lock control.
+  ///
+  /// In en, this message translates to:
+  /// **'Lock topic'**
+  String get lockTopic;
+
+  /// Explains the effect of pinning/locking the active topic.
+  ///
+  /// In en, this message translates to:
+  /// **'Prevents Garbanzo from automatically switching topics when conversation drifts.'**
+  String get lockTopicDescription;
+
+  /// Status text when topic is locked.
+  ///
+  /// In en, this message translates to:
+  /// **'Locked (drift disabled)'**
+  String get topicLocked;
+
+  /// Status text when topic is unlocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-drift active'**
+  String get topicUnlocked;
+
+  /// Header for topic graph hierarchy.
+  ///
+  /// In en, this message translates to:
+  /// **'Topic Context Tree'**
+  String get topicHierarchy;
+
+  /// Subtopics label.
+  ///
+  /// In en, this message translates to:
+  /// **'Subtopics'**
+  String get subtopics;
+
+  /// Parent topic label in hierarchy.
+  ///
+  /// In en, this message translates to:
+  /// **'Parent topic'**
+  String get parentTopic;
+
+  /// Header for context items breakdown.
+  ///
+  /// In en, this message translates to:
+  /// **'Context Breakdown'**
+  String get contextStats;
+
+  /// Pins active topic selection.
+  ///
+  /// In en, this message translates to:
+  /// **'Pin topic'**
+  String get pinTopic;
+
+  /// Pinned state label.
+  ///
+  /// In en, this message translates to:
+  /// **'Pinned'**
+  String get pinned;
+
+  /// Summary of context for the next answer.
+  ///
+  /// In en, this message translates to:
+  /// **'Next-turn preview'**
+  String get nextTurnPreview;
+
+  /// User-pinned context section.
+  ///
+  /// In en, this message translates to:
+  /// **'Pinned by you'**
+  String get pinnedByYou;
+
+  /// Dynamically selected context section.
+  ///
+  /// In en, this message translates to:
+  /// **'Selected by Garbanzo'**
+  String get selectedByGarbanzo;
+
+  /// Adds a source to active context.
+  ///
+  /// In en, this message translates to:
+  /// **'Add source'**
+  String get addSource;
+
+  /// Explains why a context source was selected.
+  ///
+  /// In en, this message translates to:
+  /// **'Why included: {reason}'**
+  String whyIncluded(String reason);
+
+  /// Non-blocking limited context status.
+  ///
+  /// In en, this message translates to:
+  /// **'Historical context is temporarily limited'**
+  String get historicalContextLimited;
+
+  /// Active context preparation status.
+  ///
+  /// In en, this message translates to:
+  /// **'Preparing the best context'**
+  String get preparingBestContext;
+
+  /// Model switch effort adjustment.
+  ///
+  /// In en, this message translates to:
+  /// **'Thinking effort adjusted to {level}'**
+  String thinkingEffortAdjusted(String level);
+
+  /// Accessibility label for topic discovery.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a conversation topic'**
+  String get chooseConversationTopic;
+
+  /// Tooltip for opening a topic's subtopics.
+  ///
+  /// In en, this message translates to:
+  /// **'Browse {topic} subtopics'**
+  String browseTopicSubtopics(String topic);
+
+  /// Tooltip for cycling the thinking effort control.
+  ///
+  /// In en, this message translates to:
+  /// **'Cycle thinking effort'**
+  String get cycleThinkingEffort;
+
+  /// Tooltip for closing the active-context panel.
+  ///
+  /// In en, this message translates to:
+  /// **'Close active context'**
+  String get closeActiveContext;
+
+  /// Empty active-context state.
+  ///
+  /// In en, this message translates to:
+  /// **'No active context yet'**
+  String get noActiveContext;
+
+  /// Accessibility label for context token usage.
+  ///
+  /// In en, this message translates to:
+  /// **'Context token usage'**
+  String get contextTokenUsage;
+
+  /// Context token count shown in the active-context panel.
+  ///
+  /// In en, this message translates to:
+  /// **'{used} of {budget} context tokens'**
+  String contextTokenCount(int used, int budget);
+
+  /// Empty user-pinned context state.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing pinned yet'**
+  String get nothingPinned;
+
+  /// Empty dynamically selected context state.
+  ///
+  /// In en, this message translates to:
+  /// **'No dynamic sources selected'**
+  String get noDynamicSources;
+
+  /// Dialog title for adding an active-context source.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a context source'**
+  String get addContextSource;
+
+  /// Input hint for an active-context source ID.
+  ///
+  /// In en, this message translates to:
+  /// **'Message, thread, memory, or file ID'**
+  String get contextSourceIdHint;
+
+  /// Action for removing a context item's pin.
+  ///
+  /// In en, this message translates to:
+  /// **'Unpin'**
+  String get unpin;
+
+  /// Action for pinning a context item.
+  ///
+  /// In en, this message translates to:
+  /// **'Pin'**
+  String get pin;
+
+  /// Error shown when active context cannot be loaded.
+  ///
+  /// In en, this message translates to:
+  /// **'Active context is temporarily unavailable'**
+  String get activeContextUnavailable;
+
+  /// Error shown when changing a context source fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not update this context source'**
+  String get contextSourceUpdateFailed;
+
+  /// Error shown when adding a context source fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not add this context source'**
+  String get contextSourceAddFailed;
+
+  /// Error shown when changing the active topic pin fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not update topic pin'**
+  String get topicPinUpdateFailed;
 }
 
 class _AppLocalizationsDelegate

@@ -1,283 +1,169 @@
 from functools import lru_cache
+from pathlib import Path
 from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-class Settings(BaseSettings):
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        extra="ignore",
-    )
+def _split_csv(raw: str) -> list[str]:
+    return [p.strip() for p in raw.split(",")]
 
-    # App
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+
+    # App / security / database — see docs/environment.md
     app_name: str = "Garbanzo AI"
-    # Version reported by GET /api/v1/health and the FastAPI docs. Deploys
-    # bake the release tag into the image via the APP_VERSION build arg
-    # (scripts/deploy.sh); the default marks non-release/dev builds.
-    app_version: str = "0.0.0-dev"
+    app_version: str = "0.0.0-dev"  # GET /api/v1/health; baked via APP_VERSION build arg
     debug: bool = False
     host: str = "0.0.0.0"
     port: int = 8000
-    # Persist unexpected authenticated backend/chat failures as admin-triaged
-    # bug reports. Disable for installations that prefer logs only.
-    auto_error_reports: bool = True
-
-    # GitHub repo ("owner/name") whose Releases feed the desktop auto-updater
-    # (GET /api/v1/version/latest). Self-hosters point this at their fork.
-    github_repo: str = "JorgeGarciaIrazabal/garbanzo-ai"
-
-    # Security
+    auto_error_reports: bool = True  # persist unexpected failures as admin bug reports
+    github_repo: str = "JorgeGarciaIrazabal/garbanzo-ai"  # for GET /api/v1/version/latest
     secret_key: str = "change-this-in-production"
     access_token_expire_minutes: int = 30
     refresh_token_expire_days: int = 30
-
-    # Database
     database_url: str = "postgresql+asyncpg://garbanzo:garbanzo_dev@localhost:5432/garbanzo_ai"
 
-    # LLM
+    # LLM / context — see docs/environment.md
     llm_provider: str = "ollama"
     ollama_base_url: str = "http://host.docker.internal:11434"
-
-    # Default model for new conversations and internal calls when no explicit
-    # model is chosen. Must match a model ID returned by GET /api/v1/chat/models.
     default_model: str = "glm-5.3-flash:cloud"
-
-    # Dedicated model for the daily automatic-memory extraction job. Keeping
-    # this separate avoids coupling memory quality/cost to the chat default.
     memory_extraction_model: str = "glm-5.3:cloud"
-
-    # Default model for scheduled actions that do not explicitly select one.
     scheduled_action_model: str = "glm-5.3:cloud"
-
-    # Context window cap in tokens. The effective window for a conversation
-    # is min(model's maximum, this value); it is passed to the provider as
-    # num_ctx so the runtime actually allocates that window (Ollama otherwise
-    # silently runs at its own default, typically 4096, regardless of the
-    # model's maximum). Raising this increases RAM/VRAM use per request.
-    # 100K is a safe default for cloud models (typically 128K–1M) while
-    # local models are still clamped by min(model_max, this value).
-    llm_context_window: int = 100000
-
-    # Token budgets for context injected into the system prompt. Memory /
-    # KB entries beyond the budget are dropped (in list order) so a large
-    # memory store or document base can't crowd out the conversation itself.
-    memory_token_budget: int = 4000
+    llm_context_window: int = 100000  # min(model max, this) passed as num_ctx
+    memory_token_budget: int = 4000  # dropped beyond budget, see docs/environment.md
     kb_token_budget: int = 8000
-
-    # Maximum memories injected per message (most relevant first). The token
-    # budget above still applies on top of this count cap.
     memory_top_k: int = 20
+    tool_result_max_chars: int = 32000  # truncated with marker before persistence
+    room_auto_judge_model: str = "granite4:micro"  # see benchmark notes in docs/environment.md
+    llm_image_max_dim: int = 1024  # downscaled before storage/vision model
 
-    # Tool results larger than this are truncated (with an explicit marker)
-    # before being persisted and fed back to the model, so a tool returning
-    # megabytes can't blow the context window or the message table.
-    tool_result_max_chars: int = 32000
-
-    # Model used for internal classification calls (e.g. the "should this
-    # auto-agent jump in?" judge in multi-agent rooms). Override via env var
-    # (ROOM_AUTO_JUDGE_MODEL) if a different model is preferred. Must be
-    # pulled in the local Ollama instance — pull with
-    # ``ollama pull granite4:micro``.
-    #
-    # Picked via ``backend/scripts/benchmark_auto_judge.py`` against 43
-    # labeled scenarios (easy + hard + creative-request edge cases):
-    #   granite4:micro  v1_strict  → 90.7% acc · 1.3s · 3 FP / 1 FN  ← chosen
-    #   phi4-mini       v1_strict  → 90.7% acc · 1.5s · 0 FP / 4 FN
-    #   granite4:micro  v2_balanced→ 88.4% acc · 1.5s · 5 FP / 0 FN
-    #   gemma3:4b       v1_strict  → 86.0% acc · 1.1s · 6 FP / 0 FN
-    #   llama3.2:3b     v2_balanced→ 83.7% acc · 1.0s · 0 FP / 7 FN
-    #   gemma4:e2b / qwen3:*       → broken with Ollama structured output
-    #   gemma3:1b                  → too small to follow rules
-    #
-    # Granite4 was picked over phi4-mini even at the same accuracy because
-    # phi4-mini consistently refuses creative-writing requests ("write a
-    # story", "tell a joke", roleplay) — the exact pattern users care about.
-    # Granite4's failure mode is mild over-eagerness on judgment-call
-    # scenarios (3 FP), which is far less frustrating than an agent
-    # ignoring an explicit request.
-    #
-    # The best prompt is model-dependent — see the corresponding prompt
-    # block in ``room_chat_service.py`` for the v1_strict copy.
-    room_auto_judge_model: str = "granite4:micro"
-
-    # Image attachments are downscaled to this max dimension (px) before being
-    # stored and sent to the vision model. Local vision models see ~1M pixels
-    # at most (llama3.2-vision 1120², gemma3 896², qwen-VL tiles by area), so
-    # anything past ~1024px only costs tokens and prefill time. Don't go much
-    # lower: text in screenshots gets unreadable for the model below ~1024px.
-    llm_image_max_dim: int = 1024
-
-    # Dev test user — set both to auto-create a user on startup
+    # Dev / location
     test_user_email: str = ""
     test_user_password: str = ""
-
-    # Reverse geocoding for the opt-in coarse location (dynamic <context>
-    # block). Public Nominatim by default; point at a self-hosted instance
-    # to keep coordinates entirely on-prem.
     nominatim_url: str = "https://nominatim.openstreetmap.org"
 
-    # Voice services
-    faster_whisper_url: str = "http://localhost:8010"  # only used if stt_mode=remote
-    stt_mode: str = "local"  # "local" (in-process) or "remote" (Docker)
-    # The multilingual small checkpoint keeps conversational CPU latency low.
-    # Do not use distil-large-v3 here: that checkpoint is English-only and can
-    # turn non-English speech into English text instead of preserving it.
-    stt_model: str = "Systran/faster-whisper-small"
-    stt_device: str = "auto"  # "auto", "cpu", or "cuda"
-    # Server-wide default when a request doesn't specify a language.
-    # "auto" lets faster-whisper detect the spoken language per clip; set to
-    # an ISO code (e.g. "en") to force a single language for every request
-    # that doesn't override it (idea 13 — per-request `language` always wins).
-    stt_language: str = "auto"
+    # Voice (STT/TTS) — see docs/environment.md
+    faster_whisper_url: str = "http://localhost:8010"  # only if stt_mode=remote
+    stt_mode: str = "local"  # local or remote
+    stt_model: str = "Systran/faster-whisper-small"  # multilingual, not distil-large-v3
+    stt_device: str = "auto"  # auto | cpu | cuda
+    stt_language: str = "auto"  # auto or ISO code; per-request overrides
     stt_beam_size: int = 1
-    stt_vad_max_duration: float = 10.0  # skip VAD for clips shorter than this (seconds)
-    kokoro_url: str = "http://localhost:8020"  # kept for fallback / external kokoro
+    stt_vad_max_duration: float = 10.0
+    kokoro_url: str = "http://localhost:8020"
     default_tts_voice: str = "af_heart"
     default_tts_speed: float = 1.0
     tts_device: Literal["auto", "cpu", "cuda"] = "auto"
-
-    # Kokoro native model paths (relative to backend/ or absolute)
     kokoro_model_dir: str = "data/kokoro/models/v1_0"
     kokoro_voices_dir: str = "data/kokoro/voices"
 
-    # Rate limiting for expensive endpoints (chat/TTS/STT), keyed by user.
-    # Off by default so dev stays unlimited; 0 disables a single scope.
+    # Rate limiting (0 disables scope) — see docs/environment.md
     rate_limit_enabled: bool = False
     rate_limit_chat_per_minute: int = 20
     rate_limit_tts_per_minute: int = 30
     rate_limit_stt_per_minute: int = 30
     rate_limit_system_prompt_generate_per_minute: int = 10
 
-    # CORS
+    # CORS / admin / FCM
     cors_origins: str = "http://localhost:3000,http://localhost:8000"
-
-    # Admin — comma-separated list of emails auto-promoted to is_admin=True on startup
-    admin_emails: str = ""
-
-    # Firebase Cloud Messaging (push notifications)
-    # Path to the service-account JSON, relative to backend/ or absolute.
-    # Leave empty to disable push notifications.
+    admin_emails: str = ""  # comma-separated, auto-promoted on startup
     firebase_credentials_path: str = "firebase-service-account.json"
 
-    # Micro-Apps Agentic Workspace
-    # Absolute path to the user's micro-apps monorepo (Vite+React, deployed to
-    # GitHub Pages). Empty ⇒ the whole feature is disabled and every
-    # /microapps endpoint returns a clear "feature disabled" error.
+    # Micro-apps workspace — see docs/environment.md
     microapps_repo_path: str = ""
-    # Base TCP port for per-user dev servers. Each user's worktree gets a
-    # stable port derived from base + a hash of their slug.
     microapps_dev_port_base: int = 8100
-    # Executable used to spawn the headless opencode agent (`opencode serve`).
     microapps_opencode_bin: str = "opencode"
-    # Git remote that publish/revert operate against.
     microapps_publish_remote: str = "origin"
-    # Directory (relative to the repo root) that holds per-user worktrees.
     microapps_worktrees_dir: str = ".worktrees"
-    # Model id passed to opencode's session request, in "provider/name" form.
-    # The bare name is also written into the seeded opencode.json under the
-    # "ollama" provider.
     microapps_opencode_model: str = "ollama/glm-5.3:cloud"
-    # Git URL used by deployments to clone the repo into MICROAPPS_REPO_PATH on
-    # first boot. Setting it also enables the periodic sync job (fetch +
-    # fast-forward + rebase of clean worktrees). Leave empty in dev, where the
-    # developer manages the repo themselves.
     microapps_git_url: str = ""
-    # Minutes between periodic syncs of the deployed repo clone. Only active
-    # when microapps_git_url is set; 0 disables the job.
     microapps_pull_interval_minutes: int = 10
-    # Serve micro-app dev servers through the backend's authenticated
-    # /micro-apps reverse proxy instead of having the client hit the per-user
-    # dev port directly. Required behind a single public tunnel (prod); off in
-    # dev where the LAN port is reachable.
-    microapps_proxy_mode: bool = False
+    microapps_proxy_mode: bool = False  # serve via backend /micro-apps proxy
 
-    # Knowledge Base / RAG
+    # Knowledge Base / RAG — see docs/environment.md
     embedding_model: str = "nomic-embed-text"
     embedding_dim: int = 768
-    kb_chunk_size: int = 1000  # characters
-    kb_chunk_overlap: int = 150  # characters
-    kb_top_k: int = 10  # top-K chunks injected per message
+    kb_chunk_size: int = 1000
+    kb_chunk_overlap: int = 150
+    kb_top_k: int = 10
     kb_max_file_size_mb: int = 25
-    # Minimum fused score for a chunk to be injected — keeps barely-related
-    # chunks from polluting the context. With kb_semantic_weight=0.7, 0.35
-    # corresponds to ~0.5 cosine similarity when there is no lexical match.
-    kb_min_score: float = 0.35
-    # Hybrid retrieval fusion: score = w*semantic + (1-w)*lexical, where
-    # lexical is Postgres ts_rank_cd normalized to [0,1).
-    kb_semantic_weight: float = 0.7
-    # When False, ``create_document`` skips the background embedding task.
-    # Useful for tests that don't want to exercise the embedder.
+    kb_min_score: float = 0.35  # hybrid fused score gate
+    kb_semantic_weight: float = 0.7  # score = w*semantic + (1-w)*lexical
     kb_background_embedding: bool = True
+
+    # Topic context — see docs/environment.md
+    topic_context_enabled: bool = True
+    topic_context_token_budget: int = 12000
+    topic_curator_provider: str = "ollama"
+    topic_curator_model: str = ""
+    topic_curator_thinking: Literal["off", "low", "medium", "high"] = "medium"
+    topic_realtime_model: str = ""
+    topic_context_privacy_mode: Literal["local_only", "cloud_allowed"] = "local_only"
+    topic_consolidation_interval_minutes: int = 60
+    topic_bootstrap_timeout_seconds: float = 12.0
+    topic_consolidation_concurrency: int = 2
+    topic_realtime_batch_size: int = 100
 
     @property
     def cors_origins_list(self) -> list[str]:
-        return [origin.strip() for origin in self.cors_origins.split(",")]
+        return _split_csv(self.cors_origins)
 
     @property
     def admin_emails_list(self) -> list[str]:
-        return [e.strip().lower() for e in self.admin_emails.split(",") if e.strip()]
+        return [e.lower() for e in _split_csv(self.admin_emails) if e]
 
 
-# Secret values that are obviously placeholders and must never reach prod.
 _PLACEHOLDER_SECRETS = frozenset(
-    {
-        "",
-        "change-this-in-production",
-        "changeme",
-        "change-me",
-        "secret",
-        "your-secret-key",
-    }
+    {"", "change-this-in-production", "changeme", "change-me", "secret", "your-secret-key"}
 )
 
 
 def validate_startup_config(settings: "Settings") -> tuple[list[str], list[str]]:
-    """Check settings for boot-time problems.
-
-    Returns ``(fatal, warnings)`` message lists. Fatal issues are ones the
-    caller should refuse to start on when ``settings.debug`` is False —
-    catching them at boot beats a placeholder JWT key silently signing
-    tokens in prod.
-    """
+    """Return (fatal, warnings). Fatal blocked when not debug."""
     fatal: list[str] = []
     warns: list[str] = []
 
+    def _fatal_or_warn(msg: str) -> None:
+        (fatal if not settings.debug else warns).append(msg)
+
     if settings.secret_key.strip().lower() in _PLACEHOLDER_SECRETS:
-        msg = "SECRET_KEY is unset or a known placeholder — set a real key in .env"
-        (warns if settings.debug else fatal).append(msg)
+        _fatal_or_warn("SECRET_KEY is unset or a known placeholder — set a real key in .env")
     elif len(settings.secret_key) < 32:
         warns.append("SECRET_KEY is shorter than 32 characters — consider a longer random key")
 
     if settings.microapps_proxy_mode and not settings.microapps_repo_path:
         warns.append(
-            "MICROAPPS_PROXY_MODE is on but MICROAPPS_REPO_PATH is empty — "
-            "the /micro-apps proxy has nothing to serve"
+            "MICROAPPS_PROXY_MODE is on but MICROAPPS_REPO_PATH is empty — the /micro-apps proxy has nothing to serve"
         )
-
     return fatal, warns
 
 
 def feature_summary(settings: "Settings") -> list[str]:
-    """One line per optional feature, for the startup log."""
-    from pathlib import Path
+    """One line per optional feature for the startup log."""
 
     def flag(enabled: bool) -> str:
         return "enabled " if enabled else "disabled"
 
-    return [
-        f"llm            : {settings.llm_provider} @ {settings.ollama_base_url} "
-        f"(default model: {settings.default_model})",
-        f"stt            : {flag(True)} (mode: {settings.stt_mode})",
-        f"push (FCM)     : {flag(Path(settings.firebase_credentials_path).is_file())}",
-        f"micro-apps     : {flag(bool(settings.microapps_repo_path))}"
-        + (" (proxy mode)" if settings.microapps_proxy_mode else ""),
-        f"microapps sync : {flag(bool(settings.microapps_git_url))}",
-        f"test user      : {flag(bool(settings.test_user_email and settings.test_user_password))}",
-        f"admin emails   : {len(settings.admin_emails_list)} configured",
-        f"error reports  : {flag(settings.auto_error_reports)}",
+    llm_line = f"llm            : {settings.llm_provider} @ {settings.ollama_base_url} (default model: {settings.default_model})"
+    stt_line = f"stt            : {flag(True)} (mode: {settings.stt_mode})"
+    rows: list[tuple[str, bool, str]] = [
+        ("push (FCM)     ", Path(settings.firebase_credentials_path).is_file(), ""),
+        (
+            "micro-apps     ",
+            bool(settings.microapps_repo_path),
+            " (proxy mode)" if settings.microapps_proxy_mode else "",
+        ),
+        ("microapps sync ", bool(settings.microapps_git_url), ""),
+        ("test user      ", bool(settings.test_user_email and settings.test_user_password), ""),
     ]
+    lines = [llm_line, stt_line]
+    for label, enabled, suffix in rows:
+        lines.append(f"{label}: {flag(enabled)}{suffix}")
+    lines.append(f"admin emails   : {len(settings.admin_emails_list)} configured")
+    lines.append(f"error reports  : {flag(settings.auto_error_reports)}")
+    return lines
 
 
 @lru_cache

@@ -18,6 +18,7 @@ import 'package:garbanzo_ai/features/chat/widgets/message/speak_button.dart';
 import 'package:garbanzo_ai/features/chat/widgets/message/thinking_content.dart';
 import 'package:garbanzo_ai/features/chat/widgets/remember_this_button.dart';
 import 'package:garbanzo_ai/features/chat/widgets/tool_bubble_widget.dart';
+import 'package:garbanzo_ai/features/topics/widgets/topic_greeting_card.dart';
 import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// Widget for displaying a single chat message.
@@ -33,6 +34,7 @@ class ChatMessageWidget extends StatefulWidget {
     this.isStreaming = false,
     this.conversationId,
     this.isLastAssistant = false,
+    this.onOpenTopicContext,
   });
 
   final ChatMessage message;
@@ -42,6 +44,9 @@ class ChatMessageWidget extends StatefulWidget {
   /// Whether this is the most recent assistant message in the thread.
   /// Used to show the "Regenerate" button only on the latest reply.
   final bool isLastAssistant;
+
+  /// Optional callback to open topic active context panel.
+  final VoidCallback? onOpenTopicContext;
 
   @override
   State<ChatMessageWidget> createState() => _ChatMessageWidgetState();
@@ -73,6 +78,17 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
         message: widget.message,
         isStreaming: widget.isStreaming,
       );
+    }
+
+    // Seeded topic greeting rendered as a dedicated topic context card.
+    if (!widget.message.isUser) {
+      final greetingData = TopicGreetingData.tryParse(widget.message.content);
+      if (greetingData != null) {
+        return TopicGreetingCard(
+          data: greetingData,
+          onOpenContext: widget.onOpenTopicContext,
+        );
+      }
     }
 
     return MouseRegion(
@@ -198,6 +214,7 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
     final message = widget.message;
 
     final thinkingContent = _extractThinkingContent();
+    final effectiveContent = _effectiveAssistantContent(message.content);
     final hasMetadata = _hasMetadata();
 
     return Padding(
@@ -213,11 +230,11 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
               thinkingContent: thinkingContent,
               colorScheme: colorScheme,
               textTheme: theme.textTheme,
-              isLive: widget.isStreaming && message.content.isEmpty,
+              isLive: widget.isStreaming && effectiveContent.isEmpty,
             ),
-          if (message.content.isNotEmpty)
+          if (effectiveContent.isNotEmpty)
             MessageContent(
-              content: message.content,
+              content: effectiveContent,
               isUser: false,
               colorScheme: colorScheme,
               textTheme: theme.textTheme,
@@ -278,12 +295,12 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
           if (widget.isStreaming)
             Padding(
               padding: EdgeInsets.only(
-                top: message.content.isEmpty ? 4 : 10,
+                top: effectiveContent.isEmpty ? 4 : 10,
                 left: 2,
               ),
               child: PulsingDot(color: colorScheme.primary),
             )
-          else if (message.content.isNotEmpty) ...[
+          else if (effectiveContent.isNotEmpty) ...[
             RevealOnHover(
               revealed: _hovered || widget.isLastAssistant,
               child: Padding(
@@ -291,10 +308,10 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    CopyButton(content: message.content),
+                    CopyButton(content: effectiveContent),
                     const SizedBox(width: 8),
                     SpeakButton(
-                      content: message.content,
+                      content: effectiveContent,
                       isStreaming: widget.isStreaming,
                     ),
                     if (widget.isLastAssistant &&
@@ -404,12 +421,26 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
 
   String? _extractThinkingContent() {
     final metadata = widget.message.metadata;
-    if (metadata == null) return null;
-    final thinking = metadata['thinking'];
-    if (thinking is String && thinking.isNotEmpty) {
-      return thinking;
+    if (metadata != null) {
+      final thinking = metadata['thinking'];
+      if (thinking is String && thinking.isNotEmpty) {
+        return thinking;
+      }
+    }
+    if (widget.message.content.contains('</think>')) {
+      final parts = widget.message.content.split('</think>');
+      final thinkPart = parts[0].replaceAll('<think>', '').trim();
+      if (thinkPart.isNotEmpty) return thinkPart;
     }
     return null;
+  }
+
+  String _effectiveAssistantContent(String raw) {
+    if (raw.contains('</think>')) {
+      final parts = raw.split('</think>');
+      return parts.length > 1 ? parts.sublist(1).join('</think>').trim() : '';
+    }
+    return raw;
   }
 
   bool _hasMetadata() {

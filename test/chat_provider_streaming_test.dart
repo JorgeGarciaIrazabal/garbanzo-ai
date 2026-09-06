@@ -36,8 +36,12 @@ class _FakeChatService extends ChatService {
   Object? getConversationError;
 
   @override
-  Future<ConversationList> listConversations(
-      {int page = 1, int pageSize = 50, bool silent = false}) async {
+  Future<ConversationList> listConversations({
+    int page = 1,
+    int pageSize = 50,
+    bool silent = false,
+    String kind = 'all',
+  }) async {
     return ConversationList(
         items: [_conversation], total: 1, page: 1, pageSize: 50);
   }

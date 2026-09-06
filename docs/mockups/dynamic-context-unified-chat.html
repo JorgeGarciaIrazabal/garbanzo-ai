@@ -1,0 +1,4072 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Interactive Garbanzo AI mockup for a single continuous chat with transparent, AI-managed active context."
+    />
+    <title>Garbanzo — Dynamic context mockup</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --blue: #3157c8;
+        --blue-strong: #2346ad;
+        --blue-soft: #edf1ff;
+        --blue-wash: #f6f8ff;
+        --ink: #172035;
+        --muted: #687085;
+        --faint: #9399aa;
+        --line: #e5e7ee;
+        --line-strong: #d5d9e5;
+        --surface: #ffffff;
+        --surface-2: #f8f9fc;
+        --surface-3: #f1f3f8;
+        --green: #1d8865;
+        --green-soft: #e8f7f1;
+        --amber: #a56210;
+        --amber-soft: #fff5df;
+        --purple: #7751b8;
+        --purple-soft: #f3edff;
+        --danger: #b73b4b;
+        --shadow-sm: 0 1px 2px rgb(19 29 52 / 0.06);
+        --shadow-md: 0 12px 32px rgb(19 29 52 / 0.13);
+        --shadow-lg: 0 24px 70px rgb(19 29 52 / 0.2);
+        --left-width: 260px;
+        --right-width: 344px;
+        --radius: 14px;
+      }
+
+      [data-theme="dark"] {
+        color-scheme: dark;
+        --blue: #9bb1ff;
+        --blue-strong: #b8c6ff;
+        --blue-soft: #202a50;
+        --blue-wash: #191e2d;
+        --ink: #edf0f8;
+        --muted: #aab0c0;
+        --faint: #7f879a;
+        --line: #303545;
+        --line-strong: #41485d;
+        --surface: #171a22;
+        --surface-2: #1c202a;
+        --surface-3: #252a36;
+        --green: #6dd5ad;
+        --green-soft: #17372e;
+        --amber: #efbd6d;
+        --amber-soft: #3b2b17;
+        --purple: #c4a6ff;
+        --purple-soft: #302647;
+        --danger: #ff9aa7;
+        --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.24);
+        --shadow-md: 0 12px 32px rgb(0 0 0 / 0.32);
+        --shadow-lg: 0 24px 70px rgb(0 0 0 / 0.46);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      [hidden] {
+        display: none !important;
+      }
+
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+
+      body {
+        overflow: hidden;
+        background: var(--surface);
+        color: var(--ink);
+        font-family:
+          Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          sans-serif;
+        font-size: 14px;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      button,
+      textarea,
+      input {
+        color: inherit;
+        font: inherit;
+      }
+
+      button {
+        border: 0;
+      }
+
+      button:not(:disabled),
+      [role="button"] {
+        cursor: pointer;
+      }
+
+      button:focus-visible,
+      textarea:focus-visible,
+      input:focus-visible,
+      [tabindex]:focus-visible {
+        outline: 3px solid color-mix(in srgb, var(--blue) 35%, transparent);
+        outline-offset: 2px;
+      }
+
+      .icon {
+        display: block;
+        width: 18px;
+        height: 18px;
+        fill: none;
+        stroke: currentColor;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        stroke-width: 1.8;
+      }
+
+      .icon.sm {
+        width: 15px;
+        height: 15px;
+      }
+
+      .icon.lg {
+        width: 21px;
+        height: 21px;
+      }
+
+      .app-shell {
+        display: grid;
+        grid-template-columns: var(--left-width) minmax(430px, 1fr) var(--right-width);
+        height: 100dvh;
+        background: var(--surface);
+      }
+
+      .landing-active .app-shell {
+        grid-template-columns: var(--left-width) minmax(430px, 1fr);
+      }
+
+      .landing-active .context-panel,
+      .landing-active .fresh-button,
+      .landing-active .context-button,
+      .landing-active .turn-context {
+        display: none;
+      }
+
+      .sidebar {
+        position: relative;
+        z-index: 20;
+        display: flex;
+        min-width: 0;
+        flex-direction: column;
+        border-right: 1px solid var(--line);
+        background: var(--surface-2);
+      }
+
+      .brand-row {
+        display: flex;
+        height: 64px;
+        align-items: center;
+        gap: 10px;
+        padding: 0 16px;
+      }
+
+      .bean-logo {
+        width: 32px;
+        height: 32px;
+        object-fit: contain;
+        filter: drop-shadow(0 4px 7px rgb(49 87 200 / 0.16));
+      }
+
+      .brand-name {
+        font-size: 17px;
+        font-weight: 720;
+        letter-spacing: -0.02em;
+      }
+
+      .brand-pill {
+        margin-left: auto;
+        padding: 3px 7px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+
+      .sidebar-primary {
+        padding: 2px 12px 14px;
+      }
+
+      .primary-chat {
+        display: flex;
+        width: 100%;
+        align-items: center;
+        gap: 11px;
+        padding: 11px 12px;
+        border: 1px solid color-mix(in srgb, var(--blue) 23%, var(--line));
+        border-radius: 11px;
+        background: var(--blue-soft);
+        box-shadow: var(--shadow-sm);
+        color: var(--blue-strong);
+        font-weight: 670;
+        text-align: left;
+      }
+
+      .live-dot {
+        width: 7px;
+        height: 7px;
+        margin-left: auto;
+        border-radius: 50%;
+        background: var(--green);
+        box-shadow: 0 0 0 4px color-mix(in srgb, var(--green) 12%, transparent);
+      }
+
+      .nav-list {
+        display: grid;
+        gap: 3px;
+        padding: 0 12px 10px;
+      }
+
+      .nav-item {
+        display: flex;
+        width: 100%;
+        align-items: center;
+        gap: 11px;
+        padding: 9px 12px;
+        border-radius: 9px;
+        background: transparent;
+        color: var(--muted);
+        text-align: left;
+        transition: background 140ms ease, color 140ms ease;
+      }
+
+      .nav-item:hover {
+        background: var(--surface-3);
+        color: var(--ink);
+      }
+
+      .nav-shortcut {
+        margin-left: auto;
+        color: var(--faint);
+        font-size: 11px;
+      }
+
+      .timeline {
+        min-height: 0;
+        flex: 1;
+        overflow-y: auto;
+        padding: 12px 10px 22px 16px;
+        border-top: 1px solid var(--line);
+      }
+
+      .history-view-toggle {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 3px;
+        margin: 0 0 13px;
+        padding: 3px;
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        background: var(--surface-3);
+      }
+
+      .history-view-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+        padding: 7px 6px;
+        border-radius: 6px;
+        background: transparent;
+        color: var(--muted);
+        font-size: 10.5px;
+        font-weight: 650;
+      }
+
+      .history-view-button.active {
+        background: var(--surface);
+        color: var(--ink);
+        box-shadow: var(--shadow-sm);
+      }
+
+      .thread-list {
+        display: grid;
+        gap: 5px;
+      }
+
+      .thread-list[hidden] {
+        display: none;
+      }
+
+      .thread-item {
+        display: grid;
+        grid-template-columns: 28px minmax(0, 1fr) auto;
+        gap: 8px;
+        width: 100%;
+        align-items: start;
+        padding: 9px 8px;
+        border: 1px solid transparent;
+        border-radius: 9px;
+        background: transparent;
+        text-align: left;
+      }
+
+      .thread-item:hover,
+      .thread-item.active {
+        border-color: var(--line);
+        background: var(--surface);
+        box-shadow: var(--shadow-sm);
+      }
+
+      .thread-icon {
+        display: grid;
+        width: 28px;
+        height: 28px;
+        place-items: center;
+        border-radius: 8px;
+        background: var(--blue-soft);
+        color: var(--blue-strong);
+      }
+
+      .thread-copy {
+        min-width: 0;
+      }
+
+      .thread-copy strong,
+      .thread-copy span {
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .thread-copy strong {
+        font-size: 11.5px;
+      }
+
+      .thread-copy span {
+        margin-top: 4px;
+        color: var(--faint);
+        font-size: 9.5px;
+      }
+
+      .thread-date {
+        padding-top: 2px;
+        color: var(--faint);
+        font-size: 9px;
+      }
+
+      .legacy-note {
+        margin: 12px 3px 0;
+        padding: 9px;
+        border-radius: 8px;
+        background: var(--blue-wash);
+        color: var(--muted);
+        font-size: 9.5px;
+        line-height: 1.45;
+      }
+
+      .section-heading {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 9px;
+        padding: 0 6px;
+        color: var(--faint);
+        font-size: 10.5px;
+        font-weight: 750;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .section-heading button {
+        display: grid;
+        width: 26px;
+        height: 26px;
+        place-items: center;
+        border-radius: 7px;
+        background: transparent;
+        color: var(--muted);
+      }
+
+      .section-heading button:hover {
+        background: var(--surface-3);
+      }
+
+      .timeline-track {
+        position: relative;
+        display: grid;
+        gap: 2px;
+      }
+
+      .timeline-track::before {
+        position: absolute;
+        top: 17px;
+        bottom: 20px;
+        left: 12px;
+        width: 1px;
+        background: var(--line-strong);
+        content: "";
+      }
+
+      .topic-jump {
+        position: relative;
+        display: grid;
+        grid-template-columns: 25px minmax(0, 1fr);
+        gap: 8px;
+        width: 100%;
+        padding: 8px 7px 8px 0;
+        border-radius: 9px;
+        background: transparent;
+        text-align: left;
+      }
+
+      .topic-jump:hover,
+      .topic-jump.active {
+        background: var(--surface-3);
+      }
+
+      .topic-dot {
+        position: relative;
+        z-index: 1;
+        width: 9px;
+        height: 9px;
+        margin: 5px auto 0;
+        border: 2px solid var(--surface-2);
+        border-radius: 50%;
+        background: var(--line-strong);
+        box-shadow: 0 0 0 1px var(--line-strong);
+      }
+
+      .topic-jump.active .topic-dot {
+        background: var(--blue);
+        box-shadow: 0 0 0 1px var(--blue), 0 0 0 5px color-mix(in srgb, var(--blue) 11%, transparent);
+      }
+
+      .topic-title {
+        display: block;
+        overflow: hidden;
+        color: var(--ink);
+        font-size: 13px;
+        font-weight: 590;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .topic-meta {
+        display: block;
+        margin-top: 3px;
+        color: var(--faint);
+        font-size: 11px;
+      }
+
+      .day-label {
+        margin: 13px 0 3px 33px;
+        color: var(--faint);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      .sidebar-footer {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 13px 15px;
+        border-top: 1px solid var(--line);
+      }
+
+      .avatar {
+        display: grid;
+        width: 30px;
+        height: 30px;
+        flex: 0 0 auto;
+        place-items: center;
+        border-radius: 10px;
+        background: linear-gradient(145deg, #3459ca, #7c91e7);
+        color: #fff;
+        font-size: 11px;
+        font-weight: 760;
+      }
+
+      .profile-copy {
+        min-width: 0;
+        flex: 1;
+      }
+
+      .profile-copy strong,
+      .profile-copy span {
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .profile-copy strong {
+        font-size: 12px;
+      }
+
+      .profile-copy span {
+        margin-top: 2px;
+        color: var(--faint);
+        font-size: 10.5px;
+      }
+
+      .icon-button {
+        display: grid;
+        width: 36px;
+        height: 36px;
+        flex: 0 0 auto;
+        place-items: center;
+        border-radius: 10px;
+        background: transparent;
+        color: var(--muted);
+        transition: background 140ms ease, color 140ms ease;
+      }
+
+      .icon-button:hover {
+        background: var(--surface-3);
+        color: var(--ink);
+      }
+
+      .chat-main {
+        display: flex;
+        min-width: 0;
+        flex-direction: column;
+        background: var(--surface);
+      }
+
+      .chat-header {
+        position: relative;
+        z-index: 10;
+        display: flex;
+        height: 64px;
+        flex: 0 0 auto;
+        align-items: center;
+        gap: 12px;
+        padding: 0 18px 0 22px;
+        border-bottom: 1px solid var(--line);
+        background: color-mix(in srgb, var(--surface) 94%, transparent);
+        backdrop-filter: blur(14px);
+      }
+
+      .mobile-menu {
+        display: none;
+      }
+
+      .header-copy {
+        min-width: 0;
+        flex: 1;
+      }
+
+      .header-title {
+        display: flex;
+        min-width: 0;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .header-title h1 {
+        overflow: hidden;
+        margin: 0;
+        font-size: 15px;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .single-chat-label {
+        padding: 3px 7px;
+        border-radius: 999px;
+        background: var(--green-soft);
+        color: var(--green);
+        font-size: 9.5px;
+        font-weight: 750;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      .current-topic {
+        display: flex;
+        min-width: 0;
+        align-items: center;
+        gap: 5px;
+        margin-top: 3px;
+        color: var(--muted);
+        font-size: 11.5px;
+      }
+
+      .current-topic span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .header-actions {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+      }
+
+      .topic-landing {
+        position: relative;
+        display: flex;
+        min-height: 0;
+        flex: 1;
+        flex-direction: column;
+        overflow: hidden;
+        background:
+          radial-gradient(circle at 50% 45%, color-mix(in srgb, var(--blue) 7%, transparent), transparent 38%),
+          linear-gradient(var(--surface), var(--surface));
+      }
+
+      .landing-intro {
+        position: relative;
+        z-index: 3;
+        width: min(860px, calc(100% - 40px));
+        margin: 0 auto;
+        padding: 20px 8px 8px;
+        text-align: center;
+      }
+
+      .landing-controls {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        margin-top: 0;
+      }
+
+      .discovery-mode {
+        display: flex;
+        gap: 3px;
+        padding: 3px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: var(--surface-2);
+      }
+
+      .mode-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 7px 10px;
+        border-radius: 7px;
+        background: transparent;
+        color: var(--muted);
+        font-size: 10.5px;
+        font-weight: 630;
+      }
+
+      .mode-button.active {
+        background: var(--surface);
+        color: var(--blue-strong);
+        box-shadow: var(--shadow-sm);
+      }
+
+      .tree-toolbar {
+        position: relative;
+        z-index: 4;
+        display: flex;
+        width: min(940px, calc(100% - 32px));
+        min-height: 35px;
+        align-items: center;
+        gap: 6px;
+        margin: 5px auto 0;
+      }
+
+      .tree-breadcrumbs {
+        display: flex;
+        min-width: 0;
+        flex: 1;
+        align-items: center;
+        gap: 4px;
+        overflow-x: auto;
+        scrollbar-width: none;
+      }
+
+      .tree-breadcrumbs::-webkit-scrollbar {
+        display: none;
+      }
+
+      .start-branch-button {
+        display: inline-flex;
+        max-width: 220px;
+        flex: 0 0 auto;
+        align-items: center;
+        gap: 5px;
+        padding: 7px 9px;
+        border: 1px solid color-mix(in srgb, var(--blue) 30%, var(--line));
+        border-radius: 8px;
+        background: var(--blue-soft);
+        color: var(--blue-strong);
+        font-size: 10px;
+        font-weight: 680;
+        box-shadow: var(--shadow-sm);
+      }
+
+      .start-branch-button[hidden] {
+        display: none;
+      }
+
+      .start-branch-button span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .start-branch-button:hover {
+        border-color: var(--blue);
+        transform: translateY(-1px);
+      }
+
+      .crumb-button {
+        display: inline-flex;
+        flex: 0 0 auto;
+        align-items: center;
+        gap: 4px;
+        padding: 6px 7px;
+        border-radius: 7px;
+        background: transparent;
+        color: var(--muted);
+        font-size: 10.5px;
+        font-weight: 620;
+      }
+
+      .crumb-button:hover,
+      .crumb-button.current {
+        background: var(--surface-3);
+        color: var(--ink);
+      }
+
+      .tree-legend {
+        display: flex;
+        flex: 0 0 auto;
+        align-items: center;
+        gap: 11px;
+        color: var(--faint);
+        font-size: 9.5px;
+      }
+
+      .legend-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+      }
+
+      .legend-size {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border: 2px solid color-mix(in srgb, var(--blue) 55%, var(--line));
+        border-radius: 50%;
+      }
+
+      .tree-stage {
+        position: relative;
+        width: min(1080px, calc(100% - 24px));
+        min-height: 330px;
+        flex: 1;
+        margin: 0 auto;
+      }
+
+      .tree-canvas {
+        position: absolute;
+        overflow: hidden;
+        border: 0;
+        border-radius: 0;
+        background:
+          radial-gradient(circle at 16% 32%, color-mix(in srgb, var(--blue) 6%, transparent), transparent 24%),
+          radial-gradient(circle at 52% 72%, color-mix(in srgb, var(--purple) 6%, transparent), transparent 28%),
+          radial-gradient(circle at 84% 35%, color-mix(in srgb, var(--green) 6%, transparent), transparent 24%);
+        inset: 5px 0 14px;
+      }
+
+      .tree-canvas::before,
+      .tree-canvas::after {
+        display: none;
+      }
+
+      .topic-links,
+      .topic-nodes {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        inset: 0;
+      }
+
+      .topic-links {
+        display: none;
+      }
+
+      .topic-node {
+        --node-size: 76px;
+        --node-color: var(--blue);
+        position: absolute;
+        display: flex;
+        width: 20%;
+        height: 84px;
+        align-items: center;
+        justify-content: center;
+        padding: 10px 14px;
+        border: 0;
+        border-radius: 18px;
+        background: transparent;
+        box-shadow: none;
+        color: var(--ink);
+        text-align: center;
+        transform: translate(-50%, -50%);
+        transition: background 160ms ease, transform 160ms ease, opacity 160ms ease;
+        animation: node-in 240ms cubic-bezier(.2,.72,.25,1) both;
+      }
+
+      .topic-node::before {
+        position: absolute;
+        z-index: -1;
+        top: 50%;
+        left: 50%;
+        width: 78%;
+        height: 58%;
+        border-radius: 50%;
+        background: color-mix(in srgb, var(--node-color) 16%, transparent);
+        content: "";
+        filter: blur(20px);
+        opacity: 0.55;
+        transform: translate(-50%, -50%);
+      }
+
+      .topic-node.promoted-node::before {
+        width: 88%;
+        height: 72%;
+        background: color-mix(in srgb, var(--node-color) 24%, transparent);
+        opacity: 0.72;
+      }
+
+      .topic-node:hover,
+      .topic-node:focus-visible {
+        z-index: 5;
+        background: color-mix(in srgb, var(--node-color) 6%, transparent);
+        transform: translate(-50%, -50%) scale(1.035);
+      }
+
+      .topic-node.selected {
+        z-index: 4;
+        background: color-mix(in srgb, var(--node-color) 9%, transparent);
+        color: color-mix(in srgb, var(--node-color) 75%, var(--ink));
+      }
+
+      .topic-node-copy {
+        display: grid;
+        width: 100%;
+        justify-items: center;
+        gap: 4px;
+        pointer-events: none;
+      }
+
+      .topic-title {
+        display: flex;
+        max-width: 100%;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+      }
+
+      .topic-title strong {
+        min-width: 0;
+        font-size: calc(var(--node-emphasis) + 2px);
+        font-weight: 710;
+        letter-spacing: -0.025em;
+        line-height: 1.08;
+      }
+
+      .topic-title .icon {
+        flex: 0 0 auto;
+        color: color-mix(in srgb, var(--node-color) 68%, var(--muted));
+        opacity: 0.62;
+      }
+
+      .topic-node.promoted-node .topic-title strong {
+        font-size: calc(var(--node-emphasis) + 4px);
+        font-weight: 760;
+      }
+
+      .node-origin {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        color: color-mix(in srgb, var(--node-color) 70%, var(--muted));
+        font-size: 8.5px;
+        font-weight: 650;
+        line-height: 1;
+      }
+
+      .node-origin .icon {
+        width: 10px;
+        height: 10px;
+      }
+
+      .branch-count {
+        display: none;
+      }
+
+      .topic-prompt-card {
+        position: absolute;
+        z-index: 8;
+        right: 17px;
+        bottom: 26px;
+        width: min(330px, calc(100% - 34px));
+        padding: 13px;
+        border: 1px solid color-mix(in srgb, var(--blue) 30%, var(--line));
+        border-radius: 14px;
+        background: color-mix(in srgb, var(--surface) 94%, transparent);
+        box-shadow: var(--shadow-md);
+        backdrop-filter: blur(12px);
+        animation: modal-in 180ms ease;
+      }
+
+      .prompt-card-head {
+        display: flex;
+        align-items: start;
+        gap: 8px;
+      }
+
+      .prompt-card-head .shift-icon {
+        width: 29px;
+        height: 29px;
+      }
+
+      .prompt-card-copy {
+        min-width: 0;
+        flex: 1;
+      }
+
+      .prompt-card-copy strong {
+        display: block;
+        font-size: 11.5px;
+      }
+
+      .prompt-card-copy span {
+        display: block;
+        margin-top: 3px;
+        color: var(--muted);
+        font-size: 9.5px;
+        line-height: 1.35;
+      }
+
+      .prompt-options {
+        display: grid;
+        gap: 5px;
+        margin-top: 10px;
+      }
+
+      .prompt-option {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 8px 9px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--surface-2);
+        color: var(--ink);
+        font-size: 10.5px;
+        text-align: left;
+      }
+
+      .prompt-option:hover {
+        border-color: color-mix(in srgb, var(--blue) 45%, var(--line));
+        background: var(--blue-wash);
+      }
+
+      .continue-chat-button {
+        position: absolute;
+        z-index: 6;
+        bottom: 27px;
+        left: 17px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 10px;
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        background: color-mix(in srgb, var(--surface) 92%, transparent);
+        box-shadow: var(--shadow-sm);
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 620;
+        backdrop-filter: blur(10px);
+      }
+
+      .continue-chat-button:hover {
+        color: var(--ink);
+      }
+
+      @keyframes node-in {
+        from { opacity: 0; transform: translate(-50%, -50%) scale(0.72); }
+        to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+      }
+
+      @keyframes grow-link {
+        from { opacity: 0; stroke-dasharray: 3 9; }
+        to { opacity: 1; stroke-dasharray: 100 0; }
+      }
+
+      .fresh-button,
+      .context-button {
+        display: flex;
+        height: 36px;
+        align-items: center;
+        gap: 7px;
+        padding: 0 11px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: var(--surface);
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 620;
+        box-shadow: var(--shadow-sm);
+      }
+
+      .fresh-button:hover,
+      .context-button:hover {
+        border-color: var(--line-strong);
+        background: var(--surface-2);
+        color: var(--ink);
+      }
+
+      .context-button {
+        border-color: color-mix(in srgb, var(--blue) 30%, var(--line));
+        background: var(--blue-soft);
+        color: var(--blue-strong);
+      }
+
+      .count-badge {
+        display: grid;
+        min-width: 18px;
+        height: 18px;
+        place-items: center;
+        padding: 0 5px;
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--blue) 14%, transparent);
+        font-size: 10px;
+      }
+
+      .message-scroller {
+        min-height: 0;
+        flex: 1;
+        overflow-y: auto;
+        scroll-behavior: smooth;
+      }
+
+      .messages {
+        width: min(760px, calc(100% - 42px));
+        margin: 0 auto;
+        padding: 36px 0 24px;
+      }
+
+      .date-divider {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin: 4px 0 30px;
+        color: var(--faint);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .date-divider::before,
+      .date-divider::after {
+        height: 1px;
+        flex: 1;
+        background: var(--line);
+        content: "";
+      }
+
+      .message {
+        display: grid;
+        grid-template-columns: 30px minmax(0, 1fr);
+        gap: 12px;
+        margin: 0 0 27px;
+      }
+
+      .message.user {
+        grid-template-columns: minmax(0, 1fr) 30px;
+      }
+
+      .message.user .message-body {
+        display: flex;
+        justify-content: flex-end;
+        grid-column: 1;
+        grid-row: 1;
+      }
+
+      .message.user .avatar {
+        grid-column: 2;
+      }
+
+      .assistant-avatar {
+        overflow: hidden;
+        padding: 4px;
+        border: 1px solid color-mix(in srgb, var(--blue) 24%, var(--line));
+        background: var(--blue-soft);
+      }
+
+      .assistant-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+      }
+
+      .message-body {
+        min-width: 0;
+      }
+
+      .message-name {
+        margin: 1px 0 7px;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 650;
+      }
+
+      .message-text {
+        max-width: 650px;
+        color: var(--ink);
+        font-size: 14px;
+        line-height: 1.65;
+      }
+
+      .message-text p {
+        margin: 0 0 10px;
+      }
+
+      .message-text p:last-child {
+        margin-bottom: 0;
+      }
+
+      .user-bubble {
+        max-width: 600px;
+        padding: 11px 15px;
+        border-radius: 15px 4px 15px 15px;
+        background: var(--blue-soft);
+        color: var(--ink);
+        line-height: 1.55;
+      }
+
+      .context-shift {
+        position: relative;
+        margin: 2px 42px 30px;
+        padding: 13px 14px;
+        border: 1px solid color-mix(in srgb, var(--purple) 25%, var(--line));
+        border-radius: 12px;
+        background: color-mix(in srgb, var(--purple-soft) 55%, var(--surface));
+      }
+
+      .context-shift-top {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+      }
+
+      .shift-icon {
+        display: grid;
+        width: 28px;
+        height: 28px;
+        flex: 0 0 auto;
+        place-items: center;
+        border-radius: 9px;
+        background: var(--purple-soft);
+        color: var(--purple);
+      }
+
+      .shift-copy {
+        min-width: 0;
+        flex: 1;
+      }
+
+      .shift-copy strong {
+        display: block;
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .shift-copy span {
+        display: block;
+        overflow: hidden;
+        margin-top: 2px;
+        color: var(--muted);
+        font-size: 11px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .shift-actions {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+      }
+
+      .text-button {
+        padding: 6px 8px;
+        border-radius: 7px;
+        background: transparent;
+        color: var(--purple);
+        font-size: 11px;
+        font-weight: 660;
+      }
+
+      .text-button:hover {
+        background: color-mix(in srgb, var(--purple) 10%, transparent);
+      }
+
+      .context-reason {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 10px;
+        padding-left: 37px;
+      }
+
+      .reason-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 4px 7px;
+        border: 1px solid color-mix(in srgb, var(--purple) 19%, var(--line));
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--surface) 80%, transparent);
+        color: var(--muted);
+        font-size: 10.5px;
+      }
+
+      .trip-card {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 9px;
+        margin-top: 14px;
+      }
+
+      .trip-day {
+        padding: 11px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: var(--surface-2);
+      }
+
+      .trip-day span {
+        color: var(--faint);
+        font-size: 10px;
+        font-weight: 750;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+
+      .trip-day strong {
+        display: block;
+        margin: 5px 0 3px;
+        font-size: 12px;
+      }
+
+      .trip-day small {
+        color: var(--muted);
+        font-size: 10.5px;
+        line-height: 1.35;
+      }
+
+      .composer-wrap {
+        position: relative;
+        z-index: 9;
+        flex: 0 0 auto;
+        padding: 8px 18px 18px;
+        background: linear-gradient(to top, var(--surface) 72%, transparent);
+      }
+
+      .composer {
+        position: relative;
+        width: min(790px, 100%);
+        margin: 0 auto;
+        border: 1px solid var(--line-strong);
+        border-radius: 16px;
+        background: var(--surface);
+        box-shadow: 0 8px 26px rgb(24 35 64 / 0.09), var(--shadow-sm);
+        transition: border-color 140ms ease, box-shadow 140ms ease;
+      }
+
+      .composer:focus-within {
+        border-color: color-mix(in srgb, var(--blue) 58%, var(--line));
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--blue) 10%, transparent), 0 10px 30px rgb(24 35 64 / 0.1);
+      }
+
+      .turn-context {
+        display: flex;
+        min-height: 34px;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 10px 0;
+        overflow-x: auto;
+        scrollbar-width: none;
+      }
+
+      .turn-context::-webkit-scrollbar {
+        display: none;
+      }
+
+      .context-status {
+        display: inline-flex;
+        flex: 0 0 auto;
+        align-items: center;
+        gap: 5px;
+        padding: 5px 7px;
+        border-radius: 7px;
+        background: var(--purple-soft);
+        color: var(--purple);
+        font-size: 10.5px;
+        font-weight: 680;
+      }
+
+      .context-chip {
+        display: inline-flex;
+        flex: 0 0 auto;
+        align-items: center;
+        gap: 5px;
+        max-width: 155px;
+        padding: 4px 6px 4px 8px;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        background: var(--surface-2);
+        color: var(--muted);
+        font-size: 10.5px;
+      }
+
+      .context-chip span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .context-chip button {
+        display: grid;
+        width: 17px;
+        height: 17px;
+        place-items: center;
+        border-radius: 5px;
+        background: transparent;
+        color: var(--faint);
+      }
+
+      .context-chip button:hover {
+        background: var(--surface-3);
+        color: var(--ink);
+      }
+
+      .composer-textarea {
+        display: block;
+        width: 100%;
+        min-height: 54px;
+        max-height: 150px;
+        resize: none;
+        padding: 13px 15px 6px;
+        border: 0;
+        outline: 0 !important;
+        background: transparent;
+        color: var(--ink);
+        line-height: 1.5;
+      }
+
+      .composer-textarea::placeholder {
+        color: var(--faint);
+      }
+
+      .composer-bottom {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        padding: 4px 8px 8px;
+      }
+
+      .composer-tool {
+        display: grid;
+        width: 32px;
+        height: 32px;
+        place-items: center;
+        border-radius: 9px;
+        background: transparent;
+        color: var(--muted);
+      }
+
+      .composer-tool:hover {
+        background: var(--surface-3);
+        color: var(--ink);
+      }
+
+      .new-topic-button {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        min-height: 32px;
+        padding: 0 9px;
+        border: 1px solid color-mix(in srgb, var(--blue) 24%, var(--line));
+        border-radius: 9px;
+        background: var(--blue-wash);
+        color: var(--blue-strong);
+        font-size: 10.5px;
+        font-weight: 680;
+      }
+
+      .new-topic-button:hover {
+        border-color: color-mix(in srgb, var(--blue) 48%, var(--line));
+        background: color-mix(in srgb, var(--blue) 10%, var(--surface));
+      }
+
+      .style-button {
+        display: flex;
+        min-width: 128px;
+        align-items: center;
+        gap: 7px;
+        padding: 4px 7px;
+        border-radius: 9px;
+        background: transparent;
+        color: var(--muted);
+        text-align: left;
+      }
+
+      .style-button:hover,
+      .style-button[aria-expanded="true"] {
+        background: var(--surface-3);
+        color: var(--ink);
+      }
+
+      .style-button-copy {
+        display: grid;
+        min-width: 0;
+        flex: 1;
+        line-height: 1.05;
+      }
+
+      .style-button-copy strong {
+        color: var(--ink);
+        font-size: 10.5px;
+        font-weight: 700;
+      }
+
+      .style-button-copy small {
+        margin-top: 3px;
+        color: var(--faint);
+        font-size: 8.5px;
+      }
+
+      .quick-effort-button {
+        display: inline-flex;
+        min-height: 30px;
+        align-items: center;
+        gap: 4px;
+        padding: 0 7px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--surface-2);
+        color: var(--muted);
+        font-size: 9.5px;
+        font-weight: 680;
+      }
+
+      .quick-effort-button:hover {
+        border-color: color-mix(in srgb, var(--purple) 42%, var(--line));
+        color: var(--purple);
+      }
+
+      .style-popover {
+        position: absolute;
+        z-index: 25;
+        right: 0;
+        bottom: calc(100% + 10px);
+        width: min(430px, calc(100vw - 24px));
+        padding: 14px;
+        border: 1px solid var(--line-strong);
+        border-radius: 15px;
+        background: color-mix(in srgb, var(--surface) 96%, transparent);
+        box-shadow: var(--shadow-lg);
+        text-align: left;
+        backdrop-filter: blur(16px);
+        animation: modal-in 160ms ease;
+      }
+
+      .style-popover-head {
+        display: flex;
+        align-items: start;
+        gap: 9px;
+      }
+
+      .style-popover-title {
+        min-width: 0;
+        flex: 1;
+      }
+
+      .style-popover-title strong {
+        display: block;
+        font-size: 13px;
+      }
+
+      .style-popover-title span {
+        display: block;
+        margin-top: 3px;
+        color: var(--faint);
+        font-size: 9.5px;
+      }
+
+      .style-presets {
+        display: flex;
+        gap: 5px;
+        margin: 12px 0;
+        overflow-x: auto;
+        scrollbar-width: none;
+      }
+
+      .style-preset {
+        flex: 0 0 auto;
+        padding: 6px 9px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--surface-2);
+        color: var(--muted);
+        font-size: 9.5px;
+        font-weight: 680;
+      }
+
+      .style-preset.active {
+        border-color: color-mix(in srgb, var(--blue) 38%, var(--line));
+        background: var(--blue-wash);
+        color: var(--blue-strong);
+      }
+
+      .style-form {
+        display: grid;
+        gap: 10px;
+      }
+
+      .style-field {
+        display: grid;
+        gap: 5px;
+      }
+
+      .style-field > span,
+      .effort-field-head span:first-child {
+        color: var(--muted);
+        font-size: 9.5px;
+        font-weight: 700;
+      }
+
+      .style-field select,
+      .style-field textarea {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        outline: 0;
+        background: var(--surface-2);
+        color: var(--ink);
+        font: inherit;
+      }
+
+      .style-field select {
+        height: 36px;
+        padding: 0 9px;
+        font-size: 10.5px;
+      }
+
+      .style-field textarea {
+        min-height: 66px;
+        resize: vertical;
+        padding: 8px 9px;
+        font-size: 10px;
+        line-height: 1.4;
+      }
+
+      .effort-field-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+
+      .effort-support {
+        color: var(--faint);
+        font-size: 8.5px;
+      }
+
+      .effort-options {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 4px;
+        padding: 3px;
+        border-radius: 10px;
+        background: var(--surface-3);
+      }
+
+      .effort-option {
+        min-height: 32px;
+        border-radius: 8px;
+        background: transparent;
+        color: var(--muted);
+        font-size: 9.5px;
+        font-weight: 690;
+      }
+
+      .effort-option.active {
+        background: var(--surface);
+        color: var(--purple);
+        box-shadow: var(--shadow-sm);
+      }
+
+      .effort-option:disabled {
+        color: var(--faint);
+        cursor: not-allowed;
+        opacity: 0.35;
+        text-decoration: line-through;
+      }
+
+      .style-popover-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-top: 12px;
+      }
+
+      .style-popover-footer span {
+        color: var(--faint);
+        font-size: 8.5px;
+      }
+
+      .style-done-button {
+        padding: 7px 12px;
+        border-radius: 8px;
+        background: var(--blue);
+        color: #fff;
+        font-size: 10px;
+        font-weight: 700;
+      }
+
+      .composer-spacer {
+        flex: 1;
+      }
+
+      .composer-hint {
+        color: var(--faint);
+        font-size: 9.5px;
+      }
+
+      .send-button {
+        display: grid;
+        width: 32px;
+        height: 32px;
+        place-items: center;
+        border-radius: 9px;
+        background: var(--blue);
+        color: #fff;
+        transition: transform 120ms ease, opacity 120ms ease;
+      }
+
+      .send-button:hover {
+        transform: translateY(-1px);
+      }
+
+      .send-button:disabled {
+        cursor: default;
+        opacity: 0.42;
+      }
+
+      .context-panel {
+        position: relative;
+        z-index: 30;
+        display: flex;
+        min-width: 0;
+        flex-direction: column;
+        border-left: 1px solid var(--line);
+        background: var(--surface-2);
+      }
+
+      .panel-header {
+        display: flex;
+        height: 64px;
+        flex: 0 0 auto;
+        align-items: center;
+        gap: 9px;
+        padding: 0 14px 0 17px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .panel-title {
+        min-width: 0;
+        flex: 1;
+      }
+
+      .panel-title strong {
+        display: block;
+        font-size: 13px;
+      }
+
+      .panel-title span {
+        display: block;
+        margin-top: 3px;
+        color: var(--faint);
+        font-size: 10.5px;
+      }
+
+      .panel-close {
+        display: none;
+      }
+
+      .panel-scroll {
+        min-height: 0;
+        flex: 1;
+        overflow-y: auto;
+        padding: 13px 14px 30px;
+      }
+
+      .panel-pane[hidden] {
+        display: none;
+      }
+
+      .topic-card {
+        padding: 13px;
+        border: 1px solid color-mix(in srgb, var(--purple) 25%, var(--line));
+        border-radius: 12px;
+        background: color-mix(in srgb, var(--purple-soft) 45%, var(--surface));
+      }
+
+      .topic-card-label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--purple);
+        font-size: 10px;
+        font-weight: 760;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+
+      .topic-card h2 {
+        margin: 9px 0 4px;
+        font-size: 14px;
+        letter-spacing: -0.01em;
+      }
+
+      .topic-card p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 11px;
+        line-height: 1.45;
+      }
+
+      .topic-card-actions {
+        display: flex;
+        gap: 6px;
+        margin-top: 11px;
+      }
+
+      .small-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 6px 8px;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        background: var(--surface);
+        color: var(--muted);
+        font-size: 10.5px;
+        font-weight: 620;
+      }
+
+      .small-button:hover {
+        border-color: var(--line-strong);
+        color: var(--ink);
+      }
+
+      .small-button.primary {
+        border-color: color-mix(in srgb, var(--blue) 27%, var(--line));
+        color: var(--blue-strong);
+      }
+
+      .context-meter {
+        display: grid;
+        grid-template-columns: 45px minmax(0, 1fr);
+        gap: 11px;
+        align-items: center;
+        margin: 11px 0;
+        padding: 11px 12px;
+        border: 1px solid var(--line);
+        border-radius: 11px;
+        background: var(--surface);
+      }
+
+      .meter-ring {
+        --value: 34;
+        position: relative;
+        display: grid;
+        width: 43px;
+        height: 43px;
+        place-items: center;
+        border-radius: 50%;
+        background: conic-gradient(var(--blue) calc(var(--value) * 1%), var(--surface-3) 0);
+      }
+
+      .meter-ring::after {
+        position: absolute;
+        width: 31px;
+        height: 31px;
+        border-radius: 50%;
+        background: var(--surface);
+        content: "";
+      }
+
+      .meter-ring span {
+        position: relative;
+        z-index: 1;
+        color: var(--muted);
+        font-size: 9px;
+        font-weight: 750;
+      }
+
+      .meter-copy strong {
+        display: block;
+        font-size: 11px;
+      }
+
+      .meter-copy span {
+        display: block;
+        margin-top: 3px;
+        color: var(--faint);
+        font-size: 10px;
+        line-height: 1.35;
+      }
+
+      .preview-button {
+        width: 100%;
+        margin-bottom: 11px;
+        justify-content: center;
+      }
+
+      .context-preview {
+        display: none;
+        margin: -2px 0 11px;
+        padding: 11px;
+        border: 1px dashed var(--line-strong);
+        border-radius: 10px;
+        background: var(--blue-wash);
+        color: var(--muted);
+        font-size: 10.5px;
+        line-height: 1.5;
+      }
+
+      .context-preview.open {
+        display: block;
+        animation: reveal 180ms ease;
+      }
+
+      .context-preview strong {
+        color: var(--ink);
+      }
+
+      .context-section {
+        margin-top: 16px;
+      }
+
+      .context-section-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 7px;
+        padding: 0 2px;
+      }
+
+      .context-section-head strong {
+        color: var(--muted);
+        font-size: 10.5px;
+        font-weight: 750;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      .context-section-head span {
+        color: var(--faint);
+        font-size: 10px;
+      }
+
+      .context-list {
+        display: grid;
+        gap: 6px;
+      }
+
+      .context-item {
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: var(--surface);
+        transition: opacity 160ms ease, transform 160ms ease;
+      }
+
+      .context-item.removing {
+        opacity: 0;
+        transform: translateX(12px);
+      }
+
+      .context-item-main {
+        display: grid;
+        grid-template-columns: 28px minmax(0, 1fr) auto;
+        gap: 9px;
+        align-items: start;
+        padding: 10px;
+      }
+
+      .source-icon {
+        display: grid;
+        width: 28px;
+        height: 28px;
+        place-items: center;
+        border-radius: 8px;
+        background: var(--blue-soft);
+        color: var(--blue-strong);
+      }
+
+      .source-icon.memory {
+        background: var(--amber-soft);
+        color: var(--amber);
+      }
+
+      .source-icon.history {
+        background: var(--purple-soft);
+        color: var(--purple);
+      }
+
+      .source-copy {
+        min-width: 0;
+      }
+
+      .source-copy strong {
+        display: block;
+        overflow: hidden;
+        font-size: 11.5px;
+        font-weight: 650;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .source-copy span {
+        display: block;
+        overflow: hidden;
+        margin-top: 3px;
+        color: var(--faint);
+        font-size: 10px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .source-actions {
+        display: flex;
+        gap: 1px;
+      }
+
+      .mini-icon-button {
+        display: grid;
+        width: 26px;
+        height: 26px;
+        place-items: center;
+        border-radius: 7px;
+        background: transparent;
+        color: var(--faint);
+      }
+
+      .mini-icon-button:hover,
+      .mini-icon-button.active {
+        background: var(--surface-3);
+        color: var(--blue-strong);
+      }
+
+      .mini-icon-button.active .icon {
+        fill: currentColor;
+      }
+
+      .why-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 7px 10px;
+        border-top: 1px solid var(--line);
+        background: var(--surface-2);
+        color: var(--faint);
+        font-size: 9.5px;
+      }
+
+      .why-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 0;
+        background: transparent;
+        color: var(--muted);
+        font-size: 9.5px;
+        font-weight: 600;
+      }
+
+      .why-detail {
+        display: none;
+        padding: 8px 10px 9px;
+        border-top: 1px solid var(--line);
+        background: var(--surface-2);
+        color: var(--muted);
+        font-size: 10px;
+        line-height: 1.45;
+      }
+
+      .why-detail.open {
+        display: block;
+      }
+
+      .add-context-button {
+        display: flex;
+        width: 100%;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        margin-top: 8px;
+        padding: 8px;
+        border: 1px dashed var(--line-strong);
+        border-radius: 9px;
+        background: transparent;
+        color: var(--muted);
+        font-size: 10.5px;
+        font-weight: 620;
+      }
+
+      .add-context-button:hover {
+        border-color: var(--blue);
+        background: var(--blue-wash);
+        color: var(--blue-strong);
+      }
+
+      .scrim {
+        position: fixed;
+        z-index: 40;
+        display: none;
+        background: rgb(13 19 35 / 0.37);
+        inset: 0;
+        backdrop-filter: blur(1px);
+      }
+
+      .scrim.open {
+        display: block;
+      }
+
+      .modal-layer {
+        position: fixed;
+        z-index: 100;
+        display: none;
+        place-items: center;
+        padding: 18px;
+        background: rgb(12 18 31 / 0.42);
+        inset: 0;
+        backdrop-filter: blur(4px);
+      }
+
+      .modal-layer.open {
+        display: grid;
+      }
+
+      .context-picker {
+        overflow: hidden;
+        width: min(580px, 100%);
+        max-height: min(710px, calc(100dvh - 36px));
+        border: 1px solid var(--line-strong);
+        border-radius: 16px;
+        background: var(--surface);
+        box-shadow: var(--shadow-lg);
+        animation: modal-in 160ms ease;
+      }
+
+      .picker-header {
+        display: flex;
+        align-items: center;
+        gap: 11px;
+        padding: 15px 17px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .picker-header input {
+        min-width: 0;
+        flex: 1;
+        padding: 0;
+        border: 0;
+        outline: 0;
+        background: transparent;
+        font-size: 14px;
+      }
+
+      .keycap {
+        padding: 3px 6px;
+        border: 1px solid var(--line);
+        border-radius: 5px;
+        background: var(--surface-2);
+        color: var(--faint);
+        font-size: 9px;
+      }
+
+      .picker-content {
+        max-height: 540px;
+        overflow-y: auto;
+        padding: 10px;
+      }
+
+      .picker-group {
+        margin-bottom: 13px;
+      }
+
+      .picker-group h3 {
+        margin: 0;
+        padding: 6px 8px;
+        color: var(--faint);
+        font-size: 9.5px;
+        font-weight: 760;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+      }
+
+      .picker-item {
+        display: grid;
+        grid-template-columns: 34px minmax(0, 1fr) auto;
+        gap: 10px;
+        width: 100%;
+        align-items: center;
+        padding: 9px;
+        border-radius: 10px;
+        background: transparent;
+        text-align: left;
+      }
+
+      .picker-item:hover {
+        background: var(--surface-2);
+      }
+
+      .picker-item.hidden {
+        display: none;
+      }
+
+      .picker-item .source-icon {
+        width: 34px;
+        height: 34px;
+      }
+
+      .picker-copy {
+        min-width: 0;
+      }
+
+      .picker-copy strong,
+      .picker-copy span {
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .picker-copy strong {
+        font-size: 12px;
+      }
+
+      .picker-copy span {
+        margin-top: 3px;
+        color: var(--faint);
+        font-size: 10.5px;
+      }
+
+      .picker-check {
+        display: grid;
+        width: 21px;
+        height: 21px;
+        place-items: center;
+        border: 1px solid var(--line-strong);
+        border-radius: 6px;
+        color: transparent;
+      }
+
+      .picker-item.selected .picker-check {
+        border-color: var(--blue);
+        background: var(--blue);
+        color: #fff;
+      }
+
+      .picker-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 11px 14px;
+        border-top: 1px solid var(--line);
+        background: var(--surface-2);
+      }
+
+      .picker-footer span {
+        color: var(--faint);
+        font-size: 10px;
+      }
+
+      .done-button,
+      .confirm-button {
+        padding: 8px 13px;
+        border-radius: 9px;
+        background: var(--blue);
+        color: #fff;
+        font-size: 11px;
+        font-weight: 680;
+      }
+
+      .confirm-dialog {
+        width: min(420px, 100%);
+        padding: 20px;
+        border: 1px solid var(--line-strong);
+        border-radius: 16px;
+        background: var(--surface);
+        box-shadow: var(--shadow-lg);
+        animation: modal-in 160ms ease;
+      }
+
+      .dialog-icon {
+        display: grid;
+        width: 40px;
+        height: 40px;
+        place-items: center;
+        border-radius: 12px;
+        background: var(--blue-soft);
+        color: var(--blue-strong);
+      }
+
+      .confirm-dialog h2 {
+        margin: 15px 0 7px;
+        font-size: 17px;
+      }
+
+      .confirm-dialog p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.55;
+      }
+
+      .dialog-note {
+        display: flex;
+        gap: 8px;
+        margin-top: 14px;
+        padding: 10px;
+        border-radius: 9px;
+        background: var(--green-soft);
+        color: var(--green);
+        font-size: 10.5px;
+        line-height: 1.4;
+      }
+
+      .dialog-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 18px;
+      }
+
+      .cancel-button {
+        padding: 8px 12px;
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        background: var(--surface);
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 620;
+      }
+
+      .toast-stack {
+        position: fixed;
+        z-index: 200;
+        right: 18px;
+        bottom: 18px;
+        display: grid;
+        gap: 8px;
+        pointer-events: none;
+      }
+
+      .toast {
+        display: flex;
+        width: min(340px, calc(100vw - 36px));
+        align-items: center;
+        gap: 9px;
+        padding: 11px 13px;
+        border: 1px solid var(--line-strong);
+        border-radius: 11px;
+        background: var(--surface);
+        box-shadow: var(--shadow-md);
+        color: var(--ink);
+        font-size: 11.5px;
+        animation: toast-in 180ms ease;
+      }
+
+      .toast .icon {
+        color: var(--green);
+      }
+
+      .empty-results {
+        display: none;
+        padding: 34px 16px;
+        color: var(--muted);
+        text-align: center;
+        font-size: 12px;
+      }
+
+      @keyframes reveal {
+        from { opacity: 0; transform: translateY(-3px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
+      @keyframes modal-in {
+        from { opacity: 0; transform: translateY(8px) scale(0.985); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
+      }
+
+      @keyframes toast-in {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
+      @media (max-width: 1180px) {
+        .app-shell {
+          grid-template-columns: var(--left-width) minmax(430px, 1fr);
+        }
+
+        .context-panel {
+          position: fixed;
+          top: 0;
+          right: 0;
+          bottom: 0;
+          width: min(var(--right-width), calc(100vw - 50px));
+          box-shadow: var(--shadow-lg);
+          transform: translateX(104%);
+          transition: transform 200ms ease;
+        }
+
+        .context-panel.open {
+          transform: translateX(0);
+        }
+
+        .panel-close {
+          display: grid;
+        }
+      }
+
+      @media (max-width: 760px) {
+        :root {
+          --left-width: min(290px, calc(100vw - 46px));
+        }
+
+        .app-shell {
+          display: block;
+        }
+
+        .sidebar {
+          position: fixed;
+          top: 0;
+          bottom: 0;
+          left: 0;
+          width: var(--left-width);
+          box-shadow: var(--shadow-lg);
+          transform: translateX(-104%);
+          transition: transform 200ms ease;
+        }
+
+        .sidebar.open {
+          transform: translateX(0);
+        }
+
+        .chat-main {
+          height: 100dvh;
+        }
+
+        .landing-active .app-shell {
+          display: block;
+        }
+
+        .landing-intro {
+          width: calc(100% - 24px);
+          padding: 11px 0 6px;
+        }
+
+        .landing-controls {
+          margin-top: 0;
+        }
+
+        .tree-toolbar {
+          width: calc(100% - 18px);
+          margin-top: 1px;
+        }
+
+        .tree-toolbar.root-only {
+          display: none;
+        }
+
+        .start-branch-button {
+          max-width: 145px;
+          min-height: 34px;
+          padding: 7px 8px;
+        }
+
+        .tree-legend {
+          display: none;
+        }
+
+        .tree-stage {
+          width: 100%;
+          min-height: 420px;
+        }
+
+        .tree-canvas {
+          overflow: hidden;
+          border: 0;
+          border-radius: 0;
+          background:
+            radial-gradient(circle at 50% 4%, color-mix(in srgb, var(--green) 12%, transparent), transparent 18%),
+            radial-gradient(circle at 25% 45%, color-mix(in srgb, var(--blue) 5%, transparent), transparent 24%),
+            radial-gradient(circle at 76% 68%, color-mix(in srgb, var(--purple) 5%, transparent), transparent 26%);
+          box-shadow: none;
+          inset: 0 0 8px;
+        }
+
+        .tree-canvas::before {
+          display: none;
+        }
+
+        .tree-canvas::after {
+          display: none;
+        }
+
+        .topic-links {
+          display: none;
+        }
+
+        .topic-node {
+          display: flex;
+          width: 58% !important;
+          height: 62px !important;
+          align-items: center;
+          justify-content: flex-start;
+          padding: 8px 28px;
+          border: 0;
+          border-radius: 18px;
+          background: transparent;
+          box-shadow: none;
+          text-align: left;
+        }
+
+        .topic-node::before {
+          position: absolute;
+          z-index: -1;
+          top: 50%;
+          left: 50%;
+          width: 72%;
+          height: 55%;
+          border-radius: 50%;
+          background: color-mix(in srgb, var(--node-color) 18%, transparent);
+          content: "";
+          filter: blur(17px);
+          opacity: 0.55;
+          transform: translate(-50%, -50%);
+        }
+
+        .topic-node.promoted-node::before {
+          width: 82%;
+          height: 68%;
+          background: color-mix(in srgb, var(--node-color) 25%, transparent);
+          opacity: 0.72;
+        }
+
+        .topic-node:not(.selected)::after {
+          display: none;
+        }
+
+        .topic-node.selected {
+          background: color-mix(in srgb, var(--node-color) 7%, transparent);
+          color: color-mix(in srgb, var(--node-color) 75%, var(--ink));
+        }
+
+        .topic-node[data-side="left"] {
+          justify-content: flex-end;
+          text-align: right;
+        }
+
+        .topic-node[data-side="center"] {
+          width: 68% !important;
+          justify-content: center;
+          text-align: center;
+        }
+
+        .topic-node:hover,
+        .topic-node:focus-visible {
+          border: 0;
+          box-shadow: none;
+          transform: translate(-50%, -50%);
+        }
+
+        .topic-node-copy {
+          display: grid;
+          width: 100%;
+          gap: 4px;
+        }
+
+        .topic-node[data-side="left"] .topic-node-copy,
+        .topic-node[data-side="left"] .topic-title {
+          justify-items: end;
+          justify-content: flex-end;
+        }
+
+        .topic-node[data-side="right"] .topic-node-copy,
+        .topic-node[data-side="right"] .topic-title {
+          justify-items: start;
+          justify-content: flex-start;
+        }
+
+        .topic-node-copy strong {
+          max-width: none;
+          font-size: calc(var(--node-emphasis) + 1px);
+          letter-spacing: -0.025em;
+          line-height: 1.05;
+        }
+
+        .topic-node.promoted-node .topic-node-copy strong {
+          font-size: calc(var(--node-emphasis) + 2px);
+          font-weight: 760;
+        }
+
+        .topic-node[data-side="center"] .topic-title,
+        .topic-node[data-side="center"] .topic-node-copy strong,
+        .topic-node[data-side="center"] .node-origin {
+          justify-content: center;
+          text-align: center;
+        }
+
+        .node-origin {
+          font-size: 8.5px;
+        }
+
+        .topic-node[data-side="left"] .node-origin {
+          justify-content: flex-end;
+        }
+
+        .branch-count {
+          display: none;
+        }
+
+        .continue-chat-button {
+          display: none;
+        }
+
+        .topic-prompt-card {
+          right: 10px;
+          bottom: 17px;
+          width: calc(100% - 20px);
+        }
+
+        .topic-prompt-card:not([hidden]) ~ .continue-chat-button {
+          display: none;
+        }
+
+        .continue-chat-button {
+          bottom: 17px;
+          left: 10px;
+        }
+
+        .mobile-menu {
+          display: grid;
+        }
+
+        .chat-header {
+          padding: 0 8px 0 10px;
+        }
+
+        .single-chat-label,
+        .fresh-button span,
+        .context-button > span:not(.count-badge),
+        .theme-button {
+          display: none;
+        }
+
+        .fresh-button,
+        .context-button {
+          width: 36px;
+          justify-content: center;
+          padding: 0;
+        }
+
+        .count-badge {
+          position: absolute;
+          margin: -25px 0 0 23px;
+          border: 2px solid var(--surface);
+        }
+
+        .messages {
+          width: calc(100% - 24px);
+          padding-top: 25px;
+        }
+
+        .context-shift {
+          margin-right: 8px;
+          margin-left: 8px;
+        }
+
+        .context-reason {
+          padding-left: 0;
+        }
+
+        .shift-actions .text-button:first-child {
+          display: none;
+        }
+
+        .trip-card {
+          grid-template-columns: 1fr;
+        }
+
+        .composer-wrap {
+          padding: 6px 8px 9px;
+        }
+
+        .new-topic-button {
+          width: 32px;
+          padding: 0;
+          justify-content: center;
+        }
+
+        .new-topic-button span {
+          display: none;
+        }
+
+        .style-button {
+          min-width: 92px;
+          gap: 4px;
+          padding-right: 5px;
+          padding-left: 5px;
+        }
+
+        .quick-effort-button {
+          padding: 0 6px;
+        }
+
+        .style-popover {
+          right: -1px;
+          width: calc(100vw - 14px);
+          max-height: calc(100dvh - 145px);
+          overflow-y: auto;
+        }
+
+        .composer-hint {
+          display: none;
+        }
+      }
+
+      @media (max-width: 360px) {
+        .style-button {
+          min-width: 78px;
+        }
+
+        .style-button > .icon:first-child,
+        .style-button-copy small,
+        .quick-effort-button .icon {
+          display: none;
+        }
+      }
+
+      @media (max-width: 760px) and (max-height: 650px) {
+        .tree-stage {
+          min-height: 326px;
+        }
+
+        .topic-node {
+          height: 54px !important;
+          padding-top: 4px;
+          padding-bottom: 4px;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          scroll-behavior: auto !important;
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+        }
+      }
+    </style>
+  </head>
+  <body class="landing-active">
+    <svg aria-hidden="true" width="0" height="0" style="position:absolute">
+      <symbol id="i-chat" viewBox="0 0 24 24"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></symbol>
+      <symbol id="i-new-topic" viewBox="0 0 24 24"><path d="M21 14a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h7"/><path d="M18 3v6M15 6h6"/></symbol>
+      <symbol id="i-subtopic" viewBox="0 0 24 24"><path d="M6 4v6a5 5 0 0 0 5 5h7"/><path d="m15 12 3 3-3 3"/></symbol>
+      <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h5M15 7h5M4 17h9M17 17h3"/><circle cx="12" cy="7" r="3"/><circle cx="15" cy="17" r="2"/></symbol>
+      <symbol id="i-effort" viewBox="0 0 24 24"><path d="M4 18a8 8 0 1 1 16 0"/><path d="m12 18 4-6"/><path d="M7 15h.01M12 10h.01M17 15h.01"/></symbol>
+      <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></symbol>
+      <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+      <symbol id="i-brain" viewBox="0 0 24 24"><path d="M9.5 4.5A3 3 0 0 0 4 6v1.2A3.5 3.5 0 0 0 3 13a3.5 3.5 0 0 0 3.5 4.5A3 3 0 0 0 12 19V6.5a3 3 0 0 0-2.5-3Z"/><path d="M14.5 4.5A3 3 0 0 1 20 6v1.2a3.5 3.5 0 0 1 1 5.8 3.5 3.5 0 0 1-3.5 4.5A3 3 0 0 1 12 19V6.5a3 3 0 0 1 2.5-3ZM7 10h2M15 10h2M8 15h2M14 15h2"/></symbol>
+      <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></symbol>
+      <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3A1.7 1.7 0 0 0 10 3V2.8h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z"/></symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+      <symbol id="i-panel" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16M7 8h4M7 12h4M7 16h4"/></symbol>
+      <symbol id="i-spark" viewBox="0 0 24 24"><path d="m12 3 1.4 4.1a5.5 5.5 0 0 0 3.5 3.5L21 12l-4.1 1.4a5.5 5.5 0 0 0-3.5 3.5L12 21l-1.4-4.1a5.5 5.5 0 0 0-3.5-3.5L3 12l4.1-1.4a5.5 5.5 0 0 0 3.5-3.5z"/></symbol>
+      <symbol id="i-rotate" viewBox="0 0 24 24"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6.1 9A7 7 0 0 1 18 6l2 2M17.9 15A7 7 0 0 1 6 18l-2-2"/></symbol>
+      <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 15.5A8.5 8.5 0 0 1 8.5 4 8.5 8.5 0 1 0 20 15.5Z"/></symbol>
+      <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+      <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+      <symbol id="i-x" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+      <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+      <symbol id="i-chevron-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+      <symbol id="i-edit" viewBox="0 0 24 24"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"/></symbol>
+      <symbol id="i-pin" viewBox="0 0 24 24"><path d="m14 4 6 6-3 1-4 4-1 5-2-2-2-2-2-2 5-1 4-4zM5 21l5-5"/></symbol>
+      <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h6"/></symbol>
+      <symbol id="i-history" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/></symbol>
+      <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.5.5l2-2a5 5 0 0 0-7-7l-1.2 1.2M14 11a5 5 0 0 0-7.5-.5l-2 2a5 5 0 0 0 7 7l1.2-1.2"/></symbol>
+      <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.5"/></symbol>
+      <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></symbol>
+      <symbol id="i-paperclip" viewBox="0 0 24 24"><path d="m20.5 11.5-8.9 8.9a6 6 0 0 1-8.5-8.5l9.6-9.6a4 4 0 0 1 5.7 5.7l-9.7 9.7a2 2 0 0 1-2.8-2.8l9-9"/></symbol>
+      <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v5M8 22h8"/></symbol>
+      <symbol id="i-arrow-up" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></symbol>
+      <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+      <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/></symbol>
+    </svg>
+
+    <div class="app-shell">
+      <aside class="sidebar" id="sidebar" aria-label="Garbanzo navigation">
+        <div class="brand-row">
+          <img class="bean-logo" src="../../assets/brand/bean_320.png" alt="" />
+          <span class="brand-name">Garbanzo</span>
+          <span class="brand-pill">Concept</span>
+        </div>
+
+        <div class="sidebar-primary">
+          <button class="primary-chat" type="button" data-scroll-target="latest">
+            <svg class="icon"><use href="#i-chat" /></svg>
+            Your chat
+            <span class="live-dot" aria-label="Active"></span>
+          </button>
+        </div>
+
+        <nav class="nav-list" aria-label="Primary">
+          <button class="nav-item" type="button" id="discoverTopicsButton">
+            <svg class="icon"><use href="#i-spark" /></svg>
+            Discover a topic
+          </button>
+          <button class="nav-item" type="button" id="searchHistoryButton">
+            <svg class="icon"><use href="#i-search" /></svg>
+            Search your history
+            <span class="nav-shortcut">⌘ K</span>
+          </button>
+          <button class="nav-item" type="button" data-demo-toast="Memories stay available to the AI and appear in active context when relevant.">
+            <svg class="icon"><use href="#i-brain" /></svg>
+            Memories
+          </button>
+          <button class="nav-item" type="button" data-demo-toast="Apps and rooms can join the same chat as capabilities—without creating another inbox.">
+            <svg class="icon"><use href="#i-grid" /></svg>
+            Apps & rooms
+          </button>
+        </nav>
+
+        <div class="timeline">
+          <div class="history-view-toggle" role="tablist" aria-label="Conversation history view">
+            <button class="history-view-button active" type="button" role="tab" aria-selected="true" data-history-view="topicMapPanel"><svg class="icon sm"><use href="#i-spark" /></svg> Topic map</button>
+            <button class="history-view-button" type="button" role="tab" aria-selected="false" data-history-view="threadListPanel"><svg class="icon sm"><use href="#i-chat" /></svg> Threads</button>
+          </div>
+          <div id="topicMapPanel" role="tabpanel">
+            <div class="section-heading">
+              <span>Conversation map</span>
+              <button type="button" aria-label="Search conversation map" data-demo-toast="Search jumps to a moment in your continuous history; it does not switch threads.">
+                <svg class="icon sm"><use href="#i-search" /></svg>
+              </button>
+            </div>
+            <div class="timeline-track">
+              <button class="topic-jump active" type="button" data-topic="Japan trip planning" data-meta="Active now" data-demo-toast="Jumped to the current topic. This is a landmark in one continuous chat—not a separate thread.">
+                <span class="topic-dot"></span>
+                <span><span class="topic-title">Japan trip planning</span><span class="topic-meta">Active now · 12 messages</span></span>
+              </button>
+              <button class="topic-jump" type="button" data-topic="Kitchen herb garden" data-meta="Today, 9:14 AM" data-demo-toast="Jumped back to Kitchen herb garden in your continuous history.">
+                <span class="topic-dot"></span>
+                <span><span class="topic-title">Kitchen herb garden</span><span class="topic-meta">Today, 9:14 AM · 7 messages</span></span>
+              </button>
+              <div class="day-label">Yesterday</div>
+              <button class="topic-jump" type="button" data-topic="Quarterly tax prep" data-meta="Yesterday, 4:30 PM" data-demo-toast="Jumped back to Quarterly tax prep in your continuous history.">
+                <span class="topic-dot"></span>
+                <span><span class="topic-title">Quarterly tax prep</span><span class="topic-meta">4:30 PM · 18 messages</span></span>
+              </button>
+              <button class="topic-jump" type="button" data-topic="Mom's birthday dinner" data-meta="Yesterday, 11:06 AM" data-demo-toast="Jumped back to Mom's birthday dinner in your continuous history.">
+                <span class="topic-dot"></span>
+                <span><span class="topic-title">Mom’s birthday dinner</span><span class="topic-meta">11:06 AM · 5 messages</span></span>
+              </button>
+              <div class="day-label">August 26</div>
+              <button class="topic-jump" type="button" data-topic="Home insurance renewal" data-meta="August 26" data-demo-toast="Jumped back to Home insurance renewal in your continuous history.">
+                <span class="topic-dot"></span>
+                <span><span class="topic-title">Home insurance renewal</span><span class="topic-meta">Aug 26 · 9 messages</span></span>
+              </button>
+            </div>
+          </div>
+          <div class="thread-list" id="threadListPanel" role="tabpanel" hidden>
+            <div class="section-heading"><span>Original threads</span><span>Still available</span></div>
+            <button class="thread-item" type="button" data-thread-title="Retirement planning" data-thread-topic="Retirement planning">
+              <span class="thread-icon"><svg class="icon sm"><use href="#i-chat" /></svg></span><span class="thread-copy"><strong>Retirement planning</strong><span>401(k), timeline, and projections</span></span><span class="thread-date">Aug 21</span>
+            </button>
+            <button class="thread-item" type="button" data-thread-title="Japan itinerary v2" data-thread-topic="Japan trip planning">
+              <span class="thread-icon"><svg class="icon sm"><use href="#i-chat" /></svg></span><span class="thread-copy"><strong>Japan itinerary v2</strong><span>Kyoto and Osaka planning</span></span><span class="thread-date">Aug 18</span>
+            </button>
+            <button class="thread-item" type="button" data-thread-title="Home insurance comparison" data-thread-topic="Home insurance renewal">
+              <span class="thread-icon"><svg class="icon sm"><use href="#i-chat" /></svg></span><span class="thread-copy"><strong>Home insurance comparison</strong><span>Three quotes and coverage notes</span></span><span class="thread-date">Aug 9</span>
+            </button>
+            <button class="thread-item" type="button" data-thread-title="Spanish practice" data-thread-topic="Spanish practice">
+              <span class="thread-icon"><svg class="icon sm"><use href="#i-chat" /></svg></span><span class="thread-copy"><strong>Spanish practice</strong><span>Travel conversation exercises</span></span><span class="thread-date">Jul 30</span>
+            </button>
+            <p class="legacy-note">Nothing is migrated away or hidden. Selecting an original thread opens its exact history and keeps its existing settings.</p>
+          </div>
+        </div>
+
+        <div class="sidebar-footer">
+          <span class="avatar">JG</span>
+          <span class="profile-copy"><strong>Jorge</strong><span>Private & self-hosted</span></span>
+          <button class="icon-button" type="button" aria-label="Settings" data-demo-toast="Settings would open here.">
+            <svg class="icon"><use href="#i-settings" /></svg>
+          </button>
+        </div>
+      </aside>
+
+      <main class="chat-main">
+        <header class="chat-header">
+          <button class="icon-button mobile-menu" id="openSidebarButton" type="button" aria-label="Open navigation">
+            <svg class="icon lg"><use href="#i-menu" /></svg>
+          </button>
+          <div class="header-copy">
+            <div class="header-title">
+              <h1 id="chatSurfaceTitle">Your chat</h1>
+              <span class="single-chat-label">Continuous</span>
+            </div>
+            <div class="current-topic">
+              <svg class="icon sm"><use href="#i-spark" /></svg>
+              <span id="headerTopic">What would you like to explore?</span>
+              <span id="headerTopicMode">· personalized</span>
+            </div>
+          </div>
+          <div class="header-actions">
+            <button class="fresh-button" id="freshStartButton" type="button" title="Clear active context without deleting history">
+              <svg class="icon sm"><use href="#i-rotate" /></svg>
+              <span>Fresh start</span>
+            </button>
+            <button class="context-button" id="contextButton" type="button" aria-expanded="true" aria-controls="contextPanel">
+              <svg class="icon sm"><use href="#i-panel" /></svg>
+              <span>Active context</span>
+              <span class="count-badge" id="contextCount">4</span>
+            </button>
+            <button class="icon-button theme-button" id="themeButton" type="button" aria-label="Toggle dark theme">
+              <svg class="icon" id="themeIcon"><use href="#i-moon" /></svg>
+            </button>
+          </div>
+        </header>
+
+        <section class="topic-landing" id="topicLanding" aria-label="Discover a topic">
+          <div class="landing-intro">
+            <div class="landing-controls">
+              <div class="discovery-mode" role="group" aria-label="Topic discovery source">
+                <button class="mode-button active" type="button" data-tree-mode="personal"><svg class="icon sm"><use href="#i-history" /></svg> For you</button>
+                <button class="mode-button" type="button" data-tree-mode="explore"><svg class="icon sm"><use href="#i-spark" /></svg> Explore</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="tree-toolbar" id="treeToolbar">
+            <div class="tree-breadcrumbs" id="treeBreadcrumbs" aria-label="Selected topic path"></div>
+            <button class="start-branch-button" id="startBranchButton" type="button" hidden><svg class="icon sm"><use href="#i-chat" /></svg><span>Talk about this</span><svg class="icon sm"><use href="#i-chevron" /></svg></button>
+            <div class="tree-legend" aria-label="Topic map legend">
+              <span class="legend-item"><span class="legend-size"></span> Size = likely relevance</span>
+              <span class="legend-item"><svg class="icon sm"><use href="#i-history" /></svg> Your history</span>
+              <span class="legend-item"><svg class="icon sm"><use href="#i-spark" /></svg> Suggested</span>
+            </div>
+          </div>
+
+          <div class="tree-stage">
+            <div class="tree-canvas" id="topicTreeCanvas" aria-label="Interactive topic tree">
+              <svg class="topic-links" id="topicLinks" aria-hidden="true"></svg>
+              <div class="topic-nodes" id="topicNodes"></div>
+              <div class="topic-prompt-card" id="topicPromptCard" hidden>
+                <div class="prompt-card-head">
+                  <span class="shift-icon"><svg class="icon"><use href="#i-spark" /></svg></span>
+                  <span class="prompt-card-copy"><strong id="promptCardTitle">Start here</strong><span>Pick a thought, edit it, or just begin typing below.</span></span>
+                  <button class="mini-icon-button" id="closePromptCard" type="button" aria-label="Close suggestions"><svg class="icon sm"><use href="#i-x" /></svg></button>
+                </div>
+                <div class="prompt-options" id="promptOptions"></div>
+              </div>
+              <button class="continue-chat-button" id="continueChatButton" type="button"><svg class="icon sm"><use href="#i-chat" /></svg> Continue your Japan conversation <svg class="icon sm"><use href="#i-chevron" /></svg></button>
+            </div>
+          </div>
+        </section>
+
+        <div class="message-scroller" id="messageScroller" hidden>
+          <div class="messages" id="messages">
+            <div class="date-divider">Today</div>
+
+            <article class="message user">
+              <div class="message-body"><div class="user-bubble">Back to the Japan trip—can we make Kyoto less rushed? I still want the tea ceremony we talked about in May.</div></div>
+              <span class="avatar">JG</span>
+            </article>
+
+            <aside class="context-shift" id="contextShiftCard" aria-label="Active context changed">
+              <div class="context-shift-top">
+                <span class="shift-icon"><svg class="icon"><use href="#i-spark" /></svg></span>
+                <span class="shift-copy"><strong>Context shifted to Japan trip planning</strong><span>Garbanzo connected this message to your May travel planning.</span></span>
+                <span class="shift-actions">
+                  <button class="text-button" type="button" id="shiftReviewButton">Review 4 items</button>
+                  <button class="text-button" type="button" id="wrongTopicButton">Wrong topic?</button>
+                </span>
+              </div>
+              <div class="context-reason">
+                <span class="reason-pill"><svg class="icon sm"><use href="#i-history" /></svg> May itinerary</span>
+                <span class="reason-pill"><svg class="icon sm"><use href="#i-brain" /></svg> Travel preferences</span>
+                <span class="reason-pill"><svg class="icon sm"><use href="#i-file" /></svg> Flight details.pdf</span>
+              </div>
+            </aside>
+
+            <article class="message assistant">
+              <span class="avatar assistant-avatar"><img src="../../assets/brand/bean_320.png" alt="Garbanzo" /></span>
+              <div class="message-body">
+                <div class="message-name">Garbanzo</div>
+                <div class="message-text">
+                  <p>Absolutely. I pulled in the May itinerary, your preference for slower mornings, and the flight dates you attached. The original plan had three bases in five nights, which is where it started feeling compressed.</p>
+                  <p>I’d keep Kyoto for three nights and make Osaka a day trip. That preserves the tea ceremony in Gion on the second afternoon without stacking it behind the Arashiyama morning.</p>
+                  <div class="trip-card">
+                    <div class="trip-day"><span>Day 1</span><strong>Arrive + settle in</strong><small>Easy Pontocho dinner; no timed plans</small></div>
+                    <div class="trip-day"><span>Day 2</span><strong>Old Kyoto</strong><small>Kiyomizu-dera, rest, then tea ceremony</small></div>
+                    <div class="trip-day"><span>Day 3</span><strong>Arashiyama</strong><small>Early bamboo grove, open afternoon</small></div>
+                  </div>
+                </div>
+              </div>
+            </article>
+
+            <article class="message user">
+              <div class="message-body"><div class="user-bubble">That feels much better. Where should we stay if quiet at night matters more than nightlife?</div></div>
+              <span class="avatar">JG</span>
+            </article>
+
+            <article class="message assistant">
+              <span class="avatar assistant-avatar"><img src="../../assets/brand/bean_320.png" alt="Garbanzo" /></span>
+              <div class="message-body">
+                <div class="message-name">Garbanzo</div>
+                <div class="message-text">
+                  <p><strong>Southern Higashiyama</strong> is the best fit. You’ll be close to Gion and the tea ceremony, but the smaller lanes become calm after dinner. I’d look just south of Yasaka Shrine rather than around Kyoto Station.</p>
+                  <p>Want me to compare three stays against your saved budget and dates?</p>
+                </div>
+              </div>
+            </article>
+            <div id="latest"></div>
+          </div>
+        </div>
+
+        <div class="composer-wrap">
+          <div class="composer">
+            <div class="turn-context" id="turnContext" aria-label="Context for your next message">
+              <span class="context-status"><svg class="icon sm"><use href="#i-spark" /></svg> Japan trip</span>
+              <span class="context-chip" data-chip="Travel preferences"><svg class="icon sm"><use href="#i-brain" /></svg><span>Travel preferences</span><button type="button" aria-label="Remove Travel preferences"><svg class="icon sm"><use href="#i-x" /></svg></button></span>
+              <span class="context-chip" data-chip="May itinerary"><svg class="icon sm"><use href="#i-history" /></svg><span>May itinerary</span><button type="button" aria-label="Remove May itinerary"><svg class="icon sm"><use href="#i-x" /></svg></button></span>
+            </div>
+            <textarea class="composer-textarea" id="composerInput" rows="1" placeholder="Ask anything, or choose a branch above…" aria-label="Message Garbanzo"></textarea>
+            <div class="composer-bottom">
+              <button class="new-topic-button" id="newTopicButton" type="button" aria-label="Start a new topic" title="Start a new topic">
+                <svg class="icon"><use href="#i-new-topic" /></svg><span>New topic</span>
+              </button>
+              <button class="composer-tool" type="button" aria-label="Attach files" data-demo-toast="Attachments can be temporary for this turn or pinned to the active topic.">
+                <svg class="icon"><use href="#i-paperclip" /></svg>
+              </button>
+              <button class="composer-tool" type="button" aria-label="Voice input" data-demo-toast="Voice input would start here.">
+                <svg class="icon"><use href="#i-mic" /></svg>
+              </button>
+              <button class="style-button" id="styleButton" type="button" aria-expanded="false" aria-controls="stylePopover">
+                <svg class="icon sm"><use href="#i-sliders" /></svg>
+                <span class="style-button-copy"><strong id="activeStyleName">Everyday</strong><small id="activeStyleModel">Kimi K3</small></span>
+                <svg class="icon sm"><use href="#i-chevron-down" /></svg>
+              </button>
+              <button class="quick-effort-button" id="quickEffortButton" type="button" aria-label="Thinking effort: Medium. Click to change." title="Click to cycle thinking effort">
+                <svg class="icon sm"><use href="#i-effort" /></svg><span id="quickEffortLabel">Medium</span>
+              </button>
+              <span class="composer-spacer"></span>
+              <span class="composer-hint">Enter to send · Shift+Enter for new line</span>
+              <button class="send-button" id="sendButton" type="button" aria-label="Send message" disabled>
+                <svg class="icon"><use href="#i-arrow-up" /></svg>
+              </button>
+            </div>
+            <section class="style-popover" id="stylePopover" aria-label="Response style settings" hidden>
+              <div class="style-popover-head">
+                <span class="shift-icon"><svg class="icon"><use href="#i-sliders" /></svg></span>
+                <span class="style-popover-title"><strong>Response style</strong><span>A style combines model, instructions, and thinking effort.</span></span>
+                <button class="mini-icon-button" id="closeStyleButton" type="button" aria-label="Close response style"><svg class="icon sm"><use href="#i-x" /></svg></button>
+              </div>
+              <div class="style-presets" role="group" aria-label="Saved response styles">
+                <button class="style-preset active" type="button" data-style-name="Everyday" data-model="kimi" data-effort="medium" data-instructions="Be clear, warm, and practical. Give enough detail to act without overexplaining.">Everyday</button>
+                <button class="style-preset" type="button" data-style-name="Concise" data-model="fast" data-effort="low" data-instructions="Answer directly. Prefer short paragraphs and only include details that change the decision.">Concise</button>
+                <button class="style-preset" type="button" data-style-name="Deep work" data-model="deepseek" data-effort="high" data-instructions="Reason carefully, test assumptions, and provide a rigorous answer with explicit tradeoffs.">Deep work</button>
+                <button class="style-preset" type="button" data-style-name="Custom" data-model="kimi" data-effort="medium" data-instructions="Follow my instructions for this style.">+ Custom</button>
+              </div>
+              <div class="style-form">
+                <label class="style-field"><span>Model</span><select id="styleModelSelect">
+                  <option value="kimi">Kimi K3</option>
+                  <option value="deepseek">DeepSeek R1</option>
+                  <option value="fast">Garbanzo Fast</option>
+                </select></label>
+                <label class="style-field"><span>Instructions (system prompt)</span><textarea id="styleInstructions">Be clear, warm, and practical. Give enough detail to act without overexplaining.</textarea></label>
+                <div class="style-field">
+                  <div class="effort-field-head"><span>Thinking effort</span><span class="effort-support" id="effortSupport">Kimi K3 · 4 of 4 available</span></div>
+                  <div class="effort-options" id="effortOptions" role="group" aria-label="Normalized thinking effort">
+                    <button class="effort-option" type="button" data-effort="off">Off</button>
+                    <button class="effort-option" type="button" data-effort="low">Low</button>
+                    <button class="effort-option active" type="button" data-effort="medium">Medium</button>
+                    <button class="effort-option" type="button" data-effort="high">High</button>
+                  </div>
+                </div>
+              </div>
+              <div class="style-popover-footer"><span>Garbanzo maps each available level to this model's native reasoning control. Unavailable levels stay disabled.</span><button class="style-done-button" id="styleDoneButton" type="button">Use this style</button></div>
+            </section>
+          </div>
+        </div>
+      </main>
+
+      <aside class="context-panel" id="contextPanel" aria-label="Active context">
+        <div class="panel-header">
+          <span class="shift-icon"><svg class="icon"><use href="#i-spark" /></svg></span>
+          <div class="panel-title"><strong>Active context</strong><span>What Garbanzo is considering now</span></div>
+          <button class="icon-button panel-close" id="closePanelButton" type="button" aria-label="Close context panel"><svg class="icon"><use href="#i-x" /></svg></button>
+        </div>
+        <div class="panel-scroll">
+          <section class="panel-pane" id="includedPane">
+            <div class="topic-card">
+              <div class="topic-card-label"><svg class="icon sm"><use href="#i-spark" /></svg> Current topic · detected</div>
+              <h2 id="panelTopic">Japan trip planning</h2>
+              <p>Garbanzo updates this when your intent changes. Pin the topic to stop automatic switching.</p>
+              <div class="topic-card-actions">
+                <button class="small-button primary" type="button" id="pinTopicButton"><svg class="icon sm"><use href="#i-pin" /></svg><span>Pin topic</span></button>
+                <button class="small-button" type="button" id="renameTopicButton"><svg class="icon sm"><use href="#i-edit" /></svg> Redirect</button>
+              </div>
+            </div>
+
+            <div class="context-meter">
+              <div class="meter-ring" id="meterRing"><span id="meterValue">34%</span></div>
+              <div class="meter-copy"><strong>Comfortably focused</strong><span id="meterDescription">4 selected items · older unrelated history stays out</span></div>
+            </div>
+
+            <button class="small-button preview-button" id="previewButton" type="button"><svg class="icon sm"><use href="#i-eye" /></svg> Preview what the AI sees next</button>
+            <div class="context-preview" id="contextPreview"><strong>Next-turn context:</strong> your current message, recent exchange, 2 pinned sources, 2 dynamically selected sources, current date/time, and enabled tools. Full unrelated history is excluded.</div>
+
+            <div class="context-section">
+              <div class="context-section-head"><strong>Pinned by you</strong><span>Always included</span></div>
+              <div class="context-list" id="pinnedContextList">
+                <article class="context-item" data-context-id="travel-preferences" data-context-name="Travel preferences" data-weight="6">
+                  <div class="context-item-main">
+                    <span class="source-icon memory"><svg class="icon sm"><use href="#i-brain" /></svg></span>
+                    <span class="source-copy"><strong>Travel preferences</strong><span>Memory · slower mornings, quiet stays</span></span>
+                    <span class="source-actions"><button class="mini-icon-button active pin-context" type="button" aria-label="Unpin Travel preferences" title="Unpin"><svg class="icon sm"><use href="#i-pin" /></svg></button><button class="mini-icon-button remove-context" type="button" aria-label="Remove Travel preferences" title="Remove"><svg class="icon sm"><use href="#i-x" /></svg></button></span>
+                  </div>
+                  <div class="why-row"><span>Pinned May 18</span><button class="why-button" type="button">Why included <svg class="icon sm"><use href="#i-chevron-down" /></svg></button></div>
+                  <div class="why-detail">You pinned this memory while planning the same trip, so it remains in context until you unpin or remove it.</div>
+                </article>
+                <article class="context-item" data-context-id="flight-details" data-context-name="Flight details.pdf" data-weight="8">
+                  <div class="context-item-main">
+                    <span class="source-icon"><svg class="icon sm"><use href="#i-file" /></svg></span>
+                    <span class="source-copy"><strong>Flight details.pdf</strong><span>Attachment · Sep 14–22</span></span>
+                    <span class="source-actions"><button class="mini-icon-button active pin-context" type="button" aria-label="Unpin Flight details" title="Unpin"><svg class="icon sm"><use href="#i-pin" /></svg></button><button class="mini-icon-button remove-context" type="button" aria-label="Remove Flight details" title="Remove"><svg class="icon sm"><use href="#i-x" /></svg></button></span>
+                  </div>
+                  <div class="why-row"><span>Pinned for this trip</span><button class="why-button" type="button">Why included <svg class="icon sm"><use href="#i-chevron-down" /></svg></button></div>
+                  <div class="why-detail">The dates constrain every itinerary recommendation. You explicitly pinned the file to this topic.</div>
+                </article>
+              </div>
+            </div>
+
+            <div class="context-section">
+              <div class="context-section-head"><strong>Selected by Garbanzo</strong><span>Updates as you talk</span></div>
+              <div class="context-list" id="dynamicContextList">
+                <article class="context-item" data-context-id="may-itinerary" data-context-name="May itinerary discussion" data-weight="7">
+                  <div class="context-item-main">
+                    <span class="source-icon history"><svg class="icon sm"><use href="#i-history" /></svg></span>
+                    <span class="source-copy"><strong>May itinerary discussion</strong><span>History · 11 relevant messages</span></span>
+                    <span class="source-actions"><button class="mini-icon-button pin-context" type="button" aria-label="Pin May itinerary" title="Pin"><svg class="icon sm"><use href="#i-pin" /></svg></button><button class="mini-icon-button remove-context" type="button" aria-label="Remove May itinerary" title="Remove"><svg class="icon sm"><use href="#i-x" /></svg></button></span>
+                  </div>
+                  <div class="why-row"><span>High relevance</span><button class="why-button" type="button">Why included <svg class="icon sm"><use href="#i-chevron-down" /></svg></button></div>
+                  <div class="why-detail">Your latest message says “the tea ceremony we talked about in May,” which directly references this part of history.</div>
+                </article>
+                <article class="context-item" data-context-id="budget-memory" data-context-name="Trip budget" data-weight="5">
+                  <div class="context-item-main">
+                    <span class="source-icon memory"><svg class="icon sm"><use href="#i-brain" /></svg></span>
+                    <span class="source-copy"><strong>Trip budget</strong><span>Memory · $240/night target</span></span>
+                    <span class="source-actions"><button class="mini-icon-button pin-context" type="button" aria-label="Pin Trip budget" title="Pin"><svg class="icon sm"><use href="#i-pin" /></svg></button><button class="mini-icon-button remove-context" type="button" aria-label="Remove Trip budget" title="Remove"><svg class="icon sm"><use href="#i-x" /></svg></button></span>
+                  </div>
+                  <div class="why-row"><span>Medium relevance</span><button class="why-button" type="button">Why included <svg class="icon sm"><use href="#i-chevron-down" /></svg></button></div>
+                  <div class="why-detail">The assistant offered to compare stays, so your saved nightly budget becomes relevant to the likely next turn.</div>
+                </article>
+              </div>
+              <button class="add-context-button" id="panelAddContextButton" type="button"><svg class="icon sm"><use href="#i-plus" /></svg> Add history, memory, file, or person</button>
+            </div>
+          </section>
+
+        </div>
+      </aside>
+    </div>
+
+    <div class="scrim" id="scrim"></div>
+
+    <div class="modal-layer" id="pickerModal" role="dialog" aria-modal="true" aria-labelledby="pickerTitle">
+      <div class="context-picker">
+        <div class="picker-header">
+          <svg class="icon"><use href="#i-search" /></svg>
+          <input id="pickerSearch" type="search" placeholder="Search your history, memories, and files" aria-label="Search context" />
+          <span class="keycap">Esc</span>
+        </div>
+        <div class="picker-content" id="pickerContent">
+          <div class="picker-group">
+            <h3 id="pickerTitle">Suggested for this topic</h3>
+            <button class="picker-item" type="button" data-picker-id="hotel-shortlist" data-name="Kyoto hotel shortlist" data-kind="File" data-weight="6">
+              <span class="source-icon"><svg class="icon"><use href="#i-file" /></svg></span>
+              <span class="picker-copy"><strong>Kyoto hotel shortlist</strong><span>Spreadsheet · edited 3 weeks ago</span></span>
+              <span class="picker-check"><svg class="icon sm"><use href="#i-check" /></svg></span>
+            </button>
+            <button class="picker-item" type="button" data-picker-id="rebeca-recommendations" data-name="Rebeca's Kyoto recommendations" data-kind="History" data-weight="5">
+              <span class="source-icon history"><svg class="icon"><use href="#i-history" /></svg></span>
+              <span class="picker-copy"><strong>Rebeca’s Kyoto recommendations</strong><span>History · June 7 · 6 messages</span></span>
+              <span class="picker-check"><svg class="icon sm"><use href="#i-check" /></svg></span>
+            </button>
+          </div>
+          <div class="picker-group">
+            <h3>More from your world</h3>
+            <button class="picker-item" type="button" data-picker-id="passport-memory" data-name="Passport renewal date" data-kind="Memory" data-weight="3">
+              <span class="source-icon memory"><svg class="icon"><use href="#i-brain" /></svg></span>
+              <span class="picker-copy"><strong>Passport renewal date</strong><span>Memory · expires March 2028</span></span>
+              <span class="picker-check"><svg class="icon sm"><use href="#i-check" /></svg></span>
+            </button>
+            <button class="picker-item" type="button" data-picker-id="japan-folder" data-name="Japan 2026 folder" data-kind="Folder" data-weight="10">
+              <span class="source-icon"><svg class="icon"><use href="#i-folder" /></svg></span>
+              <span class="picker-copy"><strong>Japan 2026 folder</strong><span>4 files · Drive</span></span>
+              <span class="picker-check"><svg class="icon sm"><use href="#i-check" /></svg></span>
+            </button>
+            <button class="picker-item" type="button" data-picker-id="osaka-history" data-name="Osaka food notes" data-kind="History" data-weight="4">
+              <span class="source-icon history"><svg class="icon"><use href="#i-history" /></svg></span>
+              <span class="picker-copy"><strong>Osaka food notes</strong><span>History · May 19 · 4 messages</span></span>
+              <span class="picker-check"><svg class="icon sm"><use href="#i-check" /></svg></span>
+            </button>
+          </div>
+          <div class="empty-results" id="emptyResults">No matching context found.</div>
+        </div>
+        <div class="picker-footer"><span>Additions are visible and removable at any time.</span><button class="done-button" id="pickerDoneButton" type="button">Done</button></div>
+      </div>
+    </div>
+
+    <div class="modal-layer" id="freshModal" role="dialog" aria-modal="true" aria-labelledby="freshTitle">
+      <div class="confirm-dialog">
+        <div class="dialog-icon"><svg class="icon lg"><use href="#i-rotate" /></svg></div>
+        <h2 id="freshTitle">Start fresh from here?</h2>
+        <p>Garbanzo will clear the active topic and its selected context. Your full conversation, memories, and files stay exactly where they are.</p>
+        <div class="dialog-note"><svg class="icon sm"><use href="#i-check" /></svg><span>Nothing is deleted. You can bring any earlier moment back into context later.</span></div>
+        <div class="dialog-actions"><button class="cancel-button" id="freshCancelButton" type="button">Cancel</button><button class="confirm-button" id="freshConfirmButton" type="button">Start fresh</button></div>
+      </div>
+    </div>
+
+    <div class="toast-stack" id="toastStack" aria-live="polite"></div>
+
+    <script>
+      (() => {
+        const $ = (selector, root = document) => root.querySelector(selector);
+        const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
+        const contextPanel = $("#contextPanel");
+        const sidebar = $("#sidebar");
+        const scrim = $("#scrim");
+        const composerInput = $("#composerInput");
+        const sendButton = $("#sendButton");
+        const messageScroller = $("#messageScroller");
+        const pickerModal = $("#pickerModal");
+        const freshModal = $("#freshModal");
+        let lastFocusedElement = null;
+
+        const icon = (name, className = "icon sm") =>
+          `<svg class="${className}" aria-hidden="true"><use href="#i-${name}" /></svg>`;
+
+        const escapeHtml = (value) => {
+          const el = document.createElement("div");
+          el.textContent = value;
+          return el.innerHTML;
+        };
+
+        const showToast = (message) => {
+          const toast = document.createElement("div");
+          toast.className = "toast";
+          toast.innerHTML = `${icon("check")}<span>${escapeHtml(message)}</span>`;
+          $("#toastStack").append(toast);
+          window.setTimeout(() => toast.remove(), 3300);
+        };
+
+        const topicTrees = {
+          personal: {
+            id: "for-you",
+            label: "For you",
+            score: 100,
+            origin: "personal",
+            color: "#1d8865",
+            children: [
+              {
+                id: "travel",
+                label: "Travel",
+                score: 94,
+                origin: "history",
+                color: "#3157c8",
+                children: [
+                  { id: "japan", label: "Japan trip", score: 96, origin: "history", color: "#3157c8", signal: "active now", priorityBoost: 18, prompts: ["Make my Kyoto plan feel less rushed", "Compare quiet places to stay in Kyoto", "What am I still forgetting for Japan?"] },
+                  { id: "weekend", label: "A weekend away", score: 63, origin: "suggested", color: "#3157c8", prompts: ["Suggest a restorative weekend trip near me", "Plan a low-effort two-day escape"] },
+                  { id: "future-trip", label: "Next big trip", score: 42, origin: "suggested", color: "#3157c8", prompts: ["Help me choose where to travel next", "What destinations match the way I like to travel?"] },
+                ],
+              },
+              {
+                id: "finances",
+                label: "Finances",
+                score: 84,
+                origin: "history",
+                color: "#a56210",
+                children: [
+                  {
+                    id: "retirement",
+                    label: "Retirement",
+                    score: 91,
+                    origin: "history",
+                    color: "#a56210",
+                    signal: "back on your mind",
+                    priorityBoost: 12,
+                    children: [
+                      { id: "on-track", label: "Am I on track?", score: 92, origin: "history", color: "#a56210", prompts: ["Am I on track for the retirement I want?", "Show me which retirement assumptions matter most", "Build a simple retirement checkup with me"] },
+                      { id: "contributions", label: "Boost contributions", score: 76, origin: "suggested", color: "#a56210", prompts: ["Should I increase my retirement contributions?", "Compare raising my 401(k) versus paying down debt"] },
+                      { id: "retire-when", label: "When could I retire?", score: 66, origin: "history", color: "#a56210", prompts: ["Estimate the earliest year I could comfortably retire", "What would retiring five years earlier require?"] },
+                      { id: "healthcare", label: "Healthcare costs", score: 45, origin: "suggested", color: "#a56210", prompts: ["Help me account for healthcare in retirement", "What healthcare costs do retirement plans often miss?"] },
+                    ],
+                  },
+                  { id: "taxes", label: "Quarterly taxes", score: 79, origin: "history", color: "#a56210", signal: "due soon", priorityBoost: 20, prompts: ["Help me finish my quarterly tax prep", "What tax tasks are still open from our last discussion?"] },
+                  { id: "monthly-plan", label: "Monthly plan", score: 65, origin: "history", color: "#a56210", prompts: ["Review this month's spending with me", "Find room in my budget without making it miserable"] },
+                  { id: "investing", label: "Investing", score: 43, origin: "suggested", color: "#a56210", prompts: ["Give my investment plan a simple health check", "Explain where my portfolio may be overcomplicated"] },
+                ],
+              },
+              {
+                id: "home",
+                label: "Home",
+                score: 68,
+                origin: "history",
+                color: "#7751b8",
+                children: [
+                  { id: "insurance", label: "Insurance renewal", score: 82, origin: "history", color: "#7751b8", prompts: ["Help me compare the home insurance renewal", "What should I question before renewing?"] },
+                  { id: "herbs", label: "Herb garden", score: 70, origin: "history", color: "#7751b8", prompts: ["What should I plant in the kitchen herb garden next?", "Diagnose why my basil keeps struggling"] },
+                  { id: "projects", label: "Small improvements", score: 48, origin: "suggested", color: "#7751b8", prompts: ["Suggest one small home improvement for this weekend", "Help me prioritize my unfinished home projects"] },
+                ],
+              },
+              {
+                id: "people",
+                label: "People I care about",
+                score: 57,
+                origin: "history",
+                color: "#b44f75",
+                children: [
+                  { id: "birthday", label: "Mom's birthday", score: 88, origin: "history", color: "#b44f75", signal: "coming up", priorityBoost: 17, prompts: ["Finish planning Mom's birthday dinner", "Give me three thoughtful birthday ideas for Mom"] },
+                  { id: "reconnect", label: "Reconnect", score: 52, origin: "suggested", color: "#b44f75", prompts: ["Who have I been meaning to reconnect with?", "Help me write a warm check-in message"] },
+                  { id: "shared-plans", label: "Shared plans", score: 39, origin: "suggested", color: "#b44f75", prompts: ["What shared plans have I left unfinished?", "Help me organize an easy get-together"] },
+                ],
+              },
+            ],
+          },
+          explore: {
+            id: "explore",
+            label: "Explore",
+            score: 100,
+            origin: "suggested",
+            color: "#7751b8",
+            children: [
+              { id: "future", label: "The future", score: 86, origin: "suggested", color: "#7751b8", children: [
+                { id: "ai-life", label: "AI in daily life", score: 84, origin: "suggested", color: "#7751b8", prompts: ["How might personal AI change everyday life?", "What should I be optimistic and cautious about with AI?"] },
+                { id: "future-cities", label: "Cities in 2050", score: 58, origin: "suggested", color: "#7751b8", prompts: ["Paint a realistic picture of cities in 2050", "Which urban changes are already starting?"] },
+              ] },
+              { id: "science", label: "Science", score: 77, origin: "suggested", color: "#3157c8", children: [
+                { id: "space", label: "Space", score: 79, origin: "suggested", color: "#3157c8", prompts: ["What is the most exciting unanswered question in space science?", "Explain a strange fact about the universe"] },
+                { id: "mind", label: "The mind", score: 68, origin: "suggested", color: "#3157c8", prompts: ["What do we still misunderstand about consciousness?", "Teach me something surprising about memory"] },
+              ] },
+              { id: "better-life", label: "A better life", score: 70, origin: "suggested", color: "#1d8865", children: [
+                { id: "attention", label: "Attention", score: 80, origin: "suggested", color: "#1d8865", prompts: ["Help me protect my attention without becoming rigid", "Why does my attention feel fragmented?"] },
+                { id: "meaning", label: "Meaning", score: 64, origin: "suggested", color: "#1d8865", prompts: ["What makes ordinary life feel meaningful?", "Help me think about what I want more of"] },
+              ] },
+              { id: "culture", label: "Culture & ideas", score: 57, origin: "suggested", color: "#b44f75", children: [
+                { id: "books", label: "A great book", score: 76, origin: "suggested", color: "#b44f75", prompts: ["Recommend a book that might genuinely stay with me", "Match me with a book based on how I'm feeling"] },
+                { id: "big-idea", label: "One big idea", score: 61, origin: "suggested", color: "#b44f75", prompts: ["Introduce me to one powerful idea I may not know", "Challenge one common assumption with me"] },
+              ] },
+              { id: "curiosity", label: "Something new", score: 62, origin: "suggested", color: "#347f85", children: [
+                { id: "learn", label: "Learn a skill", score: 72, origin: "suggested", color: "#347f85", prompts: ["Teach me something useful in ten minutes", "Help me pick one skill to learn this month"] },
+                { id: "deep-question", label: "A deep question", score: 60, origin: "suggested", color: "#347f85", prompts: ["Ask me a question that could change my perspective", "Let's unpack a belief I rarely examine"] },
+                { id: "creative", label: "Make something", score: 53, origin: "suggested", color: "#347f85", prompts: ["Give me a small creative challenge", "Help me turn a loose idea into something real"] },
+              ] },
+            ],
+          },
+        };
+
+        let treeMode = "personal";
+        let topicPath = [topicTrees.personal];
+        let selectedLeaf = null;
+        let activeChatTopic = "Japan trip planning";
+        let activeStyleName = "Everyday";
+        let thinkingEffort = "medium";
+
+        const normalizedEfforts = ["off", "low", "medium", "high"];
+        const styleModels = {
+          kimi: { name: "Kimi K3", effortMap: { off: "disabled", low: "low", medium: "medium", high: "high" } },
+          deepseek: { name: "DeepSeek R1", effortMap: { low: "light", medium: "standard", high: "deep" } },
+          fast: { name: "Garbanzo Fast", effortMap: { off: "disabled", low: "enabled" } },
+        };
+
+        const supportedEfforts = (model) => normalizedEfforts.filter((level) => Object.hasOwn(model.effortMap, level));
+
+        const titleCase = (value) => `${value.charAt(0).toUpperCase()}${value.slice(1)}`;
+
+        const updateStyleSummary = () => {
+          const model = styleModels[$("#styleModelSelect").value];
+          $("#activeStyleName").textContent = activeStyleName;
+          $("#activeStyleModel").textContent = model.name;
+          $("#quickEffortLabel").textContent = titleCase(thinkingEffort);
+          $("#quickEffortButton").setAttribute("aria-label", `Thinking effort: ${titleCase(thinkingEffort)}. Click to change.`);
+        };
+
+        const setThinkingEffort = (effort) => {
+          const supported = supportedEfforts(styleModels[$("#styleModelSelect").value]);
+          thinkingEffort = supported.includes(effort)
+            ? effort
+            : ["medium", "low", "off", "high"].find((level) => supported.includes(level));
+          $$(".effort-option").forEach((button) => {
+            button.classList.toggle("active", button.dataset.effort === thinkingEffort);
+          });
+          updateStyleSummary();
+        };
+
+        const syncModelEfforts = () => {
+          const model = styleModels[$("#styleModelSelect").value];
+          const supported = supportedEfforts(model);
+          $$(".effort-option").forEach((button) => {
+            button.disabled = !supported.includes(button.dataset.effort);
+          });
+          const unavailable = normalizedEfforts.filter((level) => !supported.includes(level));
+          $("#effortSupport").textContent = `${model.name} · ${supported.length} of 4 available${unavailable.length ? ` · ${unavailable.map(titleCase).join("/")} disabled` : ""}`;
+          setThinkingEffort(thinkingEffort);
+        };
+
+        const setStylePopover = (open) => {
+          $("#stylePopover").hidden = !open;
+          $("#styleButton").setAttribute("aria-expanded", String(open));
+        };
+
+        const markStyleCustom = () => {
+          activeStyleName = "Custom";
+          $$(".style-preset").forEach((button) => button.classList.toggle("active", button.dataset.styleName === "Custom"));
+          updateStyleSummary();
+        };
+
+        const topicOrigin = (node) => {
+          if (node.origin === "history") return `${icon("history")} history`;
+          if (node.origin === "personal") return `${icon("spark")} your world`;
+          return `${icon("spark")} suggested`;
+        };
+
+        const treeNodeSize = (score, canvasWidth) => {
+          const mobile = canvasWidth < 520;
+          return Math.round(mobile ? 42 + score * 0.37 : 54 + score * 0.56);
+        };
+
+        const childPositions = (count, hasPath, mobile) => {
+          if (mobile) {
+            const layouts = {
+              1: [{ x: 50, y: 50 }],
+              2: [{ x: 31, y: 34 }, { x: 69, y: 69 }],
+              3: [{ x: 31, y: 25 }, { x: 69, y: 53 }, { x: 34, y: 81 }],
+              4: [{ x: 31, y: 20 }, { x: 69, y: 41 }, { x: 31, y: 63 }, { x: 69, y: 84 }],
+              5: [{ x: 31, y: 16 }, { x: 69, y: 33 }, { x: 30, y: 51 }, { x: 70, y: 69 }, { x: 50, y: 87 }],
+            };
+            return layouts[count] || Array.from({ length: count }, (_, index) => ({
+              x: index === count - 1 && count % 2 ? 50 : index % 2 ? 69 : 31,
+              y: 14 + index * (74 / Math.max(count - 1, 1)),
+            }));
+          }
+          const top = mobile ? 14 : 17;
+          const bottom = mobile ? 86 : 83;
+          return Array.from({ length: count }, (_, index) => {
+            const y = count === 1 ? 50 : top + (index * (bottom - top)) / (count - 1);
+            const stagger = count > 3 ? (mobile ? (index % 2 === 0 ? -3 : 3) : (index % 2 === 0 ? -4 : 5)) : 0;
+            return { x: (hasPath ? (mobile ? 85 : 82) : (mobile ? 70 : 62)) + stagger, y };
+          });
+        };
+
+        const rankedMobilePositions = (count) => {
+          const xPattern = [31, 69, 34, 66, 30, 70, 36, 64, 50];
+          return Array.from({ length: count }, (_, index) => ({
+            x: xPattern[index % xPattern.length],
+            y: count === 1 ? 50 : 6 + index * (88 / (count - 1)),
+          }));
+        };
+
+        const rankedWidePositions = (count) => {
+          if (count <= 5) {
+            return Array.from({ length: count }, (_, index) => ({
+              x: 10 + index * (80 / Math.max(count - 1, 1)),
+              y: 50,
+            }));
+          }
+          const firstRowCount = Math.ceil(count / 2);
+          const secondRowCount = count - firstRowCount;
+          return Array.from({ length: count }, (_, index) => {
+            const secondRow = index >= firstRowCount;
+            const rowIndex = secondRow ? index - firstRowCount : index;
+            const rowCount = secondRow ? secondRowCount : firstRowCount;
+            return {
+              x: 10 + rowIndex * (80 / Math.max(rowCount - 1, 1)),
+              y: secondRow ? 70 : 30,
+            };
+          });
+        };
+
+        const promotedTopics = (root, canvasHeight, canvasWidth) => {
+          const availableSlots = canvasWidth >= 520 ? 4 : canvasHeight >= 500 ? 4 : canvasHeight >= 390 ? 3 : 1;
+          return root.children
+            .flatMap((parent) => (parent.children || []).map((node) => ({
+              node,
+              parent,
+              promoted: true,
+              jumpPath: [parent, node],
+              rank: node.score + (node.priorityBoost || 0),
+              signal: node.signal || (node.origin === "history" ? "recently relevant" : "worth a look"),
+            })))
+            .sort((left, right) => right.rank - left.rank)
+            .slice(0, availableSlots);
+        };
+
+        const renderBreadcrumbs = () => {
+          const container = $("#treeBreadcrumbs");
+          container.innerHTML = "";
+          topicPath.forEach((node, index) => {
+            if (index === 0) return;
+            if (index > 1) container.insertAdjacentHTML("beforeend", icon("chevron"));
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = `crumb-button${index === topicPath.length - 1 ? " current" : ""}`;
+            button.textContent = node.label;
+            button.addEventListener("click", () => {
+              topicPath = topicPath.slice(0, index + 1);
+              selectedLeaf = null;
+              renderTopicTree();
+            });
+            container.append(button);
+          });
+        };
+
+        const renderTopicTree = () => {
+          const canvas = $("#topicTreeCanvas");
+          const nodesLayer = $("#topicNodes");
+          const linksLayer = $("#topicLinks");
+          const { width, height } = canvas.getBoundingClientRect();
+          if (!width || !height) return;
+          const mobile = width < 520;
+          const current = topicPath.at(-1);
+          const visibleNodes = [];
+          const children = current.children || [];
+          const rootView = topicPath.length === 1;
+          const topics = rootView
+            ? [
+                ...promotedTopics(current, height, width),
+                ...children.map((node) => ({ node })),
+              ]
+            : children.map((node) => ({ node }));
+          const positions = mobile
+            ? rootView ? rankedMobilePositions(topics.length) : childPositions(topics.length, false, true)
+            : rankedWidePositions(topics.length);
+          topics.forEach((topic, index) => {
+            visibleNodes.push({
+              ...topic,
+              position: positions[index],
+              selected: selectedLeaf?.id === topic.node.id,
+            });
+          });
+
+          linksLayer.innerHTML = "";
+
+          nodesLayer.innerHTML = "";
+          visibleNodes.forEach(({ node, position, selected, promoted = false, parent = null, jumpPath = null, signal = "" }) => {
+            const button = document.createElement("button");
+            const size = treeNodeSize(node.score, width);
+            const isLeaf = !node.children?.length;
+            button.type = "button";
+            button.className = `topic-node${isLeaf ? " leaf-node" : ""}${promoted ? " promoted-node" : ""}${selected ? " selected" : ""}`;
+            button.style.left = `${position.x}%`;
+            button.style.top = `${position.y}%`;
+            button.dataset.side = position.x < 45 ? "left" : position.x > 55 ? "right" : "center";
+            button.dataset.promoted = String(promoted);
+            button.style.setProperty("--node-size", `${size}px`);
+            button.style.setProperty("--node-color", node.color || "var(--blue)");
+            button.style.setProperty("--node-score", node.score || 100);
+            button.style.setProperty("--node-emphasis", `${(12.2 + (node.score || 100) * 0.026).toFixed(1)}px`);
+            button.setAttribute("aria-label", `${node.label}${parent ? `, from ${parent.label}` : ""}, relevance ${node.score || 100} percent${node.children?.length ? `, ${node.children.length} subtopics` : ""}`);
+            const originMarkup = promoted
+              ? `${icon("subtopic")} Subtopic in ${escapeHtml(parent.label)} · ${escapeHtml(signal)}`
+              : `${topicOrigin(node)}${node.children?.length ? ` · ${node.children.length} topics` : ""}`;
+            button.innerHTML = `<span class="topic-node-copy"><span class="topic-title"><strong>${escapeHtml(node.label)}</strong>${icon("chevron")}</span><span class="node-origin">${originMarkup}</span></span>`;
+            button.addEventListener("click", () => {
+              if (promoted) {
+                if (node.children?.length) {
+                  topicPath = [topicPath[0], ...jumpPath];
+                  selectedLeaf = null;
+                  $("#topicPromptCard").hidden = true;
+                } else {
+                  topicPath = [topicPath[0], parent];
+                  selectedLeaf = node;
+                  showTopicPrompts(node);
+                }
+              } else if (node.children?.length) {
+                topicPath.push(node);
+                selectedLeaf = null;
+                $("#topicPromptCard").hidden = true;
+              } else {
+                selectedLeaf = node;
+                showTopicPrompts(node);
+              }
+              renderTopicTree();
+            });
+            nodesLayer.append(button);
+          });
+          renderBreadcrumbs();
+          $("#treeToolbar").classList.toggle("root-only", topicPath.length === 1);
+          const startButton = $("#startBranchButton");
+          startButton.hidden = topicPath.length === 1;
+          startButton.dataset.topic = current.label;
+          $("span", startButton).textContent = `Talk about ${current.label}`;
+        };
+
+        const showTopicPrompts = (node) => {
+          const card = $("#topicPromptCard");
+          $("#promptCardTitle").textContent = node.label;
+          $("#promptOptions").innerHTML = (node.prompts || [`Let's talk about ${node.label}`]).map((prompt) =>
+            `<button class="prompt-option" type="button" data-prompt="${escapeHtml(prompt)}"><span>${escapeHtml(prompt)}</span>${icon("arrow-up")}</button>`
+          ).join("");
+          $$(".prompt-option", card).forEach((button) => {
+            button.addEventListener("click", () => {
+              composerInput.value = button.dataset.prompt;
+              resizeComposer();
+              composerInput.focus();
+              showToast("Starter added below—edit it or send when it feels right.");
+            });
+          });
+          card.hidden = false;
+        };
+
+        const showLanding = () => {
+          document.body.classList.add("landing-active");
+          $("#topicLanding").hidden = false;
+          messageScroller.hidden = true;
+          contextPanel.classList.remove("open");
+          $("#headerTopic").textContent = "What would you like to explore?";
+          $("#headerTopicMode").textContent = "· personalized";
+          $("#chatSurfaceTitle").textContent = "Your chat";
+          composerInput.placeholder = "Ask anything, or choose a branch above…";
+          syncScrim();
+          window.requestAnimationFrame(renderTopicTree);
+        };
+
+        const contextItemMarkup = ({ id, name, detail, kind = "history", weight = 6, pinned = false }) => {
+          const iconName = kind === "memory" ? "brain" : "history";
+          const sourceClass = kind === "memory" ? "source-icon memory" : "source-icon history";
+          return `<article class="context-item" data-context-id="${id}" data-context-name="${escapeHtml(name)}" data-weight="${weight}">
+            <div class="context-item-main"><span class="${sourceClass}">${icon(iconName)}</span><span class="source-copy"><strong>${escapeHtml(name)}</strong><span>${escapeHtml(detail)}</span></span><span class="source-actions"><button class="mini-icon-button${pinned ? " active" : ""} pin-context" type="button" aria-label="${pinned ? "Unpin" : "Pin"} ${escapeHtml(name)}" title="${pinned ? "Unpin" : "Pin"}">${icon("pin")}</button><button class="mini-icon-button remove-context" type="button" aria-label="Remove ${escapeHtml(name)}" title="Remove">${icon("x")}</button></span></div>
+            <div class="why-row"><span>${pinned ? "Pinned by you" : "Selected for this topic"}</span><button class="why-button" type="button">Why included ${icon("chevron-down")}</button></div><div class="why-detail">${pinned ? "You asked Garbanzo to keep this available." : "This matched the topic you chose and may help answer the next question."}</div></article>`;
+        };
+
+        const configureContextForTopic = (topic) => {
+          const financial = /retire|contribution|401|finance|tax|invest|budget/i.test(topic);
+          const pinned = financial
+            ? [{ id: "financial-goals", name: "Long-term financial goals", detail: "Memory · saved priorities", kind: "memory", weight: 6, pinned: true }]
+            : [{ id: "topic-preferences", name: `${topic} preferences`, detail: "Memory · saved from earlier chats", kind: "memory", weight: 5, pinned: true }];
+          const dynamic = financial
+            ? [
+                { id: "quarterly-tax-history", name: "Quarterly tax prep", detail: "History · yesterday", weight: 7 },
+                { id: "retirement-history", name: "Earlier retirement questions", detail: "History · 9 relevant messages", weight: 8 },
+              ]
+            : [{ id: "related-history", name: `Earlier ${topic} discussion`, detail: "History · relevant excerpts", weight: 7 }];
+          $("#pinnedContextList").innerHTML = pinned.map(contextItemMarkup).join("");
+          $("#dynamicContextList").innerHTML = dynamic.map(contextItemMarkup).join("");
+          $$(".context-chip").forEach((chip) => chip.remove());
+          [...pinned, ...dynamic].slice(0, 2).forEach((item) => addChip(item.name, item.kind === "memory" ? "Memory" : "History"));
+          bindContextActions();
+          bindWhyButtons();
+          updateContextSummary();
+        };
+
+        const enterChat = (topic = "Japan trip planning", preserveJapanContext = false) => {
+          activeChatTopic = topic;
+          document.body.classList.remove("landing-active");
+          $("#topicLanding").hidden = true;
+          messageScroller.hidden = false;
+          $("#headerTopic").textContent = topic;
+          $("#headerTopicMode").textContent = "· AI-managed";
+          $("#chatSurfaceTitle").textContent = "Your chat";
+          $("#panelTopic").textContent = topic;
+          $(".context-status").innerHTML = `${icon("spark")} ${escapeHtml(topic)}`;
+          composerInput.placeholder = "Just keep talking… Garbanzo will carry the right context forward";
+          if (!preserveJapanContext || !$(".context-item")) configureContextForTopic(topic);
+          messageScroller.scrollTo({ top: messageScroller.scrollHeight, behavior: "smooth" });
+          syncScrim();
+        };
+
+        const isOverlayPanel = () => window.matchMedia("(max-width: 1180px)").matches;
+        const syncScrim = () => {
+          const show = (isOverlayPanel() && contextPanel.classList.contains("open")) || sidebar.classList.contains("open");
+          scrim.classList.toggle("open", show);
+        };
+
+        const openPanel = () => {
+          contextPanel.classList.add("open");
+          $("#contextButton").setAttribute("aria-expanded", "true");
+          syncScrim();
+        };
+
+        const closePanel = () => {
+          if (!isOverlayPanel()) return;
+          contextPanel.classList.remove("open");
+          $("#contextButton").setAttribute("aria-expanded", "false");
+          syncScrim();
+        };
+
+        $("#contextButton").addEventListener("click", () => {
+          if (isOverlayPanel() && contextPanel.classList.contains("open")) closePanel();
+          else openPanel();
+        });
+        $("#closePanelButton").addEventListener("click", closePanel);
+        $("#openSidebarButton").addEventListener("click", () => {
+          sidebar.classList.add("open");
+          syncScrim();
+        });
+        scrim.addEventListener("click", () => {
+          sidebar.classList.remove("open");
+          if (isOverlayPanel()) contextPanel.classList.remove("open");
+          syncScrim();
+        });
+        window.addEventListener("resize", () => {
+          syncScrim();
+          if (document.body.classList.contains("landing-active")) renderTopicTree();
+        });
+
+        $$("[data-tree-mode]").forEach((button) => {
+          button.addEventListener("click", () => {
+            treeMode = button.dataset.treeMode;
+            topicPath = [topicTrees[treeMode]];
+            selectedLeaf = null;
+            $("#topicPromptCard").hidden = true;
+            $$("[data-tree-mode]").forEach((item) => item.classList.toggle("active", item === button));
+            renderTopicTree();
+          });
+        });
+
+        $("#newTopicButton").addEventListener("click", () => {
+          topicPath = [topicTrees[treeMode]];
+          selectedLeaf = null;
+          $("#topicPromptCard").hidden = true;
+          showLanding();
+          showToast("Choose a new topic. Your earlier conversation stays in history.");
+        });
+
+        $("#styleButton").addEventListener("click", (event) => {
+          event.stopPropagation();
+          setStylePopover($("#stylePopover").hidden);
+        });
+        $("#closeStyleButton").addEventListener("click", () => setStylePopover(false));
+        $("#stylePopover").addEventListener("click", (event) => event.stopPropagation());
+        document.addEventListener("click", () => setStylePopover(false));
+
+        $$(".style-preset").forEach((button) => {
+          button.addEventListener("click", () => {
+            activeStyleName = button.dataset.styleName;
+            $$(".style-preset").forEach((item) => item.classList.toggle("active", item === button));
+            $("#styleModelSelect").value = button.dataset.model;
+            $("#styleInstructions").value = button.dataset.instructions;
+            thinkingEffort = button.dataset.effort;
+            syncModelEfforts();
+          });
+        });
+
+        $("#styleModelSelect").addEventListener("change", () => {
+          markStyleCustom();
+          syncModelEfforts();
+        });
+        $("#styleInstructions").addEventListener("input", markStyleCustom);
+        $$(".effort-option").forEach((button) => {
+          button.addEventListener("click", () => {
+            markStyleCustom();
+            setThinkingEffort(button.dataset.effort);
+          });
+        });
+        $("#quickEffortButton").addEventListener("click", () => {
+          const supported = supportedEfforts(styleModels[$("#styleModelSelect").value]);
+          const nextIndex = (supported.indexOf(thinkingEffort) + 1) % supported.length;
+          markStyleCustom();
+          setThinkingEffort(supported[nextIndex]);
+          showToast(`Thinking effort: ${titleCase(thinkingEffort)}.`);
+        });
+        $("#styleDoneButton").addEventListener("click", () => {
+          setStylePopover(false);
+          showToast(`${activeStyleName} · ${styleModels[$("#styleModelSelect").value].name} · ${titleCase(thinkingEffort)} thinking.`);
+        });
+
+        $("#closePromptCard").addEventListener("click", () => {
+          $("#topicPromptCard").hidden = true;
+          selectedLeaf = null;
+          renderTopicTree();
+        });
+
+        $("#continueChatButton").addEventListener("click", () => enterChat("Japan trip planning", true));
+        $("#discoverTopicsButton").addEventListener("click", showLanding);
+        $("#startBranchButton").addEventListener("click", (event) => {
+          const topic = event.currentTarget.dataset.topic;
+          enterChat(topic);
+          composerInput.focus();
+          showToast(`${topic} is active. Start anywhere within it.`);
+        });
+
+        $$("[data-history-view]").forEach((button) => {
+          button.addEventListener("click", () => {
+            $$("[data-history-view]").forEach((item) => {
+              const active = item === button;
+              item.classList.toggle("active", active);
+              item.setAttribute("aria-selected", String(active));
+              $(`#${item.dataset.historyView}`).hidden = !active;
+            });
+          });
+        });
+
+        $$(".thread-item").forEach((button) => {
+          button.addEventListener("click", () => {
+            const title = button.dataset.threadTitle;
+            const topic = button.dataset.threadTopic;
+            enterChat(topic, topic === "Japan trip planning");
+            $("#chatSurfaceTitle").textContent = title;
+            $("#headerTopicMode").textContent = "· original thread";
+            $$(".thread-item").forEach((item) => item.classList.toggle("active", item === button));
+            $(".legacy-thread-card")?.remove();
+            const notice = document.createElement("aside");
+            notice.className = "context-shift legacy-thread-card";
+            notice.innerHTML = `<div class="context-shift-top"><span class="shift-icon">${icon("history", "icon")}</span><span class="shift-copy"><strong>Original thread opened: ${escapeHtml(title)}</strong><span>Its exact message history, model, tools, and conversation settings are preserved.</span></span></div>`;
+            $("#messages").insertBefore(notice, $("#latest"));
+            messageScroller.scrollTo({ top: messageScroller.scrollHeight, behavior: "smooth" });
+            if (window.matchMedia("(max-width: 760px)").matches) {
+              sidebar.classList.remove("open");
+              syncScrim();
+            }
+            showToast(`Opened original thread: ${title}.`);
+          });
+        });
+
+        $$("[data-demo-toast]").forEach((button) => {
+          button.addEventListener("click", () => showToast(button.dataset.demoToast));
+        });
+
+        $$(".topic-jump").forEach((button) => {
+          button.addEventListener("click", () => {
+            enterChat(button.dataset.topic, button.dataset.topic === "Japan trip planning");
+            $$(".topic-jump").forEach((item) => item.classList.remove("active"));
+            button.classList.add("active");
+            if (button.dataset.topic === "Japan trip planning") {
+              messageScroller.scrollTo({ top: 0, behavior: "smooth" });
+            }
+            if (window.matchMedia("(max-width: 760px)").matches) {
+              sidebar.classList.remove("open");
+              syncScrim();
+            }
+          });
+        });
+
+        $("[data-scroll-target='latest']").addEventListener("click", () => {
+          enterChat("Japan trip planning", true);
+          messageScroller.scrollTo({ top: messageScroller.scrollHeight, behavior: "smooth" });
+          if (window.matchMedia("(max-width: 760px)").matches) {
+            sidebar.classList.remove("open");
+            syncScrim();
+          }
+        });
+
+        $("#previewButton").addEventListener("click", (event) => {
+          const preview = $("#contextPreview");
+          preview.classList.toggle("open");
+          event.currentTarget.innerHTML = preview.classList.contains("open")
+            ? `${icon("eye")} Hide next-turn preview`
+            : `${icon("eye")} Preview what the AI sees next`;
+        });
+
+        const bindWhyButtons = (root = document) => {
+          $$(".why-button", root).forEach((button) => {
+            if (button.dataset.bound) return;
+            button.dataset.bound = "true";
+            button.addEventListener("click", () => {
+              button.closest(".context-item").querySelector(".why-detail")?.classList.toggle("open");
+            });
+          });
+        };
+        bindWhyButtons();
+
+        const updateContextSummary = () => {
+          const items = $$(".context-item");
+          const count = items.length;
+          const weight = items.reduce((sum, item) => sum + Number(item.dataset.weight || 4), 8);
+          $("#contextCount").textContent = String(count);
+          $("#meterValue").textContent = `${weight}%`;
+          $("#meterRing").style.setProperty("--value", Math.min(weight, 100));
+          $("#meterDescription").textContent = `${count} selected item${count === 1 ? "" : "s"} · older unrelated history stays out`;
+        };
+
+        const removeChip = (name) => {
+          $$(`.context-chip`).find((chip) => chip.dataset.chip === name)?.remove();
+        };
+
+        const addChip = (name, kind = "File") => {
+          if ($$(".context-chip").some((chip) => chip.dataset.chip === name)) return;
+          const iconName = kind === "Memory" ? "brain" : kind === "History" ? "history" : kind === "Folder" ? "folder" : "file";
+          const chip = document.createElement("span");
+          chip.className = "context-chip";
+          chip.dataset.chip = name;
+          chip.innerHTML = `${icon(iconName)}<span>${escapeHtml(name)}</span><button type="button" aria-label="Remove ${escapeHtml(name)}">${icon("x")}</button>`;
+          $("#turnContext").append(chip);
+          chip.querySelector("button").addEventListener("click", () => chip.remove());
+        };
+
+        $$(".context-chip button").forEach((button) => {
+          button.addEventListener("click", () => {
+            const chip = button.closest(".context-chip");
+            showToast(`${chip.dataset.chip} removed from the next turn.`);
+            chip.remove();
+          });
+        });
+
+        const bindContextActions = (root = document) => {
+          $$(".remove-context", root).forEach((button) => {
+            if (button.dataset.bound) return;
+            button.dataset.bound = "true";
+            button.addEventListener("click", () => {
+              const item = button.closest(".context-item");
+              const name = item.dataset.contextName;
+              item.classList.add("removing");
+              window.setTimeout(() => {
+                item.remove();
+                removeChip(name);
+                updateContextSummary();
+                showToast(`${name} removed. Garbanzo will not use it unless you add it again.`);
+              }, 160);
+            });
+          });
+
+          $$(".pin-context", root).forEach((button) => {
+            if (button.dataset.bound) return;
+            button.dataset.bound = "true";
+            button.addEventListener("click", () => {
+              const item = button.closest(".context-item");
+              const name = item.dataset.contextName;
+              const willPin = !button.classList.contains("active");
+              button.classList.toggle("active", willPin);
+              if (willPin) {
+                $("#pinnedContextList").append(item);
+                showToast(`${name} pinned. It will stay active across topic refinements.`);
+              } else {
+                $("#dynamicContextList").prepend(item);
+                showToast(`${name} unpinned. Garbanzo can now remove it when it stops being relevant.`);
+              }
+            });
+          });
+        };
+        bindContextActions();
+
+        const openModal = (modal, focusTarget) => {
+          lastFocusedElement = document.activeElement;
+          modal.classList.add("open");
+          window.setTimeout(() => focusTarget?.focus(), 0);
+        };
+
+        const closeModal = (modal) => {
+          modal.classList.remove("open");
+          lastFocusedElement?.focus();
+        };
+
+        const openPicker = () => {
+          $("#pickerSearch").value = "";
+          $$(".picker-item").forEach((item) => item.classList.remove("hidden"));
+          $("#emptyResults").style.display = "none";
+          openModal(pickerModal, $("#pickerSearch"));
+        };
+
+        $("#panelAddContextButton").addEventListener("click", openPicker);
+        $("#searchHistoryButton").addEventListener("click", openPicker);
+        $("#pickerDoneButton").addEventListener("click", () => closeModal(pickerModal));
+        pickerModal.addEventListener("click", (event) => {
+          if (event.target === pickerModal) closeModal(pickerModal);
+        });
+
+        $("#pickerSearch").addEventListener("input", (event) => {
+          const term = event.target.value.trim().toLowerCase();
+          let visible = 0;
+          $$(".picker-item").forEach((item) => {
+            const match = item.textContent.toLowerCase().includes(term);
+            item.classList.toggle("hidden", !match);
+            if (match) visible += 1;
+          });
+          $("#emptyResults").style.display = visible ? "none" : "block";
+        });
+
+        $$(".picker-item").forEach((item) => {
+          item.addEventListener("click", () => {
+            const selected = item.classList.toggle("selected");
+            const name = item.dataset.name;
+            if (selected) {
+              const contextItem = document.createElement("article");
+              const kind = item.dataset.kind;
+              const iconName = kind === "Memory" ? "brain" : kind === "History" ? "history" : kind === "Folder" ? "folder" : "file";
+              const iconClass = kind === "Memory" ? "source-icon memory" : kind === "History" ? "source-icon history" : "source-icon";
+              contextItem.className = "context-item";
+              contextItem.dataset.contextId = item.dataset.pickerId;
+              contextItem.dataset.contextName = name;
+              contextItem.dataset.weight = item.dataset.weight;
+              contextItem.innerHTML = `
+                <div class="context-item-main">
+                  <span class="${iconClass}">${icon(iconName)}</span>
+                  <span class="source-copy"><strong>${escapeHtml(name)}</strong><span>${escapeHtml(kind)} · added by you</span></span>
+                  <span class="source-actions"><button class="mini-icon-button active pin-context" type="button" aria-label="Unpin ${escapeHtml(name)}" title="Unpin">${icon("pin")}</button><button class="mini-icon-button remove-context" type="button" aria-label="Remove ${escapeHtml(name)}" title="Remove">${icon("x")}</button></span>
+                </div>
+                <div class="why-row"><span>Added just now</span><button class="why-button" type="button">Why included ${icon("chevron-down")}</button></div>
+                <div class="why-detail">You explicitly added this source, so Garbanzo will keep it active until you remove it.</div>`;
+              $("#pinnedContextList").append(contextItem);
+              bindContextActions(contextItem);
+              bindWhyButtons(contextItem);
+              addChip(name, kind);
+              updateContextSummary();
+              showToast(`${name} added and pinned to the active context.`);
+            } else {
+              const existing = $(`.context-item[data-context-id="${item.dataset.pickerId}"]`);
+              existing?.remove();
+              removeChip(name);
+              updateContextSummary();
+              showToast(`${name} removed from active context.`);
+            }
+          });
+        });
+
+        $("#freshStartButton").addEventListener("click", () => openModal(freshModal, $("#freshCancelButton")));
+        $("#freshCancelButton").addEventListener("click", () => closeModal(freshModal));
+        freshModal.addEventListener("click", (event) => {
+          if (event.target === freshModal) closeModal(freshModal);
+        });
+        $("#freshConfirmButton").addEventListener("click", () => {
+          closeModal(freshModal);
+          $("#panelTopic").textContent = "Fresh start";
+          $$(".context-item").forEach((item) => item.remove());
+          $$(".context-chip").forEach((chip) => chip.remove());
+          $(".context-status").innerHTML = `${icon("spark")} Fresh context`;
+          updateContextSummary();
+          topicPath = [topicTrees.personal];
+          selectedLeaf = null;
+          showLanding();
+          showToast("Fresh context started. Your history is still intact.");
+        });
+
+        $("#pinTopicButton").addEventListener("click", (event) => {
+          const active = event.currentTarget.classList.toggle("topic-pinned");
+          event.currentTarget.innerHTML = active
+            ? `${icon("pin")}<span>Topic pinned</span>`
+            : `${icon("pin")}<span>Pin topic</span>`;
+          showToast(active ? "Topic pinned. Garbanzo will ask before switching away." : "Topic unpinned. Automatic topic detection is active again.");
+        });
+
+        const redirectTopic = () => {
+          const next = window.prompt("What should Garbanzo focus on?", $("#panelTopic").textContent);
+          if (!next?.trim()) return;
+          $("#panelTopic").textContent = next.trim();
+          $("#headerTopic").textContent = next.trim();
+          $(".context-status").innerHTML = `${icon("spark")} ${escapeHtml(next.trim())}`;
+          showToast(`Context redirected to ${next.trim()}.`);
+        };
+        $("#renameTopicButton").addEventListener("click", redirectTopic);
+        $("#wrongTopicButton").addEventListener("click", redirectTopic);
+        $("#shiftReviewButton").addEventListener("click", openPanel);
+
+        $("#themeButton").addEventListener("click", () => {
+          const dark = document.documentElement.dataset.theme !== "dark";
+          document.documentElement.dataset.theme = dark ? "dark" : "light";
+          $("#themeIcon").innerHTML = `<use href="#i-${dark ? "sun" : "moon"}" />`;
+        });
+
+        const resizeComposer = () => {
+          composerInput.style.height = "auto";
+          composerInput.style.height = `${Math.min(composerInput.scrollHeight, 150)}px`;
+          sendButton.disabled = !composerInput.value.trim();
+        };
+        composerInput.addEventListener("input", resizeComposer);
+
+        const sendMessage = () => {
+          const text = composerInput.value.trim();
+          if (!text) return;
+          if (document.body.classList.contains("landing-active")) {
+            const discoveredTopic = [topicPath.length > 1 ? topicPath.at(-1).label : null, selectedLeaf?.label]
+              .filter(Boolean)
+              .join(" · ") || "New topic";
+            enterChat(discoveredTopic);
+            const eventCard = document.createElement("aside");
+            eventCard.className = "context-shift";
+            eventCard.innerHTML = `<div class="context-shift-top"><span class="shift-icon">${icon("spark", "icon")}</span><span class="shift-copy"><strong>Started from ${escapeHtml(discoveredTopic)}</strong><span>Garbanzo prepared a small, relevant context set from your history and memories.</span></span><span class="shift-actions"><button class="text-button" type="button">Review context</button></span></div>`;
+            eventCard.querySelector("button").addEventListener("click", openPanel);
+            $("#messages").insertBefore(eventCard, $("#latest"));
+          }
+          const userMessage = document.createElement("article");
+          userMessage.className = "message user";
+          userMessage.innerHTML = `<div class="message-body"><div class="user-bubble">${escapeHtml(text)}</div></div><span class="avatar">JG</span>`;
+          $("#messages").insertBefore(userMessage, $("#latest"));
+          composerInput.value = "";
+          resizeComposer();
+          messageScroller.scrollTo({ top: messageScroller.scrollHeight, behavior: "smooth" });
+
+          window.setTimeout(() => {
+            const response = document.createElement("article");
+            response.className = "message assistant";
+            response.innerHTML = `<span class="avatar assistant-avatar"><img src="../../assets/brand/bean_320.png" alt="Garbanzo" /></span><div class="message-body"><div class="message-name">Garbanzo</div><div class="message-text"><p>I’m using the active <strong>${escapeHtml(activeChatTopic)}</strong> context for this reply. In the real product, this response would stream here while the context panel records exactly what was added or excluded.</p><p><strong>Mock interaction:</strong> your message was preserved in the single continuous timeline—no new thread was created.</p></div></div>`;
+            $("#messages").insertBefore(response, $("#latest"));
+            messageScroller.scrollTo({ top: messageScroller.scrollHeight, behavior: "smooth" });
+          }, 650);
+        };
+        sendButton.addEventListener("click", sendMessage);
+        composerInput.addEventListener("keydown", (event) => {
+          if (event.key === "Enter" && !event.shiftKey) {
+            event.preventDefault();
+            sendMessage();
+          }
+        });
+
+        document.addEventListener("keydown", (event) => {
+          if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+            event.preventDefault();
+            openPicker();
+          }
+          if (event.key === "Escape") {
+            if (!$("#stylePopover").hidden) setStylePopover(false);
+            else if (pickerModal.classList.contains("open")) closeModal(pickerModal);
+            else if (freshModal.classList.contains("open")) closeModal(freshModal);
+            else {
+              sidebar.classList.remove("open");
+              closePanel();
+              syncScrim();
+            }
+          }
+        });
+
+        $("#contextButton").setAttribute("aria-expanded", String(!isOverlayPanel()));
+        syncModelEfforts();
+        updateContextSummary();
+        window.requestAnimationFrame(renderTopicTree);
+      })();
+    </script>
+  </body>
+</html>

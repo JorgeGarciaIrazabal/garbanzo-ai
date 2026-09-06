@@ -388,3 +388,179 @@ claude:
 # Launch Claude Code with a specific model
 claude-ollama model="qwen3.8:27b":
     ollama launch claude --model {{model}} 
+
+# Codex-first development (all commands accept --json)
+[positional-arguments]
+ai *args:
+    @python3 -m scripts.ai_dev guided "$@"
+
+[positional-arguments]
+ai-setup *args:
+    @python3 -m scripts.ai_dev setup "$@"
+
+[positional-arguments]
+ai-doctor *args:
+    @python3 -m scripts.ai_dev doctor "$@"
+
+[positional-arguments]
+ai-models *args:
+    @python3 -m scripts.ai_dev models "$@"
+
+[positional-arguments]
+ai-task *args:
+    @python3 -m scripts.ai_dev task "$@"
+
+[positional-arguments]
+ai-run *args:
+    @python3 -m scripts.ai_dev run "$@"
+
+[positional-arguments]
+ai-batch *args:
+    @python3 -m scripts.ai_dev batch "$@"
+
+[positional-arguments]
+ai-status *args:
+    @python3 -m scripts.ai_dev status "$@"
+
+[positional-arguments]
+ai-stop *args:
+    @python3 -m scripts.ai_dev stop "$@"
+
+[positional-arguments]
+ai-resume *args:
+    @python3 -m scripts.ai_dev resume "$@"
+
+[positional-arguments]
+ai-triage *args:
+    @python3 -m scripts.ai_dev triage "$@"
+
+[positional-arguments]
+ai-reports *args:
+    @python3 -m scripts.ai_dev reports "$@"
+
+[positional-arguments]
+ai-incident *args:
+    @python3 -m scripts.ai_dev incident "$@"
+
+[positional-arguments]
+ai-search *args:
+    @python3 -m scripts.ai_dev search "$@"
+
+[positional-arguments]
+ai-knowledge-refresh *args:
+    @python3 -m scripts.ai_dev knowledge-refresh "$@"
+
+[positional-arguments]
+ai-preview *args:
+    @python3 -m scripts.ai_dev preview "$@"
+
+[positional-arguments]
+ai-capacity *args:
+    @python3 -m scripts.ai_dev capacity "$@"
+
+[positional-arguments]
+ai-nightly *args:
+    @python3 -m scripts.ai_dev nightly "$@"
+
+# Controller regression tests: no application services or provider allowance required
+[positional-arguments]
+ai-test *args:
+    python3 -m unittest discover -s scripts/ai_dev/tests -v "$@"
+
+ai-lint:
+    cd backend; uv run ruff check ../scripts/ai_dev
+    cd backend; uv run ruff format --check ../scripts/ai_dev
+
+ai-format:
+    cd backend; uv run ruff check --fix ../scripts/ai_dev
+    cd backend; uv run ruff format ../scripts/ai_dev
+
+# Production helper transport; SQL is passed on stdin by the bounded adapter
+ai-prod-sql:
+    @{{prod_compose}} exec -T postgres psql -X -q -A -t -v ON_ERROR_STOP=1 -U garbanzo -d garbanzo_ai_prod
+
+ai-prod-services:
+    @{{prod_compose}} ps --format json
+
+ai-prod-logs:
+    @{{prod_compose}} logs --no-color --tail=100 backend
+
+# Serena uses the pinned revision and the repository's real Flutter SDK
+ai-serena:
+    @python3 -m scripts.ai_dev serena
+
+# Internal pinned Serena runtime; launcher selects revision from .ai/toolchain.json
+ai-serena-runtime revision:
+    uv run --with "git+https://github.com/oraios/serena@{{revision}}" python scripts/ai_dev/serena_runtime.py start-mcp-server --project . --context codex --enable-web-dashboard false
+
+# Read-only production readiness collection for development-session startup
+ai-startup:
+    @python3 -m scripts.ai_dev guided --inspect --json
+
+ai-qmd-mcp:
+    @PATH="{{justfile_directory()}}/.ai/tools/node_modules/.bin:$PATH" QMD_FORCE_CPU=1 qmd mcp
+
+# Release preparation; called by explicit deploy, never by overnight work
+[positional-arguments]
+ai-changelog *args:
+    @python3 -m scripts.ai_dev changelog "$@"
+
+[positional-arguments]
+ai-deployment-evidence *args:
+    @python3 -m scripts.ai_dev deployment-evidence "$@"
+
+# Real migrations in a disposable Docker-only PostgreSQL database
+ai-migration-smoke:
+    cd backend; PYTHONPATH=. uv run python ../scripts/ai_dev/migration_smoke.py --root ..
+
+ai-navigation-smoke:
+    cd backend; uv run python ../scripts/ai_dev/navigation_smoke.py
+
+# Pinned private Ollama allowance reader; authentication stays in its own local store
+ai-install-usage revision:
+    UV_TOOL_DIR="{{justfile_directory()}}/.ai/tools/uv-tools" UV_TOOL_BIN_DIR="{{justfile_directory()}}/.ai/tools/bin" uv tool install --force "git+https://github.com/ontech7/ollama-usage@{{revision}}"
+
+# Verified local secret scanner; version/checksum come from .ai/toolchain.json
+ai-install-gitleaks version checksum:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    archive=$(mktemp)
+    trap 'rm -f "$archive"' EXIT
+    curl -fsSL "https://github.com/gitleaks/gitleaks/releases/download/v{{version}}/gitleaks_{{version}}_linux_x64.tar.gz" -o "$archive"
+    printf '%s  %s\n' "{{checksum}}" "$archive" | sha256sum -c -
+    mkdir -p "{{justfile_directory()}}/.ai/tools/bin"
+    tar -xzf "$archive" -C "{{justfile_directory()}}/.ai/tools/bin" gitleaks
+
+ai-pip-audit:
+    #!/usr/bin/env bash
+    # pip-audit exit 1 means findings were produced; the controller triages them.
+    set +e
+    cd backend
+    uv run --with pip-audit pip-audit --format json
+    status=$?
+    if [[ $status -ne 0 && $status -ne 1 ]]; then
+        exit "$status"
+    fi
+
+ai-pip-audit-strict:
+    cd backend; uv run --with pip-audit pip-audit --format json
+
+ai-dart-audit:
+    dart pub outdated --json
+
+# Dependency and secret findings are sanitized into Beads by stable IDs
+ai-audit:
+    @python3 -m scripts.ai_dev audit
+
+# Read the source revision label of the actual running production backend image
+ai-prod-revision:
+    @{{prod_compose}} ps -q backend | xargs -r docker inspect --format='{{'{{'}}index .Config.Labels "org.opencontainers.image.revision"{{'}}'}}'
+
+# Report-bound read-only assertions against the actual deployed HTTP service
+[positional-arguments]
+ai-prod-behavior *args:
+    @python3 -m scripts.ai_dev.behavior "$@"
+
+[positional-arguments]
+ai-nightly-worker *args:
+    @python3 -m scripts.ai_dev nightly-worker "$@"

@@ -7,7 +7,7 @@
 # any branch with a dirty tree. Safe to re-run; data lives in named volumes.
 #
 # After a successful deploy, generates an LLM-authored changelog section (via
-# opencode, from this release's git log + user reports) into CHANGELOG.md, bumps
+# Codex, from this release's git log + user reports) into CHANGELOG.md, bumps
 # the patch version in pubspec.yaml, commits both on main, creates an annotated
 # tag v<version> (with the ngrok URL + changelog in the tag message so CI can
 # extract them), and pushes both to origin. The signed APK is attached to the
@@ -49,6 +49,8 @@ command -v gh >/dev/null 2>&1 || die "GitHub CLI (gh) is required to publish the
 gh auth status --hostname github.com >/dev/null 2>&1 \
     || die "GitHub CLI is not authenticated — run 'gh auth login'"
 git -C "$REPO" rev-parse --verify --quiet main >/dev/null || die "no local main branch"
+[[ "$(git -C "$REPO" branch --show-current)" == main ]] || die "deploy from the main checkout"
+[[ -z "$(git -C "$REPO" status --porcelain -- pubspec.yaml CHANGELOG.md)" ]] || die "release files contain local edits; preserve/commit them before deploying"
 for pid in $(pgrep -x ngrok || true); do
     # Containerized ngrok (e.g. our own garbanzo-prod-ngrok-1, about to be
     # recreated by `compose up`) shows up in `pgrep` when the host doesn't
@@ -59,6 +61,11 @@ for pid in $(pgrep -x ngrok || true); do
     fi
 done
 
+mkdir -p "$REPO/.ai/local"
+chmod 700 "$REPO/.ai/local"
+exec 9>"$REPO/.ai/local/writer.lock"
+flock -n 9 || die "integration/deployment writer is busy"
+SOURCE_SHA=$(git -C "$REPO" rev-parse main)
 SHA=$(git -C "$REPO" rev-parse --short main)
 BUILD_NUMBER=$(git -C "$REPO" rev-list --count main)  # monotonic Android versionCode
 
@@ -102,14 +109,30 @@ git -C "$REPO" worktree add --detach "$WT" main >/dev/null
 # Required for the Android build but gitignored:
 cp "$REPO/android/app/google-services.json" "$WT/android/app/"
 
+# --- Integrated quality gate --------------------------------------------------
+step "Testing the exact source snapshot before shipping"
+(cd "$WT" && just test)
+
 # --- Build --------------------------------------------------------------------
 step "Building Flutter web"
 (cd "$WT" && flutter build web --release --wasm --output backend/web)
 
 step "Building backend image (garbanzo-backend:latest, :$SHA)"
-docker build --build-arg "APP_VERSION=$NEW_VERSION" \
+docker build --label "org.opencontainers.image.revision=$SOURCE_SHA" --build-arg "APP_VERSION=$NEW_VERSION" \
     --build-arg "TORCH_VARIANT=$TORCH_VARIANT" \
     -t garbanzo-backend:latest -t "garbanzo-backend:$SHA" "$WT/backend"
+
+# Build every required release artifact before changing the running stack. A
+# build failure therefore leaves the current production revision untouched.
+step "Building Android APK (versionCode $BUILD_NUMBER)"
+(cd "$WT" && flutter build apk --release \
+    --dart-define=API_BASE_URL="https://$NGROK_DOMAIN" \
+    --build-name="$NEW_VERSION" \
+    --build-number="$BUILD_NUMBER")
+mkdir -p "$REPO/dist"
+APK_NAME="garbanzo-ai-android-${NEW_VERSION}.apk"
+APK_PATH="$REPO/dist/$APK_NAME"
+cp "$WT/build/app/outputs/flutter-apk/app-release.apk" "$APK_PATH"
 
 # --- Ship ---------------------------------------------------------------------
 step "Starting prod stack"
@@ -141,18 +164,7 @@ for i in $(seq 1 15); do
     sleep 2
 done
 
-# --- Android APK ----------------------------------------------------------------
-step "Building Android APK (versionCode $BUILD_NUMBER)"
-(cd "$WT" && flutter build apk --release \
-    --dart-define=API_BASE_URL="https://$NGROK_DOMAIN" \
-    --build-name="$NEW_VERSION" \
-    --build-number="$BUILD_NUMBER")
-mkdir -p "$REPO/dist"
-APK_NAME="garbanzo-ai-android-${NEW_VERSION}.apk"
-cp "$WT/build/app/outputs/flutter-apk/app-release.apk" "$REPO/dist/$APK_NAME"
-
 # --- Install APK on a connected device (if any) -----------------------------
-APK_PATH="$REPO/dist/$APK_NAME"
 export ANDROID_HOME="${ANDROID_HOME:-$HOME/Android/Sdk}"
 export PATH="$ANDROID_HOME/platform-tools:$PATH"
 if command -v adb >/dev/null 2>&1 && adb get-state >/dev/null 2>&1; then
@@ -174,63 +186,13 @@ echo "  Status: just deploy-status"
 
 # --- Changelog ----------------------------------------------------------------
 # Generate a human-readable changelog section for this release and prepend it to
-# CHANGELOG.md. The content is authored by an LLM (opencode) from the release's
+# CHANGELOG.md. The content is authored by an LLM (Codex) from the release's
 # git log + the user reports it addressed; we only supply the raw inputs and the
 # instructions (scripts/changelog-instructions.md). Best-effort: a changelog
 # failure must never abort a deploy that has already shipped.
 step "Generating changelog"
 generate_changelog() {
-    local last_tag inputs
-    last_tag=$(git -C "$REPO" describe --tags --abbrev=0 2>/dev/null || true)
-    inputs="$WT/changelog-inputs.md"  # under the temp worktree; cleaned up on exit
-
-    {
-        echo "# Release inputs for v${NEW_VERSION} (date: $(date +%F))"
-        echo ""
-        echo "## Git log since ${last_tag:-the beginning}"
-        echo ""
-        if [[ -n "$last_tag" ]]; then
-            git -C "$REPO" log --no-merges --format='- %s%n%b' "${last_tag}..HEAD"
-        else
-            git -C "$REPO" log --no-merges --format='- %s%n%b'
-        fi
-        echo ""
-        echo "## User reports (bug/feature submissions)"
-        echo ""
-        # Reuse the prod psql escape hatch (see .claude/skills/user-reports).
-        # The prod stack is already up and health-checked above. Best-effort.
-        "${COMPOSE[@]}" exec -T postgres psql -U garbanzo -d garbanzo_ai_prod \
-            -c "SELECT id, type, status, title, description
-                FROM reports
-                WHERE status IN ('in_progress', 'closed')
-                ORDER BY updated_at DESC;" 2>/dev/null \
-            || echo "(user reports unavailable — proceeding with git log only)"
-    } > "$inputs"
-
-    if ! command -v opencode >/dev/null 2>&1; then
-        echo "WARNING: opencode not found — writing a minimal fallback changelog."
-        return 1
-    fi
-
-    # Model: use CHANGELOG_OPENCODE_MODEL if set, otherwise let opencode pick its
-    # own configured default (provider strings differ between hosts, so we avoid
-    # hardcoding one that may not resolve).
-    local model_args=()
-    [[ -n "${CHANGELOG_OPENCODE_MODEL:-}" ]] && model_args=(-m "$CHANGELOG_OPENCODE_MODEL")
-
-    # The message must come first: -f/--file is a variadic option and would
-    # otherwise swallow the trailing prompt as another file path.
-    opencode run \
-        "Follow scripts/changelog-instructions.md. Using the git log and user
-         reports in the attached inputs file, prepend a new section for version
-         v${NEW_VERSION} (dated $(date +%F)) to CHANGELOG.md. Edit only
-         CHANGELOG.md." \
-        --auto "${model_args[@]}" \
-        --dir "$REPO" \
-        -f "$REPO/scripts/changelog-instructions.md" \
-        -f "$inputs" \
-        || return 1
-    return 0
+    (cd "$REPO" && just ai-changelog "$NEW_VERSION" "$SOURCE_SHA")
 }
 
 fallback_changelog() {
@@ -243,7 +205,7 @@ fallback_changelog() {
     {
         echo "## v${NEW_VERSION} — $(date +%F)"
         echo ""
-        git -C "$REPO" log --no-merges --format='%s' "${last_tag:+${last_tag}..}HEAD" \
+        git -C "$REPO" log --no-merges --format='%s' "${last_tag:+${last_tag}..}$SOURCE_SHA" \
             | grep -E '^(feat|fix)' | sed -E 's/^(feat|fix)(\([^)]*\))?: */- /' \
             || echo "- No user-facing changes."
         echo ""
@@ -278,10 +240,11 @@ BUILD_SUFFIX=$(grep '^version:' "$REPO/pubspec.yaml" | sed 's/version: *//' | cu
 [[ -n "$BUILD_SUFFIX" ]] || BUILD_SUFFIX="1"
 sed -i "s/^version:.*/version: ${NEW_VERSION}+${BUILD_SUFFIX}/" "$REPO/pubspec.yaml"
 
-# Stage only these two paths so any stray edit opencode may have made to the
+# Stage only these two paths so any stray edit Codex may have made to the
 # working tree is not committed.
 git -C "$REPO" add pubspec.yaml CHANGELOG.md
-git -C "$REPO" commit -m "chore: bump version to ${NEW_VERSION}" >/dev/null
+git -C "$REPO" commit --only pubspec.yaml CHANGELOG.md \
+    -m "chore: bump version to ${NEW_VERSION}" >/dev/null
 
 # Extract the top section of CHANGELOG.md (this release's notes) for the tag
 # message: everything from the first "## v" up to the next "## v".
@@ -338,3 +301,6 @@ echo "  Android APK: attached to the GitHub Release."
 echo "  Desktop builds: GitHub Actions will append Linux + Windows binaries."
 echo "  CI:     https://github.com/${GITHUB_REPO}/actions"
 echo "  Release: https://github.com/${GITHUB_REPO}/releases/tag/v${NEW_VERSION}"
+
+# Record build source separately from the later version-bump release commit.
+(cd "$REPO" && just ai-deployment-evidence "$NEW_VERSION" "$SOURCE_SHA" "$(git rev-parse main)")

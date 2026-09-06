@@ -13,6 +13,7 @@ import 'package:garbanzo_ai/features/chat/providers/style_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/system_prompt_provider.dart';
 import 'package:garbanzo_ai/features/chat/services/chat_service.dart';
 import 'package:garbanzo_ai/features/chat/services/style_service.dart';
+import 'package:garbanzo_ai/features/chat/widgets/chat_input_widget.dart';
 import 'package:garbanzo_ai/features/chat/widgets/style_picker.dart';
 import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
 import 'package:provider/provider.dart';
@@ -244,6 +245,8 @@ ModelInfo _model(
   provider: 'ollama',
   description: description,
   supportsThinking: thinking,
+  thinkingLevels: thinking == true ? ThinkingLevel.values : null,
+  defaultThinkingLevel: thinking == true ? ThinkingLevel.medium : null,
   supportsTools: tools,
   supportsVision: vision,
 );
@@ -286,12 +289,14 @@ Conversation _conversation({
   String model = 'qwen3',
   String? systemPrompt,
   ThinkingLevel? thinkingLevel,
+  bool isPrimary = false,
 }) => Conversation(
   id: 'c1',
   title: 'Test',
   model: model,
   systemPrompt: systemPrompt,
   thinkingLevel: thinkingLevel,
+  isPrimary: isPrimary,
   createdAt: DateTime(2026),
   updatedAt: DateTime(2026),
 );
@@ -486,9 +491,20 @@ void main() {
     );
 
     _testPicker(
-      'falls back to the model name when settings match no saved style',
+      'keeps the style persona when thinking is overridden',
       (tester) async {
         _setScreenSize(tester, const Size(390, 844));
+        final styles = _FakeStyleProvider(
+          styles: [
+            _style(
+              's1',
+              'Deep work',
+              modelId: 'llama3.2',
+              thinkingLevel: ThinkingLevel.high,
+            ),
+          ],
+        );
+        await styles.recordLastUsed('s1');
         await tester.pumpWidget(
           _wrap(
             chat: _FakeChatProvider(
@@ -498,25 +514,67 @@ void main() {
               models: _defaultModels,
               selectedId: 'qwen3',
             ),
-            // Same style, but a different thinking level than the
-            // conversation's — no match.
-            styles: _FakeStyleProvider(
-              styles: [
-                _style(
-                  's1',
-                  'Deep work',
-                  modelId: 'llama3.2',
-                  thinkingLevel: ThinkingLevel.high,
-                ),
-              ],
-            ),
+            // Thinking differs from the saved bundle, but effort is a
+            // per-chat override and does not replace the named persona.
+            styles: styles,
             prompts: _FakeSystemPromptProvider(),
           ),
         );
         expect(tester.takeException(), isNull);
-        expect(find.text('llama3.2'), findsOneWidget);
+        expect(find.text('Deep work'), findsOneWidget);
+        expect(find.text('llama3.2'), findsNothing);
+        expect(find.text('D'), findsOneWidget);
+      },
+    );
+
+    _testPicker(
+      'explicit style identity survives an effort change even when another '
+      'style exactly matches the new effort',
+      (tester) async {
+        _setScreenSize(tester, const Size(390, 844));
+        final chat = _FakeChatProvider(
+          conversation: _conversation(
+            model: 'qwen3',
+            thinkingLevel: ThinkingLevel.medium,
+          ),
+        );
+        final styles = _FakeStyleProvider(
+          styles: [
+            _style(
+              'fast',
+              'Super fast',
+              thinkingLevel: ThinkingLevel.medium,
+            ),
+            _style(
+              'deep',
+              'Deep work',
+              thinkingLevel: ThinkingLevel.high,
+            ),
+          ],
+        );
+        await styles.recordLastUsed('fast');
+        await tester.pumpWidget(
+          _wrap(
+            chat: chat,
+            models: _FakeModelProvider(
+              models: _defaultModels,
+              selectedId: 'qwen3',
+            ),
+            styles: styles,
+            prompts: _FakeSystemPromptProvider(),
+          ),
+        );
+        expect(find.text('Super fast'), findsOneWidget);
+
+        await chat.updateConversation(
+          thinkingLevel: ThinkingLevel.high,
+          setThinkingLevel: true,
+        );
+        await tester.pump();
+
+        expect(find.text('Super fast'), findsOneWidget);
         expect(find.text('Deep work'), findsNothing);
-        expect(find.byIcon(Icons.auto_awesome), findsOneWidget);
+        expect(styles.selectedStyleId, 'fast');
       },
     );
 
@@ -1518,6 +1576,45 @@ void main() {
       },
     );
   });
+
+  testWidgets('ChatInputWidget renders new topic button in text input and triggers onNewTopic when isPrimary is false', (tester) async {
+    bool newTopicTriggered = false;
+    final chat = _FakeChatProvider(
+      conversation: _conversation(isPrimary: false),
+    );
+    final models = _FakeModelProvider(models: _defaultModels);
+    final styles = _FakeStyleProvider();
+    final prompts = _FakeSystemPromptProvider();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: MultiProvider(
+          providers: [
+            ChangeNotifierProvider<ChatProvider>.value(value: chat),
+            ChangeNotifierProvider<ModelProvider>.value(value: models),
+            ChangeNotifierProvider<StyleProvider>.value(value: styles),
+            ChangeNotifierProvider<SystemPromptProvider>.value(value: prompts),
+          ],
+          child: Scaffold(
+            body: ChatInputWidget(
+              onSend: (_, _) {},
+              isPrimary: false,
+              onNewTopic: () => newTopicTriggered = true,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('new_topic_button')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('new_topic_button')));
+    await tester.pumpAndSettle();
+
+    expect(newTopicTriggered, isTrue);
+  });
 }
 
 class _RecordingChatService extends ChatService {
@@ -1532,6 +1629,7 @@ class _RecordingChatService extends ChatService {
     String? initialMessage,
     String? systemPrompt,
     ThinkingLevel? thinkingLevel,
+    String? activeTopicId,
   }) async {
     createArgs = {
       'model': model,
@@ -1562,6 +1660,7 @@ class _RecordingChatService extends ChatService {
     int page = 1,
     int pageSize = 20,
     bool silent = false,
+    String kind = 'all',
   }) async =>
       const ConversationList(items: [], total: 0, page: 1, pageSize: 20);
 

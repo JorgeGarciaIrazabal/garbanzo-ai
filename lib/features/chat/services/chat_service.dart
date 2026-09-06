@@ -36,6 +36,7 @@ class ChatService {
     String? initialMessage,
     String? systemPrompt,
     ThinkingLevel? thinkingLevel,
+    String? activeTopicId,
   }) async {
     final response = await _api.post(
       '/api/v1/chat/conversations',
@@ -45,6 +46,7 @@ class ChatService {
         'initial_message': ?initialMessage,
         'system_prompt': ?systemPrompt,
         'thinking_level': ?thinkingLevel?.name,
+        'active_topic_id': ?activeTopicId,
       },
     );
 
@@ -65,6 +67,7 @@ class ChatService {
       queryParameters: {
         'page': page.toString(),
         'page_size': pageSize.toString(),
+        'kind': 'thread',
       },
       silent: silent,
     );
@@ -73,6 +76,25 @@ class ChatService {
       return ConversationList.fromJson(response.data as Map<String, dynamic>);
     }
 
+    throw _handleError(response);
+  }
+
+  Future<Conversation> getOrCreatePrimary({
+    String? model,
+    String? systemPrompt,
+    ThinkingLevel? thinkingLevel,
+  }) async {
+    final response = await _api.post(
+      '/api/v1/chat/conversations/primary',
+      data: {
+        'model': ?model,
+        'system_prompt': ?systemPrompt,
+        'thinking_level': ?thinkingLevel?.name,
+      },
+    );
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return Conversation.fromJson(response.data as Map<String, dynamic>);
+    }
     throw _handleError(response);
   }
 
@@ -429,7 +451,7 @@ Stream<ChatResponseChunk> parseSseChunks(Stream<String> chunks) async* {
         if (jsonStr.isEmpty || jsonStr == '[DONE]') continue;
         try {
           final decoded = jsonDecode(jsonStr) as Map<String, dynamic>;
-          yield ChatResponseChunk.fromJson(decoded);
+          yield ChatResponseChunk.fromJson(_normalizeSseEvent(decoded));
         } catch (e) {
           logDebug('Failed to parse SSE chunk: $jsonStr');
         }
@@ -443,10 +465,46 @@ Stream<ChatResponseChunk> parseSseChunks(Stream<String> chunks) async* {
       if (jsonStr.isEmpty || jsonStr == '[DONE]') continue;
       try {
         final decoded = jsonDecode(jsonStr) as Map<String, dynamic>;
-        yield ChatResponseChunk.fromJson(decoded);
+        yield ChatResponseChunk.fromJson(_normalizeSseEvent(decoded));
       } catch (_) {
         /* drop */
       }
     }
   }
+}
+
+const _dynamicSseEventTypes = {
+  'topic_update',
+  'context_preparing',
+  'context_update',
+  'topic_drift',
+};
+
+/// Preserve payloads from a forward-compatible dynamic-context event.
+///
+/// The current chat endpoint only emits the established chunk types. When a
+/// deployment adds one of the optional dynamic-context events, providers have
+/// appeared in two wire shapes during rollout: payload fields directly beside
+/// `type`, or under `metadata`/`payload`. Freezed ignores unknown top-level
+/// fields, so direct fields must be moved into `metadata` before decoding.
+/// This recognizes only the event types the client already routes; it does
+/// not manufacture events or alter established chunk payloads.
+Map<String, dynamic> _normalizeSseEvent(Map<String, dynamic> decoded) {
+  final type = decoded['type'];
+  if (type is! String || !_dynamicSseEventTypes.contains(type)) return decoded;
+  final metadata = decoded['metadata'];
+  if (metadata is Map<String, dynamic>) return decoded;
+  if (metadata is Map) {
+    return {
+      ...decoded,
+      'metadata': metadata.map((key, value) => MapEntry(key.toString(), value)),
+    };
+  }
+  return {
+    ...decoded,
+    'metadata': {
+      for (final entry in decoded.entries)
+        if (entry.key != 'type') entry.key: entry.value,
+    },
+  };
 }

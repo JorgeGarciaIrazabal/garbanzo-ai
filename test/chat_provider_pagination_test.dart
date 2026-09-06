@@ -31,6 +31,7 @@ class _FakeChatService extends ChatService {
     int page = 1,
     int pageSize = 50,
     bool silent = false,
+    String kind = 'all',
   }) async {
     return const ConversationList(items: [], total: 0, page: 1, pageSize: 50);
   }

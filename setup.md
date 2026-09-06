@@ -213,9 +213,18 @@ just fe-run         # Flutter Linux desktop
 
 ---
 
-## 8. Claude Code MCP Servers
+## 8. Codex development tools and MCP servers
 
-The project uses three MCP servers configured in `.mcp.json`:
+Install and validate the pinned local development controller first:
+
+```bash
+just ai-setup --install --migrate
+just ai-knowledge-refresh --embed
+just ai-doctor
+```
+
+Codex reads the canonical `.codex/config.toml`. `.mcp.json` remains for clients
+that use the older shared MCP format. The runtime UI servers are:
 
 | Server | Purpose | Requires |
 |--------|---------|---------|
@@ -233,7 +242,10 @@ echo 'export PATH="$PATH":"$HOME/.pub-cache/bin"' >> ~/.bashrc
 source ~/.bashrc
 ```
 
-All three servers are auto-started by Claude Code on launch. Run the E2E testing skill with `/e2e-testing` once all are working.
+Codex starts configured servers when needed. Run the E2E testing skill once the
+runtime UI servers pass `just ai-doctor`. Serena and QMD provide source navigation
+and local project-knowledge retrieval; Context7 stays disabled until versioned
+third-party documentation is needed.
 
 ---
 
@@ -250,6 +262,9 @@ All three servers are auto-started by Claude Code on launch. Run the E2E testing
 [ ] lld installed (sudo apt-get install -y lld)
 [ ] Node.js/npx available
 [ ] marionette_mcp activated (dart pub global activate marionette_mcp)
+[ ] just ai-setup --install --migrate succeeds
+[ ] just ai-knowledge-refresh --embed succeeds
+[ ] just ai-doctor succeeds
 [ ] ~/.pub-cache/bin in PATH (.bashrc)
 [ ] Ollama running with at least one model pulled
 [ ] backend/.env configured (SECRET_KEY, DATABASE_URL, OLLAMA_BASE_URL)

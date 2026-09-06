@@ -33,6 +33,16 @@ class StyleProvider extends ChangeNotifier with GuardedStateMixin {
   List<Style> _styles = [];
   List<Style> get styles => List.unmodifiable(_styles);
 
+  /// The named style the user most recently applied.
+  ///
+  /// This is deliberately separate from the effective thinking level. A
+  /// conversation can temporarily override effort without ceasing to be the
+  /// same named model + prompt persona. The backend currently stores only the
+  /// resolved settings, so startup recovers this identity from the default or
+  /// last-used style and the picker verifies that its model/prompt still fit.
+  String? _selectedStyleId;
+  String? get selectedStyleId => _selectedStyleId;
+
   /// The style that seeds new conversations, if any.
   Style? get defaultStyle => _styles.where((s) => s.isDefault).firstOrNull;
 
@@ -84,8 +94,9 @@ class StyleProvider extends ChangeNotifier with GuardedStateMixin {
   /// [ModelProvider] already handles that side, and last-used intentionally
   /// only follows the existing default-style seeding contract.
   Future<void> _seedPendingFromDefault() async {
-    if (_pendingTouched) return;
     final seed = defaultStyle ?? await _lastUsedStyle();
+    _selectedStyleId ??= seed?.id;
+    if (_pendingTouched) return;
     if (seed == null) return;
     _pendingThinkingLevel = seed.thinkingLevel;
     _pendingSystemPrompt = null;
@@ -106,8 +117,21 @@ class StyleProvider extends ChangeNotifier with GuardedStateMixin {
   /// SharedPreferences (local-only, mirrors [SettingsProvider]'s prefs) so it
   /// survives app restarts.
   Future<void> recordLastUsed(String styleId) async {
+    if (_selectedStyleId != styleId) {
+      _selectedStyleId = styleId;
+      notifyListeners();
+    }
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_keyLastUsedStyleId, styleId);
+  }
+
+  /// Clears the named persona after its base model or prompt is customized.
+  /// Thinking effort intentionally does not call this: it is a per-chat
+  /// override layered on top of the selected style.
+  void clearSelectedStyle() {
+    if (_selectedStyleId == null) return;
+    _selectedStyleId = null;
+    notifyListeners();
   }
 
   /// The last-used style, if its id is still among the user's saved styles.
@@ -188,6 +212,7 @@ class StyleProvider extends ChangeNotifier with GuardedStateMixin {
     final ok = await runGuarded('Failed to delete style', () async {
       await _service.deleteStyle(styleId);
       _styles = _styles.where((s) => s.id != styleId).toList();
+      if (_selectedStyleId == styleId) _selectedStyleId = null;
       return true;
     }, trackLoading: false);
     return ok ?? false;

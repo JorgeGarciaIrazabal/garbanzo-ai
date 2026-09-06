@@ -14,10 +14,12 @@ import 'package:garbanzo_ai/core/router.dart';
 import 'package:garbanzo_ai/core/theme.dart';
 import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
+import 'package:garbanzo_ai/features/topics/providers/active_context_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/model_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/search_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/style_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/system_prompt_provider.dart';
+import 'package:garbanzo_ai/features/topics/providers/topic_discovery_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/workflow_provider.dart';
 import 'package:garbanzo_ai/features/chat/services/shared_content_service.dart';
 import 'package:garbanzo_ai/features/friends/providers/friends_provider.dart';
@@ -159,8 +161,8 @@ class _GarbanzoAppState extends State<GarbanzoApp> {
 /// one instance (pushed pages no longer re-create their own copies).
 ///
 /// All providers are lazy — nothing is constructed while on /login. The
-/// subtree is keyed on [AuthState.epoch], which increments on logout, so a
-/// new login starts from disposed-and-rebuilt provider state.
+/// subtree is keyed on [AuthState.epoch], which advances at each session
+/// boundary, so every login starts from disposed-and-rebuilt provider state.
 class _AppProviders extends StatelessWidget {
   const _AppProviders({required this.child});
 
@@ -174,19 +176,44 @@ class _AppProviders extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => ModelProvider()),
         ChangeNotifierProvider(create: (_) => StyleProvider()),
+        ChangeNotifierProvider(create: (_) => TopicDiscoveryProvider()),
+        ChangeNotifierProvider(create: (_) => ActiveContextProvider()),
         // Model selection and the style picker's pending thinking/prompt
         // live outside ChatProvider so they survive conversation switches;
         // the proxy pushes the latest values in for new-conversation creates.
-        ChangeNotifierProxyProvider2<
+        ChangeNotifierProxyProvider4<
           ModelProvider,
           StyleProvider,
+          TopicDiscoveryProvider,
+          ActiveContextProvider,
           ChatProvider
         >(
           create: (_) => ChatProvider(),
-          update: (_, model, style, chat) => chat!
-            ..selectedModelId = model.selectedModelId
-            ..pendingThinkingLevel = style.pendingThinkingLevel
-            ..pendingSystemPrompt = style.pendingSystemPrompt,
+          update: (_, model, style, topics, activeContext, chat) {
+            topics.onTopicSwitched = () {
+              chat!.clearMessagesLocally();
+              final convId = chat.currentConversation?.id;
+              if (convId != null && convId.isNotEmpty) {
+                unawaited(activeContext.load(convId, quiet: true));
+              }
+            };
+            topics.onTopicCombined = () {
+              final convId = chat!.currentConversation?.id;
+              if (convId != null && convId.isNotEmpty) {
+                unawaited(activeContext.load(convId, quiet: true));
+                unawaited(chat.refreshConversations());
+              }
+            };
+            return chat!
+              ..selectedModelId = model.selectedModelId
+              ..pendingThinkingLevel = style.pendingThinkingLevel
+              ..pendingSystemPrompt = style.pendingSystemPrompt
+              ..onTopicUpdate = topics.applyTopicUpdate
+              ..onContextPreparing = topics.applyPreparing
+              ..onContextUpdate = activeContext.applyContextUpdate
+              ..onTopicDrift = topics.applyTopicDrift
+              ..onConversationStarted = topics.conversationStarted;
+          },
         ),
         ChangeNotifierProvider(create: (_) => MemoryProvider()),
         // Above the message list on purpose: a delegated workflow runs for

@@ -4,11 +4,9 @@ import 'package:provider/provider.dart';
 import 'package:garbanzo_ai/core/responsive.dart';
 import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
 import 'package:garbanzo_ai/features/chat/widgets/mobile_drawer.dart';
-import 'package:garbanzo_ai/features/chat/widgets/style_picker.dart';
 import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
-/// App bar for the chat page: conversation title, model selector, and
-/// settings drawer trigger.
+/// App bar for the chat page: conversation title and settings drawer trigger.
 ///
 /// On narrow layouts the leading menu button opens the mobile conversation
 /// drawer instead of the (hidden) sidebar.
@@ -69,10 +67,6 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
             tooltip: AppLocalizations.of(context)!.tooltipNewChat,
             onPressed: onNewChat,
           ),
-        const Padding(
-          padding: EdgeInsets.only(right: 8),
-          child: StylePickerButton(),
-        ),
         // Closed micro-app panel: offer a way back in without re-running
         // the tool (on narrow screens closing it is otherwise a dead end).
         if (chatProvider.panel.canReopen)

@@ -3,8 +3,6 @@ name: CI
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
 
 permissions:
   contents: read
@@ -62,6 +60,17 @@ jobs:
       - name: Test (pytest with coverage)
         run: just be-test-cov
 
+      - name: Controller lint and tests
+        run: |
+          just ai-lint
+          just ai-test
+
+      - name: PostgreSQL migration smoke
+        run: just ai-migration-smoke
+
+      - name: Audit Python dependencies
+        run: just ai-pip-audit-strict
+
       - name: Upload backend coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
@@ -98,6 +107,9 @@ jobs:
       - name: Test (flutter test with coverage)
         run: just fe-test-cov
 
+      - name: Record dependency freshness
+        run: just ai-dart-audit
+
       - name: Upload frontend coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
@@ -106,3 +118,17 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           disable_search: true
           fail_ci_if_error: false
+
+  secrets:
+    name: Secret scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Scan committed content
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

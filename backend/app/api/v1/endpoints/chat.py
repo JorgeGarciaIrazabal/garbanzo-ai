@@ -3,7 +3,7 @@
 import asyncio
 import logging
 from collections.abc import AsyncIterator, Awaitable, Callable
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
@@ -72,6 +72,27 @@ async def create_conversation(
         initial_message=data.initial_message,
         system_prompt=data.system_prompt,
         thinking_level=data.thinking_level,
+        active_topic_id=data.active_topic_id,
+    )
+    return ConversationOut.from_model(conversation)
+
+
+@router.post(
+    "/conversations/primary",
+    response_model=ConversationOut,
+    summary="Ensure the user's unified primary conversation",
+)
+async def ensure_primary_conversation(
+    current_user: Annotated[dict[str, Any], Depends(get_current_user)],
+    service: Annotated[ChatService, Depends(get_chat_service)],
+    data: ConversationCreate | None = None,
+) -> ConversationOut:
+    """Return the existing primary chat or create it exactly once."""
+    conversation = await service.conversations.get_or_create_primary(
+        user_id=current_user["email"],
+        model=data.model if data else None,
+        system_prompt=data.system_prompt if data else None,
+        thinking_level=data.thinking_level if data else None,
     )
     return ConversationOut.from_model(conversation)
 
@@ -86,11 +107,15 @@ async def list_conversations(
     service: Annotated[ChatService, Depends(get_chat_service)],
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(20, ge=1, le=100, description="Items per page"),
+    kind: Literal["all", "primary", "thread"] = Query(
+        "all", description="Filter the unified primary chat from legacy threads"
+    ),
 ) -> ConversationList:
     conversations, total = await service.conversations.list(
         user_id=current_user["email"],
         page=page,
         page_size=page_size,
+        kind=kind,
     )
 
     return ConversationList(
@@ -195,11 +220,20 @@ async def get_conversation(
             detail="Conversation not found",
         )
 
+    epoch = conversation.session_epoch if conversation.is_primary else None
     if message_limit is None:
-        return ConversationDetailOut.from_model(conversation)
+        messages = list(conversation.messages or [])
+        if epoch is not None:
+            messages = [m for m in messages if m.session_epoch == epoch]
+        return ConversationDetailOut.from_model_page(
+            conversation,
+            messages,
+            total_message_count=len(messages),
+            has_more_messages=False,
+        )
 
     messages, total, has_more = await service.conversations.get_recent_messages(
-        conversation_id, limit=message_limit
+        conversation_id, limit=message_limit, session_epoch=epoch
     )
     return ConversationDetailOut.from_model_page(
         conversation,
@@ -238,8 +272,9 @@ async def get_conversation_messages(
             detail="Conversation not found",
         )
 
+    epoch = conversation.session_epoch if conversation.is_primary else None
     messages, has_more = await service.conversations.get_messages_before(
-        conversation_id, before, limit
+        conversation_id, before, limit=limit, session_epoch=epoch
     )
     return MessagePage(
         messages=[message_out(m) for m in messages],
@@ -333,6 +368,14 @@ async def delete_conversation(
     current_user: Annotated[dict[str, Any], Depends(get_current_user)],
     service: Annotated[ChatService, Depends(get_chat_service)],
 ) -> None:
+    conversation = await service.conversations.get(
+        conversation_id, current_user["email"], include_messages=False
+    )
+    if conversation is not None and conversation.is_primary:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Primary chat cannot be deleted; use Fresh start to clear context",
+        )
     deleted = await service.conversations.delete(
         conversation_id=conversation_id,
         user_id=current_user["email"],
@@ -384,6 +427,24 @@ async def _sse_stream(
                     type="error",
                     error=chunk.content,
                     metadata=chunk.metadata,
+                )
+            elif chunk.metadata and any(
+                event_type in chunk.metadata
+                for event_type in ("topic_update", "context_preparing", "context_update")
+            ):
+                # Topic/context events intentionally keep one envelope shape:
+                # metadata contains exactly one event key whose value is the
+                # versioned payload.  Flutter can route the event without
+                # guessing from content or done/chunk flags.
+                event_type = next(
+                    event_type
+                    for event_type in ("topic_update", "context_preparing", "context_update")
+                    if event_type in chunk.metadata
+                )
+                response = ChatResponseChunk(
+                    type=event_type,
+                    content="",
+                    metadata={event_type: chunk.metadata[event_type]},
                 )
             elif chunk.is_finished:
                 response = ChatResponseChunk(type="done", metadata=chunk.metadata)

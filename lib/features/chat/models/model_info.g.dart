@@ -15,6 +15,14 @@ _ModelInfo _$ModelInfoFromJson(Map<String, dynamic> json) => _ModelInfo(
   supportsTools: json['supports_tools'] as bool?,
   supportsVision: json['supports_vision'] as bool?,
   supportsThinking: json['supports_thinking'] as bool?,
+  thinkingLevels: (json['thinking_levels'] as List<dynamic>?)
+      ?.map((e) => $enumDecode(_$ThinkingLevelEnumMap, e))
+      .toList(),
+  defaultThinkingLevel: $enumDecodeNullable(
+    _$ThinkingLevelEnumMap,
+    json['default_thinking_level'],
+    unknownValue: JsonKey.nullForUndefinedEnumValue,
+  ),
 );
 
 Map<String, dynamic> _$ModelInfoToJson(_ModelInfo instance) =>
@@ -27,7 +35,19 @@ Map<String, dynamic> _$ModelInfoToJson(_ModelInfo instance) =>
       'supports_tools': instance.supportsTools,
       'supports_vision': instance.supportsVision,
       'supports_thinking': instance.supportsThinking,
+      'thinking_levels': instance.thinkingLevels
+          ?.map((e) => _$ThinkingLevelEnumMap[e]!)
+          .toList(),
+      'default_thinking_level':
+          _$ThinkingLevelEnumMap[instance.defaultThinkingLevel],
     };
+
+const _$ThinkingLevelEnumMap = {
+  ThinkingLevel.off: 'off',
+  ThinkingLevel.low: 'low',
+  ThinkingLevel.medium: 'medium',
+  ThinkingLevel.high: 'high',
+};
 
 _ModelList _$ModelListFromJson(Map<String, dynamic> json) => _ModelList(
   models: (json['models'] as List<dynamic>)

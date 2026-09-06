@@ -27,6 +27,7 @@ class _SyncChatService extends ChatService {
     int page = 1,
     int pageSize = 50,
     bool silent = false,
+    String kind = 'all',
   }) async => ConversationList(
     items: [conversation.copyWith(messages: null)],
     total: 1,
@@ -82,6 +83,55 @@ void main() {
 
     expect(provider.conversations, isEmpty);
     provider.undoDeleteConversation('conv-1');
+    provider.dispose();
+  });
+
+  test('syncFromServer maintains empty messages after topic switch with new session epoch', () async {
+    final service = _SyncChatService();
+    final provider = ChatProvider(chatService: service);
+    await provider.loadConversation('conv-1');
+
+    provider.clearMessagesLocally();
+    service.conversation = _conversation('New Topic', messages: []);
+
+    await provider.syncFromServer();
+
+    expect(provider.messages, isEmpty);
+    provider.dispose();
+  });
+
+  test('clearMessagesLocally drops an in-flight pre-switch reload (bug 1ba9a9f8)', () async {
+    final service = _SyncChatService();
+    final provider = ChatProvider(chatService: service);
+    await provider.loadConversation('conv-1');
+
+    // A reload started before the topic switch (background sync tick) whose
+    // response carries the OLD conversation (pre-switch topic + messages).
+    final staleFuture = provider.reloadCurrentConversationForTest();
+    provider.clearMessagesLocally();
+    await staleFuture;
+
+    // The stale reload must not resurrect the pre-switch topic/messages.
+    expect(provider.messages, isEmpty);
+    expect(provider.currentConversation?.contextSummary, isNull);
+    provider.dispose();
+  });
+
+  test('clearMessagesLocally clears messages and resets contextSummary on current conversation', () async {
+    final service = _SyncChatService();
+    service.conversation = _conversation('Test', messages: [
+      ChatMessage(id: 'm1', role: 'user', content: 'hello', createdAt: DateTime.utc(2026)),
+    ]).copyWith(contextSummary: 'Old AI news summary');
+    final provider = ChatProvider(chatService: service);
+    await provider.loadConversation('conv-1');
+
+    expect(provider.currentConversation?.contextSummary, 'Old AI news summary');
+    expect(provider.messages, isNotEmpty);
+
+    provider.clearMessagesLocally();
+
+    expect(provider.messages, isEmpty);
+    expect(provider.currentConversation?.contextSummary, isNull);
     provider.dispose();
   });
 }

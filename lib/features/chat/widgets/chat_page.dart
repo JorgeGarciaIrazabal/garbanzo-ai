@@ -17,6 +17,8 @@ import 'package:garbanzo_ai/features/settings/widgets/settings_drawer.dart';
 import 'package:garbanzo_ai/features/chat/models/chat_message.dart';
 import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/model_provider.dart';
+import 'package:garbanzo_ai/features/topics/models/topic_node.dart';
+import 'package:garbanzo_ai/features/topics/providers/topic_discovery_provider.dart';
 import 'package:garbanzo_ai/features/chat/widgets/chat_app_bar.dart';
 import 'package:garbanzo_ai/features/chat/widgets/chat_input_widget.dart';
 import 'package:garbanzo_ai/features/chat/widgets/input/file_picker_helper.dart';
@@ -28,6 +30,10 @@ import 'package:garbanzo_ai/features/chat/widgets/mobile_drawer.dart';
 import 'package:garbanzo_ai/features/chat/widgets/context_summary_widget.dart';
 import 'package:garbanzo_ai/features/chat/widgets/context_window_indicator.dart';
 import 'package:garbanzo_ai/features/chat/widgets/empty_chat_state.dart';
+import 'package:garbanzo_ai/features/topics/widgets/topic_landing.dart';
+import 'package:garbanzo_ai/features/chat/widgets/topic_banner.dart';
+import 'package:garbanzo_ai/features/topics/widgets/active_context_panel.dart';
+import 'package:garbanzo_ai/features/topics/widgets/topic_context_empty_state.dart';
 import 'package:garbanzo_ai/features/chat/widgets/system_prompt_banner.dart';
 import 'package:garbanzo_ai/features/chat/widgets/tool_activity_group.dart';
 import 'package:garbanzo_ai/features/chat/widgets/vision_model_warning_dialog.dart';
@@ -99,7 +105,14 @@ class _ChatPageState extends State<ChatPage> {
   void _loadFromUrl() {
     final id = widget.conversationId;
     final provider = _provider;
-    if (provider == null || id == null) return;
+    if (provider == null) return;
+    if (id == null && widget.roomId == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _provider?.enterPrimaryConversation();
+      });
+      return;
+    }
+    if (id == null) return;
     if (id == provider.currentConversation?.id) return;
     _pendingLoad = id;
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -126,6 +139,17 @@ class _ChatPageState extends State<ChatPage> {
         return;
       }
     }
+    final conv = provider.currentConversation;
+    final topicDiscovery = context.read<TopicDiscoveryProvider>();
+    final targetTopic = conv?.activeTopic;
+    if (targetTopic != topicDiscovery.selectedTopic) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          context.read<TopicDiscoveryProvider>().setSelectedTopic(targetTopic);
+        }
+      });
+    }
+
     // Don't touch the URL while another page (settings, memory, …) is
     // pushed on top of the chat.
     final route = ModalRoute.of(context);
@@ -161,6 +185,7 @@ class _ChatPageContentState extends State<_ChatPageContent>
   bool _isDragOver = false;
   bool _visionWarningScheduled = false;
   bool _visionWarningOpen = false;
+  bool _showActiveContext = true;
 
   /// User-chosen width of the micro-app side panel (null = default). Adjusted
   /// by dragging the divider between the chat and the panel.
@@ -275,33 +300,16 @@ class _ChatPageContentState extends State<_ChatPageContent>
     _scroll.handleStreamingTick(_chatProviderRef?.streamingMessageId);
   }
 
-  int? _getLastTokensPrompt(ChatProvider chatProvider) {
-    final msgs = chatProvider.messages;
-    for (var i = msgs.length - 1; i >= 0; i--) {
-      final meta = msgs[i].metadata;
-      if (meta != null) {
-        final t = meta['tokens_prompt'];
-        if (t != null) return (t as num).toInt();
-      }
+  int? _lastMeta(ChatProvider p, String key) {
+    for (var i = p.messages.length - 1; i >= 0; i--) {
+      final v = p.messages[i].metadata?[key];
+      if (v != null) return (v as num).toInt();
     }
     return null;
   }
 
-  /// Context window the backend actually allocated for the last turn.
-  ///
-  /// Preferred over the model's maximum from the model list: the server caps
-  /// the allocated window (num_ctx), so the model max would understate usage.
-  int? _getLastContextLength(ChatProvider chatProvider) {
-    final msgs = chatProvider.messages;
-    for (var i = msgs.length - 1; i >= 0; i--) {
-      final meta = msgs[i].metadata;
-      if (meta != null) {
-        final c = meta['context_length'];
-        if (c != null) return (c as num).toInt();
-      }
-    }
-    return null;
-  }
+  int? _getLastTokensPrompt(ChatProvider c) => _lastMeta(c, 'tokens_prompt');
+  int? _getLastContextLength(ChatProvider c) => _lastMeta(c, 'context_length');
 
   /// Scroll on structural changes only: jump on conversation switch, follow
   /// new messages when the user sent one or is already near the bottom.
@@ -323,17 +331,53 @@ class _ChatPageContentState extends State<_ChatPageContent>
   // ChatPage._syncUrlFromProvider), so selection handlers navigate explicitly
   // to swap the content pane back to a conversation.
 
-  void _selectConversation(String id) {
+  void _selectConversation(String id) async {
     if (widget.roomId != null) {
       context.go('/chat/$id');
     } else {
-      context.read<ChatProvider>().loadConversation(id);
+      await context.read<ChatProvider>().loadConversation(id);
+      if (!mounted) return;
+      final conv = context.read<ChatProvider>().currentConversation;
+      context.read<TopicDiscoveryProvider>().setSelectedTopic(
+        conv?.activeTopic,
+      );
     }
   }
 
   void _newChat() {
+    context.read<TopicDiscoveryProvider>().setSelectedTopic(null);
     context.read<ChatProvider>().clearCurrentConversation();
     if (widget.roomId != null) context.go('/chat');
+  }
+
+  void _openPrimary() {
+    final chat = context.read<ChatProvider>();
+    context.go('/chat');
+    unawaited(chat.enterPrimaryConversation());
+  }
+
+  void _newTopic() {
+    context.read<TopicDiscoveryProvider>().startNewTopic();
+    _openPrimary();
+  }
+
+  void _openActiveContext() {
+    final conversation = context.read<ChatProvider>().currentConversation;
+    if (conversation == null) return;
+    final isTopic =
+        conversation.isPrimary || conversation.activeTopicId != null;
+    if (!isTopic) return;
+    if (context.isWide) {
+      setState(() => _showActiveContext = !_showActiveContext);
+      return;
+    }
+    unawaited(
+      ActiveContextPanel.showSheet(
+        context,
+        conversationId: conversation.id,
+        onRedirect: _newTopic,
+      ),
+    );
   }
 
   void _selectRoom(String id) {
@@ -420,75 +464,61 @@ class _ChatPageContentState extends State<_ChatPageContent>
       );
   }
 
-  /// Handle dropped files: validate through the same [FilePickerHelper]
-  /// rules as the file-picker path, then stage them as pending attachments.
-  Future<void> _handleDroppedFiles(List<dynamic> files) async {
-    setState(() => _isDragOver = false);
-
-    final chatProvider = context.read<ChatProvider>();
-    if (!chatProvider.hasActiveConversation) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            AppLocalizations.of(context)!.messageStartAConversationFirst,
-          ),
-        ),
-      );
-      return;
-    }
-
-    final rawFiles = <RawPickedFile>[];
-    for (final file in files) {
-      if (file is! File) continue;
-      final bytes = await file.readAsBytes();
-      rawFiles.add((name: file.path.split('/').last, bytes: bytes));
-    }
-
-    final result = await FilePickerHelper.validate(
-      files: rawFiles,
-      existingNames: {...?chatProvider.pendingAttachments?.map((a) => a.name)},
+  void _snack(String msg, {bool error = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: error ? Theme.of(context).colorScheme.error : null,
+        behavior: error ? SnackBarBehavior.floating : null,
+      ),
     );
-    if (!mounted) return;
-
-    for (final error in result.validationErrors) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error)));
-    }
-    if (result.rejected.isNotEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            AppLocalizations.of(
-              context,
-            )!.messageFilesTooLarge(result.rejected.join('\n')),
-          ),
-          backgroundColor: Theme.of(context).colorScheme.error,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
-
-    if (result.added.isNotEmpty) {
-      chatProvider.addAttachments(result.added);
-    }
   }
 
-  /// Handle an OS-level drop (desktop, via [DropTarget]). A dropped folder is
-  /// attached to the conversation for the agent to read; dropped files fall
-  /// through to the same staging path as the picker.
+  Future<void> _stageFiles(
+    List<RawPickedFile> raw,
+    ChatProvider provider,
+  ) async {
+    final result = await FilePickerHelper.validate(
+      files: raw,
+      existingNames: {...?provider.pendingAttachments?.map((a) => a.name)},
+    );
+    if (!mounted) return;
+    for (final e in result.validationErrors) {
+      _snack(e);
+    }
+    if (result.rejected.isNotEmpty) {
+      _snack(
+        AppLocalizations.of(
+          context,
+        )!.messageFilesTooLarge(result.rejected.join('\n')),
+        error: true,
+      );
+    }
+    if (result.added.isNotEmpty) provider.addAttachments(result.added);
+  }
+
+  Future<void> _handleDroppedFiles(List<dynamic> files) async {
+    setState(() => _isDragOver = false);
+    final chatProvider = context.read<ChatProvider>();
+    if (!chatProvider.hasActiveConversation) {
+      _snack(AppLocalizations.of(context)!.messageStartAConversationFirst);
+      return;
+    }
+    final raw = <RawPickedFile>[];
+    for (final f in files) {
+      if (f is! File) continue;
+      raw.add((name: f.path.split('/').last, bytes: await f.readAsBytes()));
+    }
+    await _stageFiles(raw, chatProvider);
+  }
+
   Future<void> _handleOsDrop(List<DropItem> items) async {
     setState(() => _isDragOver = false);
     if (widget.roomId != null) return;
     final chatProvider = context.read<ChatProvider>();
-
-    DropItem? folder;
-    for (final item in items) {
-      if (FileSystemEntity.isDirectorySync(item.path)) {
-        folder = item;
-        break;
-      }
-    }
+    final folder = items
+        .where((i) => FileSystemEntity.isDirectorySync(i.path))
+        .firstOrNull;
     if (folder != null) {
       try {
         await chatProvider.attachClientFolder(
@@ -496,18 +526,12 @@ class _ChatPageContentState extends State<_ChatPageContent>
           folder.path,
         );
       } catch (_) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              AppLocalizations.of(context)!.messageFolderAttachFailed,
-            ),
-          ),
-        );
+        if (mounted) {
+          _snack(AppLocalizations.of(context)!.messageFolderAttachFailed);
+        }
       }
       return;
     }
-
     await _handleDroppedFiles([for (final i in items) File(i.path)]);
   }
 
@@ -630,7 +654,8 @@ class _ChatPageContentState extends State<_ChatPageContent>
                           isLoadingConversations:
                               chatProvider.isLoadingConversations,
                           selectedRoomId: widget.roomId,
-                          initialTab: widget.roomId != null ? 1 : 0,
+                          initialTab: widget.roomId != null ? 2 : 1,
+                          onOpenPrimary: _openPrimary,
                           onSelectRoom: _selectRoom,
                           onDeleteRoom: _deleteRoom,
                         ),
@@ -654,7 +679,13 @@ class _ChatPageContentState extends State<_ChatPageContent>
                                     _scaffoldKey.currentState?.openEndDrawer(),
                                 onDeleteConversation: (id) =>
                                     _deleteWithUndo(chatProvider, id),
-                                onNewChat: _newChat,
+                                onNewChat:
+                                    chatProvider
+                                            .currentConversation
+                                            ?.isPrimary ==
+                                        true
+                                    ? _newTopic
+                                    : _newChat,
                               ),
                               if (chatProvider.error != null &&
                                   chatProvider.errorType !=
@@ -688,6 +719,12 @@ class _ChatPageContentState extends State<_ChatPageContent>
                                   return const SizedBox.shrink();
                                 },
                               ),
+                              if (chatProvider.currentConversation?.isPrimary ==
+                                      true &&
+                                  !context
+                                      .watch<TopicDiscoveryProvider>()
+                                      .showLanding)
+                                const TopicBanner(),
                               Expanded(
                                 child: Stack(
                                   children: [
@@ -716,7 +753,7 @@ class _ChatPageContentState extends State<_ChatPageContent>
                               Consumer<ChatProvider>(
                                 builder: (context, provider, _) {
                                   return ChatInputWidget(
-                                    onSend: (message, attachments) {
+                                    onSend: (message, attachments) async {
                                       // Merge any pending attachments from drag-drop
                                       final merged = [...attachments];
                                       if (provider.pendingAttachments != null) {
@@ -725,19 +762,62 @@ class _ChatPageContentState extends State<_ChatPageContent>
                                         );
                                         provider.clearPendingAttachments();
                                       }
-                                      provider.sendMessage(
-                                        message,
-                                        attachments: merged,
-                                      );
+                                      final selectedTopic = context
+                                          .read<TopicDiscoveryProvider>()
+                                          .selectedTopic;
+                                      if (provider
+                                                  .currentConversation
+                                                  ?.isPrimary ==
+                                              true &&
+                                          selectedTopic != null) {
+                                        await provider.createConversation(
+                                          title: selectedTopic.label,
+                                          activeTopicId: selectedTopic.id,
+                                          initialMessage: message,
+                                          initialAttachments: merged,
+                                        );
+                                      } else {
+                                        await provider.sendMessage(
+                                          message,
+                                          attachments: merged,
+                                        );
+                                      }
                                     },
                                     onStop: () => chatProvider.stopStreaming(),
                                     isLoading: chatProvider.isSending,
                                     initialAttachments:
                                         provider.pendingAttachments,
+                                    isPrimary:
+                                        provider
+                                            .currentConversation
+                                            ?.isPrimary ==
+                                        true,
+                                    onNewTopic: _newTopic,
+                                    onOpenContext: _openActiveContext,
                                   );
                                 },
                               ),
                             ],
+                          ),
+                        ),
+                      if (widget.roomId == null &&
+                          (chatProvider.currentConversation?.isPrimary ==
+                                  true ||
+                              chatProvider.currentConversation?.activeTopicId !=
+                                  null) &&
+                          !context
+                              .watch<TopicDiscoveryProvider>()
+                              .showLanding &&
+                          _showActiveContext &&
+                          context.isWide)
+                        SizedBox(
+                          width: 340,
+                          child: ActiveContextPanel(
+                            conversationId:
+                                chatProvider.currentConversation!.id,
+                            onRedirect: _newTopic,
+                            onClose: () =>
+                                setState(() => _showActiveContext = false),
                           ),
                         ),
                       // Wide layout: the live micro-app sits beside the chat in a
@@ -867,10 +947,69 @@ class _ChatPageContentState extends State<_ChatPageContent>
   }
 
   Widget _buildMessageList(ChatProvider chatProvider, ThemeData theme) {
+    final conversation = chatProvider.currentConversation;
+    final topicDiscovery = context.watch<TopicDiscoveryProvider>();
+    if (conversation?.isPrimary == true && topicDiscovery.showLanding) {
+      return TopicLanding(
+        conversationId: conversation!.id,
+        onStarterSelected: (message) async {
+          final selectedTopic = topicDiscovery.selectedTopic;
+          if (selectedTopic != null) {
+            await chatProvider.createConversation(
+              title: selectedTopic.label,
+              activeTopicId: selectedTopic.id,
+              initialMessage: message,
+            );
+          } else {
+            await chatProvider.sendMessage(message);
+          }
+        },
+      );
+    }
     if (chatProvider.messages.isEmpty &&
         chatProvider.currentConversation == null) {
       return EmptyChatState(
         onSendMessage: (msg) => chatProvider.sendMessage(msg),
+      );
+    }
+
+    final hasUserMessages = chatProvider.messages.any((m) => m.role == 'user');
+
+    final activeTopic =
+        conversation?.activeTopic ??
+        (conversation?.activeTopicId != null &&
+                topicDiscovery.selectedTopic?.id == conversation?.activeTopicId
+            ? topicDiscovery.selectedTopic
+            : (topicDiscovery.selectedTopic ??
+                  (conversation?.activeTopicId != null
+                      ? TopicNode(
+                          id: conversation!.activeTopicId!,
+                          label: conversation.title ?? 'Topic',
+                          origin: TopicOrigin.history,
+                          description: conversation.contextSummary,
+                          starterPrompts: [
+                            'Continue with ${conversation.title ?? 'Topic'}',
+                            'What should I do next about ${conversation.title ?? 'Topic'}?',
+                          ],
+                        )
+                      : null)));
+
+    if (!hasUserMessages && activeTopic != null && conversation != null) {
+      return TopicContextEmptyState(
+        conversationId: conversation.id,
+        topic: activeTopic,
+        onStarterSelected: (message) async {
+          if (conversation.isPrimary) {
+            await chatProvider.createConversation(
+              title: activeTopic.label,
+              activeTopicId: activeTopic.id,
+              initialMessage: message,
+            );
+          } else {
+            await chatProvider.sendMessage(message);
+          }
+        },
+        onOpenContext: _openActiveContext,
       );
     }
 
@@ -879,7 +1018,13 @@ class _ChatPageContentState extends State<_ChatPageContent>
     }
 
     final showSystemPrompt = context.watch<SettingsProvider>().showSystemPrompt;
-    final summary = chatProvider.currentConversation?.contextSummary;
+    final isTopicChat =
+        chatProvider.currentConversation?.isPrimary == true ||
+        chatProvider.currentConversation?.activeTopicId != null ||
+        context.watch<TopicDiscoveryProvider>().selectedTopic != null;
+    final summary = isTopicChat
+        ? null
+        : chatProvider.currentConversation?.contextSummary;
     final hasSummary = summary != null && summary.isNotEmpty;
     final hasBanner =
         showSystemPrompt && chatProvider.currentConversation != null;
@@ -990,6 +1135,7 @@ class _ChatPageContentState extends State<_ChatPageContent>
                   isLastMessage && chatProvider.isSending && m.isAssistant,
               conversationId: chatProvider.currentConversation?.id,
               isLastAssistant: m.isAssistant && msgIdx == lastAssistantIdx,
+              onOpenTopicContext: _openActiveContext,
             ),
           ),
         );

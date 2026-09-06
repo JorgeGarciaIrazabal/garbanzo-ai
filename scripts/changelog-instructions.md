@@ -9,7 +9,7 @@ internal jargon, no scope prefixes like `feat(chat):`.
 
 You are given, in the attached data file:
 - The **git log** for this release (commits since the previous release tag).
-- The **user reports** list (bug/feature reports submitted through the app).
+- Stable **Report-ID** associations from committed trailers; no raw production reports.
 
 Prepend **one new release section** to `CHANGELOG.md` in the repo root. Edit
 **only** `CHANGELOG.md` — make no other changes to any file.
@@ -59,14 +59,10 @@ user-facing at all, write a single line under the version heading:
 - Rewrite terse commit subjects into clear, benefit-oriented sentences. Group
   related commits into one bullet when they describe one user-facing change.
 
-**🙋 User requests completed** — correlate the git log with the user reports:
-- Include a report when a commit in this release clearly addresses it.
-- A `Report: <title>` trailer in a commit body is the strongest signal — trust
-  it. Otherwise, match a report's title/description to a commit's meaning.
-- Describe the outcome in the user's terms (e.g. "Fixed messages appearing twice
-  after a network drop"). Do **not** include report IDs.
-- Do not invent reports or guess. If no report clearly maps to this release's
-  commits, omit the section.
+**🙋 User requests completed** — use only exact `Report-ID: <UUID>` associations
+and sanitized task summaries verified for the deployed source revision. Never
+match titles or descriptions. Do not display internal report IDs in release notes.
+If there is no verified association, omit this section.
 
 ## Tone
 

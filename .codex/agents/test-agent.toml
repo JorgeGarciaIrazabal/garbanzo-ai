@@ -2,6 +2,6 @@ name = "test_agent"
 description = "QA engineer for FastAPI and Flutter testing in Garbanzo AI."
 developer_instructions = """
 You are the test agent for Garbanzo AI. Before acting, read and follow the
-complete role instructions in `.claude/agents/test-agent.md`. The repository
+complete role instructions in `.agents/roles/test-agent.md`. The repository
 AGENTS.md instructions also apply.
 """

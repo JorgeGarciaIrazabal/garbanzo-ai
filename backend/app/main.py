@@ -291,19 +291,28 @@ if web_dir.exists() and (web_dir / "index.html").exists():
     async def root() -> HTMLResponse:
         index_file = web_dir / "index.html"
         content = index_file.read_text(encoding="utf-8")
-        return HTMLResponse(content=content)
+        return HTMLResponse(
+            content=content,
+            headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
+        )
 
     @app.get("/{path:path}", response_class=FileResponse)
     async def catch_all(path: str):
         # Try to serve the file if it exists
         file_path = web_dir / path
         if file_path.exists() and file_path.is_file():
-            return FileResponse(file_path)
+            return FileResponse(
+                file_path,
+                headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
+            )
 
         # Otherwise, serve index.html for SPA routing
         index_file = web_dir / "index.html"
         content = index_file.read_text(encoding="utf-8")
-        return HTMLResponse(content=content)
+        return HTMLResponse(
+            content=content,
+            headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
+        )
 else:
     # Fallback when web build doesn't exist
     @app.get("/", response_class=HTMLResponse)

@@ -2,6 +2,6 @@ name = "frontend_agent"
 description = "Senior Flutter frontend engineer for Garbanzo AI."
 developer_instructions = """
 You are the frontend agent for Garbanzo AI. Before acting, read and follow the
-complete role instructions in `.claude/agents/frontend-agent.md`. The repository
+complete role instructions in `.agents/roles/frontend-agent.md`. The repository
 AGENTS.md instructions also apply.
 """

@@ -1,0 +1,182 @@
+# Garbanzo AI — Feature Backlog
+
+## Voice (TTS / STT)
+
+<!--
+STT model research (2025):
+  Primary:   faster-whisper large-v3 (MIT, CPU-viable, 100+ langs, 4x faster than original Whisper)
+             → wrap with faster-whisper-server for a drop-in REST endpoint
+  GPU boost: NVIDIA Parakeet TDT 0.6B v3 (CC-BY-4.0, RTFx >2000, English + 25 EU langs, needs CUDA)
+  Edge/CPU:  whisper.cpp (MIT, pure C++, built-in HTTP server, runs on anything incl. Raspberry Pi)
+
+TTS model research (2025):
+  Primary:   Kokoro-82M (Apache 2.0, 82M params, 210x GPU / 3-5x CPU realtime, 8 langs, 48 voices)
+             → deploy via kokoro-fastapi which exposes /v1/audio/speech (OpenAI-compatible)
+  Cloning:   Chatterbox Turbo (MIT, zero-shot voice cloning from 5s clip, sub-200ms latency, 23 langs)
+  CPU-only:  Piper TTS (MIT, ONNX, real-time on Raspberry Pi, 900+ voice models, 30+ langs)
+  Avoid:     Coqui XTTS v2 — company shut down Dec 2025, non-commercial license
+             OpenAI TTS/Whisper API — proprietary, not self-hosted
+-->
+
+- [x] **STT: Microphone input** — Record audio in the chat input widget with a hold-to-talk / tap-to-toggle button; use Flutter `record` package
+- [x] **STT: faster-whisper service** — Dockerized `faster-whisper-server` (MIT) exposing `POST /v1/audio/transcriptions`; defaults to `large-v3`; swap for Parakeet TDT 0.6B v3 if an NVIDIA GPU is present
+- [x] **STT: Backend transcription endpoint** — `POST /api/v1/stt/transcribe` that forwards audio to the faster-whisper service and returns the transcript text
+- [x] **STT: Auto-submit after transcription** — Option to auto-send the message once voice input stops and transcription completes
+- [x] **TTS: Kokoro-82M service** — Dockerized `kokoro-fastapi` (Apache 2.0) exposing `/v1/audio/speech` (OpenAI-compatible); 48 voices across 8 languages
+- [x] **TTS: Backend speech endpoint** — `POST /api/v1/tts/speak` that proxies to Kokoro and streams audio back to the client
+- [x] **TTS: Per-message playback** — Play/stop button on each assistant message that calls the TTS endpoint and streams audio via the Flutter `audioplayers` package
+- [x] **TTS: Auto-play mode** — Setting to auto-play TTS for every new assistant message as it finishes streaming
+- [x] **TTS/STT: Voice settings UI** — Settings panel to choose: STT model (faster-whisper / Parakeet), TTS voice (from Kokoro's 48 voices), TTS language, and speaking speed
+- [ ] **TTS: Chatterbox Turbo voice cloning** — Optional: allow users to upload a 5-second voice sample; backend forwards to a Chatterbox Turbo service for personalized TTS output (MIT license)
+- [x] **TTS: Clean up text for better speech** — Strip markdown formatting (#, **, `, code blocks, links) and emojis before sending text to TTS
+
+## File & Image Upload (enhancements)
+- [x] **Image viewer** — Full-size lightbox when clicking image attachments in messages
+- [x] **PDF text extraction** — Use `pypdf` on the backend to extract text from PDFs before sending to LLM
+- [x] **Spreadsheet/CSV support** — Parse and summarize tabular data in attachments
+- [x] **Drag-and-drop upload** — Drag files directly onto the chat window
+- [x] **Paste image from clipboard** — Ctrl+V to attach a copied screenshot
+- [x] **File size/type validation** — Clear UX errors with limits per type
+- [x] **Multiple file attachments at once** — Batch select in the file picker
+
+## Memory (ChatGPT-like)
+- [x] **Memory store DB model** — `UserMemory` table: id, user_id, content, source_conversation_id, created_at, is_active
+- [x] **Auto-extract memories** — cron job after every day; LLM call to extract facts about the user worth remembering
+- [x] **Memory injection** — Prepend relevant memories to system prompt on each request
+- [x] **Memory management UI** — `/memory` page to view, edit, and delete memories
+- [x] **Manual memory creation** — "Remember this" button/command in chat
+- [x] **Memory toggle per conversation** — Option to disable memory for a specific conversation
+
+## System Prompt (The first iterations of agents)
+- [x] **Per-conversation system prompt** — Editable in conversation settings panel
+- [x] **Global default system prompt** — Set in user settings, applied to all new conversations
+- [x] **System prompt templates** — Pre-built personas (Coding assistant, Writing coach, Funny Friend, Emotional Expert,etc.)
+- [x] **System prompt library** — Save and reuse custom prompts
+- [x] **System prompt visibility** — Option to show/collapse system prompt in the message thread
+
+## MCP / Tools / Skills (Admin Portal)
+- [x] **Admin portal foundation** — `/admin` route, restricted to `is_admin=True` users; user table migration
+- [x] **MCP server configuration UI** — Add/remove/toggle MCP server connections (URL, auth, description)
+- [x] **Tool execution backend** — Tool call loop: LLM requests tool → backend invokes MCP server → result fed back into context
+- [x] **Tool results display in chat** — Collapsible "Tool Used" block showing name, input, output
+- [x] **Skills library UI** — Browse available skills/tools from connected MCP servers
+- [x] **Per-conversation tool selection** — Toggle which tools are enabled for a conversation
+- [x] **Admin: User management** — List, promote, disable users from admin portal
+
+## Notifications (Android-oriented)
+> Also used to notify participants in multi-user, multi-agent chat rooms (e.g., new messages from other users or agent responses while away).
+
+- [x] **Android Push notifications (FCM)** — Firebase Cloud Messaging setup; notify when a long-running response completes while app is in background
+- [x] **Android notification channels** — Separate channels for chat responses, reminders, and system alerts with per-channel importance levels
+- [x] **Backend FCM integration** — Store device tokens per user; send push via Firebase Admin SDK when SSE stream completes and client is disconnected
+- [x] **In-app notification center** — Bell icon with read/unread notifications list
+- [x] **Notification preferences** — Per-user settings for which events trigger notifications, synced with Android channel settings
+
+## Scheduled Actions
+- [x] **Scheduled messages** — "Remind me to do X at 3pm" parsed and stored as a cron job
+- [x] **Recurring prompts** — Daily/weekly AI check-ins (e.g., "Summarize my tasks every Monday")
+- [x] **Scheduled action DB model** — `ScheduledAction` table: id, user_id, cron_expr, prompt, next_run, is_active
+- [x] **APScheduler integration** — Backend scheduler to execute due actions and create conversations
+- [x] **Scheduled actions management UI** — List, pause, delete scheduled actions
+
+## Conversation UX
+- [x] **Message editing** — Edit a sent user message and re-run from that point
+- [x] **Message regeneration** — "Regenerate" button to re-run the last assistant response
+- [x] **Message branching** — Fork conversation from any message into a new branch
+- [x] **Conversation search** — Full-text search across all conversations and messages
+- [ ] **Conversation export** — Download as Markdown, JSON, or PDF
+- [ ] **Conversation sharing** — Generate a read-only shareable link
+- [ ] **Conversation folders / tags** — Organize conversations into named groups
+- [x] **Pinned conversations** — Pin important conversations to the top of the sidebar
+- [ ] **Conversation templates** — Start a new chat from a saved template (prompt + system prompt + model)
+- [ ] **Message reactions / starring** — Star or bookmark individual messages
+
+## UI / Rendering
+- [x] **Markdown rendering** — Full CommonMark support (tables, footnotes, task lists)
+- [x] **Code syntax highlighting** — `flutter_highlight` or `google_code_prettify`; copy-code button per block
+- [x] **Math/LaTeX rendering** — `flutter_math_fork` for inline and block equations
+- [x] **Mermaid diagrams** — Render diagram code blocks as SVG
+- [ ] **Artifacts panel** — Side-by-side panel for rendered HTML/code output (like Claude artifacts)
+- [x] **Dark / light / system theme** — Theme toggle in settings, persisted in SharedPreferences
+- [x] **Message metadata** — Toggle to show/hide message metadata (tokens, time for response, etc.)
+
+## Settings & Profile
+- [x] **User settings page** — Dedicated `/settings` route with sections: Profile, Appearance, Models, Voice, Memory, Notifications
+- [x] **Profile editing** — Update name and email; change password
+- [x] **Default model preference** — Persisted per-user default model (DB, not just local state)
+- [x] **Token usage dashboard** — Charts showing token consumption by model, conversation, and time period
+
+## Knowledge Base / RAG
+- [x] **Knowledge base uploads** — Upload documents that persist across all conversations
+- [x] **pgvector integration** — Vector embeddings for semantic retrieval
+- [x] **Embedding generation** — Background job to chunk and embed uploaded documents
+- [x] **RAG injection** — Retrieve relevant chunks and inject into context before each request
+- [x] **Knowledge base management UI** — Upload, view, delete documents in the knowledge base
+
+## Context Management
+- [x] **Context window indicator** — Visual token count showing how full the context window is
+- [x] **Auto-summarization** — When context approaches the limit, summarize old messages and trim
+- [x] **Conversation summary view** — Collapsible "Summary of earlier messages" block in thread
+
+## Multi-Person & Multi-Agent Chat Rooms
+- [x] **Room DB model** — `Room` table: id, name, description, owner_id, created_at; `RoomMember` table: room_id, user_id, role (owner/member), joined_at
+- [x] **Room agent slots** — `RoomAgent` table: room_id, agent_name, system_prompt, model, provider, turn_order, is_active
+- [x] **WebSocket support** — Replace or extend SSE with WebSocket connections so multiple users receive messages in real time
+- [x] **Room creation UI** — Create a named room, set description, invite members by email
+- [x] **Room member management** — Add/remove members, assign roles, transfer ownership
+- [x] **Agent configuration UI** — Add AI agents to a room: pick name, avatar, model, system prompt, and when they respond (always, when @mentioned, round-robin)
+- [x] **@mention routing** — `@AgentName` in a message triggers only that agent to respond; `@all` triggers all agents
+- [x] **Round-robin agent turns** — Configurable mode where agents respond in sequence automatically
+- [x] **Agent-to-agent conversations** — Agents can see and respond to each other's messages; configurable max turn depth to prevent infinite loops
+- [x] **Moderator agent** — Special agent role that summarizes discussion, breaks deadlocks, or routes questions to the right agent
+- [x] **Room message history** — Shared scrollback visible to all members with author avatars (human vs agent)
+- [x] **Presence indicators** — Show which users are currently online in the room
+- [x] **Room notifications** — Notify members when they are @mentioned or when a new message arrives
+- [x] **Room search & discovery** — Browse and join public rooms; private rooms require invite
+- [x] **Room export** — Export full room transcript as Markdown or JSON
+- [ ] **Debate / critique mode** — Structured mode where two agents argue opposing sides of a topic and a judge agent scores them
+
+## Infrastructure & DevOps
+- [ ] **Redis integration** — Cache model lists, rate-limit counters, and active stream state
+- [ ] **Rate limiting** — Per-user API rate limits (requests/tokens per minute/day)
+- [ ] **Background task queue** — Celery or arq for memory extraction, embedding, scheduled actions
+- [ ] **Audit logging** — Log all admin actions and sensitive user actions
+- [ ] **Multi-tenancy / workspaces** — Group users under organizations with shared knowledge bases and settings
+- [ ] **Docker production compose** — Full production stack with Nginx, SSL, and health checks
+- [ ] **CI pipeline** — GitHub Actions running lint, tests, and build on every PR
+
+## Dynamic Context + Unified Chat
+
+- [x] **Backend foundation**
+  - [x] Primary conversation identity and additive schema migrations
+  - [x] Evidence-linked topics, assertions, exclusions, aliases, and context versions
+  - [x] Model thinking-level capability contract
+- [x] **Realtime ingestion**
+  - [x] Durable message mutation events and idempotent live-delta extraction
+  - [x] Correction, rejection, forget, edit, and delete invalidation
+- [x] **Hourly consolidation**
+  - [x] Dirty-user leasing, single-instance hourly job, and immutable context packs
+  - [x] Grounding validation, rebuild safeguards, and failure fallback
+  - [x] One user-level semantic-curator call, three-level hierarchy, evidence-grounded assertions, and versioned requeue
+- [x] **Request-time context compiler**
+  - [x] Pack + live delta + pins + exclusions compilation and generation metadata
+  - [x] Bootstrap/prewarm and legacy-thread compatibility path
+- [ ] **Frontend topic field** (in progress)
+  - [ ] Responsive personal/explore discovery and topic activation (gradient, score-sized organic nodes and multiple promoted subtopics pass 320px, 390px, 768px tablet, and desktop widget checks; live curated Personal E2E remains)
+- [ ] **Threads** (in progress)
+  - [ ] Preserved legacy-thread navigation and compatibility-only new thread (search, pin, mute, delete/undo, branch, and proposal/deep-link regressions pass; full action E2E remains)
+- [ ] **Active context** (in progress)
+  - [x] Included/pinned sources, why-included controls, and no Activity UI
+- [ ] **Composer controls** (in progress)
+  - [x] New topic, reusable response style, model, system prompt, normalized effort
+- [ ] **Tests, docs, and E2E** (in progress)
+  - [x] Backend foundation, ingestion, consolidation, compiler, and privacy tests (focused graph/lease compatibility gates and 1114 full backend tests pass, including concurrent primary creation, lifecycle revocation/restoration, local-only consolidation, and committed-turn metadata/event idempotency)
+  - [ ] Flutter model/provider/widget and responsive UX tests (gradient map/responsive widget coverage and 699 full Flutter tests pass; remaining E2E gaps are tracked)
+  - [ ] End-to-end acceptance validation and documentation updates (sidebar/topic/context/composer/style/effort smoke and configured sign-out/login pass; launch, history-derived Personal topics, full Threads actions, and committed live-SSE remain deferred)
+    - [x] UI polish: Topics/Threads/Rooms sidebar tabs render and switch with full labels
+    - [x] UI polish: rebuilt bottom composer accepts input and exposes style, effort, context, and voice controls
+    - [x] UI polish: named `Tutoring` style label persists across normalized effort `Off → High`
+    - [x] UI polish: top app bar has no model/style dropdown; selection lives in the composer
+    - [x] UI polish: Active context split pane and final banner layout produce no settled runtime overflow
+    - [x] Linux E2E: configured sign-out/login returns to the primary landing with no stale 403/auth state or DTD runtime errors
+    - [ ] Linux E2E: process launch, history-derived Personal-topic, full Threads actions, and committed-turn/live-SSE coverage

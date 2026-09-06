@@ -43,6 +43,22 @@ class ModelInfo:
     supports_tools: bool | None = None
     supports_vision: bool | None = None
     supports_thinking: bool | None = None
+    # Normalized controls exposed by the API.  ``None`` means the provider
+    # did not report a safe capability set; callers must not invent levels.
+    thinking_levels: list[str] | None = None
+    default_thinking_level: str | None = None
+
+    def __post_init__(self) -> None:
+        """Reject provider metadata that cannot be represented by the API."""
+        allowed = {"off", "low", "medium", "high"}
+        if self.thinking_levels is not None:
+            invalid = set(self.thinking_levels) - allowed
+            if invalid:
+                raise ValueError(f"Unsupported normalized thinking level(s): {sorted(invalid)}")
+        if self.default_thinking_level is not None and self.default_thinking_level not in allowed:
+            raise ValueError(
+                f"Unsupported normalized default thinking level: {self.default_thinking_level}"
+            )
 
 
 @dataclass
@@ -121,6 +137,11 @@ class LLMProvider(ABC):
         the default reports "unknown" and callers fall back to estimates.
         """
         return None
+
+    @property
+    def supports_structured_output(self) -> bool:
+        """Whether this provider can enforce a JSON/schema response format."""
+        return False
 
     @abstractmethod
     async def list_models(self) -> list[ModelInfo]:

@@ -1,0 +1,8 @@
+{
+  "dependencies": {
+    "@ast-grep/cli": "^0.45.3",
+    "@beads/bd": "^1.2.2",
+    "@tobilu/qmd": "^2.8.3",
+    "node": "^22.23.2"
+  }
+}

@@ -2,18 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'package:garbanzo_ai/features/chat/models/conversation.dart';
+import 'package:garbanzo_ai/features/topics/models/topic_node.dart';
 import 'package:garbanzo_ai/features/chat/widgets/conversation_list_widget.dart';
+import 'package:garbanzo_ai/features/topics/providers/topic_discovery_provider.dart';
 import 'package:garbanzo_ai/features/rooms/providers/room_provider.dart';
 import 'package:garbanzo_ai/features/rooms/widgets/create_room_dialog.dart';
 import 'package:garbanzo_ai/features/rooms/widgets/rooms_list_view.dart';
 import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
-/// Sidebar shown on wide layouts. Contains a Chats / Rooms tab switcher so
-/// rooms feel like first-class peers of conversations.
-///
-/// Room selection is handled by the shell ([onSelectRoom]) which swaps the
-/// content pane in place — the sidebar itself never navigates. Rooms come
-/// from the app-level [RoomProvider].
+/// Sidebar shown on wide layouts. Contains Topics / Threads / Rooms.
 class ChatSidebar extends StatefulWidget {
   const ChatSidebar({
     super.key,
@@ -27,8 +24,9 @@ class ChatSidebar extends StatefulWidget {
     required this.isLoadingConversations,
     required this.onSelectRoom,
     required this.onDeleteRoom,
+    required this.onOpenPrimary,
     this.selectedRoomId,
-    this.initialTab = 0,
+    this.initialTab = 1,
   });
 
   final List<Conversation> conversations;
@@ -37,19 +35,13 @@ class ChatSidebar extends StatefulWidget {
   final ValueChanged<String> onDeleteConversation;
   final VoidCallback onNewChat;
   final ValueChanged<String> onTogglePin;
-
-  /// Applies a mute choice (`8h` / `1w` / `forever` / `unmute`) to a
-  /// conversation by id.
   final void Function(String conversationId, String duration)?
   onMuteConversation;
-
   final bool isLoadingConversations;
   final ValueChanged<String> onSelectRoom;
   final ValueChanged<String> onDeleteRoom;
   final String? selectedRoomId;
-
-  /// 0 = chats, 1 = rooms. Set to 1 when the shell is showing a room so a
-  /// deep link lands with the matching tab open.
+  final VoidCallback onOpenPrimary;
   final int initialTab;
 
   @override
@@ -62,8 +54,7 @@ class _ChatSidebarState extends State<ChatSidebar> {
   @override
   void initState() {
     super.initState();
-    if (_tab == 1) {
-      // Deferred: loadRooms notifies listeners, which is illegal mid-build.
+    if (_tab == 2) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _loadRoomsIfEmpty();
       });
@@ -81,46 +72,55 @@ class _ChatSidebarState extends State<ChatSidebar> {
     return Container(
       width: 280,
       decoration: BoxDecoration(
-        color: cs.surfaceContainerLow,
         border: Border(
           right: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.5)),
         ),
       ),
-      child: Column(
-        children: [
-          _Tabs(
-            value: _tab,
-            onChange: (i) {
-              setState(() => _tab = i);
-              if (i == 1) _loadRoomsIfEmpty();
-            },
-          ),
-          Expanded(
-            child: _tab == 0
-                ? ConversationListWidget(
-                    conversations: widget.conversations,
-                    selectedId: widget.selectedConversationId,
-                    onSelect: widget.onSelectConversation,
-                    onDelete: widget.onDeleteConversation,
-                    onNewChat: widget.onNewChat,
-                    onTogglePin: widget.onTogglePin,
-                    onMute: widget.onMuteConversation == null
-                        ? null
-                        : (conversation, duration) =>
-                              widget.onMuteConversation!(
-                                conversation.id,
-                                duration,
-                              ),
-                    isLoading: widget.isLoadingConversations,
-                    embedded: true,
-                  )
-                : _RoomsTab(
-                    selectedRoomId: widget.selectedRoomId,
-                    onSelectRoom: widget.onSelectRoom,
-                    onDeleteRoom: widget.onDeleteRoom,
-                  ),
-          ),
-        ],
+      child: Material(
+        key: const ValueKey('chat_sidebar_material'),
+        color: cs.surfaceContainerLow,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 14, 12, 8),
+              child: _Tabs(
+                value: _tab,
+                onChange: (i) {
+                  setState(() => _tab = i);
+                  if (i == 2) _loadRoomsIfEmpty();
+                },
+              ),
+            ),
+            Divider(
+              height: 1,
+              color: cs.outlineVariant.withValues(alpha: 0.55),
+            ),
+            Expanded(
+              child: switch (_tab) {
+                0 => _TopicsTab(onOpenPrimary: widget.onOpenPrimary),
+                1 => ConversationListWidget(
+                  conversations: widget.conversations,
+                  selectedId: widget.selectedConversationId,
+                  onSelect: widget.onSelectConversation,
+                  onDelete: widget.onDeleteConversation,
+                  onNewChat: widget.onNewChat,
+                  onTogglePin: widget.onTogglePin,
+                  onMute: widget.onMuteConversation == null
+                      ? null
+                      : (c, d) => widget.onMuteConversation!(c.id, d),
+                  isLoading: widget.isLoadingConversations,
+                  embedded: true,
+                  newConversationLabel: AppLocalizations.of(context)!.newThread,
+                ),
+                _ => _RoomsTab(
+                  selectedRoomId: widget.selectedRoomId,
+                  onSelectRoom: widget.onSelectRoom,
+                  onDeleteRoom: widget.onDeleteRoom,
+                ),
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -133,33 +133,188 @@ class _Tabs extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
-      child: SegmentedButton<int>(
-        showSelectedIcon: false,
-        style: ButtonStyle(
-          visualDensity: VisualDensity.compact,
-          textStyle: WidgetStateProperty.all(
-            const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+    final l10n = AppLocalizations.of(context)!;
+    final cs = Theme.of(context).colorScheme;
+    final tabs = [
+      (
+        key: 'sidebar_tab_topics',
+        label: l10n.topics,
+        icon: Icons.auto_awesome_outlined,
+      ),
+      (
+        key: 'sidebar_tab_threads',
+        label: l10n.threads,
+        icon: Icons.chat_bubble_outline,
+      ),
+      (
+        key: 'sidebar_tab_rooms',
+        label: l10n.labelRooms,
+        icon: Icons.group_outlined,
+      ),
+    ];
+    return Semantics(
+      container: true,
+      label: '${l10n.topics}, ${l10n.threads}, ${l10n.labelRooms}',
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: cs.surfaceContainerHighest.withValues(alpha: 0.55),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          children: [
+            for (var i = 0; i < tabs.length; i++)
+              _NavigationTab(
+                key: ValueKey(tabs[i].key),
+                label: tabs[i].label,
+                icon: tabs[i].icon,
+                selected: value == i,
+                onTap: () => onChange(i),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _NavigationTab extends StatelessWidget {
+  const _NavigationTab({
+    super.key,
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final fg = selected ? cs.onSecondaryContainer : cs.onSurfaceVariant;
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: label,
+      child: Tooltip(
+        message: label,
+        child: Material(
+          color: selected ? cs.secondaryContainer : Colors.transparent,
+          borderRadius: BorderRadius.circular(13),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(13),
+            onTap: onTap,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 48),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 8,
+                ),
+                child: Row(
+                  children: [
+                    Icon(icon, size: 19, color: fg),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          color: fg,
+                          fontWeight: selected
+                              ? FontWeight.w700
+                              : FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    if (selected)
+                      Icon(Icons.arrow_forward_rounded, size: 18, color: fg),
+                  ],
+                ),
+              ),
+            ),
           ),
         ),
-        segments: [
-          ButtonSegment(
-            value: 0,
-            icon: Icon(Icons.chat_bubble_outline, size: 16),
-            label: Text(AppLocalizations.of(context)!.labelChats),
+      ),
+    );
+  }
+}
+
+class _TopicsTab extends StatelessWidget {
+  const _TopicsTab({required this.onOpenPrimary});
+  final VoidCallback onOpenPrimary;
+
+  Widget _card(
+    BuildContext context, {
+    required Color color,
+    required Widget child,
+  }) => Card(elevation: 0, color: color, child: child);
+
+  @override
+  Widget build(BuildContext context) {
+    final topics = context.watch<TopicDiscoveryProvider>();
+    final l10n = AppLocalizations.of(context)!;
+    final cs = Theme.of(context).colorScheme;
+    final selected = topics.selectedTopic;
+    return ListView(
+      padding: const EdgeInsets.all(12),
+      children: [
+        FilledButton.tonalIcon(
+          key: const ValueKey('open_primary_chat'),
+          onPressed: onOpenPrimary,
+          icon: const Icon(Icons.forum_outlined),
+          label: Text(l10n.primaryChat),
+        ),
+        const SizedBox(height: 12),
+        Semantics(
+          button: true,
+          label: l10n.newTopic,
+          child: _card(
+            context,
+            color: cs.surfaceContainerHighest.withValues(alpha: 0.48),
+            child: ListTile(
+              key: const ValueKey('new_topic_sidebar'),
+              leading: const Icon(Icons.add_comment_outlined),
+              title: Text(l10n.newTopic),
+              subtitle: Text(l10n.topicFocusHint),
+              onTap: () {
+                topics.startNewTopic();
+                onOpenPrimary();
+              },
+            ),
           ),
-          ButtonSegment(
-            value: 1,
-            icon: Icon(Icons.group_outlined, size: 16),
-            label: Text(AppLocalizations.of(context)!.labelRooms),
+        ),
+        if (selected != null) ...[
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+            child: Text(
+              l10n.currentTopic,
+              style: Theme.of(
+                context,
+              ).textTheme.labelLarge?.copyWith(color: cs.onSurfaceVariant),
+            ),
+          ),
+          _card(
+            context,
+            color: cs.secondaryContainer.withValues(alpha: 0.45),
+            child: ListTile(
+              leading: const Icon(Icons.bookmark_outline),
+              title: Text(selected.label),
+              subtitle: Text(
+                selected.contextStatus == TopicContextStatus.preparing
+                    ? l10n.preparingContext
+                    : l10n.activeNow,
+              ),
+              onTap: onOpenPrimary,
+            ),
           ),
         ],
-        selected: {value},
-        onSelectionChanged: (s) {
-          if (s.isNotEmpty) onChange(s.first);
-        },
-      ),
+      ],
     );
   }
 }
@@ -221,15 +376,13 @@ class _RoomsTab extends StatelessWidget {
           child: RoomsListView(
             rooms: provider.rooms,
             loading: provider.loading,
-            // The provider is shared with the open-room view, so `error` may
-            // be an openRoom failure — don't let it blank a loaded list.
             error: provider.rooms.isEmpty ? provider.error : null,
             selectedId: selectedRoomId,
             compact: true,
             onSelect: (room) => onSelectRoom(room.id),
             onDelete: (room) => onDeleteRoom(room.id),
             onCreate: () => _create(context),
-            onMute: (room, duration) => provider.setMute(room.id, duration),
+            onMute: (room, d) => provider.setMute(room.id, d),
           ),
         ),
       ],

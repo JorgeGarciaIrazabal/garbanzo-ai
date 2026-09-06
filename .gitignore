@@ -72,3 +72,21 @@ vendor/
 
 # Deploy artifacts (APKs)
 /dist/
+
+# Codex controller: private evidence, workers, installed tools and rebuildable indexes
+/.ai/local/
+/.ai/tools/
+/.qmd/
+/.serena/cache/
+/.serena/memories/
+/.beads/*
+!/.beads/.gitignore
+!/.beads/config.yaml
+!/.beads/metadata.json
+!/.beads/issues.jsonl
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+*.db
+.beads-credential-key
+.beads/proxieddb/

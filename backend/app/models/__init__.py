@@ -15,6 +15,20 @@ from app.models.style import Style
 from app.models.system_prompt import SystemPromptTemplate
 from app.models.user import User
 from app.models.workflow_run import WorkflowRun
+from app.topics.models import (
+    ActiveContextItem,
+    MessageTopic,
+    Topic,
+    TopicAlias,
+    TopicArchive,
+    TopicAssertion,
+    TopicAssertionEvidence,
+    TopicContextVersion,
+    TopicExclusion,
+    TopicIngestionEvent,
+    TopicIngestionState,
+    TopicRelation,
+)
 
 __all__ = [
     "User",
@@ -40,4 +54,16 @@ __all__ = [
     "RoomMessage",
     "RoomAudioNote",
     "WorkflowRun",
+    "Topic",
+    "TopicAlias",
+    "TopicRelation",
+    "TopicArchive",
+    "MessageTopic",
+    "TopicAssertion",
+    "TopicAssertionEvidence",
+    "TopicExclusion",
+    "TopicContextVersion",
+    "TopicIngestionEvent",
+    "TopicIngestionState",
+    "ActiveContextItem",
 ]

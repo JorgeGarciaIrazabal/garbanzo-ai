@@ -1,4 +1,4 @@
-"""Ollama LLM provider implementation using the official ollama-py SDK."""
+"""Ollama LLM provider using ollama-py SDK."""
 
 import asyncio
 import contextlib
@@ -10,53 +10,63 @@ from typing import Any
 import httpx
 from ollama import AsyncClient, RequestError, ResponseError
 
-from app.services.llm_provider import (
-    ChatChunk,
-    ChatOptions,
-    LLMProvider,
-    Message,
-    ModelInfo,
-)
+from app.services.llm_provider import ChatChunk, ChatOptions, LLMProvider, Message, ModelInfo
 
 logger = logging.getLogger(__name__)
 
-# Transient failures worth retrying: the SDK's request-level error plus the
-# underlying transport errors. Client-error ResponseError statuses (e.g. 400
-# unknown model) are NOT retryable, but server-side 5xx errors are — cloud
-# models intermittently return a bare 500 during stream establishment, and
-# the same request succeeds seconds later. Retrying is only safe before any
-# token has been delivered, so 5xx retries are confined to stream setup.
 _TRANSIENT_ERRORS = (RequestError, httpx.TransportError, ConnectionError)
 _CONNECT_ATTEMPTS = 3
 _RETRY_BACKOFF_SECONDS = 0.75
 
-
-def _is_server_error(e: Exception) -> bool:
-    """True for Ollama HTTP 5xx responses (transient server-side faults)."""
-    return isinstance(e, ResponseError) and (e.status_code or 0) >= 500
-
-
-# Per-chunk timeouts. The first chunk may wait on a cold model load (large
-# models take minutes), so it gets a much longer budget than steady-state
-# token generation.
 FIRST_CHUNK_TIMEOUT = 300.0
 CHUNK_TIMEOUT = 120.0
 
-# Dated preview aliases remain in `ollama list` after the stable tags are
-# pulled. They point at the same published artifacts but must not reappear as
-# duplicate user choices after migration to the stable IDs.
-_RETIRED_MODEL_ALIASES = {
-    "deepseek-v4-flash:0731-cloud",
-    "deepseek-v4-pro:0813-cloud",
-}
-
+_RETIRED_MODEL_ALIASES = {"deepseek-v4-flash:0731-cloud", "deepseek-v4-pro:0813-cloud"}
 _UNSUPPORTED_IMAGE_MESSAGE = (
     "This model cannot process image attachments. Switch to a model marked Vision and try again."
 )
 
 
+def _is_server_error(e: Exception) -> bool:
+    return isinstance(e, ResponseError) and (e.status_code or 0) >= 500
+
+
+def _is_glm_model(model: str) -> bool:
+    """Check if model belongs to the GLM family.
+
+    GLM models (e.g. glm-5.2, glm-5.3) do not support disabling thinking via
+    think: False in Ollama — doing so disables Ollama's thinking parser, causing
+    the model's raw chain-of-thought and </think> tag to leak into message content.
+    """
+    return "glm" in model.lower()
+
+
+def _resolve_think_kwarg(
+    model: str, requested_level: str | None, capabilities: list[str]
+) -> tuple[Any, bool]:
+    """Map a requested ThinkingLevel to Ollama's `think` argument and suppression flag.
+
+    Returns (think_kwarg, suppress_thinking):
+      - If model does not support thinking: (None, False)
+      - If requested_level is 'off':
+          * GLM models: ('low', True) -> run minimal reasoning without breaking Ollama's
+            thinking parser, but suppress thinking chunks so user sees zero thinking.
+          * other models: (False, False) -> disable thinking natively.
+      - If requested_level is in ('low', 'medium', 'high'): (requested_level, False)
+      - If requested_level is None (auto/default): (True, False)
+    """
+    if "thinking" not in capabilities:
+        return (None, False)
+    if requested_level == "off":
+        if _is_glm_model(model):
+            return ("low", True)
+        return (False, False)
+    if requested_level in ("low", "medium", "high"):
+        return (requested_level, False)
+    return (True, False)
+
+
 def _unsupported_image_chunk(status_code: int = 400) -> ChatChunk:
-    """Return the expected, user-actionable error for a text-only model."""
     return ChatChunk(
         content=_UNSUPPORTED_IMAGE_MESSAGE,
         is_finished=True,
@@ -64,8 +74,6 @@ def _unsupported_image_chunk(status_code: int = 400) -> ChatChunk:
             "error": True,
             "error_type": "unsupported_image_input",
             "status_code": status_code,
-            # This is a model-selection mismatch, not an application defect.
-            # The turn engine uses this flag to avoid filing duplicate reports.
             "auto_report": False,
         },
     )
@@ -75,50 +83,82 @@ def _is_unsupported_image_error(error: ResponseError) -> bool:
     return "does not support image input" in str(error.error).lower()
 
 
-class OllamaProvider(LLMProvider):
-    """Ollama LLM provider.
+def _retry_delay(attempt: int) -> float:
+    return _RETRY_BACKOFF_SECONDS * (2 ** (attempt - 1))
 
-    Connects to a local or remote Ollama instance via the official SDK.
-    Default endpoint: http://localhost:11434
-    """
+
+def _to_ollama_messages(messages: list[Message]) -> list[dict[str, Any]]:
+    out: list[dict[str, Any]] = []
+    for msg in messages:
+        entry: dict[str, Any] = {"role": msg.role, "content": msg.content}
+        if msg.images:
+            entry["images"] = msg.images
+        if msg.tool_calls:
+            entry["tool_calls"] = [
+                {"function": {"name": tc.get("name", ""), "arguments": tc.get("arguments") or {}}}
+                for tc in msg.tool_calls
+            ]
+        out.append(entry)
+    return out
+
+
+def _build_options(opts: ChatOptions) -> dict[str, Any]:
+    o: dict[str, Any] = {"temperature": opts.temperature}
+    if opts.max_tokens is not None:
+        o["num_predict"] = opts.max_tokens
+    if opts.top_p is not None:
+        o["top_p"] = opts.top_p
+    if opts.num_ctx is not None:
+        o["num_ctx"] = opts.num_ctx
+    return o
+
+
+def _fallback_context_length(model_name: str, param_size: str | None) -> int | None:
+    if ":cloud" in model_name.lower():
+        return 100000
+    if not param_size or "B" not in param_size:
+        return None
+    try:
+        size = float(param_size.replace("B", ""))
+    except ValueError:
+        return None
+    for limit, ctx in [(3, 4096), (8, 8192), (20, 32768)]:
+        if size <= limit:
+            return ctx
+    return 131072
+
+
+class OllamaProvider(LLMProvider):
+    """Ollama provider (local or remote). Default http://localhost:11434"""
 
     def __init__(self, base_url: str = "http://localhost:11434"):
         self.base_url = base_url.rstrip("/")
         self._client: AsyncClient | None = None
-        # model name → (context_length, capabilities). Model metadata is
-        # immutable for a given tag, so entries never expire.
         self._model_meta: dict[str, tuple[int | None, list[str]]] = {}
 
     @property
     def name(self) -> str:
         return "ollama"
 
+    @property
+    def supports_structured_output(self) -> bool:
+        return True
+
     def _get_client(self) -> AsyncClient:
-        """Get or create the Ollama async client."""
         if self._client is None:
             self._client = AsyncClient(host=self.base_url, timeout=300.0)
         return self._client
 
     async def _get_model_meta(self, model: str) -> tuple[int | None, list[str]]:
-        """Return ``(context_length, capabilities)`` from ``ollama show``.
-
-        modelinfo keys are architecture-prefixed (e.g.
-        ``llama.context_length``), so we match on the suffix. Only
-        successful lookups are cached — caching a failure (say, Ollama
-        briefly down at startup) would permanently disable thinking and
-        capability detection for that model until restart, while retrying
-        costs one cheap local call.
-        """
+        """Return (context_length, capabilities) from `ollama show`; cached successes only."""
         cached = self._model_meta.get(model)
         if cached is not None:
             return cached
-
         try:
             response = await self._get_client().show(model)
         except Exception as e:
             logger.warning("Failed to fetch model metadata for %s: %s", model, e)
             return (None, [])
-
         context_length: int | None = None
         for key, value in (response.modelinfo or {}).items():
             if key.endswith(".context_length"):
@@ -126,27 +166,18 @@ class OllamaProvider(LLMProvider):
                     context_length = int(value)
                 break
         capabilities = list(response.capabilities or [])
-
         meta = (context_length, capabilities)
         self._model_meta[model] = meta
         return meta
 
     async def get_model_context_length(self, model: str) -> int | None:
-        """Return the model's maximum context length, if Ollama reports it."""
         context_length, _ = await self._get_model_meta(model)
         return context_length
 
     async def _stream_with_retry(
         self, client: AsyncClient, chat_kwargs: dict[str, Any]
     ) -> AsyncIterator[Any]:
-        """Open the chat stream and yield its chunks with resilience.
-
-        - Establishing the stream (request + first chunk) is retried with
-          backoff on transient errors — safe because no tokens have been
-          delivered yet.
-        - Every chunk is bounded by a timeout so a wedged stream surfaces
-          as an error instead of hanging the request forever.
-        """
+        """Retry stream establishment on transient/5xx before any token delivered."""
         iterator = None
         first = None
         for attempt in range(1, _CONNECT_ATTEMPTS + 1):
@@ -160,7 +191,7 @@ class OllamaProvider(LLMProvider):
             except ResponseError as e:
                 if not _is_server_error(e) or attempt == _CONNECT_ATTEMPTS:
                     raise
-                delay = _RETRY_BACKOFF_SECONDS * (2 ** (attempt - 1))
+                delay = _retry_delay(attempt)
                 logger.warning(
                     "Ollama server error %d (attempt %d/%d): %s — retrying in %.1fs",
                     e.status_code,
@@ -173,7 +204,7 @@ class OllamaProvider(LLMProvider):
             except _TRANSIENT_ERRORS as e:
                 if attempt == _CONNECT_ATTEMPTS:
                     raise
-                delay = _RETRY_BACKOFF_SECONDS * (2 ** (attempt - 1))
+                delay = _retry_delay(attempt)
                 logger.warning(
                     "Ollama connection failed (attempt %d/%d): %s — retrying in %.1fs",
                     attempt,
@@ -182,7 +213,6 @@ class OllamaProvider(LLMProvider):
                     delay,
                 )
                 await asyncio.sleep(delay)
-
         yield first
         assert iterator is not None
         while True:
@@ -200,45 +230,14 @@ class OllamaProvider(LLMProvider):
         cancel_event: asyncio.Event | None = None,
         tools: list[dict[str, Any]] | None = None,
     ) -> AsyncIterator[ChatChunk]:
-        """Stream chat completion from Ollama using the SDK."""
         import uuid
 
         client = self._get_client()
         opts = options or ChatOptions()
-
-        # Convert messages to Ollama format
-        ollama_messages: list[dict[str, Any]] = []
-        for msg in messages:
-            entry: dict[str, Any] = {"role": msg.role, "content": msg.content}
-            if msg.images:
-                entry["images"] = msg.images
-            if msg.tool_calls:
-                # Ollama expects {function: {name, arguments}} structure.
-                entry["tool_calls"] = [
-                    {
-                        "function": {
-                            "name": tc.get("name", ""),
-                            "arguments": tc.get("arguments") or {},
-                        }
-                    }
-                    for tc in msg.tool_calls
-                ]
-            ollama_messages.append(entry)
-
-        # Build options dict
-        request_options: dict[str, Any] = {
-            "temperature": opts.temperature,
-        }
-        if opts.max_tokens is not None:
-            request_options["num_predict"] = opts.max_tokens
-        if opts.top_p is not None:
-            request_options["top_p"] = opts.top_p
-        if opts.num_ctx is not None:
-            request_options["num_ctx"] = opts.num_ctx
-
+        ollama_messages = _to_ollama_messages(messages)
+        request_options = _build_options(opts)
         accumulated_thinking = ""
         accumulated_tool_calls: list[dict[str, Any]] = []
-
         try:
             chat_kwargs: dict[str, Any] = {
                 "model": model,
@@ -246,58 +245,91 @@ class OllamaProvider(LLMProvider):
                 "stream": True,
                 "options": request_options,
             }
-            # Ask Ollama to surface the model's reasoning as a separate
-            # `thinking` field rather than burying it inside the final
-            # output. For reasoning models (qwen3, deepseek-r1, …) this
-            # is what lets the UI render thinking tokens incrementally
-            # during the otherwise-silent gap before the answer or tool
-            # call. Only set when the model advertises the capability —
-            # current Ollama rejects think=True for non-thinking models
-            # with a 400 instead of ignoring it.
-            #
-            # ``opts.think`` (mirrored from Conversation.thinking_level) lets
-            # a caller override the auto-on default: "off" force-disables
-            # thinking, "low"/"medium"/"high" request that reasoning depth —
-            # ollama-py types `think` as `bool | Literal["low","medium","high"]`
-            # (see ollama/_types.py), so these map straight through. When
-            # unset (None) we keep the historical default of enabling
-            # thinking for any capable model.
             _, capabilities = await self._get_model_meta(model)
-            if (
-                any(message.images for message in messages)
-                and capabilities
-                and "vision" not in capabilities
-            ):
+            if any(m.images for m in messages) and capabilities and "vision" not in capabilities:
                 yield _unsupported_image_chunk()
                 return
-            if "thinking" in capabilities:
-                if opts.think is not None:
-                    chat_kwargs["think"] = False if opts.think == "off" else opts.think
-                else:
-                    chat_kwargs["think"] = True
+            think_kwarg, suppress_thinking = _resolve_think_kwarg(model, opts.think, capabilities)
+            if think_kwarg is not None:
+                chat_kwargs["think"] = think_kwarg
             if tools:
                 chat_kwargs["tools"] = tools
-
+            in_think_tag = False
             async for chunk in self._stream_with_retry(client, chat_kwargs):
-                # Check for cancellation
                 if cancel_event and cancel_event.is_set():
                     yield ChatChunk(content="", is_finished=True, metadata={"cancelled": True})
                     return
-
-                # Extract the message payload from intermediate chunks.
                 message = chunk.get("message")
                 if message is not None:
                     content = message.get("content", "") or ""
                     thinking = message.get("thinking", "") or ""
                     tool_calls = message.get("tool_calls") or []
-
                     if thinking:
                         accumulated_thinking += thinking
-                        yield ChatChunk(content=thinking, is_finished=False, is_thinking=True)
-
+                        if not suppress_thinking:
+                            yield ChatChunk(content=thinking, is_finished=False, is_thinking=True)
                     if content:
-                        yield ChatChunk(content=content, is_finished=False)
+                        if in_think_tag:
+                            if "</think>" in content:
+                                think_part, answer_part = content.split("</think>", 1)
+                                in_think_tag = False
+                                clean_think = think_part.replace("<think>", "").strip()
+                                if clean_think:
+                                    accumulated_thinking += clean_think
+                                    if not suppress_thinking:
+                                        yield ChatChunk(
+                                            content=clean_think, is_finished=False, is_thinking=True
+                                        )
+                                content = answer_part
+                            else:
+                                clean_think = content.replace("<think>", "")
+                                if clean_think:
+                                    accumulated_thinking += clean_think
+                                    if not suppress_thinking:
+                                        yield ChatChunk(
+                                            content=clean_think, is_finished=False, is_thinking=True
+                                        )
+                                content = ""
+                        elif "<think>" in content:
+                            if "</think>" in content:
+                                before_think, rest = content.split("<think>", 1)
+                                think_part, answer_part = rest.split("</think>", 1)
+                                if before_think:
+                                    yield ChatChunk(content=before_think, is_finished=False)
+                                clean_think = think_part.strip()
+                                if clean_think:
+                                    accumulated_thinking += clean_think
+                                    if not suppress_thinking:
+                                        yield ChatChunk(
+                                            content=clean_think, is_finished=False, is_thinking=True
+                                        )
+                                content = answer_part
+                            else:
+                                before_think, think_part = content.split("<think>", 1)
+                                in_think_tag = True
+                                if before_think:
+                                    yield ChatChunk(content=before_think, is_finished=False)
+                                clean_think = think_part.strip()
+                                if clean_think:
+                                    accumulated_thinking += clean_think
+                                    if not suppress_thinking:
+                                        yield ChatChunk(
+                                            content=clean_think, is_finished=False, is_thinking=True
+                                        )
+                                content = ""
+                        elif "</think>" in content:
+                            think_part, answer_part = content.split("</think>", 1)
+                            clean_think = think_part.strip()
+                            if clean_think:
+                                accumulated_thinking += clean_think
+                                if not suppress_thinking:
+                                    yield ChatChunk(
+                                        content=clean_think, is_finished=False, is_thinking=True
+                                    )
+                            content = answer_part
 
+                        if content:
+                            yield ChatChunk(content=content, is_finished=False)
                     if tool_calls:
                         normalized: list[dict[str, Any]] = []
                         for tc in tool_calls:
@@ -316,24 +348,14 @@ class OllamaProvider(LLMProvider):
                                     name = getattr(func, "name", "") or ""
                                     arguments = getattr(func, "arguments", None) or {}
                             normalized.append(
-                                {
-                                    "id": str(uuid.uuid4()),
-                                    "name": name,
-                                    "arguments": arguments,
-                                }
+                                {"id": str(uuid.uuid4()), "name": name, "arguments": arguments}
                             )
                         accumulated_tool_calls.extend(normalized)
-
-                # Final chunk with metadata
                 if chunk.get("done", False):
-                    # Emit a tool_call chunk BEFORE the done chunk.
                     if accumulated_tool_calls:
                         yield ChatChunk(
-                            content="",
-                            is_finished=False,
-                            tool_calls=accumulated_tool_calls,
+                            content="", is_finished=False, tool_calls=accumulated_tool_calls
                         )
-
                     metadata: dict[str, Any] = {}
                     if chunk.eval_count is not None:
                         metadata["tokens_generated"] = chunk.eval_count
@@ -341,38 +363,28 @@ class OllamaProvider(LLMProvider):
                         metadata["tokens_prompt"] = chunk.prompt_eval_count
                     if chunk.total_duration is not None:
                         metadata["total_duration_ns"] = chunk.total_duration
-                    if accumulated_thinking:
+                    if accumulated_thinking and not suppress_thinking:
                         metadata["thinking"] = accumulated_thinking
                     if accumulated_tool_calls:
                         metadata["has_tool_calls"] = True
-
                     yield ChatChunk(content="", is_finished=True, metadata=metadata)
                     break
-
         except ResponseError as e:
             logger.error("Ollama response error: %s", e)
             if _is_unsupported_image_error(e):
                 yield _unsupported_image_chunk(e.status_code)
                 return
-            if _is_server_error(e):
-                # Server-side faults are transient and the retry budget has
-                # been exhausted; the raw "Internal Server Error" text is
-                # meaningless to a user, so surface something actionable.
-                content = (
-                    "The model backend failed repeatedly. Please try again in a "
-                    "minute, or switch to a different model."
-                )
-            else:
-                content = f"Ollama error: {e.error}"
+            content = (
+                "The model backend failed repeatedly. Please try again in a minute, or switch to a different model."
+                if _is_server_error(e)
+                else f"Ollama error: {e.error}"
+            )
             yield ChatChunk(
                 content=content,
                 is_finished=True,
                 metadata={
                     "error": True,
                     "status_code": e.status_code,
-                    # Request shape diagnostics so transient-looking failures
-                    # (e.g. cloud models intermittently 500ing on long
-                    # conversations) can be correlated without prod log access.
                     "model": model,
                     "message_count": len(ollama_messages),
                     "prompt_chars": sum(len(m["content"]) for m in ollama_messages),
@@ -407,61 +419,34 @@ class OllamaProvider(LLMProvider):
             )
 
     async def list_models(self) -> list[ModelInfo]:
-        """List available models from Ollama."""
         client = self._get_client()
-
         try:
             response = await client.list()
-
             visible_models = [
                 m for m in response.models if (m.model or "") not in _RETIRED_MODEL_ALIASES
             ]
             model_names = [m.model or "" for m in visible_models]
-            # Fetch real metadata (context length + capabilities) for every
-            # model concurrently; results are cached so this is only slow on
-            # the first listing after startup.
             metas = await asyncio.gather(*(self._get_model_meta(name) for name in model_names))
-
             models = []
             for m, (real_context, capabilities) in zip(visible_models, metas, strict=True):
                 model_name = m.model or ""
                 details = m.details
-
-                # Build a human-readable name
-                name_parts = model_name.split(":")
-                display_name = name_parts[0].replace("-", " ").title()
-                if len(name_parts) > 1 and name_parts[1] not in ("latest", "cloud"):
-                    display_name += f" ({name_parts[1]})"
-
-                context_length = real_context
-                if context_length is None:
-                    # Fallback estimate from parameter size when `show`
-                    # metadata is unavailable (e.g. remote/cloud models).
-                    if ":cloud" in model_name.lower():
-                        context_length = 100000
-                    else:
-                        param_size = details.parameter_size if details else None
-                        if param_size and "B" in param_size:
-                            try:
-                                size = float(param_size.replace("B", ""))
-                                if size <= 3:
-                                    context_length = 4096
-                                elif size <= 8:
-                                    context_length = 8192
-                                elif size <= 20:
-                                    context_length = 32768
-                                else:
-                                    context_length = 131072
-                            except ValueError:
-                                pass
-
+                display_name = model_name.split(":")[0].replace("-", " ").title()
+                if ":" in model_name and model_name.split(":")[1] not in ("latest", "cloud"):
+                    display_name += f" ({model_name.split(':')[1]})"
+                context_length = (
+                    real_context
+                    if real_context is not None
+                    else _fallback_context_length(
+                        model_name, details.parameter_size if details else None
+                    )
+                )
                 param_size = details.parameter_size if details else None
-                description_parts = [
-                    param_size or "Unknown size",
-                    details.family if details else "",
-                ]
-                description = " ".join(p for p in description_parts if p)
-
+                description = " ".join(
+                    p
+                    for p in [param_size or "Unknown size", details.family if details else ""]
+                    if p
+                )
                 models.append(
                     ModelInfo(
                         id=model_name,
@@ -471,11 +456,13 @@ class OllamaProvider(LLMProvider):
                         supports_tools="tools" in capabilities if capabilities else None,
                         supports_vision="vision" in capabilities if capabilities else None,
                         supports_thinking="thinking" in capabilities if capabilities else None,
+                        thinking_levels=(
+                            ["off", "low", "medium", "high"] if "thinking" in capabilities else None
+                        ),
+                        default_thinking_level=("high" if "thinking" in capabilities else None),
                     )
                 )
-
             return models
-
         except (ResponseError, RequestError) as e:
             logger.error("Failed to list Ollama models: %s", e)
             return []
@@ -484,11 +471,8 @@ class OllamaProvider(LLMProvider):
             return []
 
     async def health_check(self) -> bool:
-        """Check if Ollama is accessible."""
-        client = self._get_client()
-
         try:
-            await client.list()
+            await self._get_client().list()
             return True
         except Exception:
             return False
@@ -500,39 +484,10 @@ class OllamaProvider(LLMProvider):
         options: ChatOptions | None = None,
         tools: list[dict[str, Any]] | None = None,
     ) -> str:
-        """Non-streaming chat completion from Ollama."""
         client = self._get_client()
         opts = options or ChatOptions()
-
-        # Convert messages to Ollama format
-        ollama_messages: list[dict[str, Any]] = []
-        for msg in messages:
-            entry: dict[str, Any] = {"role": msg.role, "content": msg.content}
-            if msg.images:
-                entry["images"] = msg.images
-            if msg.tool_calls:
-                entry["tool_calls"] = [
-                    {
-                        "function": {
-                            "name": tc.get("name", ""),
-                            "arguments": tc.get("arguments") or {},
-                        }
-                    }
-                    for tc in msg.tool_calls
-                ]
-            ollama_messages.append(entry)
-
-        # Build options dict
-        request_options: dict[str, Any] = {
-            "temperature": opts.temperature,
-        }
-        if opts.max_tokens is not None:
-            request_options["num_predict"] = opts.max_tokens
-        if opts.top_p is not None:
-            request_options["top_p"] = opts.top_p
-        if opts.num_ctx is not None:
-            request_options["num_ctx"] = opts.num_ctx
-
+        ollama_messages = _to_ollama_messages(messages)
+        request_options = _build_options(opts)
         try:
             chat_kwargs: dict[str, Any] = {
                 "model": model,
@@ -543,9 +498,11 @@ class OllamaProvider(LLMProvider):
             if tools:
                 chat_kwargs["tools"] = tools
             if opts.response_format is not None:
-                # Ollama accepts either the string "json" or a JSON Schema
-                # dict; both pass through unchanged.
                 chat_kwargs["format"] = opts.response_format
+            _, capabilities = await self._get_model_meta(model)
+            think_kwarg, _ = _resolve_think_kwarg(model, opts.think, capabilities)
+            if think_kwarg is not None:
+                chat_kwargs["think"] = think_kwarg
             response = None
             for attempt in range(1, _CONNECT_ATTEMPTS + 1):
                 try:
@@ -554,7 +511,7 @@ class OllamaProvider(LLMProvider):
                 except _TRANSIENT_ERRORS as e:
                     if attempt == _CONNECT_ATTEMPTS:
                         raise
-                    delay = _RETRY_BACKOFF_SECONDS * (2 ** (attempt - 1))
+                    delay = _retry_delay(attempt)
                     logger.warning(
                         "Ollama chat failed (attempt %d/%d): %s — retrying in %.1fs",
                         attempt,
@@ -563,7 +520,10 @@ class OllamaProvider(LLMProvider):
                         delay,
                     )
                     await asyncio.sleep(delay)
-            return response.message.content or ""
+            content = response.message.content or ""
+            if "</think>" in content:
+                content = content.split("</think>", 1)[1].strip()
+            return content
         except (ResponseError, RequestError) as e:
             logger.error("Ollama chat error: %s", e)
             raise
@@ -572,9 +532,7 @@ class OllamaProvider(LLMProvider):
             raise
 
     async def close(self) -> None:
-        """Close the underlying HTTP client."""
         if self._client is not None:
-            # The AsyncClient wraps an httpx client internally
             if hasattr(self._client, "_client") and self._client._client is not None:
                 await self._client._client.aclose()
             self._client = None

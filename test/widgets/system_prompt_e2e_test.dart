@@ -359,6 +359,7 @@ home: MultiProvider(
     Widget wrap({
       Conversation? conversation,
       String? userDefault,
+      double? width,
     }) {
       return MultiProvider(
         providers: [
@@ -369,11 +370,19 @@ home: MultiProvider(
             value: _FakeSystemPromptProvider(userDefault, const []),
           ),
         ],
-        child: const MaterialApp(
+        child: MaterialApp(
           
   localizationsDelegates: AppLocalizations.localizationsDelegates,
   supportedLocales: AppLocalizations.supportedLocales,
-home: Scaffold(body: SystemPromptBanner()),
+home: Scaffold(
+            body: Align(
+              alignment: Alignment.topLeft,
+              child: SizedBox(
+                width: width,
+                child: const SystemPromptBanner(),
+              ),
+            ),
+          ),
         ),
       );
     }
@@ -450,6 +459,56 @@ home: Scaffold(body: SystemPromptBanner()),
       await tester.tap(find.text('System prompt'));
       await tester.pumpAndSettle();
       expect(find.text('Be concise.'), findsOneWidget);
+    });
+
+    testWidgets('289px pane keeps source and actions without overflow', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(1200, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final conv = Conversation(
+        id: 'c1',
+        title: 'Test',
+        model: 'test',
+        createdAt: DateTime(2025),
+        updatedAt: DateTime(2025),
+        messageCount: 0,
+        useMemory: true,
+        systemPrompt: 'Explore this topic as a patient tutor.',
+      );
+
+      await tester.pumpWidget(
+        wrap(conversation: conv, userDefault: 'global', width: 289),
+      );
+
+      expect(tester.takeException(), isNull);
+      expect(
+        find.byKey(const ValueKey('system_prompt_banner_compact')),
+        findsOneWidget,
+      );
+      expect(find.text('System prompt'), findsOneWidget);
+      expect(find.text('Conversation override'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('system_prompt_banner_edit')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('system_prompt_banner_expand')),
+        findsOneWidget,
+      );
+
+      await tester.tap(
+        find.byKey(const ValueKey('system_prompt_banner_title')),
+      );
+      await tester.pump();
+      expect(find.text('Explore this topic as a patient tutor.'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      // The fake providers inherit constructor-triggered guarded API loads;
+      // let their zero-duration Dio timers settle like the sibling banner
+      // tests do before the binding verifies teardown invariants.
+      await tester.pumpAndSettle(const Duration(seconds: 2));
     });
   });
 }

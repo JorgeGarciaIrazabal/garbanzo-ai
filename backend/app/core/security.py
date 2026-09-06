@@ -3,9 +3,10 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import bcrypt
+import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from jose import JWTError, jwt
+from jwt import PyJWTError
 
 from app.core.config import Settings, get_settings
 
@@ -88,7 +89,7 @@ def decode_token(token: str, settings: Settings) -> dict[str, Any] | None:
     try:
         payload = jwt.decode(token, settings.secret_key, algorithms=["HS256"])
         return payload
-    except JWTError:
+    except PyJWTError:
         return None
 
 

@@ -21,12 +21,19 @@ APK at `dist/garbanzo-ai-<short-sha>.apk` with the ngrok URL baked in — web an
 Android hit the same backend simultaneously. The signed APK is also attached
 to the version's GitHub Release; its signing key remains only on this host.
 
-Every deploy also generates a release changelog: `opencode` reads this release's
-git log plus the user reports it addressed and prepends a section (User requests
-completed / Features / Fixes) to `CHANGELOG.md`, which is committed with the
-version bump and used as the GitHub Release body. It's best-effort — if opencode
-or its model isn't available, a raw commit list is written instead and the deploy
-proceeds. Set `CHANGELOG_OPENCODE_MODEL` in `.env` to override the model.
+Every deploy also generates a release changelog: Codex reads the release's commit
+subjects plus stable `Report-ID` commit trailers and prepends a section to
+`CHANGELOG.md`, which is committed with the version bump and used as the GitHub
+Release body. Raw report bodies and diagnostics are never included. Generation
+is best-effort: if Codex or its model is unavailable, a deterministic commit list
+is written and deployment continues. Set `CHANGELOG_CODEX_MODEL` in `.env` to
+override the model.
+
+The backend image records the exact source commit in its OCI revision label.
+Deployment evidence keeps that source revision separate from the later release
+commit; report-specific behavior must still be verified before a linked report
+can close. Web, backend, and signed Android artifacts all build successfully
+before the production Compose stack is replaced.
 
 ## First-time setup
 
@@ -90,7 +97,7 @@ proceeds. Set `CHANGELOG_OPENCODE_MODEL` in `.env` to override the model.
      the workload defaults independently
      with `DEFAULT_MODEL`, `MEMORY_EXTRACTION_MODEL`, and
      `SCHEDULED_ACTION_MODEL` in `deploy/.env`.
-8. Merge your work to `main`, then run `just deploy`.
+8. Commit the verified work on `main`, then run `just deploy`.
 
 > The free ngrok plan allows **one agent session**. `just deploy` refuses to
 > run while a host `ngrok` process is alive (`pkill -x ngrok` to stop it).

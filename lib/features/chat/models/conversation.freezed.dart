@@ -16,7 +16,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$Conversation {
 
- String get id; String? get title; String get model; DateTime get createdAt; DateTime get updatedAt; int get messageCount; bool get useMemory; bool get useKnowledgeBase; bool get isPinned; String? get contextSummary; String? get systemPrompt;@JsonKey(unknownEnumValue: JsonKey.nullForUndefinedEnumValue) ThinkingLevel? get thinkingLevel; List<String>? get enabledTools; List<ChatMessage>? get messages; bool get hasMoreMessages; DateTime? get mutedUntil;
+ String get id; String? get title; String get model; DateTime get createdAt; DateTime get updatedAt; int get messageCount; bool get useMemory; bool get useKnowledgeBase; bool get isPinned; String? get contextSummary; String? get systemPrompt;@JsonKey(unknownEnumValue: JsonKey.nullForUndefinedEnumValue) ThinkingLevel? get thinkingLevel; List<String>? get enabledTools; List<ChatMessage>? get messages; bool get hasMoreMessages; DateTime? get mutedUntil; bool get isPrimary; String? get activeTopicId; TopicNode? get activeTopic; bool get topicIsPinned; int get contextVersion;
 /// Create a copy of Conversation
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -29,16 +29,16 @@ $ConversationCopyWith<Conversation> get copyWith => _$ConversationCopyWithImpl<C
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Conversation&&(identical(other.id, id) || other.id == id)&&(identical(other.title, title) || other.title == title)&&(identical(other.model, model) || other.model == model)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&(identical(other.messageCount, messageCount) || other.messageCount == messageCount)&&(identical(other.useMemory, useMemory) || other.useMemory == useMemory)&&(identical(other.useKnowledgeBase, useKnowledgeBase) || other.useKnowledgeBase == useKnowledgeBase)&&(identical(other.isPinned, isPinned) || other.isPinned == isPinned)&&(identical(other.contextSummary, contextSummary) || other.contextSummary == contextSummary)&&(identical(other.systemPrompt, systemPrompt) || other.systemPrompt == systemPrompt)&&(identical(other.thinkingLevel, thinkingLevel) || other.thinkingLevel == thinkingLevel)&&const DeepCollectionEquality().equals(other.enabledTools, enabledTools)&&const DeepCollectionEquality().equals(other.messages, messages)&&(identical(other.hasMoreMessages, hasMoreMessages) || other.hasMoreMessages == hasMoreMessages)&&(identical(other.mutedUntil, mutedUntil) || other.mutedUntil == mutedUntil));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Conversation&&(identical(other.id, id) || other.id == id)&&(identical(other.title, title) || other.title == title)&&(identical(other.model, model) || other.model == model)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&(identical(other.messageCount, messageCount) || other.messageCount == messageCount)&&(identical(other.useMemory, useMemory) || other.useMemory == useMemory)&&(identical(other.useKnowledgeBase, useKnowledgeBase) || other.useKnowledgeBase == useKnowledgeBase)&&(identical(other.isPinned, isPinned) || other.isPinned == isPinned)&&(identical(other.contextSummary, contextSummary) || other.contextSummary == contextSummary)&&(identical(other.systemPrompt, systemPrompt) || other.systemPrompt == systemPrompt)&&(identical(other.thinkingLevel, thinkingLevel) || other.thinkingLevel == thinkingLevel)&&const DeepCollectionEquality().equals(other.enabledTools, enabledTools)&&const DeepCollectionEquality().equals(other.messages, messages)&&(identical(other.hasMoreMessages, hasMoreMessages) || other.hasMoreMessages == hasMoreMessages)&&(identical(other.mutedUntil, mutedUntil) || other.mutedUntil == mutedUntil)&&(identical(other.isPrimary, isPrimary) || other.isPrimary == isPrimary)&&(identical(other.activeTopicId, activeTopicId) || other.activeTopicId == activeTopicId)&&(identical(other.activeTopic, activeTopic) || other.activeTopic == activeTopic)&&(identical(other.topicIsPinned, topicIsPinned) || other.topicIsPinned == topicIsPinned)&&(identical(other.contextVersion, contextVersion) || other.contextVersion == contextVersion));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,title,model,createdAt,updatedAt,messageCount,useMemory,useKnowledgeBase,isPinned,contextSummary,systemPrompt,thinkingLevel,const DeepCollectionEquality().hash(enabledTools),const DeepCollectionEquality().hash(messages),hasMoreMessages,mutedUntil);
+int get hashCode => Object.hashAll([runtimeType,id,title,model,createdAt,updatedAt,messageCount,useMemory,useKnowledgeBase,isPinned,contextSummary,systemPrompt,thinkingLevel,const DeepCollectionEquality().hash(enabledTools),const DeepCollectionEquality().hash(messages),hasMoreMessages,mutedUntil,isPrimary,activeTopicId,activeTopic,topicIsPinned,contextVersion]);
 
 @override
 String toString() {
-  return 'Conversation(id: $id, title: $title, model: $model, createdAt: $createdAt, updatedAt: $updatedAt, messageCount: $messageCount, useMemory: $useMemory, useKnowledgeBase: $useKnowledgeBase, isPinned: $isPinned, contextSummary: $contextSummary, systemPrompt: $systemPrompt, thinkingLevel: $thinkingLevel, enabledTools: $enabledTools, messages: $messages, hasMoreMessages: $hasMoreMessages, mutedUntil: $mutedUntil)';
+  return 'Conversation(id: $id, title: $title, model: $model, createdAt: $createdAt, updatedAt: $updatedAt, messageCount: $messageCount, useMemory: $useMemory, useKnowledgeBase: $useKnowledgeBase, isPinned: $isPinned, contextSummary: $contextSummary, systemPrompt: $systemPrompt, thinkingLevel: $thinkingLevel, enabledTools: $enabledTools, messages: $messages, hasMoreMessages: $hasMoreMessages, mutedUntil: $mutedUntil, isPrimary: $isPrimary, activeTopicId: $activeTopicId, activeTopic: $activeTopic, topicIsPinned: $topicIsPinned, contextVersion: $contextVersion)';
 }
 
 
@@ -49,7 +49,7 @@ abstract mixin class $ConversationCopyWith<$Res>  {
   factory $ConversationCopyWith(Conversation value, $Res Function(Conversation) _then) = _$ConversationCopyWithImpl;
 @useResult
 $Res call({
- String id, String? title, String model, DateTime createdAt, DateTime updatedAt, int messageCount, bool useMemory, bool useKnowledgeBase, bool isPinned, String? contextSummary, String? systemPrompt,@JsonKey(unknownEnumValue: JsonKey.nullForUndefinedEnumValue) ThinkingLevel? thinkingLevel, List<String>? enabledTools, List<ChatMessage>? messages, bool hasMoreMessages, DateTime? mutedUntil
+ String id, String? title, String model, DateTime createdAt, DateTime updatedAt, int messageCount, bool useMemory, bool useKnowledgeBase, bool isPinned, String? contextSummary, String? systemPrompt,@JsonKey(unknownEnumValue: JsonKey.nullForUndefinedEnumValue) ThinkingLevel? thinkingLevel, List<String>? enabledTools, List<ChatMessage>? messages, bool hasMoreMessages, DateTime? mutedUntil, bool isPrimary, String? activeTopicId, TopicNode? activeTopic, bool topicIsPinned, int contextVersion
 });
 
 
@@ -66,7 +66,7 @@ class _$ConversationCopyWithImpl<$Res>
 
 /// Create a copy of Conversation
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? title = freezed,Object? model = null,Object? createdAt = null,Object? updatedAt = null,Object? messageCount = null,Object? useMemory = null,Object? useKnowledgeBase = null,Object? isPinned = null,Object? contextSummary = freezed,Object? systemPrompt = freezed,Object? thinkingLevel = freezed,Object? enabledTools = freezed,Object? messages = freezed,Object? hasMoreMessages = null,Object? mutedUntil = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? title = freezed,Object? model = null,Object? createdAt = null,Object? updatedAt = null,Object? messageCount = null,Object? useMemory = null,Object? useKnowledgeBase = null,Object? isPinned = null,Object? contextSummary = freezed,Object? systemPrompt = freezed,Object? thinkingLevel = freezed,Object? enabledTools = freezed,Object? messages = freezed,Object? hasMoreMessages = null,Object? mutedUntil = freezed,Object? isPrimary = null,Object? activeTopicId = freezed,Object? activeTopic = freezed,Object? topicIsPinned = null,Object? contextVersion = null,}) {
   return _then(Conversation(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,title: freezed == title ? _self.title : title // ignore: cast_nullable_to_non_nullable
@@ -84,7 +84,12 @@ as ThinkingLevel?,enabledTools: freezed == enabledTools ? _self.enabledTools : e
 as List<String>?,messages: freezed == messages ? _self.messages : messages // ignore: cast_nullable_to_non_nullable
 as List<ChatMessage>?,hasMoreMessages: null == hasMoreMessages ? _self.hasMoreMessages : hasMoreMessages // ignore: cast_nullable_to_non_nullable
 as bool,mutedUntil: freezed == mutedUntil ? _self.mutedUntil : mutedUntil // ignore: cast_nullable_to_non_nullable
-as DateTime?,
+as DateTime?,isPrimary: null == isPrimary ? _self.isPrimary : isPrimary // ignore: cast_nullable_to_non_nullable
+as bool,activeTopicId: freezed == activeTopicId ? _self.activeTopicId : activeTopicId // ignore: cast_nullable_to_non_nullable
+as String?,activeTopic: freezed == activeTopic ? _self.activeTopic : activeTopic // ignore: cast_nullable_to_non_nullable
+as TopicNode?,topicIsPinned: null == topicIsPinned ? _self.topicIsPinned : topicIsPinned // ignore: cast_nullable_to_non_nullable
+as bool,contextVersion: null == contextVersion ? _self.contextVersion : contextVersion // ignore: cast_nullable_to_non_nullable
+as int,
   ));
 }
 
@@ -169,10 +174,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String? title,  String model,  DateTime createdAt,  DateTime updatedAt,  int messageCount,  bool useMemory,  bool useKnowledgeBase,  bool isPinned,  String? contextSummary,  String? systemPrompt, @JsonKey(unknownEnumValue: JsonKey.nullForUndefinedEnumValue)  ThinkingLevel? thinkingLevel,  List<String>? enabledTools,  List<ChatMessage>? messages,  bool hasMoreMessages,  DateTime? mutedUntil)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String? title,  String model,  DateTime createdAt,  DateTime updatedAt,  int messageCount,  bool useMemory,  bool useKnowledgeBase,  bool isPinned,  String? contextSummary,  String? systemPrompt, @JsonKey(unknownEnumValue: JsonKey.nullForUndefinedEnumValue)  ThinkingLevel? thinkingLevel,  List<String>? enabledTools,  List<ChatMessage>? messages,  bool hasMoreMessages,  DateTime? mutedUntil,  bool isPrimary,  String? activeTopicId,  TopicNode? activeTopic,  bool topicIsPinned,  int contextVersion)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Conversation() when $default != null:
-return $default(_that.id,_that.title,_that.model,_that.createdAt,_that.updatedAt,_that.messageCount,_that.useMemory,_that.useKnowledgeBase,_that.isPinned,_that.contextSummary,_that.systemPrompt,_that.thinkingLevel,_that.enabledTools,_that.messages,_that.hasMoreMessages,_that.mutedUntil);case _:
+return $default(_that.id,_that.title,_that.model,_that.createdAt,_that.updatedAt,_that.messageCount,_that.useMemory,_that.useKnowledgeBase,_that.isPinned,_that.contextSummary,_that.systemPrompt,_that.thinkingLevel,_that.enabledTools,_that.messages,_that.hasMoreMessages,_that.mutedUntil,_that.isPrimary,_that.activeTopicId,_that.activeTopic,_that.topicIsPinned,_that.contextVersion);case _:
   return orElse();
 
 }
@@ -190,10 +195,10 @@ return $default(_that.id,_that.title,_that.model,_that.createdAt,_that.updatedAt
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String? title,  String model,  DateTime createdAt,  DateTime updatedAt,  int messageCount,  bool useMemory,  bool useKnowledgeBase,  bool isPinned,  String? contextSummary,  String? systemPrompt, @JsonKey(unknownEnumValue: JsonKey.nullForUndefinedEnumValue)  ThinkingLevel? thinkingLevel,  List<String>? enabledTools,  List<ChatMessage>? messages,  bool hasMoreMessages,  DateTime? mutedUntil)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String? title,  String model,  DateTime createdAt,  DateTime updatedAt,  int messageCount,  bool useMemory,  bool useKnowledgeBase,  bool isPinned,  String? contextSummary,  String? systemPrompt, @JsonKey(unknownEnumValue: JsonKey.nullForUndefinedEnumValue)  ThinkingLevel? thinkingLevel,  List<String>? enabledTools,  List<ChatMessage>? messages,  bool hasMoreMessages,  DateTime? mutedUntil,  bool isPrimary,  String? activeTopicId,  TopicNode? activeTopic,  bool topicIsPinned,  int contextVersion)  $default,) {final _that = this;
 switch (_that) {
 case _Conversation():
-return $default(_that.id,_that.title,_that.model,_that.createdAt,_that.updatedAt,_that.messageCount,_that.useMemory,_that.useKnowledgeBase,_that.isPinned,_that.contextSummary,_that.systemPrompt,_that.thinkingLevel,_that.enabledTools,_that.messages,_that.hasMoreMessages,_that.mutedUntil);case _:
+return $default(_that.id,_that.title,_that.model,_that.createdAt,_that.updatedAt,_that.messageCount,_that.useMemory,_that.useKnowledgeBase,_that.isPinned,_that.contextSummary,_that.systemPrompt,_that.thinkingLevel,_that.enabledTools,_that.messages,_that.hasMoreMessages,_that.mutedUntil,_that.isPrimary,_that.activeTopicId,_that.activeTopic,_that.topicIsPinned,_that.contextVersion);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -210,10 +215,10 @@ return $default(_that.id,_that.title,_that.model,_that.createdAt,_that.updatedAt
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String? title,  String model,  DateTime createdAt,  DateTime updatedAt,  int messageCount,  bool useMemory,  bool useKnowledgeBase,  bool isPinned,  String? contextSummary,  String? systemPrompt, @JsonKey(unknownEnumValue: JsonKey.nullForUndefinedEnumValue)  ThinkingLevel? thinkingLevel,  List<String>? enabledTools,  List<ChatMessage>? messages,  bool hasMoreMessages,  DateTime? mutedUntil)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String? title,  String model,  DateTime createdAt,  DateTime updatedAt,  int messageCount,  bool useMemory,  bool useKnowledgeBase,  bool isPinned,  String? contextSummary,  String? systemPrompt, @JsonKey(unknownEnumValue: JsonKey.nullForUndefinedEnumValue)  ThinkingLevel? thinkingLevel,  List<String>? enabledTools,  List<ChatMessage>? messages,  bool hasMoreMessages,  DateTime? mutedUntil,  bool isPrimary,  String? activeTopicId,  TopicNode? activeTopic,  bool topicIsPinned,  int contextVersion)?  $default,) {final _that = this;
 switch (_that) {
 case _Conversation() when $default != null:
-return $default(_that.id,_that.title,_that.model,_that.createdAt,_that.updatedAt,_that.messageCount,_that.useMemory,_that.useKnowledgeBase,_that.isPinned,_that.contextSummary,_that.systemPrompt,_that.thinkingLevel,_that.enabledTools,_that.messages,_that.hasMoreMessages,_that.mutedUntil);case _:
+return $default(_that.id,_that.title,_that.model,_that.createdAt,_that.updatedAt,_that.messageCount,_that.useMemory,_that.useKnowledgeBase,_that.isPinned,_that.contextSummary,_that.systemPrompt,_that.thinkingLevel,_that.enabledTools,_that.messages,_that.hasMoreMessages,_that.mutedUntil,_that.isPrimary,_that.activeTopicId,_that.activeTopic,_that.topicIsPinned,_that.contextVersion);case _:
   return null;
 
 }
@@ -225,7 +230,7 @@ return $default(_that.id,_that.title,_that.model,_that.createdAt,_that.updatedAt
 @JsonSerializable()
 
 class _Conversation extends Conversation {
-  const _Conversation({required this.id, this.title, required this.model, required this.createdAt, required this.updatedAt, this.messageCount = 0, this.useMemory = true, this.useKnowledgeBase = true, this.isPinned = false, this.contextSummary, this.systemPrompt, @JsonKey(unknownEnumValue: JsonKey.nullForUndefinedEnumValue) this.thinkingLevel,  List<String>? enabledTools,  List<ChatMessage>? messages, this.hasMoreMessages = false, this.mutedUntil}): _enabledTools = enabledTools,_messages = messages,super._();
+  const _Conversation({required this.id, this.title, required this.model, required this.createdAt, required this.updatedAt, this.messageCount = 0, this.useMemory = true, this.useKnowledgeBase = true, this.isPinned = false, this.contextSummary, this.systemPrompt, @JsonKey(unknownEnumValue: JsonKey.nullForUndefinedEnumValue) this.thinkingLevel,  List<String>? enabledTools,  List<ChatMessage>? messages, this.hasMoreMessages = false, this.mutedUntil, this.isPrimary = false, this.activeTopicId, this.activeTopic, this.topicIsPinned = false, this.contextVersion = 0}): _enabledTools = enabledTools,_messages = messages,super._();
   factory _Conversation.fromJson(Map<String, dynamic> json) => _$ConversationFromJson(json);
 
 @override final  String id;
@@ -260,6 +265,11 @@ class _Conversation extends Conversation {
 
 @override@JsonKey() final  bool hasMoreMessages;
 @override final  DateTime? mutedUntil;
+@override@JsonKey() final  bool isPrimary;
+@override final  String? activeTopicId;
+@override final  TopicNode? activeTopic;
+@override@JsonKey() final  bool topicIsPinned;
+@override@JsonKey() final  int contextVersion;
 
 /// Create a copy of Conversation
 /// with the given fields replaced by the non-null parameter values.
@@ -274,16 +284,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Conversation&&(identical(other.id, id) || other.id == id)&&(identical(other.title, title) || other.title == title)&&(identical(other.model, model) || other.model == model)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&(identical(other.messageCount, messageCount) || other.messageCount == messageCount)&&(identical(other.useMemory, useMemory) || other.useMemory == useMemory)&&(identical(other.useKnowledgeBase, useKnowledgeBase) || other.useKnowledgeBase == useKnowledgeBase)&&(identical(other.isPinned, isPinned) || other.isPinned == isPinned)&&(identical(other.contextSummary, contextSummary) || other.contextSummary == contextSummary)&&(identical(other.systemPrompt, systemPrompt) || other.systemPrompt == systemPrompt)&&(identical(other.thinkingLevel, thinkingLevel) || other.thinkingLevel == thinkingLevel)&&const DeepCollectionEquality().equals(other._enabledTools, _enabledTools)&&const DeepCollectionEquality().equals(other._messages, _messages)&&(identical(other.hasMoreMessages, hasMoreMessages) || other.hasMoreMessages == hasMoreMessages)&&(identical(other.mutedUntil, mutedUntil) || other.mutedUntil == mutedUntil));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Conversation&&(identical(other.id, id) || other.id == id)&&(identical(other.title, title) || other.title == title)&&(identical(other.model, model) || other.model == model)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&(identical(other.messageCount, messageCount) || other.messageCount == messageCount)&&(identical(other.useMemory, useMemory) || other.useMemory == useMemory)&&(identical(other.useKnowledgeBase, useKnowledgeBase) || other.useKnowledgeBase == useKnowledgeBase)&&(identical(other.isPinned, isPinned) || other.isPinned == isPinned)&&(identical(other.contextSummary, contextSummary) || other.contextSummary == contextSummary)&&(identical(other.systemPrompt, systemPrompt) || other.systemPrompt == systemPrompt)&&(identical(other.thinkingLevel, thinkingLevel) || other.thinkingLevel == thinkingLevel)&&const DeepCollectionEquality().equals(other._enabledTools, _enabledTools)&&const DeepCollectionEquality().equals(other._messages, _messages)&&(identical(other.hasMoreMessages, hasMoreMessages) || other.hasMoreMessages == hasMoreMessages)&&(identical(other.mutedUntil, mutedUntil) || other.mutedUntil == mutedUntil)&&(identical(other.isPrimary, isPrimary) || other.isPrimary == isPrimary)&&(identical(other.activeTopicId, activeTopicId) || other.activeTopicId == activeTopicId)&&(identical(other.activeTopic, activeTopic) || other.activeTopic == activeTopic)&&(identical(other.topicIsPinned, topicIsPinned) || other.topicIsPinned == topicIsPinned)&&(identical(other.contextVersion, contextVersion) || other.contextVersion == contextVersion));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,title,model,createdAt,updatedAt,messageCount,useMemory,useKnowledgeBase,isPinned,contextSummary,systemPrompt,thinkingLevel,const DeepCollectionEquality().hash(_enabledTools),const DeepCollectionEquality().hash(_messages),hasMoreMessages,mutedUntil);
+int get hashCode => Object.hashAll([runtimeType,id,title,model,createdAt,updatedAt,messageCount,useMemory,useKnowledgeBase,isPinned,contextSummary,systemPrompt,thinkingLevel,const DeepCollectionEquality().hash(_enabledTools),const DeepCollectionEquality().hash(_messages),hasMoreMessages,mutedUntil,isPrimary,activeTopicId,activeTopic,topicIsPinned,contextVersion]);
 
 @override
 String toString() {
-  return 'Conversation(id: $id, title: $title, model: $model, createdAt: $createdAt, updatedAt: $updatedAt, messageCount: $messageCount, useMemory: $useMemory, useKnowledgeBase: $useKnowledgeBase, isPinned: $isPinned, contextSummary: $contextSummary, systemPrompt: $systemPrompt, thinkingLevel: $thinkingLevel, enabledTools: $enabledTools, messages: $messages, hasMoreMessages: $hasMoreMessages, mutedUntil: $mutedUntil)';
+  return 'Conversation(id: $id, title: $title, model: $model, createdAt: $createdAt, updatedAt: $updatedAt, messageCount: $messageCount, useMemory: $useMemory, useKnowledgeBase: $useKnowledgeBase, isPinned: $isPinned, contextSummary: $contextSummary, systemPrompt: $systemPrompt, thinkingLevel: $thinkingLevel, enabledTools: $enabledTools, messages: $messages, hasMoreMessages: $hasMoreMessages, mutedUntil: $mutedUntil, isPrimary: $isPrimary, activeTopicId: $activeTopicId, activeTopic: $activeTopic, topicIsPinned: $topicIsPinned, contextVersion: $contextVersion)';
 }
 
 
@@ -294,7 +304,7 @@ abstract mixin class _$ConversationCopyWith<$Res> implements $ConversationCopyWi
   factory _$ConversationCopyWith(_Conversation value, $Res Function(_Conversation) _then) = __$ConversationCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String? title, String model, DateTime createdAt, DateTime updatedAt, int messageCount, bool useMemory, bool useKnowledgeBase, bool isPinned, String? contextSummary, String? systemPrompt,@JsonKey(unknownEnumValue: JsonKey.nullForUndefinedEnumValue) ThinkingLevel? thinkingLevel, List<String>? enabledTools, List<ChatMessage>? messages, bool hasMoreMessages, DateTime? mutedUntil
+ String id, String? title, String model, DateTime createdAt, DateTime updatedAt, int messageCount, bool useMemory, bool useKnowledgeBase, bool isPinned, String? contextSummary, String? systemPrompt,@JsonKey(unknownEnumValue: JsonKey.nullForUndefinedEnumValue) ThinkingLevel? thinkingLevel, List<String>? enabledTools, List<ChatMessage>? messages, bool hasMoreMessages, DateTime? mutedUntil, bool isPrimary, String? activeTopicId, TopicNode? activeTopic, bool topicIsPinned, int contextVersion
 });
 
 
@@ -311,7 +321,7 @@ class __$ConversationCopyWithImpl<$Res>
 
 /// Create a copy of Conversation
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? title = freezed,Object? model = null,Object? createdAt = null,Object? updatedAt = null,Object? messageCount = null,Object? useMemory = null,Object? useKnowledgeBase = null,Object? isPinned = null,Object? contextSummary = freezed,Object? systemPrompt = freezed,Object? thinkingLevel = freezed,Object? enabledTools = freezed,Object? messages = freezed,Object? hasMoreMessages = null,Object? mutedUntil = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? title = freezed,Object? model = null,Object? createdAt = null,Object? updatedAt = null,Object? messageCount = null,Object? useMemory = null,Object? useKnowledgeBase = null,Object? isPinned = null,Object? contextSummary = freezed,Object? systemPrompt = freezed,Object? thinkingLevel = freezed,Object? enabledTools = freezed,Object? messages = freezed,Object? hasMoreMessages = null,Object? mutedUntil = freezed,Object? isPrimary = null,Object? activeTopicId = freezed,Object? activeTopic = freezed,Object? topicIsPinned = null,Object? contextVersion = null,}) {
   return _then(_Conversation(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,title: freezed == title ? _self.title : title // ignore: cast_nullable_to_non_nullable
@@ -329,7 +339,12 @@ as ThinkingLevel?,enabledTools: freezed == enabledTools ? _self._enabledTools : 
 as List<String>?,messages: freezed == messages ? _self._messages : messages // ignore: cast_nullable_to_non_nullable
 as List<ChatMessage>?,hasMoreMessages: null == hasMoreMessages ? _self.hasMoreMessages : hasMoreMessages // ignore: cast_nullable_to_non_nullable
 as bool,mutedUntil: freezed == mutedUntil ? _self.mutedUntil : mutedUntil // ignore: cast_nullable_to_non_nullable
-as DateTime?,
+as DateTime?,isPrimary: null == isPrimary ? _self.isPrimary : isPrimary // ignore: cast_nullable_to_non_nullable
+as bool,activeTopicId: freezed == activeTopicId ? _self.activeTopicId : activeTopicId // ignore: cast_nullable_to_non_nullable
+as String?,activeTopic: freezed == activeTopic ? _self.activeTopic : activeTopic // ignore: cast_nullable_to_non_nullable
+as TopicNode?,topicIsPinned: null == topicIsPinned ? _self.topicIsPinned : topicIsPinned // ignore: cast_nullable_to_non_nullable
+as bool,contextVersion: null == contextVersion ? _self.contextVersion : contextVersion // ignore: cast_nullable_to_non_nullable
+as int,
   ));
 }
 

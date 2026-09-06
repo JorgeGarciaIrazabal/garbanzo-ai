@@ -2966,4 +2966,225 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get messageResponseSyncing =>
       'Conexión restablecida. Sincronizando tu respuesta…';
+
+  @override
+  String get topics => 'Temas';
+
+  @override
+  String get threads => 'Hilos';
+
+  @override
+  String get newTopic => 'Nuevo tema';
+
+  @override
+  String get newThread => 'Nuevo hilo';
+
+  @override
+  String get primaryChat => 'Chat principal';
+
+  @override
+  String get currentTopic => 'Tema actual';
+
+  @override
+  String get activeNow => 'Activo ahora';
+
+  @override
+  String get preparingContext => 'Preparando contexto';
+
+  @override
+  String get personal => 'Personal';
+
+  @override
+  String get explore => 'Explorar';
+
+  @override
+  String get somethingNew => 'Algo nuevo';
+
+  @override
+  String get allTopics => 'Todos los temas';
+
+  @override
+  String get topicEmpty =>
+      'Tus temas aparecerán a medida que sigas conversando.';
+
+  @override
+  String get topicFocusHint => 'Elige en qué debe centrarse Garbanzo';
+
+  @override
+  String subtopicIn(String parent) {
+    return 'Subtema de $parent';
+  }
+
+  @override
+  String subtopicCount(int count) {
+    return '$count subtemas';
+  }
+
+  @override
+  String get activeContext => 'Contexto activo';
+
+  @override
+  String get contextIncluded => 'Qué incluye';
+
+  @override
+  String get sourceTypeMemory => 'Recuerdos';
+
+  @override
+  String get sourceTypeMessage => 'Mensajes';
+
+  @override
+  String get sourceTypeHistory => 'Historial';
+
+  @override
+  String get sourceTypeKnowledge => 'Conocimiento';
+
+  @override
+  String get sourceTypeOther => 'Otros';
+
+  @override
+  String contextItemCount(int count) {
+    return '$count';
+  }
+
+  @override
+  String get carryover => 'Traslado';
+
+  @override
+  String get noCarryover => 'Sin elementos de traslado';
+
+  @override
+  String topicArchiveCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'hilos archivados',
+      one: 'hilo archivado',
+    );
+    return '$count $_temp0';
+  }
+
+  @override
+  String get topicSwitchFailed => 'No se pudo cambiar de tema';
+
+  @override
+  String get redirect => 'Cambiar tema';
+
+  @override
+  String get lockTopic => 'Bloquear tema';
+
+  @override
+  String get lockTopicDescription =>
+      'Evita que Garbanzo cambie automáticamente de tema si la conversación se desvía.';
+
+  @override
+  String get topicLocked => 'Bloqueado (desvío desactivado)';
+
+  @override
+  String get topicUnlocked => 'Desvío automático activo';
+
+  @override
+  String get topicHierarchy => 'Árbol de contexto del tema';
+
+  @override
+  String get subtopics => 'Subtemas';
+
+  @override
+  String get parentTopic => 'Tema superior';
+
+  @override
+  String get contextStats => 'Desglose de contexto';
+
+  @override
+  String get pinTopic => 'Fijar tema';
+
+  @override
+  String get pinned => 'Fijado';
+
+  @override
+  String get nextTurnPreview => 'Vista previa del próximo turno';
+
+  @override
+  String get pinnedByYou => 'Fijado por ti';
+
+  @override
+  String get selectedByGarbanzo => 'Seleccionado por Garbanzo';
+
+  @override
+  String get addSource => 'Añadir fuente';
+
+  @override
+  String whyIncluded(String reason) {
+    return 'Por qué se incluyó: $reason';
+  }
+
+  @override
+  String get historicalContextLimited =>
+      'El contexto histórico está temporalmente limitado';
+
+  @override
+  String get preparingBestContext => 'Preparando el mejor contexto';
+
+  @override
+  String thinkingEffortAdjusted(String level) {
+    return 'Esfuerzo de razonamiento ajustado a $level';
+  }
+
+  @override
+  String get chooseConversationTopic => 'Elige un tema de conversación';
+
+  @override
+  String browseTopicSubtopics(String topic) {
+    return 'Ver subtemas de $topic';
+  }
+
+  @override
+  String get cycleThinkingEffort => 'Cambiar esfuerzo de razonamiento';
+
+  @override
+  String get closeActiveContext => 'Cerrar contexto activo';
+
+  @override
+  String get noActiveContext => 'Aún no hay contexto activo';
+
+  @override
+  String get contextTokenUsage => 'Uso de tokens del contexto';
+
+  @override
+  String contextTokenCount(int used, int budget) {
+    return '$used de $budget tokens de contexto';
+  }
+
+  @override
+  String get nothingPinned => 'Aún no hay nada fijado';
+
+  @override
+  String get noDynamicSources => 'No hay fuentes dinámicas seleccionadas';
+
+  @override
+  String get addContextSource => 'Añadir una fuente de contexto';
+
+  @override
+  String get contextSourceIdHint => 'ID de mensaje, hilo, memoria o archivo';
+
+  @override
+  String get unpin => 'Desfijar';
+
+  @override
+  String get pin => 'Fijar';
+
+  @override
+  String get activeContextUnavailable =>
+      'El contexto activo no está disponible temporalmente';
+
+  @override
+  String get contextSourceUpdateFailed =>
+      'No se pudo actualizar esta fuente de contexto';
+
+  @override
+  String get contextSourceAddFailed =>
+      'No se pudo añadir esta fuente de contexto';
+
+  @override
+  String get topicPinUpdateFailed =>
+      'No se pudo actualizar la fijación del tema';
 }

@@ -2,7 +2,7 @@ import time
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import BigInteger, DateTime, ForeignKey, String, Text, func
+from sqlalchemy import BigInteger, DateTime, ForeignKey, Index, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -50,6 +50,17 @@ class Message(Base):
             "turn's assistant/tool_call/tool_result rows."
         ),
     )
+    session_epoch: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+        server_default="0",
+        comment="Primary chat session epoch (increments on topic switch to isolate message view)",
+    )
 
     # Relationships
     conversation: Mapped["Conversation"] = relationship(back_populates="messages")
+
+    __table_args__ = (
+        Index("ix_messages_conversation_epoch_seq", "conversation_id", "session_epoch", "seq"),
+    )

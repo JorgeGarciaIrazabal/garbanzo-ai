@@ -2927,4 +2927,222 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get messageResponseSyncing => 'Back online. Syncing your response…';
+
+  @override
+  String get topics => 'Topics';
+
+  @override
+  String get threads => 'Threads';
+
+  @override
+  String get newTopic => 'New topic';
+
+  @override
+  String get newThread => 'New thread';
+
+  @override
+  String get primaryChat => 'Primary chat';
+
+  @override
+  String get currentTopic => 'Current topic';
+
+  @override
+  String get activeNow => 'Active now';
+
+  @override
+  String get preparingContext => 'Preparing context';
+
+  @override
+  String get personal => 'Personal';
+
+  @override
+  String get explore => 'Explore';
+
+  @override
+  String get somethingNew => 'Something new';
+
+  @override
+  String get allTopics => 'All topics';
+
+  @override
+  String get topicEmpty => 'Your topics will appear as you keep talking.';
+
+  @override
+  String get topicFocusHint => 'Choose what Garbanzo should focus on';
+
+  @override
+  String subtopicIn(String parent) {
+    return 'Subtopic in $parent';
+  }
+
+  @override
+  String subtopicCount(int count) {
+    return '$count subtopics';
+  }
+
+  @override
+  String get activeContext => 'Active context';
+
+  @override
+  String get contextIncluded => 'What\'s included';
+
+  @override
+  String get sourceTypeMemory => 'Memories';
+
+  @override
+  String get sourceTypeMessage => 'Messages';
+
+  @override
+  String get sourceTypeHistory => 'History';
+
+  @override
+  String get sourceTypeKnowledge => 'Knowledge';
+
+  @override
+  String get sourceTypeOther => 'Other';
+
+  @override
+  String contextItemCount(int count) {
+    return '$count';
+  }
+
+  @override
+  String get carryover => 'Carryover';
+
+  @override
+  String get noCarryover => 'No carryover items';
+
+  @override
+  String topicArchiveCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'threads',
+      one: 'thread',
+    );
+    return '$count archived $_temp0';
+  }
+
+  @override
+  String get topicSwitchFailed => 'Could not switch topic';
+
+  @override
+  String get redirect => 'Switch topic';
+
+  @override
+  String get lockTopic => 'Lock topic';
+
+  @override
+  String get lockTopicDescription =>
+      'Prevents Garbanzo from automatically switching topics when conversation drifts.';
+
+  @override
+  String get topicLocked => 'Locked (drift disabled)';
+
+  @override
+  String get topicUnlocked => 'Auto-drift active';
+
+  @override
+  String get topicHierarchy => 'Topic Context Tree';
+
+  @override
+  String get subtopics => 'Subtopics';
+
+  @override
+  String get parentTopic => 'Parent topic';
+
+  @override
+  String get contextStats => 'Context Breakdown';
+
+  @override
+  String get pinTopic => 'Pin topic';
+
+  @override
+  String get pinned => 'Pinned';
+
+  @override
+  String get nextTurnPreview => 'Next-turn preview';
+
+  @override
+  String get pinnedByYou => 'Pinned by you';
+
+  @override
+  String get selectedByGarbanzo => 'Selected by Garbanzo';
+
+  @override
+  String get addSource => 'Add source';
+
+  @override
+  String whyIncluded(String reason) {
+    return 'Why included: $reason';
+  }
+
+  @override
+  String get historicalContextLimited =>
+      'Historical context is temporarily limited';
+
+  @override
+  String get preparingBestContext => 'Preparing the best context';
+
+  @override
+  String thinkingEffortAdjusted(String level) {
+    return 'Thinking effort adjusted to $level';
+  }
+
+  @override
+  String get chooseConversationTopic => 'Choose a conversation topic';
+
+  @override
+  String browseTopicSubtopics(String topic) {
+    return 'Browse $topic subtopics';
+  }
+
+  @override
+  String get cycleThinkingEffort => 'Cycle thinking effort';
+
+  @override
+  String get closeActiveContext => 'Close active context';
+
+  @override
+  String get noActiveContext => 'No active context yet';
+
+  @override
+  String get contextTokenUsage => 'Context token usage';
+
+  @override
+  String contextTokenCount(int used, int budget) {
+    return '$used of $budget context tokens';
+  }
+
+  @override
+  String get nothingPinned => 'Nothing pinned yet';
+
+  @override
+  String get noDynamicSources => 'No dynamic sources selected';
+
+  @override
+  String get addContextSource => 'Add a context source';
+
+  @override
+  String get contextSourceIdHint => 'Message, thread, memory, or file ID';
+
+  @override
+  String get unpin => 'Unpin';
+
+  @override
+  String get pin => 'Pin';
+
+  @override
+  String get activeContextUnavailable =>
+      'Active context is temporarily unavailable';
+
+  @override
+  String get contextSourceUpdateFailed =>
+      'Could not update this context source';
+
+  @override
+  String get contextSourceAddFailed => 'Could not add this context source';
+
+  @override
+  String get topicPinUpdateFailed => 'Could not update topic pin';
 }

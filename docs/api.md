@@ -8,7 +8,8 @@ when you add or change an endpoint, update the matching row in the same commit.
 |-------|-----------|
 | **Auth** | `POST /auth/login`, `POST /auth/register` (disabled, 403), `POST /auth/refresh`, `GET /auth/me`, `PATCH /auth/me` (profile incl. `timezone`/`locale`/`location`), `POST /auth/me/location` (coords → reverse-geocoded city, coords never stored), `POST /auth/me/password`, `POST /auth/me/avatar`, `DELETE /auth/me/avatar` |
 | **Admin** | `POST /admin/users`, `GET /admin/users`, `PATCH /admin/users/{email}`, `GET /admin/mcp-servers`, `POST /admin/mcp-servers`, `PATCH /admin/mcp-servers/{id}`, `DELETE /admin/mcp-servers/{id}`, `POST /admin/mcp-servers/{id}/test-connection`, `GET /admin/models`, `POST /admin/models/sync`, `PATCH /admin/models` |
-| **Chat** | `GET/POST /chat/conversations`, `GET /chat/conversations/search`, `GET /chat/conversations/{id}` (optional `message_limit` — most-recent-N window instead of full history, B-03), `GET /chat/conversations/{id}/messages?before=&limit=` (page in older messages), `PATCH /chat/conversations/{id}`, `PATCH /chat/conversations/{id}/mute`, `POST /chat/conversations/{id}/client-tool-result` (desktop client returns an on-demand folder read — idea 17; body `{tool_call_id, ok, filename?, data?(base64), entries?, error?}`), `DELETE /chat/conversations/{id}`, `POST /chat/conversations/{id}/chat` (SSE stream whose detached producer finishes if the client disconnects; `has_client_folder` advertises client-served read tools; optional `talk_mode_instruction` adds localized ephemeral system context for that turn; images sent to a known text-only model return `error_type=unsupported_image_input`), `POST /chat/conversations/{id}/messages/{mid}/regenerate` (detached SSE), `POST /chat/conversations/{id}/messages/{mid}/edit` (detached SSE), `POST /chat/conversations/{id}/messages/{mid}/branch`, `DELETE /chat/conversations/{id}/chat` (cancel stream), `GET /chat/models`, `GET /chat/health/llm` |
+| **Chat** | `GET/POST /chat/conversations`, `POST /chat/conversations/primary` (idempotently ensure the user's unified primary conversation), `GET /chat/conversations/search`, `GET /chat/conversations/{id}` (optional `message_limit` — most-recent-N window instead of full history, B-03), `GET /chat/conversations/{id}/messages?before=&limit=` (page in older messages), `PATCH /chat/conversations/{id}`, `PATCH /chat/conversations/{id}/mute`, `POST /chat/conversations/{id}/client-tool-result` (desktop client returns an on-demand folder read — idea 17; body `{tool_call_id, ok, filename?, data?(base64), entries?, error?}`), `DELETE /chat/conversations/{id}`, `POST /chat/conversations/{id}/chat` (SSE stream whose detached producer finishes if the client disconnects; `has_client_folder` advertises client-served read tools; optional `talk_mode_instruction` adds localized ephemeral system context for that turn; images sent to a known text-only model return `error_type=unsupported_image_input`; primary turns may begin with `topic_update`, `context_preparing`, and `context_update` metadata-only events), `POST /chat/conversations/{id}/messages/{mid}/regenerate` (detached SSE), `POST /chat/conversations/{id}/messages/{mid}/edit` (detached SSE), `POST /chat/conversations/{id}/messages/{mid}/branch`, `DELETE /chat/conversations/{id}/chat` (cancel stream), `GET /chat/models` (includes provider-reported `thinking_levels` and `default_thinking_level` when known), `GET /chat/health/llm` |
+| **Topics & Context** | `GET /chat/topics?mode=personal|explore`, `POST /chat/conversations/{id}/topics/activate`, `POST /chat/conversations/{id}/topics/switch` (switch primary topic, archive old thread, clear messages, rebuild context, seed carryover), `PATCH /chat/conversations/{id}/topic` (select/clear/pin the primary topic), `GET /chat/topics/{topic_id}/context-status`, `POST /chat/topics/{topic_id}/prepare`, `GET /chat/conversations/{id}/context`, `POST /chat/conversations/{id}/context/items`, `PATCH /chat/conversations/{id}/context/items/{item_id}`, `POST /chat/conversations/{id}/context/fresh-start`, `GET /chat/topics/{topic_id}/archives` (list archived primary threads attached to a topic) |
 | **System Prompts** | `GET /system-prompts/templates` (optional `?locale=` query — filters builtins to the requested language when one is seeded for it; user-saved templates always surface), `POST /system-prompts/templates`, `PATCH /system-prompts/templates/{id}`, `DELETE /system-prompts/templates/{id}`, `GET /system-prompts/user-default`, `PUT /system-prompts/user-default`, `POST /system-prompts/generate` (SSE stream) |
 | **STT** | `POST /stt/transcribe` (optional `language` form field — ISO code or `"auto"`/omitted for per-clip detection, idea 13), `GET /stt/health` |
 | **TTS** | `POST /tts/speak`, `POST /tts/speak/stream` (text is limited to 5,000 characters per request; both take optional `language` — ISO code; swaps in that language's default voice when `voice` doesn't speak it, idea 13), `GET /tts/voices` (each voice carries `language` + ISO `lang_code`; en/es/fr/hi/it/pt), `GET /tts/health` |
@@ -29,38 +30,50 @@ when you add or change an endpoint, update the matching row in the same commit.
 | **Health** | `GET /health` (includes `version` — the release baked in at deploy, `APP_VERSION`) |
 | **Version** | `GET /version/latest` (no auth; latest GitHub release for `GITHUB_REPO`, ~5-min cache — tag/notes/assets; feeds Linux, Windows, and Android auto-updaters) |
 
+### Primary-chat topic/context behavior
+
+`POST /chat/conversations/primary` ensures the single primary (else legacy thread); `GET ?kind=primary|thread|all` filters. Compiler runs only for primary when `TOPIC_CONTEXT_ENABLED`. Legacy/regenerate/edit/tool loops keep old path.
+
+Primary SSE may prefix 3 metadata-only events (`schema_version:1`) before first token:
+`topic_update` (`context_version`, `topic{id,label,parent_id,parent_label,description,pinned}`, `reason`),
+`context_preparing` (`context_version`, `state:preparing`, topic),
+`context_update` (counts, budget, `pack{id,version,watermark}|null`, `freshness:ready|live|preparing`); `done` includes `context_snapshot`. `GET /chat/conversations/{id}/context` returns high-level synthesized `topic_description`, `context_summary`, and declarative `context_sections` ("Topic Scope & Purpose", "Information Included in Context") rather than raw message transcripts or provenance IDs. Compiler overlays valid pack + live assertions + pins + recent evidence, filters ownership/deletion/validity/exclusion, falls back to bounded raw evidence if stale — never blocks answer. No DeepSeek curator provider in this release.
+
 **MCP server scoping.** `mcp_servers.owner_email` splits servers into *global*
 (NULL owner, admin-managed) and *personal* (owner = a user). `admin/mcp-servers`
 CRUD only sees/touches global servers (404 on personal ones); `mcp/servers` CRUD
 only sees/touches the caller's own. `GET /mcp/tools` returns global + the
 caller's personal tools; rooms get global-only.
 
-**Delegated workflows (idea 18).** The attached folder lives only on the desktop
-client (idea 17), so a run works on a *server-side snapshot*: the client
-uploads a copy, opencode edits that copy, and the resulting diff is **auto-
-applied** by the client the moment the run reaches a terminal state — no
-manual "Review changes" gate (Jorge: *"let's not have the diff review, let's
-just apply"*). Undo is a separate revert native action (see IDEAS.md). That's
-what lets a run outlive the client — `/start` schedules the task **outside the
-request scope** and returns immediately, so closing the app doesn't cancel it;
-the summary lands as an assistant message in the conversation plus an FCM
-push. Every uploaded path is forced back inside the snapshot directory
-server-side (absolute paths, `..`, and symlink escapes are rejected with 400),
-and `workdir` is never serialized to a client. `/changes` returns each file's
-`base_sha256` — the hash of what was uploaded — so the client can refuse to
-overwrite a file the user edited while the run was going, reporting it as a
-conflict instead.
+**Delegated workflows (idea 18).** Folder lives only on desktop (idea 17); run works on server snapshot uploaded by client, opencode edits copy, diff is auto-applied — no review gate (`/start` is detached, survives client close, summary → assistant message + FCM). Paths forced inside snapshot (400 on `..`/abs/symlink), `workdir` never serialized, `/changes` returns `base_sha256` for conflict check. Research mode (`scope.mode=research`): no upload/diff, git-init workdir, MCP allowance from conversation, summary → `/output`; leading `/agent` forces it. `POST /workflows` copies attachments to `.garbanzo-workflow-inputs/` (5 MB/file, 50 MB/run, Unicode-safe) — reserved dir excluded from snapshot/diff.
 
-Folderless delegation uses the same lifecycle with `scope.mode = "research"`:
-`/start` git-initializes a server workdir, opencode receives the MCP
-allowance captured from the originating conversation, and no upload, diff, or
-local apply occurs. The durable `summary` is posted into chat and served as
-markdown by `/output`. A leading `/agent` command forces this proposal path
-instead of leaving tool choice to the chat model.
+### Topic switch flow
 
-When the originating user message has attachments, `POST /workflows` copies
-their exact bytes into `.garbanzo-workflow-inputs/` after verifying conversation
-ownership and the existing 5 MB/file, 50 MB/run limits. Unicode filenames are
-normalized without transliteration, path components are stripped, and
-case-insensitive collisions are suffixed. The reserved directory cannot be
-overwritten by a folder snapshot and is excluded from `/changes`.
+`POST /chat/conversations/{id}/topics/switch` is the single entry point for
+changing the active topic in the primary conversation. It performs these
+steps atomically:
+
+1. **Archive** — If `archive: true` (default), snapshots the entire current
+   primary message history into a `topic_archives` row attached to the *old*
+   topic so a future "enhance this topic" pass can re-derive evidence without
+   the live primary conversation.
+2. **Clear** — Deletes all messages from the primary conversation and
+   clears all active-context items (pins + dynamic) for that conversation.
+   Each message deletion is enqueued as a `delete` ingestion event so the
+   topic pipeline invalidates prior evidence.
+3. **Activate** — Creates or attaches the new topic (same semantics as
+   `activate` endpoint), bumps `context_version`, and pins the new topic.
+4. **Carryover** — If `carryover.enabled: true` (default), runs a bounded
+   LLM call (`carryover_max_items`, `carryover_max_tokens`) against the just-
+   archived messages to extract the most important facts/decisions/preferences.
+   Output is validated against a strict schema; on any failure a deterministic
+   fallback uses the most recent user messages. Carryover items are written
+   as `ActiveContextItem` rows with `source_type = "carryover"` so the UI
+   renders them as a dedicated "Carryover" branch in the context tree.
+5. **Prepare** — Kicks off an async pack build for the new topic (does not
+   block the response). The next user turn will receive fresh `topic_update`,
+   `context_update`, and `context_snapshot` SSE events.
+
+Response returns the new topic, `context_version`, `archived` boolean,
+`archive_id` (if created), the `carryover` items, and a `next_turn_summary`.
+If the conversation is not primary or the topic is not owned, returns 409/404.

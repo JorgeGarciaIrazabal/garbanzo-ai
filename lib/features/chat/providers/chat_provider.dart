@@ -79,6 +79,12 @@ class ChatProvider extends ChangeNotifier {
   /// conversation; pushed in from [StyleProvider] like [selectedModelId].
   set pendingSystemPrompt(String? prompt) => _pendingSystemPromptValue = prompt;
 
+  ValueChanged<Map<String, dynamic>>? onTopicUpdate;
+  ValueChanged<Map<String, dynamic>>? onContextPreparing;
+  ValueChanged<Map<String, dynamic>>? onContextUpdate;
+  ValueChanged<Map<String, dynamic>>? onTopicDrift;
+  VoidCallback? onConversationStarted;
+
   /// Drives the live micro-app panel beside the chat. Opened when the model
   /// calls the `house_designer` tool (see the tool_result branch below) or by
   /// the manual 🏠 composer button.
@@ -130,6 +136,29 @@ class ChatProvider extends ChangeNotifier {
   Map<String, dynamic>? _errorMetadata;
   String? get errorType =>
       _error == null ? null : _errorMetadata?['error_type'] as String?;
+
+  void _clearError() {
+    _error = null;
+    _errorMetadata = null;
+  }
+
+  void _setError(String msg, {Map<String, dynamic>? meta}) {
+    _error = msg;
+    _errorMetadata = meta;
+    logDebug(msg);
+  }
+
+  static const _connectionHints = [
+    'connection closed',
+    'connection error',
+    'connection refused',
+    'failed host lookup',
+    'network is unreachable',
+    'software caused connection abort',
+  ];
+
+  bool _isConnectionText(String s) =>
+      _connectionHints.any((h) => s.contains(h));
 
   final ChatStreamController _stream = ChatStreamController();
 
@@ -198,8 +227,7 @@ class ChatProvider extends ChangeNotifier {
     }
 
     _cancelResponseRecovery();
-    _error = null;
-    _errorMetadata = null;
+    _clearError();
     _actionEpoch++;
     notifyListeners();
 
@@ -216,10 +244,67 @@ class ChatProvider extends ChangeNotifier {
       // start, not this one. (The create path adopts it instead.)
       unawaited(_folders.clear(null));
     } catch (e) {
-      _errorMetadata = null;
-      _error = 'Failed to load conversation: $e';
+      _setError('Failed to load conversation: $e');
+    } finally {
+      notifyListeners();
+    }
+  }
+
+  /// Clears the local message list optimistically when the user switches
+  /// topics. The server will reconcile the cleared state on the next
+  /// `topic_update`/`context_update` SSE events.
+  void clearMessagesLocally() {
+    // A topic switch invalidates any in-flight conversation reload: without
+    // this bump, a pre-switch reload could land after the switch and clobber
+    // both the cleared messages and the newly selected topic (bug 1ba9a9f8).
+    _actionEpoch++;
+    _messages = [];
+    if (_currentConversation != null) {
+      _currentConversation = _currentConversation!.copyWith(
+        contextSummary: null,
+        messageCount: 0,
+      );
+    }
+    _clearError();
+    notifyListeners();
+  }
+
+  Future<void>? _primaryEnsureFuture;
+
+  /// Opens the user's additive primary conversation without changing the
+  /// legacy thread-loading path used by deep links and sidebar selection.
+  Future<void> enterPrimaryConversation() {
+    if (_currentConversation?.isPrimary == true) return Future.value();
+    return _primaryEnsureFuture ??= _ensurePrimaryConversation();
+  }
+
+  Future<void> _ensurePrimaryConversation() async {
+    _error = null;
+    notifyListeners();
+    try {
+      final conversation = await _chatService.getOrCreatePrimary(
+        model: _selectedModelId() ?? 'llama3.2',
+        systemPrompt: _pendingSystemPromptValue,
+        thinkingLevel: _pendingThinkingLevelValue,
+      );
+      _currentConversation = conversation;
+      try {
+        final detailed = await _chatService.getConversation(
+          conversation.id,
+          messageLimit: _messageWindow,
+          silent: true,
+        );
+        _currentConversation = detailed;
+        _messages = _hydrateAttachments(detailed.messages ?? const []);
+      } catch (_) {
+        _messages = _hydrateAttachments(conversation.messages ?? const []);
+      }
+      _setErrorContext();
+    } catch (error) {
+      _error = 'Failed to open your primary chat: $error';
       logDebug(_error!);
     } finally {
+      _primaryEnsureFuture = null;
       notifyListeners();
     }
   }
@@ -256,16 +341,16 @@ class ChatProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> createConversation({
+  Future<Conversation?> createConversation({
     String? title,
     String? model,
     String? initialMessage,
     String? systemPrompt,
     ThinkingLevel? thinkingLevel,
+    String? activeTopicId,
     List<ChatAttachment> initialAttachments = const [],
   }) async {
-    _error = null;
-    _errorMetadata = null;
+    _clearError();
     notifyListeners();
 
     try {
@@ -283,10 +368,16 @@ class ChatProvider extends ChangeNotifier {
         model: selectedModel,
         systemPrompt: systemPrompt ?? _pendingSystemPromptValue,
         thinkingLevel: thinkingLevel ?? _pendingThinkingLevelValue,
+        activeTopicId: activeTopicId,
       );
 
-      _currentConversation = conversation;
-      _messages = [];
+      final detailed = await _chatService.getConversation(
+        conversation.id,
+        messageLimit: _messageWindow,
+      );
+
+      _currentConversation = detailed;
+      _messages = _hydrateAttachments(detailed.messages ?? []);
       _setErrorContext();
 
       // A folder the user attached on the empty "new chat" state keys onto
@@ -295,7 +386,7 @@ class ChatProvider extends ChangeNotifier {
       await _folders.adoptPending(conversation.id);
 
       // Immediately add the new conversation to the list for sidebar visibility
-      conversationList.prepend(conversation.copyWith(messageCount: 0));
+      conversationList.prepend(detailed);
       notifyListeners();
 
       if (initialMessage != null && initialMessage.isNotEmpty) {
@@ -305,12 +396,13 @@ class ChatProvider extends ChangeNotifier {
       }
 
       await conversationList.load();
+      return detailed;
     } catch (e) {
-      _errorMetadata = null;
-      _error = 'Failed to create conversation: $e';
+      _setError('Failed to create conversation: $e');
       _isSending = false;
       logDebug(_error!);
       notifyListeners();
+      return null;
     }
   }
 
@@ -329,8 +421,7 @@ class ChatProvider extends ChangeNotifier {
   }) async {
     if (_currentConversation == null) return;
 
-    _error = null;
-    _errorMetadata = null;
+    _clearError();
     notifyListeners();
 
     try {
@@ -351,9 +442,7 @@ class ChatProvider extends ChangeNotifier {
       _currentConversation = updated;
       await conversationList.load();
     } catch (e) {
-      _errorMetadata = null;
-      _error = 'Failed to update conversation: $e';
-      logDebug(_error!);
+      _setError('Failed to update conversation: $e');
       notifyListeners();
     }
   }
@@ -367,8 +456,7 @@ class ChatProvider extends ChangeNotifier {
     final conversation = _currentConversation;
     if (conversation == null || isSending) return false;
 
-    _error = null;
-    _errorMetadata = null;
+    _clearError();
     _isSending = true;
     notifyListeners();
 
@@ -398,9 +486,7 @@ class ChatProvider extends ChangeNotifier {
       return true;
     } catch (e) {
       _isSending = false;
-      _errorMetadata = null;
-      _error = 'Failed to switch models and retry: $e';
-      logDebug(_error!);
+      _setError('Failed to switch models and retry: $e');
       notifyListeners();
       return false;
     }
@@ -446,8 +532,7 @@ class ChatProvider extends ChangeNotifier {
       _folders.clear(conversationId);
 
   Future<void> deleteConversation(String conversationId) async {
-    _error = null;
-    _errorMetadata = null;
+    _clearError();
     _actionEpoch++;
 
     if (_currentConversation?.id == conversationId) {
@@ -469,8 +554,7 @@ class ChatProvider extends ChangeNotifier {
     _currentConversation = null;
     _messages = [];
     _cancelResponseRecovery();
-    _error = null;
-    _errorMetadata = null;
+    _clearError();
     _actionEpoch++;
     notifyListeners();
   }
@@ -517,11 +601,21 @@ class ChatProvider extends ChangeNotifier {
   }) async {
     if (content.trim().isEmpty && attachments.isEmpty) return;
 
+    // A primary chat is ensured asynchronously when opening `/chat`. Wait for
+    // that request so a quick first send cannot accidentally create a legacy
+    // thread while the idempotent primary conversation is still loading.
+    final primaryEnsure = _primaryEnsureFuture;
+    if (primaryEnsure != null) {
+      await primaryEnsure;
+      if (_currentConversation == null) return;
+    }
+
+    onConversationStarted?.call();
+
     // Guard: prevent sending while already streaming.
     if (isSending) return;
 
-    _error = null;
-    _errorMetadata = null;
+    _clearError();
     _actionEpoch++;
 
     if (_currentConversation == null) {
@@ -565,10 +659,8 @@ class ChatProvider extends ChangeNotifier {
       );
       _consumeAssistantStream(stream);
     } catch (e) {
-      _errorMetadata = null;
-      _error = _friendlyStreamError(e);
+      _setError(_friendlyStreamError(e));
       _isSending = false;
-      logDebug(_error!);
       notifyListeners();
     }
   }
@@ -583,8 +675,7 @@ class ChatProvider extends ChangeNotifier {
     if (lastAssistantIdx < 0) return;
     final messageId = _messages[lastAssistantIdx].id;
 
-    _error = null;
-    _errorMetadata = null;
+    _clearError();
     _actionEpoch++;
     _isSending = true;
     // Trim the old assistant reply and any trailing tool turns we've already
@@ -599,10 +690,8 @@ class ChatProvider extends ChangeNotifier {
       );
       _consumeAssistantStream(stream);
     } catch (e) {
-      _errorMetadata = null;
-      _error = _friendlyStreamError(e);
+      _setError(_friendlyStreamError(e));
       _isSending = false;
-      logDebug(_error!);
       notifyListeners();
     }
   }
@@ -617,8 +706,7 @@ class ChatProvider extends ChangeNotifier {
     final target = _messages[idx];
     if (!target.isUser) return;
 
-    _error = null;
-    _errorMetadata = null;
+    _clearError();
     _actionEpoch++;
     _isSending = true;
 
@@ -635,10 +723,8 @@ class ChatProvider extends ChangeNotifier {
       );
       _consumeAssistantStream(stream);
     } catch (e) {
-      _errorMetadata = null;
-      _error = _friendlyStreamError(e);
+      _setError(_friendlyStreamError(e));
       _isSending = false;
-      logDebug(_error!);
       notifyListeners();
     }
   }
@@ -647,8 +733,7 @@ class ChatProvider extends ChangeNotifier {
   Future<void> branchFromMessage(String messageId) async {
     if (_currentConversation == null) return;
 
-    _error = null;
-    _errorMetadata = null;
+    _clearError();
     notifyListeners();
 
     try {
@@ -661,9 +746,7 @@ class ChatProvider extends ChangeNotifier {
       // Navigate to new branch
       await loadConversation(newConv.id);
     } catch (e) {
-      _errorMetadata = null;
-      _error = 'Failed to branch conversation: $e';
-      logDebug(_error!);
+      _setError('Failed to branch conversation: $e');
       notifyListeners();
     }
   }
@@ -706,7 +789,15 @@ class ChatProvider extends ChangeNotifier {
       stream,
       messageId: assistantMessageId,
       onChunk: (chunk) {
-        if (chunk.isThinking && chunk.content != null) {
+        if (chunk.type == 'topic_update') {
+          onTopicUpdate?.call(_dynamicEventPayload(chunk));
+        } else if (chunk.type == 'context_preparing') {
+          onContextPreparing?.call(_dynamicEventPayload(chunk));
+        } else if (chunk.type == 'context_update') {
+          onContextUpdate?.call(_dynamicEventPayload(chunk));
+        } else if (chunk.type == 'topic_drift') {
+          onTopicDrift?.call(_dynamicEventPayload(chunk));
+        } else if (chunk.isThinking && chunk.content != null) {
           accumulatedThinking += chunk.content!;
           _pushStreamingUpdate(current());
         } else if (chunk.isChunk && chunk.content != null) {
@@ -757,8 +848,7 @@ class ChatProvider extends ChangeNotifier {
           }
         } else if (chunk.isError) {
           _syncStreamingIntoList();
-          _error = chunk.error ?? 'An error occurred';
-          _errorMetadata = chunk.metadata;
+          _setError(chunk.error ?? 'An error occurred', meta: chunk.metadata);
           _isSending = false;
           notifyListeners();
         }
@@ -769,12 +859,10 @@ class ChatProvider extends ChangeNotifier {
         logDebug('Stream error: $e');
         _clearStreamingState();
         if (_isConnectionError(e)) {
-          _error = null;
-          _errorMetadata = null;
+          _clearError();
           _beginResponseRecovery();
         } else {
-          _errorMetadata = null;
-          _error = _friendlyStreamError(e);
+          _setError(_friendlyStreamError(e));
         }
         notifyListeners();
         if (!_isConnectionError(e)) _reloadCurrentConversation();
@@ -800,6 +888,16 @@ class ChatProvider extends ChangeNotifier {
         _scheduleTitleRefresh();
       },
     );
+  }
+
+  Map<String, dynamic> _dynamicEventPayload(ChatResponseChunk chunk) {
+    final metadata = chunk.metadata ?? const <String, dynamic>{};
+    final nested = metadata[chunk.type] ?? metadata['payload'];
+    if (nested is Map<String, dynamic>) return nested;
+    if (nested is Map) {
+      return nested.map((key, value) => MapEntry(key.toString(), value));
+    }
+    return metadata;
   }
 
   void _removeMessage(String id) {
@@ -833,28 +931,15 @@ class ChatProvider extends ChangeNotifier {
         _ => e.detail != null ? 'Chat error: ${e.detail}' : 'Chat error.',
       };
     }
-    final s = '$e'.toLowerCase();
-    if (s.contains('connection closed') ||
-        s.contains('connection error') ||
-        s.contains('connection refused') ||
-        s.contains('failed host lookup') ||
-        s.contains('network is unreachable') ||
-        s.contains('software caused connection abort')) {
+    if (_isConnectionText('$e'.toLowerCase())) {
       return 'Couldn\'t reach the AI service. Check your connection and try again.';
     }
     return 'Streaming error: $e';
   }
 
-  bool _isConnectionError(Object error) {
-    if (error is ChatException) return error.kind == 'connection';
-    final text = '$error'.toLowerCase();
-    return text.contains('connection closed') ||
-        text.contains('connection error') ||
-        text.contains('connection refused') ||
-        text.contains('failed host lookup') ||
-        text.contains('network is unreachable') ||
-        text.contains('software caused connection abort');
-  }
+  bool _isConnectionError(Object e) => e is ChatException
+      ? e.kind == 'connection'
+      : _isConnectionText('$e'.toLowerCase());
 
   void _beginResponseRecovery() {
     final conversationId = _currentConversation?.id;
@@ -967,41 +1052,40 @@ class ChatProvider extends ChangeNotifier {
     }
   }
 
-  /// Inserts display-only `tool_call` messages for each call streamed,
-  /// placed immediately BEFORE the assistant placeholder so the placeholder
-  /// stays anchored at the end of the conversation.
-  void _insertToolCallMessagesBefore(String anchorId, List<ToolCall> calls) {
-    if (calls.isEmpty) return;
-    final additions = <ChatMessage>[];
-    for (final call in calls) {
-      additions.add(
-        ChatMessage(
-          id: 'temp-tool-call-${call.id}',
-          role: 'tool_call',
-          content: call.name,
-          createdAt: DateTime.now(),
-          metadata: {
-            'tool_calls': [
-              {
-                'id': call.id,
-                'name': call.name,
-                'arguments': call.arguments ?? const {},
-              },
-            ],
-          },
-        ),
-      );
-    }
-    final idx = _messages.indexWhere((m) => m.id == anchorId);
+  void _insertBefore(String anchor, List<ChatMessage> extra) {
+    if (extra.isEmpty) return;
+    final idx = _messages.indexWhere((m) => m.id == anchor);
     if (idx < 0) {
-      _messages = [..._messages, ...additions];
+      _messages = [..._messages, ...extra];
       return;
     }
     _messages = [
       ..._messages.sublist(0, idx),
-      ...additions,
+      ...extra,
       ..._messages.sublist(idx),
     ];
+  }
+
+  void _insertToolCallMessagesBefore(String anchorId, List<ToolCall> calls) {
+    if (calls.isEmpty) return;
+    _insertBefore(anchorId, [
+      for (final c in calls)
+        ChatMessage(
+          id: 'temp-tool-call-${c.id}',
+          role: 'tool_call',
+          content: c.name,
+          createdAt: DateTime.now(),
+          metadata: {
+            'tool_calls': [
+              {
+                'id': c.id,
+                'name': c.name,
+                'arguments': c.arguments ?? const {},
+              },
+            ],
+          },
+        ),
+    ]);
   }
 
   /// Merge a live tool-execution status update into the matching temp
@@ -1021,34 +1105,23 @@ class ChatProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Inserts a display-only `tool_result` message immediately BEFORE the
-  /// assistant placeholder, mirroring the canonical layout the server
-  /// returns on reload.
   void _insertToolResultMessageBefore(String anchorId, ToolResult? result) {
     if (result == null) return;
-    final newMsg = ChatMessage(
-      id: 'temp-tool-result-${result.toolCallId}',
-      role: 'tool_result',
-      content: result.toolName,
-      createdAt: DateTime.now(),
-      metadata: {
-        'tool_result': {
-          'tool_call_id': result.toolCallId,
-          'tool_name': result.toolName,
-          'result': result.result,
+    _insertBefore(anchorId, [
+      ChatMessage(
+        id: 'temp-tool-result-${result.toolCallId}',
+        role: 'tool_result',
+        content: result.toolName,
+        createdAt: DateTime.now(),
+        metadata: {
+          'tool_result': {
+            'tool_call_id': result.toolCallId,
+            'tool_name': result.toolName,
+            'result': result.result,
+          },
         },
-      },
-    );
-    final idx = _messages.indexWhere((m) => m.id == anchorId);
-    if (idx < 0) {
-      _messages = [..._messages, newMsg];
-      return;
-    }
-    _messages = [
-      ..._messages.sublist(0, idx),
-      newMsg,
-      ..._messages.sublist(idx),
-    ];
+      ),
+    ]);
   }
 
   /// Bumped on every user action that changes message state (send, edit,
@@ -1057,6 +1130,12 @@ class ChatProvider extends ChangeNotifier {
   /// server reload could clobber an optimistic edit made while it was
   /// in flight.
   int _actionEpoch = 0;
+
+  /// Test-only access to [_reloadCurrentConversation] so the epoch guard can
+  /// be exercised against a reload that races a user action.
+  @visibleForTesting
+  Future<bool> reloadCurrentConversationForTest() =>
+      _reloadCurrentConversation();
 
   Future<bool> _reloadCurrentConversation() async {
     final id = _currentConversation?.id;
@@ -1146,8 +1225,7 @@ class ChatProvider extends ChangeNotifier {
   // ==========================================================================
 
   void clearError() {
-    _error = null;
-    _errorMetadata = null;
+    _clearError();
     if (conversationList.error != null) {
       conversationList.clearError();
     }

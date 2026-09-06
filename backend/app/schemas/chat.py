@@ -1,213 +1,122 @@
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from app.core.config import get_settings
 
-# Reasoning depth for thinking-capable models. Shared across every schema
-# that carries a thinking level (Conversation, Style, ...) so the accepted
-# value set can't drift between them — see 017_conversation_thinking_level.sql
-# for why these four values and no Postgres enum/CHECK constraint.
-ThinkingLevel = Literal["off", "low", "medium", "high"]
+ThinkingLevel = Literal["off", "low", "medium", "high"]  # shared; see 017 migration
 
-# ============================================================================
-# Attachment Schemas
-# ============================================================================
+
+# Attachments
 
 
 class AttachmentIn(BaseModel):
-    """A file attached to a chat message."""
+    """File attached to a chat message."""
 
     name: str = Field(..., description="Original filename")
-    mime_type: str = Field(..., description="MIME type of the file")
+    mime_type: str = Field(..., description="MIME type")
     type: Literal["image", "document"] = Field(..., description="Attachment category")
     encoding: Literal["base64", "utf-8"] | None = Field(
-        default=None,
-        description=(
-            "Encoding of data. New clients send base64 for every file; omitted "
-            "keeps compatibility with clients that sent document text as UTF-8."
-        ),
+        default=None, description="Encoding; base64 for new clients, omitted for legacy UTF-8 docs"
     )
-    data: str = Field(
-        ...,
-        description="File payload using the declared encoding.",
-    )
+    data: str = Field(..., description="File payload using declared encoding")
 
 
-# ============================================================================
-# Chat Message Schemas
-# ============================================================================
+# Chat messages
 
 
 class ChatMessage(BaseModel):
-    """A single message in the chat."""
-
-    role: Literal["user", "assistant", "system"] = Field(
-        ...,
-        description="The role of the message sender",
-    )
-    content: str = Field(..., description="The message content")
+    role: Literal["user", "assistant", "system"] = Field(..., description="Sender role")
+    content: str = Field(..., description="Message content")
 
 
 class ChatMessageOut(ChatMessage):
-    """Message as returned by the API, with metadata."""
-
-    role: Literal[  # type: ignore[assignment]
-        "user", "assistant", "system", "tool_call", "tool_result"
-    ] = Field(..., description="The role of the message sender")
+    role: Literal["user", "assistant", "system", "tool_call", "tool_result"] = Field(
+        ..., description="Sender role"
+    )  # type: ignore[assignment]
     id: str = Field(..., description="Unique message ID")
-    created_at: datetime = Field(..., description="When the message was created")
-    meta: dict[str, Any] | None = Field(
-        None,
-        description="Additional metadata (tokens, timing, etc.)",
-    )
-
+    created_at: datetime = Field(..., description="When created")
+    meta: dict[str, Any] | None = Field(None, description="Metadata (tokens, timing, etc.)")
+    session_epoch: int = Field(default=0, description="Session epoch within primary conversation")
     model_config = {"from_attributes": True}
 
+    @model_validator(mode="after")
+    def clean_thinking_tags(self) -> "ChatMessageOut":
+        if self.role == "assistant" and "</think>" in self.content:
+            parts = self.content.split("</think>", 1)
+            raw_thinking = parts[0].replace("<think>", "").strip()
+            self.content = parts[1].strip()
+            if raw_thinking:
+                if self.meta is None:
+                    self.meta = {}
+                existing = self.meta.get("thinking")
+                if existing:
+                    self.meta["thinking"] = f"{raw_thinking}\n\n{existing}"
+                else:
+                    self.meta["thinking"] = raw_thinking
+        return self
 
-# ============================================================================
-# Chat Request/Response Schemas
-# ============================================================================
+
+# Chat request / options
 
 
 class ChatOptions(BaseModel):
-    """Options for the chat completion."""
-
-    temperature: float = Field(
-        default=0.7,
-        ge=0.0,
-        le=2.0,
-        description="Sampling temperature",
-    )
-    max_tokens: int | None = Field(
-        default=None,
-        ge=1,
-        description="Maximum tokens to generate",
-    )
-    top_p: float | None = Field(
-        default=None,
-        ge=0.0,
-        le=1.0,
-        description="Nucleus sampling parameter",
-    )
-    stream: bool = Field(
-        default=True,
-        description="Whether to stream the response",
-    )
+    temperature: float = Field(default=0.7, ge=0.0, le=2.0, description="Sampling temperature")
+    max_tokens: int | None = Field(default=None, ge=1, description="Maximum tokens to generate")
+    top_p: float | None = Field(default=None, ge=0.0, le=1.0, description="Nucleus sampling")
+    stream: bool = Field(default=True, description="Whether to stream")
     response_format: dict | str | None = Field(
-        default=None,
-        description=(
-            "Optional structured-output spec passed straight through to the "
-            "provider. For Ollama this maps to the `format` parameter — "
-            "either the literal string 'json' or a JSON Schema dict."
-        ),
+        default=None, description="Structured output spec passed to provider (Ollama `format`)"
     )
     num_ctx: int | None = Field(
-        default=None,
-        ge=512,
-        description=(
-            "Context window to allocate, in tokens. Normally set by the "
-            "server (min of the model's maximum and the configured cap), "
-            "not by clients. For Ollama this maps to options.num_ctx."
-        ),
+        default=None, ge=512, description="Context window tokens (server-set; Ollama num_ctx)"
     )
     think: ThinkingLevel | None = Field(
-        default=None,
-        description=(
-            "Reasoning depth for thinking-capable models. Normally set by "
-            "the server from Conversation.thinking_level, not by clients. "
-            "None preserves the provider's own default (auto-enable "
-            "thinking when the model supports it); 'off' force-disables it "
-            "even for a capable model. Ignored by models that don't "
-            "advertise the 'thinking' capability. For Ollama this maps "
-            "straight onto the `think` chat option."
-        ),
+        default=None, description="Reasoning depth; None=provider default, off=disable"
     )
 
 
 class ChatRequest(BaseModel):
-    """Request to send a message in a conversation."""
-
-    message: str = Field(..., min_length=1, description="The user's message")
-    attachments: list[AttachmentIn] = Field(
-        default_factory=list,
-        description="Files attached to this message",
-    )
-    options: ChatOptions = Field(
-        default_factory=ChatOptions,
-        description="Generation options",
-    )
+    message: str = Field(..., min_length=1, description="User message")
+    attachments: list[AttachmentIn] = Field(default_factory=list, description="Files attached")
+    options: ChatOptions = Field(default_factory=ChatOptions, description="Generation options")
     has_client_folder: bool = Field(
         default=False,
-        description=(
-            "Set by a desktop client that has a folder attached to this "
-            "conversation. When true, the backend advertises the client-served "
-            "read_file/list_files tools; when the model calls them, the backend "
-            "delegates the read back to this client (it never touches the host "
-            "filesystem itself). Ignored/false on web."
-        ),
+        description="Desktop client has folder attached (enables client-served file tools)",
     )
     client_folder_label: str | None = Field(
-        default=None,
-        max_length=255,
-        description=(
-            "Display name of the attached folder (its base name only — never a "
-            "path, so it can't be opened server-side). Named in the system "
-            "prompt so the model knows *which* folder 'this folder' refers to "
-            "instead of claiming it has no file access."
-        ),
+        default=None, max_length=255, description="Base name of attached folder (display only)"
     )
     talk_mode_instruction: str | None = Field(
         default=None,
         min_length=1,
         max_length=2000,
-        description=(
-            "Localized spoken-response instruction for this turn. It is wrapped "
-            "as ephemeral system context and is not persisted."
-        ),
+        description="Spoken-response instruction (ephemeral, not persisted)",
     )
 
 
 class ClientToolResult(BaseModel):
-    """A desktop client's answer to a ``client_tool_request`` (idea 17).
+    """Client answer to a client_tool_request (idea 17)."""
 
-    Completes a parked ``read_file``/``list_files`` call. For ``read_file`` the
-    client sends the file's raw bytes (base64) + filename; for ``list_files`` it
-    sends the directory ``entries``. ``ok=False`` + ``error`` reports a
-    client-side failure (path escaped the folder, file too big, read error).
-    """
-
-    tool_call_id: str = Field(..., description="Correlates with the request chunk")
-    ok: bool = Field(default=True, description="False when the client couldn't serve it")
-    filename: str | None = Field(None, description="read_file: the file's name")
-    data: str | None = Field(None, description="read_file: base64-encoded file bytes")
+    tool_call_id: str = Field(..., description="Correlates with request chunk")
+    ok: bool = Field(default=True, description="False when client couldn't serve")
+    filename: str | None = Field(None, description="read_file: filename")
+    data: str | None = Field(None, description="read_file: base64 bytes")
     entries: list[dict] | None = Field(None, description="list_files: directory entries")
-    error: str | None = Field(None, description="Client-side error message when ok is false")
+    error: str | None = Field(None, description="Client error when ok is false")
 
 
 class RegenerateRequest(BaseModel):
-    """Request to regenerate an assistant response."""
-
-    options: ChatOptions = Field(
-        default_factory=ChatOptions,
-        description="Generation options",
-    )
+    options: ChatOptions = Field(default_factory=ChatOptions, description="Generation options")
 
 
 class EditMessageRequest(BaseModel):
-    """Request to edit a user message and re-run the conversation from it."""
-
-    content: str = Field(..., min_length=1, description="The new message content")
-    options: ChatOptions = Field(
-        default_factory=ChatOptions,
-        description="Generation options",
-    )
+    content: str = Field(..., min_length=1, description="New message content")
+    options: ChatOptions = Field(default_factory=ChatOptions, description="Generation options")
 
 
 class ChatResponseChunk(BaseModel):
-    """A chunk of a streaming chat response."""
-
     type: Literal[
         "chunk",
         "thinking",
@@ -215,185 +124,147 @@ class ChatResponseChunk(BaseModel):
         "error",
         "tool_call",
         "tool_result",
-        # Live tool-progress marker (started / finished + duration). Already
-        # emitted by the chat streamer; declared here so validation passes.
         "tool_execution",
-        # Structured action proposal from a proposal tool (create_room,
-        # set_conversation_style) — rendered as a Confirm/Cancel card.
         "action_proposal",
-        # Session handshake emitted by the micro-apps agent relay so the
-        # client learns the opencode session id early enough to abort it.
         "session",
-        # Request for the desktop client to read a file / list a folder on the
-        # backend's behalf (idea 17: on-demand client-side folder reads). The
-        # client serves it locally and POSTs the result to /client-tool-result.
         "client_tool_request",
-    ] = Field(
-        ...,
-        description="The type of response chunk",
-    )
-    content: str | None = Field(
-        None,
-        description="The content chunk (for type='chunk' or 'thinking')",
-    )
-    error: str | None = Field(
-        None,
-        description="Error message (for type='error')",
-    )
-    metadata: dict[str, Any] | None = Field(
-        None,
-        description="Final metadata (for type='done')",
-    )
+        "topic_update",
+        "context_preparing",
+        "context_update",
+    ] = Field(..., description="Chunk type")
+    content: str | None = Field(None, description="Content for chunk/thinking")
+    error: str | None = Field(None, description="Error message for type=error")
+    metadata: dict[str, Any] | None = Field(None, description="Final metadata for type=done")
     tool_calls: list[dict[str, Any]] | None = Field(
-        None,
-        description=(
-            "Tool calls requested by the model (for type='tool_call'). "
-            "Each call has {id, name, arguments}."
-        ),
+        None, description="Tool calls for type=tool_call"
     )
-    tool_result: dict[str, Any] | None = Field(
-        None,
-        description=(
-            "The result of a single tool invocation (for type='tool_result'). "
-            "Shape: {tool_call_id, tool_name, result}."
-        ),
-    )
+    tool_result: dict[str, Any] | None = Field(None, description="Tool result for type=tool_result")
 
 
-# ============================================================================
-# Conversation Schemas
-# ============================================================================
+# Conversations
 
 
 class ConversationCreate(BaseModel):
-    """Request to create a new conversation."""
-
-    title: str | None = Field(
-        None,
-        max_length=200,
-        description="Optional conversation title",
-    )
+    title: str | None = Field(None, max_length=200, description="Optional title")
     model: str = Field(
         default_factory=lambda: get_settings().default_model,
         max_length=100,
-        description="The model to use for this conversation",
+        description="Model for this conversation",
     )
-    initial_message: str | None = Field(
-        None,
-        description="Optional first message to start the conversation",
-    )
-    system_prompt: str | None = Field(
-        None,
-        description="Per-conversation system prompt (overrides the user default)",
-    )
+    initial_message: str | None = Field(None, description="Optional first message")
+    system_prompt: str | None = Field(None, description="Per-conversation system prompt")
     thinking_level: ThinkingLevel | None = Field(
-        None,
-        description=(
-            "Reasoning depth for thinking-capable models. None = provider "
-            "default (auto-enable thinking when the model supports it)."
-        ),
+        None, description="Reasoning depth; None=provider default"
+    )
+    active_topic_id: str | None = Field(
+        None, description="Optional topic to associate with this conversation"
     )
 
 
 class ConversationUpdate(BaseModel):
-    """Request to update a conversation."""
-
-    title: str | None = Field(
-        None,
-        max_length=200,
-        description="New title for the conversation",
-    )
-    model: str | None = Field(
-        None,
-        max_length=100,
-        description="Change the model for future messages",
-    )
-    use_memory: bool | None = Field(
-        None,
-        description="Enable/disable memory injection for this conversation",
-    )
-    use_knowledge_base: bool | None = Field(
-        None,
-        description="Enable/disable knowledge-base retrieval for this conversation",
-    )
+    title: str | None = Field(None, max_length=200, description="New title")
+    model: str | None = Field(None, max_length=100, description="Change model for future messages")
+    use_memory: bool | None = Field(None, description="Enable/disable memory injection")
+    use_knowledge_base: bool | None = Field(None, description="Enable/disable KB retrieval")
     system_prompt: str | None = Field(
-        None,
-        description=(
-            "Per-conversation system prompt. Send an empty string to clear it "
-            "and fall back to the user default."
-        ),
+        None, description="Per-conversation system prompt (empty to clear)"
     )
     enabled_tools: list[str] | None = Field(
-        None,
-        description=(
-            "Allowed tool keys for this conversation. None = all enabled tools, "
-            '[] = no tools, ["srv:tool"] = specific subset. '
-            'Each key is "{server_id}:{tool_name}".'
-        ),
+        None, description='Allowed tool keys. None=all, []=none, ["srv:tool"]=subset'
     )
-    is_pinned: bool | None = Field(
-        None,
-        description="Pin/unpin this conversation in the sidebar",
-    )
+    is_pinned: bool | None = Field(None, description="Pin/unpin in sidebar")
     thinking_level: ThinkingLevel | None = Field(
-        None,
-        description=(
-            "Reasoning depth for thinking-capable models. Not sent in the "
-            "payload → unchanged. Sent as null → reset to the provider "
-            "default (auto-enable thinking when the model supports it). "
-            "Sent as 'off'/'low'/'medium'/'high' → set that level."
-        ),
+        None, description="Reasoning depth; null=reset to provider default"
+    )
+
+
+def _active_topic_dict(conv: Any) -> dict[str, Any] | None:
+    try:
+        from sqlalchemy import inspect as sa_inspect
+
+        state = sa_inspect(conv)
+        if "active_topic" not in state.unloaded and conv.active_topic is not None:
+            topic = conv.active_topic
+            parent = getattr(topic, "parent", None)
+            from app.topics.topic_description_helper import get_topic_high_level_description
+
+            desc = get_topic_high_level_description(topic, parent)
+            return {
+                "id": topic.id,
+                "label": topic.label,
+                "parent_id": topic.parent_id,
+                "parent_label": parent.label if parent else None,
+                "description": desc,
+                "starter_prompts": [
+                    f"Continue with {topic.label}",
+                    f"What should I do next about {topic.label}?",
+                ],
+                "context_status": "ready",
+            }
+    except Exception:
+        pass
+    return None
+
+
+def _conv_base_kwargs(conv: Any, message_count: int, active_topic: dict | None) -> dict[str, Any]:
+    return dict(
+        id=conv.id,
+        title=conv.title,
+        model=conv.model,
+        created_at=conv.created_at,
+        updated_at=conv.updated_at,
+        message_count=message_count,
+        use_memory=getattr(conv, "use_memory", True),
+        use_knowledge_base=getattr(conv, "use_knowledge_base", True),
+        system_prompt=getattr(conv, "system_prompt", None),
+        enabled_tools=getattr(conv, "enabled_tools", None),
+        is_pinned=getattr(conv, "is_pinned", False),
+        muted_until=getattr(conv, "muted_until", None),
+        thinking_level=getattr(conv, "thinking_level", None),
+        is_primary=getattr(conv, "is_primary", False),
+        active_topic_id=getattr(conv, "active_topic_id", None),
+        active_topic=active_topic,
+        topic_is_pinned=getattr(conv, "topic_is_pinned", False),
+        context_version=getattr(conv, "context_version", 0),
+        session_epoch=getattr(conv, "session_epoch", 0),
     )
 
 
 class ConversationOut(BaseModel):
-    """Conversation as returned by the API."""
-
     id: str = Field(..., description="Unique conversation ID")
     title: str | None = Field(None, description="Conversation title")
-    model: str = Field(..., description="Model used for this conversation")
-    created_at: datetime = Field(..., description="When the conversation was created")
-    updated_at: datetime = Field(..., description="When the conversation was last updated")
-    message_count: int = Field(
-        default=0,
-        description="Number of messages in the conversation",
-    )
-    use_memory: bool = Field(default=True, description="Whether memory injection is enabled")
-    use_knowledge_base: bool = Field(
-        default=True, description="Whether knowledge-base retrieval is enabled"
-    )
-    system_prompt: str | None = Field(
-        None,
-        description="Per-conversation system prompt, if set",
-    )
+    model: str = Field(..., description="Model used")
+    created_at: datetime = Field(..., description="When created")
+    updated_at: datetime = Field(..., description="When last updated")
+    message_count: int = Field(default=0, description="Number of messages")
+    use_memory: bool = Field(default=True, description="Whether memory injection enabled")
+    use_knowledge_base: bool = Field(default=True, description="Whether KB retrieval enabled")
+    system_prompt: str | None = Field(None, description="Per-conversation system prompt, if set")
     enabled_tools: list[str] | None = Field(
-        None,
-        description=(
-            'Allowed tool keys. None = all enabled tools, [] = none, ["srv:tool"] = subset.'
-        ),
+        None, description='Allowed tool keys. None=all, []=none, ["srv:tool"]=subset'
     )
-    is_pinned: bool = Field(default=False, description="Whether this conversation is pinned")
+    is_pinned: bool = Field(default=False, description="Whether pinned")
     thinking_level: ThinkingLevel | None = Field(
-        None,
-        description=(
-            "Reasoning depth for thinking-capable models, or null for the "
-            "provider default (auto-enable thinking when the model supports it)."
-        ),
+        None, description="Reasoning depth or null for provider default"
     )
-    # NULL = not muted. A far-future sentinel value means "muted forever" —
-    # see ``mute_util.MUTE_FOREVER``. Frontend just compares to "now" to
-    # decide whether to render the muted-bell state (mirrors
-    # ``RoomMemberOut.muted_until`` / ``RoomOut.muted_until``).
-    muted_until: datetime | None = Field(
-        None,
-        description="When notification muting expires, or null when not muted",
+    is_primary: bool = Field(default=False, description="Whether unified primary chat")
+    active_topic_id: str | None = Field(
+        default=None, description="Currently selected/detected topic"
     )
+    active_topic: dict[str, Any] | None = Field(
+        default=None, description="Compact active topic with id, label, parent_id"
+    )
+    topic_is_pinned: bool = Field(
+        default=False, description="Whether auto topic switching disabled"
+    )
+    context_version: int = Field(default=0, description="Monotonic active-context version")
+    session_epoch: int = Field(default=0, description="Current primary chat session epoch")
+    muted_until: datetime | None = Field(None, description="When muting expires or null")
 
     model_config = {"from_attributes": True}
 
     @classmethod
-    def from_model(cls, conv: "Any") -> "ConversationOut":
-        """Build from an ORM ``Conversation`` instance."""
+    def from_model(cls, conv: Any) -> "ConversationOut":
         from sqlalchemy import inspect as sa_inspect
         from sqlalchemy.orm import InstanceState
 
@@ -404,230 +275,145 @@ class ConversationOut(BaseModel):
                 message_count = len(conv.messages) if conv.messages else 0
         except Exception:
             pass
-
-        return cls(
-            id=conv.id,
-            title=conv.title,
-            model=conv.model,
-            created_at=conv.created_at,
-            updated_at=conv.updated_at,
-            message_count=message_count,
-            use_memory=getattr(conv, "use_memory", True),
-            use_knowledge_base=getattr(conv, "use_knowledge_base", True),
-            system_prompt=getattr(conv, "system_prompt", None),
-            enabled_tools=getattr(conv, "enabled_tools", None),
-            is_pinned=getattr(conv, "is_pinned", False),
-            muted_until=getattr(conv, "muted_until", None),
-            thinking_level=getattr(conv, "thinking_level", None),
-        )
+        return cls(**_conv_base_kwargs(conv, message_count, _active_topic_dict(conv)))
 
 
-def message_out(msg: "Any") -> ChatMessageOut:
-    """Build a ``ChatMessageOut`` from an ORM ``Message`` row."""
+def message_out(msg: Any) -> ChatMessageOut:
     return ChatMessageOut(
         id=msg.id,
         role=msg.role,
         content=msg.content,
         created_at=msg.created_at,
         meta=msg.meta,
+        session_epoch=getattr(msg, "session_epoch", 0),
     )
 
 
 class ConversationDetailOut(ConversationOut):
-    """Conversation with full message history."""
-
     messages: list[ChatMessageOut] = Field(
-        default_factory=list,
-        description=(
-            "Messages in the conversation — all of them, unless "
-            "`message_limit` was passed, in which case only the most recent "
-            "window (see `has_more_messages`)."
-        ),
+        default_factory=list, description="Messages; all unless message_limit windowing"
     )
     context_summary: str | None = Field(
         None, description="Summary of earlier messages trimmed from context"
     )
     has_more_messages: bool = Field(
-        default=False,
-        description=(
-            "True when `messages` is a windowed page (via `message_limit`) "
-            "and older messages exist. Page them in with "
-            "GET /conversations/{id}/messages?before=<oldest message id>."
-        ),
+        default=False, description="True when windowed and older messages exist"
     )
 
     @classmethod
-    def from_model(cls, conv: "Any") -> "ConversationDetailOut":
-        """Build from an ORM ``Conversation`` with eagerly-loaded messages."""
+    def from_model(cls, conv: Any) -> "ConversationDetailOut":
+        messages = list(conv.messages or [])
+        if getattr(conv, "is_primary", False):
+            epoch = getattr(conv, "session_epoch", 0)
+            messages = [m for m in messages if getattr(m, "session_epoch", 0) == epoch]
         return cls.from_model_page(
             conv,
-            list(conv.messages),
-            total_message_count=len(conv.messages),
+            messages,
+            total_message_count=len(messages),
             has_more_messages=False,
         )
 
     @classmethod
     def from_model_page(
-        cls,
-        conv: "Any",
-        messages: list["Any"],
-        *,
-        total_message_count: int,
-        has_more_messages: bool,
+        cls, conv: Any, messages: list[Any], *, total_message_count: int, has_more_messages: bool
     ) -> "ConversationDetailOut":
-        """Build from an ORM ``Conversation`` plus an explicitly-provided
-        message list, instead of reading ``conv.messages``.
-
-        B-03: powers the paginated recent-messages path (``from_model``
-        delegates here for the full-history case). Deliberately never
-        touches the ``conv.messages`` relationship — assigning a partial
-        list to it would trip its ``cascade="all, delete-orphan"``
-        collection-replace semantics and delete the rows left out of the
-        window.
-        """
+        """Build from ORM plus explicit message list; avoids touching conv.messages cascade."""
         out_messages = [message_out(msg) for msg in messages]
+        base = _conv_base_kwargs(conv, total_message_count, _active_topic_dict(conv))
         return cls(
-            id=conv.id,
-            title=conv.title,
-            model=conv.model,
-            created_at=conv.created_at,
-            updated_at=conv.updated_at,
-            message_count=total_message_count,
+            **base,
             messages=out_messages,
             has_more_messages=has_more_messages,
-            use_memory=getattr(conv, "use_memory", True),
-            use_knowledge_base=getattr(conv, "use_knowledge_base", True),
             context_summary=getattr(conv, "context_summary", None),
-            system_prompt=getattr(conv, "system_prompt", None),
-            enabled_tools=getattr(conv, "enabled_tools", None),
-            is_pinned=getattr(conv, "is_pinned", False),
-            muted_until=getattr(conv, "muted_until", None),
-            thinking_level=getattr(conv, "thinking_level", None),
         )
 
 
 class ConversationList(BaseModel):
-    """List of conversations with pagination."""
-
     items: list[ConversationOut] = Field(..., description="The conversations")
-    total: int = Field(..., description="Total number of conversations")
-    page: int = Field(default=1, description="Current page number")
+    total: int = Field(..., description="Total conversations")
+    page: int = Field(default=1, description="Current page")
     page_size: int = Field(default=20, description="Items per page")
 
 
 class MessagePage(BaseModel):
-    """A page of older messages, oldest-first (B-03: scroll-to-top paging)."""
-
-    messages: list[ChatMessageOut] = Field(..., description="The page of messages")
-    has_more: bool = Field(..., description="Whether even older messages remain beyond this page")
+    messages: list[ChatMessageOut] = Field(..., description="Page of messages")
+    has_more: bool = Field(..., description="Whether older messages remain")
 
 
-# ============================================================================
-# Conversation Search Schemas
-# ============================================================================
+# Search
 
 
 class MatchedMessage(BaseModel):
-    """A single message whose content matched a search query."""
-
     id: str = Field(..., description="Unique message ID")
     role: Literal["user", "assistant", "system", "tool_call", "tool_result"] = Field(
-        ...,
-        description="The role of the message sender",
+        ..., description="Sender role"
     )
-    content: str = Field(..., description="The full message content")
-    snippet: str = Field(
-        ...,
-        description=(
-            "A short excerpt around the first match location — up to ~100 chars "
-            "before and after the matched substring, with ellipses when truncated."
-        ),
-    )
-    created_at: datetime = Field(..., description="When the message was created")
-
+    content: str = Field(..., description="Full message content")
+    snippet: str = Field(..., description="Excerpt around first match (~100 chars + ellipses)")
+    created_at: datetime = Field(..., description="When created")
     model_config = {"from_attributes": True}
 
 
 class ConversationSearchResult(BaseModel):
-    """A single conversation search hit.
-
-    Contains the conversation metadata plus any messages within that
-    conversation that matched the query. ``matched_messages`` is empty
-    when the match was on the title only.
-    """
-
-    conversation: ConversationOut = Field(..., description="The matched conversation")
+    conversation: ConversationOut = Field(..., description="Matched conversation")
     matched_messages: list[MatchedMessage] = Field(
-        default_factory=list,
-        description="Messages whose content matched the query (may be empty).",
+        default_factory=list, description="Messages whose content matched (may be empty)"
     )
 
 
 class ConversationSearchResponse(BaseModel):
-    """Paginated list of search results."""
-
     items: list[ConversationSearchResult] = Field(..., description="Search hits")
-    total: int = Field(..., description="Total number of matching conversations")
-    page: int = Field(default=1, description="Current page number")
+    total: int = Field(..., description="Total matching conversations")
+    page: int = Field(default=1, description="Current page")
     page_size: int = Field(default=20, description="Items per page")
-    query: str = Field(..., description="The original search query")
+    query: str = Field(..., description="Original query")
 
 
-# ============================================================================
-# Model Info Schemas
-# ============================================================================
+# Models
 
 
 class ModelInfo(BaseModel):
-    """Information about an available LLM model."""
-
     id: str = Field(..., description="Model identifier")
-    name: str = Field(..., description="Human-readable model name")
+    name: str = Field(..., description="Human-readable name")
     description: str | None = Field(None, description="Model description")
-    context_length: int | None = Field(
-        None,
-        description="Maximum context length in tokens",
-    )
-    provider: str = Field(default="ollama", description="Provider name (e.g., 'ollama')")
+    context_length: int | None = Field(None, description="Maximum context length tokens")
+    provider: str = Field(default="ollama", description="Provider name")
     supports_tools: bool | None = Field(
-        None, description="Whether the model supports tool calling (None = unknown)"
+        None, description="Whether supports tool calling (None=unknown)"
     )
     supports_vision: bool | None = Field(
-        None, description="Whether the model accepts image input (None = unknown)"
+        None, description="Whether accepts image input (None=unknown)"
     )
     supports_thinking: bool | None = Field(
-        None, description="Whether the model emits thinking tokens (None = unknown)"
+        None, description="Whether emits thinking tokens (None=unknown)"
+    )
+    thinking_levels: list[ThinkingLevel] | None = Field(
+        None, description="Normalized thinking controls; null=unknown"
+    )
+    default_thinking_level: ThinkingLevel | None = Field(
+        None, description="Provider default thinking level"
     )
 
 
 class ModelList(BaseModel):
-    """List of available models."""
-
     models: list[ModelInfo] = Field(..., description="Available models")
     default_model: str = Field(
-        default_factory=lambda: get_settings().default_model,
-        description="The server's default model, used when a conversation doesn't specify one",
+        default_factory=lambda: get_settings().default_model, description="Server default model"
     )
 
 
-# ============================================================================
-# Message Metadata Schema
-# ============================================================================
+# Message metadata
 
 
 class MessageMetadata(BaseModel):
-    """Structured schema for the JSONB `Message.meta` column.
+    """Structured schema for JSONB Message.meta."""
 
-    Validates token counts, timing information, and optional content
-    stored alongside each assistant message.
-    """
-
-    tokens_generated: int | None = Field(None, ge=0, description="Tokens in the response")
-    tokens_prompt: int | None = Field(None, ge=0, description="Tokens in the prompt")
-    total_duration_ns: int | None = Field(None, ge=0, description="Total duration in nanoseconds")
-    thinking: str | None = Field(None, description="Thinking/reasoning content from the model")
-    error: bool | None = Field(None, description="Whether this message is an error")
-    error_type: str | None = Field(None, description="Type of error if applicable")
-    status_code: int | None = Field(None, description="HTTP status code for error responses")
-    cancelled: bool | None = Field(None, description="Whether the stream was cancelled")
+    tokens_generated: int | None = Field(None, ge=0, description="Tokens in response")
+    tokens_prompt: int | None = Field(None, ge=0, description="Tokens in prompt")
+    total_duration_ns: int | None = Field(None, ge=0, description="Total duration ns")
+    thinking: str | None = Field(None, description="Thinking content")
+    error: bool | None = Field(None, description="Whether error")
+    error_type: str | None = Field(None, description="Error type")
+    status_code: int | None = Field(None, description="HTTP status for errors")
+    cancelled: bool | None = Field(None, description="Whether stream cancelled")
     attachments: list[dict[str, Any]] | None = Field(None, description="File attachment metadata")

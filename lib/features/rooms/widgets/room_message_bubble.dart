@@ -63,10 +63,24 @@ class _RoomMessageBubbleState extends State<RoomMessageBubble> {
 
   String? _thinkingContent() {
     final meta = widget.message.meta;
-    if (meta == null) return null;
-    final thinking = meta['thinking'];
-    if (thinking is String && thinking.isNotEmpty) return thinking;
+    if (meta != null) {
+      final thinking = meta['thinking'];
+      if (thinking is String && thinking.isNotEmpty) return thinking;
+    }
+    if (widget.message.content.contains('</think>')) {
+      final parts = widget.message.content.split('</think>');
+      final thinkPart = parts[0].replaceAll('<think>', '').trim();
+      if (thinkPart.isNotEmpty) return thinkPart;
+    }
     return null;
+  }
+
+  String _effectiveAgentContent(String raw) {
+    if (raw.contains('</think>')) {
+      final parts = raw.split('</think>');
+      return parts.length > 1 ? parts.sublist(1).join('</think>').trim() : '';
+    }
+    return raw;
   }
 
   bool _hasMetadata() {
@@ -160,6 +174,7 @@ class _RoomMessageBubbleState extends State<RoomMessageBubble> {
     final thinking = _thinkingContent();
     final hasMeta = _hasMetadata();
     final message = widget.message;
+    final effectiveContent = _effectiveAgentContent(message.content);
 
     return Padding(
       padding: const EdgeInsets.only(top: 12, bottom: 4),
@@ -187,16 +202,16 @@ class _RoomMessageBubbleState extends State<RoomMessageBubble> {
               thinkingContent: thinking,
               colorScheme: colorScheme,
               textTheme: theme.textTheme,
-              isLive: widget.isStreaming && message.content.isEmpty,
+              isLive: widget.isStreaming && effectiveContent.isEmpty,
             ),
-          if (message.content.isEmpty && widget.isStreaming)
+          if (effectiveContent.isEmpty && widget.isStreaming)
             Padding(
               padding: const EdgeInsets.only(top: 4, left: 2),
               child: _TypingDots(color: colorScheme.onSurfaceVariant),
             )
-          else if (message.content.isNotEmpty) ...[
+          else if (effectiveContent.isNotEmpty) ...[
             MessageContent(
-              content: message.content,
+              content: effectiveContent,
               isUser: false,
               colorScheme: colorScheme,
               textTheme: theme.textTheme,
@@ -208,10 +223,10 @@ class _RoomMessageBubbleState extends State<RoomMessageBubble> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    CopyButton(content: message.content),
+                    CopyButton(content: effectiveContent),
                     const SizedBox(width: 8),
                     SpeakButton(
-                      content: message.content,
+                      content: effectiveContent,
                       isStreaming: widget.isStreaming,
                     ),
                     if (hasMeta) ...[

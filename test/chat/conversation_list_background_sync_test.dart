@@ -18,6 +18,7 @@ class _TransientErrorChatService extends ChatService {
     int page = 1,
     int pageSize = 20,
     bool silent = false,
+    String kind = 'all',
   }) async {
     listCalls++;
     throw DioException(

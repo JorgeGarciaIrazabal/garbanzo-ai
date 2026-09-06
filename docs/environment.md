@@ -14,6 +14,22 @@ DEFAULT_MODEL=glm-5.3-flash:cloud        # multimodal chats and general internal
 MEMORY_EXTRACTION_MODEL=glm-5.3:cloud    # daily automatic memory extraction
 SCHEDULED_ACTION_MODEL=glm-5.3:cloud     # scheduled actions without an explicit model
 
+# Primary-chat topic context: realtime provisional + hourly deterministic manifest + optional 1-call/user curator (never per-topic). Threads use legacy.
+TOPIC_CONTEXT_ENABLED=true
+TOPIC_CONTEXT_TOKEN_BUDGET=12000
+TOPIC_CONSOLIDATION_INTERVAL_MINUTES=60
+TOPIC_CONSOLIDATION_CONCURRENCY=2  # max concurrent dirty-user jobs (still 1 curator call/user)
+TOPIC_REALTIME_BATCH_SIZE=100
+
+# Blank MODEL disables curation; local Ollama needs loopback URL in local_only; :cloud needs cloud_allowed (filtered manifest, untrusted JSON, retry once). Changing model/prompt re-queues topics.
+TOPIC_CURATOR_PROVIDER=ollama
+TOPIC_CURATOR_MODEL=
+TOPIC_CURATOR_THINKING=medium
+TOPIC_REALTIME_MODEL=
+TOPIC_CONTEXT_PRIVACY_MODE=local_only
+# Cloud opt-in: TOPIC_CURATOR_MODEL=glm-5.3-flash:cloud + TOPIC_CONTEXT_PRIVACY_MODE=cloud_allowed
+TOPIC_BOOTSTRAP_TIMEOUT_SECONDS=12
+
 # STT: "local" (in-process faster-whisper) or "remote" (Docker container)
 STT_MODE=local
 STT_MODEL=Systran/faster-whisper-small  # multilingual, CPU-friendly default

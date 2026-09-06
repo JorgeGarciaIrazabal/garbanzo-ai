@@ -25,12 +25,14 @@ from app.api.v1.endpoints import (
     version,
     workflows,
 )
+from app.topics import api as topics
 
 api_router = APIRouter()
 
 api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
 api_router.include_router(admin.router, prefix="/admin", tags=["admin"])
 api_router.include_router(chat.router, prefix="/chat", tags=["chat"])
+api_router.include_router(topics.router, prefix="/chat", tags=["topics", "context"])
 api_router.include_router(devices.router, prefix="/devices", tags=["devices"])
 api_router.include_router(friends.router, prefix="/friends", tags=["friends"])
 api_router.include_router(shares.router, prefix="/shares", tags=["shares"])

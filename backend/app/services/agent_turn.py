@@ -263,6 +263,12 @@ async def run_agent_turn(
 
             if full_response:
                 msg_meta = dict(metadata) if metadata else {}
+                if "</think>" in full_response:
+                    think_part, answer_part = full_response.split("</think>", 1)
+                    clean_think = think_part.replace("<think>", "").strip()
+                    if clean_think and opts.think != "off":
+                        pending_thinking.append(clean_think)
+                    full_response = answer_part.strip()
                 combined_thinking = "\n\n".join(pending_thinking)
                 if combined_thinking:
                     msg_meta["thinking"] = combined_thinking
