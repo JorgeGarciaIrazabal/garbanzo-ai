@@ -4,7 +4,7 @@
 
 Original backlog and notes: [.ai/backlog-source.md](.ai/backlog-source.md).
 
-- [ ] **garbanzo-ghti** P1 [open] Implement Codex-first development controller
+- [x] **garbanzo-ghti** P1 [closed] Implement Codex-first development controller
 - [x] **garbanzo-02e** P2 [closed] **Tool results display in chat** — Collapsible "Tool Used" block showing name, input, output
 - [x] **garbanzo-048** P2 [closed] **Dark / light / system theme** — Theme toggle in settings, persisted in SharedPreferences
 - [x] **garbanzo-07x** P2 [closed] **Hourly consolidation**

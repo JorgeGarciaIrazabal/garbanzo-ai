@@ -1,4 +1,4 @@
-{"id": "garbanzo-ghti", "title": "Implement Codex-first development controller", "status": "open", "priority": 1, "updated_at": "2026-09-06T11:40:58Z"}
+{"id": "garbanzo-ghti", "title": "Implement Codex-first development controller", "status": "closed", "priority": 1, "updated_at": "2026-09-06T19:03:08Z"}
 {"id": "garbanzo-02e", "title": "**Tool results display in chat** — Collapsible \"Tool Used\" block showing name, input, output", "status": "closed", "priority": 2, "external_ref": "backlog:632d9af373bd54eb6e64b33d", "updated_at": "2026-09-05T19:38:02Z"}
 {"id": "garbanzo-048", "title": "**Dark / light / system theme** — Theme toggle in settings, persisted in SharedPreferences", "status": "closed", "priority": 2, "external_ref": "backlog:3dd92a3a79d468abd9998572", "updated_at": "2026-09-05T19:38:20Z"}
 {"id": "garbanzo-07x", "title": "**Hourly consolidation**", "status": "closed", "priority": 2, "external_ref": "backlog:32918b9336d223b2fcf80946", "updated_at": "2026-09-05T19:38:54Z"}
