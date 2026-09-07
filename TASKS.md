@@ -47,7 +47,7 @@ Original backlog and notes: [.ai/backlog-source.md](.ai/backlog-source.md).
 - [x] **garbanzo-4f2** P2 [closed] **Context window indicator** — Visual token count showing how full the context window is
 - [x] **garbanzo-4f3v** P2 [closed] pip-audit finding c19da484abde5e81ff828cda
 - [x] **garbanzo-4fr** P2 [closed] **Room notifications** — Notify members when they are @mentioned or when a new message arrives
-- [ ] **garbanzo-4jbh** P2 [open] Reuse verification results and target review follow-ups
+- [x] **garbanzo-4jbh** P2 [closed] Reuse verification results and target review follow-ups
 - [x] **garbanzo-4jd4** P2 [closed] pip-audit finding fc60da00973514c9e418dc6f
 - [x] **garbanzo-4nz** P2 [closed] **Token usage dashboard** — Charts showing token consumption by model, conversation, and time period
 - [x] **garbanzo-4qf** P2 [closed] **Skills library UI** — Browse available skills/tools from connected MCP servers
@@ -151,7 +151,7 @@ Original backlog and notes: [.ai/backlog-source.md](.ai/backlog-source.md).
 - [x] **garbanzo-fxuv** P2 [closed] pip-audit finding 77c8c3cd14b8e99eaddbc8ca
 - [ ] **garbanzo-g9lg** P2 [open] Production report cbda6393-153d-49ec-be20-3e96b4dd05b0
 - [x] **garbanzo-ghe** P2 [closed] **Auto-extract memories** — cron job after every day; LLM call to extract facts about the user worth remembering
-- [ ] **garbanzo-gt09** P2 [open] Allow explicit model selection for guided sessions
+- [x] **garbanzo-gt09** P2 [closed] Allow explicit model selection for guided sessions
 - [ ] **garbanzo-gyl** P2 [open] **Threads** (in progress)
 - [ ] **garbanzo-h2j** P2 [open] Production report 492c5924-d402-41bd-9102-48c3ae2dbe41
 - [ ] **garbanzo-h30** P2 [open] **Redis integration** — Cache model lists, rate-limit counters, and active stream state
