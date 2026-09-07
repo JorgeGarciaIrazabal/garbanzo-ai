@@ -43,7 +43,8 @@ just test            # all unit tests (individually: be-test / fe-test)
 just docker-up       # Postgres + Whisper (docker-up-db: Postgres only)
 just deploy          # ship local main → web + backend image + prod stack + APK
 just ai-setup --install --migrate # install/check the Codex development tools
-just ai              # guided development with startup triage and capacity evidence
+just ai              # guided development with local startup
+just ai-startup --full # explicitly collect production and provider context
 just ai-doctor       # validate models, tools, skills, indexes, and adapters
 ```
 
@@ -70,23 +71,25 @@ their `CLAUDE.md` names are compatibility links.
 
 ## Codex development
 
-- Start with `just ai` (guided conversation) or `just ai-startup` in an existing session.
+- Start with `just ai` or local `just ai-startup`; use `--full` for explicit collection.
 - Use Beads through `just ai-task`; `TASKS.md` is generated. Keep requirements,
   dependencies, acceptance and testing feedback associated with task IDs.
 - Astra handles architecture/design; Sol complex code/review; Terra routine
   work; Luna narrow exploration. Discover account access with `just ai-models`;
   never silently downgrade architecture. Pin each assignment's resolved model.
-- At most three isolated workers plus the coordinator. Only the coordinator
+- Use one agent by default; delegate substantial independent work with compact briefs.
+  At most three isolated workers plus the coordinator. Only the coordinator
   integrates and commits verified changes directly on `main`. No dev branches/PRs.
 - Preserve unrelated edits. Record independent review for substantive changes;
   run `just check` before committing and `just test` before pushing/deploying.
 - Distinguish automatically verified, ready for user testing, and accepted.
   Link feedback to the exact stable `just ai-preview` snapshot.
-- Collect production evidence at session startup, on request, and overnight;
+- Collect production evidence on explicit full startup, on request, and overnight;
   failures are collection failures, never “no issues.” No continuous daytime monitor.
 - Deploy/restart/rollback/data changes only on user request. Report status sync
   follows the authorized task lifecycle; close only after fix deployment and
   report-specific verification. Keep raw evidence private in `.ai/local/`.
+  Consolidate review findings; follow up on fixes only. Recheck when inputs change.
 - Answer investigation/review questions directly; do not infer implementation.
 
 Daily workflow and prioritization: [`docs/ai-workflow-guide.md`](docs/ai-workflow-guide.md).

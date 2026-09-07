@@ -54,14 +54,18 @@ disabled until its version-specific library documentation is needed.
 
 ## Conversation and delivery
 
-`just ai [request]` collects startup evidence and opens native Codex. Inside an
-existing session use `just ai-startup` to avoid opening a second UI. Investigation
+`just ai [request]` opens native Codex with fast local startup. Inside an existing
+session use `just ai-startup` to avoid opening a second UI. Use
+`just ai --full <request>` or `just ai-startup --full` when the task needs current production
+reports and capacity evidence. Scheduled overnight collection remains unchanged,
+and production collection remains available on request. Investigation
 and review questions receive answers directly; implementation needs user intent.
-Production collection runs at startup, on request, and overnight only.
 
-The requested model policy is Astra for architecture/design; Sol for complex
-implementation and independent review; Terra for routine implementation; Luna
-for narrow exploration. `just ai-models` discovers account access through Codex
+Keep work in one session by default. Use Terra for routine implementation, Luna
+for narrow exploration, Sol for substantive review, and Astra for substantial
+design or architecture/security review. Delegate only substantial independent
+tasks, using compact self-contained briefs rather than full conversation history.
+`just ai-models` discovers account access through Codex
 App Server, and metadata is refreshed weekly at use. Resolved models are stored
 with assignments. Unavailable architectural models cause an explicit failure,
 never a silent downgrade. Discovery does not constitute qualification.
@@ -96,44 +100,19 @@ just ai-preview <name> --revision <commit>
 just ai-preview <name> --feedback 'Testing observation for this exact snapshot'
 ```
 
-Workers receive branchless `git archive` copies with source revision, requirement
-hash, owned paths, dependencies and acceptance criteria. Their outputs are patch
-artifacts, evidence and concise handoffs. At most three workers run, reduced by
-machine load. Only the coordinator integrates on `main` using a writer lock
+When isolation or parallelism materially helps, workers receive branchless
+`git archive` copies with source revision, requirement hash, owned paths, dependencies
+and acceptance criteria. Briefs are compact and self-contained. Their outputs are
+patch artifacts, evidence and concise handoffs. At most three independent workers
+run, reduced by machine load. Only the coordinator integrates on `main` using a writer lock
 shared with deployment. Unexpected edits, changed base blobs, local edits in
 owned files, stale requirements, missing dependencies and stale verification or
 review evidence reject integration. Unrelated local edits remain intact.
-Recollecting a patch invalidates prior verification/review. Review records must
-come from an independent session; automated checks alone do not establish review.
+Recollecting a patch invalidates prior verification and review evidence.
 
-Use `just ai-run direct` for a small controller or development-tooling change
-whose declared files are under `scripts/ai_dev/` or are the AI workflow guides.
-Changes to the direct path's own
-trust boundary (`execution.py`, `common.py`, `coordination.py`, `models.py`, and
-`beads.py`, plus the parent and controller package entry points) still require an
-isolated handoff and external review. The same rule covers the justfile, check
-configuration, Codex configuration, root agent guide, and repository skills
-because they define the checks or instruct the reviewer. Dependency lock files
-and runtime version files are also trust inputs. The direct command refuses to
-run if any trust file is dirty, even when it is omitted from `--owned`, and every
-other modified `scripts/ai_dev/` file must be declared for review. The command accepts only exact
-`ai-test`, `ai-lint`, and `check` recipe invocations, requires `just check`, hashes
-the declared diff, and asks a separate qualified Sol session to review that exact
-patch before any modified controller tests execute. Evidence under
-`.ai/local/direct/<task-id>/` records the Beads requirement
-revision, verification results, review, owned files, and the unrelated paths that
-were present. Direct runs are serialized, and their checks share the heavy Flutter
-lock with worker verification. If a check changes a declared file, the command
-stops and requires a new run so stale results cannot approve the revised patch.
-Execution commands load only the immutable execution dependency chain before
-dispatch, so unrelated dirty controller modules cannot alter verification at
-import time. Review succeeds only when the reviewer both approves and reports no
-findings. The checks then run against the reviewed patch and must leave its
-declared and unrelated worktree state unchanged.
-The review phase is static-only: it may inspect text and diffs but cannot run
-tests, checks, interpreters, project commands, binaries, imports, or patch code.
-The command also hashes all unrelated tracked and visible untracked changes and
-stops if a repository-wide check mutates anything outside the declared scope.
+`just ai-run direct` remains available when a small controller or workflow change
+benefits from recorded evidence for declared files. It is optional; trusted local
+development does not require a separate self-certification run.
 
 Worker directories isolate environments and build outputs; download caches may
 be shared. The heavy Flutter lock serializes verification that invokes Flutter.
@@ -146,9 +125,9 @@ establish acceptance.
 Worker verification preflights recipe dependencies before it starts any command.
 Backend recipes require `backend/.venv/bin/python`; frontend recipes require
 `.dart_tool/package_config.json`; combined recipes require both. Install the
-needed dependencies inside the worker snapshot before verification. For small
-controller changes, use the direct path so `ai-lint` and `check` run against the
-coordinator repository's installed environment.
+needed dependencies inside the worker snapshot before verification. When
+isolation is unnecessary, run controller checks in the main working copy so they
+use its installed environment.
 Focused worker-test arguments accept only path and test-selector characters;
 shell operators are rejected before `just` expands recipe arguments.
 
@@ -203,9 +182,14 @@ version-only assertions are rejected.
 
 ## Quality gates and releases
 
-Use focused tests while implementing. Controller gates are `just ai-test` and
-`just ai-lint`; run `just check` before committing and full `just test` against
-the integrated batch before pushing or deploying. `just ai-migration-smoke`
+Match effort to risk. Trivial documentation and similarly low-risk edits require
+no model review. Routine changes get relevant focused just tests or lint while
+implementing. Substantive changes receive one consolidated independent Sol review
+after the implementation is coherent; resolve its findings, then request targeted
+follow-up only for material fixes. Run `just check` once at the commit boundary
+and repeat it only when a later edit changes an input it checks. Run full `just
+test` against the integrated batch before pushing or deploying. Controller checks
+are `just ai-test` and `just ai-lint`. `just ai-migration-smoke`
 creates a disposable Docker pgvector PostgreSQL project with a random port and
 tmpfs data, applies every SQL migration, and repeats startup to verify the ledger
 is unchanged. It always tears down only that disposable project. SQLite unit
@@ -213,8 +197,8 @@ tests continue to cover ordinary backend behavior.
 
 For runtime UI investigation use the existing Dart MCP/Marionette skill and
 Playwright where suitable; runtime acceptance is separate from unit tests.
-Substantive behavior changes need independent Sol review; architecture/security
-can require Astra review.
+Architecture and security changes count as substantive and may require Astra
+review.
 
 `just ai-audit` scans the current tracked and untracked source set with the
 pinned gitleaks binary, records Python advisories and Dart dependency freshness,

@@ -23,10 +23,11 @@ requests into controller commands. Useful examples are:
 - "Triage new production reports, but do not deploy anything."
 - "Deploy the accepted changes."
 
-Codex records implementation requirements and acceptance criteria in Beads,
-selects the qualified model for the work, coordinates independent workers when
-useful, runs the required checks, and commits verified changes directly to
-`main`. A deployment happens only when you explicitly request it.
+Codex records implementation requirements and acceptance criteria in Beads and
+keeps one agent on the work by default. It uses Terra for routine implementation,
+Luna for narrow exploration, and Sol for substantive review. It delegates only
+substantial independent tasks, using compact briefs rather than full conversation
+history. A deployment happens only when you explicitly request it.
 
 ## Capture and prioritize work
 
@@ -91,12 +92,12 @@ problem, while one report can identify a data-integrity failure.
 
 ## Choose a delivery path
 
-For most work, tell Codex which task or outcome you want. Codex maintains the
-conversation while you test and incorporates corrections without restarting
-unrelated work.
+For most work, tell Codex which task or outcome you want. The current agent works
+in the main copy, runs checks appropriate to the change, and preserves unrelated
+edits while you test and give feedback.
 
-Small changes to `scripts/ai_dev/`, its tests, or its workflow documentation use
-the direct path after the task is recorded in Beads:
+`just ai-run direct` is an optional way to record a bounded controller or workflow
+change with declared files and commands:
 
 ```bash
 just ai-run direct garbanzo-abcd \
@@ -107,46 +108,28 @@ just ai-run direct garbanzo-abcd \
   --command 'just check'
 ```
 
-This obtains an independent review of the exact declared diff before running its
-checks in the current repository. It also records unrelated working-tree paths without
-including them in the review. Direct runs are serialized and use the same heavy
-Flutter lock as worker checks. Use an isolated worker for larger changes where a
-fixed source snapshot and strict file handoff provide useful isolation. The
-controller rejects application and deployment files from this path and accepts
-only exact `ai-test`, `ai-lint`, and `check` invocations. It snapshots unrelated
-working-tree changes and stops if any check modifies them. Changes to the
-verification command or its task, model, locking, and evidence dependencies use
-the isolated path because the direct path cannot independently certify its own
-trust boundary. Repository agent instructions, skills, Codex configuration,
-recipe definitions, and check configuration are part of that boundary. The
-command also refuses to run when any trust-boundary file has an undeclared
-working-tree change. Dependency locks and runtime version files are trust inputs,
-and every modified `scripts/ai_dev/` path must be included in `--owned` so the
-review sees every controller input that can affect `ai-test` or `ai-lint`.
-Execution-command startup imports only its immutable dependency chain, and a
-review is accepted only when it approves the patch with no findings. Checks then
-run against that reviewed patch and must preserve all declared and unrelated
-worktree content.
-The review phase is static-only and cannot execute tests, project commands,
-interpreters, imports, binaries, or patch-controlled code.
+This command is useful when its recorded evidence and strict file accounting add
+value. It is optional; trusted local work does not require a separate
+self-certification run.
 
-Use a parallel batch when tasks are independent and their owned files do not
-overlap:
+Use an isolated worker or parallel batch only for substantial tasks that can
+proceed independently and whose owned files do not overlap:
 
 ```bash
 just ai-batch garbanzo-abcd garbanzo-efgh
 ```
 
 The coordinator permits up to three workers, subject to machine and provider
-capacity. Workers operate on fixed source snapshots and return patches; only the
-coordinator integrates and commits on `main`. Stale patches, changed
+capacity. Each worker receives a compact self-contained brief instead of full
+conversation history, operates on a fixed source snapshot, and returns a patch.
+Only the coordinator integrates and commits on `main`. Stale patches, changed
 requirements, and unexpected files are rejected before integration.
 
 Before worker verification begins, the controller checks that the snapshot has
 the dependencies required by every requested recipe. A missing backend virtual
 environment or Flutter package configuration produces one actionable preflight
 error before any checks run. Install those dependencies in the worker snapshot
-or use the direct path when the change qualifies. Focused test selectors may use
+or verify in the main copy when isolation is unnecessary. Focused test selectors may use
 path and test-selector characters; shell operators are rejected before a recipe
 runs.
 
@@ -192,14 +175,19 @@ accepted only after you have tested the relevant behavior.
 
 ## Triage production evidence
 
-At session startup, Codex takes one bounded, read-only production sample. You
-can request intake at any time:
+Normal `just ai` and `just ai-startup` use fast local startup. Add `--full` when
+the task needs current production reports and capacity evidence:
 
 ```bash
+just ai --full "Investigate the latest production reports"
+just ai-startup --full
 just ai-triage
 just ai-reports list
 just ai-incident
 ```
+
+Scheduled overnight collection remains unchanged. You can request intake at any
+time.
 
 `ai-triage` imports reports, CI failures, dependency findings, and secret-scan
 findings into the same Beads graph. Raw prompts, emails, traces, response bodies,
@@ -214,18 +202,21 @@ reported behavior has been verified; a healthy `/health` response is not enough.
 
 ## Understand the verification states
 
-During implementation, Codex runs focused checks. Before committing it runs
-`just check`. Substantive behavior changes receive an independent review. The
-integrated batch runs the full test gate, real Docker PostgreSQL migration smoke
-tests where relevant, dependency audits, and secret scanning. A push to `main`
-starts CI and does not deploy automatically.
+Verification follows the risk of the change. Trivial documentation and similarly
+low-risk edits need no model review. Routine work gets relevant focused tests or
+lint. Substantive work receives one consolidated Sol review after the change is
+coherent, followed only by targeted review of material fixes. Run `just check` at
+the commit boundary and repeat it only if a later edit changes an input it checks.
+The integrated batch runs full `just test` before push or deployment, with real
+Docker PostgreSQL migration smoke tests where relevant. A push to `main` starts
+CI and does not deploy automatically.
 
 The usual progression is:
 
 1. **Received** — the task has a description and acceptance criteria.
 2. **Ready** — dependencies are complete and the scope is clear.
 3. **In progress** — a pinned model and source revision own the implementation.
-4. **Automatically verified** — focused checks, review, and integration gates pass.
+4. **Automatically verified** — the checks and any review required for this change pass.
 5. **Ready for your testing** — a fixed preview revision is available.
 6. **Accepted** — you tested that revision and approved the behavior.
 7. **Deployed** — only after you request `just deploy` or ask Codex to deploy.

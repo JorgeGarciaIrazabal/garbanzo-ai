@@ -493,9 +493,10 @@ ai-serena:
 ai-serena-runtime revision:
     uv run --with "git+https://github.com/oraios/serena@{{revision}}" python scripts/ai_dev/serena_runtime.py start-mcp-server --project . --context codex --enable-web-dashboard false
 
-# Read-only production readiness collection for development-session startup
-ai-startup:
-    @python3 -m scripts.ai_dev guided --inspect --json
+# Local session startup; --full explicitly collects production and provider context
+[positional-arguments]
+ai-startup *args:
+    @python3 -m scripts.ai_dev guided --inspect --json "$@"
 
 ai-qmd-mcp:
     @PATH="{{justfile_directory()}}/.ai/tools/node_modules/.bin:$PATH" QMD_FORCE_CPU=1 qmd mcp

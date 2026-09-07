@@ -26,6 +26,42 @@ class SetupTests(unittest.TestCase):
         self.assertFalse(graph["ok"])
         self.assertFalse(result["ok"])
 
+    def test_guided_inspect_is_local_by_default(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            args = SimpleNamespace(root=root, full=False, inspect=True, prompt=[])
+            with (
+                patch.object(setup.reports, "sync") as sync,
+                patch.object(setup.capacity, "handle") as capacity,
+            ):
+                result = setup.guided(args)
+
+        self.assertEqual(result, {"status": "local"})
+        sync.assert_not_called()
+        capacity.assert_not_called()
+
+    def test_guided_full_inspect_collects_and_preserves_failures(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            args = SimpleNamespace(root=root, full=True, inspect=True, prompt=[])
+            with (
+                patch.object(setup.reports, "sync", side_effect=OSError("reports offline")),
+                patch.object(
+                    setup.capacity,
+                    "handle",
+                    side_effect=RuntimeError("capacity unavailable"),
+                ),
+            ):
+                result = setup.guided(args)
+
+        self.assertEqual(
+            result,
+            {
+                "collection_failure": "reports offline",
+                "capacity_failure": "capacity unavailable",
+            },
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

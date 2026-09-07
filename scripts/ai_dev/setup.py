@@ -178,16 +178,18 @@ def doctor(args):
 
 
 def guided(args):
-    # Session startup takes one bounded production sample; failures stay visible.
-    findings = {}
-    try:
-        findings["reports"] = reports.sync(args.root)
-    except (RuntimeError, ValueError, OSError) as exc:
-        findings["collection_failure"] = str(exc)
-    try:
-        findings["capacity"] = capacity.handle(SimpleNamespace(unattended=False))
-    except (RuntimeError, ValueError, OSError) as exc:
-        findings["capacity_failure"] = str(exc)
+    # Existing sessions start locally. Full collection remains available on demand.
+    findings = {"status": "local"}
+    if args.full:
+        findings = {}
+        try:
+            findings["reports"] = reports.sync(args.root)
+        except (RuntimeError, ValueError, OSError) as exc:
+            findings["collection_failure"] = str(exc)
+        try:
+            findings["capacity"] = capacity.handle(SimpleNamespace(unattended=False))
+        except (RuntimeError, ValueError, OSError) as exc:
+            findings["capacity_failure"] = str(exc)
     write_json(local_dir(args.root) / "startup.json", findings)
     if args.inspect:
         return findings
@@ -230,6 +232,11 @@ def register(subparsers):
         "--inspect",
         action="store_true",
         help="Collect startup context without launching a second Codex UI",
+    )
+    parser.add_argument(
+        "--full",
+        action="store_true",
+        help="Collect production reports and capacity before starting or inspecting",
     )
     parser.add_argument("prompt", nargs="*")
     parser.set_defaults(func=guided)
