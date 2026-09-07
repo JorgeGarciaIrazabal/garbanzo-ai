@@ -9,25 +9,34 @@ from pathlib import Path
 
 from .common import WorkflowError, environment, foreground_command, lock
 
+CONTROLLER_MODULES = (
+    "beads",
+    "knowledge",
+    "setup",
+    "coordination",
+    "execution",
+    "reports",
+    "triage",
+    "models",
+    "capacity",
+    "nightly",
+    "releases",
+    "audits",
+)
+EXECUTION_COMMANDS = frozenset({"run", "batch", "status", "stop", "resume"})
+
+
+def _controller_modules(argv: list[str]) -> tuple[str, ...]:
+    command = next((value for value in argv if value != "--json"), None)
+    return ("execution",) if command in EXECUTION_COMMANDS else CONTROLLER_MODULES
+
 
 def main():
     parser = argparse.ArgumentParser(description="Codex-first Garbanzo development")
     parser.add_argument("--json", action="store_true")
     subparsers = parser.add_subparsers(dest="command", required=True)
-    for name in (
-        "beads",
-        "knowledge",
-        "setup",
-        "coordination",
-        "execution",
-        "reports",
-        "triage",
-        "models",
-        "capacity",
-        "nightly",
-        "releases",
-        "audits",
-    ):
+    raw = sys.argv[1:]
+    for name in _controller_modules(raw):
         try:
             module = importlib.import_module(f"scripts.ai_dev.{name}")
         except ModuleNotFoundError as exc:
@@ -37,7 +46,6 @@ def main():
         if hasattr(module, "register"):
             module.register(subparsers)
     # Accept --json at any nesting level without duplicating every parser flag.
-    raw = sys.argv[1:]
     structured = "--json" in raw
     args = parser.parse_args([value for value in raw if value != "--json"])
     args.json = structured

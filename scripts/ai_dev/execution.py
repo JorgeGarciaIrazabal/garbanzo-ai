@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import fcntl
+import hashlib
 import json
 import os
 import resource
@@ -11,11 +12,12 @@ import subprocess
 import time
 from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from . import beads
-from .common import WorkflowError, environment, local_dir, read_json
+from .common import WorkflowError, environment, local_dir, lock, read_json, write_json
 from .coordination import (
     CoordinationError,
     add_preview_feedback,
@@ -50,6 +52,51 @@ VERIFICATION_RECIPES = frozenset(
         "test",
     }
 )
+VERIFICATION_RECIPES_WITH_ARGUMENTS = frozenset({"ai-test", "be-test", "fe-test"})
+DIRECT_VERIFICATION_RECIPES = frozenset({"ai-lint", "ai-test", "check"})
+DIRECT_PATH_PREFIXES = ("scripts/ai_dev/",)
+DIRECT_PATHS = frozenset({"docs/ai-development.md", "docs/ai-workflow-guide.md"})
+DIRECT_TRUST_PREFIXES = (".agents/skills/",)
+DIRECT_TRUST_PATHS = frozenset(
+    {
+        ".codex/config.toml",
+        "AGENTS.md",
+        "analysis_options.yaml",
+        "backend/.python-version",
+        "backend/.pylint-allowlist",
+        "backend/.pylintrc",
+        "backend/pyproject.toml",
+        "backend/uv.lock",
+        "build.yaml",
+        "justfile",
+        "l10n.yaml",
+        "pubspec.lock",
+        "pubspec.yaml",
+        "scripts/__init__.py",
+        "scripts/ai_dev/__init__.py",
+        "scripts/ai_dev/__main__.py",
+        "scripts/ai_dev/app_server.py",
+        "scripts/ai_dev/beads.py",
+        "scripts/ai_dev/common.py",
+        "scripts/ai_dev/coordination.py",
+        "scripts/ai_dev/execution.py",
+        "scripts/ai_dev/models.py",
+    }
+)
+WORKER_RECIPE_REQUIREMENTS = {
+    "ai-lint": ("backend/.venv/bin/python",),
+    "be-lint": ("backend/.venv/bin/python",),
+    "be-lint-imports": ("backend/.venv/bin/python",),
+    "be-test": ("backend/.venv/bin/python",),
+    "check": ("backend/.venv/bin/python", ".dart_tool/package_config.json"),
+    "fe-lint": (".dart_tool/package_config.json",),
+    "fe-test": (".dart_tool/package_config.json",),
+    "test": ("backend/.venv/bin/python", ".dart_tool/package_config.json"),
+}
+SAFE_IDENTIFIER_CHARS = frozenset(
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_"
+)
+SAFE_VERIFICATION_ARGUMENT_CHARS = SAFE_IDENTIFIER_CHARS | frozenset("./:=+[],")
 
 
 def _spawn_worker(command: list[str], *, workspace: Path, root: Path, event_stream):
@@ -73,6 +120,68 @@ def _run_verification(argv: list[str], *, workspace: Path, root: Path):
         capture_output=True,
         timeout=1800,
         check=False,
+    )
+
+
+def _verification_argv(text: str) -> list[str]:
+    try:
+        argv = shlex.split(text)
+    except ValueError as exc:
+        raise WorkflowError(f"invalid verification command: {exc}") from exc
+    if len(argv) < 2 or argv[0] != "just" or argv[1] not in VERIFICATION_RECIPES:
+        allowed = ", ".join(sorted(VERIFICATION_RECIPES))
+        raise WorkflowError(f"verification must directly invoke an allowed just recipe: {allowed}")
+    if len(argv) > 2 and argv[1] not in VERIFICATION_RECIPES_WITH_ARGUMENTS:
+        raise WorkflowError(f"verification recipe {argv[1]} does not accept arguments")
+    unsafe_arguments = [
+        argument
+        for argument in argv[2:]
+        if not argument or any(char not in SAFE_VERIFICATION_ARGUMENT_CHARS for char in argument)
+    ]
+    if unsafe_arguments:
+        raise WorkflowError(
+            "verification arguments may contain only letters, numbers, and safe path/test-selector "
+            "characters"
+        )
+    return argv
+
+
+def _safe_task_id(value: str) -> str:
+    if not value or any(char not in SAFE_IDENTIFIER_CHARS for char in value):
+        raise WorkflowError(f"invalid task identifier: {value!r}")
+    return value
+
+
+def _direct_verification_argv(text: str) -> list[str]:
+    argv = _verification_argv(text)
+    if argv[1] not in DIRECT_VERIFICATION_RECIPES or len(argv) != 2:
+        allowed = ", ".join(sorted(DIRECT_VERIFICATION_RECIPES))
+        raise WorkflowError(
+            f"direct verification requires an exact controller recipe invocation: {allowed}"
+        )
+    return argv
+
+
+def _preflight_worker_verification(workspace: Path, commands: Sequence[list[str]]) -> None:
+    missing_by_recipe = {
+        argv[1]: [
+            path
+            for path in WORKER_RECIPE_REQUIREMENTS.get(argv[1], ())
+            if not (workspace / path).exists()
+        ]
+        for argv in commands
+    }
+    missing_by_recipe = {recipe: paths for recipe, paths in missing_by_recipe.items() if paths}
+    if not missing_by_recipe:
+        return
+    details = "; ".join(
+        f"{recipe} requires {', '.join(paths)}"
+        for recipe, paths in sorted(missing_by_recipe.items())
+    )
+    raise WorkflowError(
+        "worker verification environment is incomplete: "
+        f"{details}. Install the required dependencies in the worker snapshot or use "
+        "`just ai-run direct` to verify a small controller change in the coordinator repository"
     )
 
 
@@ -312,7 +421,11 @@ def execute_batch(root: Path, task_ids: Sequence[str], *, timeout: int) -> dict[
 def verify(root: Path, task_id: str, commands: Sequence[str]) -> dict[str, Any]:
     if not commands:
         raise WorkflowError("at least one verification command is required")
+    task_id = _safe_task_id(task_id)
+    parsed_commands = [_verification_argv(text) for text in commands]
+    assignment_state(root, task_id)
     workspace = local_dir(root) / "workers" / task_id
+    _preflight_worker_verification(workspace, parsed_commands)
     evidence = []
     heavy = True
     lock_path = local_dir(root) / "heavy-flutter.lock"
@@ -320,13 +433,7 @@ def verify(root: Path, task_id: str, commands: Sequence[str]) -> dict[str, Any]:
     try:
         if lock_handle:
             fcntl.flock(lock_handle, fcntl.LOCK_EX)
-        for text in commands:
-            argv = shlex.split(text)
-            if len(argv) < 2 or argv[0] != "just" or argv[1] not in VERIFICATION_RECIPES:
-                allowed = ", ".join(sorted(VERIFICATION_RECIPES))
-                raise WorkflowError(
-                    f"verification must directly invoke an allowed just recipe: {allowed}"
-                )
+        for argv in parsed_commands:
             result = _run_verification(argv, workspace=workspace, root=root)
             summary = (result.stdout + result.stderr)[-4000:]
             evidence.append({"command": argv, "passed": result.returncode == 0, "summary": summary})
@@ -349,6 +456,376 @@ def verify(root: Path, task_id: str, commands: Sequence[str]) -> dict[str, Any]:
         "taskId": task_id,
         "passed": bool(evidence) and all(item["passed"] for item in evidence),
         "evidence": evidence,
+    }
+
+
+def _git_output(root: Path, argv: list[str]) -> str:
+    result = subprocess.run(
+        argv,
+        cwd=root,
+        env=environment(root),
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode:
+        detail = result.stderr.strip() or result.stdout.strip()
+        raise WorkflowError(f"{' '.join(argv)} failed: {detail}")
+    return result.stdout
+
+
+def _direct_patch(root: Path, owned_files: Sequence[str]) -> tuple[str, list[str]]:
+    if not owned_files:
+        raise WorkflowError("direct verification requires at least one owned file")
+    owned: list[str] = []
+    for value in owned_files:
+        path = Path(value)
+        if path.is_absolute() or not path.parts or ".." in path.parts:
+            raise WorkflowError(f"unsafe owned path: {value!r}")
+        normalized = path.as_posix()
+        if normalized in {".", ".git", ".ai"} or normalized.startswith((".git/", ".ai/")):
+            raise WorkflowError(f"unsafe owned path: {value!r}")
+        owned.append(normalized)
+    if len(set(owned)) != len(owned):
+        raise WorkflowError("owned paths contain duplicates")
+    owned = sorted(owned)
+
+    tracked = _git_output(root, ["git", "diff", "--binary", "--no-ext-diff", "HEAD", "--", *owned])
+    untracked = _git_output(
+        root, ["git", "ls-files", "--others", "--exclude-standard", "--", *owned]
+    ).splitlines()
+    additions: list[str] = []
+    for relative in untracked:
+        result = subprocess.run(
+            ["git", "diff", "--binary", "--no-index", "--", "/dev/null", relative],
+            cwd=root,
+            env=environment(root),
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        if result.returncode not in {0, 1}:
+            detail = result.stderr.strip() or result.stdout.strip()
+            raise WorkflowError(f"could not capture untracked owned file {relative}: {detail}")
+        additions.append(result.stdout)
+    patch = tracked + "".join(additions)
+    if not patch.strip():
+        raise WorkflowError("declared files contain no changes from HEAD")
+    return patch, owned
+
+
+def _is_direct_trust_path(path: str) -> bool:
+    return (
+        path in DIRECT_TRUST_PATHS
+        or path.startswith(DIRECT_TRUST_PREFIXES)
+        or Path(path).name in {"AGENTS.md", "CLAUDE.md"}
+    )
+
+
+def _validate_direct_scope(root: Path, owned_files: Sequence[str]) -> None:
+    changed_paths = set(_changed_paths(root))
+    dirty_trust = sorted(path for path in changed_paths if _is_direct_trust_path(path))
+    if dirty_trust:
+        raise WorkflowError(
+            "direct verification cannot run while its trust boundary is modified; use an isolated "
+            f"assignment for: {', '.join(dirty_trust)}"
+        )
+    trust_changes = sorted(path for path in owned_files if _is_direct_trust_path(path))
+    if trust_changes:
+        raise WorkflowError(
+            "direct verification cannot review changes to its own trust boundary; use an isolated "
+            f"assignment for: {', '.join(trust_changes)}"
+        )
+    undeclared_controller = sorted(
+        path
+        for path in changed_paths
+        if path.startswith(DIRECT_PATH_PREFIXES) and path not in owned_files
+    )
+    if undeclared_controller:
+        raise WorkflowError(
+            "direct verification requires every modified controller input to be declared for "
+            f"review: {', '.join(undeclared_controller)}"
+        )
+    disallowed = [
+        path
+        for path in owned_files
+        if path not in DIRECT_PATHS
+        and not path.startswith(DIRECT_PATH_PREFIXES)
+        and path not in trust_changes
+    ]
+    if disallowed:
+        raise WorkflowError(
+            "direct verification is limited to controller and workflow files; use an isolated "
+            f"assignment for: {', '.join(disallowed)}"
+        )
+
+
+def _changed_paths(root: Path) -> list[str]:
+    output = _git_output(root, ["git", "status", "--porcelain=v1", "-z", "--untracked-files=all"])
+    entries = output.split("\0")
+    paths: list[str] = []
+    index = 0
+    while index < len(entries):
+        entry = entries[index]
+        index += 1
+        if len(entry) < 4:
+            continue
+        paths.append(entry[3:])
+        if "R" in entry[:2] or "C" in entry[:2]:
+            if index < len(entries) and entries[index]:
+                paths.append(entries[index])
+            index += 1
+    return sorted(set(paths))
+
+
+def _worktree_state(root: Path, *, exclude: set[str]) -> dict[str, tuple[int, str]]:
+    state: dict[str, tuple[int, str]] = {}
+    for relative in _changed_paths(root):
+        if relative in exclude or relative.startswith((".ai/local/", ".ai/tools/")):
+            continue
+        path = root / relative
+        if path.is_symlink():
+            mode = path.lstat().st_mode
+            content = os.readlink(path).encode()
+        elif path.is_file():
+            mode = path.stat().st_mode
+            content = path.read_bytes()
+        elif path.exists():
+            mode = path.stat().st_mode
+            content = b"<directory>"
+        else:
+            mode = 0
+            content = b"<missing>"
+        state[relative] = (mode, hashlib.sha256(content).hexdigest())
+    return state
+
+
+def _changed_state_paths(
+    before: dict[str, tuple[int, str]], after: dict[str, tuple[int, str]]
+) -> list[str]:
+    return sorted(path for path in set(before) | set(after) if before.get(path) != after.get(path))
+
+
+def _direct_review_prompt(task_id: str, evidence_dir: Path) -> str:
+    return (
+        f"Independently review the direct change for task {task_id}. Read "
+        f"{evidence_dir / 'change.patch'} and {evidence_dir / 'evidence.json'}, then inspect the "
+        "declared source files in the repository. Perform a static review only: use read-only text "
+        "inspection such as git diff, sed, and rg; do not run tests, checks, project commands, "
+        "interpreters, imports, binaries, or any code from the patch. Do not modify files. Ignore "
+        "unrelated working-tree changes listed in the evidence. Reject correctness, security, scope, "
+        "or missing-test problems. Return the required JSON verdict."
+    )
+
+
+def _direct_review(
+    root: Path, task_id: str, evidence_dir: Path, route: dict[str, Any], *, timeout: int
+) -> dict[str, Any]:
+    schema = evidence_dir / "review-schema.json"
+    write_json(
+        schema,
+        {
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {
+                "approved": {"type": "boolean"},
+                "findings": {"type": "array", "items": {"type": "string"}},
+                "summary": {"type": "string"},
+            },
+            "required": ["approved", "findings", "summary"],
+        },
+    )
+    output = evidence_dir / "review.json"
+    events = evidence_dir / "review.jsonl"
+    output.unlink(missing_ok=True)
+    prompt = _direct_review_prompt(task_id, evidence_dir)
+    command = [
+        "codex",
+        "exec",
+        "--skip-git-repo-check",
+        "--json",
+        "--sandbox",
+        "read-only",
+        "--model",
+        route["model"],
+        "-c",
+        f'model_reasoning_effort="{route["reasoningEffort"]}"',
+        "--output-schema",
+        str(schema),
+        "--output-last-message",
+        str(output),
+        prompt,
+    ]
+    with events.open("w", encoding="utf-8") as stream:
+        result = subprocess.run(
+            command,
+            cwd=root,
+            env=environment(root),
+            stdout=stream,
+            stderr=subprocess.STDOUT,
+            timeout=timeout,
+            check=False,
+        )
+    if result.returncode:
+        raise WorkflowError(f"independent direct review failed; private log: {events}")
+    verdict = json.loads(output.read_text(encoding="utf-8"))
+    reviewer = _thread_id(events)
+    if not reviewer:
+        raise WorkflowError("independent direct review returned no native session ID")
+    return {"reviewer": reviewer, "reviewerModel": route["model"], **verdict}
+
+
+def verify_direct(
+    root: Path,
+    task_id: str,
+    owned_files: Sequence[str],
+    commands: Sequence[str],
+    *,
+    timeout: int = 900,
+) -> dict[str, Any]:
+    """Verify and independently review a small change in the coordinator repository."""
+    task_id = _safe_task_id(task_id)
+    with lock(root, "direct"):
+        return _verify_direct_locked(root, task_id, owned_files, commands, timeout=timeout)
+
+
+def _verify_direct_locked(
+    root: Path,
+    task_id: str,
+    owned_files: Sequence[str],
+    commands: Sequence[str],
+    *,
+    timeout: int,
+) -> dict[str, Any]:
+    if not commands:
+        raise WorkflowError("at least one verification command is required")
+    parsed_commands = [_direct_verification_argv(text) for text in commands]
+    if not any(argv[:2] == ["just", "check"] for argv in parsed_commands):
+        raise WorkflowError("direct verification requires `just check` before commit")
+    task = _task(root, task_id)
+    requirements, dependencies, acceptance = _task_brief(task)
+    for dependency in dependencies:
+        if str(_task(root, dependency).get("status")) not in {"closed", "done", "completed"}:
+            raise WorkflowError(f"Beads dependency is incomplete: {dependency}")
+
+    patch, owned = _direct_patch(root, owned_files)
+    _validate_direct_scope(root, owned)
+    change_sha256 = hashlib.sha256(patch.encode()).hexdigest()
+    owned_set = set(owned)
+    unrelated_state = _worktree_state(root, exclude=owned_set)
+    unrelated = sorted(unrelated_state)
+
+    evidence_dir = local_dir(root) / "direct" / task_id
+    evidence_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+    patch_path = evidence_dir / "change.patch"
+    patch_path.write_text(patch, encoding="utf-8")
+    patch_path.chmod(0o600)
+    manifest = {
+        "acceptance": acceptance,
+        "baseRevision": _git_output(root, ["git", "rev-parse", "HEAD"]).strip(),
+        "changeSha256": change_sha256,
+        "dependencies": dependencies,
+        "ownedFiles": owned,
+        "requirementRevision": requirement_hash(requirements, dependencies, acceptance),
+        "requirements": requirements,
+        "taskId": task_id,
+        "unrelatedChanges": unrelated,
+        "unrelatedMutation": [],
+        "verification": [],
+    }
+    write_json(evidence_dir / "evidence.json", manifest)
+
+    catalog = read_json(local_dir(root) / "models.json", {}) or {}
+    route = resolve_route("review", catalog.get("models", []))
+    if f"codex:{route['model']}" not in set(catalog.get("promoted", [])):
+        raise WorkflowError(f"review model {route['model']} is not qualified")
+    review = _direct_review(root, task_id, evidence_dir, route, timeout=timeout)
+    manifest["review"] = review
+    write_json(evidence_dir / "evidence.json", manifest)
+    reviewed_patch, _ = _direct_patch(root, owned)
+    if hashlib.sha256(reviewed_patch.encode()).hexdigest() != change_sha256:
+        raise WorkflowError(
+            "declared files changed during independent review; rerun direct verification"
+        )
+    reviewed_unrelated_state = _worktree_state(root, exclude=owned_set)
+    if reviewed_unrelated_state != unrelated_state:
+        changed = _changed_state_paths(unrelated_state, reviewed_unrelated_state)
+        raise WorkflowError(
+            "files outside the declared scope changed during independent review: "
+            + ", ".join(changed)
+        )
+    current_task = _task(root, task_id)
+    current_requirements, current_dependencies, current_acceptance = _task_brief(current_task)
+    current_revision = requirement_hash(
+        current_requirements, current_dependencies, current_acceptance
+    )
+    if current_revision != manifest["requirementRevision"]:
+        raise WorkflowError("Beads requirements changed during direct review")
+    if not review["approved"] or review["findings"]:
+        raise WorkflowError(f"independent review rejected the direct change: {review['summary']}")
+
+    evidence = []
+    changed_by_verification = False
+    unrelated_mutation: list[str] = []
+    heavy_handle = (local_dir(root) / "heavy-flutter.lock").open("a", encoding="utf-8")
+    try:
+        fcntl.flock(heavy_handle, fcntl.LOCK_EX)
+        for argv in parsed_commands:
+            result = _run_verification(argv, workspace=root, root=root)
+            current_patch, _ = _direct_patch(root, owned)
+            unchanged = hashlib.sha256(current_patch.encode()).hexdigest() == change_sha256
+            current_unrelated_state = _worktree_state(root, exclude=owned_set)
+            unrelated_mutation = _changed_state_paths(unrelated_state, current_unrelated_state)
+            summary = (result.stdout + result.stderr)[-4000:]
+            evidence.append(
+                {
+                    "command": argv,
+                    "passed": result.returncode == 0 and unchanged and not unrelated_mutation,
+                    "summary": summary,
+                }
+            )
+            if result.returncode:
+                break
+            if not unchanged:
+                changed_by_verification = True
+                break
+            if unrelated_mutation:
+                break
+    finally:
+        heavy_handle.close()
+
+    manifest["unrelatedMutation"] = unrelated_mutation
+    manifest["verifiedAt"] = datetime.now(UTC).isoformat()
+    manifest["verification"] = evidence
+    write_json(evidence_dir / "evidence.json", manifest)
+    if changed_by_verification:
+        return {
+            "taskId": task_id,
+            "status": "declared_files_changed",
+            "error": "a verification command changed the declared files; inspect them and rerun",
+            "evidence": str(evidence_dir / "evidence.json"),
+        }
+    if unrelated_mutation:
+        return {
+            "taskId": task_id,
+            "status": "unrelated_files_changed",
+            "error": "verification changed files outside the declared scope",
+            "files": unrelated_mutation,
+            "evidence": str(evidence_dir / "evidence.json"),
+        }
+    if not evidence or not all(item["passed"] for item in evidence):
+        return {
+            "taskId": task_id,
+            "status": "verification_failed",
+            "evidence": str(evidence_dir / "evidence.json"),
+        }
+
+    return {
+        "taskId": task_id,
+        "status": "ready_for_commit",
+        "changeSha256": change_sha256,
+        "evidence": str(evidence_dir / "evidence.json"),
+        "review": review,
     }
 
 
@@ -444,6 +921,14 @@ def _handle_run(args) -> dict[str, Any]:
         return verify(args.root, args.task_id, args.verification_commands)
     if args.action == "review":
         return review_independently(args.root, args.task_id, timeout=args.timeout)
+    if args.action == "direct":
+        return verify_direct(
+            args.root,
+            args.task_id,
+            args.owned,
+            args.verification_commands,
+            timeout=args.timeout,
+        )
     return commit_integration(args.root, args.task_id)
 
 
@@ -588,14 +1073,43 @@ def register(subparsers) -> None:
     execute_parser.add_argument("--timeout", type=int, default=1800)
     collect = actions.add_parser("collect")
     collect.add_argument("task_id")
-    verify_parser = actions.add_parser("verify")
+    verify_parser = actions.add_parser(
+        "verify",
+        help="Run checks in an isolated worker snapshot",
+        description=(
+            "Run allowed just recipes in an isolated worker snapshot. Backend and frontend "
+            "recipes require their installed dependency markers inside that snapshot."
+        ),
+    )
     verify_parser.add_argument("task_id")
     verify_parser.add_argument(
-        "--command", action="append", required=True, dest="verification_commands"
+        "--command",
+        action="append",
+        required=True,
+        dest="verification_commands",
+        help="Allowed just recipe invocation; repeat for each check",
     )
     review = actions.add_parser("review")
     review.add_argument("task_id")
     review.add_argument("--timeout", type=int, default=900)
+    direct = actions.add_parser(
+        "direct",
+        help="Verify and independently review a small change in the coordinator repository",
+        description=(
+            "Independently review the declared small controller/workflow diff, then run exact "
+            "ai-test, ai-lint, and check recipes in the current coordinator repository."
+        ),
+    )
+    direct.add_argument("task_id")
+    direct.add_argument("--owned", action="append", required=True)
+    direct.add_argument(
+        "--command",
+        action="append",
+        required=True,
+        dest="verification_commands",
+        help="Exact invocation of just ai-test, just ai-lint, or just check; repeat as needed",
+    )
+    direct.add_argument("--timeout", type=int, default=900)
     integrate = actions.add_parser("integrate")
     integrate.add_argument("task_id")
     for parser in actions.choices.values():

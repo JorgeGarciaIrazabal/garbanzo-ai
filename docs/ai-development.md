@@ -87,6 +87,7 @@ just ai-run collect <task-id>
 just ai-run verify <task-id> --command 'just be-test tests/test_example.py'
 just ai-run review <task-id>
 just ai-run integrate <task-id>
+just ai-run direct <task-id> --owned scripts/ai_dev/example.py --command 'just ai-test' --command 'just ai-lint' --command 'just check'
 just ai-batch <task-one> <task-two>
 just ai-status
 just ai-stop <task-id>
@@ -105,6 +106,35 @@ review evidence reject integration. Unrelated local edits remain intact.
 Recollecting a patch invalidates prior verification/review. Review records must
 come from an independent session; automated checks alone do not establish review.
 
+Use `just ai-run direct` for a small controller or development-tooling change
+whose declared files are under `scripts/ai_dev/` or are the AI workflow guides.
+Changes to the direct path's own
+trust boundary (`execution.py`, `common.py`, `coordination.py`, `models.py`, and
+`beads.py`, plus the parent and controller package entry points) still require an
+isolated handoff and external review. The same rule covers the justfile, check
+configuration, Codex configuration, root agent guide, and repository skills
+because they define the checks or instruct the reviewer. Dependency lock files
+and runtime version files are also trust inputs. The direct command refuses to
+run if any trust file is dirty, even when it is omitted from `--owned`, and every
+other modified `scripts/ai_dev/` file must be declared for review. The command accepts only exact
+`ai-test`, `ai-lint`, and `check` recipe invocations, requires `just check`, hashes
+the declared diff, and asks a separate qualified Sol session to review that exact
+patch before any modified controller tests execute. Evidence under
+`.ai/local/direct/<task-id>/` records the Beads requirement
+revision, verification results, review, owned files, and the unrelated paths that
+were present. Direct runs are serialized, and their checks share the heavy Flutter
+lock with worker verification. If a check changes a declared file, the command
+stops and requires a new run so stale results cannot approve the revised patch.
+Execution commands load only the immutable execution dependency chain before
+dispatch, so unrelated dirty controller modules cannot alter verification at
+import time. Review succeeds only when the reviewer both approves and reports no
+findings. The checks then run against the reviewed patch and must leave its
+declared and unrelated worktree state unchanged.
+The review phase is static-only: it may inspect text and diffs but cannot run
+tests, checks, interpreters, project commands, binaries, imports, or patch code.
+The command also hashes all unrelated tracked and visible untracked changes and
+stops if a repository-wide check mutates anything outside the declared scope.
+
 Worker directories isolate environments and build outputs; download caches may
 be shared. The heavy Flutter lock serializes verification that invokes Flutter.
 Persisted session IDs support native Codex resume; interrupted work is retained.
@@ -112,6 +142,15 @@ Preview archives remain fixed to their source revision and feedback stays tied
 to that revision while other work proceeds. Automatically verified, ready for
 user testing, and accepted are different states. Only the user's testing can
 establish acceptance.
+
+Worker verification preflights recipe dependencies before it starts any command.
+Backend recipes require `backend/.venv/bin/python`; frontend recipes require
+`.dart_tool/package_config.json`; combined recipes require both. Install the
+needed dependencies inside the worker snapshot before verification. For small
+controller changes, use the direct path so `ai-lint` and `check` run against the
+coordinator repository's installed environment.
+Focused worker-test arguments accept only path and test-selector characters;
+shell operators are rejected before `just` expands recipe arguments.
 
 Commit verified changes directly to `main`, staging only the intended paths.
 No development branches, pull requests or branch protection are introduced.

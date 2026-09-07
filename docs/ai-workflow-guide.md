@@ -95,6 +95,41 @@ For most work, tell Codex which task or outcome you want. Codex maintains the
 conversation while you test and incorporates corrections without restarting
 unrelated work.
 
+Small changes to `scripts/ai_dev/`, its tests, or its workflow documentation use
+the direct path after the task is recorded in Beads:
+
+```bash
+just ai-run direct garbanzo-abcd \
+  --owned scripts/ai_dev/example.py \
+  --owned scripts/ai_dev/tests/test_example.py \
+  --command 'just ai-test' \
+  --command 'just ai-lint' \
+  --command 'just check'
+```
+
+This obtains an independent review of the exact declared diff before running its
+checks in the current repository. It also records unrelated working-tree paths without
+including them in the review. Direct runs are serialized and use the same heavy
+Flutter lock as worker checks. Use an isolated worker for larger changes where a
+fixed source snapshot and strict file handoff provide useful isolation. The
+controller rejects application and deployment files from this path and accepts
+only exact `ai-test`, `ai-lint`, and `check` invocations. It snapshots unrelated
+working-tree changes and stops if any check modifies them. Changes to the
+verification command or its task, model, locking, and evidence dependencies use
+the isolated path because the direct path cannot independently certify its own
+trust boundary. Repository agent instructions, skills, Codex configuration,
+recipe definitions, and check configuration are part of that boundary. The
+command also refuses to run when any trust-boundary file has an undeclared
+working-tree change. Dependency locks and runtime version files are trust inputs,
+and every modified `scripts/ai_dev/` path must be included in `--owned` so the
+review sees every controller input that can affect `ai-test` or `ai-lint`.
+Execution-command startup imports only its immutable dependency chain, and a
+review is accepted only when it approves the patch with no findings. Checks then
+run against that reviewed patch and must preserve all declared and unrelated
+worktree content.
+The review phase is static-only and cannot execute tests, project commands,
+interpreters, imports, binaries, or patch-controlled code.
+
 Use a parallel batch when tasks are independent and their owned files do not
 overlap:
 
@@ -106,6 +141,14 @@ The coordinator permits up to three workers, subject to machine and provider
 capacity. Workers operate on fixed source snapshots and return patches; only the
 coordinator integrates and commits on `main`. Stale patches, changed
 requirements, and unexpected files are rejected before integration.
+
+Before worker verification begins, the controller checks that the snapshot has
+the dependencies required by every requested recipe. A missing backend virtual
+environment or Flutter package configuration produces one actionable preflight
+error before any checks run. Install those dependencies in the worker snapshot
+or use the direct path when the change qualifies. Focused test selectors may use
+path and test-selector characters; shell operators are rejected before a recipe
+runs.
 
 These lower-level commands are mainly useful for inspecting or recovering work:
 
