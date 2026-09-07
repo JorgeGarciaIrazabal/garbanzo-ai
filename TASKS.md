@@ -4,6 +4,8 @@
 
 Original backlog and notes: [.ai/backlog-source.md](.ai/backlog-source.md).
 
+- [x] **garbanzo-0qw7** P1 [closed] Fix ai-run verify command argument collision
+- [x] **garbanzo-dbm7** P1 [closed] Fix worker handoff for tracked symlink directories
 - [x] **garbanzo-ghti** P1 [closed] Implement Codex-first development controller
 - [x] **garbanzo-02e** P2 [closed] **Tool results display in chat** — Collapsible "Tool Used" block showing name, input, output
 - [x] **garbanzo-048** P2 [closed] **Dark / light / system theme** — Theme toggle in settings, persisted in SharedPreferences
@@ -265,4 +267,4 @@ Original backlog and notes: [.ai/backlog-source.md](.ai/backlog-source.md).
 - [ ] **garbanzo-ro93** P3 [open] dart-pub finding e6a6f86dedc1649f2312ae91
 - [ ] **garbanzo-sb0z** P3 [open] dart-pub finding c25e65f58ee939bb08280909
 - [ ] **garbanzo-ub30** P3 [open] dart-pub finding 7b280cef9311ba0694c4b185
-- [ ] **garbanzo-uz66** P3 [open] Add compact Beads task summary
+- [x] **garbanzo-uz66** P3 [closed] Add compact Beads task summary
