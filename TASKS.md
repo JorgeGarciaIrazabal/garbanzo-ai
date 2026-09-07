@@ -111,6 +111,7 @@ Original backlog and notes: [.ai/backlog-source.md](.ai/backlog-source.md).
 - [x] **garbanzo-bgm** P2 [closed] **Request-time context compiler**
 - [x] **garbanzo-bgq** P2 [closed] **Code syntax highlighting** — `flutter_highlight` or `google_code_prettify`; copy-code button per block
 - [ ] **garbanzo-c2d** P2 [open] Production report e7821fd7-331a-41e7-a936-889fca98ec04
+- [x] **garbanzo-c5r4** P2 [closed] Make controller workflow paths match their environments
 - [x] **garbanzo-clx** P2 [closed] **MCP server configuration UI** — Add/remove/toggle MCP server connections (URL, auth, description)
 - [x] **garbanzo-cmq** P2 [closed] **Per-conversation tool selection** — Toggle which tools are enabled for a conversation
 - [x] **garbanzo-ctv** P2 [closed] **Per-conversation system prompt** — Editable in conversation settings panel
@@ -137,6 +138,7 @@ Original backlog and notes: [.ai/backlog-source.md](.ai/backlog-source.md).
 - [ ] **garbanzo-esi** P2 [open] Production report 83f0ff9a-6062-4d74-a7f4-b45bcb3ad002
 - [x] **garbanzo-et2** P2 [closed] **Embedding generation** — Background job to chunk and embed uploaded documents
 - [x] **garbanzo-exf** P2 [closed] **Global default system prompt** — Set in user settings, applied to all new conversations
+- [ ] **garbanzo-f0c9** P2 [open] Production report 1ba9a9f8-92ec-498b-9ce7-b8d07ac529a3
 - [x] **garbanzo-f7qn** P2 [closed] pip-audit finding 30e7e6ac1544889282787d05
 - [x] **garbanzo-fn1j** P2 [closed] pip-audit finding 9e7e200c146e4ddf3ed53ecf
 - [ ] **garbanzo-fnc** P2 [open] **CI pipeline** — GitHub Actions running lint, tests, and build on every PR
@@ -167,6 +169,7 @@ Original backlog and notes: [.ai/backlog-source.md](.ai/backlog-source.md).
 - [x] **garbanzo-jia** P2 [closed] **STT: Microphone input** — Record audio in the chat input widget with a hold-to-talk / tap-to-toggle button; use Flutter `record` package
 - [x] **garbanzo-jj5c** P2 [closed] pip-audit finding 2068a9750f24ad86f52fb7d7
 - [x] **garbanzo-jkfi** P2 [closed] pip-audit finding 468892bfa76b0083f301580b
+- [ ] **garbanzo-jqne** P2 [open] Production report 02fa399e-230b-412c-bdf3-c8a6615c008e
 - [x] **garbanzo-jtwi** P2 [closed] pip-audit finding 20f801f3e42692c627552ad6
 - [x] **garbanzo-kls** P2 [closed] **Admin portal foundation** — `/admin` route, restricted to `is_admin=True` users; user table migration
 - [x] **garbanzo-knt6** P2 [closed] pip-audit finding ea9f1941de69c2266abf111b
