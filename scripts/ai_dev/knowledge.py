@@ -21,6 +21,7 @@ DOCUMENTS = [
     "docs/environment.md",
     "docs/coverage-strategy.md",
     "docs/ai-development.md",
+    "docs/ai-workflow-guide.md",
     "deploy/README.md",
     "setup.md",
     "TASKS.md",

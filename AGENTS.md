@@ -89,7 +89,8 @@ their `CLAUDE.md` names are compatibility links.
   report-specific verification. Keep raw evidence private in `.ai/local/`.
 - Answer investigation/review questions directly; do not infer implementation.
 
-Setup, commands, recovery and acceptance: [`docs/ai-development.md`](docs/ai-development.md).
+Daily workflow and prioritization: [`docs/ai-workflow-guide.md`](docs/ai-workflow-guide.md).
+Setup, internals, recovery and acceptance: [`docs/ai-development.md`](docs/ai-development.md).
 Focused skills live in `.agents/skills/`: guided-development, coordination,
 production-triage, code-navigation, knowledge-retrieval, testing, releases.
 `vibe-coding`, `task-runner`, `subagent-task-runner`, `team`, and `user-reports`

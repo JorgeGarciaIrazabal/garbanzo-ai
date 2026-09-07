@@ -1,5 +1,8 @@
 # Codex-first development
 
+For the practical day-to-day workflow and prioritization examples, see
+[Using the AI development workflow](ai-workflow-guide.md).
+
 `AGENTS.md`, `.agents/skills/`, and `.codex/config.toml` are the development
 entry points. `CLAUDE.md` and `.claude/skills` link to the same content for
 compatibility. Application runtime OpenCode integration remains independent.
