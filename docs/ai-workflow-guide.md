@@ -69,9 +69,20 @@ just ai-task depend garbanzo-frontend garbanzo-backend
 Review the queue with:
 
 ```bash
-just ai-task ready       # Unblocked work that can start now
-just ai-task list        # The wider backlog
+just ai-task summary --limit 10  # Compact recommendation for conversational task selection
+just ai-task ready               # Full unblocked JSON
+just ai-task list                # Full backlog JSON
 ```
+
+For “list tasks,” “what should we work on,” or “recommend a task,” start with
+`just ai-task summary`. It queries Beads directly, groups production reports and
+dependency findings, and returns a bounded list of candidates selected from
+Beads’ ready contract. In-progress tasks may be counted but are not recommended
+by Beads. Run
+the full `ready` or `list` output only when you explicitly need an exhaustive
+inventory, and use `just ai-task show <id>` for the shortlisted IDs. Add
+`--include-reports` or `--include-findings` when those groups should participate
+in the recommendation.
 
 When choosing between tasks at the same priority, prefer confirmed and
 reproducible work, then work that unblocks other tasks, then the smaller item.
@@ -190,7 +201,7 @@ tasks between midnight and 06:00 America/New_York; it never deploys.
 
 ## A practical weekly routine
 
-1. Run `just ai-task ready` and choose the highest-impact unblocked item.
+1. Run `just ai-task summary --limit 10` and choose the highest-impact unblocked item.
 2. Adjust its priority and dependencies when production evidence or product
    direction changes.
 3. Ask Codex to implement it and provide a stable preview.

@@ -76,6 +76,7 @@ as evidence of live model capability.
 All command families accept `--json`. Common examples:
 
 ```bash
+just ai-task summary --limit 10
 just ai-task ready
 just ai-task create 'Fix a reproducible defect' --description 'Reproduction and scope' --acceptance 'Observable expected result'
 just ai-task depend <child-id> <dependency-id>

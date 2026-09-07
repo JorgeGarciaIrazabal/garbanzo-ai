@@ -16,6 +16,10 @@ def issues(root: Path) -> list[dict]:
     return call(root, "list", "--all", "--limit", "0")
 
 
+def ready(root: Path) -> list[dict]:
+    return call(root, "ready", "--limit", "0")
+
+
 def backlog_entries(source: str) -> list[dict]:
     section = "Backlog"
     result = []
@@ -96,6 +100,96 @@ def migrate(root: Path) -> dict:
         return result
 
 
+def task_group(row: dict) -> str:
+    """Classify sanitized public tasks into mutually exclusive summary groups."""
+    labels = {str(label).lower() for label in row.get("labels", [])}
+    title = str(row.get("title", "")).lower()
+    external_ref = str(row.get("external_ref", ""))
+    if (
+        external_ref.startswith("garbanzo-report:")
+        or "report" in labels
+        or title.startswith("production report")
+    ):
+        return "production_report"
+    if external_ref.startswith("finding:") or "finding" in labels or " finding " in f" {title} ":
+        return "dependency_finding"
+    if "(in progress)" in title or row.get("status") == "in_progress":
+        return "in_progress"
+    return "feature_or_infrastructure"
+
+
+def summarize(
+    rows: list[dict],
+    *,
+    ready_ids: set[str] | None = None,
+    limit: int = 10,
+    include_reports: bool = False,
+    include_findings: bool = False,
+) -> dict:
+    if limit < 1:
+        raise ValueError("summary limit must be at least 1")
+
+    open_rows = [row for row in rows if row.get("status") in {"open", "in_progress"}]
+    by_priority: dict[str, int] = {}
+    by_group: dict[str, int] = {}
+    for row in open_rows:
+        priority = f"P{row.get('priority', 2)}"
+        group = task_group(row)
+        by_priority[priority] = by_priority.get(priority, 0) + 1
+        by_group[group] = by_group.get(group, 0) + 1
+
+    group_order = {
+        "in_progress": 0,
+        "feature_or_infrastructure": 1,
+        "production_report": 2,
+        "dependency_finding": 3,
+    }
+    if ready_ids is None:
+        ready_ids = {str(row.get("id")) for row in open_rows}
+    candidates = []
+    for row in open_rows:
+        group = task_group(row)
+        if group == "production_report" and not include_reports:
+            continue
+        if group == "dependency_finding" and not include_findings:
+            continue
+        if str(row.get("id")) not in ready_ids:
+            continue
+        candidates.append(row)
+    # Stable sorts build the final ordering from least to most significant key.
+    candidates.sort(key=lambda row: str(row.get("id", "")))
+    candidates.sort(key=lambda row: str(row.get("updated_at", "")), reverse=True)
+    candidates.sort(key=lambda row: group_order[task_group(row)])
+    candidates.sort(key=lambda row: row.get("priority", 2))
+    recommended = [
+        {
+            key: row[key]
+            for key in ("id", "title", "priority", "updated_at", "dependency_count")
+            if key in row
+        }
+        | {"group": task_group(row)}
+        for row in candidates[:limit]
+    ]
+    return {
+        "open_total": len(open_rows),
+        "blocked_total": sum(
+            bool(row.get("dependency_count", 0)) and str(row.get("id")) not in ready_ids
+            for row in open_rows
+        ),
+        "by_priority": dict(sorted(by_priority.items())),
+        "by_group": {
+            group: by_group.get(group, 0)
+            for group in (
+                "in_progress",
+                "feature_or_infrastructure",
+                "production_report",
+                "dependency_finding",
+            )
+        },
+        "recommended_tasks": recommended,
+    }
+
+
 def export(root: Path) -> dict:
     rows = sorted(issues(root), key=lambda row: (row.get("priority", 2), row["id"]))
     output = [
@@ -136,6 +230,14 @@ def handle(args):
             return export(args.root)
     if args.action == "ready":
         return call(args.root, "ready")
+    if args.action == "summary":
+        return summarize(
+            issues(args.root),
+            ready_ids={str(row.get("id")) for row in ready(args.root)},
+            limit=args.limit,
+            include_reports=args.include_reports,
+            include_findings=args.include_findings,
+        )
     if args.action == "show":
         return call(args.root, "show", args.id)
     if args.action == "create":
@@ -174,6 +276,10 @@ def register(subparsers):
     actions = parser.add_subparsers(dest="action")
     for name in ("list", "ready", "migrate", "export"):
         actions.add_parser(name)
+    summary = actions.add_parser("summary", help="Compact current task recommendation")
+    summary.add_argument("--limit", type=int, default=10)
+    summary.add_argument("--include-reports", action="store_true")
+    summary.add_argument("--include-findings", action="store_true")
     show = actions.add_parser("show")
     show.add_argument("id")
     for name in ("create", "update"):

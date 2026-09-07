@@ -6,7 +6,9 @@ description: Implement a user request interactively with revision-linked feedbac
 Read root AGENTS.md and the relevant scoped package guidance. In an existing
 session run just ai-startup once, not just ai (which launches another UI).
 Record requirements, dependencies and acceptance in Beads via just ai-task;
-answer investigative questions without converting them into implementation.
+answer investigative questions without converting them into implementation. For
+task selection, run `just ai-task summary` before broader `ready` or `list`
+output, then inspect only shortlisted IDs with `show`.
 Use Astra for substantial design, Sol for consequential implementation/review,
 Terra routine implementation, Luna narrow exploration. Resolve available models
 and retain the resolved model in each assignment. Never downgrade architecture.

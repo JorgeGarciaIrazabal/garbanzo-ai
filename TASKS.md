@@ -66,6 +66,7 @@ Original backlog and notes: [.ai/backlog-source.md](.ai/backlog-source.md).
 - [x] **garbanzo-6mor** P2 [closed] pip-audit finding 1c77da52a48f9873f4f2451d
 - [ ] **garbanzo-6qa** P2 [open] Production report 94869f1f-d4da-491b-ba36-a37cdf975840
 - [x] **garbanzo-6uv** P2 [closed] **Profile editing** — Update name and email; change password
+- [x] **garbanzo-6xba** P2 [closed] Archive junk topics without deleting evidence
 - [ ] **garbanzo-76o** P2 [open] Production report 301cebcc-74e7-454e-a2d6-3d622b25b72f
 - [ ] **garbanzo-7gk** P2 [open] Production report 4a3a1119-829d-456a-a7e1-3f0c450cb889
 - [x] **garbanzo-7mc** P2 [closed] **File size/type validation** — Clear UX errors with limits per type
@@ -264,3 +265,4 @@ Original backlog and notes: [.ai/backlog-source.md](.ai/backlog-source.md).
 - [ ] **garbanzo-ro93** P3 [open] dart-pub finding e6a6f86dedc1649f2312ae91
 - [ ] **garbanzo-sb0z** P3 [open] dart-pub finding c25e65f58ee939bb08280909
 - [ ] **garbanzo-ub30** P3 [open] dart-pub finding 7b280cef9311ba0694c4b185
+- [ ] **garbanzo-uz66** P3 [open] Add compact Beads task summary
