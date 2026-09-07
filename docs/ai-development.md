@@ -54,8 +54,13 @@ disabled until its version-specific library documentation is needed.
 
 ## Conversation and delivery
 
-`just ai [request]` opens native Codex with fast local startup. Inside an existing
-session use `just ai-startup` to avoid opening a second UI. Use
+`just ai [request]` opens native Codex with fast local startup. Select an available
+cached model and reasoning effort explicitly with `just ai --model gpt-5.6-terra
+--effort medium [request]`; the defaults remain `gpt-6-astra` and `medium`.
+`just ai` validates the selection against `.ai/local/models.json` and reports an
+unsupported model or effort instead of changing the route. Refresh the cache with
+`just ai-models` when the account catalog has changed. Inside an existing session use
+`just ai-startup` to avoid opening a second UI. Use
 `just ai --full <request>` or `just ai-startup --full` when the task needs current production
 reports and capacity evidence. Scheduled overnight collection remains unchanged,
 and production collection remains available on request. Investigation

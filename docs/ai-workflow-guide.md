@@ -13,6 +13,16 @@ Start a development session from the repository:
 just ai "Add the feature described in my next message"
 ```
 
+For a routine task, choose a cached account model and its supported reasoning
+effort explicitly:
+
+```bash
+just ai --model gpt-5.6-terra --effort medium "Implement garbanzo-abcd"
+```
+
+The default remains `gpt-6-astra` with `medium` effort. `just ai` rejects model
+or effort choices absent from the cached catalog; run `just ai-models` to refresh it.
+
 Inside an existing Codex session, speak naturally. You do not need to translate
 requests into controller commands. Useful examples are:
 

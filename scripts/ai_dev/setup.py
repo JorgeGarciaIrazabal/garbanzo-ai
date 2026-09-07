@@ -194,14 +194,19 @@ def guided(args):
     if args.inspect:
         return findings
     print(json.dumps(findings, indent=2, default=str), flush=True)
+    model, effort = guided_route(
+        args.root,
+        model=getattr(args, "model", "gpt-6-astra"),
+        effort=getattr(args, "effort", "medium"),
+    )
     argv = [
         "codex",
         "-C",
         str(args.root),
         "-m",
-        "gpt-6-astra",
+        model,
         "-c",
-        'model_reasoning_effort="medium"',
+        f'model_reasoning_effort="{effort}"',
     ]
     if args.prompt:
         argv.append(" ".join(args.prompt))
@@ -211,6 +216,43 @@ def guided(args):
             f"Codex exited with {returncode}; persisted startup evidence is available"
         )
     return {"status": "session_ended"}
+
+
+def guided_route(root: Path, *, model: str, effort: str) -> tuple[str, str]:
+    """Validate an explicit interactive route against the cached account catalog."""
+    path = local_dir(root) / "models.json"
+    if models.catalog_is_stale(path):
+        raise WorkflowError("model catalog is missing or stale; run just ai-models")
+    catalog = read_json(path, {}) or {}
+    available = {
+        item["id"]: item
+        for item in catalog.get("models", [])
+        if isinstance(item, dict) and isinstance(item.get("id"), str)
+    }
+    if model not in available:
+        raise WorkflowError(
+            f"model {model!r} is not in the cached account catalog; run just ai-models"
+        )
+    supported = available[model].get("supportedReasoningEfforts")
+    if not isinstance(supported, list) or not supported:
+        raise WorkflowError(
+            f"reasoning effort metadata for {model!r} is missing or malformed; run just ai-models"
+        )
+    efforts = [
+        option["reasoningEffort"]
+        for option in supported
+        if isinstance(option, dict) and isinstance(option.get("reasoningEffort"), str)
+    ]
+    if len(efforts) != len(supported):
+        raise WorkflowError(
+            f"reasoning effort metadata for {model!r} is missing or malformed; run just ai-models"
+        )
+    if efforts and effort not in efforts:
+        raise WorkflowError(
+            f"reasoning effort {effort!r} is not supported by {model!r}; "
+            f"choose one of: {', '.join(efforts)}"
+        )
+    return model, effort
 
 
 def serena(args):
@@ -237,6 +279,16 @@ def register(subparsers):
         "--full",
         action="store_true",
         help="Collect production reports and capacity before starting or inspecting",
+    )
+    parser.add_argument(
+        "--model",
+        default="gpt-6-astra",
+        help="Cached account model to launch (default: gpt-6-astra)",
+    )
+    parser.add_argument(
+        "--effort",
+        default="medium",
+        help="Reasoning effort for the selected model (default: medium)",
     )
     parser.add_argument("prompt", nargs="*")
     parser.set_defaults(func=guided)
