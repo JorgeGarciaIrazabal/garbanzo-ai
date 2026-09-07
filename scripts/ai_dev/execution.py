@@ -441,7 +441,7 @@ def _handle_run(args) -> dict[str, Any]:
     if args.action == "collect":
         return {"taskId": args.task_id, "patch": str(prepare_handoff(args.root, args.task_id))}
     if args.action == "verify":
-        return verify(args.root, args.task_id, args.command)
+        return verify(args.root, args.task_id, args.verification_commands)
     if args.action == "review":
         return review_independently(args.root, args.task_id, timeout=args.timeout)
     return commit_integration(args.root, args.task_id)
@@ -590,7 +590,9 @@ def register(subparsers) -> None:
     collect.add_argument("task_id")
     verify_parser = actions.add_parser("verify")
     verify_parser.add_argument("task_id")
-    verify_parser.add_argument("--command", action="append", required=True)
+    verify_parser.add_argument(
+        "--command", action="append", required=True, dest="verification_commands"
+    )
     review = actions.add_parser("review")
     review.add_argument("task_id")
     review.add_argument("--timeout", type=int, default=900)

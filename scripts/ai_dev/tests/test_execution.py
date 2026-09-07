@@ -86,8 +86,28 @@ class ExecutionTests(unittest.TestCase):
         args = parser.parse_args(["run", "assign", "task-1", "--owned", "owned.txt"])
         self.assertEqual((args.command, args.action, args.task_id), ("run", "assign", "task-1"))
         self.assertEqual(parser.parse_args(["batch", "one", "two"]).task_ids, ["one", "two"])
+        verify_args = parser.parse_args(
+            ["run", "verify", "task-1", "--command", "just ai-test", "--command", "just ai-lint"]
+        )
+        self.assertEqual(verify_args.command, "run")
+        self.assertEqual(verify_args.verification_commands, ["just ai-test", "just ai-lint"])
         with self.assertRaises(SystemExit):
             parser.parse_args(["run", "review", "task-1", "--approved"])
+
+    def test_verify_handler_uses_distinct_command_destination(self) -> None:
+        args = argparse.Namespace(
+            root=self.root,
+            action="verify",
+            task_id="task-1",
+            verification_commands=["just check"],
+        )
+        with patch("scripts.ai_dev.execution.verify", return_value={"passed": True}) as verifier:
+            from scripts.ai_dev.execution import _handle_run
+
+            result = _handle_run(args)
+
+        verifier.assert_called_once_with(self.root, "task-1", ["just check"])
+        self.assertTrue(result["passed"])
 
     def test_mocked_worker_to_verified_reviewed_integration(self) -> None:
         assignment = create_assignment(
