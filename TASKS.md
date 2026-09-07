@@ -47,6 +47,7 @@ Original backlog and notes: [.ai/backlog-source.md](.ai/backlog-source.md).
 - [x] **garbanzo-4f2** P2 [closed] **Context window indicator** — Visual token count showing how full the context window is
 - [x] **garbanzo-4f3v** P2 [closed] pip-audit finding c19da484abde5e81ff828cda
 - [x] **garbanzo-4fr** P2 [closed] **Room notifications** — Notify members when they are @mentioned or when a new message arrives
+- [ ] **garbanzo-4jbh** P2 [open] Reuse verification results and target review follow-ups
 - [x] **garbanzo-4jd4** P2 [closed] pip-audit finding fc60da00973514c9e418dc6f
 - [x] **garbanzo-4nz** P2 [closed] **Token usage dashboard** — Charts showing token consumption by model, conversation, and time period
 - [x] **garbanzo-4qf** P2 [closed] **Skills library UI** — Browse available skills/tools from connected MCP servers
@@ -106,6 +107,7 @@ Original backlog and notes: [.ai/backlog-source.md](.ai/backlog-source.md).
 - [ ] **garbanzo-arg** P2 [open] Production report 7fae4f44-ced6-4f00-9311-6896685b7d3c
 - [x] **garbanzo-at4m** P2 [closed] pip-audit finding ab094f251e9d23c2d127d0df
 - [x] **garbanzo-atx** P2 [closed] **Conversation summary view** — Collapsible "Summary of earlier messages" block in thread
+- [x] **garbanzo-ay9w** P2 [closed] Measure avoidable AI workflow overhead
 - [ ] **garbanzo-azq** P2 [open] Production report 4a0678b2-53a8-4b43-b963-1f52e71e6632
 - [x] **garbanzo-baj** P2 [closed] **@mention routing** — `@AgentName` in a message triggers only that agent to respond; `@all` triggers all agents
 - [x] **garbanzo-bgm** P2 [closed] **Request-time context compiler**
@@ -134,6 +136,7 @@ Original backlog and notes: [.ai/backlog-source.md](.ai/backlog-source.md).
 - [x] **garbanzo-echa** P2 [closed] Retry empty topic curator responses safely
 - [x] **garbanzo-eef** P2 [closed] **Message branching** — Fork conversation from any message into a new branch
 - [ ] **garbanzo-efr** P2 [open] Production report 996bb13c-7dcb-4379-8537-2d0821400f1c
+- [x] **garbanzo-eh5n** P2 [closed] Document a proportional low-overhead development workflow
 - [ ] **garbanzo-emv** P2 [open] Production report dd378e0d-c7e3-4662-bf1a-103e880fb745
 - [ ] **garbanzo-esi** P2 [open] Production report 83f0ff9a-6062-4d74-a7f4-b45bcb3ad002
 - [x] **garbanzo-et2** P2 [closed] **Embedding generation** — Background job to chunk and embed uploaded documents
@@ -148,6 +151,7 @@ Original backlog and notes: [.ai/backlog-source.md](.ai/backlog-source.md).
 - [x] **garbanzo-fxuv** P2 [closed] pip-audit finding 77c8c3cd14b8e99eaddbc8ca
 - [ ] **garbanzo-g9lg** P2 [open] Production report cbda6393-153d-49ec-be20-3e96b4dd05b0
 - [x] **garbanzo-ghe** P2 [closed] **Auto-extract memories** — cron job after every day; LLM call to extract facts about the user worth remembering
+- [ ] **garbanzo-gt09** P2 [open] Allow explicit model selection for guided sessions
 - [ ] **garbanzo-gyl** P2 [open] **Threads** (in progress)
 - [ ] **garbanzo-h2j** P2 [open] Production report 492c5924-d402-41bd-9102-48c3ae2dbe41
 - [ ] **garbanzo-h30** P2 [open] **Redis integration** — Cache model lists, rate-limit counters, and active stream state
@@ -188,6 +192,7 @@ Original backlog and notes: [.ai/backlog-source.md](.ai/backlog-source.md).
 - [ ] **garbanzo-m9fx** P2 [open] Production report d7e765ad-38b1-4e40-b474-ab54b1531ac5
 - [ ] **garbanzo-mg0** P2 [open] Production report 248cf6f6-1a67-4fe6-a35f-0591600afd09
 - [x] **garbanzo-mh3** P2 [closed] **Presence indicators** — Show which users are currently online in the room
+- [x] **garbanzo-mtc0** P2 [closed] Make existing-session AI startup lightweight
 - [ ] **garbanzo-n0o** P2 [open] Production report 71e9d25d-870b-4584-a6f8-15e0157f56cf
 - [x] **garbanzo-n8i1** P2 [closed] pip-audit finding 57156f42e4c069aa9750e436
 - [ ] **garbanzo-nb7** P2 [open] Production report c8d4ca2c-b500-4e8d-b775-81e4e1a57d83
