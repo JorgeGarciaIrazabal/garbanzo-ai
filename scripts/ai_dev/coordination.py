@@ -248,7 +248,7 @@ def _workspace_changes(root: Path, workspace: Path, revision: str) -> set[str]:
             relative in ignored
             or relative.startswith(".git/")
             or any(part in ignored_directories for part in PurePosixPath(relative).parts)
-            or candidate.is_dir()
+            or (candidate.is_dir() and not candidate.is_symlink())
         ):
             continue
         present.add(relative)

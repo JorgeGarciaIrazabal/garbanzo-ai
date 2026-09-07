@@ -107,6 +107,26 @@ class CoordinationTest(unittest.TestCase):
         with self.assertRaisesRegex(CoordinationError, "unowned"):
             prepare_handoff(self.root, assignment.task_id)
 
+    def test_workspace_changes_preserve_tracked_symlink_directories(self) -> None:
+        directory = self.root / "link-target"
+        directory.mkdir()
+        (directory / "file.txt").write_text("target\n")
+        os.symlink("link-target", self.root / "link-directory")
+        self.git_run("git", "add", ".")
+        self.git_run("git", "commit", "-qm", "add tracked link directory")
+        assignment = create_assignment(
+            self.root,
+            "symlink-task",
+            requirements="change owned",
+            owned_files=["owned.txt"],
+        )
+        (assignment.workspace / "owned.txt").write_text("worker\n")
+
+        changed = _workspace_changes(self.root, assignment.workspace, assignment.base_revision)
+
+        self.assertEqual(changed, {"owned.txt"})
+        self.assertTrue(prepare_handoff(self.root, assignment.task_id).is_file())
+
     def test_worker_diff_does_not_depend_on_parent_git_discovery(self) -> None:
         assignment = self.assignment()
         isolated = self.root.parent / f"isolated-{self.root.name}"
