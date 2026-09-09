@@ -4,6 +4,12 @@ Release notes for Garbanzo AI. Each entry is generated automatically on
 `just deploy` — an LLM (via opencode) writes it from the release's commits and
 the user reports it addressed. See `scripts/changelog-instructions.md`.
 
+## v1.0.29 — 2026-09-09
+
+- Improved topic context and selection before launch.
+- Improved reliability when generating and curating topics.
+- Improved handling and messaging for temporary AI service errors.
+
 ## v1.0.28 — 2026-08-30
 
 ### 🙋 User requests completed
