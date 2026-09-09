@@ -4,6 +4,11 @@ Release notes for Garbanzo AI. Each entry is generated automatically on
 `just deploy` — an LLM (via opencode) writes it from the release's commits and
 the user reports it addressed. See `scripts/changelog-instructions.md`.
 
+## v1.0.30 — 2026-09-09
+
+- Topic messages now send to the correct thread, even when no topic is selected.
+- Fixed sending messages that contain only attachments in topics.
+
 ## v1.0.29 — 2026-09-09
 
 - Improved topic context and selection before launch.
