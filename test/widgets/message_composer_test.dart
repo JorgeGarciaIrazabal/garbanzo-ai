@@ -107,6 +107,34 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('landing composer sends an attachment without message text', (
+    tester,
+  ) async {
+    final controller = TextEditingController();
+    final focusNode = FocusNode();
+    addTearDown(controller.dispose);
+    addTearDown(focusNode.dispose);
+    String? sentText;
+
+    await tester.pumpWidget(
+      _wrap(
+        MessageComposer(
+          controller: controller,
+          focusNode: focusNode,
+          onSend: (text) => sentText = text,
+          hasExtraContent: true,
+          above: const Text('photo.png'),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('send_button')));
+    await tester.pump();
+
+    expect(sentText, '');
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('wide window with a 508px chat pane uses compact toolbar layout', (
     tester,
   ) async {

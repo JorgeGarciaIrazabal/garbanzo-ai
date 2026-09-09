@@ -11,7 +11,13 @@ from datetime import datetime
 import pytest
 from pydantic import ValidationError
 
-from app.schemas.chat import AttachmentIn, ChatMessage, ChatMessageOut, ChatResponseChunk
+from app.schemas.chat import (
+    AttachmentIn,
+    ChatMessage,
+    ChatMessageOut,
+    ChatRequest,
+    ChatResponseChunk,
+)
 from app.schemas.user import UserCreate
 
 
@@ -84,6 +90,26 @@ class TestAttachmentIn:
     def test_invalid_type(self):
         with pytest.raises(ValidationError):
             AttachmentIn(name="f", mime_type="x", type="video", data="d")
+
+
+class TestChatRequest:
+    def test_accepts_attachment_without_message_text(self):
+        attachment = AttachmentIn(
+            name="photo.png",
+            mime_type="image/png",
+            type="image",
+            encoding="base64",
+            data="cGljdHVyZQ==",
+        )
+
+        request = ChatRequest(message="", attachments=[attachment])
+
+        assert request.message == ""
+        assert request.attachments == [attachment]
+
+    def test_rejects_blank_message_without_attachment(self):
+        with pytest.raises(ValidationError, match="message or at least one attachment"):
+            ChatRequest(message="   ")
 
 
 class TestChatResponseChunk:

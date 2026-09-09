@@ -32,7 +32,8 @@ and Enter (or tap) to pick a suggestion; Esc dismisses it.
 ## How do I attach images or files?
 Use the paperclip (**Attach photos or files**) next to the input bar. Images
 are sent to vision-capable models; documents (PDF, text, etc.) have their
-text extracted and included with your message.
+text extracted and included with your message. You can send an attachment by
+itself or add instructions in the message field first.
 New chats use the vision-capable GLM 5.3 Flash model by default. If you switch
 to a text-only model, the app opens a warning with enabled **Vision** choices:
 **GLM 5.3 Flash** for faster, lower-cost responses or **Kimi K3** for smarter,

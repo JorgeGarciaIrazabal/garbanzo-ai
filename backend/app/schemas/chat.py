@@ -78,7 +78,7 @@ class ChatOptions(BaseModel):
 
 
 class ChatRequest(BaseModel):
-    message: str = Field(..., min_length=1, description="User message")
+    message: str = Field(..., description="User message; may be blank when files are attached")
     attachments: list[AttachmentIn] = Field(default_factory=list, description="Files attached")
     options: ChatOptions = Field(default_factory=ChatOptions, description="Generation options")
     has_client_folder: bool = Field(
@@ -94,6 +94,12 @@ class ChatRequest(BaseModel):
         max_length=2000,
         description="Spoken-response instruction (ephemeral, not persisted)",
     )
+
+    @model_validator(mode="after")
+    def require_message_or_attachment(self) -> "ChatRequest":
+        if not self.message.strip() and not self.attachments:
+            raise ValueError("A message or at least one attachment is required")
+        return self
 
 
 class ClientToolResult(BaseModel):

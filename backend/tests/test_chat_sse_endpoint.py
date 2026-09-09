@@ -370,6 +370,41 @@ async def test_empty_message_rejected_422(db_session):
         _clear_overrides()
 
 
+async def test_attachment_only_message_reaches_chat_service(db_session):
+    provider = _ScriptedProvider([ChatChunk(content="received", is_finished=True, metadata={})])
+    conv_id = await _make_conversation(db_session)
+    _install_overrides(db_session, provider)
+    try:
+        async with _client() as c:
+            resp = await c.post(
+                f"/api/v1/chat/conversations/{conv_id}/chat",
+                json={
+                    "message": "",
+                    "attachments": [
+                        {
+                            "name": "notes.txt",
+                            "mime_type": "text/plain",
+                            "type": "document",
+                            "encoding": "base64",
+                            "data": "aGVsbG8gZnJvbSB0aGUgZmlsZQ==",
+                        }
+                    ],
+                },
+            )
+        assert resp.status_code == 200
+        message = await db_session.scalar(
+            select(Message).where(
+                Message.conversation_id == conv_id,
+                Message.role == "user",
+            )
+        )
+        assert message is not None
+        assert message.meta["attachments"][0]["name"] == "notes.txt"
+        assert "hello from the file" in message.content
+    finally:
+        _clear_overrides()
+
+
 async def test_chat_stream_requires_auth(db_session):
     async def _override_db():
         yield db_session
