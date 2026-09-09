@@ -21,9 +21,12 @@ TOPIC_CONSOLIDATION_INTERVAL_MINUTES=60
 TOPIC_CONSOLIDATION_CONCURRENCY=2  # max concurrent dirty-user jobs (still 1 curator call/user)
 TOPIC_REALTIME_BATCH_SIZE=100
 
-# Blank MODEL disables curation; local Ollama needs loopback URL in local_only; :cloud needs cloud_allowed (filtered manifest, untrusted JSON, retry once). Changing model/prompt re-queues topics.
+# Blank MODEL is a fatal misconfiguration when TOPIC_CONTEXT_ENABLED is on:
+# topic graph curation has no model to call and the backend refuses to boot.
+# Local Ollama needs a loopback URL in local_only; :cloud needs cloud_allowed
+# (filtered manifest, untrusted JSON, retry once). Changing model/prompt re-queues topics.
 TOPIC_CURATOR_PROVIDER=ollama
-TOPIC_CURATOR_MODEL=
+TOPIC_CURATOR_MODEL=glm-5.3-flash:cloud
 TOPIC_CURATOR_THINKING=medium
 TOPIC_REALTIME_MODEL=
 TOPIC_CONTEXT_PRIVACY_MODE=local_only

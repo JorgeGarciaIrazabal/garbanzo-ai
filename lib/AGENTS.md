@@ -27,8 +27,7 @@ provider map, chat/SSE flow, rooms WebSocket) and `../docs/api.md` (endpoints).
 - State: `Provider`/`ChangeNotifier`. `ModelProvider` and `ChatProvider` are kept
   separate so model selection survives conversation switches.
 - Models use `freezed` + `json_serializable`. After editing a `@freezed` file run
-  `dart run build_runner build --delete-conflicting-outputs` and **commit** the
-  generated `.freezed.dart` / `.g.dart`.
+  `just fe-gen-models` and **commit** the generated `.freezed.dart` / `.g.dart`.
 - JWT lives in `SharedPreferences` under `auth_token`; `ApiClient` reads it.
 
 ## i18n

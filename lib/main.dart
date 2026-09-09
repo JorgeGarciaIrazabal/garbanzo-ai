@@ -190,18 +190,19 @@ class _AppProviders extends StatelessWidget {
         >(
           create: (_) => ChatProvider(),
           update: (_, model, style, topics, activeContext, chat) {
-            topics.onTopicSwitched = () {
-              chat!.clearMessagesLocally();
+            topics.onTopicSwitched = (response) async {
+              await chat!.applyTopicSwitch(response);
               final convId = chat.currentConversation?.id;
               if (convId != null && convId.isNotEmpty) {
-                unawaited(activeContext.load(convId, quiet: true));
+                await activeContext.load(convId, quiet: true);
               }
             };
-            topics.onTopicCombined = () {
-              final convId = chat!.currentConversation?.id;
+            topics.onTopicCombined = (response) async {
+              chat!.applyTopicCombine(response);
+              final convId = chat.currentConversation?.id;
               if (convId != null && convId.isNotEmpty) {
-                unawaited(activeContext.load(convId, quiet: true));
-                unawaited(chat.refreshConversations());
+                await activeContext.load(convId, quiet: true);
+                await chat.refreshConversations();
               }
             };
             return chat!

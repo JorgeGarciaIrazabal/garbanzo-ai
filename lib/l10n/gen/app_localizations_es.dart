@@ -3047,12 +3047,6 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String get carryover => 'Traslado';
-
-  @override
-  String get noCarryover => 'Sin elementos de traslado';
-
-  @override
   String topicArchiveCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -3064,10 +3058,57 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
+  String get earlierSessions => 'Sesiones anteriores';
+
+  @override
+  String get earlierSessionsDescription =>
+      'Consulta sesiones anteriores del chat principal para este tema.';
+
+  @override
+  String get noEarlierSessions =>
+      'Todavía no hay sesiones anteriores para este tema.';
+
+  @override
+  String get archivedSession => 'Sesión archivada';
+
+  @override
+  String archiveMessageCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'mensajes',
+      one: 'mensaje',
+    );
+    return '$count $_temp0';
+  }
+
+  @override
+  String get archivedSessionReadOnly =>
+      'Historial de solo lectura. Para continuar el chat se usa la sesión del tema actual.';
+
+  @override
+  String get loadOlderMessages => 'Cargar mensajes anteriores';
+
+  @override
+  String get archiveLoadFailed => 'No se pudo cargar esta sesión anterior.';
+
+  @override
+  String get archiveSpeakerYou => 'Tú';
+
+  @override
+  String get archiveSpeakerGarbanzo => 'Garbanzo';
+
+  @override
   String get topicSwitchFailed => 'No se pudo cambiar de tema';
 
   @override
   String get redirect => 'Cambiar tema';
+
+  @override
+  String get topicGraphRoot => 'Raíz del mapa de temas';
+
+  @override
+  String get changeTopicFocus => 'Cambiar el tema activo:';
 
   @override
   String get lockTopic => 'Bloquear tema';
@@ -3122,7 +3163,8 @@ class AppLocalizationsEs extends AppLocalizations {
       'El contexto histórico está temporalmente limitado';
 
   @override
-  String get preparingBestContext => 'Preparando el mejor contexto';
+  String get contextUpdatingInBackground =>
+      'El contexto se está actualizando en segundo plano. Las fuentes válidas actuales siguen disponibles.';
 
   @override
   String thinkingEffortAdjusted(String level) {
@@ -3147,6 +3189,13 @@ class AppLocalizationsEs extends AppLocalizations {
   String get noActiveContext => 'Aún no hay contexto activo';
 
   @override
+  String get availableTopicContext => 'CONTEXTO DISPONIBLE DEL TEMA';
+
+  @override
+  String get noEstablishedTopicContext =>
+      'Este tema todavía no tiene contexto establecido disponible. Las nuevas decisiones y preferencias aparecerán aquí mientras conversas.';
+
+  @override
   String get contextTokenUsage => 'Uso de tokens del contexto';
 
   @override
@@ -3161,10 +3210,24 @@ class AppLocalizationsEs extends AppLocalizations {
   String get noDynamicSources => 'No hay fuentes dinámicas seleccionadas';
 
   @override
-  String get addContextSource => 'Añadir una fuente de contexto';
+  String get selectContextSource => 'Elige un mensaje reciente';
 
   @override
-  String get contextSourceIdHint => 'ID de mensaje, hilo, memoria o archivo';
+  String get noContextSourcesAvailable =>
+      'No hay mensajes recientes disponibles para añadir.';
+
+  @override
+  String contextSourceName(String name) {
+    return 'Fuente: $name';
+  }
+
+  @override
+  String contextSourceNameAndDate(String name, String date) {
+    return 'Fuente: $name • $date';
+  }
+
+  @override
+  String get openSource => 'Abrir fuente';
 
   @override
   String get unpin => 'Desfijar';
@@ -3187,4 +3250,45 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get topicPinUpdateFailed =>
       'No se pudo actualizar la fijación del tema';
+
+  @override
+  String get topicSwitchDialogTitle => '¿Cambiar o combinar?';
+
+  @override
+  String get topicSwitchWith => 'con';
+
+  @override
+  String get topicSwitchChoiceDescription =>
+      'Combina para hablar de ambos temas o cambia para iniciar una sesión de chat nueva.';
+
+  @override
+  String get topicSwitchStartDescription =>
+      'Inicia una conversación nueva centrada en este tema.';
+
+  @override
+  String get retainPinnedSourcesOnSwitch =>
+      'Conservar las fuentes fijadas al cambiar';
+
+  @override
+  String get switchTopic => 'Cambiar de tema';
+
+  @override
+  String get combineTopics => 'Combinar temas';
+
+  @override
+  String get topicCombineFailed => 'No se pudieron combinar los temas';
+
+  @override
+  String topicDriftDetected(String topic) {
+    return 'Se detectó un cambio: ¿cambiar a $topic?';
+  }
+
+  @override
+  String get combine => 'Combinar';
+
+  @override
+  String get switchAction => 'Cambiar';
+
+  @override
+  String get dismiss => 'Descartar';
 }

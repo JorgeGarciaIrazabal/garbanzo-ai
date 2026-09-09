@@ -410,12 +410,7 @@ class ActiveContextItem(Base):
 
 
 class TopicArchive(Base):
-    """A read-only snapshot of a primary conversation captured on topic switch.
-
-    The archive preserves the messages that existed under the prior topic so
-    that a future "enhance this topic" pass can re-derive evidence without
-    re-reading the primary conversation (which is cleared on switch).
-    """
+    """Small index of a preserved primary-chat session epoch."""
 
     __tablename__ = "topic_archives"
 
@@ -435,6 +430,27 @@ class TopicArchive(Base):
     message_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
     short_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class TopicSwitchOperation(Base):
+    """Idempotency record for one committed primary-chat topic switch."""
+
+    __tablename__ = "topic_switch_operations"
+    __table_args__ = (UniqueConstraint("conversation_id", "idempotency_key"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    conversation_id: Mapped[str] = mapped_column(
+        ForeignKey("conversations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("users.email", ondelete="CASCADE"), nullable=False, index=True
+    )
+    idempotency_key: Mapped[str] = mapped_column(String(120), nullable=False)
+    request_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    response_json: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

@@ -5,6 +5,7 @@ import 'package:garbanzo_ai/features/topics/models/topic_node.dart';
 import 'package:garbanzo_ai/features/topics/models/topic_switch.dart';
 import 'package:garbanzo_ai/features/topics/providers/topic_discovery_provider.dart';
 import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
+import 'package:uuid/uuid.dart';
 
 /// Confirmation dialog presenting Combine, Switch, or Cancel options.
 class TopicSwitchConfirmationDialog extends StatefulWidget {
@@ -36,10 +37,12 @@ class TopicSwitchConfirmationDialog extends StatefulWidget {
 
 class _TopicSwitchConfirmationDialogState
     extends State<TopicSwitchConfirmationDialog> {
-  bool _includeCarryover = true;
+  bool _retainPinned = true;
   bool _submitting = false;
   String? _submittingAction;
   String? _errorMessage;
+  String? _switchIdempotencyKey;
+  String? _combineIdempotencyKey;
 
   @override
   Widget build(BuildContext context) {
@@ -64,7 +67,7 @@ class _TopicSwitchConfirmationDialogState
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'Switch or Combine?',
+              l10n.topicSwitchDialogTitle,
               style: theme.textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w700,
               ),
@@ -91,7 +94,7 @@ class _TopicSwitchConfirmationDialogState
                 ),
                 if (hasCurrent) ...[
                   Text(
-                    'with',
+                    l10n.topicSwitchWith,
                     style: TextStyle(
                       fontSize: 12,
                       color: cs.onSurfaceVariant,
@@ -110,8 +113,8 @@ class _TopicSwitchConfirmationDialogState
             const SizedBox(height: 12),
             Text(
               hasCurrent
-                  ? 'Combine to discuss both topics together, or switch to start a fresh chat session.'
-                  : 'Start a new conversation focused on this topic.',
+                  ? l10n.topicSwitchChoiceDescription
+                  : l10n.topicSwitchStartDescription,
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: cs.onSurfaceVariant,
                 height: 1.35,
@@ -119,16 +122,19 @@ class _TopicSwitchConfirmationDialogState
             ),
             const SizedBox(height: 8),
             CheckboxListTile(
-              key: const ValueKey('topic_switch_carryover_checkbox'),
+              key: const ValueKey('topic_switch_retain_pinned_checkbox'),
               contentPadding: EdgeInsets.zero,
               dense: true,
-              value: _includeCarryover,
-              onChanged: _submitting
+              value: _retainPinned,
+              onChanged: _submitting || _switchIdempotencyKey != null
                   ? null
-                  : (v) => setState(() => _includeCarryover = v ?? true),
-              title: const Text(
-                'Carry over recent context when switching',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                  : (v) => setState(() => _retainPinned = v ?? true),
+              title: Text(
+                l10n.retainPinnedSourcesOnSwitch,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
               controlAffinity: ListTileControlAffinity.leading,
             ),
@@ -157,7 +163,7 @@ class _TopicSwitchConfirmationDialogState
                   height: 14,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : const Text('Switch Topic'),
+              : Text(l10n.switchTopic),
         ),
         FilledButton.icon(
           key: const ValueKey('topic_switch_combine_button'),
@@ -172,7 +178,7 @@ class _TopicSwitchConfirmationDialogState
                 )
               : const Icon(Icons.merge_type_rounded, size: 16),
           onPressed: _submitting ? null : _handleCombine,
-          label: const Text('Combine Topics'),
+          label: Text(l10n.combineTopics),
         ),
       ],
     );
@@ -236,7 +242,7 @@ class _TopicSwitchConfirmationDialogState
       final result = await topics.combineTopics(
         widget.conversationId,
         topicId: widget.targetTopic.id,
-        label: widget.targetTopic.label,
+        idempotencyKey: _combineIdempotencyKey ??= const Uuid().v4(),
       );
       if (mounted) Navigator.of(context).pop(result);
     } catch (e) {
@@ -245,7 +251,7 @@ class _TopicSwitchConfirmationDialogState
           _submitting = false;
           _submittingAction = null;
           _errorMessage =
-              'Failed to combine topics: ${e.toString().replaceAll('Exception: ', '')}';
+              '${AppLocalizations.of(context)!.topicCombineFailed}: ${e.toString().replaceAll('Exception: ', '')}';
         });
       }
     }
@@ -262,8 +268,8 @@ class _TopicSwitchConfirmationDialogState
       final result = await topics.switchTopic(
         widget.conversationId,
         topicId: widget.targetTopic.id,
-        label: widget.targetTopic.label,
-        carryoverMaxItems: _includeCarryover ? 5 : 0,
+        retainPinned: _retainPinned,
+        idempotencyKey: _switchIdempotencyKey ??= const Uuid().v4(),
         mode: 'switch',
       );
       if (mounted) Navigator.of(context).pop(result);
@@ -273,7 +279,7 @@ class _TopicSwitchConfirmationDialogState
           _submitting = false;
           _submittingAction = null;
           _errorMessage =
-              'Failed to switch topic: ${e.toString().replaceAll('Exception: ', '')}';
+              '${AppLocalizations.of(context)!.topicSwitchFailed}: ${e.toString().replaceAll('Exception: ', '')}';
         });
       }
     }

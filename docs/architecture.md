@@ -285,7 +285,7 @@ pages/               LoginPage, RegisterPage
 
 1. `ChatProvider.sendMessage()` optimistically adds the user message, then calls `ChatService.streamChatResponse()`
 2. `ChatService` POSTs to `/api/v1/chat/conversations/{id}/chat` with `Accept: text/event-stream`; Talk Mode also sends its `AppLocalizations`-resolved `talk_mode_instruction`
-3. Backend `ChatService` builds history, appends Talk instruction to system context only, calls `LLMProvider.stream_chat()`, yields SSE. Primary chats run `TopicContextCompiler` first: hybrid pgvector cosine similarity + full-text retrieval, 1-hop subgraph traversal along `TopicRelation` and causal superseding links, active context pack, pins, and recent evidence under token budget (<10ms when served from pre-warmed cache). On completion of primary turns, `_spawn_topic_prewarm` pre-compiles baseline context for the next turn in the background. Hourly `TopicConsolidationService` drains queue, builds manifest, calls `TopicSemanticCurator` once per user to rename nodes, link hierarchy (≤3 levels), merge duplicates, synthesize assertions. Strict JSON/ownership/grounding/hierarchy validation gates writes; materializer promotes packs atomically. Compiler filters by ownership/deletion/validity/exclusions; stale pack uses bounded fallback. Threads/regenerate/edit/tool loops use `ChatContextBuilder`. Image turns return `unsupported_image_input` without Ollama; Flutter shows amber warning. `ModelProvider` prefers GLM 5.3 Flash vs Kimi K3; `ChatProvider` PATCHes model and retries via edit stream.
+3. Backend `ChatService` builds history, appends Talk instruction to system context only, calls `LLMProvider.stream_chat()`, yields SSE. Primary chats run `TopicContextCompiler` first: bounded hybrid pgvector cosine similarity + full-text retrieval, hierarchy traversal, 1-hop expansion along `TopicRelation` and causal superseding links, curated assertions, and explicit pins under the token budget. Selecting a parent makes all descendants eligible; selecting a child keeps every ancestor eligible during query reranking. A valid pack supplies the curated ordering; newer grounded assertions form the live delta. Raw topic messages are a bounded cold-topic fallback only when no eligible assertion exists. The compiler applies one ownership, deletion, validity, evidence, and exclusion policy to every source and fails visibly if PostgreSQL vector/FTS execution breaks. Hourly `TopicConsolidationService` drains the durable queue and builds one fair user-level manifest governed by a 128,000-character evidence budget, with a separate 256-candidate-per-topic database scan ceiling. It then calls `TopicSemanticCurator` once per user to rename nodes, link hierarchy (≤3 levels), merge duplicates, and synthesize concise assertions across that evidence. Strict JSON/ownership/grounding/hierarchy validation gates writes; materializer promotes packs atomically. Threads/regenerate/edit/tool loops use `ChatContextBuilder`. Image turns return `unsupported_image_input` without Ollama; Flutter shows amber warning. `ModelProvider` prefers GLM 5.3 Flash vs Kimi K3; `ChatProvider` PATCHes model and retries via edit stream.
 4. **Chunk types:**
    - `chunk` — text content
    - `thinking` — reasoning / thought blocks
@@ -357,36 +357,45 @@ and after every single turn — slow for long-running conversations. Now:
 `POST /api/v1/chat/conversations/{id}/topics/switch` is the primary-chat
 topic change action. It runs server-side as a single orchestration:
 
-1. **Archive** — If `archive: true` (default), the entire current primary
-   message history is snapshotted into a `topic_archives` row attached to
-   the *prior* topic. This read-only archive is the substrate for future
-   "enhance this topic" passes — the user's prior thread is never lost.
-2. **Clear** — All messages are deleted from the primary conversation.
-   Each deletion enqueues a `delete` ingestion event so the hourly
-   consolidation pipeline invalidates the prior topic's evidence. All
-   `ActiveContextItem` rows (pins + dynamic) are also deleted.
-3. **Activate** — The new topic is created or attached (same semantics as
-   the existing `activate` endpoint). `context_version` is bumped and the
-   new topic is pinned.
-4. **Carryover** — If `carryover.enabled: true` (default), a bounded LLM
-   call extracts the most important facts/decisions/preferences from the
-   just-archived messages (`carryover_max_items`, `carryover_max_tokens`).
-   The output is validated against a strict schema (`CarryoverOutput`);
-   on any failure a deterministic fallback uses the most recent user
-   messages. Carryover items are written as `ActiveContextItem` rows with
-   `source_type = 'carryover'` so the UI renders them as a dedicated
-   "Carryover" branch at the top of the context tree.
-5. **Prepare** — An async pack build is kicked off for the new topic.
-   The switch response returns immediately; the next user turn will
-   receive fresh `topic_update`, `context_update`, and `context_snapshot`
-   SSE events with the new state.
+1. Lock the primary conversation and check the required idempotency key. A
+   committed response is replayed verbatim after response loss; the same key
+   cannot describe a different request.
+2. Optionally record a small archive index for the old topic and session epoch.
+   Messages stay in their original rows and retain their evidence links.
+3. Advance `session_epoch` and `context_version` once, clear dynamic context,
+   and retain only explicit pins when `retain_pinned` is true.
+4. Resolve and attach the owned target topic, then materialize the compiler's
+   bounded, query-independent baseline from the validated curated pack, live
+   assertions, and explicit pins. A topic with no eligible assertion can use a
+   bounded raw-evidence fallback while consolidation is preparing. This happens
+   inside the same context-version boundary so the
+   empty-session preview and token meter are accurate before the first turn.
+5. The target stays dirty for the lease-protected consolidation worker; no
+   curator/model call runs in the HTTP request. Return its authoritative
+   readiness with the committed result. The first user query may rerank the
+   baseline using lexical and semantic relevance.
+
+`mode: "combine"` uses the same endpoint and idempotency contract, adds the
+topic relation, and keeps the current session epoch.
+
+Archived epochs remain read-only. The archive detail endpoint resolves messages
+from the original conversation and exact stored epoch, pages backward by message
+sequence, and checks archive/topic ownership without changing active chat state.
 
 **Frontend coordination** — `TopicDiscoveryProvider.switchTopic()` calls
-the endpoint, updates `_selectedTopic` locally, and notifies.
-`ActiveContextProvider.resetFromServer()` replaces the local context
-snapshot with the server response (including carryover items).
-`ChatProvider.clearMessagesLocally()` optimistically wipes the message
-list so the UI shows the cleared state before the server confirms.
+the endpoint and applies its authoritative topic. `ChatProvider.applyTopicSwitch()`
+cancels any active client stream, advances the local action guard, clears the
+visible session, and applies the returned topic, context version, and session
+epoch before listeners refresh active context. Late chunks and reloads from the
+old action are ignored. `ActiveContextProvider.resetFromServer()` replaces the
+local context snapshot; retained pins are returned as `retained_items`. The
+active-context panel lists earlier sessions for the topic and opens their paged
+messages in a localized read-only dialog.
+
+All active-context mutations and topic pin changes lock the same primary
+conversation row and require its current `context_version`. This serializes them
+against topic switching, so a stale mutation returns the authoritative version
+instead of crossing a session boundary.
 
 ## SSE Streaming Protocol
 

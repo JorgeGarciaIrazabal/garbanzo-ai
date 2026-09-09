@@ -41,6 +41,7 @@ _Conversation _$ConversationFromJson(Map<String, dynamic> json) =>
           : TopicNode.fromJson(json['active_topic'] as Map<String, dynamic>),
       topicIsPinned: json['topic_is_pinned'] as bool? ?? false,
       contextVersion: (json['context_version'] as num?)?.toInt() ?? 0,
+      sessionEpoch: (json['session_epoch'] as num?)?.toInt() ?? 0,
     );
 
 Map<String, dynamic> _$ConversationToJson(_Conversation instance) =>
@@ -66,6 +67,7 @@ Map<String, dynamic> _$ConversationToJson(_Conversation instance) =>
       'active_topic': instance.activeTopic,
       'topic_is_pinned': instance.topicIsPinned,
       'context_version': instance.contextVersion,
+      'session_epoch': instance.sessionEpoch,
     };
 
 const _$ThinkingLevelEnumMap = {

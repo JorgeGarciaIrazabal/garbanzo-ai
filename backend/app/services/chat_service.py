@@ -11,7 +11,6 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
-from app.db.session import async_session_maker
 from app.models.conversation import Conversation
 from app.models.message import Message
 from app.models.user import User
@@ -330,7 +329,8 @@ class ChatService:
                 if compiled_context.block:
                     dynamic_context += f"\n\n{compiled_context.block}"
             except Exception:
-                logger.exception("Best-effort primary topic context compilation failed")
+                logger.exception("Primary topic context compilation failed")
+                raise
         return compiled_context, history_for_prompt, dynamic_context, topic_chunks
 
     async def send_message(
@@ -628,12 +628,6 @@ class ChatService:
                     last_user_text,
                     result.content,
                 )
-            if (
-                result.completed
-                and conversation.is_primary
-                and get_settings().topic_context_enabled
-            ):
-                self._spawn_topic_prewarm(conversation_id)
         finally:
             ChatService._active_streams.pop(conversation_id, None)
 
@@ -730,20 +724,6 @@ class ChatService:
                 assistant_text,
             )
         )
-
-    def _spawn_topic_prewarm(self, conversation_id: str) -> None:
-        """Fire-and-forget pre-warming of dynamic topic context for the next turn."""
-        asyncio.create_task(self._prewarm_topic_context(conversation_id))
-
-    async def _prewarm_topic_context(self, conversation_id: str) -> None:
-        try:
-            async with async_session_maker() as db:
-                conv = await ConversationService(db).get(conversation_id)
-                if conv and conv.is_primary and conv.active_topic_id:
-                    compiler = TopicContextCompiler(db)
-                    await compiler.prewarm(conv)
-        except Exception as e:
-            logger.debug("Topic context pre-warm failed for %s: %s", conversation_id, e)
 
     async def _resolve_tools_for_conversation(
         self, conversation, has_client_folder: bool = False

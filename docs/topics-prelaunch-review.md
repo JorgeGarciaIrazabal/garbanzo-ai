@@ -1,9 +1,68 @@
 # Topics: pre-launch review and simplification plan
 
-Reviewed September 5, 2026 against the current working tree, including uncommitted
-implementation. This is a quick static code review, not a runtime, visual, or
-performance certification. No tests or benchmarks were run for this document.
-Recommendations assume no deployed Topics clients or data to preserve.
+Reviewed September 5, 2026 against the working tree and implemented through
+September 8, 2026. Recommendations assume no deployed Topics clients or feature
+data to preserve.
+
+## Implementation status
+
+The launch-blocking contract and eligibility work is implemented in the current
+working tree:
+
+- Topic changes use one transaction-owned, row-serialized switch endpoint with
+  required idempotency keys and committed-response replay.
+- Generated carryover and the obsolete activation/prepare endpoints are removed.
+  Users can explicitly retain pinned sources, and the compiler validates them
+  again on every turn.
+- The compiler uses one eligibility policy for pinned and dynamic assertions,
+  messages, threads, memories, and knowledge sources. Invalid, deleted, expired,
+  superseded, or excluded sources do not enter the prompt or inspection summary.
+- Active-context edits and topic pin changes lock the primary conversation row
+  and require its current context version, preventing stale writes from crossing
+  a switch boundary.
+- Archives store session metadata while original epoch-tagged messages remain the
+  authoritative history.
+- Retrieval is bounded before evidence expansion and the final rendered block
+  obeys the configured token budget, including required guardrails and pins.
+  PostgreSQL vector/FTS failures surface instead of quietly taking the
+  SQLite-only test fallback. The migration smoke test executes a real
+  768-dimensional pgvector + English FTS query.
+- Prepared topic prompts now contain validated curated assertions and newer
+  grounded assertion deltas; raw transcripts are used only for a cold topic
+  that has no eligible assertion. The background graph curator fairly allocates
+  a payload-size budget across topics from a higher bounded candidate scan, so
+  the former 24-message request cap no longer defines the topic's knowledge.
+- Flutter uses the server tree and authoritative switch result, searches nested
+  topics with parent paths, reuses idempotency keys after recoverable failures,
+  clears stale drift proposals, cancels the old client stream at a switch, and
+  localizes switch/readiness text in English and Spanish. The bare chat route
+  stays on the topic landing page while the primary conversation loads; server
+  selection synchronization cannot redirect it into an old active topic. Topic
+  selection and starter prompts stay in the primary conversation and use the
+  switch contract.
+- Parent topics are directly selectable while a separate control opens their
+  children. The primary composer no longer creates a second conversation after
+  topic selection. Parent compilation includes descendant assertions, and child
+  compilation retains ancestor assertions during query reranking.
+- The context panel shows grounded source excerpts, dates, and links to ordinary
+  source threads. Adding a source uses a recent-message picker instead of a raw
+  ID field, and earlier topic sessions reopen in a read-only paged viewer. Topic
+  switching also materializes an eligible, bounded baseline working set so the
+  pre-turn preview and token meter do not incorrectly show an evidence-backed
+  topic as empty.
+
+Focused automated verification covers switch replay and key conflicts, archive
+metadata, pin retention/removal, source eligibility invalidation, the actual
+provider input, exact compiler budgeting, strict Flutter contracts, nested
+search, selection state, source UX, stale-stream isolation, and topic widgets.
+The PostgreSQL migration smoke covers all 46 migrations, the hybrid query,
+serialized competing switches, and preservation of a detached turn's captured
+session epoch. `just ai-topics-retrieval-eval` runs the configured embedding
+model against separate English and Spanish paraphrase, negation, correction,
+and neutral-query cases; the September 8 local run achieved recall@1, recall@3,
+and MRR of 1.0 for both languages.
+Remaining launch evidence is listed below; this document does not claim
+production latency or visual certification.
 
 ## Assessment
 
@@ -39,6 +98,10 @@ do not establish end-to-end correctness or latency.
 
 ### 1. Make carryover actually reach the next model turn
 
+**Status (September 8): resolved by simplification.** Generated carryover and its
+source type were removed. A switch optionally retains explicit pins, and each
+retained reference passes the shared eligibility policy before prompt rendering.
+
 **Observed:** `TopicSwitchService._seed_carryover` writes `source_type="carryover"`
 items with `state="dynamic"`. The compiler selects pins, assertions, and raw
 evidence; it does not select those carryover items. `_sync_dynamic_items` then
@@ -60,11 +123,12 @@ exception fallback also returns before `_cap` applies the token budget.
 inspect the provider input. The fact must be present; excluded or unselected facts
 must be absent. Reject fabricated source IDs and enforce the budget on failures.
 
-Sources: [switch service](../backend/app/topics/topic_switch_service.py),
-[extractor](../backend/app/topics/carryover_extractor.py),
+Sources: [switch service](../backend/app/topics/topic_switch_service.py) and
 [compiler](../backend/app/topics/topic_context_compiler.py).
 
 ### 2. Apply one eligibility policy to every context source
+
+**Status (September 8): implemented and covered by focused regression tests.**
 
 **Observed:** ordinary assertion candidates check validity windows, status,
 superseding relationships, and concept exclusions. Pinned assertion resolution
@@ -87,6 +151,13 @@ Source: [compiler](../backend/app/topics/topic_context_compiler.py), especially
 `_assertion_candidates`, `_pinned_candidates`, and `_source_content`.
 
 ### 3. Use one switch operation with one transaction owner
+
+**Status (September 8): implemented and covered on PostgreSQL.** The migration
+smoke races two switch transactions against one primary conversation and proves
+they commit as distinct ordered boundaries. It also keeps a turn transaction
+open across both switches and proves its later message write retains the epoch
+captured when the turn began. Flutter widget coverage rejects late chunks and
+reloads from the canceled client stream after a committed switch.
 
 **Observed:** the frontend catches any switch failure and falls back to the older
 activate endpoint, which does not advance the session epoch. The switch service
@@ -129,22 +200,27 @@ a small evaluation set demonstrates a need.
 
 ## Retrieval and performance improvements
 
-1. **Measure real text turns.** `compile` reads the prewarm cache only when
-   `current_query` is empty. The existing sub-10ms test also uses an empty query.
-   This does not demonstrate faster normal chat. Start without the extra cache,
-   or explicitly reuse validated baseline candidates and rerank with the query.
-   Any retained cache needs freshness across workers, exclusions, and pack changes.
-2. **Bound database work before materializing candidates.** `_assertion_candidates`
-   loads all in-scope evidence rows, then runs a second hybrid scoring query with
-   no top-k limit. Fetch bounded ranked seeds, expand within a fixed budget, and
-   batch-load evidence. Measure actual PostgreSQL query plans before claiming
-   vector indexes improve this path.
-3. **Evaluate English and Spanish separately.** FTS currently uses `english`.
-   Additional regex patterns alone do not establish multilingual recall. Use
-   paraphrases, negations, corrections, and messages with no explicit fact pattern.
-4. **Test the production database path.** Existing backend test fixtures use
-   SQLite and scoring can fall back after SQL failure. Add Docker PostgreSQL +
-   pgvector integration coverage that proves hybrid SQL actually executed.
+1. **Measure real text turns.** The empty-query in-process prewarm cache and its
+   sub-10ms test are removed. Establish compiler p50/p95 using real user text on
+   the intended PostgreSQL deployment before setting a launch target.
+2. **Bound database work before materializing candidates.** The compiler now
+   takes a bounded assertion seed set, prioritizes the validated pack and explicit
+   pins, expands live evidence for those seeds, reserves raw messages for the
+   no-assertion fallback, and caps documents and relation expansion,
+   limits hybrid scores to the top 48, and trims the fully rendered context to
+   its token budget. Capture PostgreSQL query plans and real data distributions
+   before further tuning.
+3. **Evaluate English and Spanish separately.** The PostgreSQL lexical component
+   still uses `english`, while the configured semantic embedding path supplies
+   multilingual recall. `just ai-topics-retrieval-eval` now measures the two
+   languages separately over paraphrases, negations, corrections, and queries
+   with no explicit fact pattern. The initial four-case set for each language
+   ranked the expected evidence first in every case. Grow the checked-in fixture
+   with anonymized failures as real usage reveals harder vocabulary.
+4. **Test the production database path.** `just ai-migration-smoke` now inserts a
+   768-dimensional vector and executes the vector + English FTS fused ranking on
+   Docker PostgreSQL. Promote this smoke assertion into a repeatable CI gate when
+   CI provides PostgreSQL + pgvector.
 
 Measure context relevance, excluded-source leakage, topic fragmentation, compiler
 p50/p95 latency, embedding/curator calls, and ingestion backlog. Set latency targets
@@ -152,28 +228,31 @@ from a baseline on the intended deployment, not empty-query microbenchmarks.
 
 Sources: [compiler](../backend/app/topics/topic_context_compiler.py),
 [pipeline tests](../backend/tests/test_topic_context_pipeline.py),
-[ingestion](../backend/app/topics/topic_ingestion_service.py).
+[ingestion](../backend/app/topics/topic_ingestion_service.py), and the
+[bilingual evaluation](../scripts/ai_dev/topics_retrieval_eval.py) with its
+[checked-in fixture](../scripts/ai_dev/fixtures/topics_retrieval_eval.json).
 
 ## Make the UI easier to understand
 
-- **Search the entire topic tree.** `visibleTopics` filters only the currently
-  visible level. Show matching descendants with their parent path. Offer a simple
-  recent-topic list alongside the map, and check keyboard navigation and narrow
-  screens with a large topic set.
-- **Fix selection state before visual polish.** Capture the requested mode before
-  awaiting `load`: changing modes while loading can store a response under the
-  wrong `_mode`. Apply the server result in `activateFreeText`, which currently
-  leaves its provisional selection ID. Use one switch state machine with pending,
-  success, and recoverable failure states; do not assume context is ready.
-- **Show useful sources.** The context panel currently displays a source type and
-  truncated ID. Provide the quote, date, and a navigable source. Replace the “add
-  source” raw message-ID field with a source picker.
-- **Make boundaries predictable.** Explain that changing topics starts a new
-  visible session while preserving earlier discussion. Provide an obvious way to
-  reopen it. Keep drift suggestions optional and discard stale proposals after
-  manual selection or session changes.
-- **Finish localization.** Switch-dialog and drift-banner strings include
-  hardcoded English. Move them into the existing English/Spanish ARB workflow.
+- **Search the entire topic tree.** Implemented: matching descendants retain
+  their parent path. Keyboard navigation, narrow screens, and a large real topic
+  set still need browser E2E validation.
+- **Fix selection state before visual polish.** Implemented: loads retain their
+  requested mode, free-text selection uses the authoritative server topic, and
+  switch failures remain recoverable with stable idempotency keys. The ordinary
+  topic landing and starter paths keep using the primary conversation, while a
+  committed switch cancels the old client stream and installs the returned
+  topic, epoch, and context version before the UI can reload stale state.
+- **Show useful sources.** Implemented: the context panel resolves a grounded
+  excerpt, source date and label, and navigation when the source belongs to an
+  ordinary thread. Adding a source uses a picker over recent visible messages.
+- **Make boundaries predictable.** Switch copy explains the new visible session,
+  archives preserve the prior epoch, and stale drift proposals are discarded.
+  Earlier primary-chat epochs reopen in a read-only paged viewer; ordinary
+  source threads can also be opened from the context panel.
+- **Finish localization.** Switch, drift, source, and readiness text now uses the
+  English/Spanish ARB workflow. A complete Topics-screen localization audit is
+  still useful because older panel labels predate this review.
 
 Sources: [provider](../lib/features/topics/providers/topic_discovery_provider.dart),
 [context panel](../lib/features/topics/widgets/active_context_panel.dart),
@@ -184,11 +263,14 @@ Sources: [provider](../lib/features/topics/providers/topic_discovery_provider.da
 
 1. Fix eligibility and carryover; unify switch semantics and transaction handling.
 2. Remove compatibility adapters, synthetic hierarchy, and duplicate preparation.
-3. Choose one history representation and clarify the role of curated packs.
-4. Add real-query PostgreSQL tests and a small bilingual retrieval evaluation.
+3. Keep curated packs and grounded assertion deltas as the prepared-topic
+   representation; keep raw messages only as an explicit pin or cold-topic fallback.
+4. Keep the real-query PostgreSQL smoke and bilingual retrieval fixture in the
+   pre-launch gate; extend the fixture when retrieval failures are found.
 5. Finish source navigation, global search, readiness/error states, and localization.
 
-Update the architecture, API, database, and in-app help alongside implementation.
-In particular, replace the current description of switch preparation as an async
-kickoff and qualify cache latency claims. No implementation changes are included
-in this review.
+Architecture, API, database, and in-app help documentation now describe the
+implemented switch, archive, compiler, and readiness behavior. The archive flow
+has also been exercised end to end on the Linux desktop target, including a real
+switch, archive listing, and opening the read-only session. Before launch, finish
+the real-turn latency baseline and browser E2E pass described above.

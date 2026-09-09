@@ -6,12 +6,13 @@ import 'package:provider/provider.dart';
 import 'package:garbanzo_ai/features/topics/models/active_context.dart';
 import 'package:garbanzo_ai/features/topics/models/topic_node.dart';
 import 'package:garbanzo_ai/features/topics/providers/active_context_provider.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// Clean, modern empty state rendered in the primary chat when a topic is active
 /// and no messages have been sent in the current session epoch yet.
 ///
-/// Surfaces the topic identity, structured context breakdown (carryover decisions,
-/// pinned constraints, memories, topic knowledge graph assertions), and interactive
+/// Surfaces the topic identity, structured context breakdown (pinned constraints,
+/// memories, topic knowledge graph assertions), and interactive
 /// starter prompts.
 class TopicContextEmptyState extends StatefulWidget {
   const TopicContextEmptyState({
@@ -76,18 +77,11 @@ class _TopicContextEmptyStateState extends State<TopicContextEmptyState> {
             .toList() ??
         const <String>[];
 
-    final carryover = items
-        .where((it) => it.sourceType == 'carryover')
-        .toList();
     final pinned = items
         .where((it) => it.state == ActiveContextItemState.pinned)
         .toList();
     final memories = items.where((it) => it.sourceType == 'memory').toList();
-    final knowledge = items
-        .where(
-          (it) => it.sourceType != 'carryover' && it.sourceType != 'memory',
-        )
-        .toList();
+    final knowledge = items.where((it) => it.sourceType != 'memory').toList();
 
     return Center(
       child: SingleChildScrollView(
@@ -302,7 +296,7 @@ class _TopicContextEmptyStateState extends State<TopicContextEmptyState> {
 
                       // What will be added to context header
                       Text(
-                        'WHAT WILL BE ADDED TO CONTEXT',
+                        AppLocalizations.of(context)!.availableTopicContext,
                         style: theme.textTheme.labelSmall?.copyWith(
                           fontWeight: FontWeight.w800,
                           letterSpacing: 0.6,
@@ -318,12 +312,6 @@ class _TopicContextEmptyStateState extends State<TopicContextEmptyState> {
                           spacing: 8,
                           runSpacing: 8,
                           children: [
-                            if (carryover.isNotEmpty)
-                              _ContextPillBadge(
-                                icon: Icons.sync_alt_rounded,
-                                label: '${carryover.length} carried over',
-                                accentColor: Colors.amber.shade700,
-                              ),
                             if (pinned.isNotEmpty)
                               _ContextPillBadge(
                                 icon: Icons.push_pin_rounded,
@@ -440,7 +428,9 @@ class _TopicContextEmptyStateState extends State<TopicContextEmptyState> {
                               const SizedBox(width: 10),
                               Expanded(
                                 child: Text(
-                                  'Clean session started. Established decisions, rules, and topic knowledge will automatically ground here as you chat.',
+                                  AppLocalizations.of(
+                                    context,
+                                  )!.noEstablishedTopicContext,
                                   style: theme.textTheme.bodySmall?.copyWith(
                                     color: cs.onSurfaceVariant,
                                     height: 1.35,
@@ -693,7 +683,6 @@ class _ContextItemTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final isCarryover = item.sourceType == 'carryover';
     final isPinned = item.state == ActiveContextItemState.pinned;
 
     return Container(
@@ -702,11 +691,7 @@ class _ContextItemTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: cs.surface.withValues(alpha: 0.65),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isCarryover
-              ? Colors.amber.withValues(alpha: 0.3)
-              : cs.outlineVariant.withValues(alpha: 0.25),
-        ),
+        border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.25)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -714,15 +699,9 @@ class _ContextItemTile extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(top: 2),
             child: Icon(
-              isCarryover
-                  ? Icons.sync_alt_rounded
-                  : (isPinned
-                        ? Icons.push_pin_rounded
-                        : Icons.auto_awesome_rounded),
+              isPinned ? Icons.push_pin_rounded : Icons.auto_awesome_rounded,
               size: 15,
-              color: isCarryover
-                  ? Colors.amber.shade700
-                  : (isPinned ? Colors.purple.shade400 : cs.primary),
+              color: isPinned ? Colors.purple.shade400 : cs.primary,
             ),
           ),
           const SizedBox(width: 10),
@@ -747,24 +726,18 @@ class _ContextItemTile extends StatelessWidget {
                     vertical: 1.5,
                   ),
                   decoration: BoxDecoration(
-                    color:
-                        (isCarryover
-                                ? Colors.amber
-                                : (isPinned ? Colors.purple : cs.primary))
-                            .withValues(alpha: 0.1),
+                    color: (isPinned ? Colors.purple : cs.primary).withValues(
+                      alpha: 0.1,
+                    ),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
                     item.categoryLabel ??
-                        (isCarryover
-                            ? 'Carried Over Context'
-                            : (isPinned ? 'Pinned Fact' : 'Active Context')),
+                        (isPinned ? 'Pinned Fact' : 'Active Context'),
                     style: theme.textTheme.labelSmall?.copyWith(
                       fontSize: 9.5,
                       fontWeight: FontWeight.w600,
-                      color: isCarryover
-                          ? Colors.amber.shade800
-                          : (isPinned ? Colors.purple.shade700 : cs.primary),
+                      color: isPinned ? Colors.purple.shade700 : cs.primary,
                     ),
                   ),
                 ),

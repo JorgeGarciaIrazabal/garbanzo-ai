@@ -7,6 +7,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
+from app.schemas.chat import ChatMessageOut
 from app.topics.schemas import TopicContextStatus
 
 ContextSourceType = Literal[
@@ -16,7 +17,6 @@ ContextSourceType = Literal[
     "memory",
     "knowledge",
     "attachment",
-    "carryover",
 ]
 ContextItemState = Literal["dynamic", "pinned", "excluded"]
 
@@ -45,6 +45,10 @@ class ActiveContextItemOut(BaseModel):
     summary: str | None = None
     display_text: str | None = None
     category_label: str | None = None
+    source_excerpt: str | None = None
+    source_label: str | None = None
+    source_created_at: datetime | None = None
+    source_conversation_id: str | None = None
 
     model_config = {"from_attributes": True}
 
@@ -114,28 +118,33 @@ class ContextSourceLocator(BaseModel):
         return self
 
 
-class CarryoverRequest(BaseModel):
-    enabled: bool = True
-    max_items: int = Field(default=5, ge=0, le=20)
-    max_tokens: int = Field(default=400, ge=0, le=2000)
-
-
 class TopicSwitchRequest(BaseModel):
+    idempotency_key: str = Field(min_length=8, max_length=120)
     topic_id: str | None = None
     label: str | None = Field(default=None, max_length=200)
     archive: bool = True
-    carryover: CarryoverRequest = Field(default_factory=CarryoverRequest)
+    retain_pinned: bool = True
     mode: Literal["switch", "combine"] = "switch"
+
+    model_config = {"extra": "forbid"}
+
+    @model_validator(mode="after")
+    def require_one_target(self) -> TopicSwitchRequest:
+        if bool(self.topic_id) == bool(self.label and self.label.strip()):
+            raise ValueError("provide exactly one of topic_id or label")
+        return self
 
 
 class TopicSwitchResponse(BaseModel):
+    idempotency_key: str
     conversation_id: str
     topic: ActiveContextTopic | None = None
     context_version: int
     session_epoch: int = 0
     archived: bool
     archive_id: str | None = None
-    carryover: list[ActiveContextItemOut] = Field(default_factory=list)
+    context_status: TopicContextStatus = Field(default_factory=TopicContextStatus)
+    retained_items: list[ActiveContextItemOut] = Field(default_factory=list)
     next_turn_summary: str | None = None
 
 
@@ -154,3 +163,11 @@ class TopicArchiveOut(BaseModel):
 class TopicArchiveListResponse(BaseModel):
     topic_id: str
     archives: list[TopicArchiveOut] = Field(default_factory=list)
+
+
+class TopicArchiveDetailResponse(BaseModel):
+    archive: TopicArchiveOut
+    topic_label: str | None = None
+    session_epoch: int = Field(ge=0)
+    messages: list[ChatMessageOut] = Field(default_factory=list)
+    has_more: bool = False

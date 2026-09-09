@@ -3,8 +3,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
 import 'package:garbanzo_ai/features/topics/models/active_context.dart';
 import 'package:garbanzo_ai/features/topics/models/topic_node.dart';
+import 'package:garbanzo_ai/features/topics/models/topic_switch.dart';
 import 'package:garbanzo_ai/features/topics/providers/active_context_provider.dart';
 import 'package:garbanzo_ai/features/topics/providers/topic_discovery_provider.dart';
 import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
@@ -172,6 +174,9 @@ class _ActiveContextPanelState extends State<ActiveContextPanel> {
                             active.dynamicItems.isEmpty,
                         onPinToggle: (val) => provider.setTopicPinned(val),
                         onRedirect: widget.onRedirect,
+                        onViewArchives: discovery == null
+                            ? null
+                            : () => _showArchives(discovery!, active.topic!.id),
                       ),
                     if (active.summary.isNotEmpty) ...[
                       const SizedBox(height: 14),
@@ -212,6 +217,9 @@ class _ActiveContextPanelState extends State<ActiveContextPanel> {
                     _ContextTree(
                       items: active.items,
                       contextSections: active.contextSections,
+                      onOpenSource: _canOpenConversationSource(context)
+                          ? _openSourceConversation
+                          : null,
                     ),
                     const SizedBox(height: 16),
                     OutlinedButton.icon(
@@ -255,30 +263,103 @@ class _ActiveContextPanelState extends State<ActiveContextPanel> {
 
   Future<void> _showAddSource(BuildContext context) async {
     final provider = context.read<ActiveContextProvider>();
-    final controller = TextEditingController();
     final l = _l10n(context);
+    ChatProvider? chat;
+    try {
+      chat = context.read<ChatProvider>();
+    } catch (_) {
+      chat = null;
+    }
+    final messages = chat?.messages
+        .where(
+          (message) =>
+              (message.isUser || message.isAssistant) &&
+              message.content.trim().isNotEmpty,
+        )
+        .toList()
+        .reversed
+        .take(30)
+        .toList(growable: false);
     final source = await showDialog<String>(
       context: context,
       builder: (c) => AlertDialog(
-        title: Text(l.addContextSource),
-        content: TextField(
-          key: const ValueKey('context_source_id'),
-          controller: controller,
-          autofocus: true,
-          decoration: InputDecoration(labelText: l.contextSourceIdHint),
+        title: Text(l.selectContextSource),
+        content: SizedBox(
+          width: 520,
+          child: messages == null || messages.isEmpty
+              ? Text(l.noContextSourcesAvailable)
+              : ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: messages.length,
+                  separatorBuilder: (_, _) => const Divider(height: 1),
+                  itemBuilder: (_, index) {
+                    final message = messages[index];
+                    final excerpt = message.content.trim().replaceAll(
+                      RegExp(r'\s+'),
+                      ' ',
+                    );
+                    return ListTile(
+                      key: ValueKey('context_source_${message.id}'),
+                      dense: true,
+                      leading: Icon(
+                        message.isUser
+                            ? Icons.person_outline
+                            : Icons.auto_awesome_outlined,
+                      ),
+                      title: Text(
+                        excerpt,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      subtitle: Text(
+                        MaterialLocalizations.of(
+                          c,
+                        ).formatMediumDate(message.createdAt.toLocal()),
+                      ),
+                      onTap: () => Navigator.pop(c, message.id),
+                    );
+                  },
+                ),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(c), child: Text(l.cancel)),
-          FilledButton(
-            onPressed: () => Navigator.pop(c, controller.text.trim()),
-            child: Text(l.add),
-          ),
         ],
       ),
     );
-    controller.dispose();
     if (source == null || source.isEmpty || !mounted) return;
     await provider.addSource(sourceType: 'message', sourceId: source);
+  }
+
+  Future<void> _showArchives(
+    TopicDiscoveryProvider discovery,
+    String topicId,
+  ) async {
+    await discovery.loadArchives(topicId);
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (_) => _TopicArchivesDialog(topicId: topicId),
+    );
+  }
+
+  bool _canOpenConversationSource(BuildContext context) {
+    try {
+      context.read<ChatProvider>();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> _openSourceConversation(String conversationId) async {
+    ChatProvider chat;
+    try {
+      chat = context.read<ChatProvider>();
+    } catch (_) {
+      return;
+    }
+    await chat.loadConversation(conversationId);
+    if (mounted) widget.onClose?.call();
   }
 }
 
@@ -406,11 +487,15 @@ class _TopicHierarchyTree extends StatelessWidget {
                 color: cs.onSurfaceVariant,
               ),
               const SizedBox(width: 6),
-              Text(
-                parentNode?.label ?? 'Topic Graph Root',
-                style: textTheme.labelMedium?.copyWith(
-                  color: cs.onSurfaceVariant,
-                  fontWeight: FontWeight.w600,
+              Expanded(
+                child: Text(
+                  parentNode?.label ?? _l10n(context).topicGraphRoot,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: textTheme.labelMedium?.copyWith(
+                    color: cs.onSurfaceVariant,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],
@@ -537,6 +622,7 @@ class _ContextTopicSection extends StatelessWidget {
     this.parentNode,
     this.childNodes = const [],
     this.initiallyExpanded = true,
+    this.onViewArchives,
   });
 
   final TopicNode topic;
@@ -547,6 +633,7 @@ class _ContextTopicSection extends StatelessWidget {
   final TopicNode? parentNode;
   final List<TopicNode> childNodes;
   final bool initiallyExpanded;
+  final VoidCallback? onViewArchives;
 
   @override
   Widget build(BuildContext context) {
@@ -694,6 +781,18 @@ class _ContextTopicSection extends StatelessWidget {
             subtopics: childNodes,
           ),
           const SizedBox(height: 10),
+          if (onViewArchives != null) ...[
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                key: const ValueKey('context_view_archives'),
+                onPressed: onViewArchives,
+                icon: const Icon(Icons.history_rounded),
+                label: Text(l10n.earlierSessions),
+              ),
+            ),
+            const SizedBox(height: 10),
+          ],
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
@@ -722,36 +821,44 @@ class _ContextTopicSection extends StatelessWidget {
                         children: [
                           Row(
                             children: [
-                              Text(
-                                l10n.lockTopic,
-                                style: textTheme.labelMedium?.copyWith(
-                                  fontWeight: FontWeight.w700,
+                              Expanded(
+                                child: Text(
+                                  l10n.lockTopic,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: textTheme.labelMedium?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                  ),
                                 ),
                               ),
                               const SizedBox(width: 6),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 5,
-                                  vertical: 1,
-                                ),
-                                decoration: BoxDecoration(
-                                  color:
-                                      (topicPinned
-                                              ? cs.primaryContainer
-                                              : cs.surfaceContainerHighest)
-                                          .withValues(alpha: 0.7),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Text(
-                                  topicPinned
-                                      ? l10n.topicLocked
-                                      : l10n.topicUnlocked,
-                                  style: textTheme.labelSmall?.copyWith(
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.w600,
-                                    color: topicPinned
-                                        ? cs.onPrimaryContainer
-                                        : cs.onSurfaceVariant,
+                              Flexible(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 5,
+                                    vertical: 1,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color:
+                                        (topicPinned
+                                                ? cs.primaryContainer
+                                                : cs.surfaceContainerHighest)
+                                            .withValues(alpha: 0.7),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    topicPinned
+                                        ? l10n.topicLocked
+                                        : l10n.topicUnlocked,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: textTheme.labelSmall?.copyWith(
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w600,
+                                      color: topicPinned
+                                          ? cs.onPrimaryContainer
+                                          : cs.onSurfaceVariant,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -776,11 +883,14 @@ class _ContextTopicSection extends StatelessWidget {
                   ],
                 ),
                 const Divider(height: 14),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 8,
+                  runSpacing: 4,
                   children: [
                     Text(
-                      'Change topic focus:',
+                      l10n.changeTopicFocus,
                       style: textTheme.bodySmall?.copyWith(
                         color: cs.onSurfaceVariant,
                       ),
@@ -809,12 +919,225 @@ class _ContextTopicSection extends StatelessWidget {
   }
 }
 
+class _TopicArchivesDialog extends StatelessWidget {
+  const _TopicArchivesDialog({required this.topicId});
+
+  final String topicId;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = _l10n(context);
+    final provider = context.watch<TopicDiscoveryProvider>();
+    final archives = provider.topicArchives[topicId] ?? const <TopicArchive>[];
+    final loading = provider.isArchiveListLoading(topicId);
+    final error = provider.archiveListError(topicId);
+    return AlertDialog(
+      key: const ValueKey('topic_archives_dialog'),
+      title: Text(l10n.earlierSessions),
+      content: SizedBox(
+        width: 620,
+        height: 440,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              l10n.earlierSessionsDescription,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 12),
+            Expanded(
+              child: loading && archives.isEmpty
+                  ? const Center(child: CircularProgressIndicator())
+                  : error != null && archives.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(l10n.archiveLoadFailed),
+                          TextButton(
+                            onPressed: () => provider.loadArchives(topicId),
+                            child: Text(l10n.retry),
+                          ),
+                        ],
+                      ),
+                    )
+                  : archives.isEmpty
+                  ? Center(child: Text(l10n.noEarlierSessions))
+                  : ListView.separated(
+                      itemCount: archives.length,
+                      separatorBuilder: (_, _) => const Divider(height: 1),
+                      itemBuilder: (itemContext, index) {
+                        final archive = archives[index];
+                        final date = MaterialLocalizations.of(
+                          itemContext,
+                        ).formatMediumDate(archive.createdAt.toLocal());
+                        return ListTile(
+                          key: ValueKey('topic_archive_${archive.id}'),
+                          leading: const Icon(Icons.history_rounded),
+                          title: Text(
+                            archive.shortSummary ?? l10n.archivedSession,
+                          ),
+                          subtitle: Text(
+                            '$date • ${l10n.archiveMessageCount(archive.messageCount)}',
+                          ),
+                          trailing: const Icon(Icons.chevron_right_rounded),
+                          onTap: () async {
+                            await provider.loadArchivePage(topicId, archive.id);
+                            if (!itemContext.mounted) return;
+                            await showDialog<void>(
+                              context: itemContext,
+                              builder: (_) => _TopicArchiveMessagesDialog(
+                                topicId: topicId,
+                                archive: archive,
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(l10n.close),
+        ),
+      ],
+    );
+  }
+}
+
+class _TopicArchiveMessagesDialog extends StatelessWidget {
+  const _TopicArchiveMessagesDialog({
+    required this.topicId,
+    required this.archive,
+  });
+
+  final String topicId;
+  final TopicArchive archive;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = _l10n(context);
+    final provider = context.watch<TopicDiscoveryProvider>();
+    final page = provider.archivePage(archive.id);
+    final loading = provider.isArchiveLoading(archive.id);
+    final error = provider.archiveError(archive.id);
+    final cs = Theme.of(context).colorScheme;
+    return AlertDialog(
+      key: const ValueKey('topic_archive_messages_dialog'),
+      title: Text(page?.topicLabel ?? l10n.archivedSession),
+      content: SizedBox(
+        width: 680,
+        height: 520,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              l10n.archivedSessionReadOnly,
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+            ),
+            const SizedBox(height: 10),
+            if (page?.hasMore == true)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  key: const ValueKey('topic_archive_load_older'),
+                  onPressed: loading
+                      ? null
+                      : () => provider.loadArchivePage(
+                          topicId,
+                          archive.id,
+                          older: true,
+                        ),
+                  icon: loading
+                      ? const SizedBox.square(
+                          dimension: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.expand_less_rounded),
+                  label: Text(l10n.loadOlderMessages),
+                ),
+              ),
+            if (error != null) ...[
+              Text(l10n.archiveLoadFailed, style: TextStyle(color: cs.error)),
+              TextButton(
+                onPressed: loading
+                    ? null
+                    : () => provider.loadArchivePage(topicId, archive.id),
+                child: Text(l10n.retry),
+              ),
+            ],
+            Expanded(
+              child: page == null && loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : ListView.builder(
+                      key: const ValueKey('topic_archive_messages'),
+                      itemCount: page?.messages.length ?? 0,
+                      itemBuilder: (_, index) {
+                        final message = page!.messages[index];
+                        final isUser = message.isUser;
+                        final speaker = isUser
+                            ? l10n.archiveSpeakerYou
+                            : message.isAssistant
+                            ? l10n.archiveSpeakerGarbanzo
+                            : message.role.replaceAll('_', ' ');
+                        final timestamp = MaterialLocalizations.of(context)
+                            .formatTimeOfDay(
+                              TimeOfDay.fromDateTime(
+                                message.createdAt.toLocal(),
+                              ),
+                            );
+                        return Card(
+                          elevation: 0,
+                          color: isUser
+                              ? cs.primaryContainer.withValues(alpha: 0.35)
+                              : cs.surfaceContainerLow,
+                          child: Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '$speaker • $timestamp',
+                                  style: Theme.of(context).textTheme.labelSmall,
+                                ),
+                                const SizedBox(height: 5),
+                                SelectableText(message.content),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(l10n.close),
+        ),
+      ],
+    );
+  }
+}
+
 class _ContextTree extends StatelessWidget {
-  const _ContextTree({required this.items, this.contextSections = const []});
+  const _ContextTree({
+    required this.items,
+    this.contextSections = const [],
+    this.onOpenSource,
+  });
   final List<ActiveContextItem> items;
   final List<ContextSection> contextSections;
+  final Future<void> Function(String conversationId)? onOpenSource;
   static const _order = [
-    'carryover',
     'memory',
     'message',
     'history',
@@ -925,16 +1248,25 @@ class _ContextTree extends StatelessWidget {
     return Column(
       children: [
         for (final t in sorted)
-          _ContextBranch(sourceType: t, items: groups[t]!),
+          _ContextBranch(
+            sourceType: t,
+            items: groups[t]!,
+            onOpenSource: onOpenSource,
+          ),
       ],
     );
   }
 }
 
 class _ContextBranch extends StatelessWidget {
-  const _ContextBranch({required this.sourceType, required this.items});
+  const _ContextBranch({
+    required this.sourceType,
+    required this.items,
+    this.onOpenSource,
+  });
   final String sourceType;
   final List<ActiveContextItem> items;
+  final Future<void> Function(String conversationId)? onOpenSource;
 
   @override
   Widget build(BuildContext context) {
@@ -987,13 +1319,15 @@ class _ContextBranch extends StatelessWidget {
           ],
         ),
         childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 8),
-        children: [for (final item in items) _ContextItemTile(item: item)],
+        children: [
+          for (final item in items)
+            _ContextItemTile(item: item, onOpenSource: onOpenSource),
+        ],
       ),
     );
   }
 
   static IconData _icon(String t) => switch (t) {
-    'carryover' => Icons.history_toggle_off_rounded,
     'memory' => Icons.lightbulb_outline_rounded,
     'message' => Icons.chat_bubble_outline_rounded,
     'history' => Icons.history_rounded,
@@ -1004,7 +1338,6 @@ class _ContextBranch extends StatelessWidget {
   };
 
   static String _label(AppLocalizations l, String t) => switch (t) {
-    'carryover' => l.carryover,
     'memory' => l.sourceTypeMemory,
     'message' => l.sourceTypeMessage,
     'history' => l.sourceTypeHistory,
@@ -1016,8 +1349,9 @@ class _ContextBranch extends StatelessWidget {
 }
 
 class _ContextItemTile extends StatelessWidget {
-  const _ContextItemTile({required this.item});
+  const _ContextItemTile({required this.item, this.onOpenSource});
   final ActiveContextItem item;
+  final Future<void> Function(String conversationId)? onOpenSource;
 
   @override
   Widget build(BuildContext context) {
@@ -1029,6 +1363,14 @@ class _ContextItemTile extends StatelessWidget {
     final displaySentence = item.highLevelSentence;
     final hasCategory =
         item.categoryLabel != null && item.categoryLabel!.isNotEmpty;
+    final sourceDate = item.sourceCreatedAt == null
+        ? null
+        : MaterialLocalizations.of(
+            context,
+          ).formatMediumDate(item.sourceCreatedAt!.toLocal());
+    final sourceName = item.sourceLabel?.trim().isNotEmpty == true
+        ? item.sourceLabel!
+        : _ContextBranch._label(l, item.sourceType);
 
     return Card(
       elevation: 0,
@@ -1088,6 +1430,18 @@ class _ContextItemTile extends StatelessWidget {
             l.whyIncluded(item.reason),
             style: Theme.of(context).textTheme.bodySmall,
           ),
+          if (item.sourceExcerpt?.trim().isNotEmpty == true) ...[
+            const SizedBox(height: 8),
+            SelectionArea(
+              child: Text(
+                '“${item.sourceExcerpt}”',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: cs.onSurfaceVariant,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 6),
           Container(
             key: ValueKey('context_item_provenance_${item.id}'),
@@ -1102,7 +1456,9 @@ class _ContextItemTile extends StatelessWidget {
                 Icon(Icons.link_rounded, size: 12, color: cs.primary),
                 const SizedBox(width: 4),
                 Text(
-                  'Source: ${item.sourceType}${item.sourceId.isNotEmpty ? " #${item.sourceId.substring(0, item.sourceId.length > 8 ? 8 : item.sourceId.length)}" : ""}',
+                  sourceDate == null
+                      ? l.contextSourceName(sourceName)
+                      : l.contextSourceNameAndDate(sourceName, sourceDate),
                   style: Theme.of(
                     context,
                   ).textTheme.labelSmall?.copyWith(fontSize: 10),
@@ -1131,6 +1487,15 @@ class _ContextItemTile extends StatelessWidget {
                   visualDensity: VisualDensity.compact,
                 ),
               ),
+              if (item.sourceConversationId != null && onOpenSource != null)
+                TextButton.icon(
+                  onPressed: () => onOpenSource!(item.sourceConversationId!),
+                  icon: const Icon(Icons.open_in_new, size: 15),
+                  label: Text(l.openSource),
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ),
               TextButton.icon(
                 onPressed: () => context
                     .read<ActiveContextProvider>()
@@ -1165,192 +1530,49 @@ class _SectionTitle extends StatelessWidget {
   );
 }
 
-class _ReadinessBanner extends StatefulWidget {
+class _ReadinessBanner extends StatelessWidget {
   const _ReadinessBanner({required this.readiness});
   final ActiveContextReadiness readiness;
 
   @override
-  State<_ReadinessBanner> createState() => _ReadinessBannerState();
-}
-
-class _ReadinessBannerState extends State<_ReadinessBanner>
-    with SingleTickerProviderStateMixin {
-  AnimationController? _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _syncController();
-  }
-
-  @override
-  void didUpdateWidget(covariant _ReadinessBanner oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.readiness != widget.readiness) {
-      _syncController();
-    }
-  }
-
-  void _syncController() {
-    if (widget.readiness == ActiveContextReadiness.preparing) {
-      _controller ??= AnimationController(
-        vsync: this,
-        duration: const Duration(seconds: 8),
-      )..forward();
-    } else {
-      _controller?.dispose();
-      _controller = null;
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller?.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    if (widget.readiness == ActiveContextReadiness.ready) {
+    if (readiness == ActiveContextReadiness.ready) {
       return const SizedBox.shrink();
     }
-    final limited = widget.readiness == ActiveContextReadiness.limited;
+    final limited = readiness == ActiveContextReadiness.limited;
     final l10n = _l10n(context);
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-
-    if (limited) {
-      return Semantics(
-        liveRegion: true,
-        child: Container(
-          margin: const EdgeInsets.only(bottom: 10),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: cs.tertiaryContainer.withValues(alpha: 0.5),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Row(
-            children: [
-              Icon(Icons.info_outline, size: 18, color: cs.tertiary),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  l10n.historicalContextLimited,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    final controller = _controller;
     return Semantics(
       liveRegion: true,
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: cs.primaryContainer.withValues(alpha: 0.35),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: cs.primary.withValues(alpha: 0.2)),
+          color: limited
+              ? cs.tertiaryContainer.withValues(alpha: 0.5)
+              : cs.primaryContainer.withValues(alpha: 0.35),
+          borderRadius: BorderRadius.circular(8),
         ),
-        child: AnimatedBuilder(
-          animation: controller ?? const AlwaysStoppedAnimation(0.0),
-          builder: (context, _) {
-            final val = controller?.value ?? 0.0;
-            final stageText = val < 0.35
-                ? 'Scanning topic assertions & evidence...'
-                : val < 0.75
-                ? 'Linking graph relationships & memories...'
-                : 'Finalizing compiled context pack...';
-            final pct = (val * 100).clamp(5, 99).toInt();
-
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
-                  children: [
-                    SizedBox.square(
-                      dimension: 14,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        value: val > 0 ? val : null,
-                        color: cs.primary,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        l10n.preparingBestContext,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: -0.1,
-                        ),
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: cs.primary.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        '$pct% · <10s',
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w700,
-                          color: cs.primary,
-                        ),
-                      ),
-                    ),
-                  ],
+        child: Row(
+          children: [
+            Icon(
+              limited ? Icons.info_outline : Icons.sync,
+              size: 18,
+              color: limited ? cs.tertiary : cs.primary,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                limited
+                    ? l10n.historicalContextLimited
+                    : l10n.contextUpdatingInBackground,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.w600,
                 ),
-                const SizedBox(height: 8),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(3),
-                  child: LinearProgressIndicator(
-                    value: val,
-                    minHeight: 4,
-                    backgroundColor: cs.primary.withValues(alpha: 0.15),
-                    valueColor: AlwaysStoppedAnimation(cs.primary),
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    Icon(
-                      val < 0.35
-                          ? Icons.travel_explore_rounded
-                          : val < 0.75
-                          ? Icons.hub_outlined
-                          : Icons.inventory_2_outlined,
-                      size: 12,
-                      color: cs.onSurfaceVariant,
-                    ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        stageText,
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          fontSize: 10,
-                          color: cs.onSurfaceVariant,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            );
-          },
+              ),
+            ),
+          ],
         ),
       ),
     );

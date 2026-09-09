@@ -24,10 +24,12 @@ from app.topics.models import (
     ActiveContextItem,
     Topic,
     TopicAssertion,
+    TopicAssertionEvidence,
     TopicExclusion,
     TopicRelation,
 )
 from app.topics.schemas import TopicContextStatus
+from app.topics.topic_context_compiler import TopicContextCompiler
 from app.topics.topic_description_helper import (
     get_context_summary_and_sections,
     get_topic_high_level_description,
@@ -46,7 +48,6 @@ class ContextSourceNotFoundError(Exception):
 
 
 _CATEGORY_LABELS: dict[str, str] = {
-    "carryover": "Carried Over Context",
     "topic_assertion": "Topic Knowledge",
     "memory": "Personal Memory",
     "knowledge": "Knowledge Base",
@@ -81,21 +82,19 @@ class ActiveContextService:
         context_summary = None
         context_sections: list[dict[str, Any]] = []
         combined_labels: list[str] = []
+        eligible_item_ids = {
+            item.id for item in items if topic is None and item.state != "excluded"
+        }
 
         if topic is not None:
             if topic.parent_id:
                 parent = await self.db.get(Topic, topic.parent_id)
             topic_description = get_topic_high_level_description(topic, parent)
-            assertions = list(
-                (
-                    await self.db.scalars(
-                        select(TopicAssertion).where(
-                            TopicAssertion.topic_id == topic.id,
-                            TopicAssertion.status == "active",
-                        )
-                    )
-                ).all()
-            )
+            eligible_items, assertions = await TopicContextCompiler(
+                self.db,
+                embedding_provider=None,
+            ).eligible_context_state(topic, items)
+            eligible_item_ids = {item.id for item in eligible_items}
 
             # Query any combined topics linked via TopicRelation
             combined_relations = list(
@@ -123,21 +122,52 @@ class ActiveContextService:
                 combined_labels = [t.label for t in combined_topics_list]
 
             context_summary, context_sections = get_context_summary_and_sections(
-                topic, items, assertions, combined_labels=combined_labels
+                topic, eligible_items, assertions, combined_labels=combined_labels
             )
 
         status = (
             await self.topics.context_status(topic) if topic is not None else self._empty_status()
         )
+        privacy_deleted_source_ids = set(
+            (
+                await self.db.scalars(
+                    select(TopicExclusion.target_id).where(
+                        TopicExclusion.user_id == user_id,
+                        TopicExclusion.scope.in_(("source", "assertion")),
+                        TopicExclusion.is_privacy_deletion.is_(True),
+                        TopicExclusion.revoked_at.is_(None),
+                    )
+                )
+            ).all()
+        )
         typed = [ActiveContextItemOut.model_validate(item) for item in items]
         for t_item in typed:
+            is_eligible = t_item.id in eligible_item_ids
+            is_privacy_deleted = t_item.source_id in privacy_deleted_source_ids
+            source_details = (
+                {}
+                if not is_eligible or is_privacy_deleted
+                else await self._source_display_details(t_item, user_id)
+            )
+            if topic is None and is_eligible and not source_details:
+                is_eligible = False
+                eligible_item_ids.discard(t_item.id)
+            if not is_eligible:
+                t_item.source_meta = {}
+            if is_privacy_deleted:
+                t_item.reason = "Removed from topic context"
+            t_item.source_excerpt = source_details.get("excerpt")
+            t_item.source_label = source_details.get("label")
+            t_item.source_created_at = source_details.get("created_at")
+            t_item.source_conversation_id = source_details.get("conversation_id")
             raw_text = (
-                (t_item.source_meta or {}).get("content")
-                or (t_item.source_meta or {}).get("title")
-                or t_item.reason
+                t_item.source_excerpt
+                or (t_item.reason if is_eligible and not is_privacy_deleted else None)
                 or ""
             )
-            t_item.summary = synthesize_high_level_sentence(raw_text, t_item.source_type)
+            t_item.summary = (
+                synthesize_high_level_sentence(raw_text, t_item.source_type) if raw_text else None
+            )
             t_item.display_text = t_item.summary
             t_item.category_label = _CATEGORY_LABELS.get(t_item.source_type, "Topic Context")
 
@@ -156,7 +186,7 @@ class ActiveContextService:
             if topic
             else None,
             status=status,
-            token_count=sum(item.token_count for item in items if item.state != "excluded"),
+            token_count=sum(item.token_count for item in items if item.id in eligible_item_ids),
             token_budget=get_settings().topic_context_token_budget,
             pinned_items=[i for i in typed if i.state == "pinned"],
             dynamic_items=[i for i in typed if i.state == "dynamic"],
@@ -166,6 +196,156 @@ class ActiveContextService:
             context_summary=context_summary,
             context_sections=context_sections,
         )
+
+    async def _source_display_details(
+        self, item: ActiveContextItemOut, user_id: str
+    ) -> dict[str, Any]:
+        """Resolve display metadata from the owned source instead of stored client metadata."""
+        if item.source_type in {"message", "attachment"}:
+            row = (
+                await self.db.execute(
+                    select(
+                        Message.content,
+                        Message.created_at,
+                        Message.conversation_id,
+                        Conversation.title,
+                        Conversation.is_primary,
+                    )
+                    .join(Conversation, Conversation.id == Message.conversation_id)
+                    .where(
+                        Message.id == item.source_id,
+                        Conversation.user_id == user_id,
+                        Conversation.is_deleted.is_(False),
+                    )
+                )
+            ).one_or_none()
+            if row is not None:
+                return {
+                    "excerpt": self._excerpt(row.content),
+                    "label": row.title,
+                    "created_at": row.created_at,
+                    "conversation_id": None if row.is_primary else row.conversation_id,
+                }
+        elif item.source_type == "topic_assertion":
+            assertion = await self.db.scalar(
+                select(TopicAssertion)
+                .join(Topic, Topic.id == TopicAssertion.topic_id)
+                .where(TopicAssertion.id == item.source_id, Topic.user_id == user_id)
+            )
+            if assertion is not None:
+                evidence = (
+                    await self.db.execute(
+                        select(
+                            Message.created_at,
+                            Message.conversation_id,
+                            Conversation.title,
+                            Conversation.is_primary,
+                        )
+                        .join(
+                            TopicAssertionEvidence,
+                            TopicAssertionEvidence.message_id == Message.id,
+                        )
+                        .join(Conversation, Conversation.id == Message.conversation_id)
+                        .where(
+                            TopicAssertionEvidence.assertion_id == assertion.id,
+                            Conversation.user_id == user_id,
+                            Conversation.is_deleted.is_(False),
+                        )
+                        .order_by(Message.created_at.desc())
+                        .limit(1)
+                    )
+                ).one_or_none()
+                return {
+                    "excerpt": self._excerpt(assertion.content),
+                    "label": evidence.title if evidence else None,
+                    "created_at": evidence.created_at if evidence else assertion.created_at,
+                    "conversation_id": (
+                        evidence.conversation_id
+                        if evidence is not None and not evidence.is_primary
+                        else None
+                    ),
+                }
+        elif item.source_type == "thread":
+            thread = await self.db.scalar(
+                select(Conversation).where(
+                    Conversation.id == item.source_id,
+                    Conversation.user_id == user_id,
+                    Conversation.is_deleted.is_(False),
+                )
+            )
+            if thread is not None:
+                latest = await self.db.scalar(
+                    select(Message.content)
+                    .where(Message.conversation_id == thread.id)
+                    .order_by(Message.seq.desc())
+                    .limit(1)
+                )
+                return {
+                    "excerpt": self._excerpt(latest or thread.title or ""),
+                    "label": thread.title,
+                    "created_at": thread.updated_at,
+                    "conversation_id": thread.id,
+                }
+        elif item.source_type == "memory":
+            memory = await self.db.scalar(
+                select(UserMemory).where(
+                    UserMemory.id == item.source_id,
+                    UserMemory.user_id == user_id,
+                    UserMemory.is_active.is_(True),
+                )
+            )
+            if memory is not None:
+                source_conversation_id = None
+                if memory.source_conversation_id:
+                    source_conversation_id = await self.db.scalar(
+                        select(Conversation.id).where(
+                            Conversation.id == memory.source_conversation_id,
+                            Conversation.user_id == user_id,
+                            Conversation.is_deleted.is_(False),
+                            Conversation.is_primary.is_(False),
+                        )
+                    )
+                return {
+                    "excerpt": self._excerpt(memory.content),
+                    "created_at": memory.created_at,
+                    "conversation_id": source_conversation_id,
+                }
+        elif item.source_type == "knowledge":
+            chunk = await self.db.scalar(
+                select(KnowledgeChunk).where(
+                    KnowledgeChunk.id == item.source_id,
+                    KnowledgeChunk.user_id == user_id,
+                )
+            )
+            if chunk is not None:
+                document = await self.db.scalar(
+                    select(KnowledgeDocument).where(
+                        KnowledgeDocument.id == chunk.document_id,
+                        KnowledgeDocument.user_id == user_id,
+                    )
+                )
+                return {
+                    "excerpt": self._excerpt(chunk.content),
+                    "label": document.filename if document else None,
+                    "created_at": chunk.created_at,
+                }
+            document = await self.db.scalar(
+                select(KnowledgeDocument).where(
+                    KnowledgeDocument.id == item.source_id,
+                    KnowledgeDocument.user_id == user_id,
+                )
+            )
+            if document is not None:
+                return {
+                    "label": document.filename,
+                    "created_at": document.created_at,
+                }
+        return {}
+
+    @staticmethod
+    def _excerpt(content: str, limit: int = 360) -> str:
+        clean = " ".join(content.split())
+        return clean if len(clean) <= limit else f"{clean[: limit - 1].rstrip()}…"
 
     async def add_item(
         self,
@@ -180,7 +360,11 @@ class ActiveContextService:
         reason: str | None,
         context_version: int,
     ) -> tuple[ActiveContextItem, int]:
-        conversation = await self._conversation(conversation_id, user_id)
+        conversation = await self._conversation(
+            conversation_id,
+            user_id,
+            for_update=True,
+        )
         self._check_version(conversation, context_version)
         await self._validate_source(source_type, source_id, user_id)
         if topic_id and await self.topics.get_owned_topic(topic_id, user_id) is None:
@@ -218,7 +402,11 @@ class ActiveContextService:
     async def update_item(
         self, conversation_id: str, item_id: str, user_id: str, *, state: str, context_version: int
     ) -> tuple[ActiveContextItem, int]:
-        conversation = await self._conversation(conversation_id, user_id)
+        conversation = await self._conversation(
+            conversation_id,
+            user_id,
+            for_update=True,
+        )
         self._check_version(conversation, context_version)
         item = await self.db.scalar(
             select(ActiveContextItem).where(
@@ -244,7 +432,11 @@ class ActiveContextService:
     async def fresh_start(
         self, conversation_id: str, user_id: str, *, keep_pins: bool, context_version: int
     ) -> int:
-        conversation = await self._conversation(conversation_id, user_id)
+        conversation = await self._conversation(
+            conversation_id,
+            user_id,
+            for_update=True,
+        )
         self._check_version(conversation, context_version)
         states_to_clear = ["dynamic"] if keep_pins else ["dynamic", "pinned"]
         await self.db.execute(
@@ -259,12 +451,21 @@ class ActiveContextService:
         await self.db.commit()
         return conversation.context_version
 
-    async def _conversation(self, conversation_id: str, user_id: str) -> Conversation:
-        conv = await self.db.scalar(
+    async def _conversation(
+        self,
+        conversation_id: str,
+        user_id: str,
+        *,
+        for_update: bool = False,
+    ) -> Conversation:
+        statement = (
             Conversation.active(user_id)
             .where(Conversation.id == conversation_id, Conversation.is_primary.is_(True))
             .options(selectinload(Conversation.active_topic))
         )
+        if for_update:
+            statement = statement.with_for_update()
+        conv = await self.db.scalar(statement)
         if conv is None:
             raise ContextSourceNotFoundError
         return conv

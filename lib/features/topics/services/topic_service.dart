@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
 import 'package:garbanzo_ai/core/api_client.dart';
@@ -15,46 +16,24 @@ class TopicService {
   final ApiClient _api = ApiClient.instance;
 
   Future<List<TopicNode>> listTopics(TopicOrigin mode) async {
-    final response = await _api.get(
-      '/api/v1/chat/topics',
-      queryParameters: {'mode': mode.name},
-    );
+    final response = await getTopicListResponse(mode);
     if (response.statusCode != 200) {
       throw TopicServiceException(response.statusCode ?? 0);
     }
     final body = response.data;
-    final raw = switch (body) {
-      final List<dynamic> value => value,
-      final Map<String, dynamic> value =>
-        (value['items'] ?? value['topics']) as List<dynamic>? ?? const [],
-      _ => const <dynamic>[],
-    };
+    if (body is! Map<String, dynamic> || body['topics'] is! List<dynamic>) {
+      throw const FormatException('Invalid topic list response');
+    }
+    final raw = body['topics'] as List<dynamic>;
     return raw
         .whereType<Map<String, dynamic>>()
         .map(TopicNode.fromJson)
         .toList(growable: false);
   }
 
-  Future<void> activateTopic(
-    String conversationId, {
-    String? topicId,
-    String? label,
-  }) async {
-    final response = await _api.post(
-      '/api/v1/chat/conversations/$conversationId/topics/activate',
-      data: {'topic_id': ?topicId, 'label': ?label},
-    );
-    if (response.statusCode != 200 && response.statusCode != 201) {
-      throw TopicServiceException(response.statusCode ?? 0);
-    }
-  }
-
-  Future<void> prepare(String topicId) async {
-    final response = await _api.post('/api/v1/chat/topics/$topicId/prepare');
-    if (response.statusCode != 200 && response.statusCode != 202) {
-      throw TopicServiceException(response.statusCode ?? 0);
-    }
-  }
+  @visibleForTesting
+  Future<Response<dynamic>> getTopicListResponse(TopicOrigin mode) =>
+      _api.get('/api/v1/chat/topics', queryParameters: {'mode': mode.name});
 
   Future<void> setTopicPinned(
     String conversationId, {
@@ -63,7 +42,7 @@ class TopicService {
   }) async {
     final response = await _api.patch(
       '/api/v1/chat/conversations/$conversationId/topic',
-      data: {'pinned': pinned},
+      data: {'pinned': pinned, 'context_version': contextVersion},
     );
     if (response.statusCode != 200) {
       throw TopicServiceException(response.statusCode ?? 0);
@@ -75,40 +54,48 @@ class TopicService {
     String? topicId,
     String? label,
     bool archive = true,
-    int carryoverMaxItems = 5,
-    int carryoverMaxTokens = 400,
+    bool retainPinned = true,
+    required String idempotencyKey,
     String mode = 'switch',
   }) async {
-    final response = await _api.post(
-      '/api/v1/chat/conversations/$conversationId/topics/switch',
-      data: <String, dynamic>{
-        ...topicId != null ? {'topic_id': topicId} : {},
-        ...label != null ? {'label': label} : {},
-        'archive': archive,
-        'mode': mode,
-        'carryover': {
-          'enabled': carryoverMaxItems > 0,
-          'max_items': carryoverMaxItems > 0 ? carryoverMaxItems : 5,
-          'max_tokens': carryoverMaxTokens,
-        },
-      },
-    );
+    if ((topicId == null) == (label == null || label.trim().isEmpty)) {
+      throw ArgumentError('Provide exactly one topic ID or label');
+    }
+    final response = await postTopicSwitch(conversationId, <String, dynamic>{
+      ...topicId != null ? {'topic_id': topicId} : {},
+      ...label != null ? {'label': label} : {},
+      'archive': archive,
+      'mode': mode,
+      'retain_pinned': retainPinned,
+      'idempotency_key': idempotencyKey,
+    });
     if (response.statusCode != 200) {
       throw TopicServiceException(response.statusCode ?? 0);
     }
     return TopicSwitchResponse.fromJson(response.data as Map<String, dynamic>);
   }
 
+  @visibleForTesting
+  Future<Response<dynamic>> postTopicSwitch(
+    String conversationId,
+    Map<String, dynamic> data,
+  ) => _api.post(
+    '/api/v1/chat/conversations/$conversationId/topics/switch',
+    data: data,
+  );
+
   Future<TopicSwitchResponse> combineTopics(
     String conversationId, {
     String? topicId,
     String? label,
+    required String idempotencyKey,
   }) async {
     return switchTopic(
       conversationId,
       topicId: topicId,
       label: label,
       archive: false,
+      idempotencyKey: idempotencyKey,
       mode: 'combine',
     );
   }
@@ -124,6 +111,26 @@ class TopicService {
         .whereType<Map<String, dynamic>>()
         .map(TopicArchive.fromJson)
         .toList(growable: false);
+  }
+
+  Future<TopicArchivePage> getArchivePage(
+    String topicId,
+    String archiveId, {
+    String? before,
+    int limit = 100,
+  }) async {
+    final response = await _api.get(
+      '/api/v1/chat/topics/$topicId/archives/$archiveId',
+      queryParameters: {'limit': limit, 'before': ?before},
+    );
+    if (response.statusCode != 200) {
+      throw TopicServiceException(response.statusCode ?? 0);
+    }
+    final body = response.data;
+    if (body is! Map<String, dynamic>) {
+      throw const FormatException('Invalid topic archive response');
+    }
+    return TopicArchivePage.fromJson(body);
   }
 }
 

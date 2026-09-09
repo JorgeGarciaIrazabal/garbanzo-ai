@@ -50,7 +50,7 @@ class _TopicLandingState extends State<TopicLanding> {
     final p = context.watch<TopicDiscoveryProvider>();
     final l10n = _l10n(context);
     final topics = p.visibleTopics;
-    final parentLabel = p.path.lastOrNull?.label;
+    final parentLabel = p.searchQuery.isEmpty ? p.path.lastOrNull?.label : null;
     final starters = p.selectedTopic?.starterPrompts ?? const <String>[];
     Widget body;
     if (p.loading && topics.isEmpty) {
@@ -94,12 +94,7 @@ class _TopicLandingState extends State<TopicLanding> {
             );
             return;
           }
-          if (chat != null) {
-            p.setSelectedTopic(t);
-            await chat.createConversation(title: t.label, activeTopicId: t.id);
-          } else {
-            await p.activate(widget.conversationId, t);
-          }
+          await p.activate(widget.conversationId, t);
         },
         onOpenChildren: p.openChildren,
       );

@@ -8,7 +8,9 @@ Separate threads remain available for conversations that should stay isolated.
 ## How do I choose a topic?
 
 Open the Topics view and select a personal topic, or activate one from Explore.
-The view opens directly on a colorful topic map. Larger topics are currently
+The primary chat opens on this topic map by default and stays there while its
+saved active-topic state loads. It opens a topic only after you select one.
+Larger topics are currently
 more likely to be useful, while the varied positions make choices easy to scan
 without implying a rigid list. A broad parent and a visible subtopic are both
 selectable conversation starting points. Sub-topics only appear on the map
@@ -22,17 +24,37 @@ context items stay pinned across turns.
 
 ## What is active context?
 
-Active context is the material selected for the next primary-chat turn. It can
-include a validated topic assertion, a source message, a legacy thread, a
-memory, a knowledge-base item, or an attachment. The "What's included" section
-groups the material into an expandable tree — one branch per source type
-(Memories, Messages, History, Knowledge) — so you can see exactly what is in
-context at a glance. Each leaf shows why it is included and its approximate
-token cost. Pinned items stay selected until you unpin or remove them; dynamic
-items may change with the next turn. A pinned topic stays visible as a slim
-banner above the chat so you always know what Garbanzo is focused on.
+Active context is the material selected for the next primary-chat turn. For a
+prepared topic, Garbanzo uses concise, grounded assertions curated from the
+topic's message history instead of replaying a list of raw messages. Explicitly
+pinned messages, threads, memories, knowledge-base items, or attachments can
+also be included. A new topic with no eligible assertion may temporarily use a
+small raw-evidence fallback while its curated pack is preparing. The "What's
+included" section groups the material into an expandable tree — one branch per
+source type (Memories, Messages, History, Knowledge) — so you can see exactly
+what is in context at a glance. Each leaf shows why it is included and its
+approximate token cost. Pinned items stay selected until you unpin or remove
+them; dynamic items may change with the next turn. A pinned topic stays visible
+as a slim banner above the chat so you always know what Garbanzo is focused on.
+When you select a topic, Garbanzo immediately materializes its eligible baseline
+evidence so the empty-session preview and token meter describe real context
+before you send the first message. The first message may rerank that baseline
+against your wording while applying the same ownership, validity, and exclusion
+rules.
+
+Parent topics are conversation targets too. Select the parent surface to start
+with that parent active, or use its separate subtopic control to browse deeper.
+Starting from a parent includes eligible knowledge from its descendants. Starting
+from a child also includes eligible context established on its parent and other
+ancestors, within the same context budget.
 
 ## Can I remove something from context?
+
+Garbanzo also prunes the map itself: mechanically derived junk labels (bare
+verbs, sentence fragments, one-off trivia) are archived rather than shown, and
+related topics are grouped into a small set of domain parents with subtopics.
+Archived topics keep their message history and evidence — they only disappear
+from the map.
 
 Yes. Use the context panel to pin, unpin, exclude, or restore an item. An
 exclusion is applied before context ranking, so the excluded source or
@@ -42,13 +64,16 @@ your messages. Choose whether to keep pinned items.
 
 ## Why does context say preparing or live?
 
-New messages are processed into a small live evidence delta while you continue
+New messages are processed into a small live assertion delta while you continue
 typing. A background job periodically rebuilds dirty topics into an immutable,
-evidence-grounded pack. `ready` means the latest pack is current; `live` means
-new evidence is available on top of that pack; `preparing` means no current
-pack is available yet. A reply is not blocked while a pack is being prepared:
-the primary compiler uses recent coherent evidence within the configured token
-budget and marks the response as a fallback when necessary.
+evidence-grounded pack. Its curation manifest is limited primarily by total
+evidence size, with a much higher database scan safety ceiling, so dozens or
+hundreds of short messages can shape one topic instead of only 24. `ready` means
+the latest pack is current; `live` means new evidence is available on top of
+that pack; `preparing` means no current pack is available yet. A reply is not
+blocked while a pack is being prepared: the primary compiler uses bounded
+coherent evidence within the configured token budget and marks the response as
+a fallback when necessary.
 
 ## Is my history shared with another user or cloud model?
 
@@ -64,8 +89,7 @@ extract typed context tied to exact message IDs.
 Local-only mode blocks cloud-tagged models. Cloud curation requires
 `cloud_allowed` and sends only a bounded, already filtered evidence manifest.
 Its response must pass strict schema, evidence, ownership, merge, and hierarchy
-validation or no semantic graph changes are written and safe deterministic
-packs remain available.
+validation or the consolidation run fails and is retried later.
 
 ## Do legacy threads change?
 
@@ -78,9 +102,16 @@ available only for the primary chat.
 Switching to a new topic advances the conversation to a new session epoch.
 Historical messages and evidence links are preserved intact in the database,
 while the active chat view displays only the messages for the current session.
-You can choose whether to carry over active facts to the new topic. If Garbanzo
-notices the discussion shifting to another topic, an interactive drift banner
-prompts you to switch context or stay in the current topic.
+Open **Earlier sessions** in Active Context to read a prior session for the
+topic. This history is read-only; sending a new message continues the current
+topic session.
+You can choose whether to keep sources you explicitly pinned. Each retained
+source is checked again before every turn, so deletion, expiry, correction, or
+an exclusion still removes it from the model's context. The switch returns
+immediately with a preparing, live, or ready state while background processing
+continues. If Garbanzo notices the discussion shifting to another topic, an
+interactive drift banner prompts you to switch context or stay in the current
+topic.
 
 ## What is shown in the Active Context panel and empty state?
 

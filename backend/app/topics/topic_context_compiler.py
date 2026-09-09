@@ -5,12 +5,12 @@ from __future__ import annotations
 import logging
 import re
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from html import escape
 from typing import Any
 
-from sqlalchemy import Float, cast, delete, func, or_, select
+from sqlalchemy import Float, case, cast, delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
@@ -30,6 +30,7 @@ from app.topics.models import (
     TopicExclusion,
     TopicRelation,
 )
+from app.topics.topic_semantic_curator import CuratedContextPack
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +67,13 @@ _TERMS_STOP_WORDS = {
     "you",
 }
 
+_MAX_ASSERTION_SEEDS = 144
+_MAX_ASSERTION_EVIDENCE_ROWS = 576
+_MAX_RELATIONS = 24
+_MAX_DOCUMENT_CHUNKS = 24
+_MAX_COLD_RAW_SEEDS = 24
+_MAX_COLD_RAW_MESSAGES = 240
+
 
 @dataclass
 class CompiledTopicContext:
@@ -77,21 +85,6 @@ class CompiledTopicContext:
     preparing: bool = False
 
 
-# In-memory pre-warmed context pack cache
-# Key: (conversation_id, session_epoch, context_version, active_topic_id)
-_PREWARMED_CONTEXT_CACHE: dict[tuple[str, int, int, str | None], CompiledTopicContext] = {}
-
-
-def invalidate_prewarm_cache(conversation_id: str | None = None) -> None:
-    """Invalidate cached pre-warmed context packs for a conversation or all conversations."""
-    if conversation_id is None:
-        _PREWARMED_CONTEXT_CACHE.clear()
-    else:
-        for key in list(_PREWARMED_CONTEXT_CACHE.keys()):
-            if key[0] == conversation_id:
-                _PREWARMED_CONTEXT_CACHE.pop(key, None)
-
-
 @dataclass
 class _Candidate:
     source_type: str
@@ -100,7 +93,84 @@ class _Candidate:
     reason: str
     score: float
     pinned: bool = False
+    required: bool = False
     group_id: str | None = None
+    evidence_ids: frozenset[str] = frozenset()
+
+
+@dataclass(frozen=True)
+class _PrimarySelection:
+    candidates: list[_Candidate]
+    exclusions: list[TopicExclusion]
+    pack: TopicContextVersion | None
+    used_raw_fallback: bool
+
+
+@dataclass(frozen=True)
+class _TopicScope:
+    ids: frozenset[str]
+    ancestor_ids: frozenset[str]
+    descendant_ids: frozenset[str]
+
+    @property
+    def hierarchy_ids(self) -> frozenset[str]:
+        return self.ancestor_ids | self.descendant_ids
+
+
+@dataclass(frozen=True)
+class _EligibilityPolicy:
+    """Hard source constraints shared by every compiler retrieval path."""
+
+    user_id: str
+    active_topic_id: str
+    topic_ids: frozenset[str]
+    exclusions: tuple[TopicExclusion, ...]
+    excluded_assertions: frozenset[str]
+    privacy_assertions: frozenset[str]
+    excluded_sources: frozenset[str]
+    excluded_conversations: frozenset[str]
+    exclude_all: bool
+
+    def excludes_topic(self, topic_id: str) -> bool:
+        return any(
+            item.scope == "all_topics"
+            or (
+                item.scope == "topic"
+                and (
+                    item.topic_id == topic_id
+                    or item.target_id == topic_id
+                    or (item.topic_id is None and item.target_id is None)
+                )
+            )
+            for item in self.exclusions
+        )
+
+    def excludes_concept(self, content: str, topic_id: str | None = None) -> bool:
+        normalized = " ".join(content.casefold().split())
+        return any(
+            target and target in normalized
+            for item in self.exclusions
+            if item.scope == "concept"
+            and item.target_id
+            and (
+                item.topic_id is None
+                or item.topic_id == self.active_topic_id
+                or item.topic_id == topic_id
+            )
+            for target in (" ".join(item.target_id.casefold().split()),)
+        )
+
+
+@dataclass(frozen=True)
+class _EligibleAssertion:
+    assertion: TopicAssertion
+    evidence_ids: frozenset[str]
+
+
+@dataclass(frozen=True)
+class _EligibleSource:
+    source_type: str
+    content: str
     evidence_ids: frozenset[str] = frozenset()
 
 
@@ -133,29 +203,6 @@ class TopicContextCompiler:
             "fallback": "recent_turns",
         }
 
-    async def prewarm(self, conversation: Conversation) -> CompiledTopicContext | None:
-        """Pre-compile and cache baseline dynamic topic context for the conversation."""
-        if not conversation.is_primary or not get_settings().topic_context_enabled:
-            return None
-        if not conversation.active_topic_id:
-            return None
-        try:
-            compiled = await self.compile(conversation, current_query="")
-            cache_key = (
-                conversation.id,
-                getattr(conversation, "session_epoch", 0),
-                conversation.context_version,
-                conversation.active_topic_id,
-            )
-            _PREWARMED_CONTEXT_CACHE[cache_key] = compiled
-            if len(_PREWARMED_CONTEXT_CACHE) > 500:
-                for k in list(_PREWARMED_CONTEXT_CACHE.keys())[:100]:
-                    _PREWARMED_CONTEXT_CACHE.pop(k, None)
-            return compiled
-        except Exception:
-            logger.exception("Pre-warming failed for conversation %s", conversation.id)
-            return None
-
     async def compile(
         self, conversation: Conversation, *, current_query: str
     ) -> CompiledTopicContext:
@@ -175,29 +222,11 @@ class TopicContextCompiler:
                 context_update=self._context_update(conversation, None, []),
             )
 
-        cache_key = (
-            conversation.id,
-            epoch,
-            conversation.context_version,
-            conversation.active_topic_id,
-        )
-        if not current_query.strip() and cache_key in _PREWARMED_CONTEXT_CACHE:
-            cached = _PREWARMED_CONTEXT_CACHE[cache_key]
-            return CompiledTopicContext(
-                block=cached.block,
-                history_messages=history,
-                snapshot=cached.snapshot,
-                topic_update=cached.topic_update,
-                context_update=cached.context_update,
-                preparing=cached.preparing,
-            )
-
         try:
-            compiled = await self._compile_primary(conversation, current_query, history)
-            if not current_query.strip():
-                _PREWARMED_CONTEXT_CACHE[cache_key] = compiled
-            return compiled
+            return await self._compile_primary(conversation, current_query, history)
         except Exception:
+            if self._is_postgresql():
+                raise
             logger.exception("Topic context compilation failed for %s", conversation.id)
             snapshot = self._fallback_snapshot(conversation, conversation.active_topic_id)
             return CompiledTopicContext(
@@ -274,6 +303,59 @@ class TopicContextCompiler:
             }
         return None
 
+    async def eligible_context_state(
+        self,
+        topic: Topic,
+        items: list[ActiveContextItem],
+    ) -> tuple[list[ActiveContextItem], list[TopicAssertion]]:
+        """Return inspection state using the same source policy as prompt compilation."""
+        scope = await self._topic_scope(topic)
+        exclusions = await self._load_exclusions(topic.user_id)
+        policy = self._eligibility_policy(
+            topic.user_id,
+            list(scope.ids),
+            exclusions,
+            active_topic_id=topic.id,
+        )
+        pinned_assertion_ids = {
+            item.source_id
+            for item in items
+            if item.state != "excluded"
+            and self._canonical_source_type(item.source_type) == "topic_assertion"
+        }
+        assertions = await self._eligible_assertions(policy, pinned_assertion_ids)
+        eligible_items = [
+            item
+            for item in items
+            if item.state != "excluded"
+            and await self._source_content(item, policy, assertions) is not None
+        ]
+        active_assertions = [
+            source.assertion
+            for source in assertions.values()
+            if source.assertion.topic_id == topic.id and source.assertion.status == "active"
+        ]
+        return eligible_items, active_assertions
+
+    async def materialize_baseline(
+        self,
+        conversation: Conversation,
+        topic: Topic,
+    ) -> None:
+        """Persist the query-independent context shown immediately after a switch."""
+        selection = await self._select_primary_candidates(
+            conversation,
+            topic,
+            current_query="",
+            query_vector=None,
+        )
+        await self._sync_dynamic_items(
+            conversation,
+            topic.id,
+            selection.candidates,
+            bump_version=False,
+        )
+
     async def _compile_primary(
         self, conversation: Conversation, current_query: str, history: list[Message]
     ) -> CompiledTopicContext:
@@ -308,44 +390,15 @@ class TopicContextCompiler:
             except Exception as e:
                 logger.debug("Failed to embed current query for topic context: %s", e)
 
-        topic_ids = await self._topic_scope(topic, current_query, query_vector=query_vector)
-        exclusions = await self._load_exclusions(conversation.user_id, topic_ids)
-        excluded_assertions, excluded_sources, privacy_assertions, exclude_all = (
-            self._exclusion_sets(exclusions, topic_ids)
-        )
-        candidates = await self._pinned_candidates(
+        selection = await self._select_primary_candidates(
             conversation,
-            excluded_sources,
-            excluded_conversations=self._excluded_conversations(exclusions),
-            excluded_assertions=excluded_assertions | privacy_assertions,
+            topic,
+            current_query=current_query,
+            query_vector=query_vector,
         )
-        candidates.extend(
-            await self._assertion_candidates(
-                conversation.user_id,
-                topic_ids,
-                topic.id,
-                current_query,
-                excluded_assertions,
-                privacy_assertions,
-                excluded_sources,
-                exclusions,
-                exclude_all,
-                query_vector=query_vector,
-            )
-        )
-        if not exclude_all:
-            candidates.extend(
-                await self._raw_evidence_candidates(
-                    conversation.user_id,
-                    topic_ids,
-                    current_query,
-                    excluded_sources,
-                    self._excluded_conversations(exclusions),
-                )
-            )
-        selected = self._trim(candidates)
+        selected = selection.candidates
         await self._sync_dynamic_items(conversation, topic.id, selected)
-        pack = await self._latest_valid_pack(topic)
+        pack = selection.pack
         block = self._render(topic, selected)
         token_total = self.counter.count_text(block)
         snapshot = {
@@ -364,7 +417,7 @@ class TopicContextCompiler:
                 for item in selected
             ],
             "token_total": token_total,
-            "fallback": "raw_evidence" if pack is None and selected else None,
+            "fallback": "raw_evidence" if selection.used_raw_fallback else None,
         }
         preparing = pack is None and any(
             item.source_type in {"message", "thread", "topic_assertion"}
@@ -381,20 +434,106 @@ class TopicContextCompiler:
                 topic,
                 selected,
                 pack=pack,
-                excluded_count=len(exclusions),
+                excluded_count=len(selection.exclusions),
                 preparing=preparing,
                 fallback=snapshot["fallback"],
             ),
             preparing=preparing,
         )
 
+    async def _select_primary_candidates(
+        self,
+        conversation: Conversation,
+        topic: Topic,
+        *,
+        current_query: str,
+        query_vector: list[float] | None,
+    ) -> _PrimarySelection:
+        """Select one bounded, eligible context set without persisting it."""
+        pack = await self._latest_valid_pack(topic)
+        pack_order = self._pack_assertion_order(pack)
+        scope = await self._topic_scope(topic, query_vector=query_vector)
+        exclusions = await self._load_exclusions(conversation.user_id)
+        policy = self._eligibility_policy(
+            conversation.user_id,
+            list(scope.ids),
+            exclusions,
+            active_topic_id=topic.id,
+        )
+        pinned_items = await self._pinned_items(conversation.id)
+        pinned_assertion_ids = {
+            item.source_id
+            for item in pinned_items
+            if self._canonical_source_type(item.source_type) == "topic_assertion"
+        }
+        assertions = await self._eligible_assertions(
+            policy,
+            pinned_assertion_ids | set(pack_order),
+        )
+        candidates = await self._pinned_candidates(
+            policy,
+            pinned_items,
+            assertions,
+        )
+        curated_candidates = await self._assertion_candidates(
+            topic.id,
+            current_query,
+            policy,
+            assertions,
+            hierarchy_topic_ids=scope.hierarchy_ids,
+            pack_order=pack_order,
+            query_vector=query_vector,
+        )
+        candidates.extend(curated_candidates)
+        raw_candidate_keys: set[tuple[str, str]] = set()
+        if not policy.exclude_all and not curated_candidates:
+            raw_candidates = await self._raw_evidence_candidates(
+                policy,
+                current_query,
+            )
+            candidates.extend(raw_candidates)
+            raw_candidate_keys = {
+                (candidate.source_type, candidate.source_id) for candidate in raw_candidates
+            }
+        selected = self._trim(topic, candidates)
+        return _PrimarySelection(
+            candidates=selected,
+            exclusions=exclusions,
+            pack=pack,
+            used_raw_fallback=any(
+                (candidate.source_type, candidate.source_id) in raw_candidate_keys
+                for candidate in selected
+            ),
+        )
+
+    @staticmethod
+    def _pack_assertion_order(pack: TopicContextVersion | None) -> dict[str, int]:
+        """Return validated pack assertion IDs in their curated section order."""
+        if pack is None:
+            return {}
+        curated = CuratedContextPack.model_validate(pack.context_json)
+        ordered_ids = [
+            item.assertion_id
+            for section in (
+                curated.goal,
+                curated.facts,
+                curated.decisions,
+                curated.preferences,
+                curated.constraints,
+                curated.deadlines,
+                curated.open_loops,
+                curated.negative_guardrails,
+            )
+            for item in section
+        ]
+        return {assertion_id: index for index, assertion_id in enumerate(ordered_ids)}
+
     async def _topic_scope(
         self,
         topic: Topic,
-        current_query: str,
         query_vector: list[float] | None = None,
-    ) -> list[str]:
-        """Return the active topic, applicable ancestors, relevant children, and 1-hop graph relations."""
+    ) -> _TopicScope:
+        """Return the topic hierarchy plus related and semantically close topics."""
         topics = list(
             (
                 await self.db.scalars(
@@ -403,33 +542,27 @@ class TopicContextCompiler:
             ).all()
         )
         by_id = {c.id: c for c in topics}
-        scope = {topic.id}
+        ancestor_ids = {topic.id}
         parent_id = topic.parent_id
         while parent_id and parent_id in by_id:
-            scope.add(parent_id)
+            ancestor_ids.add(parent_id)
             parent_id = by_id[parent_id].parent_id
-        query_terms = self._terms(current_query)
-        descendants = {topic.id}
+        descendant_ids = {topic.id}
         changed = True
         while changed:
             changed = False
             for candidate in topics:
-                if candidate.parent_id in descendants and candidate.id not in descendants:
-                    descendants.add(candidate.id)
+                if candidate.parent_id in descendant_ids and candidate.id not in descendant_ids:
+                    descendant_ids.add(candidate.id)
                     changed = True
-        for candidate_id in descendants - {topic.id}:
-            candidate = by_id[candidate_id]
-            label_terms = self._terms(candidate.label)
-            if not query_terms or not label_terms:
-                continue
-            if len(query_terms & label_terms) / max(1, len(label_terms)) >= 0.34:
-                scope.add(candidate.id)
+        scope = ancestor_ids | descendant_ids
 
         # 1-Hop Graph Relations
         relations = list(
             (
                 await self.db.scalars(
-                    select(TopicRelation).where(
+                    select(TopicRelation)
+                    .where(
                         TopicRelation.user_id == topic.user_id,
                         TopicRelation.confidence >= 0.5,
                         or_(
@@ -437,6 +570,7 @@ class TopicContextCompiler:
                             TopicRelation.target_topic_id == topic.id,
                         ),
                     )
+                    .limit(_MAX_RELATIONS)
                 )
             ).all()
         )
@@ -466,6 +600,8 @@ class TopicContextCompiler:
                         if tid in by_id:
                             scope.add(tid)
             except Exception as e:
+                if self._is_postgresql():
+                    raise
                 logger.debug("pgvector centroid search unavailable (%s); checking in-memory", e)
                 for cand in topics:
                     if cand.centroid_embedding and len(cand.centroid_embedding) == len(
@@ -480,7 +616,11 @@ class TopicContextCompiler:
                         if norm_a > 0 and norm_b > 0 and (dot / (norm_a * norm_b)) >= 0.65:
                             scope.add(cand.id)
 
-        return list(scope)
+        return _TopicScope(
+            ids=frozenset(scope),
+            ancestor_ids=frozenset(ancestor_ids),
+            descendant_ids=frozenset(descendant_ids),
+        )
 
     @staticmethod
     def _terms(text: str | None) -> set[str]:
@@ -492,92 +632,126 @@ class TopicContextCompiler:
             if token not in _TERMS_STOP_WORDS
         }
 
-    async def _load_exclusions(self, user_id: str, topic_ids: list[str]) -> list[TopicExclusion]:
+    async def _load_exclusions(self, user_id: str) -> list[TopicExclusion]:
         return list(
             (
                 await self.db.scalars(
                     select(TopicExclusion).where(
                         TopicExclusion.user_id == user_id,
                         TopicExclusion.revoked_at.is_(None),
-                        or_(
-                            TopicExclusion.topic_id.in_(topic_ids),
-                            TopicExclusion.topic_id.is_(None),
-                        ),
                     )
                 )
             ).all()
         )
 
     @staticmethod
-    def _excluded_conversations(exclusions: list[TopicExclusion]) -> set[str]:
-        return {
-            item.target_id
-            for item in exclusions
-            if item.scope in {"thread", "conversation"} and item.target_id
-        }
-
-    @staticmethod
-    def _exclusion_sets(
-        exclusions: list[TopicExclusion], topic_ids: list[str]
-    ) -> tuple[set[str], set[str], set[str], bool]:
-        excluded_assertions: set[str] = set()
-        excluded_sources: set[str] = set()
-        privacy_assertions: set[str] = set()
-        exclude_all = False
-        scope_ids = set(topic_ids)
-        for item in exclusions:
-            if item.scope == "all_topics" or (
-                item.scope == "topic"
-                and (
-                    item.topic_id in scope_ids
-                    or item.target_id in scope_ids
-                    or item.target_id is None
-                )
-            ):
-                exclude_all = True
-            elif item.scope == "assertion" and item.target_id:
-                excluded_assertions.add(item.target_id)
-                if item.is_privacy_deletion:
-                    privacy_assertions.add(item.target_id)
-            elif item.scope == "source" and item.target_id:
-                excluded_sources.add(item.target_id)
-        return excluded_assertions, excluded_sources, privacy_assertions, exclude_all
-
-    async def _assertion_candidates(
-        self,
+    def _eligibility_policy(
         user_id: str,
         topic_ids: list[str],
-        active_topic_id: str,
-        current_query: str,
-        excluded_assertions: set[str],
-        privacy_assertions: set[str],
-        excluded_sources: set[str],
         exclusions: list[TopicExclusion],
-        exclude_all: bool,
-        query_vector: list[float] | None = None,
-    ) -> list[_Candidate]:
-        if exclude_all:
-            return []
+        *,
+        active_topic_id: str,
+    ) -> _EligibilityPolicy:
+        scope_ids = frozenset(topic_ids)
+        policy = _EligibilityPolicy(
+            user_id=user_id,
+            active_topic_id=active_topic_id,
+            topic_ids=scope_ids,
+            exclusions=tuple(exclusions),
+            excluded_assertions=frozenset(
+                item.target_id
+                for item in exclusions
+                if item.scope == "assertion" and item.target_id
+            ),
+            privacy_assertions=frozenset(
+                item.target_id
+                for item in exclusions
+                if item.scope == "assertion" and item.target_id and item.is_privacy_deletion
+            ),
+            excluded_sources=frozenset(
+                item.target_id for item in exclusions if item.scope == "source" and item.target_id
+            ),
+            excluded_conversations=frozenset(
+                item.target_id
+                for item in exclusions
+                if item.scope in {"thread", "conversation"} and item.target_id
+            ),
+            exclude_all=False,
+        )
+        return replace(
+            policy,
+            exclude_all=policy.excludes_topic(active_topic_id),
+        )
+
+    @staticmethod
+    def _canonical_source_type(source_type: str) -> str:
+        # Older combine rows used "assertion" before the public source type was finalized.
+        return "topic_assertion" if source_type == "assertion" else source_type
+
+    async def _eligible_assertions(
+        self,
+        policy: _EligibilityPolicy,
+        pinned_assertion_ids: set[str],
+    ) -> dict[str, _EligibleAssertion]:
+        if policy.exclude_all:
+            return {}
+        assertion_seed_ids = (
+            select(TopicAssertion.id)
+            .where(
+                TopicAssertion.status.in_(("active", "rejected")),
+                or_(
+                    TopicAssertion.topic_id.in_(policy.topic_ids),
+                    TopicAssertion.id.in_(pinned_assertion_ids),
+                ),
+            )
+            .order_by(
+                case((TopicAssertion.id.in_(pinned_assertion_ids), 0), else_=1),
+                TopicAssertion.last_confirmed_at.desc(),
+            )
+            .limit(_MAX_ASSERTION_SEEDS)
+            .scalar_subquery()
+        )
         rows = (
             await self.db.execute(
-                select(TopicAssertion, TopicAssertionEvidence.message_id)
+                select(
+                    TopicAssertion,
+                    TopicAssertionEvidence.message_id,
+                    Message.conversation_id,
+                )
+                .join(Topic, Topic.id == TopicAssertion.topic_id)
                 .join(
-                    TopicAssertionEvidence, TopicAssertionEvidence.assertion_id == TopicAssertion.id
+                    TopicAssertionEvidence,
+                    TopicAssertionEvidence.assertion_id == TopicAssertion.id,
                 )
                 .join(Message, Message.id == TopicAssertionEvidence.message_id)
                 .join(Conversation, Conversation.id == Message.conversation_id)
                 .where(
-                    TopicAssertion.topic_id.in_(topic_ids),
-                    Conversation.user_id == user_id,
+                    Topic.user_id == policy.user_id,
+                    Topic.status == "active",
+                    TopicAssertion.id.in_(assertion_seed_ids),
+                    Conversation.user_id == policy.user_id,
                     Conversation.is_deleted.is_(False),
-                    TopicAssertion.status.in_(("active", "rejected")),
                 )
                 .order_by(TopicAssertion.last_confirmed_at.desc())
+                .limit(_MAX_ASSERTION_EVIDENCE_ROWS)
             )
         ).all()
+        now = datetime.now(UTC)
         grouped: dict[str, tuple[TopicAssertion, set[str]]] = {}
-        for assertion, evidence_id in rows:
-            if evidence_id in excluded_sources or assertion.id in privacy_assertions:
+        for assertion, evidence_id, conversation_id in rows:
+            if (
+                assertion.id in policy.privacy_assertions
+                or (assertion.id in policy.excluded_assertions and assertion.status != "rejected")
+                or assertion.id in policy.excluded_sources
+                or policy.excludes_topic(assertion.topic_id)
+                or evidence_id in policy.excluded_sources
+                or conversation_id in policy.excluded_conversations
+                or policy.excludes_concept(assertion.content, assertion.topic_id)
+            ):
+                continue
+            valid_from = self._as_utc(assertion.valid_from)
+            valid_until = self._as_utc(assertion.valid_until)
+            if (valid_from and valid_from > now) or (valid_until and valid_until <= now):
                 continue
             current = grouped.get(assertion.id)
             if current is None:
@@ -585,19 +759,60 @@ class TopicContextCompiler:
             else:
                 current[1].add(evidence_id)
 
-        # Causal resolution: if an assertion was superseded by another active assertion in scope, suppress the older one
-        superseded_map = {
-            a.id: a.superseded_by_id for a, _ in grouped.values() if a.superseded_by_id
+        superseder_ids = {
+            assertion.superseded_by_id
+            for assertion, _ in grouped.values()
+            if assertion.superseded_by_id
         }
-        for old_id, new_id in superseded_map.items():
-            if new_id in grouped and grouped[new_id][0].status == "active":
-                excluded_assertions.add(old_id)
+        active_superseder_ids = (
+            set(
+                (
+                    await self.db.scalars(
+                        select(TopicAssertion.id)
+                        .join(Topic, Topic.id == TopicAssertion.topic_id)
+                        .where(
+                            TopicAssertion.id.in_(superseder_ids),
+                            TopicAssertion.status == "active",
+                            Topic.user_id == policy.user_id,
+                            Topic.status == "active",
+                        )
+                    )
+                ).all()
+            )
+            if superseder_ids
+            else set()
+        )
+        return {
+            assertion_id: _EligibleAssertion(
+                assertion=assertion,
+                evidence_ids=frozenset(evidence_ids),
+            )
+            for assertion_id, (assertion, evidence_ids) in grouped.items()
+            if assertion.superseded_by_id not in active_superseder_ids
+        }
 
+    async def _assertion_candidates(
+        self,
+        active_topic_id: str,
+        current_query: str,
+        policy: _EligibilityPolicy,
+        assertions: dict[str, _EligibleAssertion],
+        hierarchy_topic_ids: frozenset[str] = frozenset(),
+        pack_order: dict[str, int] | None = None,
+        query_vector: list[float] | None = None,
+    ) -> list[_Candidate]:
+        if policy.exclude_all:
+            return []
         now = datetime.now(UTC)
         query_terms = self._terms(current_query)
+        scoped = {
+            assertion_id: source
+            for assertion_id, source in assertions.items()
+            if source.assertion.topic_id in policy.topic_ids
+        }
 
         hybrid_scores: dict[str, float] = {}
-        if query_vector and current_query.strip():
+        if query_vector and current_query.strip() and scoped:
             try:
                 async with self.db.begin_nested():
                     semantic = 1.0 - TopicAssertion.embedding.cosine_distance(query_vector)
@@ -612,19 +827,26 @@ class TopicContextCompiler:
                     fused = (cast(semantic, Float) * 0.70 + cast(lexical, Float) * 0.30).label(
                         "fused_score"
                     )
-                    hybrid_stmt = select(TopicAssertion.id, fused).where(
-                        TopicAssertion.topic_id.in_(topic_ids),
-                        TopicAssertion.embedding.isnot(None),
-                        TopicAssertion.status.in_(("active", "rejected")),
+                    hybrid_stmt = (
+                        select(TopicAssertion.id, fused)
+                        .where(
+                            TopicAssertion.id.in_(scoped),
+                            TopicAssertion.embedding.isnot(None),
+                        )
+                        .order_by(fused.desc())
+                        .limit(48)
                     )
                     for aid, score_val in (await self.db.execute(hybrid_stmt)).all():
                         if score_val is not None:
                             hybrid_scores[aid] = max(0.0, min(1.0, float(score_val)))
             except Exception as e:
+                if self._is_postgresql():
+                    raise
                 logger.debug(
                     "SQL hybrid search unavailable (%s); falling back to in-memory cosine", e
                 )
-                for assertion, _ in rows:
+                for source in scoped.values():
+                    assertion = source.assertion
                     if assertion.embedding and len(assertion.embedding) == len(query_vector):
                         dot = sum(
                             a * b for a, b in zip(assertion.embedding, query_vector, strict=False)
@@ -637,18 +859,10 @@ class TopicContextCompiler:
                             )
 
         candidates: list[_Candidate] = []
-        for assertion, evidence_ids in grouped.values():
-            if assertion.id in excluded_assertions:
-                continue
+        pack_order = pack_order or {}
+        for source in scoped.values():
+            assertion = source.assertion
             rejected = assertion.status == "rejected"
-            if self._concept_excluded(assertion.content, exclusions):
-                continue
-            valid_from = self._as_utc(assertion.valid_from)
-            valid_until = self._as_utc(assertion.valid_until)
-            if valid_from and valid_from > now:
-                continue
-            if valid_until and valid_until <= now:
-                continue
             if rejected:
                 candidates.append(
                     _Candidate(
@@ -657,8 +871,8 @@ class TopicContextCompiler:
                         content="Do not reintroduce a previously rejected option unless the user explicitly reverses it.",
                         reason="Rejected by you",
                         score=1.0,
-                        pinned=True,
-                        evidence_ids=frozenset(evidence_ids),
+                        required=True,
+                        evidence_ids=source.evidence_ids,
                     )
                 )
                 continue
@@ -669,10 +883,16 @@ class TopicContextCompiler:
                 content_terms = self._terms(assertion.content)
                 query_match = len(query_terms & content_terms) / max(1, len(content_terms))
 
-            topic_affinity = 1.0 if assertion.topic_id == active_topic_id else 0.65
+            topic_affinity = (
+                1.0
+                if assertion.topic_id == active_topic_id
+                else 0.82
+                if assertion.topic_id in hierarchy_topic_ids
+                else 0.65
+            )
 
             if (
-                assertion.topic_id != active_topic_id
+                assertion.topic_id not in hierarchy_topic_ids
                 and query_vector is not None
                 and query_match < 0.65
             ):
@@ -698,28 +918,23 @@ class TopicContextCompiler:
                 + 0.05 * importance
                 + 0.05
             )
+            if assertion.id in pack_order:
+                score += max(0.02, 0.08 - 0.001 * pack_order[assertion.id])
             candidates.append(
                 _Candidate(
                     source_type="topic_assertion",
                     source_id=assertion.id,
                     content=assertion.content,
-                    reason=f"Grounded {assertion.kind}",
+                    reason=(
+                        f"Curated {assertion.kind}"
+                        if assertion.id in pack_order
+                        else f"Live grounded {assertion.kind}"
+                    ),
                     score=min(0.99, score),
-                    evidence_ids=frozenset(evidence_ids),
+                    evidence_ids=source.evidence_ids,
                 )
             )
         return candidates
-
-    @staticmethod
-    def _concept_excluded(content: str, exclusions: list[TopicExclusion]) -> bool:
-        normalized = " ".join(content.casefold().split())
-        for item in exclusions:
-            if item.scope != "concept" or not item.target_id:
-                continue
-            target = " ".join(item.target_id.casefold().split())
-            if target and target in normalized:
-                return True
-        return False
 
     @staticmethod
     def _as_utc(value: datetime | None) -> datetime | None:
@@ -727,137 +942,229 @@ class TopicContextCompiler:
             return None
         return value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)
 
-    async def _pinned_candidates(
-        self,
-        conversation: Conversation,
-        excluded_sources: set[str],
-        *,
-        excluded_conversations: set[str] | None = None,
-        excluded_assertions: set[str] | None = None,
-    ) -> list[_Candidate]:
-        items = list(
+    def _is_postgresql(self) -> bool:
+        return self.db.get_bind().dialect.name == "postgresql"
+
+    async def _pinned_items(self, conversation_id: str) -> list[ActiveContextItem]:
+        return list(
             (
                 await self.db.scalars(
                     select(ActiveContextItem).where(
-                        ActiveContextItem.conversation_id == conversation.id,
+                        ActiveContextItem.conversation_id == conversation_id,
                         ActiveContextItem.state == "pinned",
                     )
                 )
             ).all()
         )
+
+    async def _pinned_candidates(
+        self,
+        policy: _EligibilityPolicy,
+        items: list[ActiveContextItem],
+        assertions: dict[str, _EligibleAssertion],
+    ) -> list[_Candidate]:
         result: list[_Candidate] = []
         for item in items:
-            if (
-                item.source_id in excluded_sources
-                or item.source_id in (excluded_assertions or set())
-                or item.source_id in (excluded_conversations or set())
-            ):
-                continue
-            if item.source_type == "thread" and item.source_id in (excluded_conversations or set()):
-                continue
-            content = await self._source_content(item, conversation.user_id)
-            if content:
+            source = await self._source_content(item, policy, assertions)
+            if source:
                 result.append(
                     _Candidate(
-                        source_type=item.source_type,
+                        source_type=source.source_type,
                         source_id=item.source_id,
-                        content=content,
+                        content=source.content,
                         reason=item.reason or "Pinned by you",
                         score=1.0,
                         pinned=True,
-                        evidence_ids=frozenset({item.source_id})
-                        if item.source_type == "topic_assertion"
-                        else frozenset(),
+                        evidence_ids=source.evidence_ids,
                     )
                 )
         return result
 
-    async def _source_content(self, item: ActiveContextItem, user_id: str) -> str | None:
-        if item.source_type in {"message", "attachment"}:
-            return await self.db.scalar(
-                select(Message.content)
-                .join(Conversation, Conversation.id == Message.conversation_id)
-                .where(
-                    Message.id == item.source_id,
-                    Conversation.user_id == user_id,
+    async def _source_content(
+        self,
+        item: ActiveContextItem,
+        policy: _EligibilityPolicy,
+        assertions: dict[str, _EligibleAssertion],
+    ) -> _EligibleSource | None:
+        source_type = self._canonical_source_type(item.source_type)
+        if (
+            policy.exclude_all
+            or item.source_id in policy.excluded_sources
+            or (item.topic_id and policy.excludes_topic(item.topic_id))
+        ):
+            return None
+        if source_type in {"message", "attachment"}:
+            row = (
+                await self.db.execute(
+                    select(Message.content, Message.conversation_id)
+                    .join(Conversation, Conversation.id == Message.conversation_id)
+                    .where(
+                        Message.id == item.source_id,
+                        Conversation.user_id == policy.user_id,
+                        Conversation.is_deleted.is_(False),
+                    )
+                )
+            ).one_or_none()
+            if (
+                row is None
+                or row.conversation_id in policy.excluded_conversations
+                or policy.excludes_concept(row.content, item.topic_id)
+            ):
+                return None
+            return _EligibleSource(source_type=source_type, content=row.content)
+        if source_type == "topic_assertion":
+            source = assertions.get(item.source_id)
+            if source is None or source.assertion.status != "active":
+                return None
+            return _EligibleSource(
+                source_type="topic_assertion",
+                content=source.assertion.content,
+                evidence_ids=source.evidence_ids,
+            )
+        if source_type == "thread":
+            if item.source_id in policy.excluded_conversations:
+                return None
+            thread = await self.db.scalar(
+                select(Conversation).where(
+                    Conversation.id == item.source_id,
+                    Conversation.user_id == policy.user_id,
                     Conversation.is_deleted.is_(False),
+                    Conversation.is_primary.is_(False),
                 )
             )
-        if item.source_type == "topic_assertion":
-            return await self.db.scalar(
-                select(TopicAssertion.content)
-                .join(Topic, Topic.id == TopicAssertion.topic_id)
-                .where(TopicAssertion.id == item.source_id, Topic.user_id == user_id)
-            )
-        if item.source_type == "thread":
+            if thread is None:
+                return None
             messages = list(
                 (
-                    await self.db.scalars(
-                        select(Message.content)
-                        .join(Conversation, Conversation.id == Message.conversation_id)
-                        .where(
-                            Conversation.id == item.source_id,
-                            Conversation.user_id == user_id,
-                            Conversation.is_deleted.is_(False),
-                        )
+                    await self.db.execute(
+                        select(Message.id, Message.content)
+                        .where(Message.conversation_id == item.source_id)
                         .order_by(Message.seq.desc())
                         .limit(6)
                     )
                 ).all()
             )
-            return "\n".join(reversed(messages)) if messages else None
-        if item.source_type == "memory":
-            return await self.db.scalar(
-                select(UserMemory.content).where(
+            content = "\n".join(
+                message.content
+                for message in reversed(messages)
+                if message.id not in policy.excluded_sources
+                and not policy.excludes_concept(message.content, item.topic_id)
+            )
+            if not content:
+                return None
+            return _EligibleSource(source_type=source_type, content=content)
+        if source_type == "memory":
+            memory = await self.db.scalar(
+                select(UserMemory).where(
                     UserMemory.id == item.source_id,
-                    UserMemory.user_id == user_id,
+                    UserMemory.user_id == policy.user_id,
                     UserMemory.is_active.is_(True),
                 )
             )
-        if item.source_type == "knowledge":
-            return await self.db.scalar(
-                select(KnowledgeChunk.content)
-                .join(KnowledgeDocument, KnowledgeDocument.id == KnowledgeChunk.document_id)
-                .where(
-                    KnowledgeChunk.id == item.source_id,
-                    KnowledgeChunk.user_id == user_id,
-                    KnowledgeDocument.user_id == user_id,
+            if memory is None or policy.excludes_concept(memory.content, item.topic_id):
+                return None
+            if memory.source_conversation_id:
+                if memory.source_conversation_id in policy.excluded_conversations:
+                    return None
+                source_conversation = await self.db.scalar(
+                    select(Conversation.id).where(
+                        Conversation.id == memory.source_conversation_id,
+                        Conversation.user_id == policy.user_id,
+                        Conversation.is_deleted.is_(False),
+                    )
+                )
+                if source_conversation is None:
+                    return None
+            return _EligibleSource(source_type=source_type, content=memory.content)
+        if source_type == "knowledge":
+            row = (
+                await self.db.execute(
+                    select(KnowledgeChunk.content, KnowledgeDocument.id.label("document_id"))
+                    .join(KnowledgeDocument, KnowledgeDocument.id == KnowledgeChunk.document_id)
+                    .where(
+                        KnowledgeChunk.id == item.source_id,
+                        KnowledgeChunk.user_id == policy.user_id,
+                        KnowledgeDocument.user_id == policy.user_id,
+                        KnowledgeDocument.status == "ready",
+                    )
+                )
+            ).one_or_none()
+            if row is not None:
+                if row.document_id in policy.excluded_sources or policy.excludes_concept(
+                    row.content, item.topic_id
+                ):
+                    return None
+                return _EligibleSource(source_type=source_type, content=row.content)
+            document = await self.db.scalar(
+                select(KnowledgeDocument).where(
+                    KnowledgeDocument.id == item.source_id,
+                    KnowledgeDocument.user_id == policy.user_id,
                     KnowledgeDocument.status == "ready",
                 )
             )
+            if document is None:
+                return None
+            chunks = list(
+                (
+                    await self.db.execute(
+                        select(KnowledgeChunk.id, KnowledgeChunk.content)
+                        .where(
+                            KnowledgeChunk.document_id == document.id,
+                            KnowledgeChunk.user_id == policy.user_id,
+                        )
+                        .order_by(KnowledgeChunk.chunk_index)
+                        .limit(_MAX_DOCUMENT_CHUNKS)
+                    )
+                ).all()
+            )
+            content = "\n".join(
+                chunk.content
+                for chunk in chunks
+                if chunk.id not in policy.excluded_sources
+                and not policy.excludes_concept(chunk.content, item.topic_id)
+            )
+            if not content:
+                return None
+            return _EligibleSource(source_type=source_type, content=content)
         return None
 
     async def _raw_evidence_candidates(
         self,
-        user_id: str,
-        topic_ids: list[str],
+        policy: _EligibilityPolicy,
         current_query: str,
-        excluded_sources: set[str],
-        excluded_conversations: set[str],
     ) -> list[_Candidate]:
+        eligible_topic_ids = tuple(
+            topic_id for topic_id in policy.topic_ids if not policy.excludes_topic(topic_id)
+        )
+        if not eligible_topic_ids:
+            return []
         seed_filters = [
-            MessageTopic.topic_id.in_(topic_ids),
-            Conversation.user_id == user_id,
+            MessageTopic.topic_id.in_(eligible_topic_ids),
+            Conversation.user_id == policy.user_id,
             Conversation.is_deleted.is_(False),
         ]
-        if excluded_sources:
-            seed_filters.append(Message.id.not_in(excluded_sources))
-        if excluded_conversations:
-            seed_filters.append(Message.conversation_id.not_in(excluded_conversations))
-        seeds = list(
+        if policy.excluded_sources:
+            seed_filters.append(Message.id.not_in(policy.excluded_sources))
+        if policy.excluded_conversations:
+            seed_filters.append(Message.conversation_id.not_in(policy.excluded_conversations))
+        seed_rows = list(
             (
-                await self.db.scalars(
-                    select(Message)
+                await self.db.execute(
+                    select(Message, MessageTopic.topic_id)
                     .join(MessageTopic, MessageTopic.message_id == Message.id)
                     .join(Conversation, Conversation.id == Message.conversation_id)
                     .where(*seed_filters)
                     .order_by(Message.seq.desc())
-                    .limit(24)
+                    .limit(_MAX_COLD_RAW_SEEDS)
                 )
             ).all()
         )
+        seeds = [row[0] for row in seed_rows]
         if not seeds:
             return []
+        topic_ids_by_conversation: dict[str, set[str]] = {}
+        for seed, topic_id in seed_rows:
+            topic_ids_by_conversation.setdefault(seed.conversation_id, set()).add(topic_id)
         conversation_ids = {m.conversation_id for m in seeds}
         messages = list(
             (
@@ -866,13 +1173,15 @@ class TopicContextCompiler:
                     .join(Conversation, Conversation.id == Message.conversation_id)
                     .where(
                         Message.conversation_id.in_(conversation_ids),
-                        Conversation.user_id == user_id,
+                        Conversation.user_id == policy.user_id,
                         Conversation.is_deleted.is_(False),
                     )
-                    .order_by(Message.conversation_id, Message.seq)
+                    .order_by(Message.seq.desc())
+                    .limit(_MAX_COLD_RAW_MESSAGES)
                 )
             ).all()
         )
+        messages.sort(key=lambda message: (message.conversation_id, message.seq))
         seed_ids = {m.id for m in seeds}
         grouped: dict[tuple[str, str], list[Message]] = {}
         anchors: dict[str, str] = {}
@@ -891,7 +1200,16 @@ class TopicContextCompiler:
         candidates: list[_Candidate] = []
         for group_id, group_messages in ordered_groups:
             for position, message in enumerate(group_messages):
-                if message.id in excluded_sources:
+                if (
+                    message.id in policy.excluded_sources
+                    or message.conversation_id in policy.excluded_conversations
+                    or any(
+                        policy.excludes_concept(message.content, topic_id)
+                        for topic_id in topic_ids_by_conversation.get(
+                            message.conversation_id, {policy.active_topic_id}
+                        )
+                    )
+                ):
                     continue
                 content_terms = self._terms(message.content)
                 query_match = len(query_terms & content_terms) / max(1, len(content_terms))
@@ -908,22 +1226,30 @@ class TopicContextCompiler:
                 )
         return candidates
 
-    def _trim(self, candidates: list[_Candidate]) -> list[_Candidate]:
+    def _trim(self, topic: Topic, candidates: list[_Candidate]) -> list[_Candidate]:
         deduped = self._dedupe(candidates)
         pinned = sorted(
             (c for c in deduped.values() if c.pinned),
             key=lambda c: (-c.score, c.source_type, c.source_id),
         )
-        dynamic = [c for c in deduped.values() if not c.pinned]
+        required = sorted(
+            (c for c in deduped.values() if c.required and not c.pinned),
+            key=lambda c: (-c.score, c.source_type, c.source_id),
+        )
+        dynamic = [c for c in deduped.values() if not c.pinned and not c.required]
         dynamic = self._filter_redundant(pinned, dynamic)
-        return self._budget_select(pinned, dynamic)
+        return self._budget_select(topic, [*required, *pinned], dynamic)
 
     def _dedupe(self, candidates: list[_Candidate]) -> dict[tuple[str, str], _Candidate]:
         deduped: dict[tuple[str, str], _Candidate] = {}
         for item in candidates:
             key = (item.source_type, item.source_id)
             prev = deduped.get(key)
-            if prev is None or (item.pinned and not prev.pinned) or item.score > prev.score:
+            if (
+                prev is None
+                or ((item.pinned, item.required) > (prev.pinned, prev.required))
+                or item.score > prev.score
+            ):
                 deduped[key] = item
         return deduped
 
@@ -945,7 +1271,10 @@ class TopicContextCompiler:
         ]
 
     def _budget_select(
-        self, pinned: list[_Candidate], dynamic: list[_Candidate]
+        self,
+        topic: Topic,
+        priority: list[_Candidate],
+        dynamic: list[_Candidate],
     ) -> list[_Candidate]:
         groups: dict[str, list[_Candidate]] = {}
         singles: list[_Candidate] = []
@@ -959,24 +1288,83 @@ class TopicContextCompiler:
             groups.values(), key=lambda g: (-max(c.score for c in g), min(c.source_id for c in g))
         )
         singles.sort(key=lambda c: (-c.score, c.source_type, c.source_id))
-        selected = list(pinned)
-        used = sum(self.counter.count_text(c.content) for c in selected)
+        selected: list[_Candidate] = []
+        for item in priority:
+            fitted = self._fit_candidate(topic, selected, item)
+            if fitted is not None:
+                selected.append(fitted)
         for group in ordered_groups:
-            group_tokens = sum(self.counter.count_text(c.content) for c in group)
-            if used + group_tokens <= self.budget:
-                selected.extend(sorted(group, key=lambda c: c.source_id))
-                used += group_tokens
+            ordered_group = sorted(group, key=lambda c: c.source_id)
+            if (
+                self.counter.count_text(self._render(topic, [*selected, *ordered_group]))
+                <= self.budget
+            ):
+                selected.extend(ordered_group)
         for item in singles:
-            tokens = self.counter.count_text(item.content)
-            if used + tokens <= self.budget:
-                selected.append(item)
-                used += tokens
+            fitted = self._fit_candidate(topic, selected, item)
+            if fitted is not None:
+                selected.append(fitted)
         return selected
 
+    def _fit_candidate(
+        self,
+        topic: Topic,
+        selected: list[_Candidate],
+        candidate: _Candidate,
+    ) -> _Candidate | None:
+        if self.counter.count_text(self._render(topic, [*selected, candidate])) <= self.budget:
+            return candidate
+        low = 0
+        high = len(candidate.content)
+        best: _Candidate | None = None
+        while low <= high:
+            midpoint = (low + high) // 2
+            prefix = candidate.content[:midpoint].rstrip()
+            truncated = replace(candidate, content=f"{prefix}…") if prefix else None
+            fits = (
+                truncated is not None
+                and self.counter.count_text(self._render(topic, [*selected, truncated]))
+                <= self.budget
+            )
+            if fits:
+                best = truncated
+                low = midpoint + 1
+            else:
+                high = midpoint - 1
+        return best
+
     async def _sync_dynamic_items(
-        self, conversation: Conversation, topic_id: str, selected: list[_Candidate]
+        self,
+        conversation: Conversation,
+        topic_id: str,
+        selected: list[_Candidate],
+        *,
+        bump_version: bool = True,
     ) -> None:
         desired = {(c.source_type, c.source_id): c for c in selected if not c.pinned}
+        required_keys = {
+            (candidate.source_type, candidate.source_id)
+            for candidate in selected
+            if candidate.required
+        }
+        if required_keys:
+            pinned_items = list(
+                (
+                    await self.db.scalars(
+                        select(ActiveContextItem).where(
+                            ActiveContextItem.conversation_id == conversation.id,
+                            ActiveContextItem.state == "pinned",
+                        )
+                    )
+                ).all()
+            )
+            demoted = False
+            for item in pinned_items:
+                if (item.source_type, item.source_id) in required_keys:
+                    item.state = "dynamic"
+                    demoted = True
+            if demoted:
+                await self.db.flush()
         existing = list(
             (
                 await self.db.scalars(
@@ -1003,7 +1391,8 @@ class TopicContextCompiler:
                 cur.relevance_score = v.score
                 cur.token_count = self.counter.count_text(v.content)
                 cur.topic_id = topic_id
-            conversation.context_version += 1
+            if bump_version:
+                conversation.context_version += 1
             await self.db.flush()
             return
         await self.db.execute(
@@ -1026,7 +1415,8 @@ class TopicContextCompiler:
                     token_count=self.counter.count_text(item.content),
                 )
             )
-        conversation.context_version += 1
+        if bump_version:
+            conversation.context_version += 1
         await self.db.flush()
 
     @staticmethod

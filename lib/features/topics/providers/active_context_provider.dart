@@ -19,12 +19,6 @@ class ActiveContextProvider extends ChangeNotifier {
   ActiveContext? _context;
   ActiveContext? get context => _context;
 
-  List<ActiveContextItem> get carryoverItems =>
-      _context?.items
-          .where((item) => item.sourceType == 'carryover')
-          .toList(growable: false) ??
-      const [];
-
   bool _loading = false;
   bool get loading => _loading;
 
@@ -83,7 +77,7 @@ class ActiveContextProvider extends ChangeNotifier {
   }
 
   /// Resets the context to a fresh state after a topic switch.
-  /// The new context comes from the server response and includes any carryover items.
+  /// Replace local state with the server's authoritative context snapshot.
   void resetFromServer(ActiveContext newContext) {
     _context = newContext;
     _error = null;

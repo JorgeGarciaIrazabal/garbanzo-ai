@@ -13,7 +13,6 @@ from sqlalchemy.orm import selectinload
 from app.models.conversation import Conversation
 from app.topics.models import Topic, TopicAssertion, TopicContextVersion
 from app.topics.schemas import TopicContextStatus, TopicNode
-from app.topics.topic_consolidation_service import TopicConsolidationService
 from app.topics.topic_description_helper import get_topic_high_level_description
 from app.topics.topic_normalization import normalize_topic_label
 
@@ -37,6 +36,11 @@ class TopicNotFoundError(Exception):
 
 class PrimaryConversationRequiredError(Exception):
     pass
+
+
+class TopicVersionConflictError(Exception):
+    def __init__(self, current_version: int):
+        self.current_version = current_version
 
 
 class TopicService:
@@ -91,10 +95,10 @@ class TopicService:
             for tid, lbl in _EXPLORE_TOPICS.items()
         ]
 
-    async def activate(
-        self, conversation_id: str, user_id: str, *, topic_id: str | None, label: str | None
-    ) -> tuple[Conversation, Topic]:
-        conversation = await self._get_primary(conversation_id, user_id)
+    async def resolve_target(
+        self, user_id: str, *, topic_id: str | None, label: str | None
+    ) -> Topic:
+        """Resolve a switch target without committing orchestration state."""
         if topic_id and topic_id in _EXPLORE_TOPICS:
             label = _EXPLORE_TOPICS[topic_id]
             topic_id = None
@@ -130,7 +134,13 @@ class TopicService:
                 )
                 self.db.add(topic)
                 await self.db.flush()
+        return topic
+
+    @staticmethod
+    def apply_activation(conversation: Conversation, topic: Topic) -> None:
+        """Apply an already-validated target; the caller owns flush/commit."""
         conversation.active_topic_id = topic.id
+        conversation.active_topic = topic
         conversation.topic_is_pinned = True
         if conversation.is_primary:
             conversation.title = topic.label
@@ -139,42 +149,26 @@ class TopicService:
         topic.last_active_at = datetime.now(UTC)
         topic.signal = "active now"
         topic.dirty_since = topic.dirty_since or datetime.now(UTC)
-        await self._bump_and_refresh(conversation, topic)
-        return conversation, topic
 
-    async def update_selection(
+    async def set_pinned(
         self,
         conversation_id: str,
         user_id: str,
         *,
-        topic_id: str | None,
-        set_topic: bool,
-        pinned: bool | None,
+        pinned: bool,
+        context_version: int,
     ) -> tuple[Conversation, Topic | None]:
-        conversation = await self._get_primary(conversation_id, user_id)
-        topic: Topic | None = None
-        if set_topic:
-            if topic_id is not None:
-                topic = await self.get_owned_topic(topic_id, user_id)
-                if topic is None:
-                    raise TopicNotFoundError
-            conversation.active_topic_id = topic_id
-            # An explicit selection is always a user intent: pin it (matches
-            # activate), so ingestion treats it as deliberate and never
-            # re-routes the conversation to a semantic lookalike topic.
-            if topic_id is not None:
-                conversation.topic_is_pinned = True
-            if conversation.is_primary:
-                if topic is not None:
-                    conversation.title = topic.label
-                conversation.context_summary = None
-                conversation.context_summary_until_id = None
-        elif conversation.active_topic_id:
+        conversation = await self._get_primary(
+            conversation_id,
+            user_id,
+            for_update=True,
+        )
+        if conversation.context_version != context_version:
+            raise TopicVersionConflictError(conversation.context_version)
+        topic = None
+        if conversation.active_topic_id:
             topic = await self.get_owned_topic(conversation.active_topic_id, user_id)
-        if pinned is not None:
-            conversation.topic_is_pinned = pinned
-        if conversation.active_topic_id is None:
-            conversation.topic_is_pinned = False
+        conversation.topic_is_pinned = pinned if topic is not None else False
         await self._bump_and_refresh(conversation)
         return conversation, topic
 
@@ -222,19 +216,21 @@ class TopicService:
             updated_at=(pack.created_at if pack else topic.updated_at),
         )
 
-    async def prepare(self, topic: Topic) -> TopicContextStatus:
-        topic.dirty_since = topic.dirty_since or datetime.now(UTC)
-        await TopicConsolidationService(self.db).consolidate_topic(topic)
-        await self.db.commit()
-        await self.db.refresh(topic)
-        return await self.context_status(topic)
-
-    async def _get_primary(self, conversation_id: str, user_id: str) -> Conversation:
-        conv = await self.db.scalar(
+    async def _get_primary(
+        self,
+        conversation_id: str,
+        user_id: str,
+        *,
+        for_update: bool = False,
+    ) -> Conversation:
+        statement = (
             Conversation.active(user_id)
             .where(Conversation.id == conversation_id)
             .options(selectinload(Conversation.active_topic))
         )
+        if for_update:
+            statement = statement.with_for_update()
+        conv = await self.db.scalar(statement)
         if conv is None:
             raise TopicNotFoundError
         if not conv.is_primary:

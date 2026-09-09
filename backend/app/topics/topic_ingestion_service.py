@@ -21,6 +21,7 @@ from app.db import session as db_session
 from app.models.conversation import Conversation
 from app.models.message import Message
 from app.services.embedding_provider import EmbeddingProvider, get_embedding_provider
+from app.topics.consolidation.clusterer import _GENERIC_TOPIC_LABELS as _GENERIC_SHELL_LABELS
 from app.topics.models import (
     MessageTopic,
     Topic,
@@ -411,7 +412,10 @@ class TopicIngestionService:
         best = self._best_topic_match(message.content, topics, content_vector=content_vector)
         if best is not None:
             return best
-        label = self._derive_label(message.content)
+        label = self._derive_label(message.content, min_words=2)
+        if label == "New topic":
+            # Too few content words to name a topic; membership-only message.
+            return None
         return await self._get_or_create_history_topic(
             conversation.user_id, label, last_active_at=message.created_at
         )
@@ -730,14 +734,20 @@ class TopicIngestionService:
         }
 
     @classmethod
-    def _derive_label(cls, text: str) -> str:
+    def _derive_label(cls, text: str, *, min_words: int = 1) -> str:
         cleaned = re.sub(r"https?://\S+", "", text)
         words = [
             word
             for word in re.findall(r"[\w-]+", cleaned)
             if len(word) >= 3 and word.casefold() not in _STOP_WORDS
         ][:4]
-        return " ".join(words).strip().title()[:200] if words else "New topic"
+        # Message-derived single-word labels ("Get", "Great") are mechanical
+        # junk; require more content words for those. Thread titles keep the
+        # historical single-word behavior (a titled "Docker" thread is a real
+        # topic).
+        if len(words) < min_words:
+            return "New topic"
+        return " ".join(words).strip().title()[:200]
 
     @staticmethod
     def _is_background_conversation(conversation: Conversation) -> bool:
@@ -757,7 +767,13 @@ class TopicIngestionService:
         return value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)
 
     async def archive_orphaned_history_topics(self, user_id: str) -> int:
-        """Hide superseded derived topics after a replay/backfill repair."""
+        """Hide superseded derived topics after a replay/backfill repair.
+
+        Also collapses empty synthetic parents (deterministic grouping shells
+        like "Get"/"Going" with no memberships of their own): a shell with
+        exactly one active child hoists that child to the shell's parent and
+        archives itself; a shell with no children archives directly.
+        """
         child_topic = aliased(Topic)
         topics = list(
             (
@@ -782,4 +798,65 @@ class TopicIngestionService:
         for topic in topics:
             topic.status = "archived"
             topic.dirty_since = None
-        return len(topics)
+
+        # Second sweep: membership-less grouping shells. A shell with one
+        # active child is a pointless indirection — hoist the child, archive
+        # the shell. Run repeatedly so chains of shells collapse fully.
+        archived_shells = 0
+        for _ in range(3):
+            shells = list(
+                (
+                    await self.db.scalars(
+                        select(Topic).where(
+                            Topic.user_id == user_id,
+                            Topic.origin == "history",
+                            Topic.status == "active",
+                            ~exists(
+                                select(MessageTopic.message_id).where(
+                                    MessageTopic.topic_id == Topic.id
+                                )
+                            ),
+                            exists(
+                                select(child_topic.id).where(
+                                    child_topic.parent_id == Topic.id,
+                                    child_topic.status == "active",
+                                )
+                            ),
+                        )
+                    )
+                ).all()
+            )
+            progressed = False
+            for shell in shells:
+                # Only collapse mechanical grouping shells: generic labels
+                # (e.g. "Get", "Going") or deterministic-hierarchy synthetics.
+                # Curator-built structure ("Docker & Containers") is exempt.
+                is_mechanical = normalize_topic_label(
+                    shell.label
+                ) in _GENERIC_SHELL_LABELS or "deterministic_hierarchy" in (
+                    shell.topic_metadata or {}
+                )
+                if not is_mechanical:
+                    continue
+                children = list(
+                    (
+                        await self.db.scalars(
+                            select(child_topic).where(
+                                child_topic.parent_id == shell.id,
+                                child_topic.status == "active",
+                            )
+                        )
+                    ).all()
+                )
+                if len(children) == 1:
+                    # Hoist only children that are not shells themselves;
+                    # otherwise the child is archived by its own iteration.
+                    if children[0].id != shell.id:
+                        children[0].parent_id = shell.parent_id
+                    shell.status = "archived"
+                    shell.dirty_since = None
+                    archived_shells += 1
+                    progressed = True
+            if not progressed:
+                break
+        return len(topics) + archived_shells

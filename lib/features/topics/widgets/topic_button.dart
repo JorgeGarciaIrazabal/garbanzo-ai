@@ -80,19 +80,13 @@ class TopicButton extends StatelessWidget {
           clipBehavior: Clip.antiAlias,
           child: InkWell(
             key: ValueKey('topic_button_${topic.id}'),
-            onTap: (hasMultipleSubtopics && onOpenChildren != null)
-                ? onOpenChildren
-                : topic.canStart
-                ? onStart
-                : null,
+            onTap: topic.canStart ? onStart : onOpenChildren,
             splashColor: accent.withValues(alpha: 0.12),
             highlightColor: accent.withValues(alpha: 0.08),
             hoverColor: accent.withValues(alpha: 0.06),
             borderRadius: radius,
             child: Tooltip(
-              message: hasMultipleSubtopics
-                  ? l10n.browseTopicSubtopics(topic.label)
-                  : (displayTitle != topic.label ? topic.label : ''),
+              message: displayTitle != topic.label ? topic.label : '',
               child: Padding(
                 padding: EdgeInsets.symmetric(
                   horizontal: compact
@@ -149,11 +143,30 @@ class TopicButton extends StatelessWidget {
                     ],
                     if (hasMultipleSubtopics && parentLabel == null) ...[
                       SizedBox(height: compact ? 2 : 4),
-                      _TopicMeta(
-                        icon: Icons.account_tree_outlined,
-                        text: l10n.subtopicCount(effectiveChildCount),
-                        accent: accent,
-                        compact: compact,
+                      TextButton.icon(
+                        key: ValueKey('browse_subtopics_${topic.id}'),
+                        onPressed: onOpenChildren,
+                        style: TextButton.styleFrom(
+                          foregroundColor: accent,
+                          minimumSize: Size.zero,
+                          padding: EdgeInsets.symmetric(
+                            horizontal: compact ? 5 : 7,
+                            vertical: compact ? 2 : 3,
+                          ),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        icon: Icon(
+                          Icons.account_tree_outlined,
+                          size: compact ? 11 : 13,
+                        ),
+                        label: Text(
+                          l10n.subtopicCount(effectiveChildCount),
+                          style: TextStyle(
+                            fontSize: compact ? 9.5 : 10.5,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
                     ],
                   ],

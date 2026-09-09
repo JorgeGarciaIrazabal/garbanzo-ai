@@ -28,6 +28,7 @@ from app.topics.models import (
     TopicIngestionEvent,
     TopicIngestionState,
     TopicRelation,
+    TopicSwitchOperation,
 )
 
 __all__ = [
@@ -57,6 +58,7 @@ __all__ = [
     "Topic",
     "TopicAlias",
     "TopicRelation",
+    "TopicSwitchOperation",
     "TopicArchive",
     "MessageTopic",
     "TopicAssertion",

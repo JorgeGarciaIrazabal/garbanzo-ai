@@ -15,6 +15,8 @@ import 'package:garbanzo_ai/features/chat/providers/chat_stream_controller.dart'
 import 'package:garbanzo_ai/features/chat/providers/client_folder_controller.dart';
 import 'package:garbanzo_ai/features/chat/services/chat_service.dart';
 import 'package:garbanzo_ai/features/chat/services/folder_reader.dart';
+import 'package:garbanzo_ai/features/topics/models/topic_node.dart';
+import 'package:garbanzo_ai/features/topics/models/topic_switch.dart';
 
 const _uuid = Uuid();
 
@@ -250,22 +252,70 @@ class ChatProvider extends ChangeNotifier {
     }
   }
 
-  /// Clears the local message list optimistically when the user switches
-  /// topics. The server will reconcile the cleared state on the next
-  /// `topic_update`/`context_update` SSE events.
-  void clearMessagesLocally() {
-    // A topic switch invalidates any in-flight conversation reload: without
-    // this bump, a pre-switch reload could land after the switch and clobber
-    // both the cleared messages and the newly selected topic (bug 1ba9a9f8).
+  /// Applies the committed primary-topic boundary before topic listeners run.
+  Future<void> applyTopicSwitch(TopicSwitchResponse response) async {
+    final current = _currentConversation;
+    if (current == null || current.id != response.conversationId) return;
+    if (_stream.isActive) await stopStreaming();
     _actionEpoch++;
     _messages = [];
-    if (_currentConversation != null) {
-      _currentConversation = _currentConversation!.copyWith(
-        contextSummary: null,
-        messageCount: 0,
-      );
-    }
+    final switched = response.topic;
+    _currentConversation = current.copyWith(
+      title: switched?.label ?? current.title,
+      messageCount: 0,
+      messages: const [],
+      hasMoreMessages: false,
+      contextSummary: null,
+      activeTopicId: switched?.id,
+      activeTopic: switched == null
+          ? null
+          : TopicNode(
+              id: switched.id,
+              label: switched.label,
+              origin: TopicOrigin.history,
+              parentId: switched.parentId,
+              parentLabel: switched.parentLabel,
+              description: switched.description,
+              contextStatus: response.contextStatus,
+              combinedTopics: switched.combinedTopics,
+            ),
+      topicIsPinned: switched?.pinned ?? false,
+      contextVersion: response.contextVersion,
+      sessionEpoch: response.sessionEpoch,
+    );
     _clearError();
+    _updateConversationInList();
+    notifyListeners();
+  }
+
+  /// Applies an authoritative combine result without starting a new session.
+  void applyTopicCombine(TopicSwitchResponse response) {
+    final current = _currentConversation;
+    final combined = response.topic;
+    if (current == null ||
+        current.id != response.conversationId ||
+        combined == null) {
+      return;
+    }
+    _actionEpoch++;
+    _currentConversation = current.copyWith(
+      title: combined.label,
+      activeTopicId: combined.id,
+      activeTopic: TopicNode(
+        id: combined.id,
+        label: combined.label,
+        origin: TopicOrigin.history,
+        parentId: combined.parentId,
+        parentLabel: combined.parentLabel,
+        description: combined.description,
+        contextStatus: response.contextStatus,
+        combinedTopics: combined.combinedTopics,
+      ),
+      topicIsPinned: combined.pinned,
+      contextVersion: response.contextVersion,
+      sessionEpoch: response.sessionEpoch,
+    );
+    _updateConversationInList();
     notifyListeners();
   }
 
@@ -756,6 +806,10 @@ class ChatProvider extends ChangeNotifier {
     // The conversation this stream belongs to, captured so a client_tool_request
     // is served against the right folder even if the user navigates away.
     final streamConversationId = _currentConversation?.id;
+    final streamActionEpoch = _actionEpoch;
+    bool ownsCurrentState() =>
+        streamActionEpoch == _actionEpoch &&
+        streamConversationId == _currentConversation?.id;
     ErrorReporter.instance.setContext(
       conversationId: streamConversationId,
       context: {'surface': 'chat'},
@@ -789,6 +843,7 @@ class ChatProvider extends ChangeNotifier {
       stream,
       messageId: assistantMessageId,
       onChunk: (chunk) {
+        if (!ownsCurrentState()) return;
         if (chunk.type == 'topic_update') {
           onTopicUpdate?.call(_dynamicEventPayload(chunk));
         } else if (chunk.type == 'context_preparing') {
@@ -854,6 +909,7 @@ class ChatProvider extends ChangeNotifier {
         }
       },
       onError: (e) {
+        if (!ownsCurrentState()) return;
         _syncStreamingIntoList();
         _isSending = false;
         logDebug('Stream error: $e');
@@ -868,6 +924,7 @@ class ChatProvider extends ChangeNotifier {
         if (!_isConnectionError(e)) _reloadCurrentConversation();
       },
       onDone: () {
+        if (!ownsCurrentState()) return;
         // Real end of the SSE stream — finalize and reconcile with server.
         _isSending = false;
         _syncStreamingIntoList();

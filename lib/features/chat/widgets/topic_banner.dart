@@ -144,7 +144,7 @@ class TopicBanner extends StatelessWidget {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Shift detected: switch to ${drift.label}?',
+                      l10n.topicDriftDetected(drift.label),
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: cs.onTertiaryContainer,
                         fontWeight: FontWeight.w600,
@@ -169,9 +169,9 @@ class TopicBanner extends StatelessWidget {
                           chat?.currentConversation?.id ?? '';
                       topics.acceptDrift(conversationId, mode: 'combine');
                     },
-                    child: const Text(
-                      'Combine',
-                      style: TextStyle(fontSize: 12),
+                    child: Text(
+                      l10n.combine,
+                      style: const TextStyle(fontSize: 12),
                     ),
                   ),
                   const SizedBox(width: 4),
@@ -193,14 +193,17 @@ class TopicBanner extends StatelessWidget {
                           chat?.currentConversation?.id ?? '';
                       topics.acceptDrift(conversationId, mode: 'switch');
                     },
-                    child: const Text('Switch', style: TextStyle(fontSize: 12)),
+                    child: Text(
+                      l10n.switchAction,
+                      style: const TextStyle(fontSize: 12),
+                    ),
                   ),
                   const SizedBox(width: 4),
                   IconButton(
                     key: const ValueKey('topic_drift_dismiss_button'),
                     iconSize: 16,
                     visualDensity: VisualDensity.compact,
-                    tooltip: 'Dismiss',
+                    tooltip: l10n.dismiss,
                     onPressed: topics.dismissDrift,
                     icon: const Icon(Icons.close),
                   ),

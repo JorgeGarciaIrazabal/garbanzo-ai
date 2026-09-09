@@ -1,5 +1,10 @@
 # Dynamic Context + Unified Chat Implementation Plan
 
+> Historical design plan. The current API and runtime contract is documented in
+> [api.md](api.md) and [architecture.md](architecture.md). Topic changes now use
+> one idempotent switch endpoint and durable background processing; the activation
+> and request-triggered prepare endpoints described below were removed.
+
 Status: core implementation is complete and under final live E2E validation. The
 HTML mockup remains the interaction/design reference.
 

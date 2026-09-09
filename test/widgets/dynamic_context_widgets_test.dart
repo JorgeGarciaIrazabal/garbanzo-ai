@@ -38,42 +38,38 @@ class _TopicService extends TopicService {
       mode == TopicOrigin.personal ? personalTopics : const [];
 
   @override
-  Future<void> activateTopic(
-    String conversationId, {
-    String? topicId,
-    String? label,
-  }) async {
-    if (topicId != null) activatedTopicIds.add(topicId);
-  }
-
-  @override
   Future<TopicSwitchResponse> switchTopic(
     String conversationId, {
     String? topicId,
     String? label,
     bool archive = true,
-    int carryoverMaxItems = 5,
-    int carryoverMaxTokens = 400,
+    bool retainPinned = true,
+    required String idempotencyKey,
     String mode = 'switch',
   }) async {
     if (topicId != null) activatedTopicIds.add(topicId);
     return TopicSwitchResponse(
       conversationId: conversationId,
       contextVersion: 1,
+      sessionEpoch: 1,
       archived: archive,
-      carryover: const [],
-      topic: topicId != null
-          ? TopicSwitchTopic(
-              id: topicId,
-              label: label ?? topicId,
-              pinned: true,
-            )
-          : null,
+      retainedItems: const [],
+      contextStatus: TopicContextStatus.preparing,
+      idempotencyKey: idempotencyKey,
+      topic: TopicSwitchTopic(
+        id: topicId ?? 'created-topic',
+        label:
+            label ??
+            personalTopics
+                .where((topic) => topic.id == topicId)
+                .firstOrNull
+                ?.label ??
+            topicId ??
+            'Created topic',
+        pinned: true,
+      ),
     );
   }
-
-  @override
-  Future<void> prepare(String topicId) async {}
 }
 
 Widget _app(Widget child) => MaterialApp(
@@ -304,7 +300,7 @@ void main() {
   });
 
   testWidgets(
-    'tapping a parent drills into subtopics and leaf children start directly',
+    'parent subtopic control drills down and leaf children start directly',
     (tester) async {
       final retirement = TopicNode(
         id: 'retirement',
@@ -345,7 +341,9 @@ void main() {
       );
 
       expect(find.text('Subtopic in Retirement'), findsWidgets);
-      await tester.tap(find.byKey(const ValueKey('topic_button_retirement')));
+      await tester.tap(
+        find.byKey(const ValueKey('browse_subtopics_retirement')),
+      );
       expect(opened, ['retirement']);
       await tester.tap(find.byKey(const ValueKey('topic_button_401k')));
       expect(started, ['401k']);
@@ -508,7 +506,7 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    await tester.tap(find.byTooltip('Browse Finance subtopics'));
+    await tester.tap(find.byKey(const ValueKey('browse_subtopics_finance')));
     await tester.pump();
 
     expect(find.byKey(const ValueKey('topic_breadcrumbs')), findsOneWidget);

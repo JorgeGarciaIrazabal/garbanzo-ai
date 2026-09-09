@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import hashlib
-import re
 import uuid
 from datetime import UTC, datetime
 from typing import Any
@@ -33,253 +32,8 @@ from app.topics.topic_semantic_curator import (
 )
 
 # fmt: off
-_GENERIC_TOPIC_LABELS = set("doing|general|helping|miscellaneous|need|new topic|not working|not working now|other|something|stuff|working".split("|"))  # noqa: SIM905
-_HIERARCHY_STOP_TOKENS = _GENERIC_TOPIC_LABELS | set(
-    ["about", "after", "again", "also", "and", "are", "can", "could", "for", "from", "have", "help", "hello", "hear", "how", "into", "just", "like", "need", "please", "simple", "some", "should", "that", "the", "this", "want", "what", "when", "where", "which", "with", "would", "you", "thanks", "thank", "terms", "tool", "use", "using", "explain", "find", "search", "check", "tell", "give", "make", "create", "show", "open", "look", "your", "there", "here", "more", "many", "does", "will", "who", "whom", "hay", "que", "como", "cual", "cuales", "donde", "cuando", "quien", "quienes", "por", "para", "este", "esta", "estos", "estas", "ese", "esa", "esos", "esas", "opinas", "crees", "sabes", "dime", "cuenta", "quiero", "puedo", "podemos", "hacer", "unos", "unas", "algo", "nada", "hola", "buenos", "buenas", "muchas", "muchos", "algun", "alguna", "algunos", "algunas", "sobre", "entre", "chat", "conversation", "test", "see", "seen", "dont", "don"]  # noqa: SIM905
-)
+_GENERIC_TOPIC_LABELS = set("doing|general|helping|miscellaneous|need|new topic|not working|not working now|other|something|stuff|working|get|getting|got|going|go|user|great|good|nice|okay|creat|create|summary|summary appli|know|know location|see email|add|add suggestion|send|latest|recent|top|recent developments".split("|"))  # noqa: SIM905
 # fmt: on
-_OBVIOUS_PARENT_LABELS = {"time": "World time", "tax": "Taxes", "taxes": "Taxes"}
-
-_CANONICAL_DOMAIN_TAXONOMY: dict[str, set[str]] = {
-    "Real Estate & Housing": {
-        "estate",
-        "real",
-        "house",
-        "housing",
-        "property",
-        "properties",
-        "modular",
-        "land",
-        "mortgage",
-        "mortgages",
-        "rent",
-        "rental",
-        "rentals",
-        "tenant",
-        "tenants",
-        "landlord",
-        "piso",
-        "casa",
-        "venta",
-        "alquiler",
-        "terreno",
-        "parcela",
-        "hipoteca",
-        "penagrande",
-        "peñagrande",
-        "aranjuez",
-        "guadarrama",
-        "greece",
-        "greek",
-        "intermediation",
-        "escritura",
-        "notario",
-        "inmobiliaria",
-        "chalet",
-        "construccion",
-        "building",
-        "home",
-        "homes",
-        "contrato",
-        "compra",
-        "comprar",
-        "vender",
-    },
-    "Family & Clara": {
-        "clara",
-        "daughter",
-        "kid",
-        "kids",
-        "child",
-        "children",
-        "art",
-        "class",
-        "classes",
-        "school",
-        "toddler",
-        "parenting",
-        "family",
-        "wife",
-        "marissa",
-        "pokey",
-        "cat",
-        "birthday",
-        "playground",
-        "cumple",
-        "cumpleanos",
-        "cumpleaños",
-        "hija",
-        "familia",
-        "cuento",
-        "story",
-        "stories",
-    },
-    "Finance & Early Retirement": {
-        "fire",
-        "retire",
-        "retirement",
-        "pension",
-        "tax",
-        "taxes",
-        "401k",
-        "ira",
-        "roth",
-        "s&p",
-        "sp500",
-        "portfolio",
-        "asset-backed",
-        "stock",
-        "stocks",
-        "dividend",
-        "dividends",
-        "investment",
-        "investments",
-        "investing",
-        "pre-ipo",
-        "equity",
-        "severance",
-        "savings",
-        "finances",
-        "financial",
-        "irpf",
-        "hacienda",
-        "fiscal",
-        "patrimonio",
-        "non-habitual",
-        "nhr",
-        "golden",
-        "visa",
-    },
-    "Career & Bloomberg": {
-        "bloomberg",
-        "swe",
-        "career",
-        "job",
-        "workplace",
-        "performance",
-        "evaluation",
-        "review",
-        "promotion",
-        "compensation",
-        "manager",
-        "engineering",
-        "colleague",
-        "colleagues",
-    },
-    "AI Research & Frontier Models": {
-        "ai",
-        "llm",
-        "llms",
-        "kimi",
-        "k3",
-        "deepseek",
-        "v4",
-        "ollama",
-        "dflash",
-        "quant",
-        "quantized",
-        "quantization",
-        "gguf",
-        "llama",
-        "mistral",
-        "weights",
-        "vram",
-        "gpu",
-        "inference",
-        "benchmarks",
-        "reasoning",
-        "transformer",
-        "cuda",
-        "model",
-        "models",
-    },
-    "Garbanzo AI Development": {
-        "garbanzo",
-        "chat",
-        "context",
-        "topics",
-        "topic",
-        "room",
-        "rooms",
-        "micro-app",
-        "micro-apps",
-        "scheduler",
-        "banner",
-        "system prompt",
-        "fastapi",
-        "flutter",
-        "migration",
-        "e2e",
-        "widget",
-        "frontend",
-        "backend",
-    },
-    "Automotive & Electric Vehicles": {
-        "ev",
-        "evs",
-        "byd",
-        "tesla",
-        "fsd",
-        "electric",
-        "vehicle",
-        "vehicles",
-        "car",
-        "cars",
-        "driving",
-        "autonomous",
-        "autopilot",
-        "battery",
-        "charging",
-        "suv",
-    },
-    "Madrid & Travel": {
-        "madrid",
-        "spain",
-        "travel",
-        "flight",
-        "flights",
-        "trip",
-        "trips",
-        "barajas",
-        "metro",
-        "renfe",
-        "hotel",
-        "hotels",
-        "vacation",
-        "airport",
-        "viaje",
-        "vuelo",
-        "espana",
-        "españa",
-    },
-    "Health & Wellness": {
-        "health",
-        "workout",
-        "workouts",
-        "fitness",
-        "gym",
-        "exercise",
-        "exercises",
-        "recovery",
-        "ergonomics",
-        "chair",
-        "desk",
-        "sleep",
-        "diet",
-        "nutrition",
-        "running",
-        "routine",
-    },
-    "Daily AI Radar": {
-        "radar",
-        "daily",
-        "digest",
-        "sweep",
-        "news",
-        "updates",
-        "briefing",
-    },
-}
 
 
 class TopicClusterer:
@@ -340,207 +94,6 @@ class TopicClusterer:
         return proposal
 
     @classmethod
-    def classify_text_domain(cls, text: str) -> str | None:
-        """Classify a topic label or text snippet into a canonical domain root category."""
-        tokens = set(re.findall(r"[\w-]+", text.casefold()))
-        best_domain: str | None = None
-        best_score = 0
-        for domain, keywords in _CANONICAL_DOMAIN_TAXONOMY.items():
-            overlap = len(tokens & keywords)
-            if overlap > best_score:
-                best_score = overlap
-                best_domain = domain
-        return best_domain if best_score > 0 else None
-
-    @classmethod
-    async def _dedupe_sibling_labels(
-        cls, db: AsyncSession, parent: Topic | None, children: list[Topic]
-    ) -> list[Topic]:
-        """Collapse same-label topics before re-parenting them under ``parent``.
-
-        The (user, parent, normalized_label) unique key makes two same-label
-        topics under one parent illegal. Collisions come from two places:
-        within this batch, and a topic ALREADY under the parent from an
-        earlier grouping run (invisible to the roots-only batch). Keep one
-        winner and merge the rest into it (memberships/assertions/aliases
-        move over, the loser is archived) so grouping never trips the key.
-        """
-        winners: dict[str, Topic] = {}
-        existing: dict[str, Topic] = {}
-        if parent is not None:
-            for topic in (
-                await db.scalars(
-                    select(Topic).where(
-                        Topic.user_id == parent.user_id,
-                        Topic.parent_id == parent.id,
-                        Topic.status == "active",
-                    )
-                )
-            ).all():
-                existing.setdefault(topic.normalized_label, topic)
-        losers: list[tuple[Topic, Topic]] = []
-        for child in children:
-            winner = winners.get(child.normalized_label) or existing.get(child.normalized_label)
-            if winner is None or winner.id == child.id:
-                winners[child.normalized_label] = child
-                continue
-            newer = (
-                winner
-                if (winner.last_active_at or datetime.min.replace(tzinfo=UTC))
-                >= (child.last_active_at or datetime.min.replace(tzinfo=UTC))
-                else child
-            )
-            older = child if newer is winner else winner
-            winners[child.normalized_label] = newer
-            losers.append((older, newer))
-        for older, newer in losers:
-            await cls.merge_topic(db, older, newer)
-        return list(winners.values())
-
-    @classmethod
-    async def apply_obvious_label_hierarchy(cls, db: AsyncSession, user_id: str) -> None:
-        """Create high-confidence shared-label parent branches when semantic curator is unavailable."""
-        roots = list(
-            (
-                await db.scalars(
-                    select(Topic).where(
-                        Topic.user_id == user_id,
-                        Topic.status == "active",
-                        Topic.parent_id.is_(None),
-                    )
-                )
-            ).all()
-        )
-        if len(roots) < 2:
-            return
-
-        domain_groups: dict[str, list[Topic]] = {}
-        unassigned_roots: list[Topic] = []
-        for topic in roots:
-            domain = cls.classify_text_domain(topic.label)
-            if domain:
-                domain_groups.setdefault(domain, []).append(topic)
-            else:
-                unassigned_roots.append(topic)
-
-        for domain_name, children in domain_groups.items():
-            normalized_parent = normalize_topic_label(domain_name)
-            parent = next(
-                (root for root in roots if root.normalized_label == normalized_parent),
-                None,
-            )
-            if parent is None:
-                parent = await db.scalar(
-                    select(Topic).where(
-                        Topic.user_id == user_id,
-                        Topic.parent_id.is_(None),
-                        Topic.normalized_label == normalized_parent,
-                        Topic.status == "active",
-                    )
-                )
-            eligible_children = [c for c in children if parent is None or c.id != parent.id]
-            if len(eligible_children) < (1 if parent is not None else 2):
-                unassigned_roots.extend(eligible_children)
-                continue
-
-            eligible_children = await cls._dedupe_sibling_labels(db, parent, eligible_children)
-
-            if parent is None:
-                parent = Topic(
-                    id=str(uuid.uuid4()),
-                    user_id=user_id,
-                    label=domain_name,
-                    normalized_label=normalized_parent,
-                    origin="history",
-                    base_score=max(child.base_score for child in eligible_children),
-                    signal=next(
-                        (child.signal for child in eligible_children if child.signal),
-                        None,
-                    ),
-                    last_active_at=max(child.last_active_at for child in eligible_children),
-                    dirty_since=datetime.now(UTC),
-                    topic_metadata={"deterministic_hierarchy": "canonical_domain_taxonomy"},
-                )
-                db.add(parent)
-                await db.flush()
-                roots.append(parent)
-            for child in eligible_children:
-                child.parent_id = parent.id
-                child.dirty_since = child.dirty_since or datetime.now(UTC)
-
-        token_groups: dict[str, list[Topic]] = {}
-        for topic in unassigned_roots:
-            tokens = normalize_topic_label(topic.label).split()
-            if not tokens:
-                continue
-            token = tokens[0]
-            if len(token) < 3 or token in _HIERARCHY_STOP_TOKENS:
-                continue
-            token_groups.setdefault(token, []).append(topic)
-
-        # Two passes: obvious allowlisted parents first (friendly labels),
-        # then any shared lead token with >= 2 topics (the deterministic
-        # answer to "too many flat topics" — the landing map shows a parent
-        # branch instead of N siblings with the same first word).
-        ordered_groups: list[tuple[str, list[Topic]]] = [
-            (token, children)
-            for token, children in token_groups.items()
-            if token in _OBVIOUS_PARENT_LABELS or len(children) >= 2
-        ]
-        for token, children in ordered_groups:
-            parent_label = _OBVIOUS_PARENT_LABELS.get(token, token.title())
-            normalized_parent = normalize_topic_label(parent_label)
-            parent = next(
-                (root for root in roots if root.normalized_label == normalized_parent),
-                None,
-            )
-            if parent is None:
-                parent = await db.scalar(
-                    select(Topic).where(
-                        Topic.user_id == user_id,
-                        Topic.parent_id.is_(None),
-                        Topic.normalized_label == normalized_parent,
-                        Topic.status == "active",
-                    )
-                )
-            eligible_children = [c for c in children if parent is None or c.id != parent.id]
-            if len(eligible_children) < (1 if parent is not None else 2):
-                continue
-
-            eligible_children = await cls._dedupe_sibling_labels(db, parent, eligible_children)
-            if not eligible_children:
-                continue
-
-            if parent is None:
-                parent = Topic(
-                    id=str(uuid.uuid4()),
-                    user_id=user_id,
-                    label=parent_label,
-                    normalized_label=normalized_parent,
-                    origin="history",
-                    base_score=max(child.base_score for child in eligible_children),
-                    signal=next(
-                        (child.signal for child in eligible_children if child.signal),
-                        None,
-                    ),
-                    last_active_at=max(child.last_active_at for child in eligible_children),
-                    dirty_since=datetime.now(UTC),
-                    topic_metadata={
-                        "deterministic_hierarchy": (
-                            "obvious_lead_token"
-                            if token in _OBVIOUS_PARENT_LABELS
-                            else "shared_lead_token"
-                        )
-                    },
-                )
-                db.add(parent)
-                await db.flush()
-                roots.append(parent)
-            for child in eligible_children:
-                child.parent_id = parent.id
-                child.dirty_since = child.dirty_since or datetime.now(UTC)
-
-    @classmethod
     def repair_user_graph_output(
         cls,
         output: UserTopicGraphCuratorOutput,
@@ -584,24 +137,20 @@ class TopicClusterer:
                     all_merged_ids.add(mid)
             p.merge_topic_ids = valid_merges
 
-        missing_ids = expected_topic_ids - (canonical_ids | all_merged_ids)
+        archived_ids = {
+            tid
+            for tid in output.archive_topic_ids
+            if tid in expected_topic_ids and tid not in canonical_ids and tid not in all_merged_ids
+        }
+        missing_ids = expected_topic_ids - (canonical_ids | all_merged_ids | archived_ids)
         for mid in missing_ids:
             orig = topics[mid]
-            domain = cls.classify_text_domain(orig.label)
-            parent_topic_id = None
-            parent_label = None
-            if domain:
-                norm_d = normalize_topic_label(domain)
-                if norm_d in known_existing_by_norm and known_existing_by_norm[norm_d] != mid:
-                    parent_topic_id = known_existing_by_norm[norm_d]
-                else:
-                    parent_label = domain
             deduped.append(
                 TopicGraphProposal(
                     topic_id=mid,
                     label=orig.label,
-                    parent_topic_id=parent_topic_id,
-                    parent_label=parent_label,
+                    parent_topic_id=None,
+                    parent_label=None,
                     merge_topic_ids=[],
                     assertions=[],
                 )
@@ -693,17 +242,17 @@ class TopicClusterer:
                 prop.parent_topic_id = None
                 prop.parent_label = None
 
-        has_any_parent = any(
-            p.parent_topic_id is not None or p.parent_label is not None for p in deduped
+        valid_archives = list(
+            dict.fromkeys(
+                tid
+                for tid in output.archive_topic_ids
+                if tid in expected_topic_ids
+                and tid not in canonical_ids
+                and tid not in all_merged_ids
+            )
         )
-        if not has_any_parent and len(canonical_ids) >= 3:
-            for p in deduped:
-                domain = cls.classify_text_domain(p.label)
-                if domain:
-                    p.parent_label = domain
-                    break
 
-        return UserTopicGraphCuratorOutput(topics=deduped)
+        return UserTopicGraphCuratorOutput(topics=deduped, archive_topic_ids=valid_archives)
 
     @classmethod
     def validate_user_graph_output(
@@ -752,12 +301,19 @@ class TopicClusterer:
         cids = set(pids)
         if merged_ids & cids:
             raise ValueError("topic graph merges another canonical target")
-        if cids | merged_ids != expected_topic_ids:
+        archive_ids = set(output.archive_topic_ids)
+        if archive_ids & (cids | merged_ids):
+            raise ValueError("topic graph archives a canonical or merged topic")
+        if cids | merged_ids | archive_ids != expected_topic_ids:
             raise ValueError("topic graph must partition every eligible topic exactly once")
         if any(
             p.parent_topic_id in merged_ids for p in output.topics if p.parent_topic_id is not None
         ):
             raise ValueError("topic graph parents a topic that is being merged")
+        if any(
+            p.parent_topic_id in archive_ids for p in output.topics if p.parent_topic_id is not None
+        ):
+            raise ValueError("topic graph parents a topic that is being archived")
         if len(cids) >= 3 and not any(
             p.parent_topic_id is not None or p.parent_label is not None for p in output.topics
         ):

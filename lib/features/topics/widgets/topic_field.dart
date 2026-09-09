@@ -95,7 +95,11 @@ class TopicField extends StatelessWidget {
 
     return [
       for (final parent in topics) ...[
-        _TopicEntry(topic: parent),
+        _TopicEntry(
+          topic: parent,
+          parentLabel: parent.parentLabel,
+          parentId: parent.parentId,
+        ),
         ...selectedChildren.where((entry) => entry.parentId == parent.id),
       ],
     ];

@@ -1,6 +1,7 @@
 """Focused API coverage for primary chat, topics, and active context."""
 
 import asyncio
+import hashlib
 import uuid
 
 import pytest
@@ -21,7 +22,13 @@ from app.models.conversation import Conversation
 from app.models.message import Message
 from app.models.user import User
 from app.services.conversation_service import ConversationService
-from app.topics.models import Topic, TopicAssertion
+from app.topics.models import (
+    ActiveContextItem,
+    Topic,
+    TopicAssertion,
+    TopicAssertionEvidence,
+    TopicExclusion,
+)
 
 pytestmark = pytest.mark.asyncio
 
@@ -135,27 +142,33 @@ async def test_concurrent_primary_ensure_creates_exactly_one_row(tmp_path):
         await engine.dispose()
 
 
-async def test_topic_activation_requires_primary_and_creates_manual_topic(db_session: AsyncSession):
+async def test_topic_switch_requires_primary_and_creates_manual_topic(db_session: AsyncSession):
     switch = _UserSwitch()
     _install_overrides(db_session, switch)
     try:
         async with _client() as client:
             legacy = await _legacy_conversation(db_session)
             rejected = await client.post(
-                f"/api/v1/chat/conversations/{legacy.id}/topics/activate",
-                json={"label": "Retirement planning"},
+                f"/api/v1/chat/conversations/{legacy.id}/topics/switch",
+                json={
+                    "idempotency_key": "legacy-retirement",
+                    "label": "Retirement planning",
+                },
             )
             primary = await _ensure_primary(client)
             activated = await client.post(
-                f"/api/v1/chat/conversations/{primary['id']}/topics/activate",
-                json={"label": "Retirement planning"},
+                f"/api/v1/chat/conversations/{primary['id']}/topics/switch",
+                json={
+                    "idempotency_key": "primary-retirement",
+                    "label": "Retirement planning",
+                },
             )
             topics = await client.get("/api/v1/chat/topics", params={"mode": "personal"})
         assert rejected.status_code == 409
         assert activated.status_code == 200, activated.text
         body = activated.json()
         assert body["topic"]["label"] == "Retirement planning"
-        assert body["topic_is_pinned"] is True
+        assert body["topic"]["pinned"] is True
         assert body["context_version"] == 1
         assert topics.json()["mode"] == "personal"
         assert [topic["label"] for topic in topics.json()["topics"]] == ["Retirement planning"]
@@ -258,10 +271,100 @@ async def test_fresh_start_keeps_messages_and_requested_pins(db_session: AsyncSe
         assert fresh.status_code == 200, fresh.text
         assert fresh.json()["context_version"] == 2
         assert message_still_exists is not None
-        assert [item["id"] for item in context.json()["pinned_items"]] == [
-            added.json()["item"]["id"]
-        ]
+        pinned = context.json()["pinned_items"]
+        assert [item["id"] for item in pinned] == [added.json()["item"]["id"]]
+        assert pinned[0]["source_excerpt"] == "Keep this source message in history."
+        assert pinned[0]["source_label"] == "Legacy thread"
+        assert pinned[0]["source_conversation_id"] == legacy.id
+        assert pinned[0]["source_created_at"] is not None
         assert context.json()["topic"] is None
+    finally:
+        _clear_overrides()
+
+
+async def test_context_get_scrubs_privacy_deleted_assertion_from_source_and_summary(
+    db_session: AsyncSession,
+):
+    switch = _UserSwitch()
+    _install_overrides(db_session, switch)
+    try:
+        async with _client() as client:
+            primary_body = await _ensure_primary(client)
+            primary = await db_session.get(Conversation, primary_body["id"])
+            evidence_thread = await _legacy_conversation(db_session)
+            evidence = Message(
+                id=str(uuid.uuid4()),
+                conversation_id=evidence_thread.id,
+                role="user",
+                content="My private launch phrase is violet lighthouse.",
+            )
+            topic = Topic(
+                id=str(uuid.uuid4()),
+                user_id=OWNER,
+                label="Private launch",
+                normalized_label="private launch",
+            )
+            db_session.add_all([evidence, topic])
+            await db_session.flush()
+            assertion = TopicAssertion(
+                id=str(uuid.uuid4()),
+                topic_id=topic.id,
+                kind="preference",
+                content="The private launch phrase is violet lighthouse.",
+                normalized_key="private-launch-phrase",
+                status="active",
+                authority="explicit_user_statement",
+                confidence=0.9,
+            )
+            db_session.add(assertion)
+            await db_session.flush()
+            db_session.add_all(
+                [
+                    TopicAssertionEvidence(
+                        assertion_id=assertion.id,
+                        message_id=evidence.id,
+                        segment_start=0,
+                        segment_end=len(evidence.content),
+                        relation="supports",
+                        source_span_hash=hashlib.sha256(evidence.content.encode()).hexdigest(),
+                    ),
+                    ActiveContextItem(
+                        id=str(uuid.uuid4()),
+                        conversation_id=primary.id,
+                        source_type="topic_assertion",
+                        source_id=assertion.id,
+                        topic_id=topic.id,
+                        state="pinned",
+                        reason="Pinned by you",
+                    ),
+                    TopicExclusion(
+                        id=str(uuid.uuid4()),
+                        user_id=OWNER,
+                        topic_id=topic.id,
+                        scope="assertion",
+                        target_id=assertion.id,
+                        origin="explicit_user_statement",
+                        reason="Forget this fact",
+                        is_privacy_deletion=True,
+                    ),
+                ]
+            )
+            primary.active_topic_id = topic.id
+            await db_session.commit()
+
+            response = await client.get(f"/api/v1/chat/conversations/{primary.id}/context")
+
+        assert response.status_code == 200, response.text
+        body = response.json()
+        pinned = body["pinned_items"]
+        assert len(pinned) == 1
+        assert pinned[0]["source_excerpt"] is None
+        assert "violet lighthouse" not in (body["context_summary"] or "").casefold()
+        assert all(
+            "violet lighthouse" not in sentence.casefold()
+            for section in body["context_sections"]
+            for sentence in section.get("sentences", [])
+        )
     finally:
         _clear_overrides()
 

@@ -45,6 +45,7 @@ abstract class Conversation with _$Conversation {
     TopicNode? activeTopic,
     @Default(false) bool topicIsPinned,
     @Default(0) int contextVersion,
+    @Default(0) int sessionEpoch,
   }) = _Conversation;
 
   factory Conversation.fromJson(Map<String, dynamic> json) =>

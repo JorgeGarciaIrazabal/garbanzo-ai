@@ -218,12 +218,9 @@ def get_context_summary_and_sections(
     for item in items:
         if item.state == "excluded":
             continue
-        raw = (
-            (item.source_meta or {}).get("content")
-            or (item.source_meta or {}).get("title")
-            or item.reason
-            or ""
-        )
+        # source_meta is supplied by API clients and is display-only. Context
+        # summaries must never treat it as authoritative source content.
+        raw = item.reason or ""
         sentence = synthesize_high_level_sentence(raw, item.source_type)
         if sentence and sentence not in seen_sentences:
             seen_sentences.add(sentence)

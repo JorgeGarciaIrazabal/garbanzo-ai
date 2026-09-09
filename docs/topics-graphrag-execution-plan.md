@@ -1,5 +1,9 @@
 # Dynamic Context & GraphRAG: Implementation Plan & Testing Matrix
 
+> Historical execution record. Generated carryover and its modal option were
+> removed for the pre-launch contract; current switches can retain explicit,
+> revalidated pins. See [topics-prelaunch-review.md](topics-prelaunch-review.md).
+
 **Date:** September 2026
 
 **Status:** Approved for Implementation

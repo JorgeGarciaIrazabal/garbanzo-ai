@@ -1,8 +1,5 @@
--- Read-only archive of a primary conversation's message history, attached
--- to the topic that was active when the user switched away. The archive
--- preserves the full message payload so a future "enhance this topic"
--- pass can re-derive evidence without touching the primary conversation,
--- which has already been cleared for the new topic.
+-- Small index of a preserved primary-chat session epoch. Original message
+-- rows remain authoritative and are not copied into the archive payload.
 
 CREATE TABLE IF NOT EXISTS topic_archives (
     id VARCHAR(36) PRIMARY KEY,

@@ -137,6 +137,14 @@ def validate_startup_config(settings: "Settings") -> tuple[list[str], list[str]]
         warns.append(
             "MICROAPPS_PROXY_MODE is on but MICROAPPS_REPO_PATH is empty — the /micro-apps proxy has nothing to serve"
         )
+
+    if settings.topic_context_enabled and (
+        not settings.topic_curator_provider.strip() or not settings.topic_curator_model.strip()
+    ):
+        _fatal_or_warn(
+            "TOPIC_CONTEXT_ENABLED is on but TOPIC_CURATOR_PROVIDER/MODEL are unset — "
+            "topic graph curation has no model to call"
+        )
     return fatal, warns
 
 

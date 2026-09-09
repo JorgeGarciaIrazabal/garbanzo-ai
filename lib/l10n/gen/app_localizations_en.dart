@@ -3007,12 +3007,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get carryover => 'Carryover';
-
-  @override
-  String get noCarryover => 'No carryover items';
-
-  @override
   String topicArchiveCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -3024,10 +3018,56 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get earlierSessions => 'Earlier sessions';
+
+  @override
+  String get earlierSessionsDescription =>
+      'Read prior primary-chat sessions for this topic.';
+
+  @override
+  String get noEarlierSessions => 'No earlier sessions for this topic yet.';
+
+  @override
+  String get archivedSession => 'Archived session';
+
+  @override
+  String archiveMessageCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'messages',
+      one: 'message',
+    );
+    return '$count $_temp0';
+  }
+
+  @override
+  String get archivedSessionReadOnly =>
+      'Read-only history. Continuing the chat uses the current topic session.';
+
+  @override
+  String get loadOlderMessages => 'Load older messages';
+
+  @override
+  String get archiveLoadFailed => 'Could not load this earlier session.';
+
+  @override
+  String get archiveSpeakerYou => 'You';
+
+  @override
+  String get archiveSpeakerGarbanzo => 'Garbanzo';
+
+  @override
   String get topicSwitchFailed => 'Could not switch topic';
 
   @override
   String get redirect => 'Switch topic';
+
+  @override
+  String get topicGraphRoot => 'Topic Graph Root';
+
+  @override
+  String get changeTopicFocus => 'Change topic focus:';
 
   @override
   String get lockTopic => 'Lock topic';
@@ -3082,7 +3122,8 @@ class AppLocalizationsEn extends AppLocalizations {
       'Historical context is temporarily limited';
 
   @override
-  String get preparingBestContext => 'Preparing the best context';
+  String get contextUpdatingInBackground =>
+      'Context is updating in the background. Current valid sources remain available.';
 
   @override
   String thinkingEffortAdjusted(String level) {
@@ -3107,6 +3148,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noActiveContext => 'No active context yet';
 
   @override
+  String get availableTopicContext => 'AVAILABLE TOPIC CONTEXT';
+
+  @override
+  String get noEstablishedTopicContext =>
+      'No established context is available for this topic yet. New decisions and preferences will appear here as you chat.';
+
+  @override
   String get contextTokenUsage => 'Context token usage';
 
   @override
@@ -3121,10 +3169,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noDynamicSources => 'No dynamic sources selected';
 
   @override
-  String get addContextSource => 'Add a context source';
+  String get selectContextSource => 'Choose a recent message';
 
   @override
-  String get contextSourceIdHint => 'Message, thread, memory, or file ID';
+  String get noContextSourcesAvailable =>
+      'No recent messages are available to add.';
+
+  @override
+  String contextSourceName(String name) {
+    return 'Source: $name';
+  }
+
+  @override
+  String contextSourceNameAndDate(String name, String date) {
+    return 'Source: $name • $date';
+  }
+
+  @override
+  String get openSource => 'Open source';
 
   @override
   String get unpin => 'Unpin';
@@ -3145,4 +3207,45 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get topicPinUpdateFailed => 'Could not update topic pin';
+
+  @override
+  String get topicSwitchDialogTitle => 'Switch or combine?';
+
+  @override
+  String get topicSwitchWith => 'with';
+
+  @override
+  String get topicSwitchChoiceDescription =>
+      'Combine to discuss both topics together, or switch to start a fresh chat session.';
+
+  @override
+  String get topicSwitchStartDescription =>
+      'Start a new conversation focused on this topic.';
+
+  @override
+  String get retainPinnedSourcesOnSwitch =>
+      'Keep pinned sources when switching';
+
+  @override
+  String get switchTopic => 'Switch topic';
+
+  @override
+  String get combineTopics => 'Combine topics';
+
+  @override
+  String get topicCombineFailed => 'Could not combine topics';
+
+  @override
+  String topicDriftDetected(String topic) {
+    return 'Shift detected: switch to $topic?';
+  }
+
+  @override
+  String get combine => 'Combine';
+
+  @override
+  String get switchAction => 'Switch';
+
+  @override
+  String get dismiss => 'Dismiss';
 }

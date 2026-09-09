@@ -15,6 +15,10 @@ class ActiveContextItem {
     this.preview,
     this.summary,
     this.categoryLabel,
+    this.sourceExcerpt,
+    this.sourceLabel,
+    this.sourceCreatedAt,
+    this.sourceConversationId,
     this.tokenCount = 0,
   });
 
@@ -45,6 +49,12 @@ class ActiveContextItem {
       preview: previewVal,
       summary: summaryVal,
       categoryLabel: json['category_label'] as String?,
+      sourceExcerpt: json['source_excerpt'] as String?,
+      sourceLabel: json['source_label'] as String?,
+      sourceCreatedAt: DateTime.tryParse(
+        json['source_created_at'] as String? ?? '',
+      ),
+      sourceConversationId: json['source_conversation_id'] as String?,
       tokenCount: (json['token_count'] as num?)?.toInt() ?? 0,
     );
   }
@@ -58,6 +68,10 @@ class ActiveContextItem {
   final String? preview;
   final String? summary;
   final String? categoryLabel;
+  final String? sourceExcerpt;
+  final String? sourceLabel;
+  final DateTime? sourceCreatedAt;
+  final String? sourceConversationId;
   final int tokenCount;
 
   String get highLevelSentence => summary ?? preview ?? title ?? reason;
@@ -73,6 +87,10 @@ class ActiveContextItem {
         preview: preview,
         summary: summary,
         categoryLabel: categoryLabel,
+        sourceExcerpt: sourceExcerpt,
+        sourceLabel: sourceLabel,
+        sourceCreatedAt: sourceCreatedAt,
+        sourceConversationId: sourceConversationId,
         tokenCount: tokenCount,
       );
 }

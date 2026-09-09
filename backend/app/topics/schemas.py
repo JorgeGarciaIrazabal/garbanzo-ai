@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field
 
 TopicOrigin = Literal["history", "suggested", "manual"]
 
@@ -43,26 +43,11 @@ class TopicListResponse(BaseModel):
     generated_at: datetime
 
 
-class TopicActivationRequest(BaseModel):
-    topic_id: str | None = None
-    label: str | None = Field(default=None, min_length=1, max_length=200)
-
-    @model_validator(mode="after")
-    def require_one_target(self) -> TopicActivationRequest:
-        if bool(self.topic_id) == bool(self.label and self.label.strip()):
-            raise ValueError("provide exactly one of topic_id or label")
-        return self
-
-
 class TopicSelectionUpdate(BaseModel):
-    topic_id: str | None = None
-    pinned: bool | None = None
+    pinned: bool
+    context_version: int = Field(ge=0)
 
-    @model_validator(mode="after")
-    def require_change(self) -> TopicSelectionUpdate:
-        if "topic_id" not in self.model_fields_set and "pinned" not in self.model_fields_set:
-            raise ValueError("provide topic_id and/or pinned")
-        return self
+    model_config = {"extra": "forbid"}
 
 
 class TopicActivationResponse(BaseModel):
@@ -70,10 +55,4 @@ class TopicActivationResponse(BaseModel):
     topic: TopicNode | None
     topic_is_pinned: bool
     context_version: int
-    context_status: TopicContextStatus
-
-
-class TopicPrepareResponse(BaseModel):
-    topic_id: str
-    accepted: bool = True
     context_status: TopicContextStatus

@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.security import get_current_user
 from app.db.session import get_db
 from app.models.user import User
+from app.schemas.chat import message_out
 from app.topics.active_context_schemas import (
     ActiveContextItemCreate,
     ActiveContextItemOut,
@@ -16,6 +17,7 @@ from app.topics.active_context_schemas import (
     ActiveContextResponse,
     ContextMutationResponse,
     FreshStartRequest,
+    TopicArchiveDetailResponse,
     TopicArchiveListResponse,
     TopicArchiveOut,
     TopicSwitchRequest,
@@ -27,17 +29,16 @@ from app.topics.active_context_service import (
     ContextVersionConflictError,
 )
 from app.topics.schemas import (
-    TopicActivationRequest,
     TopicActivationResponse,
     TopicContextStatus,
     TopicListResponse,
-    TopicPrepareResponse,
     TopicSelectionUpdate,
 )
 from app.topics.topic_service import (
     PrimaryConversationRequiredError,
     TopicNotFoundError,
     TopicService,
+    TopicVersionConflictError,
 )
 from app.topics.topic_switch_service import (
     TopicSwitchError,
@@ -70,7 +71,9 @@ def _primary_required() -> HTTPException:
     )
 
 
-def _version_conflict(error: ContextVersionConflictError) -> HTTPException:
+def _version_conflict(
+    error: ContextVersionConflictError | TopicVersionConflictError,
+) -> HTTPException:
     return HTTPException(
         status_code=status.HTTP_409_CONFLICT,
         detail={
@@ -94,42 +97,10 @@ async def list_topics(
     return TopicListResponse(mode=mode, topics=topics, generated_at=datetime.now(UTC))
 
 
-@router.post(
-    "/conversations/{conversation_id}/topics/activate",
-    response_model=TopicActivationResponse,
-    summary="Activate or create a topic in the primary chat",
-)
-async def activate_topic(
-    conversation_id: str,
-    data: TopicActivationRequest,
-    current_user: Annotated[dict[str, Any], Depends(get_current_user)],
-    service: Annotated[TopicService, Depends(_topic_service)],
-) -> TopicActivationResponse:
-    try:
-        conversation, topic = await service.activate(
-            conversation_id,
-            current_user["email"],
-            topic_id=data.topic_id,
-            label=data.label,
-        )
-    except TopicNotFoundError as error:
-        raise _not_found() from error
-    except PrimaryConversationRequiredError as error:
-        raise _primary_required() from error
-    context_status = await service.context_status(topic)
-    return TopicActivationResponse(
-        conversation_id=conversation.id,
-        topic=service._node(topic, context_status),
-        topic_is_pinned=conversation.topic_is_pinned,
-        context_version=conversation.context_version,
-        context_status=context_status,
-    )
-
-
 @router.patch(
     "/conversations/{conversation_id}/topic",
     response_model=TopicActivationResponse,
-    summary="Redirect, pin, unpin, or clear the active topic",
+    summary="Pin or unpin the active primary-chat topic",
 )
 async def update_active_topic(
     conversation_id: str,
@@ -138,17 +109,18 @@ async def update_active_topic(
     service: Annotated[TopicService, Depends(_topic_service)],
 ) -> TopicActivationResponse:
     try:
-        conversation, topic = await service.update_selection(
+        conversation, topic = await service.set_pinned(
             conversation_id,
             current_user["email"],
-            topic_id=data.topic_id,
-            set_topic="topic_id" in data.model_fields_set,
             pinned=data.pinned,
+            context_version=data.context_version,
         )
     except TopicNotFoundError as error:
         raise _not_found() from error
     except PrimaryConversationRequiredError as error:
         raise _primary_required() from error
+    except TopicVersionConflictError as error:
+        raise _version_conflict(error) from error
     context_status = await service.context_status(topic) if topic else TopicContextStatus()
     return TopicActivationResponse(
         conversation_id=conversation.id,
@@ -172,24 +144,6 @@ async def get_topic_context_status(
     if topic is None:
         raise _not_found()
     return await service.context_status(topic)
-
-
-@router.post(
-    "/topics/{topic_id}/prepare",
-    response_model=TopicPrepareResponse,
-    status_code=status.HTTP_202_ACCEPTED,
-    summary="Idempotently prewarm a topic context pack",
-)
-async def prepare_topic_context(
-    topic_id: str,
-    current_user: Annotated[dict[str, Any], Depends(get_current_user)],
-    service: Annotated[TopicService, Depends(_topic_service)],
-) -> TopicPrepareResponse:
-    topic = await service.get_owned_topic(topic_id, current_user["email"])
-    if topic is None:
-        raise _not_found()
-    context_status = await service.prepare(topic)
-    return TopicPrepareResponse(topic_id=topic.id, context_status=context_status)
 
 
 @router.get(
@@ -298,7 +252,7 @@ async def fresh_start_context(
 @router.post(
     "/conversations/{conversation_id}/topics/switch",
     response_model=TopicSwitchResponse,
-    summary="Switch the primary chat to a new topic and rebuild context from scratch",
+    summary="Idempotently switch or combine the primary chat topic",
 )
 async def switch_topic(
     conversation_id: str,
@@ -316,51 +270,16 @@ async def switch_topic(
                 user=user,
                 topic_id=data.topic_id,
                 label=data.label,
+                idempotency_key=data.idempotency_key,
             )
         return await service.switch(
             conversation_id=conversation_id,
             user=user,
             topic_id=data.topic_id,
             label=data.label,
+            idempotency_key=data.idempotency_key,
             archive=data.archive,
-            carryover_enabled=data.carryover.enabled,
-            carryover_max_items=data.carryover.max_items,
-            carryover_max_tokens=data.carryover.max_tokens,
-        )
-    except TopicSwitchError as error:
-        detail = str(error)
-        if detail == "topic_not_found":
-            raise _not_found() from error
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=detail,
-        ) from error
-    except PrimaryConversationRequiredError as error:
-        raise _primary_required() from error
-    except TopicNotFoundError as error:
-        raise _not_found() from error
-
-
-@router.post(
-    "/conversations/{conversation_id}/topics/combine",
-    response_model=TopicSwitchResponse,
-    summary="Combine an additional topic with the active topic without clearing context",
-)
-async def combine_topic(
-    conversation_id: str,
-    data: TopicSwitchRequest,
-    current_user: Annotated[dict[str, Any], Depends(get_current_user)],
-    service: Annotated[TopicSwitchService, Depends(_switch_service)],
-) -> TopicSwitchResponse:
-    user = await service.db.get(User, current_user["email"])
-    if user is None:
-        raise _not_found()
-    try:
-        return await service.combine(
-            conversation_id=conversation_id,
-            user=user,
-            topic_id=data.topic_id,
-            label=data.label,
+            retain_pinned=data.retain_pinned,
         )
     except TopicSwitchError as error:
         detail = str(error)
@@ -396,4 +315,44 @@ async def list_topic_archives(
     return TopicArchiveListResponse(
         topic_id=topic_id,
         archives=[TopicArchiveOut.model_validate(archive) for archive in archives],
+    )
+
+
+@router.get(
+    "/topics/{topic_id}/archives/{archive_id}",
+    response_model=TopicArchiveDetailResponse,
+    summary="Read messages from an archived primary-chat session",
+)
+async def get_topic_archive(
+    topic_id: str,
+    archive_id: str,
+    current_user: Annotated[dict[str, Any], Depends(get_current_user)],
+    service: Annotated[TopicSwitchService, Depends(_switch_service)],
+    before: Annotated[str | None, Query()] = None,
+    limit: Annotated[int, Query(ge=1, le=200)] = 100,
+) -> TopicArchiveDetailResponse:
+    user = await service.db.get(User, current_user["email"])
+    if user is None:
+        raise _not_found()
+    try:
+        archive, epoch, messages, has_more = await service.get_archive_messages(
+            topic_id,
+            archive_id,
+            user,
+            before=before,
+            limit=limit,
+        )
+    except TopicNotFoundError as error:
+        raise _not_found() from error
+    except TopicSwitchError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(error),
+        ) from error
+    return TopicArchiveDetailResponse(
+        archive=TopicArchiveOut.model_validate(archive),
+        topic_label=(archive.payload or {}).get("topic_label"),
+        session_epoch=epoch,
+        messages=[message_out(message) for message in messages],
+        has_more=has_more,
     )

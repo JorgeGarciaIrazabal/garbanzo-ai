@@ -46,9 +46,10 @@ from app.topics.topic_semantic_curator import (
 logger = logging.getLogger(__name__)
 
 _GRAPH_TOPIC_LIMIT = 45
-_GRAPH_EVIDENCE_PER_TOPIC = 3
-_GRAPH_CANDIDATES_PER_TOPIC = 6
-_GRAPH_EXCERPT_CHARS = 800
+_GRAPH_MIN_EVIDENCE_PER_TOPIC = 3
+_GRAPH_EVIDENCE_BUDGET_CHARS = 128_000
+_GRAPH_CANDIDATES_PER_TOPIC = 256
+_GRAPH_EXCERPT_CHARS = 600
 _REJECTION_TEXT = re.compile(r"\b(?:don't use|do not use|ruled out|rejected|forget|remove)\b", re.I)
 
 __all__ = [
@@ -256,8 +257,6 @@ class TopicConsolidationService:
             pass
         await ingestion.archive_orphaned_history_topics(user_id)
         graph_curator = await self.curate_user_graph(user_id)
-        if graph_curator is None:
-            await self._apply_obvious_label_hierarchy(user_id)
         state = await self.db.get(TopicIngestionState, user_id)
         watermark = state.last_realtime_event_id if state else 0
         topics = list(
@@ -291,15 +290,19 @@ class TopicConsolidationService:
         await self.db.commit()
         return len(topics)
 
-    async def _apply_obvious_label_hierarchy(self, user_id: str) -> None:
-        await TopicClusterer.apply_obvious_label_hierarchy(self.db, user_id)
-
     async def curate_user_graph(self, user_id: str) -> UserTopicGraphCuratorResult | None:
-        """Repair provisional labels/hierarchy/assertions from bounded owned evidence."""
+        """Repair provisional labels/hierarchy/assertions from bounded owned evidence.
+
+        Returns ``None`` only when there is nothing to curate (no eligible
+        topics). A missing or failing curator raises instead of silently
+        degrading to a deterministic fallback.
+        """
         manifest, topics, evidence = await self._user_graph_manifest(user_id)
         signature = TopicSemanticCurator.configuration_signature()
         if signature is None:
-            return None
+            raise RuntimeError(
+                "topic graph curation is unavailable: no semantic curator is configured"
+            )
         expected_topic_ids = set(manifest.get("curation_topic_ids", []))
         if not expected_topic_ids:
             TopicClusterer.mark_graph_signature(topics.values(), signature)
@@ -315,6 +318,8 @@ class TopicConsolidationService:
             )
             output.topics.clear()
             output.topics.extend(repaired.topics)
+            output.archive_topic_ids.clear()
+            output.archive_topic_ids.extend(repaired.archive_topic_ids)
             self._validate_user_graph_output(
                 output,
                 topics,
@@ -327,21 +332,27 @@ class TopicConsolidationService:
             validator=validate,
         )
         if result is None:
-            return None
-        try:
-            async with self.db.begin_nested():
-                for proposal in result.output.topics:
-                    await self._apply_graph_proposal(
-                        proposal,
-                        topics,
-                        evidence,
-                        curator_signature=signature,
-                    )
-                TopicClusterer.mark_graph_signature(topics.values(), signature)
-                await self.db.flush()
-        except Exception as exc:
-            logger.warning("Discarding topic graph curator writes for %s: %s", user_id, exc)
-            return None
+            raise RuntimeError(
+                "topic graph curation failed: the semantic curator returned no result"
+            )
+        async with self.db.begin_nested():
+            for proposal in result.output.topics:
+                await self._apply_graph_proposal(
+                    proposal,
+                    topics,
+                    evidence,
+                    curator_signature=signature,
+                )
+            # Retire curated junk: verb fragments and one-off trivia keep
+            # their memberships/evidence (no deletion), they just leave
+            # the discovery map. Signed so they are not re-curated.
+            for archived_id in result.output.archive_topic_ids:
+                junk = topics.get(archived_id)
+                if junk is not None and junk.status == "active":
+                    junk.status = "archived"
+                    junk.dirty_since = None
+            TopicClusterer.mark_graph_signature(topics.values(), signature)
+            await self.db.flush()
         return result
 
     async def _user_graph_manifest(
@@ -418,20 +429,65 @@ class TopicConsolidationService:
             )
         ).all()
         evidence: dict[str, tuple[set[str], str]] = {}
-        by_topic: dict[str, list[dict[str, str]]] = {topic_id: [] for topic_id in topics}
+        candidates_by_topic: dict[str, list[dict[str, str]]] = {topic_id: [] for topic_id in topics}
         for topic_id, message_id, content in rows:
-            if len(by_topic[topic_id]) >= _GRAPH_EVIDENCE_PER_TOPIC:
-                continue
             if message_id in excluded_sources or _REJECTION_TEXT.search(content):
                 continue
             excerpt = " ".join(content.split())[:_GRAPH_EXCERPT_CHARS]
             if not excerpt:
                 continue
-            if message_id in evidence:
-                evidence[message_id][0].add(topic_id)
-            else:
-                evidence[message_id] = ({topic_id}, excerpt)
-            by_topic[topic_id].append({"id": message_id, "excerpt": excerpt})
+            candidates_by_topic[topic_id].append({"id": message_id, "excerpt": excerpt})
+
+        # Bound the curator primarily by payload size instead of the old
+        # 24-message prompt window; the database candidate scan has its own
+        # higher safety ceiling. First allocate a fair minimum to every topic,
+        # then distribute the remaining character budget round-robin.
+        by_topic: dict[str, list[dict[str, str]]] = {topic_id: [] for topic_id in topics}
+        topic_order = [topic.id for topic in all_topics]
+        positions = {topic_id: 0 for topic_id in topic_order}
+
+        def allocate_one(topic_id: str, available_chars: int) -> int:
+            candidates = candidates_by_topic[topic_id]
+            while positions[topic_id] < len(candidates):
+                item = candidates[positions[topic_id]]
+                positions[topic_id] += 1
+                # Include stable JSON/id overhead so a large collection of very
+                # short messages cannot escape the payload bound.
+                item_chars = len(item["excerpt"]) + len(item["id"]) + 96
+                if item_chars > available_chars:
+                    continue
+                by_topic[topic_id].append(item)
+                message_id = item["id"]
+                if message_id in evidence:
+                    evidence[message_id][0].add(topic_id)
+                else:
+                    evidence[message_id] = ({topic_id}, item["excerpt"])
+                return item_chars
+            return 0
+
+        allocated_chars = 0
+        for _ in range(_GRAPH_MIN_EVIDENCE_PER_TOPIC):
+            for topic_id in topic_order:
+                if allocated_chars >= _GRAPH_EVIDENCE_BUDGET_CHARS:
+                    break
+                allocated_chars += allocate_one(
+                    topic_id,
+                    _GRAPH_EVIDENCE_BUDGET_CHARS - allocated_chars,
+                )
+        while allocated_chars < _GRAPH_EVIDENCE_BUDGET_CHARS:
+            progress = False
+            for topic_id in topic_order:
+                if allocated_chars >= _GRAPH_EVIDENCE_BUDGET_CHARS:
+                    break
+                used_chars = allocate_one(
+                    topic_id,
+                    _GRAPH_EVIDENCE_BUDGET_CHARS - allocated_chars,
+                )
+                if used_chars:
+                    allocated_chars += used_chars
+                    progress = True
+            if not progress:
+                break
 
         curation_topic_ids = [topic.id for topic in all_topics if by_topic[topic.id]]
         return (

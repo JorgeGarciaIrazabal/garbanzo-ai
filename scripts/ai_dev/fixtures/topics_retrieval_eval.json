@@ -1,0 +1,94 @@
+{
+  "corpus": [
+    {
+      "id": "en_database",
+      "text": "We decided to use PostgreSQL as the primary application database."
+    },
+    {
+      "id": "en_hosting_region",
+      "text": "The production service must be hosted in the Virginia region."
+    },
+    {
+      "id": "en_accessibility",
+      "text": "Keyboard navigation is required throughout the topic picker."
+    },
+    {
+      "id": "en_budget",
+      "text": "The equipment budget cannot exceed 2,500 dollars."
+    },
+    {
+      "id": "es_accommodation",
+      "text": "Preferimos alojarnos en el barrio de Malasaña durante el viaje a Madrid."
+    },
+    {
+      "id": "es_vehicle_rejection",
+      "text": "Descartamos comprar un coche diésel."
+    },
+    {
+      "id": "es_migration_deadline",
+      "text": "El plazo acordado para terminar la migración es el 30 de septiembre."
+    },
+    {
+      "id": "es_dark_mode",
+      "text": "Prefiero usar la interfaz en modo oscuro."
+    }
+  ],
+  "cases": [
+    {
+      "id": "en_paraphrase",
+      "language": "en",
+      "kind": "paraphrase",
+      "query": "Which data store did the application team settle on?",
+      "relevant": ["en_database"]
+    },
+    {
+      "id": "en_negation",
+      "language": "en",
+      "kind": "negation",
+      "query": "Did we rule out PostgreSQL for the application database?",
+      "relevant": ["en_database"]
+    },
+    {
+      "id": "en_correction",
+      "language": "en",
+      "kind": "correction",
+      "query": "Correction: use Oregon instead of Virginia for production hosting.",
+      "relevant": ["en_hosting_region"]
+    },
+    {
+      "id": "en_neutral",
+      "language": "en",
+      "kind": "no_fact_pattern",
+      "query": "Remind me where the production service runs.",
+      "relevant": ["en_hosting_region"]
+    },
+    {
+      "id": "es_paraphrase",
+      "language": "es",
+      "kind": "paraphrase",
+      "query": "¿En qué zona queríamos quedarnos durante la visita a Madrid?",
+      "relevant": ["es_accommodation"]
+    },
+    {
+      "id": "es_negation",
+      "language": "es",
+      "kind": "negation",
+      "query": "¿No habíamos rechazado la opción de comprar un automóvil de gasóleo?",
+      "relevant": ["es_vehicle_rejection"]
+    },
+    {
+      "id": "es_correction",
+      "language": "es",
+      "kind": "correction",
+      "query": "Corrección: la fecha ya no será el 30 de septiembre.",
+      "relevant": ["es_migration_deadline"]
+    },
+    {
+      "id": "es_neutral",
+      "language": "es",
+      "kind": "no_fact_pattern",
+      "query": "Recuérdame cómo queríamos ver la interfaz.",
+      "relevant": ["es_dark_mode"]
+    }
+  ]
+}

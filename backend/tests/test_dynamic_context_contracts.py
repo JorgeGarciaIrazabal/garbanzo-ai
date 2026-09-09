@@ -18,7 +18,12 @@ from app.models.message import Message
 from app.schemas.chat import ChatOptions
 from app.schemas.chat import ModelInfo as PublicModelInfo
 from app.services.chat_service import ChatService
-from app.topics.models import Topic, TopicIngestionEvent, TopicIngestionState
+from app.topics.models import (
+    ActiveContextItem,
+    Topic,
+    TopicIngestionEvent,
+    TopicIngestionState,
+)
 from app.topics.topic_context_compiler import CompiledTopicContext, TopicContextCompiler
 from app.topics.topic_ingestion_service import enqueue_message_event
 
@@ -168,6 +173,26 @@ async def test_primary_generation_invokes_compiler_but_legacy_keeps_builder(
             assert "compiled primary context" not in context.calls[0]["kwargs"]["dynamic_context"]
 
 
+async def test_primary_topic_compiler_failure_aborts_generation(
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    primary = await _conversation(db_session, primary=True, title="Primary")
+    service = ChatService(db_session, provider_name="missing-provider")
+
+    async def fail_compile(*_args, **_kwargs):
+        raise RuntimeError("hybrid query failed")
+
+    service._topic_compiler.compile = fail_compile  # type: ignore[method-assign]
+    monkeypatch.setattr(
+        "app.services.chat_service.get_settings",
+        lambda: type("SettingsStub", (), {"topic_context_enabled": True})(),
+    )
+
+    with pytest.raises(RuntimeError, match="hybrid query failed"):
+        await service._maybe_compile_topic_context(primary, "question", "")
+
+
 async def _empty_tools():
     # Kept as an async helper so the monkeypatched method has the same shape as
     # ChatService._resolve_tools_for_conversation.
@@ -253,11 +278,39 @@ async def test_committed_primary_turn_emits_context_before_provider_and_deduplic
     await db_session.commit()
     await db_session.refresh(primary, attribute_names=["messages", "active_topic"])
 
+    evidence_thread = await _conversation(
+        db_session,
+        primary=False,
+        title="Retirement evidence",
+    )
+    retained_fact = Message(
+        id=str(uuid.uuid4()),
+        conversation_id=evidence_thread.id,
+        role="user",
+        content="The distinctive retained fact is that the pension starts in April 2038.",
+    )
+    db_session.add(retained_fact)
+    await db_session.flush()
+    db_session.add(
+        ActiveContextItem(
+            id=str(uuid.uuid4()),
+            conversation_id=primary.id,
+            source_type="message",
+            source_id=retained_fact.id,
+            topic_id=topic.id,
+            state="pinned",
+            reason="Pinned by you",
+        )
+    )
+    await db_session.commit()
+
     provider = _RecordingProvider()
     provider_started = asyncio.Event()
     provider_release = asyncio.Event()
+    provider_messages: list[llm_provider.Message] = []
 
-    async def gated_stream(*_args, **_kwargs):
+    async def gated_stream(messages, *_args, **_kwargs):
+        provider_messages.extend(messages)
         provider_started.set()
         await provider_release.wait()
         yield llm_provider.ChatChunk(content="On track.", is_finished=False)
@@ -301,13 +354,18 @@ async def test_committed_primary_turn_emits_context_before_provider_and_deduplic
     assert topic_chunk.metadata["topic_update"]["schema_version"] == 1
     assert provider_started.is_set() is False
 
-    context_chunk = await asyncio.wait_for(anext(stream), timeout=1)
-    assert context_chunk.metadata is not None
+    while True:
+        context_chunk = await asyncio.wait_for(anext(stream), timeout=1)
+        assert provider_started.is_set() is False
+        if context_chunk.metadata and "context_update" in context_chunk.metadata:
+            break
     assert context_chunk.metadata["context_update"]["schema_version"] == 1
-    assert provider_started.is_set() is False
 
     pending_provider = asyncio.create_task(anext(stream))
     await asyncio.wait_for(provider_started.wait(), timeout=1)
+    assert any(
+        "the pension starts in April 2038" in message.content for message in provider_messages
+    )
     provider_release.set()
     remaining = [await pending_provider]
     remaining.extend([chunk async for chunk in stream])

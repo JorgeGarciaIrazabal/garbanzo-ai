@@ -145,7 +145,9 @@ class _ChatPageState extends State<ChatPage> {
     if (targetTopic != topicDiscovery.selectedTopic) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
-          context.read<TopicDiscoveryProvider>().setSelectedTopic(targetTopic);
+          context.read<TopicDiscoveryProvider>().synchronizeSelectedTopic(
+            targetTopic,
+          );
         }
       });
     }
@@ -154,8 +156,14 @@ class _ChatPageState extends State<ChatPage> {
     // pushed on top of the chat.
     final route = ModalRoute.of(context);
     if (route != null && !route.isCurrent) return;
-    if (currentId == widget.conversationId) return;
-    GoRouter.of(context).go(currentId == null ? '/chat' : '/chat/$currentId');
+    final targetLocation = currentId == null || conv?.isPrimary == true
+        ? '/chat'
+        : '/chat/$currentId';
+    final currentLocation = widget.conversationId == null
+        ? '/chat'
+        : '/chat/${widget.conversationId}';
+    if (targetLocation == currentLocation) return;
+    GoRouter.of(context).go(targetLocation);
   }
 
   @override
@@ -762,26 +770,10 @@ class _ChatPageContentState extends State<_ChatPageContent>
                                         );
                                         provider.clearPendingAttachments();
                                       }
-                                      final selectedTopic = context
-                                          .read<TopicDiscoveryProvider>()
-                                          .selectedTopic;
-                                      if (provider
-                                                  .currentConversation
-                                                  ?.isPrimary ==
-                                              true &&
-                                          selectedTopic != null) {
-                                        await provider.createConversation(
-                                          title: selectedTopic.label,
-                                          activeTopicId: selectedTopic.id,
-                                          initialMessage: message,
-                                          initialAttachments: merged,
-                                        );
-                                      } else {
-                                        await provider.sendMessage(
-                                          message,
-                                          attachments: merged,
-                                        );
-                                      }
+                                      await provider.sendMessage(
+                                        message,
+                                        attachments: merged,
+                                      );
                                     },
                                     onStop: () => chatProvider.stopStreaming(),
                                     isLoading: chatProvider.isSending,
@@ -955,11 +947,7 @@ class _ChatPageContentState extends State<_ChatPageContent>
         onStarterSelected: (message) async {
           final selectedTopic = topicDiscovery.selectedTopic;
           if (selectedTopic != null) {
-            await chatProvider.createConversation(
-              title: selectedTopic.label,
-              activeTopicId: selectedTopic.id,
-              initialMessage: message,
-            );
+            await chatProvider.sendMessage(message);
           } else {
             await chatProvider.sendMessage(message);
           }
@@ -1000,11 +988,7 @@ class _ChatPageContentState extends State<_ChatPageContent>
         topic: activeTopic,
         onStarterSelected: (message) async {
           if (conversation.isPrimary) {
-            await chatProvider.createConversation(
-              title: activeTopic.label,
-              activeTopicId: activeTopic.id,
-              initialMessage: message,
-            );
+            await chatProvider.sendMessage(message);
           } else {
             await chatProvider.sendMessage(message);
           }

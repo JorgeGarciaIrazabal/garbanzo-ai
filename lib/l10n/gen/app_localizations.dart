@@ -5301,23 +5301,71 @@ abstract class AppLocalizations {
   /// **'{count}'**
   String contextItemCount(int count);
 
-  /// Branch label for carryover context items.
-  ///
-  /// In en, this message translates to:
-  /// **'Carryover'**
-  String get carryover;
-
-  /// Empty state for carryover branch.
-  ///
-  /// In en, this message translates to:
-  /// **'No carryover items'**
-  String get noCarryover;
-
   /// Topic archive count badge.
   ///
   /// In en, this message translates to:
   /// **'{count} archived {count, plural, one {thread} other {threads}}'**
   String topicArchiveCount(int count);
+
+  /// Opens preserved sessions for the active topic.
+  ///
+  /// In en, this message translates to:
+  /// **'Earlier sessions'**
+  String get earlierSessions;
+
+  /// Explains the topic archive viewer.
+  ///
+  /// In en, this message translates to:
+  /// **'Read prior primary-chat sessions for this topic.'**
+  String get earlierSessionsDescription;
+
+  /// Empty state for topic archives.
+  ///
+  /// In en, this message translates to:
+  /// **'No earlier sessions for this topic yet.'**
+  String get noEarlierSessions;
+
+  /// Title for one preserved primary-chat session.
+  ///
+  /// In en, this message translates to:
+  /// **'Archived session'**
+  String get archivedSession;
+
+  /// Message count for an archived topic session.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} {count, plural, one {message} other {messages}}'**
+  String archiveMessageCount(int count);
+
+  /// Read-only notice in the archive viewer.
+  ///
+  /// In en, this message translates to:
+  /// **'Read-only history. Continuing the chat uses the current topic session.'**
+  String get archivedSessionReadOnly;
+
+  /// Loads the previous page of an archived session.
+  ///
+  /// In en, this message translates to:
+  /// **'Load older messages'**
+  String get loadOlderMessages;
+
+  /// Error shown when an archived topic session cannot load.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load this earlier session.'**
+  String get archiveLoadFailed;
+
+  /// User speaker label in an archived session.
+  ///
+  /// In en, this message translates to:
+  /// **'You'**
+  String get archiveSpeakerYou;
+
+  /// Assistant speaker label in an archived session.
+  ///
+  /// In en, this message translates to:
+  /// **'Garbanzo'**
+  String get archiveSpeakerGarbanzo;
 
   /// Error message when topic switch fails.
   ///
@@ -5330,6 +5378,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Switch topic'**
   String get redirect;
+
+  /// Root label in the active topic hierarchy.
+  ///
+  /// In en, this message translates to:
+  /// **'Topic Graph Root'**
+  String get topicGraphRoot;
+
+  /// Label beside the topic switch action.
+  ///
+  /// In en, this message translates to:
+  /// **'Change topic focus:'**
+  String get changeTopicFocus;
 
   /// Title for topic drift lock control.
   ///
@@ -5427,11 +5487,11 @@ abstract class AppLocalizations {
   /// **'Historical context is temporarily limited'**
   String get historicalContextLimited;
 
-  /// Active context preparation status.
+  /// Active context background processing status.
   ///
   /// In en, this message translates to:
-  /// **'Preparing the best context'**
-  String get preparingBestContext;
+  /// **'Context is updating in the background. Current valid sources remain available.'**
+  String get contextUpdatingInBackground;
 
   /// Model switch effort adjustment.
   ///
@@ -5469,6 +5529,18 @@ abstract class AppLocalizations {
   /// **'No active context yet'**
   String get noActiveContext;
 
+  /// Heading above the baseline context preview for a selected topic.
+  ///
+  /// In en, this message translates to:
+  /// **'AVAILABLE TOPIC CONTEXT'**
+  String get availableTopicContext;
+
+  /// Message shown when a selected topic truly has no eligible baseline evidence.
+  ///
+  /// In en, this message translates to:
+  /// **'No established context is available for this topic yet. New decisions and preferences will appear here as you chat.'**
+  String get noEstablishedTopicContext;
+
   /// Accessibility label for context token usage.
   ///
   /// In en, this message translates to:
@@ -5493,17 +5565,35 @@ abstract class AppLocalizations {
   /// **'No dynamic sources selected'**
   String get noDynamicSources;
 
-  /// Dialog title for adding an active-context source.
+  /// Dialog title for selecting an active-context source.
   ///
   /// In en, this message translates to:
-  /// **'Add a context source'**
-  String get addContextSource;
+  /// **'Choose a recent message'**
+  String get selectContextSource;
 
-  /// Input hint for an active-context source ID.
+  /// Empty state for the active-context source picker.
   ///
   /// In en, this message translates to:
-  /// **'Message, thread, memory, or file ID'**
-  String get contextSourceIdHint;
+  /// **'No recent messages are available to add.'**
+  String get noContextSourcesAvailable;
+
+  /// Source name in active context provenance.
+  ///
+  /// In en, this message translates to:
+  /// **'Source: {name}'**
+  String contextSourceName(String name);
+
+  /// Source name and date in active context provenance.
+  ///
+  /// In en, this message translates to:
+  /// **'Source: {name} • {date}'**
+  String contextSourceNameAndDate(String name, String date);
+
+  /// Opens the conversation that contains a context source.
+  ///
+  /// In en, this message translates to:
+  /// **'Open source'**
+  String get openSource;
 
   /// Action for removing a context item's pin.
   ///
@@ -5540,6 +5630,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Could not update topic pin'**
   String get topicPinUpdateFailed;
+
+  /// Title of the topic switch confirmation dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch or combine?'**
+  String get topicSwitchDialogTitle;
+
+  /// Connector between topic names in the switch dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'with'**
+  String get topicSwitchWith;
+
+  /// Explains switch and combine choices.
+  ///
+  /// In en, this message translates to:
+  /// **'Combine to discuss both topics together, or switch to start a fresh chat session.'**
+  String get topicSwitchChoiceDescription;
+
+  /// Explains switching when no topic is active.
+  ///
+  /// In en, this message translates to:
+  /// **'Start a new conversation focused on this topic.'**
+  String get topicSwitchStartDescription;
+
+  /// Switch option for retaining explicit context pins.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep pinned sources when switching'**
+  String get retainPinnedSourcesOnSwitch;
+
+  /// Action that starts a new topic session.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch topic'**
+  String get switchTopic;
+
+  /// Action that combines two topics.
+  ///
+  /// In en, this message translates to:
+  /// **'Combine topics'**
+  String get combineTopics;
+
+  /// Error shown when combining topics fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not combine topics'**
+  String get topicCombineFailed;
+
+  /// Prompt shown for a detected topic shift.
+  ///
+  /// In en, this message translates to:
+  /// **'Shift detected: switch to {topic}?'**
+  String topicDriftDetected(String topic);
+
+  /// Short action for combining topics.
+  ///
+  /// In en, this message translates to:
+  /// **'Combine'**
+  String get combine;
+
+  /// Short action for switching topics.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch'**
+  String get switchAction;
+
+  /// Tooltip for dismissing a proposal.
+  ///
+  /// In en, this message translates to:
+  /// **'Dismiss'**
+  String get dismiss;
 }
 
 class _AppLocalizationsDelegate

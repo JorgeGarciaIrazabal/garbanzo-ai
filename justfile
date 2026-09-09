@@ -285,6 +285,10 @@ fe-test-cov *args:
 fe-format:
     dart format lib/
 
+# Regenerate committed Freezed and json_serializable model sources
+fe-gen-models:
+    dart run build_runner build
+
 # Regenerate committed Flutter localization sources from the ARB files
 fe-gen-l10n:
     flutter gen-l10n
@@ -513,6 +517,10 @@ ai-deployment-evidence *args:
 # Real migrations in a disposable Docker-only PostgreSQL database
 ai-migration-smoke:
     cd backend; PYTHONPATH=. uv run python ../scripts/ai_dev/migration_smoke.py --root ..
+
+# English/Spanish semantic-retrieval evaluation using the configured embedding model
+ai-topics-retrieval-eval:
+    cd backend; PYTHONPATH=. uv run python ../scripts/ai_dev/topics_retrieval_eval.py
 
 ai-navigation-smoke:
     cd backend; uv run python ../scripts/ai_dev/navigation_smoke.py

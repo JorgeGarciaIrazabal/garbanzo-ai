@@ -1,5 +1,9 @@
 # Topic Features & User Stories — E2E Test Matrix
 
+> Historical evidence: this matrix predates the September 2026 switch-contract
+> simplification. References to generated carryover and the old switch modal do
+> not describe the current product. Current switches retain only explicit pins.
+
 This matrix tracks the verification of the redesigned Topic Graph and Dynamic Context system in Garbanzo AI, tested end-to-end using Chrome DevTools MCP on the live web stack (`http://localhost:8000`).
 
 | ID | User Story / Edge Case | Description | Verification Target | Status |

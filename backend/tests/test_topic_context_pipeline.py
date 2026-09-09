@@ -11,7 +11,6 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
-import time
 import uuid
 from datetime import UTC, datetime, timedelta
 
@@ -50,10 +49,7 @@ from app.topics.topic_consolidation_service import (
     CuratedContextPack,
     TopicConsolidationService,
 )
-from app.topics.topic_context_compiler import (
-    TopicContextCompiler,
-    invalidate_prewarm_cache,
-)
+from app.topics.topic_context_compiler import TopicContextCompiler
 from app.topics.topic_ingestion_service import (
     TopicIngestionService,
     enqueue_conversation_event,
@@ -390,6 +386,185 @@ async def test_compiler_combines_pack_live_delta_pins_and_hard_exclusions(
     assert "Other user secret itinerary." not in result.block
     assert result.context_update["pinned_count"] == 1
     assert result.snapshot["source_event_watermark"] == 7
+
+
+async def test_prepared_topic_compiles_curated_assertions_without_raw_transcripts(
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    primary = await _conversation(db_session, primary=True)
+    source_thread = await _conversation(db_session, title="Clara stories")
+    topic = await _topic(db_session, label="Fun Stories for Clara")
+    primary.active_topic_id = topic.id
+    curated_source = await _message(
+        db_session,
+        source_thread,
+        "Clara laughed most at the story about a moon rabbit.",
+    )
+    assertion = await _assertion(
+        db_session,
+        topic,
+        curated_source,
+        "Clara enjoys playful stories about animals and space.",
+        kind="preference",
+    )
+    pack = await _pack(db_session, topic, assertion, curated_source.id)
+
+    raw_markers: list[str] = []
+    for index in range(30):
+        marker = f"RAW_STORY_TRANSCRIPT_{index:02d}"
+        raw_markers.append(marker)
+        message = await _message(
+            db_session,
+            source_thread,
+            f"{marker}: a long conversational retelling that should be curated.",
+            seq=index + 1,
+        )
+        db_session.add(
+            MessageTopic(
+                message_id=message.id,
+                topic_id=topic.id,
+                confidence=0.8,
+                is_primary=True,
+                segment_start=0,
+                segment_end=len(message.content),
+                source_authority="explicit_user_statement",
+            )
+        )
+    await db_session.commit()
+
+    settings = Settings(
+        secret_key="test-secret-key-do-not-use-in-prod",
+        database_url="sqlite+aiosqlite:///:memory:",
+        topic_context_enabled=True,
+        topic_context_token_budget=12000,
+    )
+    monkeypatch.setattr("app.topics.topic_context_compiler.get_settings", lambda: settings)
+    result = await TopicContextCompiler(db_session).compile(
+        primary,
+        current_query="Tell Clara another funny story.",
+    )
+
+    assert result.snapshot["topic_context_version_id"] == pack.id
+    assert "Clara enjoys playful stories about animals and space." in result.block
+    assert not any(marker in result.block for marker in raw_markers)
+    assert {source["type"] for source in result.snapshot["sources"]} == {"topic_assertion"}
+    assert result.snapshot["fallback"] is None
+
+
+async def test_hierarchy_context_flows_from_parent_to_children_and_child_to_parent(
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    primary = await _conversation(db_session, primary=True)
+    source_thread = await _conversation(db_session, title="Family history")
+    parent = await _topic(db_session, label="Family & Clara")
+    child = await _topic(
+        db_session,
+        label="Fun Stories for Clara",
+        parent_id=parent.id,
+    )
+    unrelated = await _topic(db_session, label="Kimi K3")
+    parent_source = await _message(db_session, source_thread, "Clara is seven years old.")
+    child_source = await _message(
+        db_session,
+        source_thread,
+        "Clara enjoys funny animal adventures.",
+    )
+    unrelated_source = await _message(
+        db_session,
+        source_thread,
+        "Kimi K3 uses a mixture-of-experts architecture.",
+    )
+    await _assertion(
+        db_session,
+        parent,
+        parent_source,
+        "Clara is seven years old.",
+        kind="fact",
+    )
+    await _assertion(
+        db_session,
+        child,
+        child_source,
+        "Clara enjoys funny animal adventures.",
+        kind="preference",
+    )
+    await _assertion(
+        db_session,
+        unrelated,
+        unrelated_source,
+        "Kimi K3 uses a mixture-of-experts architecture.",
+        kind="fact",
+    )
+    settings = Settings(
+        secret_key="test-secret-key-do-not-use-in-prod",
+        database_url="sqlite+aiosqlite:///:memory:",
+        topic_context_enabled=True,
+        topic_context_token_budget=12000,
+    )
+    monkeypatch.setattr("app.topics.topic_context_compiler.get_settings", lambda: settings)
+    compiler = TopicContextCompiler(db_session, embedding_provider=None)
+
+    primary.active_topic_id = parent.id
+    await db_session.commit()
+    parent_result = await compiler.compile(
+        primary,
+        current_query="Tell Clara a new story.",
+    )
+
+    assert parent_result.snapshot["active_topic_id"] == parent.id
+    assert "Clara is seven years old." in parent_result.block
+    assert "Clara enjoys funny animal adventures." in parent_result.block
+    assert "Kimi K3" not in parent_result.block
+
+    primary.active_topic_id = child.id
+    await db_session.commit()
+    child_result = await compiler.compile(
+        primary,
+        current_query="Make it appropriate for her age.",
+    )
+
+    assert child_result.snapshot["active_topic_id"] == child.id
+    assert "Clara is seven years old." in child_result.block
+    assert "Clara enjoys funny animal adventures." in child_result.block
+    assert "Kimi K3" not in child_result.block
+
+
+async def test_graph_curation_manifest_can_represent_more_than_24_topic_messages(
+    db_session: AsyncSession,
+):
+    topic = await _topic(db_session, label="Fun Stories for Clara")
+    source_thread = await _conversation(db_session, title="Clara story history")
+    message_ids: set[str] = set()
+    for index in range(100):
+        message = await _message(
+            db_session,
+            source_thread,
+            f"Story detail {index:02d}: Clara liked this character and adventure.",
+            seq=index + 1,
+        )
+        message_ids.add(message.id)
+        db_session.add(
+            MessageTopic(
+                message_id=message.id,
+                topic_id=topic.id,
+                confidence=0.8,
+                is_primary=True,
+                segment_start=0,
+                segment_end=len(message.content),
+                source_authority="explicit_user_statement",
+            )
+        )
+    await db_session.commit()
+
+    manifest, _, evidence = await TopicConsolidationService(db_session)._user_graph_manifest(OWNER)
+    topic_manifest = next(item for item in manifest["topics"] if item["id"] == topic.id)
+    curated_source_ids = {item["id"] for item in topic_manifest["evidence"]}
+
+    assert len(curated_source_ids) == 100
+    assert curated_source_ids == message_ids
+    assert curated_source_ids <= set(evidence)
 
 
 async def test_compiler_revokes_memory_knowledge_and_deleted_thread_before_next_request(
@@ -885,7 +1060,7 @@ async def test_hourly_graph_curator_uses_one_call_for_all_topics_and_builds_pack
     assert pack is not None
     assert pack.provider == "curator-test"
     assert pack.model_id == "glm-5.3-flash:cloud"
-    assert pack.prompt_version == "user-topic-graph-v5"
+    assert pack.prompt_version == "user-topic-graph-v7"
     assert assertion.id in str(pack.context_json)
 
     travel_pack = await db_session.get(TopicContextVersion, travel.current_context_version_id)
@@ -937,7 +1112,7 @@ async def test_no_evidence_topics_are_signature_checked_once_without_a_model_cal
     )
     await db_session.refresh(topic)
     assert topic.topic_metadata["graph_curator_signature"] == (
-        "curator-test:glm-5.3-flash:cloud:user-topic-graph-v5"
+        "curator-test:glm-5.3-flash:cloud:user-topic-graph-v7"
     )
     assert await TopicConsolidationService(db_session).claim_dirty_users(owner="next-worker") == []
 
@@ -1099,22 +1274,6 @@ async def test_graph_curator_recovers_a_json_object_after_glm_text_preface():
     assert output.topics[0].label == "Retirement Planning"
 
 
-async def test_shared_lead_label_fallback_creates_a_selectable_parent_branch(
-    db_session: AsyncSession,
-):
-    tokyo = await _topic(db_session, label="Time Tokyo")
-    madrid = await _topic(db_session, label="Time Madrid")
-    await _topic(db_session, label="Search Web")
-
-    service = TopicConsolidationService(db_session)
-    await service._apply_obvious_label_hierarchy(OWNER)
-    await db_session.commit()
-
-    roots = await TopicService(db_session).list_personal(OWNER)
-    world_time = next(topic for topic in roots if topic.label == "World time")
-    assert {child.id for child in world_time.children} == {tokyo.id, madrid.id}
-
-
 async def test_graph_validation_accepts_disjoint_canonical_merge_partition(
     db_session: AsyncSession,
 ):
@@ -1251,8 +1410,8 @@ async def test_compiler_keeps_optional_sources_within_token_budget(
     result = await compiler.compile(primary, current_query="budget")
 
     selected = result.snapshot["sources"]
-    assert len(selected) == 1
-    assert selected[0]["tokens"] <= 4
+    assert result.snapshot["token_total"] <= 4
+    assert all(source["tokens"] <= 4 for source in selected)
 
 
 async def test_primary_compiler_isolated_from_legacy_context_path(db_session: AsyncSession):
@@ -1371,11 +1530,36 @@ async def test_history_backfill_repairs_labels_groups_threads_and_drains_batches
         )
     await db_session.commit()
 
-    settings = Settings(secret_key="x" * 32, topic_realtime_batch_size=1)
+    settings = Settings(
+        secret_key="x" * 32,
+        topic_realtime_batch_size=1,
+        topic_curator_provider="curator-test",
+        topic_curator_model="glm-5.3-flash:cloud",
+        topic_context_privacy_mode="cloud_allowed",
+    )
     monkeypatch.setattr(
         "app.topics.topic_ingestion_service.get_settings",
         lambda: settings,
     )
+    monkeypatch.setattr("app.topics.topic_semantic_curator.get_settings", lambda: settings)
+
+    def response(payload):
+        return {
+            "topics": [
+                {
+                    "topic_id": topic["id"],
+                    "label": topic["label"],
+                    "parent_topic_id": None,
+                    "parent_label": None,
+                    "merge_topic_ids": [],
+                    "assertions": [],
+                }
+                for topic in payload["topics"]
+                if topic["id"] in payload["curation_topic_ids"]
+            ]
+        }
+
+    monkeypatch.setattr(ProviderRegistry, "get", lambda name: _StructuredCuratorProvider(response))
     await TopicConsolidationService(db_session).consolidate_user(OWNER)
 
     active = list(
@@ -1857,34 +2041,6 @@ async def test_subgraph_expansion_along_relations_and_causal_chains(
     assert "Do not reintroduce a previously rejected option" in compiled.block
 
 
-async def test_prewarm_context_cache_and_latency(db_session: AsyncSession):
-    """Pre-warmed context pack is cached and returned in under 10ms."""
-    conversation = await _conversation(db_session, primary=True)
-    topic = await _topic(db_session, label="Prewarm Topic")
-    conversation.active_topic_id = topic.id
-    await db_session.commit()
-
-    compiler = TopicContextCompiler(db_session)
-    # 1. Clear any prior cache
-    invalidate_prewarm_cache(conversation.id)
-
-    # 2. Pre-warm baseline
-    prewarmed = await compiler.prewarm(conversation)
-    assert prewarmed is not None
-    assert prewarmed.snapshot["active_topic_id"] == topic.id
-
-    # 3. Benchmark compile() with cached pack
-    start = time.perf_counter()
-    compiled = await compiler.compile(conversation, current_query="")
-    duration_ms = (time.perf_counter() - start) * 1000.0
-
-    assert compiled.snapshot["active_topic_id"] == topic.id
-    assert duration_ms < 10.0, f"Compilation from cache must be < 10ms, took {duration_ms:.2f}ms"
-
-    # 4. Cache invalidation
-    invalidate_prewarm_cache(conversation.id)
-
-
 async def test_multilingual_assertion_extraction(db_session: AsyncSession):
     """Test extraction of Spanish assertions and rejections."""
     conversation = await _conversation(db_session, primary=True)
@@ -2129,106 +2285,6 @@ async def test_ingestion_respects_user_selection_over_semantic_lookalike(
     assert affected and affected[0].id == selected.id
 
 
-async def test_shared_lead_token_fallback_groups_any_repeated_lead_word(
-    db_session: AsyncSession,
-):
-    """Feature 02fa399e: flat topics sharing a lead word form a parent branch.
-
-    Labels deliberately avoid every canonical-domain keyword so the shared
-    lead-token pass (not the domain taxonomy) performs the grouping.
-    """
-    await _topic(db_session, label="Zucchini Garden Beds")
-    await _topic(db_session, label="Zucchini Pests")
-    await _topic(db_session, label="Unrelated Solo Topic")
-
-    service = TopicConsolidationService(db_session)
-    await service._apply_obvious_label_hierarchy(OWNER)
-    await db_session.commit()
-
-    roots = await TopicService(db_session).list_personal(OWNER)
-    zucchini = next(topic for topic in roots if topic.label == "Zucchini")
-    assert len(zucchini.children) == 2
-    assert all("Zucchini" in child.label for child in zucchini.children)
-    solo = next(topic for topic in roots if topic.label == "Unrelated Solo Topic")
-    assert solo.children == []
-
-
-async def test_deterministic_hierarchy_merges_duplicate_labels_instead_of_crashing(
-    db_session: AsyncSession,
-):
-    """Regression (prod user jorge.girazabal): grouping two same-label topics
-    under one parent must merge them instead of tripping the
-    (user, parent, normalized_label) unique key."""
-    conversation = await _conversation(db_session, primary=True)
-    msg_a = await _message(db_session, conversation, "BYD driving content A")
-    msg_b = await _message(db_session, conversation, "BYD driving content B")
-    # Reproduce the exact prod state: one topic already grouped under the
-    # domain parent by an earlier run, and a same-label duplicate at root
-    # level (created by a root-only lookup before it became depth-aware).
-    original = await _topic(db_session, label="Byd Autonomous Driving Spain")
-    parent = await _topic(db_session, label="Automotive & Electric Vehicles")
-    original.parent_id = parent.id
-    await db_session.commit()
-    duplicate = Topic(
-        id=str(uuid.uuid4()),
-        user_id=OWNER,
-        label="Byd Autonomous Driving Spain",
-        normalized_label="byd autonomous driving spain",
-    )
-    db_session.add(duplicate)  # legal: different (parent) slot than original
-    membership_b = MessageTopic(
-        message_id=msg_b.id,
-        topic_id=duplicate.id,
-        confidence=0.65,
-        is_primary=True,
-        segment_start=0,
-        segment_end=len(msg_b.content),
-        source_authority="user",
-    )
-    membership_a = MessageTopic(
-        message_id=msg_a.id,
-        topic_id=original.id,
-        confidence=0.65,
-        is_primary=True,
-        segment_start=0,
-        segment_end=len(msg_a.content),
-        source_authority="user",
-    )
-    db_session.add_all([duplicate, membership_b, membership_a])
-    await db_session.commit()
-
-    children = [original, duplicate]
-    deduped = await TopicClusterer._dedupe_sibling_labels(db_session, parent, children)
-    await db_session.commit()
-
-    labels = [t.normalized_label for t in deduped]
-    assert labels.count("byd autonomous driving spain") == 1
-    active = list(
-        (
-            await db_session.scalars(
-                select(Topic).where(
-                    Topic.user_id == OWNER,
-                    Topic.normalized_label == "byd autonomous driving spain",
-                    Topic.status == "active",
-                )
-            )
-        ).all()
-    )
-    assert len(active) == 1
-    winner = active[0]
-    moved = list(
-        (
-            await db_session.scalars(
-                select(MessageTopic.message_id).where(MessageTopic.topic_id == winner.id)
-            )
-        ).all()
-    )
-    assert set(moved) == {msg_a.id, msg_b.id}
-    loser = original if winner.id == duplicate.id else duplicate
-    await db_session.refresh(loser)
-    assert loser.status == "archived"
-
-
 async def test_ingestion_reuses_a_grouped_topic_instead_of_duplicating(
     db_session: AsyncSession,
 ):
@@ -2260,67 +2316,6 @@ async def test_ingestion_reuses_a_grouped_topic_instead_of_duplicating(
     )
     assert count == 1
     assert affected and affected[0].id == grouped.id
-
-
-async def test_deterministic_hierarchy_dedupes_against_existing_grouped_sibling(
-    db_session: AsyncSession,
-):
-    """Prod regression (jorge.girazabal): a root duplicate being grouped under
-    a parent that ALREADY holds a same-label topic from an earlier run must
-    merge, not violate the (user, parent, normalized_label) unique key."""
-    conversation = await _conversation(db_session, primary=True)
-    msg = await _message(db_session, conversation, "BYD driving content")
-
-    # The earlier run already grouped this topic under the domain parent.
-    parent = await _topic(db_session, label="Automotive & Electric Vehicles")
-    grouped = await _topic(db_session, label="Byd Autonomous Driving Spain")
-    grouped.parent_id = parent.id
-    await db_session.commit()
-
-    # Later, a root-only ingestion lookup created a same-label ROOT duplicate
-    # (pre-fix behavior). It still carries the new message membership.
-    duplicate = Topic(
-        id=str(uuid.uuid4()),
-        user_id=OWNER,
-        label="Byd Autonomous Driving Spain",
-        normalized_label="byd autonomous driving spain",
-    )
-    membership = MessageTopic(
-        message_id=msg.id,
-        topic_id=duplicate.id,
-        confidence=0.65,
-        is_primary=True,
-        segment_start=0,
-        segment_end=len(msg.content),
-        source_authority="user",
-    )
-    db_session.add_all([duplicate, membership])
-    await db_session.commit()
-
-    # Grouping the duplicate root into the domain must merge it with the
-    # already-grouped topic instead of crashing the consolidation run.
-    deduped = await TopicClusterer._dedupe_sibling_labels(db_session, parent, [duplicate])
-    await db_session.commit()
-
-    active = list(
-        (
-            await db_session.scalars(
-                select(Topic).where(
-                    Topic.user_id == OWNER,
-                    Topic.normalized_label == "byd autonomous driving spain",
-                    Topic.status == "active",
-                )
-            )
-        ).all()
-    )
-    assert len(active) == 1
-    winner = active[0]
-    assert winner.id == grouped.id  # the grouped one has earlier last_active
-    moved = await db_session.scalar(
-        select(MessageTopic.message_id).where(MessageTopic.topic_id == winner.id)
-    )
-    assert moved == msg.id
-    assert deduped[0].id == grouped.id
 
 
 @pytest.mark.parametrize("initial_thinking", ["medium", "off"])
@@ -2397,3 +2392,201 @@ async def test_graph_curator_empty_reasoning_response_retries_pristine_prompt(
     assert second_options.think == "off"
     await db_session.refresh(retirement)
     assert retirement.label == "Retirement Planning"
+
+
+async def test_graph_curator_archives_junk_topics(
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """archive_topic_ids retires junk topics: non-destructive (memberships and
+    evidence stay), hidden from the map, signed so they are not re-curated."""
+    junk = await _topic(db_session, label="Get")
+    real = await _topic(db_session, label="Docker Container Restart Policy")
+    retirement = await _topic(db_session, label="Doing")
+    retirement_message = await _message(
+        db_session,
+        await _conversation(db_session, title="Doing"),
+        "I want to maximize my retirement contributions this year.",
+    )
+    junk_message = await _message(
+        db_session,
+        await _conversation(db_session, title="Get"),
+        "Can you get the report?",
+    )
+    real_message = await _message(
+        db_session,
+        await _conversation(db_session, title="Docker"),
+        "What is the best restart policy for a docker container?",
+    )
+    db_session.add_all(
+        [
+            MessageTopic(
+                message_id=retirement_message.id,
+                topic_id=retirement.id,
+                confidence=0.8,
+                is_primary=True,
+                segment_start=0,
+                segment_end=len(retirement_message.content),
+                source_authority="explicit_user_statement",
+            ),
+            MessageTopic(
+                message_id=junk_message.id,
+                topic_id=junk.id,
+                confidence=0.8,
+                is_primary=True,
+                segment_start=0,
+                segment_end=len(junk_message.content),
+                source_authority="explicit_user_statement",
+            ),
+            MessageTopic(
+                message_id=real_message.id,
+                topic_id=real.id,
+                confidence=0.8,
+                is_primary=True,
+                segment_start=0,
+                segment_end=len(real_message.content),
+                source_authority="explicit_user_statement",
+            ),
+        ]
+    )
+    await db_session.commit()
+
+    def response(payload):
+        return {
+            "topics": [
+                {
+                    "topic_id": retirement.id,
+                    "label": "Retirement Planning",
+                    "parent_label": "Finance",
+                    "merge_topic_ids": [],
+                    "assertions": [],
+                },
+                {
+                    "topic_id": real.id,
+                    "label": "Keeping Docker Containers Running",
+                    "parent_label": "Software Engineering",
+                    "merge_topic_ids": [],
+                    "assertions": [],
+                },
+            ],
+            "archive_topic_ids": [junk.id],
+        }
+
+    provider = _StructuredCuratorProvider(response)
+    settings = Settings(
+        secret_key="test-secret-key-do-not-use-in-prod",
+        database_url="sqlite+aiosqlite:///:memory:",
+        topic_curator_provider="curator-test",
+        topic_curator_model="glm-5.3-flash:cloud",
+        topic_context_privacy_mode="cloud_allowed",
+    )
+    monkeypatch.setattr("app.topics.topic_semantic_curator.get_settings", lambda: settings)
+    monkeypatch.setattr(ProviderRegistry, "get", lambda name: provider)
+
+    await TopicConsolidationService(db_session).consolidate_user(
+        OWNER,
+        event_watermark=0,
+    )
+
+    await db_session.refresh(junk)
+    assert junk.status == "archived"
+    assert junk.dirty_since is None
+    # Non-destructive: membership survives.
+    kept = await db_session.scalar(
+        select(MessageTopic.message_id).where(MessageTopic.topic_id == junk.id)
+    )
+    assert kept == junk_message.id
+    await db_session.refresh(real)
+    assert real.label == "Keeping Docker Containers Running"
+    parent = await db_session.get(Topic, real.parent_id)
+    assert parent is not None and parent.label == "Software Engineering"
+
+
+async def test_graph_validation_rejects_archive_of_canonical_topic() -> None:
+    """Archiving a topic that is also a canonical proposal is a contradiction."""
+    topics = {"t1": Topic(id="t1", label="T1", status="active", user_id="u1")}
+    output = UserTopicGraphCuratorOutput.model_validate(
+        {
+            "topics": [
+                {"topic_id": "t1", "label": "Real Subject"},
+            ],
+            "archive_topic_ids": ["t1"],
+        }
+    )
+    with pytest.raises(ValueError, match="archives a canonical"):
+        TopicClusterer.validate_user_graph_output(
+            output, topics, evidence={}, expected_topic_ids={"t1"}
+        )
+
+
+async def test_derive_label_requires_two_content_words() -> None:
+    """Primary-chat message labels need 2+ content words; thread titles keep 1."""
+    assert TopicIngestionService._derive_label("Get", min_words=2) == "New topic"
+    assert TopicIngestionService._derive_label("Meningitis?", min_words=2) == "New topic"
+    assert TopicIngestionService._derive_label("Get") == "Get"  # thread-title path
+    assert (
+        TopicIngestionService._derive_label(
+            "how do I keep a docker container running?", min_words=2
+        )
+        == "Keep Docker Container Running"
+    )
+
+
+async def test_primary_ingestion_skips_junk_single_word_labels(db_session: AsyncSession):
+    """A short greeting-like user message must not mint a junk topic."""
+    provider = _MockEmbeddingProvider({})
+    conversation = await _conversation(db_session, primary=True)
+    await db_session.commit()
+
+    service = TopicIngestionService(db_session, embedding_provider=provider)
+    msg = await _message(db_session, conversation, "Get")
+    event = await enqueue_message_event(db_session, conversation, msg, "create")
+    affected = await service.process_event(event)
+    await db_session.commit()
+
+    assert affected == []
+    roots = list(
+        (
+            await db_session.scalars(
+                select(Topic).where(Topic.user_id == OWNER, Topic.status == "active")
+            )
+        ).all()
+    )
+    assert roots == []
+
+
+async def test_orphan_sweep_collapses_mechanical_single_child_shells(
+    db_session: AsyncSession,
+):
+    """Prod regression: deterministic grouping minted junk parent shells
+    ("Get", "Going") with no memberships and one child each. The orphan sweep
+    must hoist the child to the shell's parent and archive the shell, while
+    leaving multi-child domain parents and curator-built parents intact."""
+    shell = await _topic(db_session, label="Get")
+    shell.topic_metadata = {"deterministic_hierarchy": "shared_lead_token"}
+    child = await _topic(db_session, label="Get Connection Lost Errors")
+    child.parent_id = shell.id
+    domain = await _topic(db_session, label="Family & Clara")
+    domain_child = await _topic(db_session, label="Art Classes")
+    domain_child.parent_id = domain.id
+    curator_mid = await _topic(db_session, label="Docker & Containers")
+    curator_mid.topic_metadata = {"semantic_curator": True}
+    docker_kid = await _topic(db_session, label="Keeping Docker Containers Running")
+    docker_kid.parent_id = curator_mid.id
+    await db_session.commit()
+
+    archived = await TopicIngestionService(db_session).archive_orphaned_history_topics(OWNER)
+    await db_session.commit()
+
+    await db_session.refresh(shell)
+    await db_session.refresh(child)
+    await db_session.refresh(domain)
+    await db_session.refresh(curator_mid)
+    assert shell.status == "archived"
+    # Child hoisted to the shell's parent (root).
+    assert child.parent_id is None
+    # Multi-child domain parent survives.
+    assert domain.status == "active"
+    # Curator-built single-child parent survives (exempt from mechanical rule).
+    assert curator_mid.status == "active"
+    assert archived >= 1

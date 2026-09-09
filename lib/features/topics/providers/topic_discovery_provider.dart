@@ -3,13 +3,14 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import 'package:garbanzo_ai/core/log.dart';
+import 'package:garbanzo_ai/features/topics/models/active_context.dart';
 import 'package:garbanzo_ai/features/topics/models/topic_node.dart';
 import 'package:garbanzo_ai/features/topics/models/topic_switch.dart';
 import 'package:garbanzo_ai/features/topics/services/topic_service.dart';
+import 'package:uuid/uuid.dart';
 
 const _kUnavailable = 'Topics are temporarily unavailable';
 const _kLimited = 'Historical context is temporarily limited';
-const _presentationTopicPrefix = 'presentation:';
 
 class TopicDiscoveryProvider extends ChangeNotifier {
   TopicDiscoveryProvider({TopicService? service})
@@ -20,8 +21,7 @@ class TopicDiscoveryProvider extends ChangeNotifier {
 
   TopicOrigin _mode = TopicOrigin.personal;
   TopicOrigin get mode => _mode;
-  List<TopicNode> get topics =>
-      List.unmodifiable(_presentationHierarchy(_trees[_mode] ?? const []));
+  List<TopicNode> get topics => List.unmodifiable(_trees[_mode] ?? const []);
 
   List<TopicNode> _path = const [];
   List<TopicNode> get path => List.unmodifiable(_path);
@@ -32,8 +32,8 @@ class TopicDiscoveryProvider extends ChangeNotifier {
   TopicDriftProposal? _pendingDrift;
   TopicDriftProposal? get pendingDrift => _pendingDrift;
 
-  VoidCallback? onTopicSwitched;
-  VoidCallback? onTopicCombined;
+  Future<void> Function(TopicSwitchResponse response)? onTopicSwitched;
+  Future<void> Function(TopicSwitchResponse response)? onTopicCombined;
 
   String _searchQuery = '';
   String get searchQuery => _searchQuery;
@@ -41,8 +41,8 @@ class TopicDiscoveryProvider extends ChangeNotifier {
   bool _showLanding = true;
   bool get showLanding => _showLanding;
 
-  bool _loading = false;
-  bool get loading => _loading;
+  final Set<TopicOrigin> _loadingModes = {};
+  bool get loading => _loadingModes.contains(_mode);
 
   String? _error;
   String? get error => _error;
@@ -53,9 +53,29 @@ class TopicDiscoveryProvider extends ChangeNotifier {
   final Map<String, List<TopicArchive>> _topicArchives = {};
   Map<String, List<TopicArchive>> get topicArchives =>
       Map.unmodifiable(_topicArchives);
+  final Set<String> _loadingArchiveTopics = {};
+  bool isArchiveListLoading(String topicId) =>
+      _loadingArchiveTopics.contains(topicId);
+  final Map<String, String> _archiveListErrors = {};
+  String? archiveListError(String topicId) => _archiveListErrors[topicId];
+  final Map<String, TopicArchivePage> _archivePages = {};
+  TopicArchivePage? archivePage(String archiveId) => _archivePages[archiveId];
+  final Set<String> _loadingArchiveIds = {};
+  bool isArchiveLoading(String archiveId) =>
+      _loadingArchiveIds.contains(archiveId);
+  final Map<String, String> _archiveErrors = {};
+  String? archiveError(String archiveId) => _archiveErrors[archiveId];
 
   TopicContextStatus get contextStatus =>
       _selectedTopic?.contextStatus ?? TopicContextStatus.empty;
+
+  List<ActiveContextItem> _retainedItems = const [];
+  List<ActiveContextItem> get retainedItems =>
+      List.unmodifiable(_retainedItems);
+
+  String? _lastSwitchIdempotencyKey;
+  String? get lastSwitchIdempotencyKey => _lastSwitchIdempotencyKey;
+  final Map<String, String> _pendingSwitchKeys = {};
 
   void setPromotedCount(int count) {
     final next = count.clamp(1, 4);
@@ -65,27 +85,70 @@ class TopicDiscoveryProvider extends ChangeNotifier {
   }
 
   Future<void> load({bool force = false}) async {
-    if (_loading || (!force && _trees.containsKey(_mode))) return;
-    _loading = true;
+    final requestedMode = _mode;
+    if (_loadingModes.contains(requestedMode) ||
+        (!force && _trees.containsKey(requestedMode))) {
+      return;
+    }
+    _loadingModes.add(requestedMode);
     _error = null;
     notifyListeners();
     try {
-      _trees[_mode] = await _service.listTopics(_mode);
+      _trees[requestedMode] = await _service.listTopics(requestedMode);
     } catch (e) {
       _error = _kUnavailable;
       logDebug('Failed to load topics: $e');
     } finally {
-      _loading = false;
+      _loadingModes.remove(requestedMode);
       notifyListeners();
     }
   }
 
   Future<void> loadArchives(String topicId) async {
+    if (_loadingArchiveTopics.contains(topicId)) return;
+    _loadingArchiveTopics.add(topicId);
+    _archiveListErrors.remove(topicId);
+    notifyListeners();
     try {
       _topicArchives[topicId] = await _service.listArchives(topicId);
-      notifyListeners();
     } catch (e) {
+      _archiveListErrors[topicId] = 'Could not load earlier sessions';
       logDebug('Failed to load topic archives: $e');
+    } finally {
+      _loadingArchiveTopics.remove(topicId);
+      notifyListeners();
+    }
+  }
+
+  Future<void> loadArchivePage(
+    String topicId,
+    String archiveId, {
+    bool older = false,
+  }) async {
+    if (_loadingArchiveIds.contains(archiveId)) return;
+    final current = _archivePages[archiveId];
+    if (!older && current != null) return;
+    if (older && (current == null || !current.hasMore)) return;
+    _loadingArchiveIds.add(archiveId);
+    _archiveErrors.remove(archiveId);
+    notifyListeners();
+    try {
+      final page = await _service.getArchivePage(
+        topicId,
+        archiveId,
+        before: older && current!.messages.isNotEmpty
+            ? current.messages.first.id
+            : null,
+      );
+      _archivePages[archiveId] = older && current != null
+          ? current.prepend(page)
+          : page;
+    } catch (e) {
+      _archiveErrors[archiveId] = 'Could not load this earlier session';
+      logDebug('Failed to load topic archive $archiveId: $e');
+    } finally {
+      _loadingArchiveIds.remove(archiveId);
+      notifyListeners();
     }
   }
 
@@ -94,39 +157,39 @@ class TopicDiscoveryProvider extends ChangeNotifier {
     String? topicId,
     String? label,
     bool archive = true,
-    int carryoverMaxItems = 5,
-    int carryoverMaxTokens = 400,
+    bool retainPinned = true,
+    String? idempotencyKey,
     String mode = 'switch',
   }) async {
     _error = null;
+    final signature = _switchSignature(
+      topicId,
+      label,
+      mode,
+      archive: archive,
+      retainPinned: retainPinned,
+    );
+    final actionKey =
+        idempotencyKey ??
+        _pendingSwitchKeys.putIfAbsent(signature, () => const Uuid().v4());
     final r = await _service.switchTopic(
       conversationId,
       topicId: topicId,
       label: label,
       archive: archive,
-      carryoverMaxItems: carryoverMaxItems,
-      carryoverMaxTokens: carryoverMaxTokens,
+      retainPinned: retainPinned,
+      idempotencyKey: actionKey,
       mode: mode,
     );
-    if (r.topic != null) {
-      _selectedTopic = TopicNode(
-        id: r.topic!.id,
-        label: r.topic!.label,
-        parentId: r.topic!.parentId,
-        parentLabel: r.topic!.parentLabel,
-        description: r.topic!.description,
-        origin: TopicOrigin.history,
-        score: 1,
-        childCount: 0,
-        contextStatus: TopicContextStatus.ready,
-        combinedTopics: r.topic!.combinedTopics,
-      );
-      _showLanding = false;
-    }
+    _applySwitchResponse(r, origin: _originForTopic(topicId));
+    _pendingSwitchKeys.remove(signature);
+    _lastSwitchIdempotencyKey = r.idempotencyKey;
     if (mode == 'combine') {
-      onTopicCombined?.call();
+      final combined = onTopicCombined;
+      if (combined != null) await combined(r);
     } else {
-      onTopicSwitched?.call();
+      final switched = onTopicSwitched;
+      if (switched != null) await switched(r);
     }
     notifyListeners();
     return r;
@@ -136,12 +199,14 @@ class TopicDiscoveryProvider extends ChangeNotifier {
     String conversationId, {
     String? topicId,
     String? label,
+    String? idempotencyKey,
   }) async {
     return switchTopic(
       conversationId,
       topicId: topicId,
       label: label,
       archive: false,
+      idempotencyKey: idempotencyKey,
       mode: 'combine',
     );
   }
@@ -173,18 +238,14 @@ class TopicDiscoveryProvider extends ChangeNotifier {
 
   List<TopicNode> get visibleTopics {
     var cur = topics;
+    if (_searchQuery.trim().isNotEmpty) {
+      final q = _searchQuery.trim().toLowerCase();
+      return _matchingTopics(topics, q);
+    }
     for (final crumb in _path) {
-      if (crumb.id.startsWith(_presentationTopicPrefix)) {
-        cur = crumb.children;
-        continue;
-      }
       final refreshed = cur.where((n) => n.id == crumb.id).firstOrNull;
       if (refreshed == null) return const [];
       cur = refreshed.children;
-    }
-    if (_searchQuery.trim().isNotEmpty) {
-      final q = _searchQuery.trim().toLowerCase();
-      return cur.where((t) => t.label.toLowerCase().contains(q)).toList();
     }
     return cur;
   }
@@ -198,81 +259,95 @@ class TopicDiscoveryProvider extends ChangeNotifier {
     _showLanding = false;
     _error = null;
     notifyListeners();
-    final isPresentation = topic.id.startsWith(_presentationTopicPrefix);
+    final signature = _switchSignature(
+      topic.id,
+      null,
+      'switch',
+      archive: true,
+      retainPinned: true,
+    );
+    final actionKey = _pendingSwitchKeys.putIfAbsent(
+      signature,
+      () => const Uuid().v4(),
+    );
     try {
       final res = await _service.switchTopic(
         conversationId,
-        topicId: isPresentation ? null : topic.id,
-        label: isPresentation ? topic.label : null,
+        topicId: topic.id,
+        idempotencyKey: actionKey,
       );
-      if (res.topic != null) {
-        _selectedTopic = _selectedTopic?.copyWith(
-          id: res.topic!.id,
-          parentId: res.topic!.parentId,
-          parentLabel: res.topic!.parentLabel,
-          description: res.topic!.description ?? _selectedTopic?.description,
-        );
-      }
-      onTopicSwitched?.call();
-      if (topic.origin != TopicOrigin.suggested) {
-        unawaited(_service.prepare(topic.id));
-      }
-    } catch (_) {
-      try {
-        await _service.activateTopic(
-          conversationId,
-          topicId: isPresentation ? null : topic.id,
-          label: isPresentation ? topic.label : null,
-        );
-        onTopicSwitched?.call();
-        if (topic.origin != TopicOrigin.suggested) {
-          unawaited(_service.prepare(topic.id));
-        }
-      } catch (e) {
-        _selectedTopic = topic.copyWith(
-          contextStatus: TopicContextStatus.limited,
-        );
-        _error = _kLimited;
-        logDebug('Failed to activate topic: $e');
-        notifyListeners();
-      }
+      _applySwitchResponse(res, origin: topic.origin);
+      _pendingSwitchKeys.remove(signature);
+      _lastSwitchIdempotencyKey = res.idempotencyKey;
+      final switched = onTopicSwitched;
+      if (switched != null) await switched(res);
+    } catch (e) {
+      _selectedTopic = topic.copyWith(
+        contextStatus: TopicContextStatus.limited,
+      );
+      _error = _kLimited;
+      logDebug('Failed to activate topic: $e');
+      notifyListeners();
     }
   }
 
   Future<void> activateFreeText(String conversationId, String label) async {
+    final requestedOrigin = _mode;
     final topic = TopicNode(
       id: 'provisional-${DateTime.now().microsecondsSinceEpoch}',
       label: label,
-      origin: _mode,
-      contextStatus: TopicContextStatus.ready,
+      origin: requestedOrigin,
+      contextStatus: TopicContextStatus.preparing,
     );
     _selectedTopic = topic;
     _showLanding = false;
     notifyListeners();
+    final signature = _switchSignature(
+      null,
+      label,
+      'switch',
+      archive: true,
+      retainPinned: true,
+    );
+    final actionKey = _pendingSwitchKeys.putIfAbsent(
+      signature,
+      () => const Uuid().v4(),
+    );
     try {
-      await _service.switchTopic(conversationId, label: label);
-      onTopicSwitched?.call();
+      final response = await _service.switchTopic(
+        conversationId,
+        label: label,
+        idempotencyKey: actionKey,
+      );
+      _applySwitchResponse(response, origin: requestedOrigin);
+      _pendingSwitchKeys.remove(signature);
+      _lastSwitchIdempotencyKey = response.idempotencyKey;
+      final switched = onTopicSwitched;
+      if (switched != null) await switched(response);
     } catch (_) {
-      try {
-        await _service.activateTopic(conversationId, label: label);
-        onTopicSwitched?.call();
-      } catch (_) {
-        _selectedTopic = topic.copyWith(
-          contextStatus: TopicContextStatus.limited,
-        );
-        _error = _kLimited;
-        notifyListeners();
-      }
+      _selectedTopic = topic.copyWith(
+        contextStatus: TopicContextStatus.limited,
+      );
+      _error = _kLimited;
+      notifyListeners();
     }
   }
 
   void startNewTopic() {
     _selectedTopic = null;
+    _pendingDrift = null;
     _path = const [];
     _showLanding = true;
     _error = null;
     notifyListeners();
     unawaited(load());
+  }
+
+  /// Reconciles server-owned selection data while preserving the current view.
+  void synchronizeSelectedTopic(TopicNode? topic) {
+    if (_selectedTopic == topic) return;
+    _selectedTopic = topic;
+    notifyListeners();
   }
 
   void setSelectedTopic(TopicNode? topic) {
@@ -371,49 +446,71 @@ class TopicDiscoveryProvider extends ChangeNotifier {
     return null;
   }
 
-  List<TopicNode> _presentationHierarchy(List<TopicNode> roots) {
-    if (_mode != TopicOrigin.personal ||
-        roots.any((t) => t.children.isNotEmpty)) {
-      return roots;
+  void _applySwitchResponse(
+    TopicSwitchResponse response, {
+    required TopicOrigin origin,
+  }) {
+    final topic = response.topic;
+    if (topic == null) {
+      throw StateError('Topic switch response did not include a topic');
     }
-    final byLead = <String, List<TopicNode>>{};
-    for (final t in roots) {
-      final lead = t.label
-          .toLowerCase()
-          .split(RegExp(r'[^a-z0-9]+'))
-          .firstWhere((w) => w.isNotEmpty, orElse: () => '');
-      if (lead.length >= 3 && lead != 'test' && lead != 'search') {
-        byLead.putIfAbsent(lead, () => []).add(t);
+    _selectedTopic = TopicNode(
+      id: topic.id,
+      label: topic.label,
+      parentId: topic.parentId,
+      parentLabel: topic.parentLabel,
+      description: topic.description,
+      origin: origin,
+      score: 1,
+      childCount: 0,
+      contextStatus: response.contextStatus,
+      combinedTopics: topic.combinedTopics,
+    );
+    _retainedItems = response.retainedItems;
+    _pendingDrift = null;
+    _showLanding = false;
+  }
+
+  TopicOrigin _originForTopic(String? topicId) {
+    if (topicId == null) return _mode;
+    for (final roots in _trees.values) {
+      final node = _findNode(roots, topicId);
+      if (node != null) return node.origin;
+    }
+    return _mode;
+  }
+
+  List<TopicNode> _matchingTopics(List<TopicNode> nodes, String query) {
+    final matches = <TopicNode>[];
+
+    void visit(TopicNode node, List<String> ancestorLabels) {
+      final path = [...ancestorLabels, node.label];
+      if (node.label.toLowerCase().contains(query)) {
+        matches.add(
+          node.copyWith(
+            parentLabel: ancestorLabels.isEmpty
+                ? node.parentLabel
+                : ancestorLabels.join(' › '),
+          ),
+        );
+      }
+      for (final child in node.children) {
+        visit(child, path);
       }
     }
-    final groupedIds = <String>{};
-    final replacements = <String, TopicNode>{};
-    for (final e in byLead.entries) {
-      if (e.value.length < 2) continue;
-      final label = switch (e.key) {
-        'time' => 'World time',
-        'tax' || 'taxes' => 'Taxes',
-        _ => e.key[0].toUpperCase() + e.key.substring(1),
-      };
-      final children = [...e.value]..sort((a, b) => b.score.compareTo(a.score));
-      groupedIds.addAll(children.map((t) => t.id));
-      replacements[children.first.id] = TopicNode(
-        id: '$_presentationTopicPrefix${e.key}',
-        label: label,
-        origin: TopicOrigin.history,
-        score: children.map((t) => t.score).reduce((a, b) => a > b ? a : b),
-        signal: 'from your history',
-        childCount: children.length,
-        children: children,
-      );
+
+    for (final node in nodes) {
+      visit(node, const []);
     }
-    if (replacements.isEmpty) return roots;
-    return [
-      for (final r in roots)
-        if (replacements.containsKey(r.id))
-          replacements[r.id]!
-        else if (!groupedIds.contains(r.id))
-          r,
-    ];
+    return matches;
   }
+
+  String _switchSignature(
+    String? topicId,
+    String? label,
+    String mode, {
+    required bool archive,
+    required bool retainPinned,
+  }) =>
+      '$mode:$archive:$retainPinned:${topicId ?? ''}:${label?.trim().toLowerCase() ?? ''}';
 }

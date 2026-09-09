@@ -31,9 +31,15 @@ class _FakeChatProvider extends ChatProvider {
 
   final List<ChatMessage> _initialMessages;
   final List<Map<String, dynamic>> createdConversations = [];
+  String? loadedConversationId;
 
   @override
   List<ChatMessage> get messages => _initialMessages;
+
+  @override
+  Future<void> loadConversation(String conversationId) async {
+    loadedConversationId = conversationId;
+  }
 
   @override
   Future<Conversation?> createConversation({
@@ -63,21 +69,35 @@ class _FakeChatProvider extends ChatProvider {
 }
 
 class _FakeTopicService extends TopicService {
-  _FakeTopicService(this.topics) : super.forTesting();
+  _FakeTopicService(
+    this.topics, {
+    this.archives = const [],
+    this.archivePage,
+  }) : super.forTesting();
   final List<TopicNode> topics;
+  final List<TopicArchive> archives;
+  final TopicArchivePage? archivePage;
 
   @override
   Future<List<TopicNode>> listTopics(TopicOrigin mode) async => topics;
 
   @override
-  Future<void> activateTopic(
-    String conversationId, {
-    String? topicId,
-    String? label,
-  }) async {}
+  Future<List<TopicArchive>> listArchives(String topicId) async => archives;
 
   @override
-  Future<void> prepare(String topicId) async {}
+  Future<TopicArchivePage> getArchivePage(
+    String topicId,
+    String archiveId, {
+    String? before,
+    int limit = 100,
+  }) async => archivePage!;
+
+  TopicNode? _topicById(String? id) {
+    for (final topic in topics) {
+      if (topic.id == id) return topic;
+    }
+    return null;
+  }
 
   @override
   Future<TopicSwitchResponse> switchTopic(
@@ -85,24 +105,52 @@ class _FakeTopicService extends TopicService {
     String? topicId,
     String? label,
     bool archive = true,
-    int carryoverMaxItems = 5,
-    int carryoverMaxTokens = 400,
+    bool retainPinned = true,
+    required String idempotencyKey,
     String mode = 'switch',
-  }) async =>
-      TopicSwitchResponse(
+  }) async {
+    if ((topicId == null) == (label == null)) {
+      throw StateError('exactly one topic target is required');
+    }
+    final selected = _topicById(topicId);
+    return TopicSwitchResponse(
         conversationId: conversationId,
         contextVersion: 2,
+        sessionEpoch: 1,
         archived: archive,
-        carryover: const [],
+        retainedItems: const [],
+        contextStatus: TopicContextStatus.preparing,
+        idempotencyKey: idempotencyKey,
+        topic: TopicSwitchTopic(
+          id: topicId ?? 'created-topic',
+          label: label ?? selected?.label ?? topicId ?? 'Created topic',
+          parentId: selected?.parentId,
+          parentLabel: selected?.parentLabel,
+          description: selected?.description,
+          pinned: true,
+        ),
       );
+  }
 }
 
 class _FakeActiveContextService extends ActiveContextService {
   _FakeActiveContextService(this.activeContext) : super.forTesting();
   final ActiveContext activeContext;
+  String? addedSourceId;
 
   @override
   Future<ActiveContext> getContext(String conversationId) async => activeContext;
+
+  @override
+  Future<int> addSource(
+    String conversationId, {
+    required String sourceType,
+    required String sourceId,
+    required int contextVersion,
+  }) async {
+    addedSourceId = sourceId;
+    return contextVersion + 1;
+  }
 }
 
 Widget _wrapWithApp(
@@ -210,6 +258,52 @@ void main() {
     expect(find.text('Web Development'), findsOneWidget);
   });
 
+  testWidgets('TopicLanding search shows a matching descendant parent path', (tester) async {
+    const matchingLeaf = TopicNode(
+      id: 'contributions',
+      parentId: 'retirement',
+      label: 'Contribution limits',
+      origin: TopicOrigin.personal,
+    );
+    const parent = TopicNode(
+      id: 'retirement',
+      parentId: 'finance',
+      label: 'Retirement',
+      origin: TopicOrigin.personal,
+      children: [matchingLeaf],
+    );
+    const root = TopicNode(
+      id: 'finance',
+      label: 'Finance',
+      origin: TopicOrigin.personal,
+      children: [parent],
+    );
+    final provider = TopicDiscoveryProvider(
+      service: _FakeTopicService([root]),
+    );
+    await provider.load();
+
+    await tester.pumpWidget(
+      _wrapWithApp(
+        TopicLanding(conversationId: 'c1', onStarterSelected: (_) {}),
+        topicProvider: provider,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const ValueKey('topic_search_input')),
+      'contribution',
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('subtopic_marker_contributions')),
+      findsOneWidget,
+    );
+    expect(find.text('Subtopic in Finance › Retirement'), findsOneWidget);
+  });
+
   testWidgets('TopicLanding directly activates topic without switch dialog when no topic was selected', (tester) async {
     final t1 = const TopicNode(id: '1', label: 'Machine Learning', origin: TopicOrigin.personal);
     final service = _FakeTopicService([t1]);
@@ -237,6 +331,56 @@ void main() {
     expect(provider.selectedTopic?.label, 'Machine Learning');
   });
 
+  testWidgets('parent topic can start directly and exposes a separate subtopic browser', (
+    tester,
+  ) async {
+    const children = [
+      TopicNode(
+        id: 'stories',
+        parentId: 'family',
+        label: 'Fun Stories for Clara',
+        origin: TopicOrigin.personal,
+      ),
+      TopicNode(
+        id: 'school',
+        parentId: 'family',
+        label: 'Clara School',
+        origin: TopicOrigin.personal,
+      ),
+    ];
+    const family = TopicNode(
+      id: 'family',
+      label: 'Family & Clara',
+      origin: TopicOrigin.personal,
+      children: children,
+    );
+    final provider = TopicDiscoveryProvider(
+      service: _FakeTopicService([family]),
+    );
+    await provider.load();
+
+    await tester.pumpWidget(
+      _wrapWithApp(
+        TopicLanding(conversationId: 'primary', onStarterSelected: (_) {}),
+        topicProvider: provider,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Family & Clara'));
+    await tester.pumpAndSettle();
+    expect(provider.selectedTopic?.id, family.id);
+
+    provider.startNewTopic();
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('browse_subtopics_family')));
+    await tester.pumpAndSettle();
+    expect(provider.selectedTopic, isNull);
+    expect(provider.path.map((topic) => topic.id), [family.id]);
+    expect(find.text('Fun Stories for Clara'), findsOneWidget);
+    expect(find.text('Clara School'), findsOneWidget);
+  });
+
   testWidgets('ActiveContextPanel displays evidence provenance chip', (tester) async {
     final item = ActiveContextItem(
       id: 'item-1',
@@ -246,6 +390,10 @@ void main() {
       reason: 'Explicit user statement in turn',
       title: 'Database selection',
       preview: 'PostgreSQL database',
+      sourceExcerpt: 'We selected PostgreSQL for the application database.',
+      sourceLabel: 'Architecture chat',
+      sourceCreatedAt: DateTime(2026, 9, 5),
+      sourceConversationId: 'source-chat',
     );
     final activeContext = ActiveContext(
       conversationId: 'c1',
@@ -258,6 +406,7 @@ void main() {
     );
     final service = _FakeActiveContextService(activeContext);
     final provider = ActiveContextProvider(service: service);
+    final chatProvider = _FakeChatProvider();
 
     await tester.pumpWidget(
       _wrapWithApp(
@@ -266,6 +415,7 @@ void main() {
           onRedirect: () {},
         ),
         contextProvider: provider,
+        chatProvider: chatProvider,
       ),
     );
     await tester.pumpAndSettle();
@@ -277,10 +427,60 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const ValueKey('context_item_provenance_item-1')), findsOneWidget);
-    expect(find.textContaining('Source: message #msg-1234'), findsOneWidget);
+    expect(
+      find.text('“We selected PostgreSQL for the application database.”'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Source: Architecture chat'), findsOneWidget);
+    expect(find.text('Open source'), findsOneWidget);
+
+    await tester.tap(find.text('Open source'));
+    await tester.pumpAndSettle();
+    expect(chatProvider.loadedConversationId, 'source-chat');
   });
 
-  testWidgets('TopicSwitchConfirmationDialog renders carryover option and confirm button', (tester) async {
+  testWidgets('ActiveContextPanel adds a recent message through a source picker', (tester) async {
+    final activeContext = ActiveContext(
+      conversationId: 'c1',
+      version: 4,
+      readiness: ActiveContextReadiness.ready,
+      items: const [],
+    );
+    final service = _FakeActiveContextService(activeContext);
+    final provider = ActiveContextProvider(service: service);
+    final chatProvider = _FakeChatProvider(
+      messages: [
+        ChatMessage(
+          id: 'message-to-pin',
+          role: 'user',
+          content: 'Keep the deployment in the Virginia region.',
+          createdAt: DateTime(2026, 9, 5),
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      _wrapWithApp(
+        ActiveContextPanel(conversationId: 'c1', onRedirect: () {}),
+        contextProvider: provider,
+        chatProvider: chatProvider,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('context_add_source')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Choose a recent message'), findsOneWidget);
+    expect(find.byKey(const ValueKey('context_source_message-to-pin')), findsOneWidget);
+    expect(find.byType(TextField), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('context_source_message-to-pin')));
+    await tester.pumpAndSettle();
+    expect(service.addedSourceId, 'message-to-pin');
+  });
+
+  testWidgets('TopicSwitchConfirmationDialog renders pinned-source retention option and confirm button', (tester) async {
     final targetTopic = TopicNode(
       id: 'target-topic',
       label: 'Target Project',
@@ -300,7 +500,7 @@ void main() {
 
     expect(find.byKey(const ValueKey('topic_switch_dialog')), findsOneWidget);
     expect(find.text('Target Project'), findsOneWidget);
-    expect(find.byKey(const ValueKey('topic_switch_carryover_checkbox')), findsOneWidget);
+    expect(find.byKey(const ValueKey('topic_switch_retain_pinned_checkbox')), findsOneWidget);
     expect(find.byKey(const ValueKey('topic_switch_confirm_button')), findsOneWidget);
     expect(find.byKey(const ValueKey('topic_switch_combine_button')), findsOneWidget);
     expect(find.byKey(const ValueKey('topic_switch_cancel_button')), findsOneWidget);
@@ -341,10 +541,10 @@ void main() {
       items: [
         ActiveContextItem(
           id: 'item-c1',
-          sourceType: 'carryover',
-          sourceId: 'msg-prev',
-          state: ActiveContextItemState.dynamic,
-          reason: 'carryover decision',
+          sourceType: 'topic_assertion',
+          sourceId: 'assertion-1',
+          state: ActiveContextItemState.pinned,
+          reason: 'Pinned by you',
           preview: 'Using PostgreSQL with pgvector',
         ),
       ],
@@ -383,7 +583,7 @@ void main() {
     expect(find.text('Machine Learning'), findsOneWidget);
     expect(find.byKey(const ValueKey('topic_empty_state_context_card')), findsOneWidget);
     expect(find.text('STRUCTURED ACTIVE CONTEXT'), findsOneWidget);
-    expect(find.text('1 carried over'), findsOneWidget);
+    expect(find.text('1 pinned'), findsOneWidget);
     expect(find.text('Using PostgreSQL with pgvector'), findsOneWidget);
     expect(find.byKey(const ValueKey('topic_starter_chip_0')), findsOneWidget);
 
@@ -480,7 +680,92 @@ void main() {
     expect(redirected, isTrue);
   });
 
-  testWidgets('ActiveContextPanel renders animated multi-stage preparing banner when readiness is preparing', (tester) async {
+  testWidgets('ActiveContextPanel opens a read-only archived topic session', (tester) async {
+    final archive = TopicArchive(
+      id: 'archive-1',
+      topicId: 'topic-active',
+      fromTopicId: 'topic-active',
+      conversationId: 'c1',
+      messageCount: 2,
+      createdAt: DateTime(2026, 9, 7, 14, 30),
+    );
+    final archivePage = TopicArchivePage(
+      archive: archive,
+      topicLabel: 'Deep Learning',
+      sessionEpoch: 3,
+      hasMore: false,
+      messages: [
+        ChatMessage(
+          id: 'old-user',
+          role: 'user',
+          content: 'Explain the previous deployment decision.',
+          createdAt: DateTime(2026, 9, 7, 14, 30),
+        ),
+        ChatMessage(
+          id: 'old-assistant',
+          role: 'assistant',
+          content: 'The earlier session selected the Virginia region.',
+          createdAt: DateTime(2026, 9, 7, 14, 31),
+        ),
+      ],
+    );
+    final activeContext = ActiveContext(
+      conversationId: 'c1',
+      version: 4,
+      readiness: ActiveContextReadiness.ready,
+      topic: const TopicNode(
+        id: 'topic-active',
+        label: 'Deep Learning',
+        origin: TopicOrigin.personal,
+      ),
+      items: const [],
+    );
+    final contextProvider = ActiveContextProvider(
+      service: _FakeActiveContextService(activeContext),
+    );
+    final topicProvider = TopicDiscoveryProvider(
+      service: _FakeTopicService(
+        const [],
+        archives: [archive],
+        archivePage: archivePage,
+      ),
+    );
+
+    await tester.pumpWidget(
+      _wrapWithApp(
+        SizedBox(
+          width: 304,
+          child: ActiveContextPanel(
+            conversationId: 'c1',
+            onRedirect: () {},
+          ),
+        ),
+        contextProvider: contextProvider,
+        topicProvider: topicProvider,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('context_view_archives')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('topic_archives_dialog')), findsOneWidget);
+    expect(find.textContaining('2 messages'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('topic_archive_archive-1')));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('topic_archive_messages_dialog')),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Read-only history'), findsOneWidget);
+    expect(find.text('Explain the previous deployment decision.'), findsOneWidget);
+    expect(
+      find.text('The earlier session selected the Virginia region.'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('ActiveContextPanel explains background preparation without a fake ETA', (tester) async {
     final activeNode = TopicNode(
       id: 'topic-nlp',
       label: 'Natural Language Processing',
@@ -512,15 +797,19 @@ void main() {
         topicProvider: topicProvider,
       ),
     );
-    await tester.pump();
+    await tester.pumpAndSettle();
 
-    expect(find.text('Preparing the best context'), findsOneWidget);
-    expect(find.textContaining('<10s'), findsOneWidget);
-    expect(find.text('Scanning topic assertions & evidence...'), findsOneWidget);
-    expect(find.byType(LinearProgressIndicator), findsNWidgets(2));
+    expect(
+      find.text(
+        'Context is updating in the background. Current valid sources remain available.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.textContaining('<10s'), findsNothing);
+    expect(find.byType(LinearProgressIndicator), findsOneWidget);
   });
 
-  testWidgets('TopicLanding onStart creates dedicated thread with activeTopicId when ChatProvider is present', (tester) async {
+  testWidgets('TopicLanding keeps the primary conversation and uses the switch contract', (tester) async {
     final t1 = const TopicNode(id: 'topic-1', label: 'Machine Learning', origin: TopicOrigin.personal);
     final service = _FakeTopicService([t1]);
     final provider = TopicDiscoveryProvider(service: service);
@@ -547,10 +836,7 @@ void main() {
     expect(find.byKey(const ValueKey('topic_switch_dialog')), findsNothing);
     // Verify topic selected
     expect(provider.selectedTopic?.id, 'topic-1');
-    // Verify thread creation was triggered with activeTopicId and topic label
-    expect(fakeChat.createdConversations, hasLength(1));
-    expect(fakeChat.createdConversations.first['title'], 'Machine Learning');
-    expect(fakeChat.createdConversations.first['activeTopicId'], 'topic-1');
+    expect(fakeChat.createdConversations, isEmpty);
   });
 
   test('TopicGreetingData.tryParse extracts fields correctly from seeded greeting', () {
@@ -709,6 +995,14 @@ How can I help you with **Retirement planning** today?
     expect(find.text('Home Renovation'), findsOneWidget);
     expect(find.text('Continue with Home Renovation'), findsOneWidget);
     expect(find.text('What should I do next about Home Renovation?'), findsOneWidget);
+    expect(find.text('AVAILABLE TOPIC CONTEXT'), findsOneWidget);
+    expect(
+      find.text(
+        'No established context is available for this topic yet. New decisions and preferences will appear here as you chat.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Clean session started'), findsNothing);
 
     await tester.tap(find.text('Continue with Home Renovation'));
     expect(sentPrompt, 'Continue with Home Renovation');

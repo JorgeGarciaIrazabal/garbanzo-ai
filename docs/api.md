@@ -9,7 +9,7 @@ when you add or change an endpoint, update the matching row in the same commit.
 | **Auth** | `POST /auth/login`, `POST /auth/register` (disabled, 403), `POST /auth/refresh`, `GET /auth/me`, `PATCH /auth/me` (profile incl. `timezone`/`locale`/`location`), `POST /auth/me/location` (coords → reverse-geocoded city, coords never stored), `POST /auth/me/password`, `POST /auth/me/avatar`, `DELETE /auth/me/avatar` |
 | **Admin** | `POST /admin/users`, `GET /admin/users`, `PATCH /admin/users/{email}`, `GET /admin/mcp-servers`, `POST /admin/mcp-servers`, `PATCH /admin/mcp-servers/{id}`, `DELETE /admin/mcp-servers/{id}`, `POST /admin/mcp-servers/{id}/test-connection`, `GET /admin/models`, `POST /admin/models/sync`, `PATCH /admin/models` |
 | **Chat** | `GET/POST /chat/conversations`, `POST /chat/conversations/primary` (idempotently ensure the user's unified primary conversation), `GET /chat/conversations/search`, `GET /chat/conversations/{id}` (optional `message_limit` — most-recent-N window instead of full history, B-03), `GET /chat/conversations/{id}/messages?before=&limit=` (page in older messages), `PATCH /chat/conversations/{id}`, `PATCH /chat/conversations/{id}/mute`, `POST /chat/conversations/{id}/client-tool-result` (desktop client returns an on-demand folder read — idea 17; body `{tool_call_id, ok, filename?, data?(base64), entries?, error?}`), `DELETE /chat/conversations/{id}`, `POST /chat/conversations/{id}/chat` (SSE stream whose detached producer finishes if the client disconnects; `has_client_folder` advertises client-served read tools; optional `talk_mode_instruction` adds localized ephemeral system context for that turn; images sent to a known text-only model return `error_type=unsupported_image_input`; primary turns may begin with `topic_update`, `context_preparing`, and `context_update` metadata-only events), `POST /chat/conversations/{id}/messages/{mid}/regenerate` (detached SSE), `POST /chat/conversations/{id}/messages/{mid}/edit` (detached SSE), `POST /chat/conversations/{id}/messages/{mid}/branch`, `DELETE /chat/conversations/{id}/chat` (cancel stream), `GET /chat/models` (includes provider-reported `thinking_levels` and `default_thinking_level` when known), `GET /chat/health/llm` |
-| **Topics & Context** | `GET /chat/topics?mode=personal|explore`, `POST /chat/conversations/{id}/topics/activate`, `POST /chat/conversations/{id}/topics/switch` (switch primary topic, archive old thread, clear messages, rebuild context, seed carryover), `PATCH /chat/conversations/{id}/topic` (select/clear/pin the primary topic), `GET /chat/topics/{topic_id}/context-status`, `POST /chat/topics/{topic_id}/prepare`, `GET /chat/conversations/{id}/context`, `POST /chat/conversations/{id}/context/items`, `PATCH /chat/conversations/{id}/context/items/{item_id}`, `POST /chat/conversations/{id}/context/fresh-start`, `GET /chat/topics/{topic_id}/archives` (list archived primary threads attached to a topic) |
+| **Topics & Context** | `GET /chat/topics?mode=personal|explore`, `POST /chat/conversations/{id}/topics/switch` (the sole topic-change/combine operation), `PATCH /chat/conversations/{id}/topic` (pin/unpin the active primary topic with `context_version`), `GET /chat/topics/{topic_id}/context-status`, `GET /chat/conversations/{id}/context`, `POST /chat/conversations/{id}/context/items`, `PATCH /chat/conversations/{id}/context/items/{item_id}`, `POST /chat/conversations/{id}/context/fresh-start`, `GET /chat/topics/{topic_id}/archives` (list preserved primary-chat session epochs), `GET /chat/topics/{topic_id}/archives/{archive_id}` (read a bounded message page from one owned epoch) |
 | **System Prompts** | `GET /system-prompts/templates` (optional `?locale=` query — filters builtins to the requested language when one is seeded for it; user-saved templates always surface), `POST /system-prompts/templates`, `PATCH /system-prompts/templates/{id}`, `DELETE /system-prompts/templates/{id}`, `GET /system-prompts/user-default`, `PUT /system-prompts/user-default`, `POST /system-prompts/generate` (SSE stream) |
 | **STT** | `POST /stt/transcribe` (optional `language` form field — ISO code or `"auto"`/omitted for per-clip detection, idea 13), `GET /stt/health` |
 | **TTS** | `POST /tts/speak`, `POST /tts/speak/stream` (text is limited to 5,000 characters per request; both take optional `language` — ISO code; swaps in that language's default voice when `voice` doesn't speak it, idea 13), `GET /tts/voices` (each voice carries `language` + ISO `lang_code`; en/es/fr/hi/it/pt), `GET /tts/health` |
@@ -37,7 +37,7 @@ when you add or change an endpoint, update the matching row in the same commit.
 Primary SSE may prefix 3 metadata-only events (`schema_version:1`) before first token:
 `topic_update` (`context_version`, `topic{id,label,parent_id,parent_label,description,pinned}`, `reason`),
 `context_preparing` (`context_version`, `state:preparing`, topic),
-`context_update` (counts, budget, `pack{id,version,watermark}|null`, `freshness:ready|live|preparing`); `done` includes `context_snapshot`. `GET /chat/conversations/{id}/context` returns high-level synthesized `topic_description`, `context_summary`, and declarative `context_sections` ("Topic Scope & Purpose", "Information Included in Context") rather than raw message transcripts or provenance IDs. Compiler overlays valid pack + live assertions + pins + recent evidence, filters ownership/deletion/validity/exclusion, falls back to bounded raw evidence if stale — never blocks answer. No DeepSeek curator provider in this release.
+`context_update` (counts, budget, `pack{id,version,watermark}|null`, `freshness:ready|live|preparing`); `done` includes `context_snapshot`. `GET /chat/conversations/{id}/context` returns high-level synthesized `topic_description`, `context_summary`, and declarative `context_sections` ("Topic Scope & Purpose", "Information Included in Context") rather than raw message transcripts or provenance IDs. A topic switch materializes the compiler's bounded, query-independent baseline first, so this endpoint has real eligible sources and token counts before the first new turn. The compiler renders the validated curated pack, newer grounded assertions, and explicit pins after ownership/deletion/validity/exclusion checks. Hierarchy is context-bearing: selecting a parent considers descendant assertions, while selecting a child considers its ancestor assertions. It uses bounded raw topic evidence only while no eligible curated assertion exists, and marks that state as `preparing`; raw transcripts are not mixed into prepared topic context. No DeepSeek curator provider in this release.
 
 **MCP server scoping.** `mcp_servers.owner_email` splits servers into *global*
 (NULL owner, admin-managed) and *personal* (owner = a user). `admin/mcp-servers`
@@ -51,29 +51,38 @@ caller's personal tools; rooms get global-only.
 
 `POST /chat/conversations/{id}/topics/switch` is the single entry point for
 changing the active topic in the primary conversation. It performs these
-steps atomically:
+steps in one transaction:
 
-1. **Archive** — If `archive: true` (default), snapshots the entire current
-   primary message history into a `topic_archives` row attached to the *old*
-   topic so a future "enhance this topic" pass can re-derive evidence without
-   the live primary conversation.
-2. **Clear** — Deletes all messages from the primary conversation and
-   clears all active-context items (pins + dynamic) for that conversation.
-   Each message deletion is enqueued as a `delete` ingestion event so the
-   topic pipeline invalidates prior evidence.
-3. **Activate** — Creates or attaches the new topic (same semantics as
-   `activate` endpoint), bumps `context_version`, and pins the new topic.
-4. **Carryover** — If `carryover.enabled: true` (default), runs a bounded
-   LLM call (`carryover_max_items`, `carryover_max_tokens`) against the just-
-   archived messages to extract the most important facts/decisions/preferences.
-   Output is validated against a strict schema; on any failure a deterministic
-   fallback uses the most recent user messages. Carryover items are written
-   as `ActiveContextItem` rows with `source_type = "carryover"` so the UI
-   renders them as a dedicated "Carryover" branch in the context tree.
-5. **Prepare** — Kicks off an async pack build for the new topic (does not
-   block the response). The next user turn will receive fresh `topic_update`,
-   `context_update`, and `context_snapshot` SSE events.
+1. **Serialize and replay** — The server locks the primary conversation and
+   records the response under the required `idempotency_key`. Repeating the
+   same request returns that response; reusing the key for another target is
+   a `409 idempotency_key_reused`.
+2. **Index the old session** — If `archive: true` (default), a small
+   `topic_archives` row records the old topic and `session_epoch`. Original
+   message rows remain the authoritative history.
+3. **Advance** — The session epoch and context version advance once. Dynamic
+   context items are cleared. With `retain_pinned: true` (default), explicitly
+   pinned source references remain; otherwise they are cleared too.
+4. **Activate** — The owned topic is attached, or the supplied label creates
+   one. The topic is marked dirty for the durable consolidation worker; the
+   request does not await curator/model work.
 
-Response returns the new topic, `context_version`, `archived` boolean,
-`archive_id` (if created), the `carryover` items, and a `next_turn_summary`.
+The request must provide exactly one of `topic_id` or `label`. `mode: "combine"`
+adds a relation without advancing the epoch. The response returns the
+authoritative topic, `context_version`, `session_epoch`, `context_status`,
+`retained_items`, archive metadata, and the echoed `idempotency_key`.
 If the conversation is not primary or the topic is not owned, returns 409/404.
+
+`GET /chat/topics/{topic_id}/archives/{archive_id}` reopens preserved history
+without changing the current topic or epoch. It returns the latest `limit`
+messages in chronological order (`1..200`, default 100); pass the oldest returned
+message ID as `before` to page backward. The archive, topic, conversation, and
+cursor must all belong to the authenticated user and the archived epoch.
+
+`GET /chat/conversations/{id}/context` resolves each selected source from its
+owned authoritative row and includes a bounded `source_excerpt`, source label
+and date, and `source_conversation_id` when the source can be reopened. The add
+source UI selects a recent message and sends its ID; IDs are not exposed as a
+manual user input. The summary, sections, excerpts, and token count use the same
+eligibility policy as prompt compilation; invalid or privacy-deleted rows are
+scrubbed instead of being rendered from client-supplied metadata.
