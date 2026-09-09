@@ -210,11 +210,11 @@ be-format:
 
 # Run all backend tests, or pass pytest paths/options for a focused run
 be-test *args:
-    cd backend; uv run pytest {{args}}
+    cd backend; uv run --extra dev pytest {{args}}
 
 # Run backend tests with coverage; accepts optional pytest paths/options
 be-test-cov *args:
-    cd backend; uv run pytest --cov=app --cov-report=xml --cov-report=term-missing {{args}}
+    cd backend; uv run --extra dev pytest --cov=app --cov-report=xml --cov-report=term-missing {{args}}
 
 # ============================================================================
 # Frontend Commands (Flutter)
