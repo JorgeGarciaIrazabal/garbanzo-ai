@@ -676,17 +676,20 @@ async def test_compiler_revokes_memory_knowledge_and_deleted_thread_before_next_
     assert knowledge.content not in deleted_knowledge.block
 
 
-async def test_default_local_only_consolidation_never_resolves_an_llm_provider(
+async def test_explicit_local_only_consolidation_never_resolves_an_llm_provider(
     db_session: AsyncSession,
     monkeypatch: pytest.MonkeyPatch,
 ):
-    """Default topic curation is deterministic and cannot transfer evidence to cloud."""
+    """Local-only topic curation is deterministic and cannot transfer evidence to cloud."""
     settings = Settings(
         secret_key="test-secret-key-do-not-use-in-prod",
         database_url="sqlite+aiosqlite:///:memory:",
+        topic_context_privacy_mode="local_only",
+        topic_curator_model="",
     )
     assert settings.topic_context_privacy_mode == "local_only"
     assert settings.topic_curator_model == ""
+    monkeypatch.setattr("app.topics.topic_semantic_curator.get_settings", lambda: settings)
 
     def provider_access_forbidden(*_args, **_kwargs):
         raise AssertionError("local-only consolidation attempted to resolve an LLM provider")
