@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -8,6 +10,7 @@ import 'package:garbanzo_ai/features/chat/models/chat_message.dart';
 import 'package:garbanzo_ai/features/chat/models/conversation.dart';
 import 'package:garbanzo_ai/features/chat/models/thinking_level.dart';
 import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
+import 'package:garbanzo_ai/features/chat/widgets/chat_page.dart';
 import 'package:garbanzo_ai/features/chat/widgets/chat_message_widget.dart';
 import 'package:garbanzo_ai/features/chat/widgets/topic_banner.dart';
 import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
@@ -27,14 +30,23 @@ import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class _FakeChatProvider extends ChatProvider {
-  _FakeChatProvider({List<ChatMessage> messages = const []}) : _initialMessages = messages;
+  _FakeChatProvider({
+    List<ChatMessage> messages = const [],
+    Conversation? conversation,
+  }) : _initialMessages = messages,
+       _conversation = conversation;
 
   final List<ChatMessage> _initialMessages;
+  final Conversation? _conversation;
   final List<Map<String, dynamic>> createdConversations = [];
+  final List<Map<String, dynamic>> sentMessages = [];
   String? loadedConversationId;
 
   @override
   List<ChatMessage> get messages => _initialMessages;
+
+  @override
+  Conversation? get currentConversation => _conversation;
 
   @override
   Future<void> loadConversation(String conversationId) async {
@@ -55,6 +67,7 @@ class _FakeChatProvider extends ChatProvider {
       'title': title,
       'model': model,
       'initialMessage': initialMessage,
+      'initialAttachments': initialAttachments,
       'activeTopicId': activeTopicId,
     });
     return Conversation(
@@ -65,6 +78,15 @@ class _FakeChatProvider extends ChatProvider {
       updatedAt: DateTime.now(),
       activeTopicId: activeTopicId,
     );
+  }
+
+  @override
+  Future<void> sendMessage(
+    String content, {
+    List<ChatAttachment> attachments = const [],
+    String? talkModeInstruction,
+  }) async {
+    sentMessages.add({'message': content, 'attachments': attachments});
   }
 }
 
@@ -182,6 +204,66 @@ Widget _wrapWithApp(
 void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({});
+  });
+
+  test('unselected Topics landing composer starts a regular thread', () async {
+    final topics = TopicDiscoveryProvider(service: _FakeTopicService(const []));
+    final chat = _FakeChatProvider(
+      conversation: Conversation(
+        id: 'primary',
+        model: 'kimi-k3',
+        isPrimary: true,
+        createdAt: DateTime(2026),
+        updatedAt: DateTime(2026),
+      ),
+    );
+    final attachment = ChatAttachment(
+      name: 'photo.png',
+      mimeType: 'image/png',
+      type: AttachmentType.image,
+      bytes: Uint8List.fromList([1, 2, 3]),
+    );
+
+    await submitChatComposerMessage(
+      chatProvider: chat,
+      topicDiscovery: topics,
+      message: '',
+      attachments: [attachment],
+    );
+
+    expect(chat.createdConversations, hasLength(1));
+    expect(chat.createdConversations.single['activeTopicId'], isNull);
+    expect(chat.createdConversations.single['initialAttachments'], [attachment]);
+    expect(chat.sentMessages, isEmpty);
+  });
+
+  test('selected topic composer stays in the primary conversation', () async {
+    const selected = TopicNode(
+      id: 'topic-1',
+      label: 'Selected topic',
+      origin: TopicOrigin.personal,
+    );
+    final topics = TopicDiscoveryProvider(service: _FakeTopicService(const []))
+      ..setSelectedTopic(selected);
+    final chat = _FakeChatProvider(
+      conversation: Conversation(
+        id: 'primary',
+        model: 'kimi-k3',
+        isPrimary: true,
+        createdAt: DateTime(2026),
+        updatedAt: DateTime(2026),
+      ),
+    );
+
+    await submitChatComposerMessage(
+      chatProvider: chat,
+      topicDiscovery: topics,
+      message: 'Evaluate this',
+      attachments: const [],
+    );
+
+    expect(chat.createdConversations, isEmpty);
+    expect(chat.sentMessages.single['message'], 'Evaluate this');
   });
 
   testWidgets('TopicBanner renders active topic and topic drift chip with dismiss action', (tester) async {

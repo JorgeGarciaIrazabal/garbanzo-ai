@@ -10,6 +10,8 @@ Separate threads remain available for conversations that should stay isolated.
 Open the Topics view and select a personal topic, or activate one from Explore.
 The primary chat opens on this topic map by default and stays there while its
 saved active-topic state loads. It opens a topic only after you select one.
+If you send from the map without selecting a topic, Garbanzo starts a separate
+regular thread so that message does not create or rename a primary-chat topic.
 Larger topics are currently
 more likely to be useful, while the varied positions make choices easy to scan
 without implying a rigid list. A broad parent and a visible subtopic are both

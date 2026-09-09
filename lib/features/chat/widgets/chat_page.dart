@@ -14,6 +14,7 @@ import 'package:garbanzo_ai/core/responsive.dart';
 import 'package:garbanzo_ai/features/microapps/widgets/micro_app_panel.dart';
 import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
 import 'package:garbanzo_ai/features/settings/widgets/settings_drawer.dart';
+import 'package:garbanzo_ai/features/chat/models/chat_attachment.dart';
 import 'package:garbanzo_ai/features/chat/models/chat_message.dart';
 import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/model_provider.dart';
@@ -40,6 +41,27 @@ import 'package:garbanzo_ai/features/chat/widgets/vision_model_warning_dialog.da
 import 'package:garbanzo_ai/features/rooms/providers/room_provider.dart';
 import 'package:garbanzo_ai/features/rooms/widgets/room_chat_view.dart';
 import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
+
+@visibleForTesting
+Future<void> submitChatComposerMessage({
+  required ChatProvider chatProvider,
+  required TopicDiscoveryProvider topicDiscovery,
+  required String message,
+  required List<ChatAttachment> attachments,
+}) async {
+  final startsRegularThread =
+      chatProvider.currentConversation?.isPrimary == true &&
+      topicDiscovery.showLanding &&
+      topicDiscovery.selectedTopic == null;
+  if (startsRegularThread) {
+    await chatProvider.createConversation(
+      initialMessage: message,
+      initialAttachments: attachments,
+    );
+    return;
+  }
+  await chatProvider.sendMessage(message, attachments: attachments);
+}
 
 /// Main chat page with conversation sidebar and message area.
 ///
@@ -770,8 +792,11 @@ class _ChatPageContentState extends State<_ChatPageContent>
                                         );
                                         provider.clearPendingAttachments();
                                       }
-                                      await provider.sendMessage(
-                                        message,
+                                      await submitChatComposerMessage(
+                                        chatProvider: provider,
+                                        topicDiscovery: context
+                                            .read<TopicDiscoveryProvider>(),
+                                        message: message,
                                         attachments: merged,
                                       );
                                     },

@@ -390,7 +390,10 @@ epoch before listeners refresh active context. Late chunks and reloads from the
 old action are ignored. `ActiveContextProvider.resetFromServer()` replaces the
 local context snapshot; retained pins are returned as `retained_items`. The
 active-context panel lists earlier sessions for the topic and opens their paged
-messages in a localized read-only dialog.
+messages in a localized read-only dialog. Submitting from the Topics landing
+without a selected topic creates a regular thread and carries the complete first
+turn, including attachment-only turns; selecting a topic keeps submission in the
+primary conversation.
 
 All active-context mutations and topic pin changes lock the same primary
 conversation row and require its current `context_version`. This serializes them

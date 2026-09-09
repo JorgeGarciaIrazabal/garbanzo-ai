@@ -58,11 +58,38 @@ class _FakeChatService extends ChatService {
   final List<({String conversationId, String messageId})> branchCalls = [];
   final List<({String conversationId, bool? isPinned, String? model})>
   updateCalls = [];
+  final List<
+    ({
+      String conversationId,
+      String message,
+      List<ChatAttachment> attachments,
+    })
+  >
+  streamChatRequests = [];
   int streamChatCalls = 0;
 
   /// When set, the corresponding call throws instead of succeeding.
   Exception? streamChatError;
   Exception? branchError;
+
+  @override
+  Future<Conversation> createConversation({
+    String? title,
+    String model = 'llama3.2',
+    String? initialMessage,
+    String? systemPrompt,
+    ThinkingLevel? thinkingLevel,
+    String? activeTopicId,
+  }) async {
+    final created = _conversation(
+      'conv-created',
+      model: model,
+      systemPrompt: systemPrompt,
+      thinkingLevel: thinkingLevel,
+    ).copyWith(title: title, activeTopicId: activeTopicId);
+    conversationsById[created.id] = created;
+    return created;
+  }
 
   @override
   Future<ConversationList> listConversations({
@@ -131,6 +158,11 @@ class _FakeChatService extends ChatService {
     String? talkModeInstruction,
   }) {
     streamChatCalls++;
+    streamChatRequests.add((
+      conversationId: conversationId,
+      message: message,
+      attachments: attachments,
+    ));
     if (streamChatError != null) throw streamChatError!;
     return controller.stream;
   }
@@ -476,6 +508,38 @@ void main() {
   });
 
   group('sendMessage', () {
+    test('new conversation sends an attachment-only initial turn', () async {
+      final service = _FakeChatService();
+      final provider = ChatProvider(
+        selectedModelId: 'llama3.2',
+        chatService: service,
+      );
+      var primaryLandingClosures = 0;
+      provider.onConversationStarted = () => primaryLandingClosures++;
+      final attachment = ChatAttachment(
+        name: 'notes.txt',
+        mimeType: 'text/plain',
+        type: AttachmentType.document,
+        bytes: Uint8List.fromList([1, 2, 3]),
+      );
+
+      await provider.createConversation(
+        initialMessage: '',
+        initialAttachments: [attachment],
+      );
+
+      expect(service.streamChatRequests, hasLength(1));
+      expect(service.streamChatRequests.single.conversationId, 'conv-created');
+      expect(service.streamChatRequests.single.message, '');
+      expect(service.streamChatRequests.single.attachments, [attachment]);
+      expect(primaryLandingClosures, 0);
+
+      service.controller.add(const ChatResponseChunk(type: 'done'));
+      await service.controller.close();
+      await _pump();
+      provider.dispose();
+    });
+
     test('appends the user message optimistically and streams the reply',
         () async {
       final service = _FakeChatService();

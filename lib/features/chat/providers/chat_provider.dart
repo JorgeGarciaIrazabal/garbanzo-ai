@@ -439,8 +439,12 @@ class ChatProvider extends ChangeNotifier {
       conversationList.prepend(detailed);
       notifyListeners();
 
-      if (initialMessage != null && initialMessage.isNotEmpty) {
-        await sendMessage(initialMessage, attachments: initialAttachments);
+      if ((initialMessage?.isNotEmpty ?? false) ||
+          initialAttachments.isNotEmpty) {
+        await sendMessage(
+          initialMessage ?? '',
+          attachments: initialAttachments,
+        );
       } else {
         notifyListeners();
       }
@@ -660,7 +664,9 @@ class ChatProvider extends ChangeNotifier {
       if (_currentConversation == null) return;
     }
 
-    onConversationStarted?.call();
+    if (_currentConversation?.isPrimary == true) {
+      onConversationStarted?.call();
+    }
 
     // Guard: prevent sending while already streaming.
     if (isSending) return;
