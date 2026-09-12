@@ -49,10 +49,16 @@ Future<void> submitChatComposerMessage({
   required String message,
   required List<ChatAttachment> attachments,
 }) async {
+  // The landing map is the "no topic chosen yet" surface: every explicit
+  // selection closes it (setSelectedTopic/activate set showLanding false), so
+  // while it is visible a send starts a clean regular thread. Do not key this
+  // on `selectedTopic` — the delayed server sync (synchronizeSelectedTopic)
+  // repopulates it from the primary's persisted active topic without closing
+  // the landing, which would append the message to the primary's loaded
+  // history instead of opening an empty thread (user report 41c79409).
   final startsRegularThread =
       chatProvider.currentConversation?.isPrimary == true &&
-      topicDiscovery.showLanding &&
-      topicDiscovery.selectedTopic == null;
+      topicDiscovery.showLanding;
   if (startsRegularThread) {
     await chatProvider.createConversation(
       initialMessage: message,
@@ -970,12 +976,14 @@ class _ChatPageContentState extends State<_ChatPageContent>
       return TopicLanding(
         conversationId: conversation!.id,
         onStarterSelected: (message) async {
-          final selectedTopic = topicDiscovery.selectedTopic;
-          if (selectedTopic != null) {
-            await chatProvider.sendMessage(message);
-          } else {
-            await chatProvider.sendMessage(message);
-          }
+          // A starter prompt from the map is an unselected landing send: it
+          // must open a clean regular thread rather than continue the primary.
+          await submitChatComposerMessage(
+            chatProvider: chatProvider,
+            topicDiscovery: topicDiscovery,
+            message: message,
+            attachments: const [],
+          );
         },
       );
     }

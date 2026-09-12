@@ -266,6 +266,55 @@ void main() {
     expect(chat.sentMessages.single['message'], 'Evaluate this');
   });
 
+  test(
+    'landing send starts a clean thread even when the server has synced a selection',
+    () async {
+      // Regression for user report 41c79409: the primary's persisted active
+      // topic is pushed back into selectedTopic a frame after the landing
+      // opens (synchronizeSelectedTopic), without closing the landing. A send
+      // from the map must still open an empty regular thread — not append to
+      // the primary's already-loaded history.
+      const synced = TopicNode(
+        id: 'topic-1',
+        label: 'Previously active topic',
+        origin: TopicOrigin.history,
+      );
+      final topics = TopicDiscoveryProvider(service: _FakeTopicService(const []))
+        ..startNewTopic()
+        ..synchronizeSelectedTopic(synced);
+      final chat = _FakeChatProvider(
+        messages: [
+          ChatMessage(
+            id: 'm1',
+            role: 'user',
+            content: 'old message from the primary',
+            createdAt: DateTime(2026),
+          ),
+        ],
+        conversation: Conversation(
+          id: 'primary',
+          model: 'kimi-k3',
+          isPrimary: true,
+          activeTopicId: 'topic-1',
+          createdAt: DateTime(2026),
+          updatedAt: DateTime(2026),
+        ),
+      );
+
+      await submitChatComposerMessage(
+        chatProvider: chat,
+        topicDiscovery: topics,
+        message: 'fresh question',
+        attachments: const [],
+      );
+
+      expect(topics.showLanding, isTrue);
+      expect(chat.createdConversations, hasLength(1));
+      expect(chat.createdConversations.single['activeTopicId'], isNull);
+      expect(chat.sentMessages, isEmpty);
+    },
+  );
+
   testWidgets('TopicBanner renders active topic and topic drift chip with dismiss action', (tester) async {
     final t1 = TopicNode(
       id: 'topic-1',
