@@ -497,8 +497,8 @@ class RoomChatService:
     ) -> bool:
         """Ask a small judge model whether ``agent`` should jump in.
 
-        Uses the cheap shared model from
-        ``settings.room_auto_judge_model`` (default ``granite4:micro``) with
+        Uses the shared model from
+        ``settings.room_auto_judge_model`` (default ``deepseek-v4.1-flash:cloud``) with
         Ollama's structured-output ``format`` parameter so the response is
         always parseable JSON matching ``_AUTO_JUDGE_SCHEMA``. The agent's
         own (potentially heavyweight) model is reserved for the actual

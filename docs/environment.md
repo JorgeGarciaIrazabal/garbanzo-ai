@@ -10,9 +10,9 @@ DATABASE_URL=postgresql+asyncpg://garbanzo:garbanzo_dev@localhost:5432/garbanzo_
 
 LLM_PROVIDER=ollama
 OLLAMA_BASE_URL=http://localhost:11434   # host.docker.internal when in Docker
-DEFAULT_MODEL=glm-5.3-flash:cloud        # multimodal chats and general internal calls
-MEMORY_EXTRACTION_MODEL=glm-5.3:cloud    # daily automatic memory extraction
-SCHEDULED_ACTION_MODEL=glm-5.3:cloud     # scheduled actions without an explicit model
+DEFAULT_MODEL=deepseek-v4.1-flash:cloud        # multimodal chats and general internal calls
+MEMORY_EXTRACTION_MODEL=deepseek-v4.1-flash:cloud    # daily automatic memory extraction
+SCHEDULED_ACTION_MODEL=deepseek-v4.1-flash:cloud     # scheduled actions without an explicit model
 
 # Primary-chat topic context: realtime provisional + hourly deterministic manifest + optional 1-call/user curator (never per-topic). Threads use legacy.
 TOPIC_CONTEXT_ENABLED=true
@@ -26,11 +26,11 @@ TOPIC_REALTIME_BATCH_SIZE=100
 # Local Ollama needs a loopback URL in local_only; :cloud needs cloud_allowed
 # (filtered manifest, untrusted JSON, retry once). Changing model/prompt re-queues topics.
 TOPIC_CURATOR_PROVIDER=ollama
-TOPIC_CURATOR_MODEL=glm-5.3-flash:cloud
+TOPIC_CURATOR_MODEL=deepseek-v4.1-flash:cloud
 TOPIC_CURATOR_THINKING=medium
 TOPIC_REALTIME_MODEL=
 TOPIC_CONTEXT_PRIVACY_MODE=local_only
-# Cloud opt-in: TOPIC_CURATOR_MODEL=glm-5.3-flash:cloud + TOPIC_CONTEXT_PRIVACY_MODE=cloud_allowed
+# Cloud opt-in: TOPIC_CURATOR_MODEL=deepseek-v4.1-flash:cloud + TOPIC_CONTEXT_PRIVACY_MODE=cloud_allowed
 TOPIC_BOOTSTRAP_TIMEOUT_SECONDS=12
 
 # STT: "local" (in-process faster-whisper) or "remote" (Docker container)
@@ -87,11 +87,11 @@ GITHUB_REPO=JorgeGarciaIrazabal/garbanzo-ai  # owner/name whose Releases feed
 # "0.0.0-dev" outside a release image.
 
 # Multi-agent room auto-judge model (must be pulled in local Ollama)
-ROOM_AUTO_JUDGE_MODEL=granite4:micro
+ROOM_AUTO_JUDGE_MODEL=deepseek-v4.1-flash:cloud
 
 # Micro-apps agentic workspace (dev points at a locally-managed repo)
 MICROAPPS_REPO_PATH=/abs/path/to/micro-apps
-MICROAPPS_OPENCODE_MODEL=ollama/glm-5.3:cloud
+MICROAPPS_OPENCODE_MODEL=ollama/deepseek-v4.1-flash:cloud
 # Deployment-only (set via deploy/docker-compose.yml, not backend/.env):
 #   MICROAPPS_GIT_URL      — clone URL; also enables the periodic sync job
 #   MICROAPPS_PROXY_MODE   — serve the panel via the backend /micro-apps proxy

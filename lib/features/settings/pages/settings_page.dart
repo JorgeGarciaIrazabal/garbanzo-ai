@@ -280,7 +280,7 @@ class _SettingsPageState extends State<SettingsPage> {
             title: Text(AppLocalizations.of(context)!.titleDefaultModel),
             subtitle: Text(
               defaultModel == null || defaultModel.isEmpty
-                  ? 'Server fallback (usually llama3.2)'
+                  ? 'Server fallback (usually deepseek-v4.1-flash:cloud)'
                   : defaultModel,
               style: theme.textTheme.bodySmall,
             ),

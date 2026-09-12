@@ -108,9 +108,9 @@ topics/        Self-contained dynamic-context feature: ORM models and Pydantic
                mutations; scheduler job. `topics/CLAUDE.md` records its safety
                and ownership invariants.
 jobs/          extract_memories_job.py (daily at 2 AM; dedicated
-               MEMORY_EXTRACTION_MODEL, glm-5.3:cloud by default)
+               MEMORY_EXTRACTION_MODEL, deepseek-v4.1-flash:cloud by default)
                scheduled_action_job.py (user-defined cron/one-shot actions;
-               SCHEDULED_ACTION_MODEL fallback, glm-5.3:cloud by default)
+               SCHEDULED_ACTION_MODEL fallback, deepseek-v4.1-flash:cloud by default)
                microapps_sync_job.py (periodic git pull of micro-apps repo)
 scheduler.py   APScheduler lifecycle + action registration
 ```

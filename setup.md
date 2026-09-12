@@ -109,10 +109,10 @@ sudo apt-get install -y nodejs npm
 ```bash
 curl -fsSL https://ollama.com/install.sh | sh
 
-# Pull the default model:
-ollama pull llama3.2
+# The app's default model is the Ollama cloud model:
+ollama pull deepseek-v4.1-flash:cloud
 
-# Or a larger model:
+# Or a local model if you prefer (set DEFAULT_MODEL in backend/.env):
 ollama pull qwen3:8b
 ```
 

@@ -28,15 +28,17 @@ class Settings(BaseSettings):
     # LLM / context — see docs/environment.md
     llm_provider: str = "ollama"
     ollama_base_url: str = "http://host.docker.internal:11434"
-    default_model: str = "glm-5.3-flash:cloud"
-    memory_extraction_model: str = "glm-5.3:cloud"
-    scheduled_action_model: str = "glm-5.3:cloud"
+    default_model: str = "deepseek-v4.1-flash:cloud"
+    memory_extraction_model: str = "deepseek-v4.1-flash:cloud"
+    scheduled_action_model: str = "deepseek-v4.1-flash:cloud"
     llm_context_window: int = 100000  # min(model max, this) passed as num_ctx
     memory_token_budget: int = 4000  # dropped beyond budget, see docs/environment.md
     kb_token_budget: int = 8000
     memory_top_k: int = 20
     tool_result_max_chars: int = 32000  # truncated with marker before persistence
-    room_auto_judge_model: str = "granite4:micro"  # see benchmark notes in docs/environment.md
+    room_auto_judge_model: str = (
+        "deepseek-v4.1-flash:cloud"  # see benchmark notes in docs/environment.md
+    )
     llm_image_max_dim: int = 1024  # downscaled before storage/vision model
 
     # Dev / location
@@ -77,7 +79,7 @@ class Settings(BaseSettings):
     microapps_opencode_bin: str = "opencode"
     microapps_publish_remote: str = "origin"
     microapps_worktrees_dir: str = ".worktrees"
-    microapps_opencode_model: str = "ollama/glm-5.3:cloud"
+    microapps_opencode_model: str = "ollama/deepseek-v4.1-flash:cloud"
     microapps_git_url: str = ""
     microapps_pull_interval_minutes: int = 10
     microapps_proxy_mode: bool = False  # serve via backend /micro-apps proxy

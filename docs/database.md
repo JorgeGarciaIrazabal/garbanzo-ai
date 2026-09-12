@@ -40,7 +40,7 @@ half-migrated schema.
   Nominatim, `NOMINATIM_URL` env, and only the result is stored) or manually
   via `PATCH /auth/me`. `NULL` = sharing off (the settings toggle's default
   and its "off" state) → no location line in the prompt.
-- `Conversation.model` defaults to `DEFAULT_MODEL` (`"glm-5.3-flash:cloud"` by
+- `Conversation.model` defaults to `DEFAULT_MODEL` (`"deepseek-v4.1-flash:cloud"` by
   default) — it must match a model ID returned by `GET /api/v1/chat/models`.
 - Model selections are denormalized in `users.default_model`,
   `conversations.model`, `styles.model_id`, `room_agents.model`, and
@@ -52,7 +52,12 @@ half-migrated schema.
   custom Ollama tags untouched. DeepSeek Flash migrates to the generic Flash
   tag; DeepSeek Pro migrates to and remains a separate generic Pro model rather
   than replacing Flash. The provider hides the retired dated aliases if they
-  remain installed in Ollama, avoiding duplicate selector entries.
+  remain installed in Ollama, avoiding duplicate selector entries. Migration 047
+  moves the shared built-in styles to `deepseek-v4.1-flash:cloud`, rewrites
+  `users.default_model`, `room_agents.model`, and `scheduled_actions.model`,
+  and registers the new model in `available_models`. It deliberately leaves
+  `conversations.model` (in-flight thread history) and user-saved styles
+  untouched, so those keep the model they were created with.
 - `Conversation.use_memory` (boolean) controls whether user memories are injected into LLM context.
 - `Conversation.use_knowledge_base` (boolean) controls whether KB chunks are injected.
 - `Conversation.is_pinned` (boolean) surfaces conversations in the sidebar.

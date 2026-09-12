@@ -5001,29 +5001,17 @@ abstract class AppLocalizations {
   /// **'{currentModel} can’t analyze images, and no enabled Vision model is available. Enable or install a Vision model, then retry.'**
   String errorNoVisionModelAvailable(String currentModel);
 
-  /// Display name for the fast Vision model choice.
+  /// Display name for the recommended Vision model choice.
   ///
   /// In en, this message translates to:
-  /// **'GLM 5.3 Flash'**
-  String get titleVisionModelFast;
+  /// **'DeepSeek V4.1 Flash'**
+  String get titleVisionModelRecommended;
 
-  /// Tradeoff summary for the fast Vision model choice.
+  /// Tradeoff summary for the recommended Vision model choice.
   ///
   /// In en, this message translates to:
-  /// **'Faster · lower cost · Cloud'**
-  String get descriptionVisionModelFast;
-
-  /// Display name for the smart Vision model choice.
-  ///
-  /// In en, this message translates to:
-  /// **'Kimi K3'**
-  String get titleVisionModelSmart;
-
-  /// Tradeoff summary for the smart Vision model choice.
-  ///
-  /// In en, this message translates to:
-  /// **'Smarter · higher cost · Cloud'**
-  String get descriptionVisionModelSmart;
+  /// **'Recommended · multimodal · Cloud'**
+  String get descriptionVisionModelRecommended;
 
   /// Tradeoff summary for a fallback Vision model choice.
   ///

@@ -241,6 +241,7 @@ def test_seeds_opencode_config(manager):
     assert cfg.is_file()
     data = json.loads(cfg.read_text())
     assert "ollama" in data["provider"]
+    assert "deepseek-v4.1-flash:cloud" in data["provider"]["ollama"]["models"]
     assert "deepseek-v4-flash:cloud" in data["provider"]["ollama"]["models"]
     assert "deepseek-v4-pro:cloud" in data["provider"]["ollama"]["models"]
     assert "glm-5.3-flash:cloud" in data["provider"]["ollama"]["models"]

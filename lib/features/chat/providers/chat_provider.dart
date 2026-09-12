@@ -333,7 +333,7 @@ class ChatProvider extends ChangeNotifier {
     notifyListeners();
     try {
       final conversation = await _chatService.getOrCreatePrimary(
-        model: _selectedModelId() ?? 'llama3.2',
+        model: _selectedModelId() ?? 'deepseek-v4.1-flash:cloud',
         systemPrompt: _pendingSystemPromptValue,
         thinkingLevel: _pendingThinkingLevelValue,
       );
@@ -404,7 +404,8 @@ class ChatProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final selectedModel = model ?? _selectedModelId() ?? 'llama3.2';
+      final selectedModel =
+          model ?? _selectedModelId() ?? 'deepseek-v4.1-flash:cloud';
       final derivedTitle =
           title ??
           (initialMessage != null && initialMessage.isNotEmpty
@@ -676,7 +677,7 @@ class ChatProvider extends ChangeNotifier {
 
     if (_currentConversation == null) {
       await createConversation(
-        model: _selectedModelId() ?? 'llama3.2',
+        model: _selectedModelId() ?? 'deepseek-v4.1-flash:cloud',
         initialMessage: content,
         initialAttachments: attachments,
       );

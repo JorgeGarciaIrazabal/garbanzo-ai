@@ -5,7 +5,7 @@ import 'package:garbanzo_ai/core/guarded_state.dart';
 import 'package:garbanzo_ai/features/chat/models/model_info.dart';
 import 'package:garbanzo_ai/features/chat/services/chat_service.dart';
 
-enum VisionModelChoiceKind { faster, smarter, compatible }
+enum VisionModelChoiceKind { recommended, compatible }
 
 class VisionModelChoice {
   const VisionModelChoice({required this.model, required this.kind});
@@ -20,8 +20,7 @@ class VisionModelChoice {
 /// and shared across the app without tying it to a single conversation.
 /// The user's default model is persisted on the backend via `/auth/me`.
 class ModelProvider extends ChangeNotifier with GuardedStateMixin {
-  static const fastVisionModelId = 'glm-5.3-flash:cloud';
-  static const smartVisionModelId = 'kimi-k3:cloud';
+  static const visionModelId = 'deepseek-v4.1-flash:cloud';
 
   ModelProvider({ChatService? chatService, AuthService? authService})
     : _chatService = chatService ?? ChatService.instance,
@@ -81,10 +80,10 @@ class ModelProvider extends ChangeNotifier with GuardedStateMixin {
   }
 
   /// Pick a sensible default when no server-side preference exists. Prefer
-  /// the latest qwen3.8 reasoning model, falling back to the older qwen3
-  /// family, then llama3.2, then whatever's first.
+  /// the recommended DeepSeek V4.1 Flash, falling back to the qwen3.8
+  /// reasoning family, then qwen3, then whatever's first.
   static ModelInfo _pickFallback(List<ModelInfo> models) {
-    for (final pattern in <String>['qwen3.8', 'qwen3:', 'llama3.2']) {
+    for (final pattern in <String>[visionModelId, 'qwen3.8', 'qwen3:']) {
       final hit = models.where((m) => m.id.contains(pattern)).firstOrNull;
       if (hit != null) return hit;
     }
@@ -105,27 +104,24 @@ class ModelProvider extends ChangeNotifier with GuardedStateMixin {
   /// model. Only return models that the server currently exposes: a choice in
   /// this list is safe for the UI to switch to immediately.
   ///
-  /// GLM 5.3 Flash is the fast/lower-cost path and Kimi K3 is the
-  /// smarter/higher-cost path. If neither preferred cloud model is enabled,
-  /// retain the general capability-aware recommendation as a fallback.
+  /// DeepSeek V4.1 Flash is the recommended multimodal path. If it isn't
+  /// enabled, retain the general capability-aware recommendation as a
+  /// fallback.
   List<VisionModelChoice> visionModelChoices({
     String? currentModelId,
     bool preferThinking = false,
   }) {
-    final choices = <VisionModelChoice>[];
-
-    void addPreferred(String id, VisionModelChoiceKind kind) {
-      final model = _availableModels
-          .where((candidate) => candidate.id == id)
-          .firstOrNull;
-      if (model?.supportsVision == true) {
-        choices.add(VisionModelChoice(model: model!, kind: kind));
-      }
+    final preferred = _availableModels
+        .where((candidate) => candidate.id == visionModelId)
+        .firstOrNull;
+    if (preferred?.supportsVision == true) {
+      return [
+        VisionModelChoice(
+          model: preferred!,
+          kind: VisionModelChoiceKind.recommended,
+        ),
+      ];
     }
-
-    addPreferred(fastVisionModelId, VisionModelChoiceKind.faster);
-    addPreferred(smartVisionModelId, VisionModelChoiceKind.smarter);
-    if (choices.isNotEmpty) return choices;
 
     final fallback = recommendedVisionModel(
       currentModelId: currentModelId,

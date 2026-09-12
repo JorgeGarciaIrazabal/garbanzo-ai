@@ -81,15 +81,10 @@ class _VisionModelOption extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     final colorScheme = Theme.of(context).colorScheme;
     final (title, subtitle, icon) = switch (choice.kind) {
-      VisionModelChoiceKind.faster => (
-        l10n.titleVisionModelFast,
-        l10n.descriptionVisionModelFast,
+      VisionModelChoiceKind.recommended => (
+        l10n.titleVisionModelRecommended,
+        l10n.descriptionVisionModelRecommended,
         Icons.bolt_rounded,
-      ),
-      VisionModelChoiceKind.smarter => (
-        l10n.titleVisionModelSmart,
-        l10n.descriptionVisionModelSmart,
-        Icons.psychology_alt_rounded,
       ),
       VisionModelChoiceKind.compatible => (
         choice.model.name,

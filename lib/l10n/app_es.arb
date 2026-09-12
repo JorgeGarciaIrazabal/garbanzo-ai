@@ -2594,21 +2594,13 @@
       "currentModel": {"type": "String"}
     }
   },
-  "titleVisionModelFast": "GLM 5.3 Flash",
-  "@titleVisionModelFast": {
-    "description": "Display name for the fast Vision model choice."
+  "titleVisionModelRecommended": "DeepSeek V4.1 Flash",
+  "@titleVisionModelRecommended": {
+    "description": "Display name for the recommended Vision model choice."
   },
-  "descriptionVisionModelFast": "Más rápido · menor coste · Nube",
-  "@descriptionVisionModelFast": {
-    "description": "Tradeoff summary for the fast Vision model choice."
-  },
-  "titleVisionModelSmart": "Kimi K3",
-  "@titleVisionModelSmart": {
-    "description": "Display name for the smart Vision model choice."
-  },
-  "descriptionVisionModelSmart": "Más inteligente · mayor coste · Nube",
-  "@descriptionVisionModelSmart": {
-    "description": "Tradeoff summary for the smart Vision model choice."
+  "descriptionVisionModelRecommended": "Recomendado · multimodal · Nube",
+  "@descriptionVisionModelRecommended": {
+    "description": "Tradeoff summary for the recommended Vision model choice."
   },
   "descriptionVisionModelCompatible": "Modelo compatible con Vision",
   "@descriptionVisionModelCompatible": {

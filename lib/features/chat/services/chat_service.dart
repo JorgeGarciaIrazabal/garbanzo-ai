@@ -32,7 +32,7 @@ class ChatService {
 
   Future<Conversation> createConversation({
     String? title,
-    String model = 'llama3.2',
+    String model = 'deepseek-v4.1-flash:cloud',
     String? initialMessage,
     String? systemPrompt,
     ThinkingLevel? thinkingLevel,

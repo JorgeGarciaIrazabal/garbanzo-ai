@@ -33,7 +33,7 @@ dev-deps:
 
 
 opencode:
-	ollama launch opencode --model micro-apps-glm --yes
+	ollama launch opencode --model deepseek-v4.1-flash:cloud --yes
 
 
 # Start Docker, backend, TTS, and frontend on Android (real device or emulator) — kills port 8000 if busy

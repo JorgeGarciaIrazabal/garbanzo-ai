@@ -48,9 +48,9 @@ def test_strong_secret_is_clean():
 
 def test_model_defaults_are_workload_specific():
     settings = Settings(_env_file=None)
-    assert settings.default_model == "glm-5.3-flash:cloud"
-    assert settings.memory_extraction_model == "glm-5.3:cloud"
-    assert settings.scheduled_action_model == "glm-5.3:cloud"
+    assert settings.default_model == "deepseek-v4.1-flash:cloud"
+    assert settings.memory_extraction_model == "deepseek-v4.1-flash:cloud"
+    assert settings.scheduled_action_model == "deepseek-v4.1-flash:cloud"
 
 
 def test_proxy_mode_without_repo_path_warns():

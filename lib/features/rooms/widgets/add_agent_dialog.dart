@@ -5,6 +5,7 @@ import 'package:garbanzo_ai/core/widgets/animated_dialog.dart';
 import 'package:garbanzo_ai/features/chat/models/model_info.dart';
 import 'package:garbanzo_ai/features/chat/models/system_prompt_template.dart';
 import 'package:garbanzo_ai/features/chat/models/thinking_level.dart';
+import 'package:garbanzo_ai/features/chat/providers/model_provider.dart';
 import 'package:garbanzo_ai/features/chat/services/chat_service.dart';
 import 'package:garbanzo_ai/features/chat/services/system_prompt_service.dart';
 import 'package:garbanzo_ai/features/rooms/models/room_models.dart';
@@ -155,10 +156,10 @@ class _AddAgentDialogState extends State<AddAgentDialog> {
 
   String? _pickDefault(List<ModelInfo> models) {
     if (models.isEmpty) return null;
-    final llama = models
-        .where((m) => m.id.contains('llama3.2'))
+    final preferred = models
+        .where((m) => m.id == ModelProvider.visionModelId)
         .cast<ModelInfo?>();
-    return (llama.isNotEmpty ? llama.first : models.first)?.id;
+    return (preferred.isNotEmpty ? preferred.first : models.first)?.id;
   }
 
   Future<void> _submit() async {

@@ -92,7 +92,20 @@ void main() {
       expect(p.selectedModelId, 'qwen3.8:27b');
     });
 
-    test('fallback chain prefers qwen3.8 over qwen3 and llama3.2', () async {
+    test('fallback chain prefers the recommended model over qwen3.8', () async {
+      stubModels([
+        'llama3.2',
+        'qwen3:8b',
+        'qwen3.8:27b',
+        ModelProvider.visionModelId,
+      ]);
+
+      final p = await loaded();
+
+      expect(p.selectedModelId, ModelProvider.visionModelId);
+    });
+
+    test('fallback chain prefers qwen3.8 when recommended model absent', () async {
       stubModels(['llama3.2', 'qwen3:8b', 'qwen3.8:27b']);
 
       final p = await loaded();
@@ -252,30 +265,27 @@ void main() {
   });
 
   group('visionModelChoices', () {
-    test('offers GLM Flash first and Kimi K3 second when both are enabled', () async {
+    test('offers the recommended model when it is enabled', () async {
       stubModelInfo([
         _model('text-only', vision: false),
-        _model(ModelProvider.smartVisionModelId, vision: true),
-        _model(ModelProvider.fastVisionModelId, vision: true),
+        _model(ModelProvider.visionModelId, vision: true),
       ]);
       final p = await loaded();
 
       final choices = p.visionModelChoices(currentModelId: 'text-only');
 
       expect(choices.map((choice) => choice.model.id), [
-        ModelProvider.fastVisionModelId,
-        ModelProvider.smartVisionModelId,
+        ModelProvider.visionModelId,
       ]);
       expect(choices.map((choice) => choice.kind), [
-        VisionModelChoiceKind.faster,
-        VisionModelChoiceKind.smarter,
+        VisionModelChoiceKind.recommended,
       ]);
     });
 
-    test('does not offer a preferred model without confirmed Vision support', () async {
+    test('does not offer the recommended model without confirmed Vision support', () async {
       stubModelInfo([
-        _model(ModelProvider.fastVisionModelId),
-        _model(ModelProvider.smartVisionModelId, vision: false),
+        _model(ModelProvider.visionModelId),
+        _model('other', vision: false),
       ]);
       final p = await loaded();
 

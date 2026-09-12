@@ -2824,16 +2824,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get titleVisionModelFast => 'GLM 5.3 Flash';
+  String get titleVisionModelRecommended => 'DeepSeek V4.1 Flash';
 
   @override
-  String get descriptionVisionModelFast => 'Faster · lower cost · Cloud';
-
-  @override
-  String get titleVisionModelSmart => 'Kimi K3';
-
-  @override
-  String get descriptionVisionModelSmart => 'Smarter · higher cost · Cloud';
+  String get descriptionVisionModelRecommended =>
+      'Recommended · multimodal · Cloud';
 
   @override
   String get descriptionVisionModelCompatible => 'Vision-capable model';

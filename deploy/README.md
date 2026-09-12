@@ -60,13 +60,11 @@ before the production Compose stack is replaced.
    fully isolated from any host Ollama install. On first deploy, pull the
    models the app needs:
    ```
-    just deploy-model llama3.2
-    just deploy-model granite4:micro
     just deploy-model nomic-embed-text
-    ```
-     Cloud models (e.g. `glm-5.3:cloud`, `glm-5.3-flash:cloud`, `kimi-k3:cloud`,
-     `deepseek-v4-flash:cloud`, `deepseek-v4-pro:cloud`, `gemma4:cloud`,
-     `nemotron-3-ultra:cloud`,
+   ```
+     Cloud models (e.g. `deepseek-v4.1-flash:cloud`, `glm-5.3:cloud`,
+     `glm-5.3-flash:cloud`, `kimi-k3:cloud`, `deepseek-v4-flash:cloud`,
+     `deepseek-v4-pro:cloud`, `gemma4:cloud`, `nemotron-3-ultra:cloud`,
      `nemotron-3-super:cloud`, `qwen3.5:cloud`)
      require a **one-time** `ollama signin` inside the container: run
      `docker compose -f deploy/docker-compose.yml --env-file deploy/.env exec ollama ollama signin`
@@ -75,6 +73,7 @@ before the production Compose stack is replaced.
      redeploys — only wiping the volume requires signing in again. Local-only
      models work without it. After signing in, pull each cloud model:
      ```
+     just deploy-model deepseek-v4.1-flash:cloud
      just deploy-model glm-5.3:cloud
      just deploy-model glm-5.3-flash:cloud
      just deploy-model kimi-k3:cloud
@@ -85,8 +84,11 @@ before the production Compose stack is replaced.
      just deploy-model nemotron-3-super:cloud
      just deploy-model qwen3.5:cloud
      ```
-     Normal chats default to the multimodal `glm-5.3-flash:cloud`; automatic
-     memory extraction and scheduled actions default to `glm-5.3:cloud`.
+     Normal chats default to the multimodal `deepseek-v4.1-flash:cloud`;
+     automatic memory extraction and scheduled actions default to
+     `deepseek-v4.1-flash:cloud` too. The built-in styles (Concise, Truth
+     Seeker, etc.) also ride `deepseek-v4.1-flash:cloud`; only user-saved styles
+     keep a model of their own choosing.
      Migration 037 upgrades the app's retired MiniMax M3, GLM 5.2, dated
      DeepSeek V4 Flash/Pro preview aliases, Kimi K2.7 Code, and Qwen 3.6
      identifiers in persisted user configurations and pending shared-style
