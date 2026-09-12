@@ -4,6 +4,11 @@ Release notes for Garbanzo AI. Each entry is generated automatically on
 `just deploy` — an LLM (via opencode) writes it from the release's commits and
 the user reports it addressed. See `scripts/changelog-instructions.md`.
 
+## v1.0.31 — 2026-09-12
+
+- Fixed new chats opening the wrong conversation.
+- Updated the default AI model.
+
 ## v1.0.30 — 2026-09-09
 
 - Topic messages now send to the correct thread, even when no topic is selected.
