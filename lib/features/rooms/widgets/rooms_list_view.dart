@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:garbanzo_ai/core/widgets/brand_mark.dart';
 
 import 'package:garbanzo_ai/core/widgets/animated_dialog.dart';
+import 'package:garbanzo_ai/core/widgets/menu_row.dart';
 import 'package:garbanzo_ai/core/widgets/mute_sheet.dart';
 import 'package:garbanzo_ai/core/widgets/skeleton.dart';
 import 'package:garbanzo_ai/features/rooms/models/room_models.dart';
@@ -19,6 +20,7 @@ class RoomsListView extends StatelessWidget {
     required this.onDelete,
     this.onCreate,
     this.onMute,
+    this.onDownload,
     this.selectedId,
     this.loading = false,
     this.error,
@@ -34,6 +36,10 @@ class RoomsListView extends StatelessWidget {
   /// Applies a mute choice (`8h` / `1w` / `forever` / `unmute`) to a room.
   /// Long-press / right-click only opens the mute sheet when this is set.
   final void Function(Room room, String duration)? onMute;
+
+  /// Downloads a room transcript. When set, the tile's actions menu offers
+  /// "Download transcript".
+  final ValueChanged<Room>? onDownload;
 
   final bool loading;
   final String? error;
@@ -75,6 +81,9 @@ class RoomsListView extends StatelessWidget {
           onMuteMenu: onMute == null
               ? null
               : () => _showMuteSheet(context, room),
+          onDownloadRequested: onDownload == null
+              ? null
+              : () => onDownload!(room),
         );
       },
     );
@@ -116,6 +125,9 @@ class RoomsListView extends StatelessWidget {
   }
 }
 
+/// Actions available on a room tile's menu.
+enum _RoomAction { download, delete }
+
 class _RoomTile extends StatelessWidget {
   const _RoomTile({
     required this.room,
@@ -126,6 +138,7 @@ class _RoomTile extends StatelessWidget {
     required this.onTap,
     required this.onDelete,
     this.onMuteMenu,
+    this.onDownloadRequested,
   });
 
   final Room room;
@@ -138,6 +151,9 @@ class _RoomTile extends StatelessWidget {
 
   /// Opens the mute sheet — long-press on touch, right-click on desktop.
   final VoidCallback? onMuteMenu;
+
+  /// Opens the transcript download flow (format picker, then save/share).
+  final VoidCallback? onDownloadRequested;
 
   @override
   Widget build(BuildContext context) {
@@ -242,12 +258,36 @@ class _RoomTile extends StatelessWidget {
                   ],
                 ),
               ),
-              IconButton(
-                onPressed: onDelete,
-                tooltip: AppLocalizations.of(context)!.messageDeleteRoom,
-                icon: const Icon(Icons.delete_outline, size: 18),
-                color: unselectedIcon,
-                visualDensity: VisualDensity.compact,
+              PopupMenuButton<_RoomAction>(
+                key: const ValueKey('room_actions_menu'),
+                tooltip: AppLocalizations.of(context)!.tooltipThreadActions,
+                icon: Icon(Icons.more_vert, size: 18, color: unselectedIcon),
+                iconSize: 18,
+                padding: EdgeInsets.zero,
+                onSelected: (action) => switch (action) {
+                  _RoomAction.download => onDownloadRequested?.call(),
+                  _RoomAction.delete => onDelete(),
+                },
+                itemBuilder: (context) => [
+                  if (onDownloadRequested != null)
+                    PopupMenuItem(
+                      value: _RoomAction.download,
+                      child: MenuRow(
+                        icon: Icons.download_outlined,
+                        label: AppLocalizations.of(
+                          context,
+                        )!.labelDownloadTranscript,
+                      ),
+                    ),
+                  PopupMenuItem(
+                    value: _RoomAction.delete,
+                    child: MenuRow(
+                      icon: Icons.delete_outline,
+                      label: AppLocalizations.of(context)!.messageDeleteRoom,
+                      color: colorScheme.error,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

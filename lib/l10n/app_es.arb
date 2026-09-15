@@ -2865,5 +2865,14 @@
   "switchAction": "Cambiar",
   "@switchAction": {"description": "Short action for switching topics."},
   "dismiss": "Descartar",
-  "@dismiss": {"description": "Tooltip for dismissing a proposal."}
+  "@dismiss": {"description": "Tooltip for dismissing a proposal."},
+  "tooltipThreadActions": "Más acciones",
+  "labelPin": "Fijar",
+  "labelUnpin": "Dejar de fijar",
+  "labelDeleteConversation": "Eliminar conversación",
+  "labelDownloadTranscript": "Descargar transcripción",
+  "labelDownloadAsDocx": "Documento de Word (.docx)",
+  "labelDownloadAsMarkdown": "Markdown (.md)",
+  "messageTranscriptDownloaded": "Transcripción descargada",
+  "messageTranscriptDownloadFailed": "No se pudo descargar la transcripción."
 }

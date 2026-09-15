@@ -59,7 +59,11 @@ Messages still arrive and count as unread — you just get no notifications.
 Muted rooms show a badge in the list.
 
 ## How do I export a room?
-Use the room's export action to download the full transcript.
+Open the room's **⋮** menu in the rooms list and choose **Download
+transcript**, then pick **Word document (.docx)** or **Markdown (.md)**. The
+Word file is a real document — one heading per speaker, with lists, code
+blocks, and tables preserved — so you can open and edit it in Word. On
+desktop you get a Save As dialog; on web and Android, the share sheet.
 
 ## How do I delete a room?
 Room owners can delete a room from its menu (**Delete room**). This removes

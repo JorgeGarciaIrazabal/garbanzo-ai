@@ -5,6 +5,7 @@ import 'package:garbanzo_ai/features/chat/models/conversation.dart';
 import 'package:garbanzo_ai/features/topics/models/topic_node.dart';
 import 'package:garbanzo_ai/features/chat/widgets/conversation_list_widget.dart';
 import 'package:garbanzo_ai/features/topics/providers/topic_discovery_provider.dart';
+import 'package:garbanzo_ai/features/rooms/models/room_models.dart';
 import 'package:garbanzo_ai/features/rooms/providers/room_provider.dart';
 import 'package:garbanzo_ai/features/rooms/widgets/create_room_dialog.dart';
 import 'package:garbanzo_ai/features/rooms/widgets/rooms_list_view.dart';
@@ -21,6 +22,8 @@ class ChatSidebar extends StatefulWidget {
     required this.onNewChat,
     required this.onTogglePin,
     this.onMuteConversation,
+    this.onDownloadConversation,
+    this.onDownloadRoom,
     required this.isLoadingConversations,
     required this.onSelectRoom,
     required this.onDeleteRoom,
@@ -37,6 +40,8 @@ class ChatSidebar extends StatefulWidget {
   final ValueChanged<String> onTogglePin;
   final void Function(String conversationId, String duration)?
   onMuteConversation;
+  final ValueChanged<Conversation>? onDownloadConversation;
+  final ValueChanged<Room>? onDownloadRoom;
   final bool isLoadingConversations;
   final ValueChanged<String> onSelectRoom;
   final ValueChanged<String> onDeleteRoom;
@@ -108,6 +113,7 @@ class _ChatSidebarState extends State<ChatSidebar> {
                   onMute: widget.onMuteConversation == null
                       ? null
                       : (c, d) => widget.onMuteConversation!(c.id, d),
+                  onDownload: widget.onDownloadConversation,
                   isLoading: widget.isLoadingConversations,
                   embedded: true,
                   newConversationLabel: AppLocalizations.of(context)!.newThread,
@@ -116,6 +122,7 @@ class _ChatSidebarState extends State<ChatSidebar> {
                   selectedRoomId: widget.selectedRoomId,
                   onSelectRoom: widget.onSelectRoom,
                   onDeleteRoom: widget.onDeleteRoom,
+                  onDownloadRoom: widget.onDownloadRoom,
                 ),
               },
             ),
@@ -324,11 +331,13 @@ class _RoomsTab extends StatelessWidget {
     required this.selectedRoomId,
     required this.onSelectRoom,
     required this.onDeleteRoom,
+    this.onDownloadRoom,
   });
 
   final String? selectedRoomId;
   final ValueChanged<String> onSelectRoom;
   final ValueChanged<String> onDeleteRoom;
+  final ValueChanged<Room>? onDownloadRoom;
 
   Future<void> _create(BuildContext context) async {
     final provider = context.read<RoomProvider>();
@@ -383,6 +392,7 @@ class _RoomsTab extends StatelessWidget {
             onDelete: (room) => onDeleteRoom(room.id),
             onCreate: () => _create(context),
             onMute: (room, d) => provider.setMute(room.id, d),
+            onDownload: onDownloadRoom,
           ),
         ),
       ],

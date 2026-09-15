@@ -36,6 +36,8 @@ dependencies = [
     # Declared explicitly (kokoro pulls it anyway) so [tool.uv.sources] can pin
     # it to CPU wheels — see the pytorch-cpu index below.
     "torch>=2.0.0",
+    "python-docx>=1.2.0",
+    "markdown-it-py>=4.2.0",
 ]
 
 [project.optional-dependencies]

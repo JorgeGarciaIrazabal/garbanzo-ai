@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
@@ -6,8 +7,24 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:garbanzo_ai/core/http_adapter/http_adapter_stub.dart'
     if (dart.library.js_interop) 'package:garbanzo_ai/core/http_adapter/http_adapter_web.dart';
+import 'package:garbanzo_ai/core/api_error.dart';
 import 'package:garbanzo_ai/core/error_reporter.dart';
 import 'package:garbanzo_ai/core/guarded_state.dart';
+
+/// A failed file download, carrying the status and the server's own reason.
+///
+/// Distinguishes "the export couldn't be produced" (404 no such conversation,
+/// 422 bad format) from a transport failure, so the UI can show the real
+/// message instead of a generic one.
+class ExportDownloadException implements Exception {
+  const ExportDownloadException(this.statusCode, this.detail);
+
+  final int statusCode;
+  final String detail;
+
+  @override
+  String toString() => 'ExportDownloadException($statusCode): $detail';
+}
 
 const _apiBaseUrl = String.fromEnvironment('API_BASE_URL', defaultValue: '');
 
@@ -344,6 +361,50 @@ class ApiClient {
       path,
       options: Options(responseType: ResponseType.bytes),
     );
+  }
+
+  /// Bytes plus the server-suggested filename from `Content-Disposition`.
+  ///
+  /// The export endpoints name the download (`chat-<title>.docx`) so the
+  /// client never has to invent one. Throws [ExportDownloadException] carrying
+  /// the server's own reason so the UI can surface it verbatim.
+  Future<({Uint8List bytes, String? filename})> download(String path) async {
+    final response = await _dio.get<List<int>>(
+      path,
+      options: Options(responseType: ResponseType.bytes),
+    );
+    final data = response.data;
+    if (response.statusCode != 200 || data == null) {
+      throw ExportDownloadException(
+        response.statusCode ?? 0,
+        _downloadErrorDetail(data),
+      );
+    }
+    return (
+      bytes: Uint8List.fromList(data),
+      filename: _filenameFromDisposition(
+        response.headers.value('content-disposition'),
+      ),
+    );
+  }
+
+  static String _downloadErrorDetail(List<int>? data) {
+    if (data == null || data.isEmpty) return 'Download failed';
+    try {
+      final detail = apiErrorDetail(utf8.decode(data));
+      if (detail != null) return detail;
+    } on FormatException {
+      // Not JSON — fall through to the generic message.
+    }
+    return 'Download failed';
+  }
+
+  /// Extracts the quoted filename from a `Content-Disposition` header.
+  static String? _filenameFromDisposition(String? header) {
+    if (header == null) return null;
+    final match = RegExp(r'filename="?([^";]+)"?').firstMatch(header);
+    final name = match?.group(1)?.trim();
+    return (name == null || name.isEmpty) ? null : name;
   }
 
   Future<Response> post(String path, {Object? data}) {

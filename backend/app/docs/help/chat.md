@@ -104,6 +104,21 @@ Android as well as desktop. When it finishes, use **Download** on the progress
 line to export the markdown report (share sheet on web/Android, Save As on
 desktop).
 
+## How do I export a conversation?
+Open a thread's **⋮** menu in the sidebar and choose **Download transcript**,
+then pick a format:
+
+- **Word document (.docx)** — a real Word file, one heading per turn, with
+  headings, lists, code blocks, and tables from the assistant's replies kept
+  as real Word structure, so you can open and edit it in Word.
+- **Markdown (.md)** — plain text, for pasting into a note or wiki.
+
+The download always contains the thread's **full** history, not just the part
+scrolled into view, and it names the file after the thread title. Tool calls
+and tool results are left out of the transcript (a closing line says how many
+were skipped). On desktop you get a Save As dialog; on web and Android, the
+share sheet.
+
 If you attach files to the same message that launches the agent, the agent gets
 private input copies in its workspace in both folder and folderless mode. Those
 copies never overwrite the originals and are not included in changes written

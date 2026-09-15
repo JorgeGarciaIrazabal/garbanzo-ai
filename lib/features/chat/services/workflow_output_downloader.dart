@@ -1,39 +1,26 @@
-import 'dart:convert';
-import 'dart:typed_data';
+import 'package:garbanzo_ai/features/chat/services/export_downloader.dart';
 
-import 'package:file_picker/file_picker.dart';
-import 'package:share_plus/share_plus.dart';
-
-import 'package:garbanzo_ai/core/platform_info.dart';
-
-/// Delivers a research workflow's markdown report through the platform's
-/// natural export surface: Save As on desktop, share/download elsewhere.
+/// Delivers a research workflow's markdown report.
+///
+/// Thin specialization of [ExportDownloader] so every export in the app — a
+/// research report, a chat or room transcript — shares one implementation of
+/// "Save As on desktop, share/download elsewhere".
 class WorkflowOutputDownloader {
-  const WorkflowOutputDownloader();
+  const WorkflowOutputDownloader({
+    ExportDownloader downloader = const ExportDownloader(),
+  }) : _downloader = downloader;
+
+  final ExportDownloader _downloader;
 
   Future<void> download({
     required String markdown,
     required String filename,
     required String title,
-  }) async {
-    final bytes = Uint8List.fromList(utf8.encode(markdown));
-    if (PlatformInfo.isDesktop) {
-      await FilePicker.saveFile(
-        dialogTitle: title,
-        fileName: filename,
-        type: FileType.custom,
-        allowedExtensions: const ['md'],
-        bytes: bytes,
-      );
-      return;
-    }
-
-    await SharePlus.instance.share(
-      ShareParams(
-        title: title,
-        files: [XFile.fromData(bytes, mimeType: 'text/markdown')],
-        fileNameOverrides: [filename],
-      ),
+  }) {
+    return _downloader.downloadMarkdown(
+      markdown: markdown,
+      filename: filename,
+      title: title,
     );
   }
 }

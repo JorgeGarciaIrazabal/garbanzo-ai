@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import 'package:garbanzo_ai/core/widgets/menu_row.dart';
 import 'package:garbanzo_ai/core/widgets/mute_sheet.dart';
 import 'package:garbanzo_ai/features/rooms/providers/room_provider.dart';
+import 'package:garbanzo_ai/features/rooms/models/room_models.dart';
 import 'package:garbanzo_ai/features/rooms/widgets/create_room_dialog.dart';
 import 'package:garbanzo_ai/features/rooms/widgets/rooms_list_view.dart';
 import 'package:garbanzo_ai/features/chat/models/conversation.dart';
@@ -23,6 +25,8 @@ void showMobileConversationDrawer({
   required VoidCallback onNewChat,
   ValueChanged<String>? onTogglePin,
   void Function(String conversationId, String duration)? onMuteConversation,
+  ValueChanged<Conversation>? onDownloadConversation,
+  ValueChanged<Room>? onDownloadRoom,
   ValueChanged<String>? onSelectRoom,
   ValueChanged<String>? onDeleteRoom,
   String? selectedRoomId,
@@ -44,6 +48,8 @@ void showMobileConversationDrawer({
         onNewChat: onNewChat,
         onTogglePin: onTogglePin,
         onMuteConversation: onMuteConversation,
+        onDownloadConversation: onDownloadConversation,
+        onDownloadRoom: onDownloadRoom,
         onSelectRoom: onSelectRoom,
         onDeleteRoom: onDeleteRoom,
         selectedRoomId: selectedRoomId,
@@ -63,6 +69,8 @@ class _MobileDrawerBody extends StatefulWidget {
     required this.onNewChat,
     required this.onTogglePin,
     required this.onMuteConversation,
+    required this.onDownloadConversation,
+    required this.onDownloadRoom,
     required this.onSelectRoom,
     required this.onDeleteRoom,
     required this.selectedRoomId,
@@ -78,6 +86,8 @@ class _MobileDrawerBody extends StatefulWidget {
   final ValueChanged<String>? onTogglePin;
   final void Function(String conversationId, String duration)?
   onMuteConversation;
+  final ValueChanged<Conversation>? onDownloadConversation;
+  final ValueChanged<Room>? onDownloadRoom;
   final ValueChanged<String>? onSelectRoom;
   final ValueChanged<String>? onDeleteRoom;
   final String? selectedRoomId;
@@ -302,23 +312,47 @@ class _MobileDrawerBodyState extends State<_MobileDrawerBody> {
                     onLongPress: widget.onMuteConversation == null
                         ? null
                         : () => _showMuteSheet(context, c),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
+                    trailing: PopupMenuButton<String>(
+                      key: ValueKey('mobile_thread_actions_${c.id}'),
+                      tooltip: l10n.tooltipThreadActions,
+                      icon: const Icon(Icons.more_vert),
+                      onSelected: (action) {
+                        switch (action) {
+                          case 'pin':
+                            widget.onTogglePin?.call(c.id);
+                          case 'download':
+                            widget.onDownloadConversation?.call(c);
+                          case 'delete':
+                            widget.onDelete(c.id);
+                        }
+                      },
+                      itemBuilder: (_) => [
                         if (widget.onTogglePin != null)
-                          IconButton(
-                            icon: Icon(
-                              c.isPinned
-                                  ? Icons.push_pin
-                                  : Icons.push_pin_outlined,
+                          PopupMenuItem(
+                            value: 'pin',
+                            child: MenuRow(
+                              icon: c.isPinned
+                                  ? Icons.push_pin_outlined
+                                  : Icons.push_pin,
+                              label: c.isPinned
+                                  ? l10n.labelUnpin
+                                  : l10n.labelPin,
                             ),
-                            tooltip: c.isPinned ? 'Unpin' : 'Pin',
-                            onPressed: () => widget.onTogglePin!(c.id),
                           ),
-                        IconButton(
-                          tooltip: 'Delete conversation',
-                          icon: const Icon(Icons.delete_outline),
-                          onPressed: () => widget.onDelete(c.id),
+                        if (widget.onDownloadConversation != null)
+                          PopupMenuItem(
+                            value: 'download',
+                            child: MenuRow(
+                              icon: Icons.download_outlined,
+                              label: l10n.labelDownloadTranscript,
+                            ),
+                          ),
+                        PopupMenuItem(
+                          value: 'delete',
+                          child: MenuRow(
+                            icon: Icons.delete_outline,
+                            label: l10n.labelDeleteConversation,
+                          ),
                         ),
                       ],
                     ),
@@ -361,6 +395,7 @@ class _MobileDrawerBodyState extends State<_MobileDrawerBody> {
               onSelect: (r) => _selectRoom(r.id),
               onDelete: (r) => _deleteRoom(r.id),
               onMute: (r, d) => p.setMute(r.id, d),
+              onDownload: widget.onDownloadRoom,
             ),
           ),
         ],

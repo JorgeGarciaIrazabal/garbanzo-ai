@@ -6,7 +6,7 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings, get_settings
@@ -36,6 +36,15 @@ from app.services.chat_service import ChatService
 from app.services.client_tool_bridge import client_tool_bridge
 from app.services.conversation_service import _build_snippet
 from app.services.detached_chat_stream import DetachedChatStream
+from app.services.transcript_export import (
+    build_export_footer,
+    conversation_sections,
+    export_filename,
+    render_transcript_docx,
+    render_transcript_markdown,
+)
+
+DOCX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
 logger = logging.getLogger(__name__)
 
@@ -387,6 +396,69 @@ async def delete_conversation(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Conversation not found",
         )
+
+
+@router.get("/conversations/{conversation_id}/export", summary="Export conversation transcript")
+async def export_conversation(
+    conversation_id: str,
+    current_user: Annotated[dict[str, Any], Depends(get_current_user)],
+    service: Annotated[ChatService, Depends(get_chat_service)],
+    format: str = Query(
+        "docx",
+        pattern="^(docx|markdown)$",
+        description="docx (Word document) or markdown",
+    ),
+) -> Response:
+    """Download the conversation's transcript.
+
+    The default ``docx`` format returns a real Word document: one heading per
+    turn, with the assistant's markdown rendered as headings, lists, code
+    blocks, and tables rather than literal ``**``/``-`` characters.
+    """
+    conversation = await service.conversations.get(
+        conversation_id, current_user["email"], include_messages=False
+    )
+    if conversation is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found")
+
+    epoch = conversation.session_epoch if conversation.is_primary else None
+    messages = await service.conversations.all_messages_for_export(
+        conversation_id, session_epoch=epoch
+    )
+    title = conversation.title or "Conversation"
+    sections, omitted = conversation_sections(
+        messages, user_label=current_user.get("email", "User")
+    )
+    filename = export_filename("chat", title, format)
+
+    if format == "markdown":
+        body = render_transcript_markdown(
+            title=title,
+            sections=sections,
+            subtitle=build_export_footer(None, omitted),
+        )
+        return Response(
+            content=body.encode("utf-8"),
+            media_type="text/markdown",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+                "Cache-Control": "private, no-store",
+            },
+        )
+
+    document = render_transcript_docx(
+        title=title,
+        sections=sections,
+        footer=build_export_footer(None, omitted),
+    )
+    return Response(
+        content=document,
+        media_type=DOCX_MEDIA_TYPE,
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Cache-Control": "private, no-store",
+        },
+    )
 
 
 # =============================================================================

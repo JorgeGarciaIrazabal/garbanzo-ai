@@ -5690,6 +5690,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Dismiss'**
   String get dismiss;
+
+  /// features/chat/widgets/conversation_list_widget.dart: sidebar thread row menu (pin, download, delete).
+  ///
+  /// In en, this message translates to:
+  /// **'More actions'**
+  String get tooltipThreadActions;
+
+  /// features/chat/widgets/conversation_list_widget.dart: pins a conversation to the top of the sidebar.
+  ///
+  /// In en, this message translates to:
+  /// **'Pin'**
+  String get labelPin;
+
+  /// features/chat/widgets/conversation_list_widget.dart: unpins a conversation.
+  ///
+  /// In en, this message translates to:
+  /// **'Unpin'**
+  String get labelUnpin;
+
+  /// features/chat/widgets/conversation_list_widget.dart: deletes a conversation.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete conversation'**
+  String get labelDeleteConversation;
+
+  /// features/chat/widgets/conversation_list_widget.dart: exports a conversation transcript as a file.
+  ///
+  /// In en, this message translates to:
+  /// **'Download transcript'**
+  String get labelDownloadTranscript;
+
+  /// Export format choice: a Word document.
+  ///
+  /// In en, this message translates to:
+  /// **'Word document (.docx)'**
+  String get labelDownloadAsDocx;
+
+  /// Export format choice: plain markdown.
+  ///
+  /// In en, this message translates to:
+  /// **'Markdown (.md)'**
+  String get labelDownloadAsMarkdown;
+
+  /// Snackbar confirming a successful transcript export.
+  ///
+  /// In en, this message translates to:
+  /// **'Transcript downloaded'**
+  String get messageTranscriptDownloaded;
+
+  /// Snackbar when exporting a transcript fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t download the transcript.'**
+  String get messageTranscriptDownloadFailed;
 }
 
 class _AppLocalizationsDelegate

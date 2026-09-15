@@ -40,6 +40,13 @@ from app.services.room_service import (
     RoomService,
     UnknownUserError,
 )
+from app.services.transcript_export import (
+    DOCX_MEDIA_TYPE,
+    build_export_footer,
+    export_filename,
+    render_transcript_docx,
+    room_sections,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -555,10 +562,11 @@ async def export_room(
     room_id: str,
     current_user: Annotated[dict[str, Any], Depends(get_current_user)],
     service: Annotated[RoomService, Depends(_service)],
-    format: str = Query("markdown", pattern="^(markdown|json)$"),
+    format: str = Query("markdown", pattern="^(markdown|json|docx)$"),
 ):
     room = await _require_member(service, room_id, current_user["email"])
     messages = await service.all_messages_for_export(room_id)
+    agent_names = {a.id: a.name for a in room.agents}
 
     if format == "json":
         return RoomExport(
@@ -566,8 +574,26 @@ async def export_room(
             messages=[RoomMessageOut.model_validate(m) for m in messages],
         )
 
+    if format == "docx":
+        sections, omitted = room_sections(messages, agent_names)
+        document = render_transcript_docx(
+            title=room.name,
+            subtitle=room.description,
+            sections=sections,
+            footer=build_export_footer(None, omitted),
+        )
+        return Response(
+            content=document,
+            media_type=DOCX_MEDIA_TYPE,
+            headers={
+                "Content-Disposition": (
+                    f'attachment; filename="{export_filename("room", room.name, "docx")}"'
+                ),
+                "Cache-Control": "private, no-store",
+            },
+        )
+
     # Markdown
-    agent_names = {a.id: a.name for a in room.agents}
     lines = [f"# {room.name}", ""]
     if room.description:
         lines.extend([room.description, ""])

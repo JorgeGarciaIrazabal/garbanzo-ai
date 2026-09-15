@@ -5,9 +5,11 @@ HTTP contract: status codes, authorization (owner vs member vs outsider),
 and the export formats.
 """
 
+import io
 import uuid
 
 import pytest
+from docx import Document
 from httpx import ASGITransport, AsyncClient
 
 from app.core.config import Settings, get_settings
@@ -408,6 +410,49 @@ async def test_export_json_returns_room_and_messages(db_session):
         body = resp.json()
         assert body["room"]["id"] == room["id"]
         assert [m["content"] for m in body["messages"]] == ["only message"]
+    finally:
+        _clear_overrides()
+
+
+async def test_export_docx_returns_word_document(db_session):
+    switch = _UserSwitch()
+    _install_overrides(db_session, switch)
+    try:
+        async with _client() as c:
+            room = await _create_room(c, name="Export room", description="A test room")
+            await _seed_messages(db_session, room["id"], "**first** message", "- a\n- b")
+
+            resp = await c.get(f"/api/v1/rooms/{room['id']}/export?format=docx")
+        assert resp.status_code == 200
+        assert resp.headers["content-type"] == (
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        )
+        assert resp.content[:2] == b"PK"
+        assert "room-export-room.docx" in resp.headers["content-disposition"]
+
+        document = Document(io.BytesIO(resp.content))
+        text = "\n".join(p.text for p in document.paragraphs)
+        assert "Export room" in text
+        assert "A test room" in text
+        assert OWNER in text
+        # Markdown became formatting, not literal punctuation.
+        assert "first message" in text
+        assert "**first**" not in text
+        assert ("List Bullet", "a") in [(p.style.name, p.text) for p in document.paragraphs]
+    finally:
+        _clear_overrides()
+
+
+async def test_export_docx_requires_membership(db_session):
+    await _seed_users(db_session, OUTSIDER)
+    switch = _UserSwitch()
+    _install_overrides(db_session, switch)
+    try:
+        async with _client() as c:
+            room = await _create_room(c)
+            switch.email = OUTSIDER
+            resp = await c.get(f"/api/v1/rooms/{room['id']}/export?format=docx")
+        assert resp.status_code == 404
     finally:
         _clear_overrides()
 

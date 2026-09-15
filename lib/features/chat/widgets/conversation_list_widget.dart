@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'package:garbanzo_ai/core/widgets/animated_dialog.dart';
+import 'package:garbanzo_ai/core/widgets/menu_row.dart';
 import 'package:garbanzo_ai/core/widgets/mute_sheet.dart';
 import 'package:garbanzo_ai/core/widgets/skeleton.dart';
 import 'package:garbanzo_ai/features/chat/models/conversation.dart';
@@ -21,6 +22,7 @@ class ConversationListWidget extends StatelessWidget {
     required this.onNewChat,
     this.onTogglePin,
     this.onMute,
+    this.onDownload,
     this.isLoading = false,
     this.embedded = false,
     this.newConversationLabel,
@@ -37,6 +39,10 @@ class ConversationListWidget extends StatelessWidget {
   /// conversation. Long-press / right-click only opens the mute sheet when
   /// this is set.
   final void Function(Conversation conversation, String duration)? onMute;
+
+  /// Downloads a conversation transcript. When set, the row's actions menu
+  /// offers "Download transcript"; the implementation picks the format.
+  final ValueChanged<Conversation>? onDownload;
 
   final bool isLoading;
 
@@ -112,6 +118,9 @@ class ConversationListWidget extends StatelessWidget {
                     onMuteMenu: onMute == null
                         ? null
                         : () => _showMuteSheet(context, conversation),
+                    onDownloadRequested: onDownload == null
+                        ? null
+                        : () => onDownload!(conversation),
                     colorScheme: colorScheme,
                     textTheme: theme.textTheme,
                   );
@@ -225,6 +234,7 @@ class _ConversationListItem extends StatelessWidget {
     required this.textTheme,
     this.onTogglePin,
     this.onMuteMenu,
+    this.onDownloadRequested,
   });
 
   final Conversation conversation;
@@ -236,11 +246,15 @@ class _ConversationListItem extends StatelessWidget {
   /// Opens the mute sheet — long-press on touch, right-click on desktop.
   final VoidCallback? onMuteMenu;
 
+  /// Opens the transcript download flow (format picker, then save/share).
+  final VoidCallback? onDownloadRequested;
+
   final ColorScheme colorScheme;
   final TextTheme textTheme;
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final unselectedIcon = isSelected
         ? colorScheme.onPrimaryContainer.withValues(alpha: 0.7)
         : colorScheme.onSurfaceVariant.withValues(alpha: 0.5);
@@ -253,7 +267,7 @@ class _ConversationListItem extends StatelessWidget {
         onLongPress: onMuteMenu,
         onSecondaryTap: onMuteMenu,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          padding: const EdgeInsets.fromLTRB(16, 12, 4, 12),
           decoration: BoxDecoration(
             border: Border(
               bottom: BorderSide(
@@ -300,9 +314,7 @@ class _ConversationListItem extends StatelessWidget {
                             key: const ValueKey('conversation_muted_glyph'),
                             Icons.notifications_off,
                             size: 14,
-                            semanticLabel: AppLocalizations.of(
-                              context,
-                            )!.messageRoomMuted,
+                            semanticLabel: l10n.messageRoomMuted,
                             color: unselectedIcon,
                           ),
                         ],
@@ -310,9 +322,7 @@ class _ConversationListItem extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      AppLocalizations.of(
-                        context,
-                      )!.messageCount(conversation.messageCount),
+                      l10n.messageCount(conversation.messageCount),
                       style: textTheme.labelSmall?.copyWith(
                         color: isSelected
                             ? colorScheme.onPrimaryContainer.withValues(
@@ -326,26 +336,46 @@ class _ConversationListItem extends StatelessWidget {
                   ],
                 ),
               ),
-              if (onTogglePin != null)
-                IconButton(
-                  onPressed: onTogglePin,
-                  icon: Icon(
-                    conversation.isPinned
-                        ? Icons.push_pin
-                        : Icons.push_pin_outlined,
-                    size: 18,
+              // Pin, download, and delete live in one menu: three trailing
+              // icons left no room for the title on a 280px sidebar, and the
+              // actions are all "manage this thread", not per-row shortcuts.
+              PopupMenuButton<_ThreadAction>(
+                key: const ValueKey('conversation_actions_menu'),
+                tooltip: l10n.tooltipThreadActions,
+                icon: Icon(Icons.more_vert, size: 18, color: unselectedIcon),
+                iconSize: 18,
+                padding: EdgeInsets.zero,
+                onSelected: (action) => _run(context, action),
+                itemBuilder: (context) => [
+                  if (onTogglePin != null)
+                    PopupMenuItem(
+                      value: _ThreadAction.togglePin,
+                      child: MenuRow(
+                        icon: conversation.isPinned
+                            ? Icons.push_pin_outlined
+                            : Icons.push_pin,
+                        label: conversation.isPinned
+                            ? l10n.labelUnpin
+                            : l10n.labelPin,
+                      ),
+                    ),
+                  if (onDownloadRequested != null)
+                    PopupMenuItem(
+                      value: _ThreadAction.download,
+                      child: MenuRow(
+                        icon: Icons.download_outlined,
+                        label: l10n.labelDownloadTranscript,
+                      ),
+                    ),
+                  PopupMenuItem(
+                    value: _ThreadAction.delete,
+                    child: MenuRow(
+                      icon: Icons.delete_outline,
+                      label: l10n.labelDeleteConversation,
+                      color: colorScheme.error,
+                    ),
                   ),
-                  tooltip: conversation.isPinned ? 'Unpin' : 'Pin',
-                  color: unselectedIcon,
-                  visualDensity: VisualDensity.compact,
-                ),
-              // Delete button
-              IconButton(
-                tooltip: 'Delete conversation',
-                onPressed: onDelete,
-                icon: const Icon(Icons.delete_outline, size: 18),
-                color: unselectedIcon,
-                visualDensity: VisualDensity.compact,
+                ],
               ),
             ],
           ),
@@ -353,4 +383,17 @@ class _ConversationListItem extends StatelessWidget {
       ),
     );
   }
+
+  void _run(BuildContext context, _ThreadAction action) {
+    switch (action) {
+      case _ThreadAction.togglePin:
+        onTogglePin?.call();
+      case _ThreadAction.delete:
+        onDelete();
+      case _ThreadAction.download:
+        onDownloadRequested?.call();
+    }
+  }
 }
+
+enum _ThreadAction { togglePin, download, delete }

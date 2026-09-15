@@ -3285,4 +3285,32 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get dismiss => 'Descartar';
+
+  @override
+  String get tooltipThreadActions => 'Más acciones';
+
+  @override
+  String get labelPin => 'Fijar';
+
+  @override
+  String get labelUnpin => 'Dejar de fijar';
+
+  @override
+  String get labelDeleteConversation => 'Eliminar conversación';
+
+  @override
+  String get labelDownloadTranscript => 'Descargar transcripción';
+
+  @override
+  String get labelDownloadAsDocx => 'Documento de Word (.docx)';
+
+  @override
+  String get labelDownloadAsMarkdown => 'Markdown (.md)';
+
+  @override
+  String get messageTranscriptDownloaded => 'Transcripción descargada';
+
+  @override
+  String get messageTranscriptDownloadFailed =>
+      'No se pudo descargar la transcripción.';
 }

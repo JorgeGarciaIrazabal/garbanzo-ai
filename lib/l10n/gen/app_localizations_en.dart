@@ -3243,4 +3243,32 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dismiss => 'Dismiss';
+
+  @override
+  String get tooltipThreadActions => 'More actions';
+
+  @override
+  String get labelPin => 'Pin';
+
+  @override
+  String get labelUnpin => 'Unpin';
+
+  @override
+  String get labelDeleteConversation => 'Delete conversation';
+
+  @override
+  String get labelDownloadTranscript => 'Download transcript';
+
+  @override
+  String get labelDownloadAsDocx => 'Word document (.docx)';
+
+  @override
+  String get labelDownloadAsMarkdown => 'Markdown (.md)';
+
+  @override
+  String get messageTranscriptDownloaded => 'Transcript downloaded';
+
+  @override
+  String get messageTranscriptDownloadFailed =>
+      'Couldn\'t download the transcript.';
 }

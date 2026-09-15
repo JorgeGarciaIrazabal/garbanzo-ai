@@ -4147,5 +4147,41 @@
   "switchAction": "Switch",
   "@switchAction": {"description": "Short action for switching topics."},
   "dismiss": "Dismiss",
-  "@dismiss": {"description": "Tooltip for dismissing a proposal."}
+  "@dismiss": {"description": "Tooltip for dismissing a proposal."},
+  "tooltipThreadActions": "More actions",
+  "@tooltipThreadActions": {
+    "description": "features/chat/widgets/conversation_list_widget.dart: sidebar thread row menu (pin, download, delete)."
+  },
+  "labelPin": "Pin",
+  "@labelPin": {
+    "description": "features/chat/widgets/conversation_list_widget.dart: pins a conversation to the top of the sidebar."
+  },
+  "labelUnpin": "Unpin",
+  "@labelUnpin": {
+    "description": "features/chat/widgets/conversation_list_widget.dart: unpins a conversation."
+  },
+  "labelDeleteConversation": "Delete conversation",
+  "@labelDeleteConversation": {
+    "description": "features/chat/widgets/conversation_list_widget.dart: deletes a conversation."
+  },
+  "labelDownloadTranscript": "Download transcript",
+  "@labelDownloadTranscript": {
+    "description": "features/chat/widgets/conversation_list_widget.dart: exports a conversation transcript as a file."
+  },
+  "labelDownloadAsDocx": "Word document (.docx)",
+  "@labelDownloadAsDocx": {
+    "description": "Export format choice: a Word document."
+  },
+  "labelDownloadAsMarkdown": "Markdown (.md)",
+  "@labelDownloadAsMarkdown": {
+    "description": "Export format choice: plain markdown."
+  },
+  "messageTranscriptDownloaded": "Transcript downloaded",
+  "@messageTranscriptDownloaded": {
+    "description": "Snackbar confirming a successful transcript export."
+  },
+  "messageTranscriptDownloadFailed": "Couldn't download the transcript.",
+  "@messageTranscriptDownloadFailed": {
+    "description": "Snackbar when exporting a transcript fails."
+  }
 }

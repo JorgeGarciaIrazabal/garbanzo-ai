@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import 'package:garbanzo_ai/core/api_client.dart';
 import 'package:garbanzo_ai/core/platform_info.dart';
 import 'package:garbanzo_ai/core/reading_column.dart';
 import 'package:garbanzo_ai/core/smart_scroll_controller.dart';
@@ -16,7 +17,9 @@ import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
 import 'package:garbanzo_ai/features/settings/widgets/settings_drawer.dart';
 import 'package:garbanzo_ai/features/chat/models/chat_attachment.dart';
 import 'package:garbanzo_ai/features/chat/models/chat_message.dart';
+import 'package:garbanzo_ai/features/chat/models/conversation.dart';
 import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
+import 'package:garbanzo_ai/features/chat/services/transcript_export_service.dart';
 import 'package:garbanzo_ai/features/chat/providers/model_provider.dart';
 import 'package:garbanzo_ai/features/topics/models/topic_node.dart';
 import 'package:garbanzo_ai/features/topics/providers/topic_discovery_provider.dart';
@@ -37,7 +40,9 @@ import 'package:garbanzo_ai/features/topics/widgets/active_context_panel.dart';
 import 'package:garbanzo_ai/features/topics/widgets/topic_context_empty_state.dart';
 import 'package:garbanzo_ai/features/chat/widgets/system_prompt_banner.dart';
 import 'package:garbanzo_ai/features/chat/widgets/tool_activity_group.dart';
+import 'package:garbanzo_ai/features/chat/widgets/transcript_export_menu.dart';
 import 'package:garbanzo_ai/features/chat/widgets/vision_model_warning_dialog.dart';
+import 'package:garbanzo_ai/features/rooms/models/room_models.dart';
 import 'package:garbanzo_ai/features/rooms/providers/room_provider.dart';
 import 'package:garbanzo_ai/features/rooms/widgets/room_chat_view.dart';
 import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
@@ -212,6 +217,9 @@ class _ChatPageContentState extends State<_ChatPageContent>
   static const _syncInterval = Duration(seconds: 10);
 
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
+  /// Transcript downloads for both threads and rooms (see the sidebar menus).
+  final TranscriptExportService _transcriptExport = TranscriptExportService();
 
   /// Smart auto-scroll (streaming follow with reader-friendly release,
   /// jump-to-bottom pill, keyboard follow) — shared with the rooms view.
@@ -455,11 +463,62 @@ class _ChatPageContentState extends State<_ChatPageContent>
       onNewChat: _newChat,
       onTogglePin: (id) => chatProvider.togglePin(id),
       onMuteConversation: (id, duration) => chatProvider.setMute(id, duration),
+      onDownloadConversation: _downloadConversation,
+      onDownloadRoom: _downloadRoom,
       initialTab: 1,
       selectedRoomId: widget.roomId,
       onSelectRoom: _selectRoom,
       onDeleteRoom: _deleteRoom,
     );
+  }
+
+  /// Asks for a format and downloads the thread's transcript.
+  ///
+  /// The transcript is always the server's full history for the thread, not
+  /// what the current view has paged in — a download that silently stopped at
+  /// the loaded window would be worse than no download.
+  Future<void> _downloadConversation(Conversation conversation) async {
+    await _downloadTranscript(
+      load: (format) => _transcriptExport.downloadConversation(
+        conversation.id,
+        format: format,
+        title: conversation.displayTitle,
+      ),
+    );
+  }
+
+  /// Same flow for a room transcript.
+  Future<void> _downloadRoom(Room room) async {
+    await _downloadTranscript(
+      load: (format) => _transcriptExport.downloadRoom(
+        room.id,
+        format: format,
+        title: room.name,
+      ),
+    );
+  }
+
+  Future<void> _downloadTranscript({
+    required Future<void> Function(TranscriptExportFormat format) load,
+  }) async {
+    final format = await showTranscriptFormatSheet(context);
+    if (format == null || !mounted) return;
+    final l10n = AppLocalizations.of(context)!;
+    try {
+      await load(format);
+      if (mounted) _snack(l10n.messageTranscriptDownloaded);
+    } catch (e) {
+      if (!mounted) return;
+      // The server's own reason (404/422/…) is more useful than a generic
+      // failure when the export can't be produced at all.
+      final detail = e is ExportDownloadException ? e.detail : null;
+      _snack(
+        detail == null
+            ? l10n.messageTranscriptDownloadFailed
+            : '${l10n.messageTranscriptDownloadFailed} ($detail)',
+        error: true,
+      );
+    }
   }
 
   /// Delete with an undo window: the provider defers the API call, and the
@@ -687,6 +746,8 @@ class _ChatPageContentState extends State<_ChatPageContent>
                           onTogglePin: (id) => chatProvider.togglePin(id),
                           onMuteConversation: (id, duration) =>
                               chatProvider.setMute(id, duration),
+                          onDownloadConversation: _downloadConversation,
+                          onDownloadRoom: _downloadRoom,
                           isLoadingConversations:
                               chatProvider.isLoadingConversations,
                           selectedRoomId: widget.roomId,

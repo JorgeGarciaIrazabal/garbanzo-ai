@@ -256,6 +256,23 @@ class ConversationService:
         result = await self.db.execute(query)
         return result.scalar_one_or_none()
 
+    async def all_messages_for_export(
+        self, conversation_id: str, session_epoch: int | None = None
+    ) -> list[Message]:
+        """Messages in insertion order for transcript export.
+
+        ``session_epoch`` scopes the export to the visible primary-chat
+        session, matching what ``GET /chat/conversations/{id}`` returns;
+        pass ``None`` for a legacy thread to export its whole history. The
+        relationship is deliberately not used — a paginated fetch leaves it
+        unloaded.
+        """
+        query = select(Message).where(Message.conversation_id == conversation_id)
+        if session_epoch is not None:
+            query = query.where(Message.session_epoch == session_epoch)
+        rows = (await self.db.execute(query.order_by(Message.seq))).scalars().all()
+        return list(rows)
+
     async def get_recent_messages(
         self, conversation_id: str, limit: int = 50, session_epoch: int | None = None
     ) -> tuple[list[Message], int, bool]:
