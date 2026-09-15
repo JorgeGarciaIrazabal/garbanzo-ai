@@ -8,11 +8,13 @@ punctuation leaked into the text.
 import io
 from datetime import UTC, datetime
 
+import pytest
 from docx import Document
 
 from app.services.docx_export import (
     TranscriptSection,
     export_filename,
+    format_extension,
     render_transcript_docx,
     slugify,
 )
@@ -238,3 +240,12 @@ class TestFilenames:
     def test_export_filename_uses_prefix_and_extension(self):
         assert export_filename("chat", "Design chat", "docx") == "chat-design-chat.docx"
         assert export_filename("room", "!!!", "md") == "room-transcript.md"
+
+    def test_format_extension_maps_api_format_to_file_extension(self):
+        # `format=markdown` must not produce a `.markdown` file.
+        assert format_extension("markdown") == "md"
+        assert format_extension("docx") == "docx"
+
+    def test_format_extension_rejects_unknown_formats(self):
+        with pytest.raises(ValueError, match="unknown export format"):
+            format_extension("pdf")

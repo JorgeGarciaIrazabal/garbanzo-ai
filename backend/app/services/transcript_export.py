@@ -16,6 +16,7 @@ from typing import Any
 from app.services.docx_export import (
     TranscriptSection,
     export_filename,
+    format_extension,
     render_transcript_docx,
     slugify,
 )
@@ -28,6 +29,7 @@ __all__ = [
     "build_export_footer",
     "conversation_sections",
     "export_filename",
+    "format_extension",
     "render_transcript_docx",
     "render_transcript_markdown",
     "room_sections",

@@ -65,6 +65,20 @@ def export_filename(prefix: str, name: str, extension: str) -> str:
     return f"{prefix}-{slugify(name)}.{extension}"
 
 
+# Download extension per export format. Kept apart from the API's format names
+# so `?format=markdown` doesn't produce a `.markdown` file — everyone, and every
+# editor, expects `.md`.
+FORMAT_EXTENSIONS = {"docx": "docx", "markdown": "md"}
+
+
+def format_extension(export_format: str) -> str:
+    """The file extension for an export format, raising on an unknown one."""
+    try:
+        return FORMAT_EXTENSIONS[export_format]
+    except KeyError as exc:
+        raise ValueError(f"unknown export format: {export_format}") from exc
+
+
 def _markdown() -> MarkdownIt:
     # Same extensions the app's chat renderer enables (see lib/AGENTS.md:
     # tables / task lists / strikethrough all come from ExtensionSet.gitHubWeb).

@@ -134,6 +134,9 @@ async def test_export_markdown_format(db_session):
         assert resp.headers["content-type"].startswith("text/markdown")
         assert "# Notes" in resp.text
         assert "hello" in resp.text
+        # `?format=markdown` still downloads as .md — the API's format name is
+        # not the file extension.
+        assert resp.headers["content-disposition"] == 'attachment; filename="chat-notes.md"'
     finally:
         _clear_overrides()
 

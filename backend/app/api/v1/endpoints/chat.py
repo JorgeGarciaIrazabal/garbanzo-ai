@@ -40,6 +40,7 @@ from app.services.transcript_export import (
     build_export_footer,
     conversation_sections,
     export_filename,
+    format_extension,
     render_transcript_docx,
     render_transcript_markdown,
 )
@@ -429,7 +430,7 @@ async def export_conversation(
     sections, omitted = conversation_sections(
         messages, user_label=current_user.get("email", "User")
     )
-    filename = export_filename("chat", title, format)
+    filename = export_filename("chat", title, format_extension(format))
 
     if format == "markdown":
         body = render_transcript_markdown(
