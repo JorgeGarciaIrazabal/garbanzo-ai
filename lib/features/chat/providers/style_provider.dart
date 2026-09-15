@@ -20,10 +20,17 @@ import 'package:garbanzo_ai/features/chat/services/system_prompt_service.dart';
 class StyleProvider extends ChangeNotifier with GuardedStateMixin {
   StyleProvider({StyleService? styleService})
     : _service = styleService ?? StyleService.instance {
-    refresh();
+    _loadFuture = refresh();
   }
 
   final StyleService _service;
+
+  /// Completes when the initial [refresh] finishes. Lets the new-topic window
+  /// await the style list instead of seeding from an empty one.
+  Future<void>? _loadFuture;
+
+  /// Await the initial style load. Subsequent calls reuse the same future.
+  Future<void> ensureLoaded() => _loadFuture ??= refresh();
 
   /// SharedPreferences key for the id of the last saved style the user
   /// explicitly applied. Falls back to seeding new-conversation pendings
@@ -99,17 +106,49 @@ class StyleProvider extends ChangeNotifier with GuardedStateMixin {
     if (_pendingTouched) return;
     if (seed == null) return;
     _pendingThinkingLevel = seed.thinkingLevel;
-    _pendingSystemPrompt = null;
-    if (seed.systemPromptTemplateId != null) {
-      try {
-        final templates = await SystemPromptService.instance.listTemplates();
-        _pendingSystemPrompt = templates
-            .where((t) => t.id == seed.systemPromptTemplateId)
-            .firstOrNull
-            ?.content;
-      } catch (_) {
-        // Best-effort: a failed template fetch only loses the prompt seed.
-      }
+    _pendingSystemPrompt = await _resolveTemplateContent(
+      seed.systemPromptTemplateId,
+    );
+  }
+
+  /// Reset the composer for a new-topic window: the user's default style (or
+  /// last-used fallback) is selected, and thinking starts at the style's own
+  /// level — or Medium when the style leaves it on Auto. Called whenever the
+  /// Topics landing opens (app startup or the New topic action) so a new topic
+  /// does not inherit whatever the previous chat happened to use.
+  ///
+  /// Returns the style the window was seeded from, or null when the user has
+  /// no saved styles.
+  Future<Style?> applyDefaultForNewTopic() async {
+    await ensureLoaded();
+    final seed = defaultStyle ?? await _lastUsedStyle();
+    // The window composes a deliberate pending state; protect it from being
+    // re-seeded by a later refresh until the user changes it again.
+    _pendingTouched = true;
+    _selectedStyleId = seed?.id;
+    _pendingThinkingLevel = seed?.thinkingLevel ?? ThinkingLevel.medium;
+    _pendingSystemPrompt = await _resolveTemplateContent(
+      seed?.systemPromptTemplateId,
+    );
+    notifyListeners();
+    return seed;
+  }
+
+  /// Content of a system-prompt template, or null when there is no template
+  /// or the template list could not be fetched. Best-effort: a failed fetch
+  /// only loses the prompt seed.
+  Future<String?> _resolveTemplateContent(String? templateId) async {
+    if (templateId == null) return null;
+    try {
+      final templates = await SystemPromptService.instance.listTemplates();
+      final content = templates
+          .where((t) => t.id == templateId)
+          .firstOrNull
+          ?.content
+          .trim();
+      return (content == null || content.isEmpty) ? null : content;
+    } catch (_) {
+      return null;
     }
   }
 

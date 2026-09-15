@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:garbanzo_ai/core/reading_column.dart';
+import 'package:garbanzo_ai/features/chat/services/clipboard_image_reader.dart';
 import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// Shared chrome for posting a message: a framed multi-line text field with
@@ -20,6 +23,7 @@ class MessageComposer extends StatefulWidget {
     this.onStop,
     this.onChanged,
     this.onBlur,
+    this.onPasteImage,
     this.isLoading = false,
     this.enabled = true,
     this.hintText,
@@ -37,6 +41,12 @@ class MessageComposer extends StatefulWidget {
   final ValueChanged<String>? onChanged;
   final VoidCallback? onBlur;
   final VoidCallback? onStop;
+
+  /// Called with image bytes copied to the clipboard when the user pastes
+  /// (Ctrl/Cmd+V) an image rather than text. The owner validates and stages
+  /// them, so paste goes through the same path as picking a file. When null or
+  /// when the clipboard holds no image, the paste falls back to plain text.
+  final ValueChanged<List<ClipboardImage>>? onPasteImage;
   final bool isLoading;
   final bool enabled;
   final String? hintText;
@@ -117,9 +127,12 @@ class MessageComposerState extends State<MessageComposer> {
 
   KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
-    if (HardwareKeyboard.instance.isControlPressed &&
+    // Ctrl+V on Linux/Windows, Cmd+V on macOS — the same shortcut the rest of
+    // the app's composers accept.
+    if ((HardwareKeyboard.instance.isControlPressed ||
+            HardwareKeyboard.instance.isMetaPressed) &&
         event.logicalKey == LogicalKeyboardKey.keyV) {
-      _handlePaste();
+      unawaited(_handlePaste());
       return KeyEventResult.handled;
     }
     final isEnter =
@@ -144,10 +157,30 @@ class MessageComposerState extends State<MessageComposer> {
     );
   }
 
+  /// Paste handler: an image on the clipboard becomes a staged attachment;
+  /// anything else falls back to inserting the plain-text clipboard contents.
+  ///
+  /// The image is checked first because a copied screenshot usually has no
+  /// text representation at all, and a copied image *file* also carries its
+  /// path as text — pasting that path into the message would be wrong.
   Future<void> _handlePaste() async {
+    if (await _tryPasteImage()) return;
+    await _pasteText();
+  }
+
+  Future<bool> _tryPasteImage() async {
+    final onPasteImage = widget.onPasteImage;
+    if (onPasteImage == null || !widget.enabled) return false;
+    final images = await ClipboardImageReader.readImages();
+    if (images.isEmpty || !mounted) return false;
+    onPasteImage(images);
+    return true;
+  }
+
+  Future<void> _pasteText() async {
     final data = await Clipboard.getData('text/plain');
     final text = data?.text;
-    if (text == null) return;
+    if (text == null || !mounted) return;
     final sel = _controller.selection;
     final newText = _controller.text.replaceRange(sel.start, sel.end, text);
     _controller.text = newText;

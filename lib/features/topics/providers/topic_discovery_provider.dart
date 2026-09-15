@@ -41,6 +41,13 @@ class TopicDiscoveryProvider extends ChangeNotifier {
   bool _showLanding = true;
   bool get showLanding => _showLanding;
 
+  int _newTopicEpoch = 0;
+
+  /// Advances each time [startNewTopic] opens a fresh new-topic window. The
+  /// landing listens so re-entering the window re-seeds the composer even
+  /// while the landing is already visible.
+  int get newTopicEpoch => _newTopicEpoch;
+
   final Set<TopicOrigin> _loadingModes = {};
   bool get loading => _loadingModes.contains(_mode);
 
@@ -338,6 +345,7 @@ class TopicDiscoveryProvider extends ChangeNotifier {
     _pendingDrift = null;
     _path = const [];
     _showLanding = true;
+    _newTopicEpoch++;
     _error = null;
     notifyListeners();
     unawaited(load());

@@ -52,6 +52,10 @@ conversations start with the default style's thinking level and prompt; its
 model becomes your default model. Without a default, your most recently
 applied style seeds new chats.
 
+Opening a new topic (at startup or from the New topic button) uses that same
+default style. If the style leaves thinking on Auto, new topics start at
+Medium reasoning so they are not left at the model's implicit default.
+
 ## How do I edit a style?
 Open your style card's menu and choose **Edit…**. The picker switches to the
 Customize section pre-filled with the style's model, thinking level, and

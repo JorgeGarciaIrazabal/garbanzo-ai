@@ -8,8 +8,13 @@ import 'package:provider/provider.dart';
 import 'package:garbanzo_ai/features/chat/models/chat_attachment.dart';
 import 'package:garbanzo_ai/features/chat/models/chat_message.dart';
 import 'package:garbanzo_ai/features/chat/models/conversation.dart';
+import 'package:garbanzo_ai/features/chat/models/model_info.dart';
+import 'package:garbanzo_ai/features/chat/models/style.dart';
 import 'package:garbanzo_ai/features/chat/models/thinking_level.dart';
 import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
+import 'package:garbanzo_ai/features/chat/providers/model_provider.dart';
+import 'package:garbanzo_ai/features/chat/providers/style_provider.dart';
+import 'package:garbanzo_ai/features/chat/services/style_service.dart';
 import 'package:garbanzo_ai/features/chat/widgets/chat_page.dart';
 import 'package:garbanzo_ai/features/chat/widgets/chat_message_widget.dart';
 import 'package:garbanzo_ai/features/chat/widgets/topic_banner.dart';
@@ -40,6 +45,7 @@ class _FakeChatProvider extends ChatProvider {
   final Conversation? _conversation;
   final List<Map<String, dynamic>> createdConversations = [];
   final List<Map<String, dynamic>> sentMessages = [];
+  final List<Map<String, Object?>> updates = [];
   String? loadedConversationId;
 
   @override
@@ -51,6 +57,29 @@ class _FakeChatProvider extends ChatProvider {
   @override
   Future<void> loadConversation(String conversationId) async {
     loadedConversationId = conversationId;
+  }
+
+  @override
+  Future<void> updateConversation({
+    String? title,
+    String? model,
+    bool? useMemory,
+    bool? useKnowledgeBase,
+    String? systemPrompt,
+    bool clearSystemPrompt = false,
+    List<String>? enabledTools,
+    bool clearEnabledTools = false,
+    bool? isPinned,
+    ThinkingLevel? thinkingLevel,
+    bool setThinkingLevel = false,
+  }) async {
+    updates.add({
+      'model': model,
+      'systemPrompt': systemPrompt,
+      'clearSystemPrompt': clearSystemPrompt,
+      'thinkingLevel': thinkingLevel,
+      'setThinkingLevel': setThinkingLevel,
+    });
   }
 
   @override
@@ -87,6 +116,38 @@ class _FakeChatProvider extends ChatProvider {
     String? talkModeInstruction,
   }) async {
     sentMessages.add({'message': content, 'attachments': attachments});
+  }
+}
+
+class _FakeStyleService extends StyleService {
+  _FakeStyleService(this._styles) : super.forTesting();
+
+  final List<Style> _styles;
+
+  @override
+  Future<List<Style>> listStyles() async => _styles;
+}
+
+class _FakeModelProvider extends ModelProvider {
+  _FakeModelProvider({required List<ModelInfo> models, String? selectedId})
+    : _models = models,
+      _selectedId = selectedId;
+
+  final List<ModelInfo> _models;
+  String? _selectedId;
+
+  @override
+  List<ModelInfo> get availableModels => List.unmodifiable(_models);
+
+  @override
+  String? get selectedModelId => _selectedId;
+
+  @override
+  Future<void> ensureLoaded() async {}
+
+  @override
+  void selectModel(String modelId) {
+    if (_models.any((m) => m.id == modelId)) _selectedId = modelId;
   }
 }
 
@@ -181,6 +242,8 @@ Widget _wrapWithApp(
   ActiveContextProvider? contextProvider,
   ChatProvider? chatProvider,
   SettingsProvider? settingsProvider,
+  StyleProvider? styleProvider,
+  ModelProvider? modelProvider,
 }) =>
     MultiProvider(
       providers: [
@@ -188,6 +251,8 @@ Widget _wrapWithApp(
         if (contextProvider != null) ChangeNotifierProvider.value(value: contextProvider),
         if (chatProvider != null) ChangeNotifierProvider.value(value: chatProvider),
         if (settingsProvider != null) ChangeNotifierProvider.value(value: settingsProvider),
+        if (styleProvider != null) ChangeNotifierProvider.value(value: styleProvider),
+        if (modelProvider != null) ChangeNotifierProvider.value(value: modelProvider),
       ],
       child: MaterialApp(
         localizationsDelegates: const [
@@ -1137,5 +1202,192 @@ How can I help you with **Retirement planning** today?
 
     await tester.tap(find.text('Continue with Home Renovation'));
     expect(sentPrompt, 'Continue with Home Renovation');
+  });
+
+  group('TopicLanding new-topic defaults', () {
+    Style defaultStyle({ThinkingLevel? thinkingLevel}) => Style(
+      id: 'default-style',
+      name: 'Deep work',
+      modelId: 'kimi-k3',
+      thinkingLevel: thinkingLevel,
+      isDefault: true,
+      createdAt: DateTime(2026),
+      updatedAt: DateTime(2026),
+    );
+
+    // The landing seeds asynchronously (styles load + primary PATCH), so pump
+    // a few frames after mount to let its post-frame callback settle.
+    Future<void> settle(WidgetTester tester) async {
+      await tester.pump();
+      await tester.pump();
+      await tester.pump();
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets(
+      'seeds the pending style and thinking, and applies them to the primary',
+      (tester) async {
+        final topics = TopicDiscoveryProvider(
+          service: _FakeTopicService(const []),
+        );
+        final styles = StyleProvider(
+          styleService: _FakeStyleService([
+            defaultStyle(thinkingLevel: ThinkingLevel.high),
+          ]),
+        );
+        final chat = _FakeChatProvider(
+          conversation: Conversation(
+            id: 'primary',
+            model: 'llama3.2',
+            isPrimary: true,
+            createdAt: DateTime(2026),
+            updatedAt: DateTime(2026),
+          ),
+        );
+        final models = _FakeModelProvider(
+          models: const [
+            ModelInfo(
+              id: 'kimi-k3',
+              name: 'Kimi K3',
+              provider: 'ollama',
+              supportsThinking: true,
+              thinkingLevels: ThinkingLevel.values,
+            ),
+          ],
+          selectedId: 'llama3.2',
+        );
+
+        await tester.pumpWidget(
+          _wrapWithApp(
+            TopicLanding(conversationId: 'primary', onStarterSelected: (_) {}),
+            topicProvider: topics,
+            chatProvider: chat,
+            styleProvider: styles,
+            modelProvider: models,
+          ),
+        );
+        await settle(tester);
+
+        expect(styles.pendingThinkingLevel, ThinkingLevel.high);
+        expect(styles.selectedStyleId, 'default-style');
+        expect(models.selectedModelId, 'kimi-k3');
+        expect(chat.updates, hasLength(1));
+        expect(chat.updates.single['model'], 'kimi-k3');
+        expect(chat.updates.single['thinkingLevel'], ThinkingLevel.high);
+        expect(chat.updates.single['setThinkingLevel'], true);
+      },
+    );
+
+    testWidgets(
+      'new topic defaults thinking to medium when the style is on Auto',
+      (tester) async {
+        final topics = TopicDiscoveryProvider(
+          service: _FakeTopicService(const []),
+        );
+        final styles = StyleProvider(
+          styleService: _FakeStyleService([defaultStyle()]),
+        );
+        final chat = _FakeChatProvider(
+          conversation: Conversation(
+            id: 'primary',
+            model: 'kimi-k3',
+            isPrimary: true,
+            createdAt: DateTime(2026),
+            updatedAt: DateTime(2026),
+          ),
+        );
+        final models = _FakeModelProvider(
+          models: const [
+            ModelInfo(
+              id: 'kimi-k3',
+              name: 'Kimi K3',
+              provider: 'ollama',
+              supportsThinking: true,
+              thinkingLevels: ThinkingLevel.values,
+            ),
+          ],
+          selectedId: 'kimi-k3',
+        );
+
+        await tester.pumpWidget(
+          _wrapWithApp(
+            TopicLanding(conversationId: 'primary', onStarterSelected: (_) {}),
+            topicProvider: topics,
+            chatProvider: chat,
+            styleProvider: styles,
+            modelProvider: models,
+          ),
+        );
+        await settle(tester);
+
+        expect(styles.pendingThinkingLevel, ThinkingLevel.medium);
+        expect(chat.updates.single['thinkingLevel'], ThinkingLevel.medium);
+        expect(chat.updates.single['model'], isNull);
+      },
+    );
+
+    testWidgets(
+      're-entering the new-topic window reseeds over a previous override',
+      (tester) async {
+        final topics = TopicDiscoveryProvider(
+          service: _FakeTopicService(const []),
+        );
+        final styles = StyleProvider(
+          styleService: _FakeStyleService([defaultStyle()]),
+        );
+
+        await tester.pumpWidget(
+          _wrapWithApp(
+            TopicLanding(conversationId: 'primary', onStarterSelected: (_) {}),
+            topicProvider: topics,
+            styleProvider: styles,
+          ),
+        );
+        await settle(tester);
+        // The user tweaks effort while in the window...
+        styles.setPendingThinkingLevel(ThinkingLevel.off);
+        // ...then presses New topic again.
+        topics.startNewTopic();
+        await settle(tester);
+
+        expect(styles.pendingThinkingLevel, ThinkingLevel.medium);
+      },
+    );
+
+    testWidgets('does not touch a non-primary conversation', (tester) async {
+      final topics = TopicDiscoveryProvider(
+        service: _FakeTopicService(const []),
+      );
+      final styles = StyleProvider(
+        styleService: _FakeStyleService([defaultStyle()]),
+      );
+      final chat = _FakeChatProvider(
+        conversation: Conversation(
+          id: 'thread-1',
+          model: 'llama3.2',
+          createdAt: DateTime(2026),
+          updatedAt: DateTime(2026),
+        ),
+      );
+      final models = _FakeModelProvider(
+        models: const [
+          ModelInfo(id: 'kimi-k3', name: 'Kimi K3', provider: 'ollama'),
+        ],
+        selectedId: 'llama3.2',
+      );
+
+      await tester.pumpWidget(
+        _wrapWithApp(
+          TopicLanding(conversationId: 'thread-1', onStarterSelected: (_) {}),
+          topicProvider: topics,
+          chatProvider: chat,
+          styleProvider: styles,
+          modelProvider: models,
+        ),
+      );
+      await settle(tester);
+
+      expect(chat.updates, isEmpty);
+    });
   });
 }

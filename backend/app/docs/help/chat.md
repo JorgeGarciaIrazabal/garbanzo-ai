@@ -30,7 +30,12 @@ nudges the assistant to use that tool for your request. Use the arrow keys
 and Enter (or tap) to pick a suggestion; Esc dismisses it.
 
 ## How do I attach images or files?
-Use the paperclip (**Attach photos or files**) next to the input bar. Images
+Use the paperclip (**Attach photos or files**) next to the input bar, or paste
+an image straight from the clipboard: copy a screenshot and press **Ctrl+V**
+(**Cmd+V** on macOS) while the composer is focused. The image is attached for
+you, ready to send. Pasting normal text still just inserts the text, and a
+pasted image goes through the same checks as a picked one.
+Images
 are sent to vision-capable models; documents (PDF, text, etc.) have their
 text extracted and included with your message. You can send an attachment by
 itself or add instructions in the message field first.

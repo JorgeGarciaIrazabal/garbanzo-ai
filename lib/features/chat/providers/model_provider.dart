@@ -25,11 +25,18 @@ class ModelProvider extends ChangeNotifier with GuardedStateMixin {
   ModelProvider({ChatService? chatService, AuthService? authService})
     : _chatService = chatService ?? ChatService.instance,
       _authService = authService ?? AuthService.instance {
-    _loadModels();
+    _loadFuture = _loadModels();
   }
 
   final ChatService _chatService;
   final AuthService _authService;
+
+  /// Completes when the initial model load finishes. Lets callers that need
+  /// the installed-model list (e.g. the new-topic window) await it.
+  Future<void>? _loadFuture;
+
+  /// Await the initial model load. Subsequent calls reuse the same future.
+  Future<void> ensureLoaded() => _loadFuture ??= _loadModels();
 
   List<ModelInfo> _availableModels = [];
   List<ModelInfo> get availableModels => List.unmodifiable(_availableModels);

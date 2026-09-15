@@ -14,6 +14,7 @@ the shell and conversation stream, not topic state.
 ## UX and state contracts
 
 - The landing map is a responsive visual hierarchy: importance can affect size and treatment, while subtopics must remain visibly related and directly selectable. It uses no connecting edges on mobile.
+- Opening the new-topic window (startup or New topic) re-seeds the composer from the user's default style (or last-used fallback) with thinking at the style's level or Medium, and applies those settings to the primary conversation. `TopicDiscoveryProvider.newTopicEpoch` drives re-seeding when the window is re-entered while already visible.
 - Selecting a parent may begin a conversation at that broad topic; selecting a child retains the real child topic ID. Selecting a topic hides the landing completely so chat has the full viewport.
 - The chat sidebar/drawer still owns Threads. A user must be able to select historical threads without treating them as topics.
 - `TopicDiscoveryProvider` may form a conservative local display group for obvious flat label families only. It is not persisted and must not override server graph topology or IDs.

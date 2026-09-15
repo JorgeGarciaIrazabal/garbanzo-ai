@@ -12,6 +12,7 @@ from sqlalchemy.orm import selectinload
 
 from app.models.conversation import Conversation
 from app.models.message import Message
+from app.models.user import User
 from app.topics.consolidation.clusterer import TopicClusterer
 from app.topics.consolidation.pack_builder import (
     PROMPT_VERSION,
@@ -330,6 +331,9 @@ class TopicConsolidationService:
         result = await TopicSemanticCurator().curate_user_graph(
             manifest=manifest,
             validator=validate,
+            # Labels are user-facing: curate them in the user's own language
+            # (English when the account has no locale).
+            locale=await self._user_locale(user_id),
         )
         if result is None:
             raise RuntimeError(
@@ -601,6 +605,14 @@ class TopicConsolidationService:
 
     async def record_failure(self, user_id: str, error: Exception) -> None:
         await ConsolidationWorker.record_failure(self.db, user_id, error)
+
+    async def _user_locale(self, user_id: str) -> str | None:
+        """Return the user's BCP-47 locale tag, or None when the account has none.
+
+        ``users.email`` is the primary key, so this is a primary-key read. A
+        missing user or a NULL locale falls back to English at the curator.
+        """
+        return await self.db.scalar(select(User.locale).where(User.email == user_id))
 
     @staticmethod
     def _exclusion_sets(

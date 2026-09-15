@@ -28,6 +28,13 @@ workspace, and hands-free Talk Mode.
   Never start or connect to a host-installed instance. If Docker isn't running:
   `sudo service docker start` (WSL2).
 - **Run `just check`** (auto-format + lint both stacks) before committing.
+- **No silent fallbacks.** Make things work as expected and raise an error when
+  they don't. A fallback is only acceptable when it covers a genuinely
+  acceptable scenario (e.g. an optional feature that is legitimately absent),
+  never to paper over a misconfiguration, a failed call, or a bug. When a
+  required dependency (model, provider, config) is missing or a call fails,
+  surface it — fail fast at startup for config, raise for runtime failures —
+  rather than degrading to a "best effort" path that hides the real issue.
 
 ## Essential commands
 
@@ -82,6 +89,7 @@ their `CLAUDE.md` names are compatibility links.
   integrates and commits verified changes directly on `main`. No dev branches/PRs.
 - Preserve unrelated edits. Record independent review for substantive changes;
   run `just check` before committing and `just test` before pushing/deploying.
+  Consolidate review findings; follow up on fixes only. Recheck when inputs change.
 - Distinguish automatically verified, ready for user testing, and accepted.
   Link feedback to the exact stable `just ai-preview` snapshot.
 - Collect production evidence on explicit full startup, on request, and overnight;
@@ -89,7 +97,6 @@ their `CLAUDE.md` names are compatibility links.
 - Deploy/restart/rollback/data changes only on user request. Report status sync
   follows the authorized task lifecycle; close only after fix deployment and
   report-specific verification. Keep raw evidence private in `.ai/local/`.
-  Consolidate review findings; follow up on fixes only. Recheck when inputs change.
 - Answer investigation/review questions directly; do not infer implementation.
 
 Daily workflow and prioritization: [`docs/ai-workflow-guide.md`](docs/ai-workflow-guide.md).

@@ -13,6 +13,9 @@ change layouts, flows, or services (see "Maintaining agent docs" in the root
 - **Android share target:** `MainActivity` handles `ACTION_SEND` and
   `ACTION_SEND_MULTIPLE`, reads granted content URIs, and forwards files/text
   through `SharedContentService`; the chat composer validates and stages them.
+- **Clipboard paste:** images copied to the system clipboard (screenshots) are
+  read through `super_clipboard` by `ClipboardImageReader` and staged as
+  attachments on Ctrl/Cmd+V in either composer; plain text paste is unchanged.
 - **LLM:** Ollama (default) via a pluggable provider pattern
 - **TTS:** Kokoro (in-process, loaded on backend startup)
 - **STT:** Faster Whisper (in-process local by default; remote Docker fallback on port 8010)
@@ -461,6 +464,17 @@ JPEG/PNG/BMP/GIF retain their formats (including PNG alpha and GIF frames);
 oversized WebP becomes PNG. Backend vision resizing also preserves the stored
 format instead of silently converting attachments to JPEG.
 
+Images enter through three routes that all funnel into
+`FilePickerHelper.validate`: the attach menu, OS-level drag-and-drop, and
+clipboard paste. `ClipboardImageReader` wraps `super_clipboard` because a
+copied screenshot lands on the clipboard as raw pixels with no text — Flutter's
+plain-text `Clipboard` API cannot see it. `MessageComposer` probes the image
+first on Ctrl/Cmd+V and only falls back to text insertion when there is no
+image, so pasting a copied image file never inserts its path as text instead.
+A clipboard read that fails or times out yields "no image" rather than an error
+(the capability is genuinely optional on web without the async clipboard API),
+so pasting text always keeps working.
+
 Every chat attachment crosses the wire as explicitly tagged base64 bytes,
 including PDFs and office documents. The backend still accepts the previous
 untagged UTF-8 document payload during client upgrades; this prevents Unicode
@@ -499,7 +513,7 @@ never disagree about the local user after a mute/unmute round trip.
 
 Main providers per `ChatPage` tree:
 - **`ModelProvider`** — available models + selected model. Kept separate so model selection survives conversation switches. For image capability errors it exposes only enabled Vision choices, preferring GLM 5.3 Flash for speed/cost and Kimi K3 for capability, then falling back to its location- and capability-aware ranking.
-- **`StyleProvider`** — saved styles + built-in styles (model + thinking level + prompt template bundles, `/api/v1/styles`) plus the *pending* thinking level / system prompt the style picker composes for the next new conversation. Same survives-switches rationale as `ModelProvider`. On load it seeds the pendings from the default style (`is_default`) or, absent one, from the last saved style the user explicitly applied (id persisted locally in `SharedPreferences` via `recordLastUsed`, `style_last_used_style_id`) — an explicit default always wins over last-used. There is no backend column for "the active style": the app-bar pill and the picker's saved-style cards both derive it by matching a conversation's (or the pending) model/thinking/resolved-prompt against each saved style's settings (`_styleMatches` in `style_picker.dart`).
+- **`StyleProvider`** — saved styles + built-in styles (model + thinking level + prompt template bundles, `/api/v1/styles`) plus the *pending* thinking level / system prompt the style picker composes for the next new conversation. Same survives-switches rationale as `ModelProvider`. On load it seeds the pendings from the default style (`is_default`) or, absent one, from the last saved style the user explicitly applied (id persisted locally in `SharedPreferences` via `recordLastUsed`, `style_last_used_style_id`) — an explicit default always wins over last-used. Opening a new-topic window (`TopicLanding`, at startup or via New topic) re-composes the pendings through `applyDefaultForNewTopic()`: the default/last-used style is selected, thinking starts at the style's own level or `Medium` when it is on Auto, and the landing applies the same settings to the primary conversation so subsequent topic chats use them. There is no backend column for "the active style": the app-bar pill and the picker's saved-style cards both derive it by matching a conversation's (or the pending) model/thinking/resolved-prompt against each saved style's settings (`_styleMatches` in `style_picker.dart`).
 
 ### Built-in styles
 

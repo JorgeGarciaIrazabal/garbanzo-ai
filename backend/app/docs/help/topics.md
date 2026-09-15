@@ -10,6 +10,10 @@ Separate threads remain available for conversations that should stay isolated.
 Open the Topics view and select a personal topic, or activate one from Explore.
 The primary chat opens on this topic map by default and stays there while its
 saved active-topic state loads. It opens a topic only after you select one.
+When the new-topic map opens, Garbanzo resets the composer to your default
+style (or the style you used last) and starts thinking at that style's level,
+or Medium when the style leaves it on Auto; the primary conversation adopts
+those settings so the topic you pick starts with them.
 If you send from the map without selecting a topic, Garbanzo starts a separate
 regular thread so that message does not create or rename a primary-chat topic.
 Larger topics are currently
@@ -87,7 +91,9 @@ The pack materializer and security checks are deterministic and local to the
 backend. A deployment administrator may explicitly configure a semantic
 curator. It runs once for each dirty user, not once per topic, to improve topic
 names, build selectable parent/subtopic paths up to three levels deep, and
-extract typed context tied to exact message IDs.
+extract typed context tied to exact message IDs. Topic names are written in the
+language set on your account, so a Spanish account keeps Spanish topics; an
+account with no language set is curated in English.
 Local-only mode blocks cloud-tagged models. Cloud curation requires
 `cloud_allowed` and sends only a bounded, already filtered evidence manifest.
 Its response must pass strict schema, evidence, ownership, merge, and hierarchy

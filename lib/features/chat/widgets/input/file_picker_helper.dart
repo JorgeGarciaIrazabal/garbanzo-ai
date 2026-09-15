@@ -4,6 +4,7 @@ import 'package:image/image.dart' as image_lib;
 import 'package:image_picker/image_picker.dart';
 
 import 'package:garbanzo_ai/features/chat/models/chat_attachment.dart';
+import 'package:garbanzo_ai/features/chat/services/clipboard_image_reader.dart';
 
 /// Result of a file picking operation.
 class FilePickResult {
@@ -141,6 +142,19 @@ class FilePickerHelper {
       ],
       existingNames: existingNames,
     );
+  }
+
+  /// Read an image off the clipboard (Ctrl/Cmd+V) and validate it like any
+  /// other picked file — including the size fitting pipeline above.
+  ///
+  /// Returns null when the clipboard holds no image, so callers can fall back
+  /// to pasting text.
+  static Future<FilePickResult?> pasteImage({
+    required Set<String> existingNames,
+  }) async {
+    final images = await ClipboardImageReader.readImages();
+    if (images.isEmpty) return null;
+    return await validate(files: images, existingNames: existingNames);
   }
 
   /// Open the file picker and validate selected files.

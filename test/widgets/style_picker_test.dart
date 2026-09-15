@@ -1577,6 +1577,89 @@ void main() {
     );
   });
 
+  group('StyleProvider new-topic seeding', () {
+    test('new topic selects the default style and uses its thinking level',
+        () async {
+      final defaultStyle = _style(
+        'default',
+        'Default',
+        thinkingLevel: ThinkingLevel.high,
+        isDefault: true,
+      );
+      final provider = StyleProvider(
+        styleService: _FakeStyleService([defaultStyle]),
+      );
+      await _waitForLoad(provider);
+
+      final seed = await provider.applyDefaultForNewTopic();
+
+      expect(seed?.id, 'default');
+      expect(provider.selectedStyleId, 'default');
+      expect(provider.pendingThinkingLevel, ThinkingLevel.high);
+    });
+
+    test('new topic defaults thinking to medium when the style is on Auto',
+        () async {
+      final defaultStyle = _style('default', 'Default', isDefault: true);
+      final provider = StyleProvider(
+        styleService: _FakeStyleService([defaultStyle]),
+      );
+      await _waitForLoad(provider);
+
+      await provider.applyDefaultForNewTopic();
+
+      expect(provider.pendingThinkingLevel, ThinkingLevel.medium);
+    });
+
+    test('new topic falls back to the last-used style without a default',
+        () async {
+      final style = _style(
+        's1',
+        'Deep work',
+        thinkingLevel: ThinkingLevel.low,
+      );
+      final first = StyleProvider(styleService: _FakeStyleService([style]));
+      await _waitForLoad(first);
+      await first.recordLastUsed('s1');
+
+      final restarted = StyleProvider(
+        styleService: _FakeStyleService([style]),
+      );
+      await _waitForLoad(restarted);
+      final seed = await restarted.applyDefaultForNewTopic();
+
+      expect(seed?.id, 's1');
+      expect(restarted.pendingThinkingLevel, ThinkingLevel.low);
+    });
+
+    test('new topic with no styles still seeds medium thinking', () async {
+      final provider = StyleProvider(styleService: _FakeStyleService(const []));
+      await _waitForLoad(provider);
+
+      final seed = await provider.applyDefaultForNewTopic();
+
+      expect(seed, isNull);
+      expect(provider.selectedStyleId, isNull);
+      expect(provider.pendingThinkingLevel, ThinkingLevel.medium);
+    });
+
+    test('re-entering a new topic recomposes over a picker override',
+        () async {
+      final defaultStyle = _style('default', 'Default', isDefault: true);
+      final provider = StyleProvider(
+        styleService: _FakeStyleService([defaultStyle]),
+      );
+      await _waitForLoad(provider);
+
+      // The user tweaks effort in the current window...
+      provider.setPendingThinkingLevel(ThinkingLevel.off);
+      // ...then opens a fresh new-topic window.
+      await provider.applyDefaultForNewTopic();
+
+      expect(provider.pendingThinkingLevel, ThinkingLevel.medium);
+    });
+  });
+
   testWidgets('ChatInputWidget renders new topic button in text input and triggers onNewTopic when isPrimary is false', (tester) async {
     bool newTopicTriggered = false;
     final chat = _FakeChatProvider(

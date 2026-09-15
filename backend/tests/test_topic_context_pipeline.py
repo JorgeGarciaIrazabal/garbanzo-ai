@@ -59,6 +59,7 @@ from app.topics.topic_semantic_curator import (
     SemanticCuratorOutput,
     TopicSemanticCurator,
     UserTopicGraphCuratorOutput,
+    label_language_for_locale,
 )
 from app.topics.topic_service import TopicService
 
@@ -1063,7 +1064,7 @@ async def test_hourly_graph_curator_uses_one_call_for_all_topics_and_builds_pack
     assert pack is not None
     assert pack.provider == "curator-test"
     assert pack.model_id == "glm-5.3-flash:cloud"
-    assert pack.prompt_version == "user-topic-graph-v7"
+    assert pack.prompt_version == "user-topic-graph-v8"
     assert assertion.id in str(pack.context_json)
 
     travel_pack = await db_session.get(TopicContextVersion, travel.current_context_version_id)
@@ -1115,7 +1116,7 @@ async def test_no_evidence_topics_are_signature_checked_once_without_a_model_cal
     )
     await db_session.refresh(topic)
     assert topic.topic_metadata["graph_curator_signature"] == (
-        "curator-test:glm-5.3-flash:cloud:user-topic-graph-v7"
+        "curator-test:glm-5.3-flash:cloud:user-topic-graph-v8"
     )
     assert await TopicConsolidationService(db_session).claim_dirty_users(owner="next-worker") == []
 
@@ -1151,6 +1152,187 @@ async def test_personal_topics_rank_by_contrasting_importance_and_inherit_child_
     assert retirement.score - dormant.score >= 0.4
     assert health.children[0].id == child.id
     assert health.score >= health.children[0].score * 0.9
+
+
+async def test_label_language_resolves_from_locale_with_english_default():
+    """Labels follow the user's locale; anything unclaimed falls back to English."""
+    assert label_language_for_locale("es-ES") == "Spanish"
+    assert label_language_for_locale("es") == "Spanish"
+    assert label_language_for_locale("ES_es") == "Spanish"
+    assert label_language_for_locale("es-419") == "Spanish"
+
+    assert label_language_for_locale("en-US") == "English"
+    # Every unclaimed or unknown case is English, never a guessed language.
+    assert label_language_for_locale(None) == "English"
+    assert label_language_for_locale("") == "English"
+    assert label_language_for_locale("   ") == "English"
+    assert label_language_for_locale("fr-FR") == "English"
+    assert label_language_for_locale("pt-BR") == "English"
+
+
+async def test_graph_prompt_is_language_specific_and_free_of_user_specifics():
+    """The rendered prompt asks for the label language and hardcodes no user."""
+    english = TopicSemanticCurator.graph_system_prompt("English")
+    spanish = TopicSemanticCurator.graph_system_prompt("Spanish")
+
+    assert "The user's language is Spanish." in spanish
+    assert "The user's language is English." in english
+    assert '"Actividades"' not in english or "Clases extraescolares" not in english
+    # Spanish rewrites must be offered in Spanish, or the model mirrors English.
+    assert "Clases extraescolares para un hijo" in spanish
+    assert "After-School Classes for a Child" in english
+    # Spanish interrogatives steer the label rule only in the Spanish prompt.
+    assert "Buscar" in spanish and "Buscar" not in english
+    # Every placeholder was substituted.
+    assert "{" not in english and "}" not in english
+
+    # No user-specific detail may appear in either rendering: the prompt serves
+    # every account, so an example naming a real person, place, or project would
+    # leak one user's context into everyone else's curation.
+    for prompt in (english, spanish):
+        for leaked in (
+            "Clara",
+            "Peñagrande",
+            "Bloomberg",
+            "Garbanzo",
+            "Kimi",
+            "Pokey",
+            "Madrid",
+            "Portugal",
+            "NHR",
+            "401k",
+        ):
+            assert leaked not in prompt, f"prompt hardcodes user-specific {leaked!r}"
+
+
+async def test_spanish_locale_curates_labels_in_spanish_not_english(
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """A user with a Spanish locale gets a Spanish prompt and Spanish labels.
+
+    The curator must also stop rewriting a Spanish topic into English: the
+    label the model returns is what the user sees on the map.
+    """
+    user = await db_session.get(User, OWNER)
+    assert user is not None
+    user.locale = "es-ES"
+    topic = await _topic(db_session, label="Cuanto Paga Una Donación")
+    message = await _message(
+        db_session,
+        await _conversation(db_session, title="Donaciones"),
+        "¿Cuánto se paga por una donación de 50.000 € a un hijo?",
+    )
+    db_session.add(
+        MessageTopic(
+            message_id=message.id,
+            topic_id=topic.id,
+            confidence=0.8,
+            is_primary=True,
+            segment_start=0,
+            segment_end=len(message.content),
+            source_authority="explicit_user_statement",
+        )
+    )
+    db_session.add(TopicIngestionState(user_id=OWNER))
+    await db_session.commit()
+
+    def response(payload):
+        return {
+            "topics": [
+                {
+                    "topic_id": topic.id,
+                    "label": "Impuestos de donaciones entre familiares",
+                    "parent_topic_id": None,
+                    "parent_label": None,
+                    "merge_topic_ids": [],
+                    "assertions": [],
+                }
+            ]
+        }
+
+    provider = _StructuredCuratorProvider(response)
+    settings = Settings(
+        secret_key="test-secret-key-do-not-use-in-prod",
+        database_url="sqlite+aiosqlite:///:memory:",
+        topic_curator_provider="curator-test",
+        topic_curator_model="glm-5.3-flash:cloud",
+        topic_context_privacy_mode="cloud_allowed",
+    )
+    monkeypatch.setattr("app.topics.topic_semantic_curator.get_settings", lambda: settings)
+    monkeypatch.setattr(ProviderRegistry, "get", lambda name: provider)
+
+    await TopicConsolidationService(db_session).consolidate_user(OWNER, event_watermark=0)
+
+    assert len(provider.calls) == 1
+    system_prompt = provider.calls[0][0][0].content
+    assert "The user's language is Spanish." in system_prompt
+    # The English wording must be gone, or the rule fights the examples.
+    assert "After-School Classes for a Child" not in system_prompt
+
+    await db_session.refresh(topic)
+    assert topic.label == "Impuestos de donaciones entre familiares"
+
+
+async def test_null_locale_curates_labels_in_english(
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """An account with no locale keeps the historical English behavior."""
+    user = await db_session.get(User, OWNER)
+    assert user is not None
+    user.locale = None
+    topic = await _topic(db_session, label="Doing")
+    message = await _message(
+        db_session,
+        await _conversation(db_session, title="Doing"),
+        "I want to maximize my retirement contributions this year.",
+    )
+    db_session.add(
+        MessageTopic(
+            message_id=message.id,
+            topic_id=topic.id,
+            confidence=0.8,
+            is_primary=True,
+            segment_start=0,
+            segment_end=len(message.content),
+            source_authority="explicit_user_statement",
+        )
+    )
+    db_session.add(TopicIngestionState(user_id=OWNER))
+    await db_session.commit()
+
+    def response(payload):
+        return {
+            "topics": [
+                {
+                    "topic_id": topic.id,
+                    "label": "Retirement Planning",
+                    "parent_topic_id": None,
+                    "parent_label": None,
+                    "merge_topic_ids": [],
+                    "assertions": [],
+                }
+            ]
+        }
+
+    provider = _StructuredCuratorProvider(response)
+    settings = Settings(
+        secret_key="test-secret-key-do-not-use-in-prod",
+        database_url="sqlite+aiosqlite:///:memory:",
+        topic_curator_provider="curator-test",
+        topic_curator_model="glm-5.3-flash:cloud",
+        topic_context_privacy_mode="cloud_allowed",
+    )
+    monkeypatch.setattr("app.topics.topic_semantic_curator.get_settings", lambda: settings)
+    monkeypatch.setattr(ProviderRegistry, "get", lambda name: provider)
+
+    await TopicConsolidationService(db_session).consolidate_user(OWNER, event_watermark=0)
+
+    assert len(provider.calls) == 1
+    assert "The user's language is English." in provider.calls[0][0][0].content
+    await db_session.refresh(topic)
+    assert topic.label == "Retirement Planning"
 
 
 async def test_graph_validation_rejects_flat_output_and_weak_individual_evidence(

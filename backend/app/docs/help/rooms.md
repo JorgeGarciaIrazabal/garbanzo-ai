@@ -46,6 +46,16 @@ that transcript when room agents decide how to respond. Tap the speed control
 to cycle playback through 1x, 1.5x, and 2x. Audio notes are only available in
 rooms; the microphone in a regular chat remains dictation.
 
+## How do I share an image or a file?
+Use the paperclip (**Attach photos or files**) next to the composer, or paste
+straight from the clipboard: copy a screenshot and press **Ctrl+V** (**Cmd+V**
+on macOS) while the composer is focused — the image is attached for you, ready
+to send with the next message. Pasting normal text still just inserts the text.
+Everything you stage is validated the same way whichever route you use:
+pictures over 3 MB are resized automatically, and the preview strip above the
+composer shows what will be sent — tap a thumbnail's **×** to drop it before
+sending.
+
 ## What happens if the room connection drops?
 The room reconnects automatically after routine network changes, Android
 backgrounding, or screen sleep. A small **Reconnecting…** status appears while

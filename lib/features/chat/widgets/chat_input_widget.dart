@@ -13,6 +13,7 @@ import 'package:garbanzo_ai/features/chat/providers/model_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/style_provider.dart';
 import 'package:garbanzo_ai/features/chat/models/thinking_level.dart';
 import 'package:garbanzo_ai/features/chat/services/shared_content_service.dart';
+import 'package:garbanzo_ai/features/chat/services/clipboard_image_reader.dart';
 import 'package:garbanzo_ai/features/chat/talk/talk_mode_page.dart';
 import 'package:garbanzo_ai/features/chat/providers/system_prompt_provider.dart';
 import 'package:garbanzo_ai/features/chat/widgets/input/attach_menu_button.dart';
@@ -256,6 +257,30 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
   void _removeAttachment(int index) =>
       setState(() => _attachments.removeAt(index));
 
+  /// Stage images pasted into the composer (Ctrl/Cmd+V), through the same
+  /// validation as the attach button so both entry paths behave identically.
+  Future<void> _stagePastedImages(List<ClipboardImage> images) async {
+    final result = await FilePickerHelper.validate(
+      files: images,
+      existingNames: _attachments.map((a) => a.name).toSet(),
+    );
+    if (!mounted) return;
+    for (final e in result.validationErrors) {
+      _snack(e);
+    }
+    if (result.rejected.isNotEmpty) {
+      _snack(
+        AppLocalizations.of(
+          context,
+        )!.messageFilesTooLarge(result.rejected.join('\n')),
+        bg: Theme.of(context).colorScheme.error,
+      );
+    }
+    if (result.added.isNotEmpty) {
+      setState(() => _attachments.addAll(result.added));
+    }
+  }
+
   String _formatDuration(int s) =>
       '${s ~/ 60}:${(s % 60).toString().padLeft(2, '0')}';
 
@@ -400,6 +425,7 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
             onStop: widget.onStop,
             isLoading: widget.isLoading,
             hasExtraContent: _attachments.isNotEmpty,
+            onPasteImage: (images) => unawaited(_stagePastedImages(images)),
             above: _buildAbove(allowedFolder, cs, theme),
             bottomToolbar: _buildToolbar(
               isMobile,

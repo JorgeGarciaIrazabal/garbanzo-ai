@@ -15,8 +15,10 @@ import 'package:garbanzo_ai/core/widgets/skeleton.dart';
 import 'package:garbanzo_ai/core/widgets/user_avatar.dart';
 import 'package:garbanzo_ai/features/chat/models/chat_attachment.dart';
 import 'package:garbanzo_ai/features/chat/models/thinking_level.dart';
+import 'package:garbanzo_ai/features/chat/services/clipboard_image_reader.dart';
 import 'package:garbanzo_ai/features/chat/widgets/input/attach_menu_button.dart';
 import 'package:garbanzo_ai/features/chat/widgets/input/attachment_preview.dart';
+import 'package:garbanzo_ai/features/chat/widgets/input/file_picker_helper.dart';
 import 'package:garbanzo_ai/features/chat/widgets/input/message_composer.dart';
 import 'package:garbanzo_ai/features/chat/widgets/input/pulsing_dot.dart';
 import 'package:garbanzo_ai/features/chat/widgets/input/voice_recording_helper.dart';
@@ -238,6 +240,34 @@ class _RoomChatViewState extends State<RoomChatView>
   String _formatRecordingDuration(int seconds) =>
       '${seconds ~/ 60}:${(seconds % 60).toString().padLeft(2, '0')}';
 
+  /// Stage images pasted into the composer (Ctrl/Cmd+V), through the same
+  /// validation the attach button uses — so size fitting, duplicate names and
+  /// oversized rejections behave identically whichever way an image arrives.
+  Future<void> _stagePastedImages(List<ClipboardImage> images) async {
+    final result = await FilePickerHelper.validate(
+      files: images,
+      existingNames: _attachments.map((a) => a.name).toSet(),
+    );
+    if (!mounted) return;
+    final l10n = AppLocalizations.of(context)!;
+    final messenger = ScaffoldMessenger.of(context);
+    for (final error in result.validationErrors) {
+      messenger.showSnackBar(SnackBar(content: Text(error)));
+    }
+    if (result.rejected.isNotEmpty) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(l10n.messageFilesTooLarge(result.rejected.join('\n'))),
+          backgroundColor: Theme.of(context).colorScheme.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+    if (result.added.isNotEmpty) {
+      setState(() => _attachments.addAll(result.added));
+    }
+  }
+
   /// `@` candidates for the composer: `@all`, then members and agents of
   /// the open room. Evaluated on each keystroke so it tracks live room
   /// state (agents added mid-session, etc.).
@@ -337,6 +367,8 @@ class _RoomChatViewState extends State<RoomChatView>
                   },
                   onChanged: provider.handleComposerChanged,
                   onBlur: provider.handleComposerBlur,
+                  onPasteImage: (images) =>
+                      unawaited(_stagePastedImages(images)),
                   hasExtraContent: _attachments.isNotEmpty,
                   above: _attachments.isEmpty
                       ? null

@@ -3,7 +3,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'package:garbanzo_ai/features/chat/models/style.dart';
 import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
+import 'package:garbanzo_ai/features/chat/providers/model_provider.dart';
+import 'package:garbanzo_ai/features/chat/providers/style_provider.dart';
 import 'package:garbanzo_ai/features/topics/models/topic_node.dart';
 import 'package:garbanzo_ai/features/topics/providers/topic_discovery_provider.dart';
 import 'package:garbanzo_ai/features/topics/widgets/topic_breadcrumbs.dart';
@@ -29,20 +32,119 @@ class TopicLanding extends StatefulWidget {
 
 class _TopicLandingState extends State<TopicLanding> {
   late final TextEditingController _searchController;
+  TopicDiscoveryProvider? _topics;
+
+  /// The [TopicDiscoveryProvider.newTopicEpoch] this state last seeded for.
+  int _seededEpoch = -1;
 
   @override
   void initState() {
     super.initState();
     _searchController = TextEditingController();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) unawaited(context.read<TopicDiscoveryProvider>().load());
+      if (!mounted) return;
+      unawaited(context.read<TopicDiscoveryProvider>().load());
+      _maybeSeedNewTopicDefaults();
     });
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final topics = context.read<TopicDiscoveryProvider>();
+    if (!identical(topics, _topics)) {
+      _topics?.removeListener(_onTopicsChanged);
+      _topics = topics;
+      topics.addListener(_onTopicsChanged);
+    }
+  }
+
+  @override
   void dispose() {
+    _topics?.removeListener(_onTopicsChanged);
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _onTopicsChanged() => _maybeSeedNewTopicDefaults();
+
+  /// Claim the current epoch before the async seed starts: `load()` notifies
+  /// synchronously, and without claiming first the listener and the post-frame
+  /// callback would start two seeds for the same window.
+  void _maybeSeedNewTopicDefaults() {
+    final topics = _topics;
+    if (topics == null || topics.newTopicEpoch == _seededEpoch) return;
+    _seededEpoch = topics.newTopicEpoch;
+    unawaited(_seedNewTopicDefaults());
+  }
+
+  /// A new-topic window composes a clean slate: the user's default style
+  /// (or last-used fallback) is selected, thinking starts at the style's own
+  /// level or Medium, and the primary conversation adopts those settings so
+  /// topic chats and landing sends use them too. Runs on startup and every
+  /// New topic action; providers are optional so isolated widget tests that
+  /// mount the landing alone keep working.
+  Future<void> _seedNewTopicDefaults() async {
+    final topics = _topics;
+    if (topics == null || !mounted) return;
+    final epoch = topics.newTopicEpoch;
+
+    // Styles are the heart of the seed; without the provider there is nothing
+    // to do. Model/chat are only needed to apply the seed to the primary, so
+    // they are read separately — isolated widget tests may mount the landing
+    // with only the providers they exercise.
+    final StyleProvider styles;
+    try {
+      styles = context.read<StyleProvider>();
+    } catch (_) {
+      return;
+    }
+    final seed = await styles.applyDefaultForNewTopic();
+    if (!mounted || (_topics?.newTopicEpoch ?? epoch) != epoch) return;
+
+    final ModelProvider models;
+    final ChatProvider chat;
+    try {
+      models = context.read<ModelProvider>();
+      chat = context.read<ChatProvider>();
+    } catch (_) {
+      return;
+    }
+    await models.ensureLoaded();
+    if (!mounted || (_topics?.newTopicEpoch ?? epoch) != epoch) return;
+    await _applySeedToPrimary(chat, models, styles, seed);
+  }
+
+  Future<void> _applySeedToPrimary(
+    ChatProvider chat,
+    ModelProvider models,
+    StyleProvider styles,
+    Style? seed,
+  ) async {
+    // The style's model only applies when the model is installed; otherwise
+    // keep the current selection and still apply its prompt/thinking.
+    final modelId =
+        seed != null && models.availableModels.any((m) => m.id == seed.modelId)
+        ? seed.modelId
+        : null;
+    if (modelId != null) models.selectModel(modelId);
+
+    final conversation = chat.currentConversation;
+    if (conversation == null || !conversation.isPrimary) return;
+    final thinking = styles.pendingThinkingLevel;
+    final prompt = styles.pendingSystemPrompt;
+    final modelChanged = modelId != null && conversation.model != modelId;
+    final thinkingChanged = conversation.thinkingLevel != thinking;
+    final promptChanged =
+        (conversation.systemPrompt?.trim() ?? '') != (prompt ?? '');
+    if (!modelChanged && !thinkingChanged && !promptChanged) return;
+    await chat.updateConversation(
+      model: modelChanged ? modelId : null,
+      thinkingLevel: thinking,
+      setThinkingLevel: true,
+      systemPrompt: prompt,
+      clearSystemPrompt: prompt == null,
+    );
   }
 
   @override
