@@ -5133,6 +5133,156 @@ abstract class AppLocalizations {
   /// **'app files'**
   String get agentActivityAppFiles;
 
+  /// Live agent step: opening a file.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading {target}'**
+  String agentProgressReading(String target);
+
+  /// Live agent step with no specific file known.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading files'**
+  String get agentProgressReadingGeneric;
+
+  /// Live agent step: changing a file.
+  ///
+  /// In en, this message translates to:
+  /// **'Editing {target}'**
+  String agentProgressEditing(String target);
+
+  /// Live agent step with no specific file known.
+  ///
+  /// In en, this message translates to:
+  /// **'Making changes'**
+  String get agentProgressEditingGeneric;
+
+  /// Live agent step: running a command.
+  ///
+  /// In en, this message translates to:
+  /// **'Running {target}'**
+  String agentProgressRunning(String target);
+
+  /// Live agent step with no specific command known.
+  ///
+  /// In en, this message translates to:
+  /// **'Running a command'**
+  String get agentProgressRunningGeneric;
+
+  /// Live agent step: searching files or the web.
+  ///
+  /// In en, this message translates to:
+  /// **'Searching for {target}'**
+  String agentProgressSearching(String target);
+
+  /// Live agent step with no specific query known.
+  ///
+  /// In en, this message translates to:
+  /// **'Searching'**
+  String get agentProgressSearchingGeneric;
+
+  /// Live agent step: a delegated build/app task.
+  ///
+  /// In en, this message translates to:
+  /// **'Working on {target}'**
+  String agentProgressBuilding(String target);
+
+  /// Live agent step with no specific app known.
+  ///
+  /// In en, this message translates to:
+  /// **'Working on an app'**
+  String get agentProgressBuildingGeneric;
+
+  /// Live agent step: reasoning, no tool running.
+  ///
+  /// In en, this message translates to:
+  /// **'Thinking'**
+  String get agentProgressThinking;
+
+  /// Live agent step before any work has been observed.
+  ///
+  /// In en, this message translates to:
+  /// **'Getting ready'**
+  String get agentProgressStarting;
+
+  /// Live agent step: running validation.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking the work'**
+  String get agentProgressVerifying;
+
+  /// Agent run completed successfully.
+  ///
+  /// In en, this message translates to:
+  /// **'Finished'**
+  String get agentProgressDone;
+
+  /// Agent run ended with an error.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed'**
+  String get agentProgressFailed;
+
+  /// Agent run was stopped by the user.
+  ///
+  /// In en, this message translates to:
+  /// **'Stopped'**
+  String get agentProgressCancelled;
+
+  /// Count of completed steps in the collapsed agent progress object.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 step} other{{count} steps}}'**
+  String agentProgressStepsSummary(int count);
+
+  /// Time an agent run has been going.
+  ///
+  /// In en, this message translates to:
+  /// **'{duration} elapsed'**
+  String agentProgressElapsed(String duration);
+
+  /// Shown when the agent has reported nothing for a while, so silence is not mistaken for a hang.
+  ///
+  /// In en, this message translates to:
+  /// **'Quiet for {duration} — still working, no new activity yet.'**
+  String agentProgressQuiet(String duration);
+
+  /// Last agent signal was moments ago.
+  ///
+  /// In en, this message translates to:
+  /// **'Active now'**
+  String get agentProgressSignalNow;
+
+  /// How long since the agent last reported anything.
+  ///
+  /// In en, this message translates to:
+  /// **'Last activity {duration} ago'**
+  String agentProgressLastSignal(String duration);
+
+  /// How long one agent step took.
+  ///
+  /// In en, this message translates to:
+  /// **'{duration}'**
+  String agentProgressStepDuration(String duration);
+
+  /// Stops a running agent/workflow.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop the agent'**
+  String get agentProgressStop;
+
+  /// Confirmation after stopping an agent run.
+  ///
+  /// In en, this message translates to:
+  /// **'Stopped by you'**
+  String get agentProgressStoppedByUser;
+
+  /// Empty state in the expanded agent progress object.
+  ///
+  /// In en, this message translates to:
+  /// **'No steps recorded yet'**
+  String get agentProgressNoSteps;
+
   /// Chat status shown after the connection drops during an AI response.
   ///
   /// In en, this message translates to:

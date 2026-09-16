@@ -91,6 +91,12 @@ class _StubManager:
         self.enabled = enabled
         self._worktree = worktree
         self._ws = SimpleNamespace(slug="jorge", dev_port=8123, opencode_ready=ready)
+        # Recorded so tests can assert the chat's MCP allowance reaches the
+        # workspace seeder before opencode starts.
+        self.mcp_calls: list[list[str] | None] = []
+
+    async def prepare_mcp(self, email, allowed_tool_keys):
+        self.mcp_calls.append(allowed_tool_keys)
 
     async def ensure(self, email):
         return self._ws
@@ -246,6 +252,36 @@ async def test_run_micro_app_source_only(tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_micro_app_receives_the_conversations_mcp_allowance(tmp_path, monkeypatch):
+    """The chat's MCP selection must reach the micro-app agent.
+
+    Regression guard: ``run_micro_app`` had no way to pass an allowance through,
+    so the workspace always started with no MCP servers — the agent had no
+    Ollama web_search and quietly used opencode's built-in fetch instead.
+    """
+    _make_houses(tmp_path)
+    stub = _StubManager(tmp_path)
+    monkeypatch.setattr(mct, "manager", stub)
+    monkeypatch.setattr(mct, "list_registry_apps", lambda: [HOUSE_APP])
+    monkeypatch.setattr(
+        mct,
+        "agent",
+        _stub_agent(ChatResponseChunk(type="done", metadata={})),
+    )
+
+    await run_micro_app(
+        user_email="jorge@x.com",
+        args={"instruction": "add a window", "app": "house-designer"},
+        prior_app=None,
+        prior_file=None,
+        mcp_tool_keys=["srv-1:web_search", "srv-2:fetch"],
+    )
+
+    # Seeded BEFORE the workspace is ensured, so opencode starts with them.
+    assert stub.mcp_calls == [["srv-1:web_search", "srv-2:fetch"]]
+
+
+@pytest.mark.asyncio
 async def test_run_micro_app_disabled(tmp_path, monkeypatch):
     monkeypatch.setattr(mct, "manager", _StubManager(tmp_path, enabled=False))
     result = await run_micro_app(
@@ -287,9 +323,10 @@ async def test_chatservice_routes_native_and_remembers_target(monkeypatch):
 
     captured = {}
 
-    async def fake_run(*, user_email, args, prior_app, prior_file, emit=None):
+    async def fake_run(*, user_email, args, prior_app, prior_file, emit=None, mcp_tool_keys=None):
         captured["prior_app"] = prior_app
         captured["prior_file"] = prior_file
+        captured["mcp_tool_keys"] = mcp_tool_keys
         return {
             "ok": True,
             "summary": "ok",

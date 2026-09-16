@@ -848,10 +848,24 @@ class ChatService:
             prior_app=prior_app,
             prior_file=prior_file,
             emit=emit,
+            mcp_tool_keys=await self._conversation_mcp_keys(conversation),
         )
         if conv_id and result.get("app"):
             self._active_target[conv_id] = (result.get("app"), result.get("file"))
         return result
+
+    async def _conversation_mcp_keys(self, conversation) -> list[str] | None:
+        """The conversation's MCP allowance, in ``server_id:tool_name`` form.
+
+        ``None`` means "everything enabled" — the same contract the workflow
+        runner uses, so both agent surfaces honour the conversation's tool
+        selection identically. Native ``__garbo__`` tools are dropped: a
+        detached opencode agent cannot execute Garbanzo's in-process tools.
+        """
+        enabled = getattr(conversation, "enabled_tools", None)
+        if enabled is None:
+            return None
+        return [key for key in enabled if not key.startswith("__garbo__:")]
 
     async def _execute_garbo_tool(self, name: str, args: dict, conversation) -> dict:
         """Dispatch a native garbo tool (scheduled actions, memories, notifications).

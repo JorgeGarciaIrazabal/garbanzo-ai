@@ -217,6 +217,11 @@ async def test_run_errors_when_opencode_never_starts(db_session, monkeypatch, ca
 
 @pytest.mark.asyncio
 async def test_run_times_out(db_session, monkeypatch, captured_push):
+    """The hard ceiling still ends a run that never stops working.
+
+    Long is allowed; unbounded is not. (The idle watchdog is a separate
+    mechanism — see the idle-timeout test below.)
+    """
     run = await _queued_run(db_session)
     monkeypatch.setattr(workflow_runner, "MAX_RUN_SECONDS", 0.05)
     monkeypatch.setattr(
@@ -226,7 +231,11 @@ async def test_run_times_out(db_session, monkeypatch, captured_push):
     )
 
     async def _slow(self, endpoint, instruction, session_id=None):
-        await asyncio.sleep(5)
+        # Keeps producing signal, so the idle watchdog never fires — only the
+        # ceiling should end this run.
+        for _ in range(50):
+            await asyncio.sleep(0.05)
+            yield ChatResponseChunk(type="heartbeat", content="")
         yield ChatResponseChunk(type="done", metadata={})
 
     monkeypatch.setattr(workflow_runner.MicroappAgent, "stream_instruction", _slow)
@@ -235,7 +244,81 @@ async def test_run_times_out(db_session, monkeypatch, captured_push):
 
     await db_session.refresh(run)
     assert run.status == "error"
-    assert "time budget" in run.error
+    assert "maximum runtime" in run.error
+
+
+@pytest.mark.asyncio
+async def test_run_ended_when_the_agent_goes_silent(db_session, monkeypatch, captured_push):
+    """No signal at all for the idle window ends the run with a distinct reason.
+
+    This is the case the old fixed 15-minute cap handled badly: a run that is
+    genuinely working (heartbeats arriving) must never be killed for taking a
+    long time, while a run that has gone completely quiet must not be allowed
+    to hold a snapshot and a port indefinitely.
+    """
+    run = await _queued_run(db_session)
+    # Ceiling far away — only the idle watchdog can end this run.
+    monkeypatch.setattr(workflow_runner, "MAX_RUN_SECONDS", 600)
+    monkeypatch.setattr(workflow_runner, "DEFAULT_IDLE_TIMEOUT_SECONDS", 0.15)
+    monkeypatch.setattr(workflow_runner, "_IDLE_POLL_SECONDS", 0.02)
+    monkeypatch.setattr(
+        workflow_runner,
+        "_start_opencode",
+        lambda workdir, settings: (_FakeProc(), "http://127.0.0.1:0"),
+    )
+
+    async def _silent(self, endpoint, instruction, session_id=None):
+        # Emit nothing at all: no events, no heartbeats, no text.
+        await asyncio.sleep(30)
+        yield ChatResponseChunk(type="done", metadata={})
+
+    monkeypatch.setattr(workflow_runner.MicroappAgent, "stream_instruction", _silent)
+
+    await workflow_runner._run(run.id)
+
+    await db_session.refresh(run)
+    assert run.status == "error"
+    assert "stopped responding" in run.error
+
+
+@pytest.mark.asyncio
+async def test_a_long_run_that_keeps_signalling_survives_past_the_old_cap(
+    db_session, monkeypatch, captured_push
+):
+    """Heartbeats alone must be enough to keep a run alive past 15 minutes.
+
+    The whole point of the change: a run that is still demonstrably alive is
+    not killed by the clock. Simulated by a ceiling well above the old
+    ``15 * 60`` and a stream that reports liveness for longer than the old
+    budget would have allowed, in compressed time.
+    """
+    run = await _queued_run(db_session)
+    monkeypatch.setattr(workflow_runner, "MAX_RUN_SECONDS", 3 * 60 * 60)
+    monkeypatch.setattr(workflow_runner, "DEFAULT_IDLE_TIMEOUT_SECONDS", 30)
+    monkeypatch.setattr(workflow_runner, "_IDLE_POLL_SECONDS", 0.02)
+    monkeypatch.setattr(
+        workflow_runner,
+        "_start_opencode",
+        lambda workdir, settings: (_FakeProc(), "http://127.0.0.1:0"),
+    )
+    beats = 40
+
+    async def _alive(self, endpoint, instruction, session_id=None):
+        # Each tick is shorter than the idle timeout, so the run stays "alive"
+        # and must never be killed by the watchdog.
+        for _ in range(beats):
+            await asyncio.sleep(0.05)
+            yield ChatResponseChunk(type="heartbeat", content="")
+        yield ChatResponseChunk(type="chunk", content="finished the refactor")
+        yield ChatResponseChunk(type="done", metadata={})
+
+    monkeypatch.setattr(workflow_runner.MicroappAgent, "stream_instruction", _alive)
+
+    await workflow_runner._run(run.id)
+
+    await db_session.refresh(run)
+    assert run.status == "done", run.error
+    assert run.summary == "finished the refactor"
 
 
 @pytest.mark.asyncio

@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 import 'package:garbanzo_ai/core/log.dart';
 import 'package:garbanzo_ai/core/error_reporter.dart';
 import 'package:garbanzo_ai/features/microapps/providers/microapp_panel_controller.dart';
+import 'package:garbanzo_ai/features/chat/models/agent_liveness.dart';
 import 'package:garbanzo_ai/features/chat/models/chat_attachment.dart';
 import 'package:garbanzo_ai/features/chat/models/chat_message.dart';
 import 'package:garbanzo_ai/features/chat/models/conversation.dart';
@@ -886,6 +887,11 @@ class ChatProvider extends ChangeNotifier {
           // Live tool status (started / finished + duration): merge it into
           // the matching tool_call message so its bubble re-renders.
           _applyToolExecution(chunk.toolExecution);
+        } else if (chunk.isHeartbeat) {
+          // Liveness only — never persisted, never part of the answer. It keeps
+          // the progress object honest during long silent stretches (a loading
+          // model, a slow tool) and proves the turn is still running.
+          _applyHeartbeat(chunk.heartbeat);
         } else if (chunk.isClientToolRequest) {
           // The backend is asking us to read a file from the attached folder
           // (idea 17). Serve it locally without blocking the stream.
@@ -921,6 +927,7 @@ class ChatProvider extends ChangeNotifier {
         _isSending = false;
         logDebug('Stream error: $e');
         _clearStreamingState();
+        _resetAgentLiveness();
         if (_isConnectionError(e)) {
           _clearError();
           _beginResponseRecovery();
@@ -936,6 +943,9 @@ class ChatProvider extends ChangeNotifier {
         _isSending = false;
         _syncStreamingIntoList();
         _clearStreamingState();
+        // The turn is over, so its liveness clock stops; the progress object
+        // settles into its finished state instead of ticking on.
+        _resetAgentLiveness();
         if (accumulatedContent.isEmpty && accumulatedThinking.isEmpty) {
           // Drop the trailing empty placeholder if iteration N+1 never
           // produced anything (e.g., turn ended right after a tool call).
@@ -1166,7 +1176,69 @@ class ChatProvider extends ChangeNotifier {
         metadata: {...?message.metadata, 'tool_execution': execution},
       ),
     );
+    // A tool transition is real forward progress, so it also refreshes the
+    // liveness clock the progress object renders.
+    _noteAgentSignal();
     notifyListeners();
+  }
+
+  /// The live liveness state of the current agent turn.
+  ///
+  /// Kept out of the message list on purpose: this changes on every heartbeat
+  /// (seconds apart) and must not force a rebuild of the transcript. The
+  /// progress object subscribes to this notifier instead.
+  final ValueNotifier<AgentLiveness?> agentLiveness =
+      ValueNotifier<AgentLiveness?>(null);
+
+  DateTime? _agentSignalAt;
+  DateTime? _agentStartedAt;
+
+  /// Record that the agent just reported something, and refresh the clock.
+  void _noteAgentSignal() {
+    _agentStartedAt ??= DateTime.now();
+    _agentSignalAt = DateTime.now();
+    _publishLiveness();
+  }
+
+  void _publishLiveness() {
+    final started = _agentStartedAt;
+    if (started == null) {
+      agentLiveness.value = null;
+      return;
+    }
+    final beat = _agentHeartbeat;
+    agentLiveness.value = AgentLiveness(
+      startedAt: started,
+      secondsSinceSignal: _agentSignalAt == null
+          ? null
+          : DateTime.now().difference(_agentSignalAt!).inSeconds,
+      elapsedSeconds: _intOrNull(beat?['elapsed_s']),
+      activity: beat?['activity']?.toString(),
+      steps: _intOrNull(beat?['steps']) ?? 0,
+      completedCount: _intOrNull(beat?['tools_completed']) ?? 0,
+    );
+  }
+
+  Map<String, dynamic>? _agentHeartbeat;
+
+  void _applyHeartbeat(Map<String, dynamic>? heartbeat) {
+    if (heartbeat == null) return;
+    _agentHeartbeat = heartbeat;
+    _noteAgentSignal();
+  }
+
+  void _resetAgentLiveness() {
+    _agentStartedAt = null;
+    _agentSignalAt = null;
+    _agentHeartbeat = null;
+    agentLiveness.value = null;
+  }
+
+  static int? _intOrNull(Object? value) {
+    if (value is int) return value;
+    if (value is num) return value.round();
+    if (value is String) return int.tryParse(value);
+    return null;
   }
 
   void _insertToolResultMessageBefore(String anchorId, ToolResult? result) {

@@ -551,6 +551,16 @@ async def _sse_stream(
                     type="client_tool_request",
                     metadata=chunk.metadata,
                 )
+            elif chunk.metadata and chunk.metadata.get("heartbeat"):
+                # Liveness only. Emitted for chat turns (the agent turn's own
+                # watchdog) and relayed from opencode's ``server.heartbeat`` for
+                # delegated runs. Carries no content, so it can never be
+                # mistaken for part of the answer, and the client uses it to
+                # keep the progress object alive and honest.
+                response = ChatResponseChunk(
+                    type="heartbeat",
+                    metadata=chunk.metadata,
+                )
             elif chunk.is_thinking:
                 response = ChatResponseChunk(type="thinking", content=chunk.content)
             else:

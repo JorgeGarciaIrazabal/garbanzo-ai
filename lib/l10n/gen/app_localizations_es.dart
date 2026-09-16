@@ -2954,6 +2954,107 @@ class AppLocalizationsEs extends AppLocalizations {
   String get agentActivityAppFiles => 'los archivos de la app';
 
   @override
+  String agentProgressReading(String target) {
+    return 'Leyendo $target';
+  }
+
+  @override
+  String get agentProgressReadingGeneric => 'Leyendo archivos';
+
+  @override
+  String agentProgressEditing(String target) {
+    return 'Editando $target';
+  }
+
+  @override
+  String get agentProgressEditingGeneric => 'Haciendo cambios';
+
+  @override
+  String agentProgressRunning(String target) {
+    return 'Ejecutando $target';
+  }
+
+  @override
+  String get agentProgressRunningGeneric => 'Ejecutando un comando';
+
+  @override
+  String agentProgressSearching(String target) {
+    return 'Buscando $target';
+  }
+
+  @override
+  String get agentProgressSearchingGeneric => 'Buscando';
+
+  @override
+  String agentProgressBuilding(String target) {
+    return 'Trabajando en $target';
+  }
+
+  @override
+  String get agentProgressBuildingGeneric => 'Trabajando en una app';
+
+  @override
+  String get agentProgressThinking => 'Pensando';
+
+  @override
+  String get agentProgressStarting => 'Preparándose';
+
+  @override
+  String get agentProgressVerifying => 'Comprobando el trabajo';
+
+  @override
+  String get agentProgressDone => 'Terminado';
+
+  @override
+  String get agentProgressFailed => 'Falló';
+
+  @override
+  String get agentProgressCancelled => 'Detenido';
+
+  @override
+  String agentProgressStepsSummary(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count pasos',
+      one: '1 paso',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String agentProgressElapsed(String duration) {
+    return '$duration transcurrido';
+  }
+
+  @override
+  String agentProgressQuiet(String duration) {
+    return 'En silencio desde hace $duration — sigue trabajando, aún sin novedades.';
+  }
+
+  @override
+  String get agentProgressSignalNow => 'Activo ahora';
+
+  @override
+  String agentProgressLastSignal(String duration) {
+    return 'Última actividad hace $duration';
+  }
+
+  @override
+  String agentProgressStepDuration(String duration) {
+    return '$duration';
+  }
+
+  @override
+  String get agentProgressStop => 'Detener al agente';
+
+  @override
+  String get agentProgressStoppedByUser => 'Detenido por ti';
+
+  @override
+  String get agentProgressNoSteps => 'Aún no hay pasos registrados';
+
+  @override
   String get messageResponseWaitingForConnection =>
       'Se perdió la conexión. Tu respuesta sigue generándose; la añadiremos aquí cuando vuelvas a tener conexión.';
 

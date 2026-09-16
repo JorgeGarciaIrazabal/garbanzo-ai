@@ -88,6 +88,12 @@ class Workspace:
     opencode_port: int | None = None
     opencode_base: str | None = None
     opencode_ready: bool = False
+    # MCP servers to seed into this workspace's opencode config, so the agent
+    # has the same tools the chat does (Ollama web_search, time, …). Set from
+    # the conversation's allowance before the workspace starts; credentials are
+    # resolved from the MCP table at seed time, never stored here.
+    mcp_servers: dict[str, dict] | None = None
+    mcp_tool_rules: dict[str, bool] | None = None
 
     @property
     def dev_url(self) -> str | None:
@@ -227,10 +233,20 @@ class MicroappWorkspaceManager:
                 logger.warning("npm install failed for %s: %s", app_dir.name, proc.stderr[-500:])
 
     def _seed_opencode_config(self, ws: Workspace) -> None:
-        """Write a minimal opencode.json into the worktree if absent.
+        """Write the workspace's opencode.json, refreshing it when needed.
 
         The repo's own opencode.json is gitignored, so worktrees never inherit
         it — we point opencode at the local Ollama cloud endpoint.
+
+        The conversation's MCP servers ride along in ``ws.mcp_servers`` so the
+        micro-app agent can call the same tools the chat can (Ollama
+        web_search, time, …). Without them the agent had no web search at all
+        and quietly used opencode's built-in fetch instead.
+
+        Overwriting is deliberate: the file is ours (gitignored, never the
+        project's), and a workspace created before MCP resolution would
+        otherwise keep its original config forever — ``write_config`` skips an
+        existing file, so the servers would never appear on restart.
         """
         config = build_opencode_config(
             self._settings,
@@ -241,8 +257,13 @@ class MicroappWorkspaceManager:
             # stream the Flutter agent rail renders.
             tools={"todowrite": False, "todoread": False},
             instructions=["CLAUDE.md", "AGENTS.md"],
+            mcp=ws.mcp_servers,
         )
-        write_opencode_config(ws.path, config)
+        if ws.mcp_tool_rules:
+            merged = dict(config.get("tools") or {})
+            merged.update(ws.mcp_tool_rules)
+            config["tools"] = merged
+        write_opencode_config(ws.path, config, overwrite=True)
 
     # -- subprocesses -------------------------------------------------------
 
@@ -391,6 +412,39 @@ class MicroappWorkspaceManager:
         import asyncio
 
         return await asyncio.to_thread(self.ensure_sync, user_email)
+
+    async def prepare_mcp(
+        self,
+        user_email: str,
+        allowed_tool_keys: list[str] | None,
+    ) -> None:
+        """Record the MCP servers this user's workspace agent should be given.
+
+        Must run BEFORE ``ensure()``: the servers are written into the
+        workspace's ``opencode.json`` when opencode is spawned, so setting them
+        afterwards would need a restart to take effect. Idempotent — storing the
+        same allowance again is free, and opencode is only (re)started by
+        ``ensure()`` when it is not already healthy.
+        """
+        from app.db import session as db_session  # late import: tests swap the maker
+        from app.services.mcp_service import build_opencode_mcp_config
+
+        self._require_enabled()
+        slug = slugify_email(user_email)
+        try:
+            async with db_session.async_session_maker() as db:
+                mcp, rules = await build_opencode_mcp_config(db, user_email, allowed_tool_keys)
+        except Exception:
+            # A failure here must not stop the workspace from starting: the
+            # agent simply runs without extra MCP tools, which is strictly
+            # better than refusing the whole request.
+            logger.exception("Could not resolve MCP servers for %s", user_email)
+            return
+        ws = self._workspaces.get(slug)
+        if ws is None:
+            ws = self._get_or_create_state(user_email)
+        ws.mcp_servers = mcp
+        ws.mcp_tool_rules = rules
 
     def status(self, user_email: str) -> Workspace:
         """Return current in-memory state. Read-only: unknown users get a

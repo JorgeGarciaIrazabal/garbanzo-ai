@@ -3958,6 +3958,86 @@
   "@agentActivityMicroApp": {"description": "Generic micro-app name."},
   "agentActivityAppFiles": "app files",
   "@agentActivityAppFiles": {"description": "Generic target for file activity."},
+  "agentProgressReading": "Reading {target}",
+  "@agentProgressReading": {
+    "description": "Live agent step: opening a file.",
+    "placeholders": {"target": {"type": "String"}}
+  },
+  "agentProgressReadingGeneric": "Reading files",
+  "@agentProgressReadingGeneric": {"description": "Live agent step with no specific file known."},
+  "agentProgressEditing": "Editing {target}",
+  "@agentProgressEditing": {
+    "description": "Live agent step: changing a file.",
+    "placeholders": {"target": {"type": "String"}}
+  },
+  "agentProgressEditingGeneric": "Making changes",
+  "@agentProgressEditingGeneric": {"description": "Live agent step with no specific file known."},
+  "agentProgressRunning": "Running {target}",
+  "@agentProgressRunning": {
+    "description": "Live agent step: running a command.",
+    "placeholders": {"target": {"type": "String"}}
+  },
+  "agentProgressRunningGeneric": "Running a command",
+  "@agentProgressRunningGeneric": {"description": "Live agent step with no specific command known."},
+  "agentProgressSearching": "Searching for {target}",
+  "@agentProgressSearching": {
+    "description": "Live agent step: searching files or the web.",
+    "placeholders": {"target": {"type": "String"}}
+  },
+  "agentProgressSearchingGeneric": "Searching",
+  "@agentProgressSearchingGeneric": {"description": "Live agent step with no specific query known."},
+  "agentProgressBuilding": "Working on {target}",
+  "@agentProgressBuilding": {
+    "description": "Live agent step: a delegated build/app task.",
+    "placeholders": {"target": {"type": "String"}}
+  },
+  "agentProgressBuildingGeneric": "Working on an app",
+  "@agentProgressBuildingGeneric": {"description": "Live agent step with no specific app known."},
+  "agentProgressThinking": "Thinking",
+  "@agentProgressThinking": {"description": "Live agent step: reasoning, no tool running."},
+  "agentProgressStarting": "Getting ready",
+  "@agentProgressStarting": {"description": "Live agent step before any work has been observed."},
+  "agentProgressVerifying": "Checking the work",
+  "@agentProgressVerifying": {"description": "Live agent step: running validation."},
+  "agentProgressDone": "Finished",
+  "@agentProgressDone": {"description": "Agent run completed successfully."},
+  "agentProgressFailed": "Failed",
+  "@agentProgressFailed": {"description": "Agent run ended with an error."},
+  "agentProgressCancelled": "Stopped",
+  "@agentProgressCancelled": {"description": "Agent run was stopped by the user."},
+  "agentProgressStepsSummary": "{count, plural, =1{1 step} other{{count} steps}}",
+  "@agentProgressStepsSummary": {
+    "description": "Count of completed steps in the collapsed agent progress object.",
+    "placeholders": {"count": {"type": "int"}}
+  },
+  "agentProgressElapsed": "{duration} elapsed",
+  "@agentProgressElapsed": {
+    "description": "Time an agent run has been going.",
+    "placeholders": {"duration": {"type": "String"}}
+  },
+  "agentProgressQuiet": "Quiet for {duration} — still working, no new activity yet.",
+  "@agentProgressQuiet": {
+    "description": "Shown when the agent has reported nothing for a while, so silence is not mistaken for a hang.",
+    "placeholders": {"duration": {"type": "String"}}
+  },
+  "agentProgressSignalNow": "Active now",
+  "@agentProgressSignalNow": {"description": "Last agent signal was moments ago."},
+  "agentProgressLastSignal": "Last activity {duration} ago",
+  "@agentProgressLastSignal": {
+    "description": "How long since the agent last reported anything.",
+    "placeholders": {"duration": {"type": "String"}}
+  },
+  "agentProgressStepDuration": "{duration}",
+  "@agentProgressStepDuration": {
+    "description": "How long one agent step took.",
+    "placeholders": {"duration": {"type": "String"}}
+  },
+  "agentProgressStop": "Stop the agent",
+  "@agentProgressStop": {"description": "Stops a running agent/workflow."},
+  "agentProgressStoppedByUser": "Stopped by you",
+  "@agentProgressStoppedByUser": {"description": "Confirmation after stopping an agent run."},
+  "agentProgressNoSteps": "No steps recorded yet",
+  "@agentProgressNoSteps": {"description": "Empty state in the expanded agent progress object."},
   "messageResponseWaitingForConnection": "Connection lost. Your response is still running — we'll add it here when you're back online.",
   "@messageResponseWaitingForConnection": {
     "description": "Chat status shown after the connection drops during an AI response."

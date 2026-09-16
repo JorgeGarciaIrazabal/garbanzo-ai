@@ -2676,6 +2676,86 @@
   "@agentActivityMicroApp": {"description": "Generic micro-app name."},
   "agentActivityAppFiles": "los archivos de la app",
   "@agentActivityAppFiles": {"description": "Generic target for file activity."},
+  "agentProgressReading": "Leyendo {target}",
+  "@agentProgressReading": {
+    "description": "Live agent step: opening a file.",
+    "placeholders": {"target": {"type": "String"}}
+  },
+  "agentProgressReadingGeneric": "Leyendo archivos",
+  "@agentProgressReadingGeneric": {"description": "Live agent step with no specific file known."},
+  "agentProgressEditing": "Editando {target}",
+  "@agentProgressEditing": {
+    "description": "Live agent step: changing a file.",
+    "placeholders": {"target": {"type": "String"}}
+  },
+  "agentProgressEditingGeneric": "Haciendo cambios",
+  "@agentProgressEditingGeneric": {"description": "Live agent step with no specific file known."},
+  "agentProgressRunning": "Ejecutando {target}",
+  "@agentProgressRunning": {
+    "description": "Live agent step: running a command.",
+    "placeholders": {"target": {"type": "String"}}
+  },
+  "agentProgressRunningGeneric": "Ejecutando un comando",
+  "@agentProgressRunningGeneric": {"description": "Live agent step with no specific command known."},
+  "agentProgressSearching": "Buscando {target}",
+  "@agentProgressSearching": {
+    "description": "Live agent step: searching files or the web.",
+    "placeholders": {"target": {"type": "String"}}
+  },
+  "agentProgressSearchingGeneric": "Buscando",
+  "@agentProgressSearchingGeneric": {"description": "Live agent step with no specific query known."},
+  "agentProgressBuilding": "Trabajando en {target}",
+  "@agentProgressBuilding": {
+    "description": "Live agent step: a delegated build/app task.",
+    "placeholders": {"target": {"type": "String"}}
+  },
+  "agentProgressBuildingGeneric": "Trabajando en una app",
+  "@agentProgressBuildingGeneric": {"description": "Live agent step with no specific app known."},
+  "agentProgressThinking": "Pensando",
+  "@agentProgressThinking": {"description": "Live agent step: reasoning, no tool running."},
+  "agentProgressStarting": "Preparándose",
+  "@agentProgressStarting": {"description": "Live agent step before any work has been observed."},
+  "agentProgressVerifying": "Comprobando el trabajo",
+  "@agentProgressVerifying": {"description": "Live agent step: running validation."},
+  "agentProgressDone": "Terminado",
+  "@agentProgressDone": {"description": "Agent run completed successfully."},
+  "agentProgressFailed": "Falló",
+  "@agentProgressFailed": {"description": "Agent run ended with an error."},
+  "agentProgressCancelled": "Detenido",
+  "@agentProgressCancelled": {"description": "Agent run was stopped by the user."},
+  "agentProgressStepsSummary": "{count, plural, =1{1 paso} other{{count} pasos}}",
+  "@agentProgressStepsSummary": {
+    "description": "Count of completed steps in the collapsed agent progress object.",
+    "placeholders": {"count": {"type": "int"}}
+  },
+  "agentProgressElapsed": "{duration} transcurrido",
+  "@agentProgressElapsed": {
+    "description": "Time an agent run has been going.",
+    "placeholders": {"duration": {"type": "String"}}
+  },
+  "agentProgressQuiet": "En silencio desde hace {duration} — sigue trabajando, aún sin novedades.",
+  "@agentProgressQuiet": {
+    "description": "Shown when the agent has reported nothing for a while, so silence is not mistaken for a hang.",
+    "placeholders": {"duration": {"type": "String"}}
+  },
+  "agentProgressSignalNow": "Activo ahora",
+  "@agentProgressSignalNow": {"description": "Last agent signal was moments ago."},
+  "agentProgressLastSignal": "Última actividad hace {duration}",
+  "@agentProgressLastSignal": {
+    "description": "How long since the agent last reported anything.",
+    "placeholders": {"duration": {"type": "String"}}
+  },
+  "agentProgressStepDuration": "{duration}",
+  "@agentProgressStepDuration": {
+    "description": "How long one agent step took.",
+    "placeholders": {"duration": {"type": "String"}}
+  },
+  "agentProgressStop": "Detener al agente",
+  "@agentProgressStop": {"description": "Stops a running agent/workflow."},
+  "agentProgressStoppedByUser": "Detenido por ti",
+  "@agentProgressStoppedByUser": {"description": "Confirmation after stopping an agent run."},
+  "agentProgressNoSteps": "Aún no hay pasos registrados",
+  "@agentProgressNoSteps": {"description": "Empty state in the expanded agent progress object."},
   "messageResponseWaitingForConnection": "Se perdió la conexión. Tu respuesta sigue generándose; la añadiremos aquí cuando vuelvas a tener conexión.",
   "@messageResponseWaitingForConnection": {
     "description": "Chat status shown after the connection drops during an AI response."

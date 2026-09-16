@@ -108,6 +108,16 @@ class Settings(BaseSettings):
     topic_consolidation_concurrency: int = 2
     topic_realtime_batch_size: int = 100
 
+    # Delegated workflow runs (idea 18) — see docs/environment.md.
+    # A delegated run is bounded by evidence of life, not by the clock: the
+    # hard ceiling only exists so a run can never hold a snapshot and a port
+    # forever, while the idle watchdog is what actually catches a wedged
+    # opencode. opencode emits ``server.heartbeat`` every ~10 s and we
+    # forward it, so a healthy run keeps resetting the idle timer even while
+    # the model is thinking or a tool is running long.
+    workflow_max_run_seconds: int = 10800  # 3 hours
+    workflow_idle_timeout_seconds: int = 600  # 10 minutes without any signal
+
     @property
     def cors_origins_list(self) -> list[str]:
         return _split_csv(self.cors_origins)

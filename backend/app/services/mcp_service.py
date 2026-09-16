@@ -10,6 +10,7 @@ import os
 import re
 import time
 import uuid
+from pathlib import Path
 from typing import Any
 
 from sqlalchemy import or_, select
@@ -33,10 +34,116 @@ _STDIO_ENV_PASSTHROUGH = ("OLLAMA_API_KEY", "OLLAMA_BASE_URL")
 _tools_cache: dict[str, tuple[float, list[dict[str, Any]]]] = {}
 _CACHE_TTL_SECONDS = 60.0
 
+# The backend package root (``…/backend`` on the host, ``/app`` in the
+# container). Relative stdio script paths in an ``mcp_servers`` row are written
+# relative to THIS, and are resolved against it wherever the server is launched.
+_BACKEND_ROOT = Path(__file__).resolve().parents[2]
+
+
+def resolve_stdio_paths(command: str, args: list[str] | None) -> list[str]:
+    """Make a stdio server's script path absolute.
+
+    A registered server is stored the way a human would write it —
+    ``uv run app/mcp_stdio_servers/web_search.py`` — which only works when the
+    process cwd happens to be the backend root. That is true for the in-process
+    chat client and false for every *seeded* agent: opencode spawns its MCP
+    servers with the run's workdir (a temp snapshot, or a micro-app worktree) as
+    cwd, so the same relative path resolves to nothing, the server fails to
+    start, and the model silently falls back to whatever built-in fetch/search
+    tool it has.
+
+    That silent fallback is exactly the failure mode this repo forbids, and it
+    is invisible in logs unless you know to look. Resolving here — at the single
+    point where a stdio command line is assembled — fixes both callers at once
+    and covers any future server registered the same way.
+    """
+    resolved_args: list[str] = []
+    for arg in args or []:
+        if arg.startswith("-") or os.path.isabs(arg):
+            resolved_args.append(arg)
+            continue
+        candidate = _BACKEND_ROOT / arg
+        resolved_args.append(str(candidate) if candidate.exists() else arg)
+    return resolved_args
+
 
 def invalidate_tools_cache() -> None:
     """Clear the cached tool list. Call after CRUD on servers."""
     _tools_cache.clear()
+
+
+_MCP_NAME_UNSAFE = re.compile(r"[^a-zA-Z0-9_-]")
+
+
+def mcp_config_name(name: str, server_id: str) -> str:
+    """Stable, collision-resistant OpenCode prefix for an MCP server."""
+    clean = _MCP_NAME_UNSAFE.sub("_", name).strip("_-") or "mcp"
+    return f"{clean}_{server_id.replace('-', '')[:8]}"
+
+
+async def build_opencode_mcp_config(
+    db,
+    user_id: str,
+    allowed_tool_keys: list[str] | None,
+) -> tuple[dict[str, dict], dict[str, bool]]:
+    """Translate a conversation's MCP allowance into OpenCode config.
+
+    Shared by every surface that launches an opencode agent — delegated
+    workflows and the micro-apps workspace — so an agent gets the same servers
+    the chat itself can call. Previously only the workflow path seeded MCP, so
+    micro-app agents silently had no web search at all.
+
+    ``allowed_tool_keys`` of ``None`` means "every enabled server, all tools".
+    An explicit list keeps only the named servers, denying each one's prefix
+    first and re-enabling just the selected ``server_id:tool_name`` pairs.
+
+    Server credentials stay in the MCP table and are read only here, so they are
+    never copied into ``WorkflowRun.scope`` or a workspace record.
+    """
+    selected: dict[str, list[str]] | None
+    if allowed_tool_keys is None:
+        selected = None
+    else:
+        selected = {}
+        for key in allowed_tool_keys:
+            server_id, separator, tool_name = key.partition(":")
+            if separator and server_id and tool_name:
+                selected.setdefault(server_id, []).append(tool_name)
+
+    servers = await MCPService(db).list_visible_servers(user_id)
+    mcp: dict[str, dict] = {}
+    tool_rules: dict[str, bool] = {}
+    for server in servers:
+        if selected is not None and server.id not in selected:
+            continue
+        config_name = mcp_config_name(server.name, server.id)
+        if server.transport == "stdio" and server.command:
+            config: dict = {
+                "type": "local",
+                # Absolute script paths: opencode launches MCP servers with the
+                # agent's own workdir as cwd (a run snapshot, a micro-app
+                # worktree), where a backend-relative path does not exist.
+                "command": [
+                    server.command,
+                    *resolve_stdio_paths(server.command, server.args or []),
+                ],
+                "enabled": True,
+            }
+            if server.env:
+                config["environment"] = dict(server.env)
+        elif server.transport in ("http", "sse") and server.url:
+            config = {"type": "remote", "url": server.url, "enabled": True}
+            if server.auth_header:
+                config["headers"] = {"Authorization": server.auth_header}
+        else:
+            continue
+        mcp[config_name] = config
+
+        if selected is not None:
+            tool_rules[f"{config_name}_*"] = False
+            for tool_name in selected[server.id]:
+                tool_rules[f"{config_name}_{tool_name}"] = True
+    return mcp, tool_rules
 
 
 class MCPService:
@@ -216,7 +323,7 @@ class MCPService:
             child_env.update(server.env or {})
             params = StdioServerParameters(
                 command=server.command,
-                args=list(server.args or []),
+                args=resolve_stdio_paths(server.command, list(server.args or [])),
                 env=child_env,
             )
             async with (

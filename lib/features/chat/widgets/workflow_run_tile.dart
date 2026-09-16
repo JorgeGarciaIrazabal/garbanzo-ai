@@ -8,6 +8,8 @@ import 'package:garbanzo_ai/features/chat/models/chat_message.dart';
 import 'package:garbanzo_ai/features/chat/models/workflow_run.dart';
 import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/workflow_provider.dart';
+import 'package:garbanzo_ai/features/chat/utils/agent_progress_builder.dart';
+import 'package:garbanzo_ai/features/chat/widgets/progress/agent_progress_card.dart';
 import 'package:garbanzo_ai/features/chat/widgets/agent_activity_labels.dart';
 import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
@@ -109,6 +111,43 @@ class _WorkflowRunTileState extends State<WorkflowRunTile> {
         ? colorScheme.primary
         : colorScheme.onSurfaceVariant.withValues(alpha: 0.75);
     final currentActivity = live ? _lastActivity(run) : null;
+
+    // Render through the shared agent progress object so a delegated run and an
+    // in-chat turn describe their work identically, from the same reducer.
+    if (run != null && run.progress.isNotEmpty) {
+      final progress = AgentProgressBuilder.fromWorkflowProgress(
+        run.progress,
+        live: live,
+        failedRun: failed,
+        cancelledRun: run.status == 'cancelled',
+        startedAt: run.createdAt,
+        finishedAt: run.completedAt,
+        secondsSinceSignal: _secondsSinceSignal(run),
+      );
+      return Padding(
+        padding: const EdgeInsets.only(top: 8, bottom: 2),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            AgentProgressCard(
+              progress: progress,
+              title: _headerLabel(workflows, phase, run),
+              onStop: live
+                  ? () => unawaited(workflows.stop(toolCallId!))
+                  : null,
+            ),
+            // The apply/download/retry affordances keep their existing rows
+            // below the progress object, so nothing that used to be reachable
+            // disappears when the run finishes.
+            if (phase == WorkflowPhase.done && !run.isResearch)
+              _applyResultLine(theme, workflows, run),
+            if (phase == WorkflowPhase.done && run.isResearch)
+              _downloadButton(theme, run),
+            if (failed) _details(theme, workflows, run, phase),
+          ],
+        ),
+      );
+    }
 
     return Padding(
       padding: const EdgeInsets.only(top: 10, bottom: 2),
@@ -491,6 +530,20 @@ class _WorkflowRunTileState extends State<WorkflowRunTile> {
       }
     }
     return null;
+  }
+
+  /// Seconds since the run last produced anything.
+  ///
+  /// The runner refreshes `updated_at` whenever it writes progress (including
+  /// heartbeats), so it doubles as an honest "last signal" clock for the
+  /// progress object — which is what lets a slow-but-alive run look different
+  /// from a stuck one.
+  int? _secondsSinceSignal(WorkflowRun run) {
+    final last = run.updatedAt.isAfter(run.createdAt)
+        ? run.updatedAt
+        : run.createdAt;
+    final diff = DateTime.now().difference(last).inSeconds;
+    return diff < 0 ? 0 : diff;
   }
 
   /// Kicks off a run. Deliberately free of `context` — it is called from an

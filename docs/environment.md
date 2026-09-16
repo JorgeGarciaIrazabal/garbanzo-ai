@@ -89,6 +89,14 @@ GITHUB_REPO=JorgeGarciaIrazabal/garbanzo-ai  # owner/name whose Releases feed
 # Multi-agent room auto-judge model (must be pulled in local Ollama)
 ROOM_AUTO_JUDGE_MODEL=deepseek-v4.1-flash:cloud
 
+# Delegated workflow runs (idea 18). A run is bounded by evidence of life
+# rather than by the clock: opencode emits server.heartbeat every ~10 s and the
+# runner forwards it, so a healthy run keeps resetting the idle timer even while
+# the model is thinking or a tool is running long. The ceiling is only a
+# backstop so a run can't hold a snapshot (and a port) forever.
+WORKFLOW_MAX_RUN_SECONDS=10800        # 3 hours, hard ceiling
+WORKFLOW_IDLE_TIMEOUT_SECONDS=600     # 10 minutes with NO signal at all → end the run
+
 # Micro-apps agentic workspace (dev points at a locally-managed repo)
 MICROAPPS_REPO_PATH=/abs/path/to/micro-apps
 MICROAPPS_OPENCODE_MODEL=ollama/deepseek-v4.1-flash:cloud

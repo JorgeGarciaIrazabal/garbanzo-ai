@@ -15,6 +15,7 @@ that disappears mid-run comes back to a complete timeline.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import logging
 import os
@@ -29,7 +30,7 @@ from app.core.config import Settings, get_settings
 from app.models.message import Message
 from app.models.workflow_run import WorkflowRun
 from app.services import workflow_watchers
-from app.services.mcp_service import MCPService
+from app.services.mcp_service import build_opencode_mcp_config
 from app.services.microapp_agent import MicroappAgent
 from app.services.opencode_config import DEFAULT_PERMISSION, build_config, write_config
 from app.services.opencode_process import default_spawn, pick_free_port, terminate, wait_ready
@@ -37,13 +38,26 @@ from app.services.workflow_service import WorkflowService, absorb_into_baseline,
 
 logger = logging.getLogger(__name__)
 
-# Hard ceiling on one delegated run. Long enough for a real refactor, short
-# enough that a wedged opencode can't hold a snapshot (and a port) forever.
+# Hard ceiling on one delegated run, used only when settings don't say
+# otherwise. Long enough for a real refactor, short enough that a wedged
+# opencode can't hold a snapshot (and a port) forever. The value that actually
+# protects against a hang is ``workflow_idle_timeout_seconds`` below — a run
+# that keeps producing signal is allowed to keep going.
 MAX_RUN_SECONDS = 15 * 60
+
+# Fallback for the idle watchdog. A run is failed when *nothing at all* has
+# arrived for this long: no opencode event, no heartbeat, no text. opencode
+# emits ``server.heartbeat`` every ~10 s on the bus we already hold open, and
+# we forward those as heartbeat chunks, so a healthy run resets this timer
+# even while the model is thinking or a tool is running long.
+DEFAULT_IDLE_TIMEOUT_SECONDS = 600.0
 
 # How often buffered progress chunks are flushed to the DB. Per-token writes
 # would hammer Postgres; a second of latency is invisible in a minutes-long run.
 _FLUSH_INTERVAL = 1.0
+
+# How often the idle watchdog samples the activity stamp.
+_IDLE_POLL_SECONDS = 5.0
 
 # Tasks by run id, so a shutdown (or a future cancel endpoint) can reach them.
 _RUNNING: dict[str, asyncio.Task] = {}
@@ -55,6 +69,41 @@ class _OpencodeEndpoint:
 
     opencode_base: str
     opencode_ready: bool = True
+
+
+def _configured(settings: Settings, field: str) -> int | None:
+    """Value of ``field`` only when it was explicitly set on ``settings``.
+
+    A pydantic ``BaseSettings`` field always reads back as *something*, so a
+    plain ``getattr`` cannot distinguish "the operator set this" from "this is
+    the built-in default". ``model_fields_set`` records which fields were
+    actually provided, which is what lets an explicit configuration override
+    the module constant while the constant still works as the default and as
+    the seam tests monkeypatch.
+    """
+    try:
+        provided = settings.model_fields_set
+    except AttributeError:  # pragma: no cover — non-pydantic stand-in
+        return None
+    if field not in provided:
+        return None
+    value = getattr(settings, field, None)
+    return int(value) if isinstance(value, int | float) and value else None
+
+
+async def _idle_watchdog(activity: dict[str, float], idle_timeout: float) -> None:
+    """Fail the run when nothing has arrived for ``idle_timeout`` seconds.
+
+    ``activity["at"]`` is refreshed on every chunk the agent stream produces —
+    including the heartbeat opencode emits every ~10 s — so this fires only on
+    genuine silence, never merely because a turn is long or a tool is slow.
+    """
+    while True:
+        await asyncio.sleep(_IDLE_POLL_SECONDS)
+        if time.monotonic() - activity.get("at", 0.0) >= idle_timeout:
+            # Returning (not raising) is what signals the caller: this task is
+            # raced against the run body, so completing first is the timeout.
+            return
 
 
 def launch(run_id: str) -> asyncio.Task:
@@ -71,6 +120,26 @@ def launch(run_id: str) -> asyncio.Task:
 
 def active_run_ids() -> list[str]:
     return list(_RUNNING)
+
+
+def is_running(run_id: str) -> bool:
+    task = _RUNNING.get(run_id)
+    return task is not None and not task.done()
+
+
+def cancel(run_id: str) -> bool:
+    """Cancel a live run. Returns True when one was actually running.
+
+    Cancelling the task drives ``_run`` into its ``except CancelledError``
+    handler, which records ``cancelled`` on the row and kills the opencode
+    child through the same ``finally`` that every other exit path uses — so a
+    cancelled run leaves no orphaned process or snapshot behind.
+    """
+    task = _RUNNING.get(run_id)
+    if task is None or task.done():
+        return False
+    task.cancel()
+    return True
 
 
 async def _run(run_id: str) -> None:
@@ -103,37 +172,74 @@ async def _run(run_id: str) -> None:
         status = "done"
         error: str | None = None
 
+        # Refreshed by _stream_into_progress on every chunk (including
+        # heartbeats). Read by the idle watchdog to distinguish a quiet run
+        # from a dead one.
+        activity: dict[str, float] = {"at": time.monotonic()}
+        # Filled in by _run_stream once opencode is spawned, so the outer
+        # finally can always terminate the child even if the run was cancelled
+        # or killed by the watchdog mid-flight.
+        proc_holder: dict[str, subprocess.Popen | None] = {"proc": None}
+        # An explicitly configured setting wins; otherwise the module constant
+        # (the documented, monkeypatchable seam) applies. Using pydantic's
+        # default value unconditionally would make the constant unreachable and
+        # silently ignore any test or caller that overrides it.
+        ceiling = float(_configured(settings, "workflow_max_run_seconds") or MAX_RUN_SECONDS)
+        idle_timeout = float(
+            _configured(settings, "workflow_idle_timeout_seconds") or DEFAULT_IDLE_TIMEOUT_SECONDS
+        )
+
         try:
-            async with asyncio.timeout(MAX_RUN_SECONDS):
-                mcp, tool_rules = await _opencode_mcp_config(
-                    db,
-                    user_id,
-                    (run.scope or {}).get("mcp_tools", []),
-                )
-                await asyncio.to_thread(
-                    seed_opencode_config,
-                    workdir,
-                    settings,
-                    mcp,
-                    tool_rules,
-                )
-                proc, base = await asyncio.to_thread(_start_opencode, workdir, settings)
-                if proc is None:
-                    raise RuntimeError(
-                        "opencode did not become ready — is the 'opencode' binary "
-                        "installed and Ollama running?"
-                    )
-                await _stream_into_progress(
+            # The watchdog must be able to interrupt the run, so it is raced
+            # against the body rather than merely observed: whichever finishes
+            # first decides the outcome. (A watchdog that only raised inside
+            # its own task would be a no-op — nobody would be awaiting it.)
+            run_body = asyncio.create_task(
+                _run_stream(
+                    db=db,
                     service=service,
                     run_id=run_id,
-                    endpoint=_OpencodeEndpoint(opencode_base=base),
+                    user_id=user_id,
+                    run=run,
+                    workdir=workdir,
                     instruction=instruction,
-                    summary_parts=summary_parts,
                     settings=settings,
+                    summary_parts=summary_parts,
+                    activity=activity,
+                    proc_holder=proc_holder,
                 )
-        except TimeoutError:
-            status = "error"
-            error = f"The workflow exceeded its {MAX_RUN_SECONDS // 60} minute time budget."
+            )
+            idler = asyncio.create_task(_idle_watchdog(activity, idle_timeout))
+            done, _pending = await asyncio.wait(
+                {run_body, idler},
+                timeout=ceiling,
+                return_when=asyncio.FIRST_COMPLETED,
+            )
+            if run_body in done:
+                run_body.result()  # re-raises the run's own failure
+                error = None
+            elif idler in done:
+                # Nothing at all arrived for the idle window: the agent stopped
+                # making progress rather than merely taking a long time.
+                run_body.cancel()
+                with contextlib.suppress(asyncio.CancelledError, Exception):
+                    await run_body
+                status = "error"
+                error = (
+                    f"The agent stopped responding — no activity for "
+                    f"{int(idle_timeout) // 60} minutes, so the run was ended."
+                )
+            else:
+                # Neither finished within the ceiling: genuinely too much work.
+                run_body.cancel()
+                with contextlib.suppress(asyncio.CancelledError, Exception):
+                    await run_body
+                status = "error"
+                error = f"The workflow exceeded its {int(ceiling) // 60} minute maximum runtime."
+            idler.cancel()
+            with contextlib.suppress(asyncio.CancelledError, Exception):
+                await idler
+            proc = proc_holder.get("proc")
         except asyncio.CancelledError:
             status = "cancelled"
             error = "The workflow was cancelled."
@@ -272,48 +378,60 @@ async def _opencode_mcp_config(
 ) -> tuple[dict[str, dict], dict[str, bool]]:
     """Translate the conversation's MCP allowance into OpenCode config.
 
-    Server credentials stay in the MCP table and are read only when the run
-    starts. For an explicit per-tool whitelist, each server prefix is denied
-    first and only the selected ``server_tool`` names are re-enabled.
+    Thin wrapper over :func:`mcp_service.build_opencode_mcp_config`, which is
+    shared with the micro-apps workspace so both agent surfaces seed the same
+    servers the chat itself can use.
     """
-    selected: dict[str, list[str]] | None
-    if allowed_tool_keys is None:
-        selected = None
-    else:
-        selected = {}
-        for key in allowed_tool_keys:
-            server_id, separator, tool_name = key.partition(":")
-            if separator and server_id and tool_name:
-                selected.setdefault(server_id, []).append(tool_name)
+    return await build_opencode_mcp_config(db, user_id, allowed_tool_keys)
 
-    servers = await MCPService(db).list_visible_servers(user_id)
-    mcp: dict[str, dict] = {}
-    tool_rules: dict[str, bool] = {}
-    for server in servers:
-        if selected is not None and server.id not in selected:
-            continue
-        config_name = _mcp_config_name(server.name, server.id)
-        if server.transport == "stdio" and server.command:
-            config: dict = {
-                "type": "local",
-                "command": [server.command, *(server.args or [])],
-                "enabled": True,
-            }
-            if server.env:
-                config["environment"] = dict(server.env)
-        elif server.transport in ("http", "sse") and server.url:
-            config = {"type": "remote", "url": server.url, "enabled": True}
-            if server.auth_header:
-                config["headers"] = {"Authorization": server.auth_header}
-        else:
-            continue
-        mcp[config_name] = config
 
-        if selected is not None:
-            tool_rules[f"{config_name}_*"] = False
-            for tool_name in selected[server.id]:
-                tool_rules[f"{config_name}_{tool_name}"] = True
-    return mcp, tool_rules
+async def _run_stream(
+    *,
+    db,
+    service: WorkflowService,
+    run_id: str,
+    user_id: str,
+    run,
+    workdir: Path,
+    instruction: str,
+    settings: Settings,
+    summary_parts: list[str],
+    activity: dict[str, float],
+    proc_holder: dict[str, subprocess.Popen | None],
+) -> None:
+    """Seed the config, spawn opencode, and relay its stream into progress.
+
+    Runs as its own task so the caller can race it against the idle watchdog
+    and the hard ceiling. The spawned process is published into ``proc_holder``
+    before streaming starts, so those abort paths can still kill it.
+    """
+    mcp, tool_rules = await _opencode_mcp_config(
+        db,
+        user_id,
+        (run.scope or {}).get("mcp_tools", []),
+    )
+    await asyncio.to_thread(
+        seed_opencode_config,
+        workdir,
+        settings,
+        mcp,
+        tool_rules,
+    )
+    proc, base = await asyncio.to_thread(_start_opencode, workdir, settings)
+    proc_holder["proc"] = proc
+    if proc is None:
+        raise RuntimeError(
+            "opencode did not become ready — is the 'opencode' binary installed and Ollama running?"
+        )
+    await _stream_into_progress(
+        service=service,
+        run_id=run_id,
+        endpoint=_OpencodeEndpoint(opencode_base=base),
+        instruction=instruction,
+        summary_parts=summary_parts,
+        settings=settings,
+        activity=activity,
+    )
 
 
 async def _stream_into_progress(
@@ -324,13 +442,22 @@ async def _stream_into_progress(
     instruction: str,
     summary_parts: list[str],
     settings: Settings,
+    activity: dict[str, float] | None = None,
 ) -> None:
-    """Relay opencode's events into the run's persisted progress list."""
+    """Relay opencode's events into the run's persisted progress list.
+
+    ``activity`` is a one-key mutable stamp (``{"at": monotonic}``) refreshed on
+    every chunk. The caller's idle watchdog reads it to tell "working quietly"
+    from "wedged", so it must be touched for heartbeats too — that is precisely
+    the case it exists for.
+    """
     agent = MicroappAgent(settings)
     buffer: list[dict] = []
     last_flush = time.monotonic()
 
     async for chunk in agent.stream_instruction(endpoint, instruction):
+        if activity is not None:
+            activity["at"] = time.monotonic()
         if chunk.type == "session" and chunk.metadata:
             session_id = chunk.metadata.get("session_id")
             if session_id:

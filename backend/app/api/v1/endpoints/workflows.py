@@ -159,6 +159,36 @@ async def start_workflow(
     return _to_out(run)
 
 
+@router.post(
+    "/{run_id}/cancel",
+    response_model=WorkflowOut,
+    summary="Stop a running workflow",
+)
+async def cancel_workflow(
+    run_id: str,
+    current_user: Annotated[dict[str, Any], Depends(get_current_user)],
+    service: Annotated[WorkflowService, Depends(get_service)],
+) -> WorkflowOut:
+    """Stop a run in flight.
+
+    With runs now allowed up to three hours, a way to stop one is not optional:
+    the alternative is a user watching a wrong instruction run to completion.
+    The cancel drives the runner's own cancellation path, so the opencode child
+    is terminated and the snapshot is handled exactly as on any other exit.
+    """
+    run = await _owned(run_id, current_user["email"], service)
+    if run.status not in ("queued", "running"):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This workflow is not running.",
+        )
+    workflow_runner.cancel(run.id)
+    # The runner records the terminal state asynchronously, so re-read the row
+    # rather than serving a snapshot that still says "running".
+    await service.db.refresh(run)
+    return _to_out(run)
+
+
 @router.get(
     "/{run_id}",
     response_model=WorkflowOut,

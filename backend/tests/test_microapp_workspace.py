@@ -251,6 +251,42 @@ def test_seeds_opencode_config(manager):
     assert data["tools"] == {"todowrite": False, "todoread": False}
 
 
+def test_seeds_mcp_servers_into_the_workspace_config(manager):
+    """The micro-app agent gets the same MCP tools the chat has.
+
+    Regression guard: this seeder used to pass no ``mcp`` at all, so a micro-app
+    agent had no web search and quietly fell back to opencode's built-in fetch.
+    The MCP dict is supplied by ``prepare_mcp`` (which reads the MCP table and
+    resolves relative script paths to absolute).
+    """
+    # ensure_sync creates the worktree; the MCP dict is set the way
+    # ``prepare_mcp`` sets it (i.e. before opencode is started).
+    ws = manager.ensure_sync(EMAIL)
+    ws.mcp_servers = {
+        "websearch_abc12345": {
+            "type": "local",
+            "command": ["uv", "run", "/abs/app/mcp_stdio_servers/web_search.py"],
+            "enabled": True,
+        }
+    }
+    ws.mcp_tool_rules = {"websearch_abc12345_web_search": True}
+    manager._seed_opencode_config(ws)
+
+    data = json.loads((ws.path / "opencode.json").read_text())
+    assert "websearch_abc12345" in data["mcp"]
+    assert data["mcp"]["websearch_abc12345"]["command"][-1].endswith("web_search.py")
+    # The per-tool whitelist must merge with, not replace, the tool switches.
+    assert data["tools"]["todowrite"] is False
+    assert data["tools"]["websearch_abc12345_web_search"] is True
+
+
+def test_no_mcp_block_when_no_servers_are_allowed(manager):
+    """An empty allowance must not write a stray, meaningless ``mcp`` block."""
+    ws = manager.ensure_sync(EMAIL)
+    data = json.loads((ws.path / "opencode.json").read_text())
+    assert "mcp" not in data
+
+
 def test_changes_parses_porcelain(manager):
     ws = manager.ensure_sync(EMAIL)
     # Modify a tracked file and add an untracked one.

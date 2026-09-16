@@ -264,11 +264,22 @@ async def _forward_progress(chunk, emit: ProgressEmit) -> None:
     renders inner tool calls / results / reasoning as a progress timeline. These
     are live-only — the turn's sink doesn't persist them, so history stays tidy
     (one micro_app call + its final summary) after a reload.
+
+    Heartbeats are relayed too: the inner agent can run for minutes, and without
+    them the outer turn's progress object would have nothing to show between
+    tool calls.
     """
     if chunk.type == "tool_call" and chunk.tool_calls:
         await emit(ChatChunk(content="", tool_calls=chunk.tool_calls))
     elif chunk.type == "tool_result" and chunk.tool_result:
         await emit(ChatChunk(content="", metadata={"tool_result": chunk.tool_result}))
+    elif chunk.type == "tool_execution" and chunk.metadata:
+        # Carries the status transition plus opencode's own human-readable
+        # title, which is what lets the collapsed progress line name the file
+        # or command being worked on instead of a raw tool name.
+        await emit(ChatChunk(content="", metadata=chunk.metadata))
+    elif chunk.type == "heartbeat" and chunk.metadata:
+        await emit(ChatChunk(content="", metadata=chunk.metadata))
     # Do not relay the specialist agent's private reasoning. Grounded actions
     # above give the user useful progress without exposing chain-of-thought.
 
@@ -280,6 +291,7 @@ async def run_micro_app(
     prior_app: str | None,
     prior_file: str | None,
     emit: ProgressEmit | None = None,
+    mcp_tool_keys: list[str] | None = None,
 ) -> dict:
     """Ensure the workspace, relay the instruction to opencode, return a result.
 
@@ -304,6 +316,10 @@ async def run_micro_app(
         return {"ok": False, "summary": "No micro-apps are available."}
 
     try:
+        # Seed the conversation's MCP servers BEFORE the workspace starts, so
+        # the agent it launches can call the same tools the chat can. Doing it
+        # afterwards would require restarting opencode to pick them up.
+        await manager.prepare_mcp(user_email, mcp_tool_keys)
         ws = await manager.ensure(user_email)
     except Exception as exc:  # noqa: BLE001
         logger.exception("microapp workspace ensure failed")

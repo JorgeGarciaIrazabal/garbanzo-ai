@@ -501,6 +501,39 @@ class WorkflowProvider extends ChangeNotifier {
   Future<List<WorkflowChange>> fetchChanges(String runId) =>
       _service.getChanges(runId);
 
+  /// Stop a live run.
+  ///
+  /// With runs allowed up to three hours, being able to stop one matters: the
+  /// alternative is watching a wrong instruction play out to completion. The
+  /// server cancels the run's task, which terminates its opencode process and
+  /// records the terminal state; the poller then observes it and settles the
+  /// tile, so nothing needs to be optimistically rewritten here.
+  Future<void> stop(String toolCallId) async {
+    final runId = _runIdByToolCall[toolCallId];
+    if (runId == null) return;
+    final run = _runs[runId];
+    if (run == null || !run.isRunning) return;
+    try {
+      final updated = await _service.cancel(runId);
+      _runs[runId] = updated;
+      if (updated.isTerminal) {
+        _pollers.remove(toolCallId)?.cancel();
+        _setPhase(
+          toolCallId,
+          updated.succeeded ? WorkflowPhase.done : WorkflowPhase.failed,
+        );
+        if (updated.error != null) _errors[toolCallId] = updated.error!;
+        final conversationId = updated.conversationId;
+        if (conversationId != null) onRunFinished?.call(conversationId);
+      }
+      notifyListeners();
+    } catch (e) {
+      logDebug('Could not stop workflow $runId: $e');
+      _errors[toolCallId] = e.toString();
+      notifyListeners();
+    }
+  }
+
   /// Export a finished research report without touching folder I/O.
   Future<void> downloadOutput(WorkflowRun run, {required String title}) async {
     final markdown = await _service.getOutput(run.id);

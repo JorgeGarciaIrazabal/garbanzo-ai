@@ -68,6 +68,13 @@ class WorkflowService {
     return WorkflowRun.fromJson(response.data as Map<String, dynamic>);
   }
 
+  /// Stop a running run. The server cancels its task, kills the opencode
+  /// process, and answers with the run's updated state.
+  Future<WorkflowRun> cancel(String runId) async {
+    final response = await _api.post('/api/v1/workflows/$runId/cancel');
+    return WorkflowRun.fromJson(response.data as Map<String, dynamic>);
+  }
+
   /// Poll a run, returning only the progress emitted after [since].
   Future<WorkflowRun> get(String runId, {int since = 0}) async {
     final response = await _api.get(

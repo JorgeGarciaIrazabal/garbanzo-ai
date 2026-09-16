@@ -148,6 +148,22 @@ abstract class ChatResponseChunk with _$ChatResponseChunk {
   /// (idea 17). Carries {tool_call_id, tool_name, args:{path}}.
   bool get isClientToolRequest => type == 'client_tool_request';
 
+  /// A liveness frame: the turn or run is still alive. Carries no content and
+  /// is never persisted — it exists so a quiet agent is visibly quiet rather
+  /// than indistinguishable from a hung one.
+  bool get isHeartbeat => type == 'heartbeat';
+
+  /// The heartbeat payload ({schema_version, phase, elapsed_s, steps,
+  /// tools_completed, tools_running, activity}).
+  Map<String, dynamic>? get heartbeat {
+    final raw = metadata?['heartbeat'];
+    if (raw is Map<String, dynamic>) return raw;
+    if (raw is Map) {
+      return raw.map((k, v) => MapEntry(k.toString(), v));
+    }
+    return null;
+  }
+
   Map<String, dynamic>? get clientToolRequest {
     final raw = metadata?['client_tool_request'];
     if (raw is Map<String, dynamic>) return raw;

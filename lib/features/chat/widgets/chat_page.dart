@@ -16,6 +16,8 @@ import 'package:garbanzo_ai/features/microapps/widgets/micro_app_panel.dart';
 import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
 import 'package:garbanzo_ai/features/settings/widgets/settings_drawer.dart';
 import 'package:garbanzo_ai/features/chat/models/chat_attachment.dart';
+import 'package:garbanzo_ai/features/chat/models/agent_liveness.dart';
+import 'package:garbanzo_ai/features/chat/utils/agent_progress_builder.dart';
 import 'package:garbanzo_ai/features/chat/models/chat_message.dart';
 import 'package:garbanzo_ai/features/chat/models/conversation.dart';
 import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
@@ -39,7 +41,7 @@ import 'package:garbanzo_ai/features/chat/widgets/topic_banner.dart';
 import 'package:garbanzo_ai/features/topics/widgets/active_context_panel.dart';
 import 'package:garbanzo_ai/features/topics/widgets/topic_context_empty_state.dart';
 import 'package:garbanzo_ai/features/chat/widgets/system_prompt_banner.dart';
-import 'package:garbanzo_ai/features/chat/widgets/tool_activity_group.dart';
+import 'package:garbanzo_ai/features/chat/widgets/progress/agent_progress_card.dart';
 import 'package:garbanzo_ai/features/chat/widgets/transcript_export_menu.dart';
 import 'package:garbanzo_ai/features/chat/widgets/vision_model_warning_dialog.dart';
 import 'package:garbanzo_ai/features/rooms/models/room_models.dart';
@@ -1196,7 +1198,17 @@ class _ChatPageContentState extends State<_ChatPageContent>
               );
           return FadeSlideIn(
             child: centered(
-              ToolActivityGroup(messages: item.messages, isStreaming: isActive),
+              // Subscribes to the liveness channel directly: heartbeats arrive
+              // seconds apart and must repaint only this object, never the
+              // whole transcript.
+              ValueListenableBuilder<AgentLiveness?>(
+                valueListenable: chatProvider.agentLiveness,
+                builder: (context, liveness, _) => _LiveAgentProgress(
+                  messages: item.messages,
+                  live: isActive,
+                  liveness: liveness,
+                ),
+              ),
             ),
           );
         }
@@ -1236,6 +1248,38 @@ class _ChatPageContentState extends State<_ChatPageContent>
         return buildBubble(message);
       },
     );
+  }
+}
+
+/// Builds the agent progress object from a tool group's messages plus the live
+/// liveness channel.
+///
+/// Split out so the (cheap) message fold and the (frequent) liveness update stay
+/// separable: heartbeats repaint only through the ValueListenableBuilder that
+/// owns this widget, never the whole transcript.
+class _LiveAgentProgress extends StatelessWidget {
+  const _LiveAgentProgress({
+    required this.messages,
+    required this.live,
+    required this.liveness,
+  });
+
+  final List<ChatMessage> messages;
+  final bool live;
+  final AgentLiveness? liveness;
+
+  @override
+  Widget build(BuildContext context) {
+    final progress = AgentProgressBuilder.fromMessages(
+      messages,
+      live: live,
+      startedAt: liveness?.startedAt,
+      heartbeatActivity: liveness?.activity,
+      heartbeatElapsedSeconds: liveness?.elapsedSeconds,
+      secondsSinceSignal: liveness?.secondsSinceSignal,
+      completedCount: liveness?.completedCount,
+    );
+    return AgentProgressCard(progress: progress, dense: true);
   }
 }
 

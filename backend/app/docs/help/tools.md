@@ -44,3 +44,9 @@ For your own use, go to **Settings → Tools → My MCP servers** and add the
 server's connection details (transport, URL or command, optional auth). Only
 you can see and use the tools from a personal server. Admins add **global**
 servers for everyone in the Admin area — see the Admin guide.
+
+## Do the agents use my MCP tools?
+Yes. A conversation's tool selection applies to every agent that works for
+you — the assistant, micro-app builds, and delegated `/agent` runs — so an
+MCP server you allow in a conversation is available to all of them, not just
+to the chat itself.

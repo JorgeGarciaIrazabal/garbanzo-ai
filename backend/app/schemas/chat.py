@@ -137,6 +137,7 @@ class ChatResponseChunk(BaseModel):
         "topic_update",
         "context_preparing",
         "context_update",
+        "heartbeat",
     ] = Field(..., description="Chunk type")
     content: str | None = Field(None, description="Content for chunk/thinking")
     error: str | None = Field(None, description="Error message for type=error")

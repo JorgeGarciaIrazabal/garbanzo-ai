@@ -409,6 +409,37 @@ Each server event: `data: {"type":"chunk","content":"...","metadata":null}\n\n`
 Terminal event: `data: {"type":"done","content":null,"metadata":{...}}\n\n`
 Client parses lines, strips `data: ` prefix, skips `[DONE]` sentinel.
 
+Event types: `chunk`, `thinking`, `tool_call`, `tool_execution`, `tool_result`,
+`action_proposal`, `client_tool_request`, `heartbeat`, `topic_update`,
+`context_preparing`, `context_update`, `session`, `done`, `error`.
+
+### Liveness: `heartbeat` and `tool_execution`
+
+Long runs must never be silent, so the client can tell "still working" from
+"hung" without waiting for the turn to end:
+
+- **`heartbeat`** carries `{schema_version, phase, elapsed_s, steps,
+  tools_completed, tools_running, activity}` and **no content** — it is never
+  persisted and can never be mistaken for part of the answer. Two sources feed
+  it: opencode's own `server.heartbeat` (every ~10 s on its `/event` bus, which
+  the agent relay forwards), and the chat turn engine's own ticker, raced
+  against provider reads and long tool calls so a slow model or a minutes-long
+  tool still reports life.
+- **`tool_execution`** reports a tool's status transitions
+  (`started` / `finished` / `failed`) plus the tool's human-readable `title` and
+  `duration_ms`. opencode emits tool frames out of order (a `completed` frame
+  can arrive before its own `pending`/`running` siblings, and `running` repeats),
+  so the backend reduces them through a monotonic status rank and emits each
+  transition exactly once. A *running* tool has no `title` yet, so the label is
+  derived from its `input` — that is what lets the collapsed progress object
+  name the command or file being worked on mid-call.
+
+The frontend renders both through one shared model
+(`lib/features/chat/models/agent_progress.dart`), so an in-chat turn and a
+delegated workflow describe their work identically. Heartbeats are published on
+their own `ValueNotifier` (not the message list) so a liveness tick repaints only
+the progress object, never the transcript.
+
 Chat turns run through `DetachedChatStream` in their own database session, so
 an Android network drop cancels only the SSE consumer—not model generation.
 The completed response is committed even while the client is offline, and the

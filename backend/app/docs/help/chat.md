@@ -88,6 +88,13 @@ Three things worth knowing:
   so you can carry on elsewhere. If the app is closed when it finishes you
   get a notification; if you're still in the app you don't — the progress
   line and the summary in the conversation already tell you.
+- **You can watch what it's doing, and stop it.** The progress line always
+  names the current action ("Running `npm test`", "Editing parser.py") and how
+  long since the agent last reported anything, so a run that is thinking hard
+  looks different from one that has stalled. Expand it for the full history
+  with per-step timings. An agent that has genuinely gone quiet for ten minutes
+  is ended automatically; one that is still working may run for hours. Press
+  the stop button on the progress line to end a run yourself.
 - **Your edits win.** If you change one of those files yourself while the agent
   is working, that file is reported as a conflict and skipped rather than
   overwritten.

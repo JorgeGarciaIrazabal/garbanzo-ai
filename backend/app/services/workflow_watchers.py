@@ -25,9 +25,11 @@ WATCHING_WINDOW_SECONDS = 15.0
 
 # Entries older than this are dead weight: the runner forgets a run when it
 # completes, so anything this stale belongs to a run that never got there
-# (crashed runner, deleted row, client polling a ghost). A run itself can't
-# exceed its 15-minute budget, so an hour is safely past any live poll.
-_STALE_AFTER_SECONDS = 3600.0
+# (crashed runner, deleted row, client polling a ghost). Must stay comfortably
+# above the longest a run can live — see ``workflow_max_run_seconds`` (default
+# 3 h): a live run being swept early would let a completion push fire while the
+# user is actually watching.
+_STALE_AFTER_SECONDS = 4 * 60 * 60.0
 
 _last_seen: dict[str, float] = {}
 

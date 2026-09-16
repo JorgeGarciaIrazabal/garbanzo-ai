@@ -10,6 +10,8 @@ its own storage schema (``Message`` vs ``RoomMessage``).
 from __future__ import annotations
 
 import asyncio
+import contextlib
+import inspect
 import json
 import logging
 from collections.abc import AsyncIterator, Awaitable, Callable
@@ -28,6 +30,13 @@ from app.services.llm_provider import Message as LLMMessage
 logger = logging.getLogger(__name__)
 
 DEFAULT_MAX_TOOL_ITERATIONS = 5
+
+# How long a single awaited thing (one provider stream step, one running tool)
+# may stay silent before the turn emits a heartbeat instead of nothing at all.
+# Chosen well above any normal token gap: this is a "still alive" signal, not a
+# timeout — the provider's own FIRST_CHUNK_TIMEOUT/CHUNK_TIMEOUT still govern
+# actual failure.
+HEARTBEAT_INTERVAL_SECONDS = 20.0
 
 
 def _cap_fallback_message(tool_call_log: list[str]) -> str:
@@ -70,6 +79,95 @@ ErrorReporter = Callable[[Exception, str | None, str | None, dict | None], Await
 
 # Sentinel marking the end of a tool's progress queue.
 _PROGRESS_DONE = object()
+
+
+async def _with_heartbeats(
+    stream: Any,
+    *,
+    activity: str,
+    iteration: int,
+    started: float,
+) -> AsyncIterator[ChatChunk]:
+    """Re-yield ``stream``'s chunks, inserting a heartbeat during quiet gaps.
+
+    Purely additive: the underlying read is created once and awaited until it
+    produces, so a slow token is never cancelled or retried. The only thing
+    added is liveness output while waiting. ``stream`` may be an async iterator
+    or an awaitable returning one — providers differ.
+    """
+    if inspect.isawaitable(stream):
+        stream = await stream
+    iterator = stream.__aiter__()
+    pending: asyncio.Task | None = asyncio.ensure_future(anext(iterator))
+    try:
+        while pending is not None:
+            waiter = asyncio.ensure_future(asyncio.sleep(HEARTBEAT_INTERVAL_SECONDS))
+            done, _ = await asyncio.wait({pending, waiter}, return_when=asyncio.FIRST_COMPLETED)
+            if pending not in done:
+                yield _heartbeat_chunk(
+                    asyncio.get_event_loop().time() - started,
+                    activity=activity,
+                    iteration=iteration,
+                )
+                waiter.cancel()
+                continue
+            waiter.cancel()
+            try:
+                chunk = pending.result()
+            except StopAsyncIteration:
+                pending = None
+                break
+            yield chunk
+            pending = asyncio.ensure_future(anext(iterator))
+    finally:
+        if pending is not None and not pending.done():
+            pending.cancel()
+        aclose = getattr(iterator, "aclose", None)
+        if aclose is not None:
+            with contextlib.suppress(Exception):
+                await aclose()
+
+
+async def _next_progress(queue: asyncio.Queue) -> Any | None:
+    """Next progress item from ``queue``, or ``None`` if nothing arrived in time.
+
+    Returning ``None`` instead of blocking is what lets the tool-wait loop emit
+    a heartbeat during a long-running tool. An item that lands in the instant
+    between the timeout and the cancellation is still returned rather than
+    dropped — losing a tool's progress event would be worse than a late one.
+    """
+    getter = asyncio.ensure_future(queue.get())
+    waiter = asyncio.ensure_future(asyncio.sleep(HEARTBEAT_INTERVAL_SECONDS))
+    done, _ = await asyncio.wait({getter, waiter}, return_when=asyncio.FIRST_COMPLETED)
+    if getter not in done:
+        getter.cancel()
+        # A value may have been popped by getter in the same tick as the
+        # timeout. Its task is then already finished, so cancel() was a no-op
+        # and the value must still be consumed.
+        if getter.done() and not getter.cancelled():
+            waiter.cancel()
+            return getter.result()
+        waiter.cancel()
+        return None
+    waiter.cancel()
+    return getter.result()
+
+
+def _heartbeat_chunk(elapsed: float, *, activity: str, iteration: int) -> ChatChunk:
+    """One liveness frame for a chat turn (no content, never persisted)."""
+    return ChatChunk(
+        content="",
+        is_finished=False,
+        metadata={
+            "heartbeat": {
+                "schema_version": 1,
+                "phase": "working",
+                "elapsed_s": round(elapsed, 1),
+                "activity": activity,
+                "iteration": iteration,
+            }
+        },
+    )
 
 
 def stringify_tool_result(result: Any) -> str:
@@ -185,6 +283,13 @@ async def run_agent_turn(
         context_length = await resolve_context_length(provider, model)
         opts.num_ctx = min(opts.num_ctx or context_length, context_length)
 
+        # Silence must be visible. A turn can legitimately produce nothing for a
+        # long while — the provider loading a model, a native tool running, the
+        # micro_app agent working — and without a liveness frame the UI cannot
+        # tell "still working" from "hung". The wrapper only races a timer
+        # against the real read; it never bounds or cancels it.
+        turn_started = asyncio.get_event_loop().time()
+
         # One extra pass beyond the cap, run WITHOUT tools: when the model is
         # still asking for tools after max_tool_iterations, it must answer
         # from the results it already has instead of the turn dying silently.
@@ -195,12 +300,17 @@ async def run_agent_turn(
             metadata: dict | None = None
             tool_calls_this_iter: list[dict] | None = None
 
-            async for chunk in provider.stream_chat(
-                messages=llm_messages,
-                model=model,
-                options=opts,
-                cancel_event=cancel_event,
-                tools=None if capped else (tools or None),
+            async for chunk in _with_heartbeats(
+                provider.stream_chat(
+                    messages=llm_messages,
+                    model=model,
+                    options=opts,
+                    cancel_event=cancel_event,
+                    tools=None if capped else (tools or None),
+                ),
+                activity="model",
+                iteration=iteration,
+                started=turn_started,
             ):
                 if chunk.metadata and chunk.metadata.get("error"):
                     # Providers such as Ollama intentionally convert network
@@ -364,8 +474,19 @@ async def run_agent_turn(
 
                     tool_task = asyncio.create_task(_run())
                     try:
+                        # A tool can run for minutes (the micro_app agent, a
+                        # delegated workflow, a slow MCP call). Emit liveness
+                        # while its queue is empty so the turn never looks dead
+                        # in the gap between "started" and its first event.
                         while True:
-                            item = await progress.get()
+                            item = await _next_progress(progress)
+                            if item is None:
+                                yield _heartbeat_chunk(
+                                    asyncio.get_event_loop().time() - turn_started,
+                                    activity=str(call.get("name") or "tool"),
+                                    iteration=iteration,
+                                )
+                                continue
                             if item is _PROGRESS_DONE:
                                 break
                             yield item
