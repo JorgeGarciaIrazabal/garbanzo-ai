@@ -4,6 +4,10 @@ Release notes for Garbanzo AI. Each entry is generated automatically on
 `just deploy` — an LLM (via opencode) writes it from the release's commits and
 the user reports it addressed. See `scripts/changelog-instructions.md`.
 
+## v1.0.33 — 2026-09-16
+
+- Agents now show what they’re doing and can run longer than 15 minutes.
+
 ## v1.0.32 — 2026-09-15
 
 - Paste images directly from your clipboard into chats.
