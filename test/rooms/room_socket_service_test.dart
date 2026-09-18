@@ -224,6 +224,32 @@ void main() {
       });
     });
 
+    test('suspend closes the socket with a transport-legal close code', () {
+      fakeAsync((async) {
+        final channels = <FakeRoomChannel>[];
+        final service = _service(channels);
+        service.connect();
+        async.flushMicrotasks();
+        expect(service.connectionState.value, RoomConnectionState.connected);
+
+        service.suspend();
+        async.flushMicrotasks();
+
+        final code = channels.single.sentCloseCode;
+        expect(code, isNotNull, reason: 'suspend must close deliberately');
+        // `web_socket` (the engine behind web_socket_channel) only accepts 1000
+        // or 3000-4999 and throws `ArgumentError: close code must be 1000 or in
+        // the range 3000-4999` for anything else — 1001 (going-away) included.
+        // That throw reached the zone error handler and filed a frontend error
+        // report on every background/foreground cycle.
+        expect(
+          code == 1000 || (code! >= 3000 && code <= 4999),
+          isTrue,
+          reason: 'close code $code is rejected by the web_socket transport',
+        );
+      });
+    });
+
     test('close invalidates an in-flight token lookup', () {
       fakeAsync((async) {
         final token = Completer<String?>();

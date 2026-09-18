@@ -17,6 +17,11 @@ class FakeRoomChannel implements RoomChannel {
   bool closed = false;
   int? _closeCode;
 
+  /// The close code the service passed to [close], if any. Kept separate from
+  /// [_closeCode] (which fakes a server-initiated close) so a test can assert
+  /// what *we* sent.
+  int? sentCloseCode;
+
   /// Complete the handshake future (for channels created with readyNow: false).
   void completeReady() {
     if (!_ready.isCompleted) _ready.complete();
@@ -54,7 +59,17 @@ class FakeRoomChannel implements RoomChannel {
 
   @override
   Future<void> close([int? code, String? reason]) async {
+    // Mirror the real transport: `web_socket`'s checkCloseCode rejects anything
+    // other than 1000 or 3000-4999. Without this the fake would accept codes
+    // that throw in production, and the bug would only ever show up on a phone.
+    if (code != null && code != 1000 && !(code >= 3000 && code <= 4999)) {
+      throw ArgumentError(
+        'Invalid argument: $code, close code must be 1000 or in the range '
+        '3000-4999',
+      );
+    }
     closed = true;
+    sentCloseCode = code;
     if (!_incoming.isClosed) await _incoming.close();
   }
 

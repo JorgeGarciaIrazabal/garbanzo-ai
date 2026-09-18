@@ -308,7 +308,15 @@ class RoomSocketService {
     final subscription = _channelSub;
     _channelSub = null;
     connectionState.value = RoomConnectionState.reconnecting;
-    final closeFuture = channel?.close(ws_status.goingAway, 'App backgrounded');
+    // 1000 (normal closure), not 1001 (going-away): `web_socket` rejects 1001
+    // with `ArgumentError: close code must be 1000 or in the range 3000-4999`,
+    // which threw here on every background/foreground cycle and filed a
+    // frontend error report. We are closing deliberately, so normal closure is
+    // also the more accurate signal.
+    final closeFuture = channel?.close(
+      ws_status.normalClosure,
+      'App backgrounded',
+    );
     await subscription?.cancel();
     await closeFuture;
   }
