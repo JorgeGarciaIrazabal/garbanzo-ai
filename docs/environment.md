@@ -112,8 +112,11 @@ MICROAPPS_OPENCODE_MODEL=ollama/deepseek-v4.1-flash:cloud
 #         `just deploy-android-signing-setup`; never commit or rotate casually
 ```
 
-> Prod secrets (ngrok authtoken/domain, prod DB password, SECRET_KEY, git/SSH
-> settings) live in `deploy/.env` — see `deploy/.env.example`.
+> Prod secrets (tunnel token or ngrok authtoken, prod DB password, SECRET_KEY,
+> git/SSH settings) live in `deploy/.env` — see `deploy/.env.example`. Public
+> routing uses `PUBLIC_TUNNELS=ngrok|cloudflare|both`; dual mode requires
+> `PUBLIC_APP_URL` matching one enabled HTTPS origin. Cloudflare mode requires
+> `CLOUDFLARE_DOMAIN` and `CLOUDFLARE_TUNNEL_TOKEN`. See `deploy/README.md`.
 
 For production Docker deployments, use `STT_DEVICE=cpu` and `TTS_DEVICE=cpu`
 for the compact portable image, or set both to `cuda` to install the shared

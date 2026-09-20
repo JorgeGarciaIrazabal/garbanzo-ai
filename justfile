@@ -1,7 +1,7 @@
 # Garbanzo AI - Just commands
 # https://github.com/casey/just
 
-prod_compose := "docker compose -f " + justfile_directory() + "/deploy/docker-compose.yml --env-file " + justfile_directory() + "/deploy/.env"
+prod_compose := "bash " + justfile_directory() + "/scripts/prod-compose.sh"
 
 # Default recipe - show help
 _default:
@@ -352,21 +352,40 @@ deploy-apk-install:
 
 # Show prod stack status + local & public health
 deploy-status:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    {{ prod_compose }} ps
-    echo ""
-    curl -fsS http://127.0.0.1:8001/api/v1/health >/dev/null 2>&1 \
-        && echo "local  http://127.0.0.1:8001 — OK" \
-        || echo "local  http://127.0.0.1:8001 — DOWN"
-    DOMAIN=$(grep -E '^NGROK_DOMAIN=' "{{ justfile_directory() }}/deploy/.env" | cut -d= -f2)
-    curl -fsS -H "ngrok-skip-browser-warning: 1" "https://${DOMAIN}/api/v1/health" >/dev/null 2>&1 \
-        && echo "public https://${DOMAIN} — OK" \
-        || echo "public https://${DOMAIN} — DOWN"
+    bash "{{ justfile_directory() }}/scripts/prod-status.sh"
 
-# Tail prod logs (optionally one service: backend | postgres | ngrok)
+# Tail prod logs (optionally one service: backend | postgres | ngrok | cloudflared)
 deploy-logs service="":
     {{ prod_compose }} logs -f --tail=200 {{ service }}
+
+# Validate production compose without printing secrets or changing services
+deploy-config-check:
+    {{ prod_compose }} config --quiet
+
+# Start one enabled connector without replacing the backend (cloudflared or ngrok)
+deploy-tunnel-up service:
+    bash "{{ justfile_directory() }}/scripts/prod-tunnel-up.sh" "{{ service }}"
+
+# Stop a retired connector explicitly after changing PUBLIC_TUNNELS
+deploy-tunnel-stop service:
+    bash "{{ justfile_directory() }}/scripts/prod-tunnel-stop.sh" "{{ service }}"
+
+# Open a one-time Ollama sign-in flow inside the production container
+deploy-ollama-signin:
+    {{ prod_compose }} exec ollama ollama signin
+
+# Open the production PostgreSQL console
+deploy-psql:
+    {{ prod_compose }} exec postgres psql -U garbanzo -d garbanzo_ai_prod
+
+# Test deployment configuration and migration routing without production access
+deploy-test:
+    python3 -m unittest discover -s scripts/deploy_tests -v
+
+# Apply public-origin CORS to the running backend using its current image
+# (recreates backend; briefly interrupts active requests)
+deploy-tunnel-apply:
+    bash "{{ justfile_directory() }}/scripts/prod-tunnel-apply.sh"
 
 # Restart prod services (keeps data)
 deploy-restart:

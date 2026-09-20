@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Deploy the local main branch: Flutter web + backend image + prod compose
-# stack (postgres / backend / ngrok) + Android APK. If an Android device is
+# stack (postgres / backend / enabled tunnels) + Android APK. If an Android device is
 # connected via adb, the APK is installed on it automatically.
 #
 # Builds from a pristine temporary git worktree of main, so it can run from
@@ -9,21 +9,21 @@
 # After a successful deploy, generates an LLM-authored changelog section (via
 # Codex, from this release's git log + user reports) into CHANGELOG.md, bumps
 # the patch version in pubspec.yaml, commits both on main, creates an annotated
-# tag v<version> (with the ngrok URL + changelog in the tag message so CI can
+# tag v<version> (with the primary public URL + changelog in the tag message so CI can
 # extract them), and pushes both to origin. The signed APK is attached to the
 # GitHub Release locally; CI adds the Linux + Windows desktop binaries.
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENV_FILE="$REPO/deploy/.env"
-COMPOSE=(docker compose -f "$REPO/deploy/docker-compose.yml" --env-file "$ENV_FILE")
+source "$REPO/scripts/prod-config.sh"
 
 die() { echo "ERROR: $*" >&2; exit 1; }
 step() { echo ""; echo "==> $*"; }
 
 # --- Preflight ---------------------------------------------------------------
 [[ -f "$ENV_FILE" ]] || die "deploy/.env missing — cp deploy/.env.example deploy/.env and fill it in"
-set -a; source "$ENV_FILE"; set +a
+prod_config "$REPO"
 STT_DEVICE="${STT_DEVICE:-cpu}"
 TTS_DEVICE="${TTS_DEVICE:-cpu}"
 GITHUB_REPO="${GITHUB_REPO:-JorgeGarciaIrazabal/garbanzo-ai}"
@@ -36,9 +36,8 @@ done
 TORCH_VARIANT=cpu
 if [[ "$STT_DEVICE" == cuda || "$TTS_DEVICE" == cuda ]]; then
     TORCH_VARIANT=cuda
-    COMPOSE+=(-f "$REPO/deploy/docker-compose.gpu.yml")
 fi
-for var in NGROK_AUTHTOKEN NGROK_DOMAIN POSTGRES_PASSWORD SECRET_KEY GIT_SSH_KEY_PATH GIT_USER_NAME GIT_USER_EMAIL ANDROID_KEYSTORE_PATH ANDROID_KEYSTORE_ALIAS ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_PASSWORD; do
+for var in POSTGRES_PASSWORD SECRET_KEY GIT_SSH_KEY_PATH GIT_USER_NAME GIT_USER_EMAIL ANDROID_KEYSTORE_PATH ANDROID_KEYSTORE_ALIAS ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_PASSWORD; do
     [[ -n "${!var:-}" ]] || die "$var is empty in deploy/.env"
 done
 [[ -f "$GIT_SSH_KEY_PATH" ]] || die "GIT_SSH_KEY_PATH ($GIT_SSH_KEY_PATH) does not exist"
@@ -51,15 +50,17 @@ gh auth status --hostname github.com >/dev/null 2>&1 \
 git -C "$REPO" rev-parse --verify --quiet main >/dev/null || die "no local main branch"
 [[ "$(git -C "$REPO" branch --show-current)" == main ]] || die "deploy from the main checkout"
 [[ -z "$(git -C "$REPO" status --porcelain -- pubspec.yaml CHANGELOG.md)" ]] || die "release files contain local edits; preserve/commit them before deploying"
-for pid in $(pgrep -x ngrok || true); do
+if [[ "$PUBLIC_TUNNELS" != cloudflare ]]; then
+    for pid in $(pgrep -x ngrok || true); do
     # Containerized ngrok (e.g. our own garbanzo-prod-ngrok-1, about to be
     # recreated by `compose up`) shows up in `pgrep` when the host doesn't
     # isolate PID namespaces. Only a process outside any docker cgroup is a
     # genuine competing host agent that would break the free-plan session limit.
-    if ! grep -q docker "/proc/$pid/cgroup" 2>/dev/null; then
-        die "a host ngrok agent (pid $pid) is running outside Docker and the free plan allows one session — stop it first: kill $pid"
-    fi
-done
+        if ! grep -q docker "/proc/$pid/cgroup" 2>/dev/null; then
+            die "a host ngrok agent (pid $pid) is running outside Docker and the free plan allows one session — stop it first: kill $pid"
+        fi
+    done
+fi
 
 mkdir -p "$REPO/.ai/local"
 chmod 700 "$REPO/.ai/local"
@@ -126,7 +127,7 @@ docker build --label "org.opencontainers.image.revision=$SOURCE_SHA" --build-arg
 # build failure therefore leaves the current production revision untouched.
 step "Building Android APK (versionCode $BUILD_NUMBER)"
 (cd "$WT" && flutter build apk --release \
-    --dart-define=API_BASE_URL="https://$NGROK_DOMAIN" \
+    --dart-define=API_BASE_URL="$PUBLIC_APP_URL" \
     --build-name="$NEW_VERSION" \
     --build-number="$BUILD_NUMBER")
 mkdir -p "$REPO/dist"
@@ -151,17 +152,19 @@ for i in $(seq 1 60); do
     sleep 2
 done
 
-step "Checking the public tunnel"
-for i in $(seq 1 15); do
-    if curl -fsS -H "ngrok-skip-browser-warning: 1" "https://$NGROK_DOMAIN/api/v1/health" >/dev/null 2>&1; then
-        echo "https://$NGROK_DOMAIN is live"
+step "Checking enabled public tunnels"
+for public_url in "${PROD_PUBLIC_URLS[@]}"; do
+    for i in $(seq 1 15); do
+    if curl --connect-timeout 5 --max-time 15 -fsS -H "ngrok-skip-browser-warning: 1" "$public_url/api/v1/health" >/dev/null 2>&1; then
+        echo "$public_url is live"
         break
     fi
     if [[ $i -eq 15 ]]; then
-        "${COMPOSE[@]}" logs --tail=30 ngrok
+        "${COMPOSE[@]}" logs --tail=30 "${PROD_TUNNEL_SERVICES[@]}"
         die "tunnel not answering — logs above"
     fi
     sleep 2
+    done
 done
 
 # --- Install APK on a connected device (if any) -----------------------------
@@ -179,7 +182,7 @@ fi
 
 echo ""
 echo "Deployed main @ $SHA"
-echo "  Web:    https://$NGROK_DOMAIN"
+echo "  Web:    $PUBLIC_APP_URL"
 echo "  APK:    $APK_PATH"
 echo "  Image:  garbanzo-backend:$SHA"
 echo "  Status: just deploy-status"
@@ -250,12 +253,12 @@ git -C "$REPO" commit --only pubspec.yaml CHANGELOG.md \
 # message: everything from the first "## v" up to the next "## v".
 CHANGELOG_SECTION=$(awk '/^## v/{n++} n==1{print} n==2{exit}' "$REPO/CHANGELOG.md")
 
-# Create an annotated tag. The tag message includes the ngrok URL on a line
+# Create an annotated tag. The tag message includes the primary public URL on a line
 # prefixed with "API_URL: " so the CI workflow can extract it, plus this
 # release's changelog section.
 git -C "$REPO" tag -a "v${NEW_VERSION}" \
     -m "Release v${NEW_VERSION}" \
-    -m "API_URL: https://${NGROK_DOMAIN}" \
+    -m "API_URL: ${PUBLIC_APP_URL}" \
     -m "${CHANGELOG_SECTION}"
 
 step "Pushing main + tag v${NEW_VERSION} to origin"

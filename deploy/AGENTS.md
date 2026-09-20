@@ -9,15 +9,19 @@ it for procedures. This file is the agent quick reference.
 
 - `just deploy` — ship local `main`: web build → backend image → stack → health → signed APK + GitHub Release
 - `just deploy-model <model>` — pull one model into the production Ollama volume
-- `just deploy-status` — compose ps + local & public health checks
-- `just deploy-logs [backend|postgres|ngrok]` — tail prod logs
+- `just deploy-status` — compose ps + local & enabled public health checks
+- `just deploy-tunnel-up cloudflared` — start the Cloudflare connector beside ngrok
+- `just deploy-tunnel-apply` — apply both CORS origins to backend, recreating it
+- `just deploy-logs [backend|postgres|ngrok|cloudflared]` — tail prod logs
 - `just deploy-restart` — restart services (keeps data); `just deploy-down` — stop (keeps volumes)
 
 ## Layout
 
 - `docker-compose.yml` — services: **postgres** (pgvector), **backend** (image
   built by `just deploy`, `127.0.0.1:8001`), **ollama** (containerized, own
-  volume), **ngrok** (tunnels the static domain to `backend:8000`).
+  volume), **ngrok** and **cloudflared** (selectable public connectors to `backend:8000`).
+- `scripts/prod-config.sh` selects ngrok, Cloudflare, or both and validates the primary URL.
+  `PUBLIC_APP_URL` is baked into release builds; both enabled origins enter CORS.
 - `docker-compose.gpu.yml` — optional backend GPU access; `just deploy` adds it
   and builds the shared CUDA 12.6 image when either voice device is `cuda`.
 - `.env` (gitignored) — all prod secrets. `.env.example` documents the keys.
@@ -30,7 +34,7 @@ it for procedures. This file is the agent quick reference.
 - `just deploy` builds from a snapshot of **local `main`** (works from any
   branch with a dirty tree), then generates a changelog section into
   `CHANGELOG.md`, bumps the patch version in `pubspec.yaml`, commits both on
-  `main`, tags `v<version>` (tag message carries `API_URL: https://<ngrok-domain>`
+  `main`, tags `v<version>` (tag message carries `API_URL: <PUBLIC_APP_URL>`
   plus the changelog section), and **pushes both to `origin`**.
 - The changelog is **LLM-authored**: `scripts/deploy.sh` feeds this release's git
   log + the user-report list (prod DB) to `opencode` with

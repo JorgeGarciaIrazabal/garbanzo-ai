@@ -7,7 +7,7 @@ on:
 
 jobs:
   # Extract the API URL from the annotated tag message (set by scripts/deploy.sh).
-  # The tag annotation contains a line "API_URL: https://<ngrok-domain>".
+  # The tag annotation contains a line "API_URL: https://<primary-public-domain>".
   prepare:
     runs-on: ubuntu-latest
     outputs:

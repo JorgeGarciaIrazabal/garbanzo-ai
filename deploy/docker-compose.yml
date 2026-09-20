@@ -53,7 +53,7 @@ services:
       TTS_DEVICE: ${TTS_DEVICE:-cpu}
       TEST_USER_EMAIL: ""
       TEST_USER_PASSWORD: ""
-      CORS_ORIGINS: https://${NGROK_DOMAIN}
+      CORS_ORIGINS: ${PROD_CORS_ORIGINS:?Run through the production just recipes}
       # Micro-apps: repo cloned into the volume below, synced periodically,
       # served through the backend's authenticated /micro-apps proxy.
       MICROAPPS_REPO_PATH: /data/micro-apps
@@ -89,7 +89,7 @@ services:
       - ${GIT_SSH_KEY_PATH}:/root/.ssh/id_deploy:ro
       - ../backend/firebase-service-account.json:/app/firebase-service-account.json:ro
     ports:
-      - "127.0.0.1:8001:8000" # local smoke tests only; public access is via ngrok
+      - "127.0.0.1:8001:8000" # local smoke tests only; public access is via the enabled tunnels
     depends_on:
       postgres:
         condition: service_healthy
@@ -109,14 +109,30 @@ services:
       start_period: 60s
 
   ngrok:
+    profiles: [ngrok]
     image: ngrok/ngrok:latest
     restart: unless-stopped
-    command: ["http", "--url=https://${NGROK_DOMAIN}", "--log=stdout", "backend:8000"]
+    command: ["http", "--url=https://${NGROK_DOMAIN:-}", "--log=stdout", "backend:8000"]
     environment:
-      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN}
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN:-}
     depends_on:
       backend:
         condition: service_healthy
+
+  cloudflared:
+    profiles: [cloudflare]
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: ["tunnel", "--no-autoupdate", "run"]
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-}
+    depends_on:
+      backend:
+        condition: service_healthy
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 volumes:
   postgres_data:

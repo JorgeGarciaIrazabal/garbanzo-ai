@@ -595,7 +595,13 @@ Dev (`docker-compose.yml`, project `garbanzo-ai`):
 - **PostgreSQL** (`garbanzo_ai_postgres`) — port 5432, image `pgvector/pgvector:pg16`, credentials `garbanzo:garbanzo_dev`, database `garbanzo_ai`
 - **Faster Whisper Server** (`garbanzo_ai_whisper`) — port 8010, CPU-based STT via `fedirz/faster-whisper-server:latest-cpu` (only used when `STT_MODE=remote`)
 
-Prod (`deploy/docker-compose.yml`, project `garbanzo-prod` — fully separate DB/volumes/network): see `deploy/CLAUDE.md` and `deploy/README.md`.
+Prod (`deploy/docker-compose.yml`, project `garbanzo-prod` — fully separate DB/volumes/network):
+ngrok and cloudflared are selectable connectors for HTTP, SSE, and WebSockets.
+They forward to `backend:8000` in the private Docker network. In dual mode,
+`PUBLIC_APP_URL` selects the primary release URL while both origins are accepted
+by CORS. The Cloudflare published application is remotely configured with the
+same service URL; its token stays in `deploy/.env`. See `deploy/AGENTS.md` and
+`deploy/README.md`. WebRTC media, where enabled, needs TURN independently.
 
 > Kokoro TTS runs **in-process** in the backend (not a Docker service). STT can
 > also run in-process (`stt_mode=local`, the default) bypassing the Docker

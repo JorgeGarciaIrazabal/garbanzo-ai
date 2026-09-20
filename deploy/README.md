@@ -2,14 +2,20 @@
 
 The prod stack is a self-contained Docker Compose project (`garbanzo-prod`),
 fully isolated from dev: its own PostgreSQL, its own volumes, its own network.
-Public access goes through an auto-restarting **ngrok** container tunneling the
-reserved static domain to the backend — no host ngrok agent involved.
+Public access can use **ngrok**, **Cloudflare Tunnel**, or both. Both connectors
+run in the production Docker network and forward to `backend:8000`. Cloudflare
+uses a remotely managed tunnel; the published application service URL in the
+Cloudflare dashboard must be `http://backend:8000`. A DNS CNAME and tunnel UUID
+alone do not connect the origin: the connector token is also required.
 
 ```
 just deploy          # ship local main: web build → image → stack → health → APK
 just deploy-model MODEL # pull one model into the production Ollama volume
 just deploy-status   # compose ps + local & public health
-just deploy-logs     # tail all logs (or: just deploy-logs backend|postgres|ngrok)
+just deploy-logs     # tail logs (or: just deploy-logs backend|postgres|ngrok|cloudflared)
+just deploy-config-check # validate enabled connector configuration
+just deploy-tunnel-up cloudflared # start Cloudflare beside the running backend
+just deploy-test     # focused tunnel-selection tests
 just deploy-restart  # restart services (keeps data)
 just deploy-down     # stop the stack (keeps volumes/data)
 ```
@@ -17,7 +23,7 @@ just deploy-down     # stop the stack (keeps volumes/data)
 `just deploy` snapshots the **local `main` branch** into a temporary git
 worktree and builds everything from it, so you can run it from any branch with
 a dirty tree. Each deploy also tags `garbanzo-backend:<short-sha>` and drops an
-APK at `dist/garbanzo-ai-<short-sha>.apk` with the ngrok URL baked in — web and
+APK at `dist/garbanzo-ai-<short-sha>.apk` with `PUBLIC_APP_URL` baked in — web and
 Android hit the same backend simultaneously. The signed APK is also attached
 to the version's GitHub Release; its signing key remains only on this host.
 
@@ -37,8 +43,11 @@ before the production Compose stack is replaced.
 
 ## First-time setup
 
-1. **ngrok** — create an account, reserve a static domain
-   (dashboard.ngrok.com → Domains), copy your authtoken.
+1. **Public tunnel** — ngrok remains the default. For Cloudflare, create a
+   remotely managed tunnel and a published application hostname. Set its service
+   URL to `http://backend:8000`; obtain the connector token from the tunnel's
+   **Install connector** screen. The token is secret; store it only in
+   `deploy/.env`. A domain alone does not start the connector.
 2. **Config** — `cp deploy/.env.example deploy/.env` and fill it in.
    `deploy/.env` is gitignored; it is the only place prod secrets live.
 3. **Credentials on disk** (both are gitignored, checked by `just deploy`):
@@ -67,7 +76,7 @@ before the production Compose stack is replaced.
      `deepseek-v4-pro:cloud`, `gemma4:cloud`, `nemotron-3-ultra:cloud`,
      `nemotron-3-super:cloud`, `qwen3.5:cloud`)
      require a **one-time** `ollama signin` inside the container: run
-     `docker compose -f deploy/docker-compose.yml --env-file deploy/.env exec ollama ollama signin`
+     `just deploy-ollama-signin`
      and confirm the printed URL in a browser while logged into ollama.com. The
      sign-in binds to the key in the `ollama_data` volume, so it survives
      redeploys — only wiping the volume requires signing in again. Local-only
@@ -102,7 +111,41 @@ before the production Compose stack is replaced.
 8. Commit the verified work on `main`, then run `just deploy`.
 
 > The free ngrok plan allows **one agent session**. `just deploy` refuses to
-> run while a host `ngrok` process is alive (`pkill -x ngrok` to stop it).
+> run while a host `ngrok` process is alive when ngrok is enabled.
+
+## Cloudflare migration with ngrok retained
+
+In `deploy/.env`, keep the current `NGROK_DOMAIN` and `NGROK_AUTHTOKEN` and add:
+
+```dotenv
+PUBLIC_TUNNELS=both
+CLOUDFLARE_DOMAIN=garbanzo.fyi
+CLOUDFLARE_TUNNEL_TOKEN=...  # copy the full token, not the tunnel UUID
+PUBLIC_APP_URL=https://<existing-ngrok-domain>
+```
+
+`PUBLIC_APP_URL` selects the URL baked into the next Android/desktop release and
+release tag. Keep it on ngrok while testing Cloudflare. Both origins are allowed
+by backend CORS when the new Compose configuration is applied. The Cloudflare
+route must be public without a Cloudflare Access login challenge, because native
+clients use the app's own bearer authentication.
+
+From the repository root, run `just deploy-test`, then `just deploy-config-check`.
+`just deploy-tunnel-up cloudflared` starts only the connector, leaving the
+running backend and ngrok in place. Check `https://garbanzo.fyi/api/v1/health`.
+To apply the dual-origin backend CORS setting, run `just deploy-tunnel-apply`:
+it recreates the backend container with the current image and environment, and
+can briefly interrupt active requests. Test login, a streamed chat response,
+and a room WebSocket from the Cloudflare hostname. `just deploy-status` checks
+both public origins. Once validated, set `PUBLIC_APP_URL=https://garbanzo.fyi`
+for a later release. Existing apps baked with ngrok continue to work while
+`PUBLIC_TUNNELS=both`. Remove ngrok only after those clients are no longer in use: change
+`PUBLIC_TUNNELS=cloudflare`, then run `just deploy-tunnel-stop ngrok`.
+`just deploy-restart` does not remove previously running connectors.
+
+Cloudflare Tunnel carries HTTP and WebSockets. Talk Mode's WebRTC media still
+needs a separate public TURN relay; switching the HTTP tunnel does not provide
+TURN. Store any TURN credentials separately from the connector token.
 
 ## What runs
 
@@ -111,7 +154,8 @@ before the production Compose stack is replaced.
 | postgres | pgvector/pgvector:pg16   | no host port, healthchecked, `postgres_data` vol  |
 | ollama   | ollama/ollama:latest     | no host port, healthchecked, `ollama_data` vol    |
 | backend  | garbanzo-backend:latest  | 127.0.0.1:8001 for smoke tests; serves web + API  |
-| ngrok    | ngrok/ngrok:latest       | `https://$NGROK_DOMAIN` → backend:8000            |
+| ngrok    | ngrok/ngrok:latest       | optional legacy route → backend:8000              |
+| cloudflared | cloudflare/cloudflared:latest | optional Cloudflare route → backend:8000 |
 
 All services use `restart: unless-stopped` — they survive crashes and host
 reboots (as long as the Docker daemon starts on boot).
@@ -146,8 +190,7 @@ just deploy-restart
 **psql escape hatch**:
 
 ```bash
-docker compose -f deploy/docker-compose.yml --env-file deploy/.env \
-  exec postgres psql -U garbanzo -d garbanzo_ai_prod
+just deploy-psql
 ```
 
 **Old prod data** — the pre-redesign database volume
