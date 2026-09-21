@@ -16,9 +16,9 @@ benchmarks are:
 ```sh
 just read-aloud-eval kokoro en --limit 20
 just read-aloud-eval kokoro es --limit 20
-just read-aloud-eval pocket en --limit 20
 just read-aloud-hf-status
-just read-aloud-eval pocket es --limit 20 --pocket-voice-cloning
+just read-aloud-eval pocket en --limit 20 --pocket-voice-cloning --pocket-quantize
+just read-aloud-eval pocket es --limit 20 --pocket-voice-cloning --pocket-quantize
 just read-aloud-eval-qwen-build
 just read-aloud-eval-qwen-official-pull
 just read-aloud-eval-qwen-official-build
@@ -61,8 +61,9 @@ file. The `--pocket-voice-cloning` benchmark option requires those authenticated
 weights, conditions from Lola's raw recording, and refuses Pocket's automatic
 public non-cloning fallback. It fetches the gated weights before model loading
 so repository approval failures remain visible instead of being hidden by that
-fallback. A candidate that cannot load its intended Spanish voice is
-unqualified; the benchmark surfaces that access error.
+fallback. `--pocket-quantize` enables Pocket's supported dynamic int8 CPU mode;
+the report records whether it was enabled. A candidate that cannot load its
+intended Spanish voice is unqualified; the benchmark surfaces that access error.
 
 Create an offline blind listening sheet from completed report paths with
 `just read-aloud-listening <report.json> <report.json> ...`. It writes an HTML
@@ -95,13 +96,21 @@ network and Android player startup. RSS is the highest measured process RSS.
 | --- | --- | ---: | ---: | ---: |
 | Kokoro | English | 0.97 s | 7.44× | 2,048 MiB |
 | Kokoro | Spanish | 0.92 s | 7.47× | 1,824 MiB |
-| Pocket TTS | English | 0.10 s | 3.93× | 973 MiB |
-| Pocket TTS 24-layer | Spanish | 0.38 s | 1.23× | 2,275 MiB |
+| Pocket TTS, public FP32 | English | 0.10 s | 3.93× | 973 MiB |
+| Pocket TTS 24-layer, public FP32 | Spanish | 0.38 s | 1.23× | 2,275 MiB |
+| Pocket TTS int8, raw Alba reference | English | 0.039 s | 8.92× | 1,032 MiB |
+| Pocket TTS 24-layer int8, raw Lola reference | Spanish | 0.094 s | 3.67× | 2,271 MiB |
 
-The Pocket Spanish configuration misses the required 2× sustained rate across
-all 20 passages. The isolated community ROCm/PyTorch image executed an FP16
-tensor operation, but Qwen 0.6B crashed during talker generation in three
-attempts, including MIOpen full-search and math-only attention variants.
+The initial public FP32 Pocket Spanish configuration misses the required 2×
+sustained rate. After authenticated access was approved, Pocket's pinned
+cloning-capable checkpoint and raw Lola source were evaluated. Dynamic int8
+quantization raises Spanish to 3.67× and English to 8.92× across 20 passages,
+with process RSS below 2.3 GiB and incremental PCM delivery. That configuration
+passes the synthesis speed screen and advances to blind listening; whole-service
+RAM has not yet been measured against the 6 GiB ceiling. The isolated
+community ROCm/PyTorch image executed an FP16 tensor operation, but Qwen 0.6B
+crashed during talker generation in three attempts, including MIOpen full-search
+and math-only attention variants.
 It also crashed with an HSA hardware exception in [AMD's validated PyTorch
 image](https://rocm.docs.amd.com/projects/radeon-ryzen/en/latest/docs/install/installryz/native_linux/install-pytorch.html).
 The supervised runner records exit 139 as `worker_crashed`. Qwen 1.7B completed
@@ -110,10 +119,7 @@ measured passage in both images. The representative-passage warm-up in the
 validated image did not resolve the stall. The high-level Qwen API returns a
 whole waveform; actual incremental output was not demonstrated.
 
-These results fail the plan's performance and reliability qualification gate.
-No Android tap-to-audible or human blind listening scores were obtained, and
-no replacement model, read-aloud service, or Android player has been shipped.
-The completed Kokoro/Pocket WAVs can be compared with `just read-aloud-listening`
-and the local listening sheet, but those scores cannot override the failed
-Spanish speed gate. Further model/runtime investigation is needed before
-proceeding to the application redesign.
+Pocket int8 is not selected until the 80 blinded English/Spanish clips establish
+an audible improvement over Kokoro in both languages. Android tap-to-audible has
+also not been measured. No replacement model, read-aloud service, or Android
+player has been shipped while those gates remain open.

@@ -27,20 +27,10 @@ ROOT = (
 )
 CORPUS = Path(__file__).with_name("corpus.json")
 POCKET_REFERENCE_VOICES = {
-    "alba": "hf://kyutai/tts-voices/alba-mackenna/casual.wav",
+    "alba": "hf://kyutai/tts-voices/alba-mackenna/casual.wav@323332d33f997de8394f24a193e1a76df720e01a",
     "lola": (
         "hf://kyutai/pocket-tts/common_voice_es_19762977-enhanced-v2.mp3"
         "@64ab7d24c479d736a83b8cc666c4a776fca30fda"
-    ),
-}
-POCKET_CLONING_WEIGHTS = {
-    "english_2026-04": (
-        "hf://kyutai/pocket-tts/languages/english_2026-04/model.safetensors"
-        "@39592ff23c9ef80098bb74895d104c26275fe2c9"
-    ),
-    "spanish_24l": (
-        "hf://kyutai/pocket-tts/languages/spanish_24l/model.safetensors"
-        "@39592ff23c9ef80098bb74895d104c26275fe2c9"
     ),
 }
 
@@ -90,8 +80,12 @@ def load_engine(args, metadata):
             # Pocket catches every Hub error and silently loads its public
             # non-cloning bundle. Fetch explicitly so strict evaluation exposes
             # authentication, license and availability errors.
-            utils.download_if_necessary(POCKET_CLONING_WEIGHTS[language])
-        model = pocket.TTSModel.load_model(language=language)
+            config_module = importlib.import_module("pocket_tts.utils.config")
+            config = config_module.load_config(config_module.CONFIGS_DIR / f"{language}.yaml")
+            if config.weights_path is None:
+                raise RuntimeError(f"Pocket {language} has no cloning weights path")
+            utils.download_if_necessary(config.weights_path)
+        model = pocket.TTSModel.load_model(language=language, quantize=args.pocket_quantize)
         voice = "alba" if args.language == "en" else "lola"
         if args.pocket_voice_cloning:
             if not model.has_voice_cloning:
@@ -114,6 +108,7 @@ def load_engine(args, metadata):
             voice=voice,
             config=str(model.config),
             voice_cloning=model.has_voice_cloning,
+            quantized=args.pocket_quantize,
             weights_source=weights_source,
             weights_sha256=sha256(utils.download_if_necessary(weights_source)),
             voice_source=voice_source,
@@ -238,9 +233,16 @@ def main():
         action="store_true",
         help="Require Pocket's authenticated cloning weights and raw reference voice",
     )
+    parser.add_argument(
+        "--pocket-quantize",
+        action="store_true",
+        help="Use Pocket's supported dynamic int8 CPU quantization",
+    )
     args = parser.parse_args()
     if args.pocket_voice_cloning and args.candidate != "pocket":
         parser.error("--pocket-voice-cloning is only valid for the Pocket candidate")
+    if args.pocket_quantize and args.candidate != "pocket":
+        parser.error("--pocket-quantize is only valid for the Pocket candidate")
     if args.limit < 1 or args.threads < 1 or args.stall_seconds <= 0:
         parser.error("limit, threads and stall-seconds must be positive")
     if args.run_id is not None and not re.fullmatch(r"[a-z0-9-]+", args.run_id):
