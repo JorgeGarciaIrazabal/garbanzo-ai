@@ -1,0 +1,4 @@
+# Cached runtime verified on the target Radeon 8060S; evaluation only.
+FROM kyuz0/amd-strix-halo-comfyui@sha256:0066678ae9043f69a1c8c7699e70626ceffd35c1a8ca03227a05640ad0241ed2
+RUN python3 -m pip install qwen-tts==0.1.1
+ENTRYPOINT ["python3", "/evaluation/benchmark.py"]

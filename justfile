@@ -7,6 +7,111 @@ prod_compose := "bash " + justfile_directory() + "/scripts/prod-compose.sh"
 _default:
     @just --list
 
+# Isolated read-aloud model evaluation (does not change application dependencies)
+[positional-arguments]
+read-aloud-eval candidate language *args:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    mkdir -p .ai/local/read-aloud
+    case "$1" in
+      pocket) HF_HUB_DISABLE_XET=1 uv run --project scripts/read_aloud python scripts/read_aloud/benchmark.py "$@" ;;
+      kokoro) cd backend; uv run python ../scripts/read_aloud/benchmark.py "$@" ;;
+      *) echo 'Use pocket or kokoro; GPU candidates use read-aloud-eval-qwen.' >&2; exit 2 ;;
+    esac
+
+[positional-arguments]
+read-aloud-reference candidate language *args:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    case "$1" in
+      pocket) HF_HUB_DISABLE_XET=1 uv run --project scripts/read_aloud python scripts/read_aloud/reference.py "$@" ;;
+      kokoro) cd backend; uv run python ../scripts/read_aloud/reference.py "$@" ;;
+      *) echo 'Use pocket or kokoro.' >&2; exit 2 ;;
+    esac
+
+read-aloud-eval-qwen-build:
+    docker build -f scripts/read_aloud/Dockerfile.qwen -t garbanzo-read-aloud-eval:qwen scripts/read_aloud
+
+read-aloud-eval-qwen-official-pull:
+    docker pull rocm/pytorch:rocm7.2.1_ubuntu24.04_py3.12_pytorch_release_2.9.1
+
+read-aloud-eval-qwen-official-build:
+    docker build -f scripts/read_aloud/Dockerfile.qwen_official -t garbanzo-read-aloud-eval:qwen-official scripts/read_aloud
+
+[positional-arguments]
+read-aloud-eval-qwen size language *args:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    mkdir -p .ai/local/read-aloud
+    run_id=$(cat /proc/sys/kernel/random/uuid)
+    report="$PWD/.ai/local/read-aloud/qwen-$1-$2-$run_id/report.json"
+    log="$PWD/.ai/local/read-aloud/qwen-$1-$2-$run_id.log"
+    miopen_find_mode="${MIOPEN_FIND_MODE:-5}"
+    eval_image="${QWEN_EVAL_IMAGE:-garbanzo-read-aloud-eval:qwen}"
+    set +e
+    docker run --rm --memory 6g --memory-swap 6g --device /dev/kfd --device /dev/dri --shm-size 512m \
+      -e HF_HOME=/results/huggingface -e HF_HUB_DISABLE_XET=1 -e OMP_NUM_THREADS=4 \
+      -e MIOPEN_FIND_MODE="$miopen_find_mode" -e READ_ALOUD_IMAGE="$eval_image" \
+      -v "$PWD/scripts/read_aloud:/evaluation:ro" -v "$PWD/.ai/local/read-aloud:/results" \
+      "$eval_image" "qwen-$1" "$2" --output /results --run-id "$run_id" "${@:3}" 2>&1 | tee "$log"
+    exit_code=${PIPESTATUS[0]}
+    set -e
+    if [ "$exit_code" -ne 0 ]; then
+      docker run --rm --memory 256m --entrypoint python3 \
+        -v "$PWD/scripts/read_aloud:/evaluation:ro" -v "$PWD/.ai/local/read-aloud:/results" \
+        "$eval_image" /evaluation/mark_failure.py \
+        "/results/qwen-$1-$2-$run_id/report.json" "$exit_code"
+    fi
+    exit "$exit_code"
+
+[positional-arguments]
+read-aloud-eval-mark-failure report exit_code:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    docker run --rm --memory 256m --entrypoint python3 \
+      -v "$PWD/scripts/read_aloud:/evaluation:ro" -v "$PWD/.ai/local/read-aloud:/results" \
+      garbanzo-read-aloud-eval:qwen /evaluation/mark_failure.py "$1" "$2"
+
+read-aloud-eval-test:
+    python3 -m unittest discover -s scripts/read_aloud -p 'test_*.py' -v
+
+read-aloud-eval-lint:
+    cd backend; UV_OFFLINE=1 uv run ruff check ../scripts/read_aloud
+    cd backend; UV_OFFLINE=1 uv run ruff format --check ../scripts/read_aloud
+
+read-aloud-eval-format:
+    cd backend; UV_OFFLINE=1 uv run ruff check --fix ../scripts/read_aloud
+    cd backend; UV_OFFLINE=1 uv run ruff format ../scripts/read_aloud
+
+[positional-arguments]
+read-aloud-asset repo revision filename *args:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    uv run --project scripts/read_aloud python scripts/read_aloud/download_asset.py "$@"
+
+[positional-arguments]
+read-aloud-asset-qwen repo revision filename *args:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    docker run --rm --memory 1g --network bridge --entrypoint python3 \
+      -v "$PWD/scripts/read_aloud:/evaluation:ro" -v "$PWD/.ai/local/read-aloud:/results" \
+      garbanzo-read-aloud-eval:qwen /evaluation/download_asset.py "$1" "$2" "$3" \
+      --cache /results/huggingface "${@:4}"
+
+[positional-arguments]
+read-aloud-listening *reports:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    python3 scripts/read_aloud/listening.py "$@"
+
+[positional-arguments]
+read-aloud-listening-smoke page:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    google-chrome --headless --no-sandbox --disable-gpu \
+      --user-data-dir="$PWD/.ai/local/read-aloud/chrome-smoke" \
+      --dump-dom "file://$PWD/$1" 2>/dev/null | rg -o '[0-9]+ of [0-9]+ clips rated'
+
 # ============================================================================
 # Setup & Combined Commands
 # ============================================================================

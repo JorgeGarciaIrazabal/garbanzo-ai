@@ -1,0 +1,4 @@
+# AMD's validated ROCm 7.2.1 / PyTorch 2.9.1 image, pinned for this evaluation.
+FROM rocm/pytorch@sha256:96a2fb24dec9896e2f8238178f0c49d0dcc4c7dcc597be09e4564316bd86d191
+RUN python3 -m pip install qwen-tts==0.1.1
+ENTRYPOINT ["python3", "/evaluation/benchmark.py"]

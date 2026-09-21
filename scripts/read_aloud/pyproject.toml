@@ -1,0 +1,17 @@
+[project]
+name = "garbanzo-read-aloud-evaluation"
+version = "0.1.0"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "pocket-tts @ git+https://github.com/kyutai-labs/pocket-tts.git@e023ae935c832228207f3db34fea97ba6e87cc2d",
+  "torch==2.8.0",
+  "soundfile==0.13.1",
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }

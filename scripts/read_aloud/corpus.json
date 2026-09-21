@@ -1,0 +1,52 @@
+{
+  "en": [
+    "Good morning. Your next appointment is at half past nine, so there is still time for breakfast.",
+    "I thought the keys were on the table. Wait, are they in the pocket of your blue coat?",
+    "The train from Edinburgh arrives on platform three. Please stand behind the yellow line.",
+    "The total is twenty-three pounds and forty-five pence, including delivery and tax.",
+    "First, wash the rice. Then add two cups of water, cover the pan, and simmer gently.",
+    "Although the forecast promised sunshine, the clouds gathered just as we reached the beach.",
+    "Could you read that again, a little more slowly? I missed the name of the street.",
+    "She opened the letter, took a deep breath, and smiled. At last, the answer was yes.",
+    "The meeting is on Wednesday, the twenty-third of September, at a quarter to four.",
+    "An asynchronous request lets the application keep responding while the server prepares the result.",
+    "Do not close the window yet; the file is still uploading, and the connection is quite slow.",
+    "The museum has three floors: paintings downstairs, sculpture upstairs, and photographs at the top.",
+    "There is a difference between knowing the route and recognising the place when you arrive.",
+    "Really? You walked all the way home in that rain? I would have called a taxi!",
+    "The doctor asked whether the pain began before lunch or after the afternoon walk.",
+    "At night, the house was quiet except for the clock and the wind moving through the trees.",
+    "Save your changes before restarting. When the application opens again, choose the most recent document.",
+    "A small improvement repeated every day can matter more than one dramatic change that never lasts.",
+    "The recipe serves six people, but you can halve the quantities if you are cooking for three.",
+    "That is the end of this explanation. Take your time, and return to the previous paragraph whenever you need."
+  ],
+  "es": [
+    "Buenos días. Tu próxima cita es a las nueve y media, así que todavía tienes tiempo para desayunar.",
+    "Creía que las llaves estaban en la mesa. Espera, ¿estarán en el bolsillo de tu abrigo azul?",
+    "El tren procedente de Zaragoza llega a la vía tres. Por favor, permaneced detrás de la línea amarilla.",
+    "El total es de veintitrés euros con cuarenta y cinco céntimos, incluidos el envío y los impuestos.",
+    "Primero, lava el arroz. Después añade dos tazas de agua, tapa la cazuela y déjalo cocer a fuego lento.",
+    "Aunque el pronóstico anunciaba sol, las nubes aparecieron justo cuando llegamos a la playa.",
+    "¿Puedes leerlo otra vez, un poco más despacio? No he oído el nombre de la calle.",
+    "Abrió la carta, respiró hondo y sonrió. Por fin, la respuesta era que sí.",
+    "La reunión es el miércoles, veintitrés de septiembre, a las cuatro menos cuarto.",
+    "Una petición asíncrona permite que la aplicación siga respondiendo mientras el servidor prepara el resultado.",
+    "No cerréis todavía la ventana; el archivo sigue subiendo y la conexión va bastante despacio.",
+    "El museo tiene tres plantas: pintura abajo, escultura en la primera y fotografía en la última.",
+    "Hay una diferencia entre conocer el camino y reconocer el lugar cuando llegas.",
+    "¿En serio? ¿Habéis vuelto andando con esta lluvia? ¡Yo habría cogido un taxi!",
+    "La médica preguntó si el dolor había empezado antes de comer o después del paseo de la tarde.",
+    "Por la noche, en la casa solo se oían el reloj y el viento entre los árboles del jardín.",
+    "Guardad los cambios antes de reiniciar. Cuando se abra la aplicación, elegid el documento más reciente.",
+    "Una pequeña mejora repetida cada día puede importar más que un gran cambio que nunca se mantiene.",
+    "La receta es para seis personas, pero podéis reducir las cantidades a la mitad si solo sois tres.",
+    "Aquí termina la explicación. Tómate tu tiempo y vuelve al párrafo anterior siempre que lo necesites."
+  ],
+  "mixed": [
+    "La opción se llama playback speed y permite escuchar el mensaje más deprisa sin volver a generarlo.",
+    "We met near the Plaza de España, then walked to a café for breakfast.",
+    "Pulsa Retry para intentarlo de nuevo. Después comprueba que el mensaje aparece como completed.",
+    "She said hasta mañana, picked up her bag, and hurried towards the station."
+  ]
+}
