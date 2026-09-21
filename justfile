@@ -38,6 +38,12 @@ read-aloud-eval-qwen-official-pull:
 read-aloud-eval-qwen-official-build:
     docker build -f scripts/read_aloud/Dockerfile.qwen_official -t garbanzo-read-aloud-eval:qwen-official scripts/read_aloud
 
+read-aloud-hf-login:
+    uv run --project scripts/read_aloud hf auth login
+
+read-aloud-hf-status:
+    uv run --project scripts/read_aloud hf auth whoami
+
 [positional-arguments]
 read-aloud-eval-qwen size language *args:
     #!/usr/bin/env bash

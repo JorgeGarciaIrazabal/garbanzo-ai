@@ -17,7 +17,8 @@ benchmarks are:
 just read-aloud-eval kokoro en --limit 20
 just read-aloud-eval kokoro es --limit 20
 just read-aloud-eval pocket en --limit 20
-just read-aloud-eval pocket es --limit 20
+just read-aloud-hf-status
+just read-aloud-eval pocket es --limit 20 --pocket-voice-cloning
 just read-aloud-eval-qwen-build
 just read-aloud-eval-qwen-official-pull
 just read-aloud-eval-qwen-official-build
@@ -54,10 +55,12 @@ unit. Its streaming behaviour has **not** been validated by an API name.
 For this machine, the isolated ROCm image passed an FP16 GPU operation on the
 Radeon 8060S under Ubuntu 25.10. Pocket English has publicly accessible model
 weights and an Alba voice. The Pocket Spanish 24-layer checkpoint and Lola's
-source recording are gated by Hugging Face, but the non-cloning checkpoint and
-precomputed Lola voice state are public. The evaluation uses that combination;
-it cannot offer user voice cloning. A candidate that cannot load its intended
-Spanish voice is unqualified; the benchmark surfaces that access error.
+source recording are gated by Hugging Face. Authenticate locally with
+`just read-aloud-hf-login`; never put a token in a command, report, or committed
+file. The `--pocket-voice-cloning` benchmark option requires those authenticated
+weights, conditions from Lola's raw recording, and refuses Pocket's automatic
+public non-cloning fallback. A candidate that cannot load its intended Spanish
+voice is unqualified; the benchmark surfaces that access error.
 
 Create an offline blind listening sheet from completed report paths with
 `just read-aloud-listening <report.json> <report.json> ...`. It writes an HTML

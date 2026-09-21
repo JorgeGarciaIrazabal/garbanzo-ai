@@ -26,6 +26,13 @@ ROOT = (
     else Path("/results")
 )
 CORPUS = Path(__file__).with_name("corpus.json")
+POCKET_REFERENCE_VOICES = {
+    "alba": "hf://kyutai/tts-voices/alba-mackenna/casual.wav",
+    "lola": (
+        "hf://kyutai/pocket-tts/common_voice_es_19762977-enhanced-v2.mp3"
+        "@64ab7d24c479d736a83b8cc666c4a776fca30fda"
+    ),
+}
 
 
 def gpu_vram_path():
@@ -70,14 +77,23 @@ def load_engine(args, metadata):
         language = "spanish_24l" if args.language != "en" else "english_2026-04"
         model = pocket.TTSModel.load_model(language=language)
         voice = "alba" if args.language == "en" else "lola"
-        state = model.get_state_for_audio_prompt(voice)
         utils = importlib.import_module("pocket_tts.utils.utils")
+        if args.pocket_voice_cloning:
+            if not model.has_voice_cloning:
+                raise RuntimeError(
+                    "Authenticated Pocket weights were unavailable; refusing the public "
+                    "non-cloning fallback"
+                )
+            voice_source = POCKET_REFERENCE_VOICES[voice]
+            state = model.get_state_for_audio_prompt(voice_source)
+        else:
+            voice_source = utils.get_predefined_voice(language=language, name=voice)
+            state = model.get_state_for_audio_prompt(voice)
         weights_source = (
             model.config.weights_path
             if model.has_voice_cloning
             else model.config.weights_path_without_voice_cloning
         )
-        voice_source = utils.get_predefined_voice(language=language, name=voice)
         metadata.update(
             model=language,
             voice=voice,
@@ -202,7 +218,14 @@ def main():
     parser.add_argument("--stall-seconds", type=float, default=15)
     parser.add_argument("--math-attention", action="store_true")
     parser.add_argument("--trace-stages", action="store_true")
+    parser.add_argument(
+        "--pocket-voice-cloning",
+        action="store_true",
+        help="Require Pocket's authenticated cloning weights and raw reference voice",
+    )
     args = parser.parse_args()
+    if args.pocket_voice_cloning and args.candidate != "pocket":
+        parser.error("--pocket-voice-cloning is only valid for the Pocket candidate")
     if args.limit < 1 or args.threads < 1 or args.stall_seconds <= 0:
         parser.error("limit, threads and stall-seconds must be positive")
     if args.run_id is not None and not re.fullmatch(r"[a-z0-9-]+", args.run_id):
