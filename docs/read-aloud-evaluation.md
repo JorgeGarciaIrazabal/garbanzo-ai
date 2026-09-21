@@ -59,8 +59,10 @@ source recording are gated by Hugging Face. Authenticate locally with
 `just read-aloud-hf-login`; never put a token in a command, report, or committed
 file. The `--pocket-voice-cloning` benchmark option requires those authenticated
 weights, conditions from Lola's raw recording, and refuses Pocket's automatic
-public non-cloning fallback. A candidate that cannot load its intended Spanish
-voice is unqualified; the benchmark surfaces that access error.
+public non-cloning fallback. It fetches the gated weights before model loading
+so repository approval failures remain visible instead of being hidden by that
+fallback. A candidate that cannot load its intended Spanish voice is
+unqualified; the benchmark surfaces that access error.
 
 Create an offline blind listening sheet from completed report paths with
 `just read-aloud-listening <report.json> <report.json> ...`. It writes an HTML

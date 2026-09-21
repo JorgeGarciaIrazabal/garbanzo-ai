@@ -33,6 +33,16 @@ POCKET_REFERENCE_VOICES = {
         "@64ab7d24c479d736a83b8cc666c4a776fca30fda"
     ),
 }
+POCKET_CLONING_WEIGHTS = {
+    "english_2026-04": (
+        "hf://kyutai/pocket-tts/languages/english_2026-04/model.safetensors"
+        "@39592ff23c9ef80098bb74895d104c26275fe2c9"
+    ),
+    "spanish_24l": (
+        "hf://kyutai/pocket-tts/languages/spanish_24l/model.safetensors"
+        "@39592ff23c9ef80098bb74895d104c26275fe2c9"
+    ),
+}
 
 
 def gpu_vram_path():
@@ -74,10 +84,15 @@ def load_engine(args, metadata):
     metadata["hip"] = torch.version.hip
     if args.candidate == "pocket":
         pocket = importlib.import_module("pocket_tts")
+        utils = importlib.import_module("pocket_tts.utils.utils")
         language = "spanish_24l" if args.language != "en" else "english_2026-04"
+        if args.pocket_voice_cloning:
+            # Pocket catches every Hub error and silently loads its public
+            # non-cloning bundle. Fetch explicitly so strict evaluation exposes
+            # authentication, license and availability errors.
+            utils.download_if_necessary(POCKET_CLONING_WEIGHTS[language])
         model = pocket.TTSModel.load_model(language=language)
         voice = "alba" if args.language == "en" else "lola"
-        utils = importlib.import_module("pocket_tts.utils.utils")
         if args.pocket_voice_cloning:
             if not model.has_voice_cloning:
                 raise RuntimeError(
