@@ -4,6 +4,11 @@ Release notes for Garbanzo AI. Each entry is generated automatically on
 `just deploy` — an LLM (via opencode) writes it from the release's commits and
 the user reports it addressed. See `scripts/changelog-instructions.md`.
 
+## v1.0.35 — 2026-09-24
+
+- Added Pocket read-aloud sessions with compact Android controls.
+- Improved access feedback for Pocket listening models.
+
 ## v1.0.34 — 2026-09-20
 
 - Improved reliability when backgrounding multi-agent rooms.
