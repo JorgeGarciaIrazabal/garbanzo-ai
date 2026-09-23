@@ -439,6 +439,18 @@ class ApiClient {
     );
   }
 
+  /// Read an authenticated SSE response without a receive-gap timeout.
+  Future<Response<ResponseBody>> streamGet(String path) {
+    return _dio.get<ResponseBody>(
+      path,
+      options: Options(
+        headers: {'Accept': 'text/event-stream'},
+        responseType: ResponseType.stream,
+        receiveTimeout: Duration.zero,
+      ),
+    );
+  }
+
   /// Send a POST request with multipart form data.
   Future<Response> postMultipart(String path, {required FormData data}) {
     return _dio.post(path, data: data);

@@ -55,6 +55,10 @@ dependencies:
   wakelock_plus: ^1.2.8
   audioplayers: ^6.1.0
   audioplayers_web: ^5.2.0
+  just_audio: ^0.10.6
+  just_audio_media_kit: ^2.1.0
+  media_kit_libs_linux: ^1.2.1
+  media_kit_libs_windows_audio: ^1.0.9
   super_clipboard: ^0.9.1
   flutter_markdown_plus: ^1.0.12
   markdown: ^7.2.2

@@ -17,7 +17,7 @@ change layouts, flows, or services (see "Maintaining agent docs" in the root
   read through `super_clipboard` by `ClipboardImageReader` and staged as
   attachments on Ctrl/Cmd+V in either composer; plain text paste is unchanged.
 - **LLM:** Ollama (default) via a pluggable provider pattern
-- **TTS:** Kokoro (in-process, loaded on backend startup)
+- **TTS:** Kokoro (in-process for Talk Mode and legacy speech); Pocket TTS int8 (separate CPU worker for read-aloud)
 - **STT:** Faster Whisper (in-process local by default; remote Docker fallback on port 8010)
 - **Streaming:** Server-Sent Events (SSE) from backend to frontend
 - **Push Notifications:** Firebase Cloud Messaging (FCM) via `fcm_service.py`
@@ -35,7 +35,7 @@ api/v1/        endpoints/
                auth.py, admin.py, chat.py, topics.py, devices.py, health.py,
                knowledge_base.py, mcp.py, memories.py, microapps.py,
                notifications.py, rooms.py, rooms_ws.py, scheduled_actions.py,
-               stt.py, system_prompts.py, tts.py, usage.py
+               stt.py, system_prompts.py, tts.py, read_aloud.py, usage.py
                →  router.py
 models/        SQLAlchemy ORM:
                User, Conversation, Message, UserMemory,
@@ -54,7 +54,9 @@ services/      chat_service.py (turn orchestration + tool loop)
                conversation_service.py, user_service.py
                llm_provider.py (abstract base + ProviderRegistry)
                ollama_provider.py (concrete impl)
-               stt_service.py, tts_service.py
+               stt_service.py, tts_service.py,
+               read_aloud_text.py (Markdown-to-speech preparation),
+               read_aloud_sessions.py (owned sessions, bounded synthesis/cache)
                memory_service.py, memory_extraction.py
                system_prompt_service.py, mcp_service.py
                knowledge_base_service.py, embedding_provider.py, document_parser.py
@@ -594,8 +596,37 @@ Additional providers:
 Dev (`docker-compose.yml`, project `garbanzo-ai`):
 - **PostgreSQL** (`garbanzo_ai_postgres`) — port 5432, image `pgvector/pgvector:pg16`, credentials `garbanzo:garbanzo_dev`, database `garbanzo_ai`
 - **Faster Whisper Server** (`garbanzo_ai_whisper`) — port 8010, CPU-based STT via `fedirz/faster-whisper-server:latest-cpu` (only used when `STT_MODE=remote`)
+- **Pocket read-aloud worker** — started as a separate local process by `just be-dev`, `just dev`, `just dev-apk`, or `just dev-web`; binds localhost port 8021 and shares a per-run token with the backend. It loads English and Spain Spanish checkpoints with immutable weight revisions in the pinned Pocket package config, plus the tested Alba/Lola conditioning, before reporting ready.
 
 Prod (`deploy/docker-compose.yml`, project `garbanzo-prod` — fully separate DB/volumes/network):
+The private `read-aloud` container runs Pocket int8 CPU synthesis behind a
+6 GiB cgroup limit. Its Hugging Face and Pocket caches use dedicated named
+volumes; `HF_TOKEN` grants access to the gated Spanish model and Lola recording.
+The backend connects to `read-aloud:8021` with a shared worker token and waits
+for worker readiness. The worker has no public port. The release script builds
+and tags its pinned image alongside the backend before updating the stack.
+
+Read-aloud requests create user-owned sessions. The backend prepares Markdown
+as spoken text, divides it into bounded sentence and paragraph units, then
+submits one unit at a time to the worker. The worker returns incremental 24 kHz
+mono PCM; the backend encodes one continuous MP3 file with ordered segment
+offsets for replay and paragraph resume. A 72 ms pause between synthesis units
+provides MP3 decoder pre-roll; seek offsets start two frames inside that pause
+so resuming a paragraph does not repeat the prior speech or clip its opening.
+This MP3 cache belongs
+to the backend, separate from the worker's persistent model caches. It is
+limited to 512 MiB, expires sessions after 30 minutes idle, and clears orphaned
+files when the backend restarts. Production uses ephemeral backend container
+storage by default, so a restart cannot resume an earlier session. SSE reports
+preparation, progress and terminal errors separately from a clean completion.
+Android and desktop use one app-scoped just_audio controller with authenticated
+streaming. The controls render beside the active message's Listen action,
+including a circular speed control and an overflow menu for Stop, paragraph
+navigation, and retry. Selecting another message cancels the old session; Android pauses
+playback when the app leaves the foreground until the user resumes. Web Listen
+and voice preview controls are disabled because the authenticated streaming
+player has not been implemented for web.
+
 ngrok and cloudflared are selectable connectors for HTTP, SSE, and WebSockets.
 They forward to `backend:8000` in the private Docker network. In dual mode,
 `PUBLIC_APP_URL` selects the primary release URL while both origins are accepted
@@ -603,16 +634,15 @@ by CORS. The Cloudflare published application is remotely configured with the
 same service URL; its token stays in `deploy/.env`. See `deploy/AGENTS.md` and
 `deploy/README.md`. WebRTC media, where enabled, needs TURN independently.
 
-> Kokoro TTS runs **in-process** in the backend (not a Docker service). STT can
+> Legacy Kokoro TTS runs **in-process** in the backend for Talk Mode and the
+> existing `/tts/speak` API. STT can
 > also run in-process (`stt_mode=local`, the default) bypassing the Docker
 > container entirely. Both modes default to the multilingual Faster Whisper
 > `small` checkpoint, balancing transcription accuracy with CPU latency. TTS
 > and STT independently select CPU or CUDA through `TTS_DEVICE` and
 > `STT_DEVICE`. Production GPU deployments use a shared CUDA 12.6 stack because
 > CTranslate2 requires CUDA 12; CPU remains the portable default. TTS inference
-> is serialized around the singleton Kokoro model, and
-> clients keep at most one bounded text chunk prefetched to cap long-session
-> memory use.
-> Normal read-aloud uses one multi-sentence request whenever it fits the 5,000
-> character API limit; Talk Mode starts prefetching each newly arrived chunk
-> during current playback so sentence boundaries do not wait on inference.
+> is serialized around the singleton Kokoro model. Talk Mode starts
+> prefetching each newly arrived chunk during current playback so sentence
+> boundaries do not wait on inference. Read-aloud uses the separate Pocket
+> service and does not change Talk Mode voice settings.

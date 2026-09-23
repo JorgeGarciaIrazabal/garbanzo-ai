@@ -11,6 +11,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
   flutter_timezone
   geolocator_windows
   irondash_engine_context
+  media_kit_libs_windows_audio
   record_windows
   share_plus
   super_native_extensions

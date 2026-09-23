@@ -49,6 +49,19 @@ TTS_DEVICE=auto          # "auto", "cpu", or "cuda"; forced cuda fails if unavai
 KOKORO_MODEL_DIR=data/kokoro/models/v1_0
 KOKORO_VOICES_DIR=data/kokoro/voices
 
+# Pocket read-aloud runs in a separate supervised process on localhost for dev
+# and on the private Compose network in production. Both sides must use the
+# same strong secret. Local `just be-dev`/`just dev*` generate a per-run secret.
+READ_ALOUD_WORKER_URL=http://127.0.0.1:8021
+READ_ALOUD_WORKER_TOKEN=       # Required when read-aloud sessions are enabled
+READ_ALOUD_CACHE_DIR=/tmp/garbanzo-read-aloud  # Backend MP3 segment cache; writable, private
+# Worker environment only: obtain HF access locally with
+# `just read-aloud-hf-login`; production sets HF_TOKEN in deploy/.env.
+# The Spanish checkpoint and Lola reference are gated model assets.
+HF_TOKEN=
+HF_HOME=                       # Optional private worker model cache path
+POCKET_TTS_CACHE_DIR=          # Optional private worker conditioning cache
+
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 REFRESH_TOKEN_EXPIRE_DAYS=30
 
@@ -123,3 +136,15 @@ for the compact portable image, or set both to `cuda` to install the shared
 CUDA 12.6 PyTorch/cuBLAS/cuDNN stack and grant the backend GPU access. `auto` is
 useful for direct backend runs; the deployment script builds it with the CPU
 wheel to avoid adding CUDA to machines that may not have a GPU.
+
+The read-aloud service uses a pinned Pocket package revision and pinned English
+and Spain Spanish checkpoint weights with int8 CPU inference. Its
+production container has a 6 GiB memory limit and separate persistent model
+caches; `READ_ALOUD_WORKER_URL` is fixed to `http://read-aloud:8021` in Compose.
+Set both `READ_ALOUD_WORKER_TOKEN` and `HF_TOKEN` in `deploy/.env` before
+building the release. The worker binds no public port. Talk Mode and the
+legacy `/tts/speak` endpoints continue to use Kokoro and the settings above.
+The backend's `READ_ALOUD_CACHE_DIR` stores continuous session MP3 files in a private directory
+with a 512 MiB total cache budget. Sessions and their files expire after 30
+minutes idle; leftovers from an earlier backend process are deleted at startup.
+The production default is an ephemeral path inside the backend container.

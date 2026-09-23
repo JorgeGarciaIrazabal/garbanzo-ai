@@ -44,6 +44,29 @@ read-aloud-hf-login:
 read-aloud-hf-status:
     uv run --project scripts/read_aloud hf auth whoami
 
+# Resolve the isolated Pocket service runtime; commit the lock with service changes
+read-aloud-worker-lock:
+    cd scripts/read_aloud_service; uv lock
+
+# Run only the private Pocket worker for local integration checks
+read-aloud-worker-run:
+    cd scripts/read_aloud_service; uv run --frozen uvicorn app:app --host 127.0.0.1 --port 8021
+
+# Exercise the warm worker in both languages; requires the shared token
+read-aloud-worker-smoke:
+    cd scripts/read_aloud_service; uv run --frozen python smoke.py
+
+# Validate the deployable Pocket worker image without starting production
+read-aloud-worker-build:
+    docker build -t garbanzo-read-aloud:local scripts/read_aloud_service
+
+# Validate container startup against this machine's already authorized HF cache
+read-aloud-worker-container-run:
+    docker run --rm --memory=6g --network host \
+      -e READ_ALOUD_WORKER_TOKEN="${READ_ALOUD_WORKER_TOKEN:?set a local test token}" \
+      -v "$HOME/.cache/huggingface:/models/huggingface" \
+      garbanzo-read-aloud:local uvicorn app:app --host 127.0.0.1 --port 8022
+
 [positional-arguments]
 read-aloud-eval-qwen size language *args:
     #!/usr/bin/env bash
@@ -147,7 +170,7 @@ opencode:
 	ollama launch opencode --model deepseek-v4.1-flash:cloud --yes
 
 
-# Start Docker, backend, TTS, and frontend on Android (real device or emulator) — kills port 8000 if busy
+# Start Docker, backend, Pocket read-aloud, and frontend on Android
 dev-apk:
     #!/usr/bin/env bash
     set -e
@@ -166,10 +189,14 @@ dev-apk:
         fi
     fi
     docker compose up -d
-    echo "Starting backend on :8000 (includes in-process Kokoro TTS)..."
+    export READ_ALOUD_WORKER_TOKEN="${READ_ALOUD_WORKER_TOKEN:-$(openssl rand -hex 32)}"
+    export READ_ALOUD_WORKER_URL="${READ_ALOUD_WORKER_URL:-http://127.0.0.1:8021}"
+    (cd scripts/read_aloud_service && uv run --frozen uvicorn app:app --host 127.0.0.1 --port 8021) &
+    WORKER_PID=$!
+    echo "Starting backend on :8000 and Pocket read-aloud worker on :8021..."
     (cd backend && uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000) &
     BACKEND_PID=$!
-    trap "kill $BACKEND_PID 2>/dev/null; echo 'Stopped.'" EXIT INT TERM
+    trap 'kill "$BACKEND_PID" "$WORKER_PID" 2>/dev/null || true' EXIT INT TERM
     # Check for a real USB-connected Android device first
     DEVICES_OUTPUT=$(flutter devices 2>/dev/null)
     REAL_DEVICE=$(echo "$DEVICES_OUTPUT" | grep "android" | grep -v "emulator" | head -1)
@@ -221,10 +248,14 @@ dev:
         fi
     fi
     docker compose up -d
-    echo "Starting backend on :8000 (includes in-process Kokoro TTS)..."
+    export READ_ALOUD_WORKER_TOKEN="${READ_ALOUD_WORKER_TOKEN:-$(openssl rand -hex 32)}"
+    export READ_ALOUD_WORKER_URL="${READ_ALOUD_WORKER_URL:-http://127.0.0.1:8021}"
+    (cd scripts/read_aloud_service && uv run --frozen uvicorn app:app --host 127.0.0.1 --port 8021) &
+    WORKER_PID=$!
+    echo "Starting backend on :8000 and Pocket read-aloud worker on :8021..."
     (cd backend && uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000) &
     BACKEND_PID=$!
-    trap "kill $BACKEND_PID 2>/dev/null; echo 'Stopped.'" EXIT INT TERM
+    trap 'kill "$BACKEND_PID" "$WORKER_PID" 2>/dev/null || true' EXIT INT TERM
     echo "Starting frontend on Linux desktop..."
     flutter run -d linux --dart-define=API_BASE_URL=http://localhost:8000
 
@@ -246,10 +277,14 @@ dev-web:
         fi
     fi
     docker compose up -d
-    echo "Starting backend on :8000 (includes in-process Kokoro TTS)..."
+    export READ_ALOUD_WORKER_TOKEN="${READ_ALOUD_WORKER_TOKEN:-$(openssl rand -hex 32)}"
+    export READ_ALOUD_WORKER_URL="${READ_ALOUD_WORKER_URL:-http://127.0.0.1:8021}"
+    (cd scripts/read_aloud_service && uv run --frozen uvicorn app:app --host 127.0.0.1 --port 8021) &
+    WORKER_PID=$!
+    echo "Starting backend on :8000 and Pocket read-aloud worker on :8021..."
     (cd backend && uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000) &
     BACKEND_PID=$!
-    trap "kill $BACKEND_PID 2>/dev/null; echo 'Stopped.'" EXIT INT TERM
+    trap 'kill "$BACKEND_PID" "$WORKER_PID" 2>/dev/null || true' EXIT INT TERM
     echo "Starting frontend on Chrome..."
     flutter run -d chrome
 
@@ -276,9 +311,17 @@ be-install:
 be-upgrade:
     cd backend; uv sync --upgrade --extra dev
 
-# Start FastAPI dev server with hot reload (includes in-process Kokoro TTS)
+# Start FastAPI dev server with hot reload and separate Pocket read-aloud worker
 be-dev:
-    cd backend; uv run uvicorn app.main:app --reload --port 8000
+    #!/usr/bin/env bash
+    set -euo pipefail
+    export READ_ALOUD_WORKER_TOKEN="${READ_ALOUD_WORKER_TOKEN:-$(openssl rand -hex 32)}"
+    export READ_ALOUD_WORKER_URL="${READ_ALOUD_WORKER_URL:-http://127.0.0.1:8021}"
+    (cd scripts/read_aloud_service && uv run --frozen uvicorn app:app --host 127.0.0.1 --port 8021) &
+    worker_pid=$!
+    trap 'kill "$worker_pid" 2>/dev/null || true' EXIT INT TERM
+    cd backend
+    uv run uvicorn app.main:app --reload --port 8000
 
 # Start FastAPI production server
 be-run:

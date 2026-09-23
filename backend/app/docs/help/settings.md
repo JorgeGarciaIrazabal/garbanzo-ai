@@ -30,10 +30,11 @@ Models: pick the default model for new conversations. You can also make a
 saved style the default from the style picker (see Styles).
 
 ## How do I change the assistant's voice?
-Voice: choose the text-to-speech voice and speed, plus auto-play behavior
-for spoken replies. Used by the speak button and Talk Mode. Voices are
-available in English, Spanish, French, Hindi, Italian, and Brazilian
-Portuguese — each entry in the picker shows its language.
+Voice: choose Talk Mode's text-to-speech voice and auto-play behavior for
+spoken replies. Talk Mode retains its multilingual Kokoro voices. Read-aloud
+has separate English and Spain Spanish voice defaults and previews. Its speed
+setting changes playback locally without regenerating speech. See the
+Listening guide for the message player controls.
 
 ## How do I stop Talk Mode interrupting itself (or ignoring me)?
 Voice → **Voice interruption** controls barge-in — talking over the

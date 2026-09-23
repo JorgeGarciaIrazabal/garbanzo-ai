@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
+import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 import 'package:go_router/go_router.dart';
 import 'package:marionette_flutter/marionette_flutter.dart';
 import 'package:provider/provider.dart';
@@ -14,6 +15,7 @@ import 'package:garbanzo_ai/core/router.dart';
 import 'package:garbanzo_ai/core/theme.dart';
 import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
+import 'package:garbanzo_ai/features/chat/providers/read_aloud_controller.dart';
 import 'package:garbanzo_ai/features/topics/providers/active_context_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/model_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/search_provider.dart';
@@ -56,6 +58,8 @@ void main() => runZonedGuarded(
     // Clean path URLs on web (no /#/). The backend's SPA catch-all serves
     // index.html for unknown paths, so deep links survive a refresh.
     usePathUrlStrategy();
+    // Android uses ExoPlayer; desktop uses the media_kit just_audio adapter.
+    JustAudioMediaKit.ensureInitialized();
     // Kick off the initial token load before the first widget builds so
     // auth-bearing requests from providers see an in-memory token immediately.
     unawaited(ApiClient.instance.loadToken());
@@ -175,6 +179,7 @@ class _AppProviders extends StatelessWidget {
       key: ValueKey(epoch),
       providers: [
         ChangeNotifierProvider(create: (_) => ModelProvider()),
+        ChangeNotifierProvider(create: (_) => ReadAloudController()),
         ChangeNotifierProvider(create: (_) => StyleProvider()),
         ChangeNotifierProvider(create: (_) => TopicDiscoveryProvider()),
         ChangeNotifierProvider(create: (_) => ActiveContextProvider()),

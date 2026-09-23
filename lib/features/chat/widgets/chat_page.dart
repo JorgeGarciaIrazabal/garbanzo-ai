@@ -21,6 +21,8 @@ import 'package:garbanzo_ai/features/chat/utils/agent_progress_builder.dart';
 import 'package:garbanzo_ai/features/chat/models/chat_message.dart';
 import 'package:garbanzo_ai/features/chat/models/conversation.dart';
 import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
+import 'package:garbanzo_ai/features/chat/providers/read_aloud_auto_play_tracker.dart';
+import 'package:garbanzo_ai/features/chat/providers/read_aloud_controller.dart';
 import 'package:garbanzo_ai/features/chat/services/transcript_export_service.dart';
 import 'package:garbanzo_ai/features/chat/providers/model_provider.dart';
 import 'package:garbanzo_ai/features/topics/models/topic_node.dart';
@@ -242,6 +244,7 @@ class _ChatPageContentState extends State<_ChatPageContent>
   // Smart auto-scroll: follow new content only when the user is already
   // reading the latest messages; never yank them away from scrollback.
   ChatProvider? _chatProviderRef;
+  final ReadAloudAutoPlayTracker _autoPlayTracker = ReadAloudAutoPlayTracker();
 
   @override
   void initState() {
@@ -278,10 +281,30 @@ class _ChatPageContentState extends State<_ChatPageContent>
     final provider = context.read<ChatProvider>();
     if (!identical(provider, _chatProviderRef)) {
       _chatProviderRef?.streamingMessage.removeListener(_onStreamingUpdate);
+      _chatProviderRef?.removeListener(_onChatStateChanged);
       _chatProviderRef = provider;
       provider.streamingMessage.addListener(_onStreamingUpdate);
+      _autoPlayTracker.reset(
+        sending: provider.isSending,
+        conversationId: provider.currentConversation?.id,
+        messages: provider.messages,
+      );
+      provider.addListener(_onChatStateChanged);
     }
     _startSyncTimer();
+  }
+
+  @override
+  void didUpdateWidget(covariant _ChatPageContent oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.roomId != widget.roomId) {
+      final provider = _chatProviderRef;
+      _autoPlayTracker.reset(
+        sending: provider?.isSending ?? false,
+        conversationId: provider?.currentConversation?.id,
+        messages: provider?.messages ?? const [],
+      );
+    }
   }
 
   @override
@@ -289,9 +312,47 @@ class _ChatPageContentState extends State<_ChatPageContent>
     WidgetsBinding.instance.removeObserver(this);
     _syncTimer?.cancel();
     _chatProviderRef?.streamingMessage.removeListener(_onStreamingUpdate);
+    _chatProviderRef?.removeListener(_onChatStateChanged);
     _scrollController.removeListener(_maybeLoadOlderMessages);
     _scroll.dispose();
     super.dispose();
+  }
+
+  void _onChatStateChanged() {
+    final provider = _chatProviderRef;
+    if (provider == null || widget.roomId != null) return;
+    final message = _autoPlayTracker.observe(
+      sending: provider.isSending,
+      conversationId: provider.currentConversation?.id,
+      messages: provider.messages,
+      hasError: provider.error != null,
+    );
+    if (message == null) return;
+    final conversationId = provider.currentConversation?.id;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || widget.roomId != null) return;
+      final chat = context.read<ChatProvider>();
+      final settings = context.read<SettingsProvider>();
+      if (chat.currentConversation?.id != conversationId ||
+          chat.isSending ||
+          !settings.autoPlayTts ||
+          settings.talkModeActive ||
+          !chat.messages.any((current) => current.id == message.id)) {
+        return;
+      }
+      final listening = context.read<ReadAloudController>();
+      if (listening.active && listening.messageId != message.id) return;
+      unawaited(
+        listening.start(
+          messageId: message.id,
+          text: visibleAssistantContent(message.content),
+          voiceEn: settings.readAloudVoiceEn,
+          voiceEs: settings.readAloudVoiceEs,
+          speed: settings.ttsSpeed,
+          languageMode: settings.readAloudLanguageMode,
+        ),
+      );
+    });
   }
 
   void _startSyncTimer() {

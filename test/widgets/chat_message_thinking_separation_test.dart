@@ -6,16 +6,22 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:garbanzo_ai/features/chat/models/chat_message.dart';
 import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
+import 'package:garbanzo_ai/features/chat/providers/read_aloud_controller.dart';
 import 'package:garbanzo_ai/features/chat/widgets/chat_message_widget.dart';
 import 'package:garbanzo_ai/features/chat/widgets/message/thinking_content.dart';
 import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
 import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 class _MockChatProvider extends Mock implements ChatProvider {}
+class _MockReadAloudController extends Mock implements ReadAloudController {}
 
 Widget _wrap(ChatMessage message) {
   final chat = _MockChatProvider();
   when(() => chat.isSending).thenReturn(false);
+  final readAloud = _MockReadAloudController();
+  when(() => readAloud.messageId).thenReturn(null);
+  when(() => readAloud.active).thenReturn(false);
+  when(() => readAloud.state).thenReturn(ListeningState.idle);
 
   return MultiProvider(
     providers: [
@@ -25,6 +31,7 @@ Widget _wrap(ChatMessage message) {
       ChangeNotifierProvider<ChatProvider>.value(
         value: chat,
       ),
+      ChangeNotifierProvider<ReadAloudController>.value(value: readAloud),
     ],
     child: MaterialApp(
       localizationsDelegates: AppLocalizations.localizationsDelegates,

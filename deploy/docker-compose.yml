@@ -39,6 +39,35 @@ services:
       start_period: 30s
     # No host port: reachable only inside the prod network.
 
+  read-aloud:
+    image: garbanzo-read-aloud:latest
+    restart: unless-stopped
+    init: true
+    mem_limit: 6g
+    environment:
+      READ_ALOUD_WORKER_TOKEN: ${READ_ALOUD_WORKER_TOKEN:?Set READ_ALOUD_WORKER_TOKEN in deploy/.env}
+      HF_TOKEN: ${HF_TOKEN:?Set HF_TOKEN in deploy/.env for gated Pocket assets}
+      HF_HOME: /models/huggingface
+      POCKET_TTS_CACHE_DIR: /models/pocket-tts
+      HF_HUB_DISABLE_XET: "1"
+      OMP_NUM_THREADS: "4"
+    volumes:
+      - read_aloud_hf_cache:/models/huggingface
+      - read_aloud_pocket_cache:/models/pocket-tts
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import json,urllib.request; r=json.load(urllib.request.urlopen('http://127.0.0.1:8021/health/ready', timeout=5)); assert r['status']=='ready'",
+        ]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 300s
+    # Internal-only service. Audio reaches clients through the authenticated backend.
+
   backend:
     image: garbanzo-backend:latest
     restart: unless-stopped
@@ -51,6 +80,9 @@ services:
       STT_MODE: local
       STT_DEVICE: ${STT_DEVICE:-cpu}
       TTS_DEVICE: ${TTS_DEVICE:-cpu}
+      READ_ALOUD_WORKER_URL: http://read-aloud:8021
+      READ_ALOUD_WORKER_TOKEN: ${READ_ALOUD_WORKER_TOKEN:?Set READ_ALOUD_WORKER_TOKEN in deploy/.env}
+      READ_ALOUD_CACHE_DIR: ${READ_ALOUD_CACHE_DIR:-/tmp/garbanzo-read-aloud}
       TEST_USER_EMAIL: ""
       TEST_USER_PASSWORD: ""
       CORS_ORIGINS: ${PROD_CORS_ORIGINS:?Run through the production just recipes}
@@ -94,6 +126,8 @@ services:
       postgres:
         condition: service_healthy
       ollama:
+        condition: service_healthy
+      read-aloud:
         condition: service_healthy
     healthcheck:
       test:
@@ -139,3 +173,5 @@ volumes:
   hf_cache:
   microapps_repo:
   ollama_data:
+  read_aloud_hf_cache:
+  read_aloud_pocket_cache:

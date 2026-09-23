@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
 import 'package:garbanzo_ai/features/chat/models/chat_message.dart';
 import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
+import 'package:garbanzo_ai/features/chat/providers/read_aloud_auto_play_tracker.dart';
+import 'package:garbanzo_ai/features/chat/providers/read_aloud_controller.dart';
 import 'package:garbanzo_ai/features/chat/widgets/action_proposal_card.dart';
 import 'package:garbanzo_ai/features/chat/widgets/input/pulsing_dot.dart';
 import 'package:garbanzo_ai/features/chat/widgets/message/attachment_display.dart';
@@ -214,7 +216,7 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
     final message = widget.message;
 
     final thinkingContent = _extractThinkingContent();
-    final effectiveContent = _effectiveAssistantContent(message.content);
+    final effectiveContent = visibleAssistantContent(message.content);
     final hasMetadata = _hasMetadata();
 
     return Padding(
@@ -302,21 +304,27 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
             )
           else if (effectiveContent.isNotEmpty) ...[
             RevealOnHover(
-              revealed: _hovered || widget.isLastAssistant,
+              revealed:
+                  _hovered ||
+                  widget.isLastAssistant ||
+                  context.select<ReadAloudController, bool>(
+                    (c) => c.active && c.messageId == message.id,
+                  ),
               child: Padding(
                 padding: const EdgeInsets.only(top: 6),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     CopyButton(content: effectiveContent),
-                    const SizedBox(width: 8),
                     SpeakButton(
                       content: effectiveContent,
+                      messageId: message.id,
                       isStreaming: widget.isStreaming,
                     ),
                     if (widget.isLastAssistant &&
                         !message.id.startsWith('temp-')) ...[
-                      const SizedBox(width: 8),
                       Builder(
                         builder: (ctx) {
                           final chat = ctx.watch<ChatProvider>();
@@ -328,7 +336,6 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
                       ),
                     ],
                     if (!message.id.startsWith('temp-')) ...[
-                      const SizedBox(width: 8),
                       Builder(
                         builder: (ctx) {
                           final chat = ctx.watch<ChatProvider>();
@@ -340,7 +347,6 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
                       ),
                     ],
                     if (settings.showMessageMetadata && hasMetadata) ...[
-                      const SizedBox(width: 8),
                       MetadataIconToggle(
                         isExpanded: _metadataExpanded,
                         onToggle: () => setState(
@@ -433,14 +439,6 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
       if (thinkPart.isNotEmpty) return thinkPart;
     }
     return null;
-  }
-
-  String _effectiveAssistantContent(String raw) {
-    if (raw.contains('</think>')) {
-      final parts = raw.split('</think>');
-      return parts.length > 1 ? parts.sublist(1).join('</think>').trim() : '';
-    }
-    return raw;
   }
 
   bool _hasMetadata() {

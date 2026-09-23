@@ -3414,4 +3414,105 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get messageTranscriptDownloadFailed =>
       'No se pudo descargar la transcripción.';
+
+  @override
+  String get readAloudListen => 'Escuchar';
+
+  @override
+  String get readAloudListenTooltip => 'Leer este mensaje en voz alta';
+
+  @override
+  String get readAloudStop => 'Detener';
+
+  @override
+  String get readAloudStopTooltip => 'Detener la lectura';
+
+  @override
+  String get readAloudMoreControls =>
+      'Más controles de lectura, incluido Detener';
+
+  @override
+  String get readAloudPreparing => 'Preparando la voz';
+
+  @override
+  String get readAloudPreparingShort => 'Preparando';
+
+  @override
+  String get readAloudPlaying => 'Reproduciendo';
+
+  @override
+  String get readAloudPaused => 'En pausa';
+
+  @override
+  String get readAloudBuffering => 'Cargando audio';
+
+  @override
+  String get readAloudCompleted => 'Finalizado';
+
+  @override
+  String get readAloudFailed => 'Error en la lectura';
+
+  @override
+  String get readAloudPause => 'Pausar la lectura';
+
+  @override
+  String get readAloudResume => 'Reanudar la lectura';
+
+  @override
+  String get readAloudPrevious => 'Párrafo anterior preparado';
+
+  @override
+  String get readAloudNext => 'Siguiente párrafo preparado';
+
+  @override
+  String get readAloudRetry => 'Reintentar desde este párrafo';
+
+  @override
+  String get readAloudRetryShort => 'Reintentar';
+
+  @override
+  String get readAloudReplay => 'Repetir desde el principio';
+
+  @override
+  String get readAloudReplayShort => 'Repetir';
+
+  @override
+  String readAloudParagraph(int current, int total) {
+    return 'Párrafo $current de $total';
+  }
+
+  @override
+  String get readAloudEnglishVoice => 'Voz inglesa para lectura';
+
+  @override
+  String get readAloudVoicesTitle => 'Voces para lectura';
+
+  @override
+  String get readAloudWebUnavailable =>
+      'La lectura en voz alta está disponible en las aplicaciones de Android y escritorio.';
+
+  @override
+  String get readAloudLanguageMode => 'Idioma de lectura';
+
+  @override
+  String get readAloudAutomatic => 'Automático';
+
+  @override
+  String get readAloudEnglish => 'Inglés';
+
+  @override
+  String get readAloudSpanish => 'Español de España';
+
+  @override
+  String get readAloudSpanishVoice => 'Voz de España para lectura';
+
+  @override
+  String get readAloudPreview => 'Escuchar muestra de voz';
+
+  @override
+  String get readAloudVoicesUnavailable =>
+      'Las voces de lectura no están disponibles. Inténtalo más tarde.';
+
+  @override
+  String get talkModeVoice => 'Voz de conversación';
 }

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:garbanzo_ai/features/chat/services/audio_service.dart';
 import 'package:garbanzo_ai/features/notifications/providers/notification_provider.dart';
 import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
+import 'package:garbanzo_ai/features/settings/widgets/read_aloud_voice_settings.dart';
 import 'package:garbanzo_ai/features/settings/widgets/drawer_sections/section_header.dart';
 import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
@@ -176,9 +177,10 @@ class _VoiceSettingsTilesState extends State<VoiceSettingsTiles> {
           icon: Icons.record_voice_over,
           title: AppLocalizations.of(context)!.titleVoice,
         ),
+        const ReadAloudVoiceSettings(),
         // Voice selector
         ListTile(
-          title: Text(AppLocalizations.of(context)!.titleVoice),
+          title: Text(AppLocalizations.of(context)!.talkModeVoice),
           dense: true,
           trailing: _loadingVoices
               ? const SizedBox(

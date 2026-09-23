@@ -22,7 +22,8 @@ just deploy-down     # stop the stack (keeps volumes/data)
 
 `just deploy` snapshots the **local `main` branch** into a temporary git
 worktree and builds everything from it, so you can run it from any branch with
-a dirty tree. Each deploy also tags `garbanzo-backend:<short-sha>` and drops an
+a dirty tree. Each deploy also tags `garbanzo-backend:<short-sha>` and
+`garbanzo-read-aloud:<short-sha>`, and drops an
 APK at `dist/garbanzo-ai-<short-sha>.apk` with `PUBLIC_APP_URL` baked in — web and
 Android hit the same backend simultaneously. The signed APK is also attached
 to the version's GitHub Release; its signing key remains only on this host.
@@ -108,7 +109,13 @@ before the production Compose stack is replaced.
      the workload defaults independently
      with `DEFAULT_MODEL`, `MEMORY_EXTRACTION_MODEL`, and
      `SCHEDULED_ACTION_MODEL` in `deploy/.env`.
-8. Commit the verified work on `main`, then run `just deploy`.
+8. **Pocket read-aloud** — set a unique `READ_ALOUD_WORKER_TOKEN` (generate
+   with `openssl rand -hex 32`) and an `HF_TOKEN` with access to the gated
+   Spanish checkpoint and Lola reference in `deploy/.env`. The token stays in
+   the worker container. The first start downloads models into dedicated named
+   volumes and can take several minutes; the worker must report ready before
+   the backend starts. The service has no public port and a 6 GiB RAM ceiling.
+9. Commit the verified work on `main`, then run `just deploy`.
 
 > The free ngrok plan allows **one agent session**. `just deploy` refuses to
 > run while a host `ngrok` process is alive when ngrok is enabled.
@@ -154,6 +161,7 @@ TURN. Store any TURN credentials separately from the connector token.
 | postgres | pgvector/pgvector:pg16   | no host port, healthchecked, `postgres_data` vol  |
 | ollama   | ollama/ollama:latest     | no host port, healthchecked, `ollama_data` vol    |
 | backend  | garbanzo-backend:latest  | 127.0.0.1:8001 for smoke tests; serves web + API  |
+| read-aloud | garbanzo-read-aloud:latest | private Pocket int8 worker on port 8021; 6 GiB RAM limit and separate model caches |
 | ngrok    | ngrok/ngrok:latest       | optional legacy route → backend:8000              |
 | cloudflared | cloudflare/cloudflared:latest | optional Cloudflare route → backend:8000 |
 

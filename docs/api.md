@@ -13,6 +13,7 @@ when you add or change an endpoint, update the matching row in the same commit.
 | **System Prompts** | `GET /system-prompts/templates` (optional `?locale=` query — filters builtins to the requested language when one is seeded for it; user-saved templates always surface), `POST /system-prompts/templates`, `PATCH /system-prompts/templates/{id}`, `DELETE /system-prompts/templates/{id}`, `GET /system-prompts/user-default`, `PUT /system-prompts/user-default`, `POST /system-prompts/generate` (SSE stream) |
 | **STT** | `POST /stt/transcribe` (optional `language` form field — ISO code or `"auto"`/omitted for per-clip detection, idea 13), `GET /stt/health` |
 | **TTS** | `POST /tts/speak`, `POST /tts/speak/stream` (text is limited to 5,000 characters per request; both take optional `language` — ISO code; swaps in that language's default voice when `voice` doesn't speak it, idea 13), `GET /tts/voices` (each voice carries `language` + ISO `lang_code`; en/es/fr/hi/it/pt), `GET /tts/health` |
+| **Read-aloud** | `POST /tts/read-aloud/sessions` (create from message text, voice preferences and language mode; maximum 100,000 characters), `GET /tts/read-aloud/sessions/{id}` (owned session status and prepared segments), `GET /tts/read-aloud/sessions/{id}/events` (SSE progress and terminal status), `GET /tts/read-aloud/sessions/{id}/audio?start_segment=` (continuous MP3 from a prepared segment), `PATCH /tts/read-aloud/sessions/{id}` (playback state and position), `DELETE /tts/read-aloud/sessions/{id}` (cancel), `GET /tts/read-aloud/voices` (curated catalog), `GET /tts/read-aloud/voices/{id}/preview` (voice sample) |
 | **Memories** | `POST /memories`, `GET /memories`, `GET /memories/{id}`, `PATCH /memories/{id}`, `DELETE /memories/{id}` |
 | **Knowledge Base** | `POST /kb/documents`, `GET /kb/documents`, `GET /kb/documents/{id}`, `DELETE /kb/documents/{id}`, `GET /kb/search` |
 | **Rooms** | `POST /rooms`, `GET /rooms`, `GET /rooms/search`, `GET /rooms/{id}`, `PATCH /rooms/{id}`, `DELETE /rooms/{id}`, `GET /rooms/{id}/members`, `POST /rooms/{id}/members`, `DELETE /rooms/{id}/members/{email}`, `PATCH /rooms/{id}/members/me/mute`, `GET /rooms/{id}/agents`, `POST /rooms/{id}/agents`, `PATCH /rooms/{id}/agents/{id}`, `DELETE /rooms/{id}/agents/{id}`, `GET /rooms/{id}/messages`, `POST /rooms/{id}/chat`, `POST /rooms/{id}/audio-notes` (multipart 16 kHz mono WAV, ≤2 min; transcribes, persists, and starts detached agent turns), `GET /rooms/{id}/audio-notes/{note_id}` (member-only raw playback), `GET /rooms/{id}/export` (`?format=markdown|json|docx`; `docx` renders the transcript as a Word document), `WS /rooms/{id}` |
@@ -29,6 +30,21 @@ when you add or change an endpoint, update the matching row in the same commit.
 | **Usage** | `GET /usage/summary` |
 | **Health** | `GET /health` (includes `version` — the release baked in at deploy, `APP_VERSION`) |
 | **Version** | `GET /version/latest` (no auth; latest GitHub release for `GITHUB_REPO`, ~5-min cache — tag/notes/assets; feeds Linux, Windows, and Android auto-updaters) |
+
+Read-aloud session creation accepts `{text, voice_en, voice_es, language_mode,
+start_paragraph?}`. Text over 100,000 characters returns 413. A new session
+cancels the user's prior active session. Status includes ordered segments with
+`id`, `index`, `paragraph`, `language`, `duration_ms`, and `start_ms`, plus
+`generated_duration_ms`, `position_ms`, `total_paragraphs`, `state`, and error
+fields. `completed` means synthesis finished; the client tracks playback
+completion separately. SSE emits one `segment_ready` event per segment, then
+`completed`, `failed`, `cancelled`, or `expired`; keep-alive comments are not
+progress events. Audio is one MP3 stream, optionally starting at a prepared
+segment. A missing session returns 404, another user's session is hidden as
+404, and an owned expired session returns 410 while its tombstone is retained.
+`PATCH` accepts `{state: playing|paused|buffering|completed, position_ms,
+update_seq}`. `update_seq` rises for each client report; older reports are
+ignored so a delayed request cannot undo a pause or backward seek.
 
 ### Primary-chat topic/context behavior
 

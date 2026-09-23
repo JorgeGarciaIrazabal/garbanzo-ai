@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import 'package:garbanzo_ai/features/chat/models/chat_message.dart';
+import 'package:garbanzo_ai/features/chat/providers/read_aloud_controller.dart';
 import 'package:garbanzo_ai/features/chat/widgets/message/attachment_display.dart';
 import 'package:garbanzo_ai/features/chat/widgets/message/copy_button.dart';
 import 'package:garbanzo_ai/features/chat/widgets/message/message_content.dart';
@@ -217,20 +219,25 @@ class _RoomMessageBubbleState extends State<RoomMessageBubble> {
               textTheme: theme.textTheme,
             ),
             RevealOnHover(
-              revealed: _hovered,
+              revealed:
+                  _hovered ||
+                  context.select<ReadAloudController, bool>(
+                    (c) => c.active && c.messageId == message.id,
+                  ),
               child: Padding(
                 padding: const EdgeInsets.only(top: 6),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     CopyButton(content: effectiveContent),
-                    const SizedBox(width: 8),
                     SpeakButton(
                       content: effectiveContent,
+                      messageId: message.id,
                       isStreaming: widget.isStreaming,
                     ),
                     if (hasMeta) ...[
-                      const SizedBox(width: 8),
                       MetadataIconToggle(
                         isExpanded: _metadataExpanded,
                         onToggle: () => setState(

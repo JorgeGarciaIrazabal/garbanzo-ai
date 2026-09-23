@@ -1,29 +1,26 @@
 import 'dart:async';
-import 'dart:typed_data';
 
-import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
-import 'package:garbanzo_ai/features/chat/services/audio_service.dart';
-import 'package:garbanzo_ai/features/chat/services/tts_audio_source.dart';
-import 'package:garbanzo_ai/features/chat/utils/text_cleaner.dart';
-import 'package:garbanzo_ai/features/chat/utils/tts_text_chunks.dart';
+import 'package:garbanzo_ai/features/chat/providers/read_aloud_controller.dart';
 import 'package:garbanzo_ai/features/chat/widgets/message/message_action_button.dart';
+import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
+import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
-/// Speak button for TTS playback of assistant messages.
-///
-/// Reads voice/speed from [SettingsProvider] and cleans markdown/emojis
-/// before synthesis. Supports auto-play when streaming finishes.
+/// Opens the app-scoped listening session for this message. Playback outlives
+/// the message widget when it scrolls out of view.
 class SpeakButton extends StatefulWidget {
   const SpeakButton({
     super.key,
     required this.content,
+    this.messageId,
     this.isStreaming = false,
   });
 
   final String content;
+  final String? messageId;
   final bool isStreaming;
 
   @override
@@ -31,151 +28,261 @@ class SpeakButton extends StatefulWidget {
 }
 
 class _SpeakButtonState extends State<SpeakButton> {
-  bool _isPlaying = false;
-  bool _isLoading = false;
-  bool _cancelled = false;
-  AudioPlayer? _player;
-  PreparedTtsAudioSource? _audioSource;
+  String? _openMenuMessageId;
+  String get _id => widget.messageId ?? widget.content.hashCode.toString();
 
   @override
-  void didUpdateWidget(SpeakButton old) {
-    super.didUpdateWidget(old);
-    // Auto-play: when streaming transitions from true → false. Suppressed while
-    // Talk Mode is open — it speaks the reply itself, and a second playback here
-    // would overlap the same text offset by the streaming lead.
-    if (old.isStreaming && !widget.isStreaming && widget.content.isNotEmpty) {
+  void didUpdateWidget(SpeakButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.isStreaming &&
+        !widget.isStreaming &&
+        widget.content.isNotEmpty) {
       final settings = context.read<SettingsProvider>();
       if (settings.autoPlayTts && !settings.talkModeActive) {
-        _speak();
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _start();
+        });
       }
     }
   }
 
-  @override
-  void dispose() {
-    _cancelled = true;
-    unawaited(_releasePlayback());
-    super.dispose();
-  }
-
-  Future<void> _speak() async {
-    setState(() {
-      _isLoading = true;
-      _cancelled = false;
-    });
-
-    try {
-      final settings = context.read<SettingsProvider>();
-      final cleaned = cleanTextForSpeech(widget.content);
-      if (cleaned.isEmpty) {
-        if (mounted) setState(() => _isLoading = false);
-        return;
-      }
-
-      final chunks = splitTextForTts(cleaned);
-      Future<Uint8List> synthesize(String chunk) => AudioService.instance.speak(
-        chunk,
-        voice: settings.ttsVoice,
+  void _start() {
+    if (kIsWeb) return;
+    final settings = context.read<SettingsProvider>();
+    unawaited(
+      context.read<ReadAloudController>().start(
+        messageId: _id,
+        text: widget.content,
+        voiceEn: settings.readAloudVoiceEn,
+        voiceEs: settings.readAloudVoiceEs,
         speed: settings.ttsSpeed,
-      );
-      Future<Uint8List>? next = synthesize(chunks.first);
-
-      for (int i = 0; i < chunks.length; i++) {
-        if (_cancelled) break;
-
-        final audioBytes = await next!;
-        if (_cancelled) break;
-        next = i + 1 < chunks.length ? synthesize(chunks[i + 1]) : null;
-
-        // Fresh player per chunk — reusing the same player for sequential
-        // play() calls is unreliable across platforms (web, Android, Linux).
-        await _releasePlayback();
-        final source = await prepareTtsAudioSource(audioBytes, format: 'mp3');
-        if (_cancelled) {
-          await source.dispose();
-          break;
-        }
-        final player = AudioPlayer();
-        _player = player;
-        _audioSource = source;
-
-        if (i == 0 && mounted) {
-          setState(() {
-            _isPlaying = true;
-            _isLoading = false;
-          });
-        }
-
-        final completer = Completer<void>();
-        _player!.onPlayerComplete.listen((_) {
-          if (!completer.isCompleted) completer.complete();
-        });
-
-        await _player!.play(_audioSource!.source);
-        await completer.future;
-      }
-
-      await _releasePlayback();
-
-      if (mounted) {
-        setState(() => _isPlaying = false);
-      }
-    } catch (e) {
-      await _releasePlayback();
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _isPlaying = false;
-        });
-        final message =
-            e.toString().contains('500') || e.toString().contains('unavailable')
-            ? 'Text-to-speech is currently unavailable'
-            : 'Speech synthesis failed: $e';
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(message)));
-      }
-    }
-  }
-
-  Future<void> _stop() async {
-    _cancelled = true;
-    await _player?.stop();
-    await _releasePlayback();
-    if (mounted) {
-      setState(() => _isPlaying = false);
-    }
-  }
-
-  Future<void> _releasePlayback() async {
-    final player = _player;
-    final source = _audioSource;
-    _player = null;
-    _audioSource = null;
-    await player?.dispose();
-    await source?.dispose();
+        languageMode: settings.readAloudLanguageMode,
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Padding(
-        padding: EdgeInsets.all(4),
-        child: SizedBox(
-          width: 14,
-          height: 14,
-          child: CircularProgressIndicator(strokeWidth: 2),
-        ),
-      );
+    final controller = context.watch<ReadAloudController>();
+    final isActive = controller.messageId == _id && controller.active;
+    final l10n = AppLocalizations.of(context)!;
+    final state = controller.state;
+    final label = !isActive
+        ? l10n.readAloudListen
+        : switch (state) {
+            ListeningState.preparing => l10n.readAloudPreparingShort,
+            ListeningState.playing => l10n.readAloudPlaying,
+            ListeningState.paused => l10n.readAloudPaused,
+            ListeningState.buffering => l10n.readAloudBuffering,
+            ListeningState.completed => l10n.readAloudReplayShort,
+            ListeningState.failed => l10n.readAloudRetryShort,
+            ListeningState.idle => l10n.readAloudListen,
+          };
+    final icon = !isActive
+        ? Icons.volume_up
+        : switch (state) {
+            ListeningState.preparing ||
+            ListeningState.buffering => Icons.hourglass_top,
+            ListeningState.playing => Icons.graphic_eq,
+            ListeningState.paused => Icons.play_arrow,
+            ListeningState.completed => Icons.replay,
+            ListeningState.failed => Icons.refresh,
+            ListeningState.idle => Icons.volume_up,
+          };
+    void onTap() {
+      if (!isActive) {
+        _start();
+      } else {
+        switch (state) {
+          case ListeningState.preparing:
+          case ListeningState.playing:
+          case ListeningState.buffering:
+            unawaited(controller.pause());
+          case ListeningState.paused:
+            unawaited(controller.resume());
+          case ListeningState.completed:
+            unawaited(controller.replay());
+          case ListeningState.failed:
+            unawaited(controller.retryFromParagraph());
+          case ListeningState.idle:
+            _start();
+        }
+      }
     }
 
-    return MessageActionButton(
-      key: const ValueKey('speak_button'),
-      icon: _isPlaying ? Icons.stop : Icons.volume_up,
-      label: _isPlaying ? 'Stop' : 'Listen',
-      tooltip: _isPlaying ? 'Stop playback' : 'Read this message aloud',
-      highlighted: _isPlaying,
-      onTap: _isPlaying ? _stop : _speak,
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        MessageActionButton(
+          key: const ValueKey('speak_button'),
+          icon: icon,
+          label: label,
+          tooltip: kIsWeb
+              ? l10n.readAloudWebUnavailable
+              : isActive
+              ? switch (state) {
+                  ListeningState.paused => l10n.readAloudResume,
+                  ListeningState.completed => l10n.readAloudReplay,
+                  ListeningState.failed => l10n.readAloudRetry,
+                  _ => l10n.readAloudPause,
+                }
+              : l10n.readAloudListenTooltip,
+          highlighted: isActive,
+          onTap: kIsWeb ? null : onTap,
+        ),
+        if (isActive && !kIsWeb)
+          PopupMenuButton<_ReadAloudAction>(
+            key: const ValueKey('read_aloud_more'),
+            tooltip: l10n.readAloudMoreControls,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 200),
+            child: SizedBox(
+              width: 48,
+              height: 48,
+              child: Center(
+                child: Icon(
+                  Icons.more_vert,
+                  size: 16,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+            onOpened: () => _openMenuMessageId = _id,
+            onCanceled: () => _openMenuMessageId = null,
+            onSelected: (action) {
+              final menuMessageId = _openMenuMessageId;
+              _openMenuMessageId = null;
+              if (!controller.active ||
+                  menuMessageId == null ||
+                  controller.messageId != menuMessageId) {
+                return;
+              }
+              switch (action) {
+                case _ReadAloudAction.previous:
+                  unawaited(controller.previousParagraph());
+                case _ReadAloudAction.next:
+                  unawaited(controller.nextParagraph());
+                case _ReadAloudAction.retry:
+                  unawaited(controller.retryFromParagraph());
+                case _ReadAloudAction.stop:
+                  unawaited(controller.stop());
+              }
+            },
+            itemBuilder: (context) {
+              final prepared = controller.preparedParagraphs;
+              final paragraph = controller.currentParagraph;
+              return [
+                if (controller.totalParagraphs > 0)
+                  PopupMenuItem<_ReadAloudAction>(
+                    enabled: false,
+                    child: Text(
+                      l10n.readAloudParagraph(
+                        paragraph + 1,
+                        controller.totalParagraphs,
+                      ),
+                    ),
+                  ),
+                if (state == ListeningState.failed)
+                  PopupMenuItem<_ReadAloudAction>(
+                    enabled: false,
+                    child: Text(
+                      controller.error ?? l10n.readAloudFailed,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                PopupMenuItem(
+                  key: const ValueKey('read_aloud_previous'),
+                  value: _ReadAloudAction.previous,
+                  enabled: prepared.any((p) => p < paragraph),
+                  child: Text(l10n.readAloudPrevious),
+                ),
+                PopupMenuItem(
+                  key: const ValueKey('read_aloud_next'),
+                  value: _ReadAloudAction.next,
+                  enabled: prepared.any((p) => p > paragraph),
+                  child: Text(l10n.readAloudNext),
+                ),
+                if (state == ListeningState.failed)
+                  PopupMenuItem(
+                    key: const ValueKey('read_aloud_retry'),
+                    value: _ReadAloudAction.retry,
+                    child: Text(l10n.readAloudRetry),
+                  ),
+                PopupMenuItem(
+                  key: const ValueKey('read_aloud_stop'),
+                  value: _ReadAloudAction.stop,
+                  child: Text(l10n.readAloudStop),
+                ),
+              ];
+            },
+          ),
+        if (isActive && !kIsWeb) ReadAloudMessageControls(messageId: _id),
+      ],
     );
+  }
+}
+
+enum _ReadAloudAction { previous, next, retry, stop }
+
+/// Circular speed control next to the active message's Listen button.
+class ReadAloudMessageControls extends StatelessWidget {
+  const ReadAloudMessageControls({super.key, required this.messageId});
+
+  final String messageId;
+
+  static const _speeds = [0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
+
+  @override
+  Widget build(BuildContext context) {
+    final listening = context.watch<ReadAloudController>();
+    if (kIsWeb || !listening.active || listening.messageId != messageId) {
+      return const SizedBox.shrink();
+    }
+    final l10n = AppLocalizations.of(context)!;
+    return Tooltip(
+      message: '${l10n.titleSpeed}: ${_speedLabel(listening.speed)}',
+      child: InkWell(
+        key: const ValueKey('read_aloud_speed'),
+        customBorder: const CircleBorder(),
+        onTap: () {
+          if (!listening.active || listening.messageId != messageId) return;
+          final current = _speeds.indexWhere(
+            (s) => (s - listening.speed).abs() < 0.01,
+          );
+          final next = _speeds[(current + 1) % _speeds.length];
+          unawaited(listening.setSpeed(next));
+          unawaited(context.read<SettingsProvider>().setTtsSpeed(next));
+        },
+        child: SizedBox(
+          width: 48,
+          height: 48,
+          child: Center(
+            child: Container(
+              width: 30,
+              height: 30,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ),
+              child: Text(
+                _speedLabel(listening.speed),
+                style: Theme.of(
+                  context,
+                ).textTheme.labelSmall?.copyWith(fontSize: 10),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  static String _speedLabel(double speed) {
+    final value = speed.toStringAsFixed(2);
+    return '${value.replaceFirst(RegExp(r'0+$'), '').replaceFirst(RegExp(r'\.$'), '')}×';
   }
 }

@@ -12,6 +12,7 @@ from app.api.v1.endpoints import (
     memories,
     microapps,
     notifications,
+    read_aloud,
     reports,
     rooms,
     rooms_ws,
@@ -52,6 +53,7 @@ api_router.include_router(stt.router, prefix="/stt", tags=["stt"])
 api_router.include_router(styles.router, prefix="/styles", tags=["styles"])
 api_router.include_router(system_prompts.router, prefix="/system-prompts", tags=["system-prompts"])
 api_router.include_router(tts.router, prefix="/tts", tags=["tts"])
+api_router.include_router(read_aloud.router, prefix="/tts/read-aloud", tags=["read-aloud"])
 api_router.include_router(usage.router, prefix="/usage", tags=["usage"])
 api_router.include_router(version.router, prefix="/version", tags=["version"])
 api_router.include_router(workflows.router, prefix="/workflows", tags=["workflows"])

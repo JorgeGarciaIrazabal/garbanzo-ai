@@ -8,6 +8,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
   file_selector_linux
   flutter_timezone
   irondash_engine_context
+  media_kit_libs_linux
   record_linux
   super_native_extensions
   url_launcher_linux

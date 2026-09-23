@@ -5894,6 +5894,198 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Couldn\'t download the transcript.'**
   String get messageTranscriptDownloadFailed;
+
+  /// No description provided for @readAloudListen.
+  ///
+  /// In en, this message translates to:
+  /// **'Listen'**
+  String get readAloudListen;
+
+  /// No description provided for @readAloudListenTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Read this message aloud'**
+  String get readAloudListenTooltip;
+
+  /// No description provided for @readAloudStop.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop'**
+  String get readAloudStop;
+
+  /// No description provided for @readAloudStopTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop read-aloud'**
+  String get readAloudStopTooltip;
+
+  /// Tooltip for the active message's read-aloud overflow menu.
+  ///
+  /// In en, this message translates to:
+  /// **'More read-aloud controls, including Stop'**
+  String get readAloudMoreControls;
+
+  /// No description provided for @readAloudPreparing.
+  ///
+  /// In en, this message translates to:
+  /// **'Preparing speech'**
+  String get readAloudPreparing;
+
+  /// No description provided for @readAloudPreparingShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Preparing'**
+  String get readAloudPreparingShort;
+
+  /// No description provided for @readAloudPlaying.
+  ///
+  /// In en, this message translates to:
+  /// **'Playing'**
+  String get readAloudPlaying;
+
+  /// No description provided for @readAloudPaused.
+  ///
+  /// In en, this message translates to:
+  /// **'Paused'**
+  String get readAloudPaused;
+
+  /// No description provided for @readAloudBuffering.
+  ///
+  /// In en, this message translates to:
+  /// **'Buffering'**
+  String get readAloudBuffering;
+
+  /// No description provided for @readAloudCompleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Completed'**
+  String get readAloudCompleted;
+
+  /// No description provided for @readAloudFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Read-aloud failed'**
+  String get readAloudFailed;
+
+  /// No description provided for @readAloudPause.
+  ///
+  /// In en, this message translates to:
+  /// **'Pause read-aloud'**
+  String get readAloudPause;
+
+  /// No description provided for @readAloudResume.
+  ///
+  /// In en, this message translates to:
+  /// **'Resume read-aloud'**
+  String get readAloudResume;
+
+  /// No description provided for @readAloudPrevious.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous prepared paragraph'**
+  String get readAloudPrevious;
+
+  /// No description provided for @readAloudNext.
+  ///
+  /// In en, this message translates to:
+  /// **'Next prepared paragraph'**
+  String get readAloudNext;
+
+  /// No description provided for @readAloudRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry from this paragraph'**
+  String get readAloudRetry;
+
+  /// No description provided for @readAloudRetryShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get readAloudRetryShort;
+
+  /// No description provided for @readAloudReplay.
+  ///
+  /// In en, this message translates to:
+  /// **'Replay from the beginning'**
+  String get readAloudReplay;
+
+  /// No description provided for @readAloudReplayShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Replay'**
+  String get readAloudReplayShort;
+
+  /// No description provided for @readAloudParagraph.
+  ///
+  /// In en, this message translates to:
+  /// **'Paragraph {current} of {total}'**
+  String readAloudParagraph(int current, int total);
+
+  /// No description provided for @readAloudEnglishVoice.
+  ///
+  /// In en, this message translates to:
+  /// **'Read-aloud English voice'**
+  String get readAloudEnglishVoice;
+
+  /// No description provided for @readAloudVoicesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Read-aloud voices'**
+  String get readAloudVoicesTitle;
+
+  /// No description provided for @readAloudWebUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Read-aloud is available in the Android and desktop apps.'**
+  String get readAloudWebUnavailable;
+
+  /// No description provided for @readAloudLanguageMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading language'**
+  String get readAloudLanguageMode;
+
+  /// No description provided for @readAloudAutomatic.
+  ///
+  /// In en, this message translates to:
+  /// **'Automatic'**
+  String get readAloudAutomatic;
+
+  /// No description provided for @readAloudEnglish.
+  ///
+  /// In en, this message translates to:
+  /// **'English'**
+  String get readAloudEnglish;
+
+  /// No description provided for @readAloudSpanish.
+  ///
+  /// In en, this message translates to:
+  /// **'Spain Spanish'**
+  String get readAloudSpanish;
+
+  /// No description provided for @readAloudSpanishVoice.
+  ///
+  /// In en, this message translates to:
+  /// **'Read-aloud Spain Spanish voice'**
+  String get readAloudSpanishVoice;
+
+  /// No description provided for @readAloudPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview voice'**
+  String get readAloudPreview;
+
+  /// No description provided for @readAloudVoicesUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Read-aloud voices are unavailable. Try again later.'**
+  String get readAloudVoicesUnavailable;
+
+  /// No description provided for @talkModeVoice.
+  ///
+  /// In en, this message translates to:
+  /// **'Talk Mode voice'**
+  String get talkModeVoice;
 }
 
 class _AppLocalizationsDelegate

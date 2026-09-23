@@ -25,6 +25,9 @@ class SettingsProvider extends ChangeNotifier {
   }
 
   static const _keyTtsVoice = 'settings_tts_voice';
+  static const _keyReadAloudVoiceEn = 'settings_read_aloud_voice_en';
+  static const _keyReadAloudVoiceEs = 'settings_read_aloud_voice_es';
+  static const _keyReadAloudLanguageMode = 'settings_read_aloud_language_mode';
   static const _keyTtsSpeed = 'settings_tts_speed';
   static const _keyAutoPlayTts = 'settings_auto_play_tts';
   static const _keyAutoSubmitStt = 'settings_auto_submit_stt';
@@ -45,6 +48,9 @@ class SettingsProvider extends ChangeNotifier {
   static const defaultBargeInSensitivity = BargeInSensitivity.normal;
 
   String _ttsVoice = defaultVoice;
+  String _readAloudVoiceEn = 'alba';
+  String _readAloudVoiceEs = 'lola';
+  String _readAloudLanguageMode = 'auto';
   double _ttsSpeed = defaultSpeed;
   bool _autoPlayTts = false;
   bool _autoSubmitStt = false;
@@ -69,6 +75,9 @@ class SettingsProvider extends ChangeNotifier {
   bool talkModeActive = false;
 
   String get ttsVoice => _ttsVoice;
+  String get readAloudVoiceEn => _readAloudVoiceEn;
+  String get readAloudVoiceEs => _readAloudVoiceEs;
+  String get readAloudLanguageMode => _readAloudLanguageMode;
   double get ttsSpeed => _ttsSpeed;
   bool get autoPlayTts => _autoPlayTts;
   bool get autoSubmitStt => _autoSubmitStt;
@@ -126,6 +135,20 @@ class SettingsProvider extends ChangeNotifier {
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
     _ttsVoice = prefs.getString(_keyTtsVoice) ?? defaultVoice;
+    // The old Kokoro IDs do not exist in the Pocket catalog. Keep the old
+    // choice for Talk Mode and explicitly migrate read-aloud to curated voices.
+    _readAloudVoiceEn = prefs.getString(_keyReadAloudVoiceEn) ?? 'alba';
+    _readAloudVoiceEs = prefs.getString(_keyReadAloudVoiceEs) ?? 'lola';
+    final languageMode = prefs.getString(_keyReadAloudLanguageMode);
+    _readAloudLanguageMode = const {'auto', 'en', 'es'}.contains(languageMode)
+        ? languageMode!
+        : 'auto';
+    if (!prefs.containsKey(_keyReadAloudVoiceEn)) {
+      await prefs.setString(_keyReadAloudVoiceEn, _readAloudVoiceEn);
+    }
+    if (!prefs.containsKey(_keyReadAloudVoiceEs)) {
+      await prefs.setString(_keyReadAloudVoiceEs, _readAloudVoiceEs);
+    }
     _ttsSpeed = prefs.getDouble(_keyTtsSpeed) ?? defaultSpeed;
     _autoPlayTts = prefs.getBool(_keyAutoPlayTts) ?? false;
     _autoSubmitStt = prefs.getBool(_keyAutoSubmitStt) ?? false;
@@ -183,6 +206,37 @@ class SettingsProvider extends ChangeNotifier {
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_keyTtsVoice, voice);
+  }
+
+  Future<void> setReadAloudVoiceEn(String voice) async {
+    if (_readAloudVoiceEn == voice) return;
+    _readAloudVoiceEn = voice;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyReadAloudVoiceEn, voice);
+  }
+
+  Future<void> setReadAloudVoiceEs(String voice) async {
+    if (_readAloudVoiceEs == voice) return;
+    _readAloudVoiceEs = voice;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyReadAloudVoiceEs, voice);
+  }
+
+  Future<void> setReadAloudLanguageMode(String mode) async {
+    if (!const {'auto', 'en', 'es'}.contains(mode)) {
+      throw ArgumentError.value(
+        mode,
+        'mode',
+        'Unsupported read-aloud language',
+      );
+    }
+    if (_readAloudLanguageMode == mode) return;
+    _readAloudLanguageMode = mode;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyReadAloudLanguageMode, mode);
   }
 
   Future<void> setTtsSpeed(double speed) async {

@@ -47,6 +47,24 @@ void main() {
   });
 
   group('SettingsProvider persistence', () {
+    test('migrates old voice to curated read-aloud defaults without changing Talk Mode', () async {
+      SharedPreferences.setMockInitialValues({
+        'settings_tts_voice': 'af_bella',
+        'settings_tts_speed': 1.4,
+      });
+      final p = await _makeLoaded();
+      expect(p.ttsVoice, 'af_bella');
+      expect(p.ttsSpeed, 1.4);
+      expect(p.readAloudVoiceEn, 'alba');
+      expect(p.readAloudVoiceEs, 'lola');
+      expect(p.readAloudLanguageMode, 'auto');
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('settings_read_aloud_voice_en'), 'alba');
+      expect(prefs.getString('settings_read_aloud_voice_es'), 'lola');
+      await p.setReadAloudLanguageMode('es');
+      expect(prefs.getString('settings_read_aloud_language_mode'), 'es');
+    });
+
     test('loads stored values on init', () async {
       SharedPreferences.setMockInitialValues({
         'settings_tts_voice': 'af_bella',

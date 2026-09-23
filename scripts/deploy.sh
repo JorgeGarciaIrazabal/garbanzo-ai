@@ -37,7 +37,7 @@ TORCH_VARIANT=cpu
 if [[ "$STT_DEVICE" == cuda || "$TTS_DEVICE" == cuda ]]; then
     TORCH_VARIANT=cuda
 fi
-for var in POSTGRES_PASSWORD SECRET_KEY GIT_SSH_KEY_PATH GIT_USER_NAME GIT_USER_EMAIL ANDROID_KEYSTORE_PATH ANDROID_KEYSTORE_ALIAS ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_PASSWORD; do
+for var in POSTGRES_PASSWORD SECRET_KEY READ_ALOUD_WORKER_TOKEN HF_TOKEN GIT_SSH_KEY_PATH GIT_USER_NAME GIT_USER_EMAIL ANDROID_KEYSTORE_PATH ANDROID_KEYSTORE_ALIAS ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_PASSWORD; do
     [[ -n "${!var:-}" ]] || die "$var is empty in deploy/.env"
 done
 [[ -f "$GIT_SSH_KEY_PATH" ]] || die "GIT_SSH_KEY_PATH ($GIT_SSH_KEY_PATH) does not exist"
@@ -122,6 +122,11 @@ step "Building backend image (garbanzo-backend:latest, :$SHA)"
 docker build --label "org.opencontainers.image.revision=$SOURCE_SHA" --build-arg "APP_VERSION=$NEW_VERSION" \
     --build-arg "TORCH_VARIANT=$TORCH_VARIANT" \
     -t garbanzo-backend:latest -t "garbanzo-backend:$SHA" "$WT/backend"
+
+step "Building Pocket read-aloud image (garbanzo-read-aloud:latest, :$SHA)"
+docker build --label "org.opencontainers.image.revision=$SOURCE_SHA" \
+    -t garbanzo-read-aloud:latest -t "garbanzo-read-aloud:$SHA" \
+    "$WT/scripts/read_aloud_service"
 
 # Build every required release artifact before changing the running stack. A
 # build failure therefore leaves the current production revision untouched.

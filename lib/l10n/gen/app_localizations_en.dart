@@ -3372,4 +3372,105 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get messageTranscriptDownloadFailed =>
       'Couldn\'t download the transcript.';
+
+  @override
+  String get readAloudListen => 'Listen';
+
+  @override
+  String get readAloudListenTooltip => 'Read this message aloud';
+
+  @override
+  String get readAloudStop => 'Stop';
+
+  @override
+  String get readAloudStopTooltip => 'Stop read-aloud';
+
+  @override
+  String get readAloudMoreControls =>
+      'More read-aloud controls, including Stop';
+
+  @override
+  String get readAloudPreparing => 'Preparing speech';
+
+  @override
+  String get readAloudPreparingShort => 'Preparing';
+
+  @override
+  String get readAloudPlaying => 'Playing';
+
+  @override
+  String get readAloudPaused => 'Paused';
+
+  @override
+  String get readAloudBuffering => 'Buffering';
+
+  @override
+  String get readAloudCompleted => 'Completed';
+
+  @override
+  String get readAloudFailed => 'Read-aloud failed';
+
+  @override
+  String get readAloudPause => 'Pause read-aloud';
+
+  @override
+  String get readAloudResume => 'Resume read-aloud';
+
+  @override
+  String get readAloudPrevious => 'Previous prepared paragraph';
+
+  @override
+  String get readAloudNext => 'Next prepared paragraph';
+
+  @override
+  String get readAloudRetry => 'Retry from this paragraph';
+
+  @override
+  String get readAloudRetryShort => 'Retry';
+
+  @override
+  String get readAloudReplay => 'Replay from the beginning';
+
+  @override
+  String get readAloudReplayShort => 'Replay';
+
+  @override
+  String readAloudParagraph(int current, int total) {
+    return 'Paragraph $current of $total';
+  }
+
+  @override
+  String get readAloudEnglishVoice => 'Read-aloud English voice';
+
+  @override
+  String get readAloudVoicesTitle => 'Read-aloud voices';
+
+  @override
+  String get readAloudWebUnavailable =>
+      'Read-aloud is available in the Android and desktop apps.';
+
+  @override
+  String get readAloudLanguageMode => 'Reading language';
+
+  @override
+  String get readAloudAutomatic => 'Automatic';
+
+  @override
+  String get readAloudEnglish => 'English';
+
+  @override
+  String get readAloudSpanish => 'Spain Spanish';
+
+  @override
+  String get readAloudSpanishVoice => 'Read-aloud Spain Spanish voice';
+
+  @override
+  String get readAloudPreview => 'Preview voice';
+
+  @override
+  String get readAloudVoicesUnavailable =>
+      'Read-aloud voices are unavailable. Try again later.';
+
+  @override
+  String get talkModeVoice => 'Talk Mode voice';
 }

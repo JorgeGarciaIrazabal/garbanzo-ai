@@ -1,13 +1,15 @@
 # Read-aloud model qualification
 
-The app currently uses in-process Kokoro. The proposed Android read-aloud
-replacement is gated on a local comparison: neither a model family nor the
-session/player redesign is selected until a candidate improves audibly over
-Kokoro in both English and Spain Spanish, meets the five-second Android p95,
-generates at least twice as fast as playback, and stays within measured 6 GiB
-service RAM and 16 GiB GPU allocation. Twenty blind listening scores per
-language carry equal weight; a difference within 0.25/5 favours the faster
-model. A server PCM arrival time is **not** an Android tap-to-audible result.
+The user selected Pocket TTS int8 for the read-aloud prototype after listening
+to a smaller set of blind examples; English passage 7 A was Pocket and was
+preferred. The planned 80-clip numeric scoring exercise was explicitly waived
+by the user. This records a product choice, not a measured claim of superior
+mean quality in both languages. The remaining delivery gates are Android
+tap-to-audible p95 at most five seconds, sustained generation at least 2×
+playback, robust long-message and cancellation behaviour, and measured service
+RAM at most 6 GiB. Pocket uses CPU, so the 16 GiB GPU allocation gate does not
+apply to this selected configuration. A server PCM arrival time is **not** an
+Android tap-to-audible result.
 
 `scripts/read_aloud/corpus.json` contains the same 20 passages per language
 for every candidate, plus four mixed-language passages. The reproducible
@@ -79,9 +81,10 @@ a pre-run baseline. Neither
 metric certifies total service/device allocation if another GPU process changes
 during the run, so record its load separately before applying the 16 GiB gate.
 
-The WAV samples require human blind scoring for naturalness, pronunciation,
-Spain accent and consistency. Once a candidate passes that gate, measure the
-actual Android tap-to-audible path over a controlled and public connection,
+The original protocol requested human blind scores for naturalness,
+pronunciation, Spain accent and consistency. The user chose Pocket without
+completing that sheet, so no numeric quality mean should be reported. Measure
+the actual Android tap-to-audible path over a controlled and public connection,
 including encoding, HTTPS, player buffering and UI scheduling. Test 5,000-,
 20,000- and 100,000-character messages, cancellation, backgrounding, network
 loss, worker stalls and segment ordering before selecting it for delivery.
@@ -102,7 +105,7 @@ network and Android player startup. RSS is the highest measured process RSS.
 | Pocket TTS 24-layer int8, raw Lola reference | Spanish | 0.094 s | 3.67× | 2,271 MiB |
 
 The initial public FP32 Pocket Spanish configuration misses the required 2×
-sustained rate. After authenticated access was approved, Pocket's pinned
+sustained rate. After authenticated access was approved, Pocket's
 cloning-capable checkpoint and raw Lola source were evaluated. Dynamic int8
 quantization raises Spanish to 3.67× and English to 8.92× across 20 passages,
 with process RSS below 2.3 GiB and incremental PCM delivery. That configuration
@@ -119,7 +122,39 @@ measured passage in both images. The representative-passage warm-up in the
 validated image did not resolve the stall. The high-level Qwen API returns a
 whole waveform; actual incremental output was not demonstrated.
 
-Pocket int8 is not selected until the 80 blinded English/Spanish clips establish
-an audible improvement over Kokoro in both languages. Android tap-to-audible has
-also not been measured. No replacement model, read-aloud service, or Android
-player has been shipped while those gates remain open.
+Pocket int8 is selected for implementation by the user. The initial voice
+catalog contains the tested Alba (English) and Lola (Spain Spanish) references;
+a second curated voice per language still needs a pinned asset and evaluation.
+The production worker's Pocket package revision is pinned. Its package config
+pins English `english_2026-04` weights at
+`19f95fe2df36e79fbd9f10008595cc4c977a0fcc` and Spain Spanish
+`spanish_24l` weights at `39592ff23c9ef80098bb74895d104c26275fe2c9`.
+The full 80-clip quality comparison was waived. The local Pixel 9 preview
+played a real message and exercised Pause, Resume, foreground transitions,
+paragraph navigation, speed, and Stop. The later compact message-local
+controls were also exercised on that device. This proves the local Android
+path works, but it is not a controlled p95 tap-to-audible measurement or a
+test through the public HTTPS connection. The prior long-message test of the
+old installed app coincided with a host reboot whose cause is unknown.
+
+An uncached local session benchmark advanced the reported playback position
+as audio was generated, so it measured uninterrupted long synthesis without
+waiting for hours of real-time listening. It used the warm int8 worker and
+one continuous 128 kbps MP3 encoder. These are **server first-byte** and
+synthesis results, not Android acoustic measurements:
+
+| Text | Language | First MP3 byte | Total synthesis | Audio duration | Rate | Segments |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: |
+| 5,000 characters | English | 0.186 s | 31.2 s | 317.6 s | 10.18× | 21 |
+| 5,000 characters | Spanish | 0.213 s | 44.0 s | 195.0 s | 4.43× | 21 |
+| 20,000 characters | English | 0.119 s | 124.5 s | 1269.9 s | 10.20× | 82 |
+| 100,000 characters | English | 0.236 s | 680.0 s | 6361.8 s | 9.36× | 407 |
+
+The 100,000-character run completed within a 6 GiB worker cgroup, reported
+407 segments, and emitted 101.8 MB of MP3. Its cgroup memory
+reached the exact 6 GiB limit near completion, although the worker remained
+ready and synthesized another English and Spanish sample afterward. A later
+worker change reclaims short-lived CPU allocations after each unit; a shorter
+follow-up run held memory near 1.7 GiB, but the 100,000-character case has not
+been repeated with that change. Production deployment still needs the
+controlled Android p95, public-connection run, and accepted resource margin.

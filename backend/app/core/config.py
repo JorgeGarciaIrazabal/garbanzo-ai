@@ -60,6 +60,9 @@ class Settings(BaseSettings):
     tts_device: Literal["auto", "cpu", "cuda"] = "auto"
     kokoro_model_dir: str = "data/kokoro/models/v1_0"
     kokoro_voices_dir: str = "data/kokoro/voices"
+    read_aloud_worker_url: str = "http://127.0.0.1:8021"
+    read_aloud_worker_token: str = ""
+    read_aloud_cache_dir: str = "/tmp/garbanzo-read-aloud"
 
     # Rate limiting (0 disables scope) — see docs/environment.md
     rate_limit_enabled: bool = False

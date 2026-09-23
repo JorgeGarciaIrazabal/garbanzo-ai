@@ -15,6 +15,7 @@ from app.api.v1.router import api_router
 from app.core.config import get_settings
 from app.core.security import decode_token
 from app.db.session import init_db
+from app.services.read_aloud_sessions import shutdown_read_aloud_manager
 
 # Structured logging configuration
 logging.config.dictConfig(
@@ -193,6 +194,8 @@ async def lifespan(app: FastAPI):
     from app.scheduler import stop_scheduler
 
     stop_scheduler()
+
+    await shutdown_read_aloud_manager()
 
     # Stop any running micro-apps workspaces (dev server + opencode subprocesses).
     from app.services.microapp_workspace import manager as microapp_manager

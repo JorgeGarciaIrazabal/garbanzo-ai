@@ -9,6 +9,7 @@ import 'package:garbanzo_ai/features/chat/providers/model_provider.dart';
 import 'package:garbanzo_ai/features/chat/services/audio_service.dart';
 import 'package:garbanzo_ai/features/notifications/providers/notification_provider.dart';
 import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
+import 'package:garbanzo_ai/features/settings/widgets/read_aloud_voice_settings.dart';
 import 'package:garbanzo_ai/core/platform_info.dart';
 import 'package:garbanzo_ai/features/settings/widgets/location_section.dart';
 import 'package:garbanzo_ai/features/settings/widgets/mcp_servers_section.dart';
@@ -338,8 +339,10 @@ class _SettingsPageState extends State<SettingsPage> {
     return Card(
       child: Column(
         children: [
+          const ReadAloudVoiceSettings(),
+          const Divider(height: 1),
           ListTile(
-            title: Text(AppLocalizations.of(context)!.titleVoice),
+            title: Text(AppLocalizations.of(context)!.talkModeVoice),
             trailing: _loadingVoices
                 ? const SizedBox(
                     width: 16,
