@@ -323,9 +323,20 @@ docker-up-db:
 be-install:
     cd backend; uv sync --extra dev
 
-# Upgrade backend dependencies (uses uv)
-be-upgrade:
-    cd backend; uv sync --upgrade --extra dev
+# Upgrade all backend dependencies, or only the named packages
+[positional-arguments]
+be-upgrade *packages:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    upgrade_args=(--upgrade)
+    if (( $# )); then
+        upgrade_args=()
+        for package in "$@"; do
+            upgrade_args+=(--upgrade-package "$package")
+        done
+    fi
+    cd backend
+    uv sync --extra dev "${upgrade_args[@]}"
 
 # Start FastAPI dev server with hot reload and separate Pocket read-aloud worker
 be-dev port="8000":

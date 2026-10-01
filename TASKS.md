@@ -5,6 +5,7 @@
 Original backlog and notes: [.ai/backlog-source.md](.ai/backlog-source.md).
 
 - [x] **garbanzo-0qw7** P1 [closed] Fix ai-run verify command argument collision
+- [ ] **garbanzo-afkd** P1 [open] Resolve backend dependency audit advisories
 - [x] **garbanzo-dbm7** P1 [closed] Fix worker handoff for tracked symlink directories
 - [x] **garbanzo-ghti** P1 [closed] Implement Codex-first development controller
 - [x] **garbanzo-02e** P2 [closed] **Tool results display in chat** — Collapsible "Tool Used" block showing name, input, output

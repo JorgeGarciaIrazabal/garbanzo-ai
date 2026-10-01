@@ -11,6 +11,9 @@ demand: `../docs/architecture.md` (layout, flows, startup), `../docs/api.md`
 - `just be-dev` — dev server, hot reload (port 8000)
 - `just be-test` — pytest suite
 - `just be-test tests/path/test_file.py::test_name` — focused pytest test
+- `just be-upgrade pyjwt urllib3 virtualenv` — upgrade only named dependencies;
+  without names, upgrades all. Exact synchronization removes unused packages
+  left in `.venv`; audit the synchronized environment, not stale installations.
 - `just be-lint` / `just be-format` — ruff check / format
 - `just be-lint-imports` — Pylint C0415 (no in-function imports); the one
   rule ruff lacks. Baseline of pre-existing offenders in
