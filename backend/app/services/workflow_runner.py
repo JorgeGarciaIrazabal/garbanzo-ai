@@ -592,11 +592,7 @@ async def _report_completion(
                 id=str(uuid.uuid4()),
                 conversation_id=conversation_id,
                 role="assistant",
-                content=(
-                    f"{headline}\nRun ID: {run_id}\n"
-                    "Use workflow_outputs to read the complete report and generated files.\n\n"
-                    f"{body}" + (f"\n\n{error}" if error and summary else "")
-                ),
+                content=(f"{headline}\n\n{body}" + (f"\n\n{error}" if error and summary else "")),
                 meta={"workflow_run_id": run_id, "workflow_status": status},
                 session_epoch=session_epoch
                 if session_epoch is not None

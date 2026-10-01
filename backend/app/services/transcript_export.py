@@ -13,6 +13,7 @@ from collections.abc import Iterable, Sequence
 from datetime import UTC, datetime
 from typing import Any
 
+from app.schemas.chat import clean_workflow_completion
 from app.services.docx_export import (
     TranscriptSection,
     export_filename,
@@ -79,6 +80,8 @@ def conversation_sections(
             omitted += 1
             continue
         content = getattr(message, "content", "") or ""
+        if role == "assistant":
+            content = clean_workflow_completion(content, getattr(message, "meta", None))
         if not content.strip():
             continue
         sections.append(

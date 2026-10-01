@@ -2135,6 +2135,14 @@
     "description": "Reassurance that a delegated workflow survives disconnecting."
   },
   "messageWorkflowDone": "Tarea completada",
+  "messageWorkflowViewResult": "Ver resultado",
+  "messageWorkflowLoadFailed": "No se pudieron cargar los resultados. Inténtalo de nuevo.",
+  "@messageWorkflowLoadFailed": {"description": "Error recuperable al cargar los resultados del agente."},
+  "@messageWorkflowViewResult": {"description": "Abre el resultado del agente desde el aviso persistente."},
+  "messageWorkflowDismissFailed": "No se pudo descartar el aviso. Inténtalo de nuevo.",
+  "@messageWorkflowDismissFailed": {"description": "Error al guardar el descarte del aviso."},
+  "messageWorkflowNoReport": "No se generó ningún informe.",
+  "@messageWorkflowNoReport": {"description": "Resultado vacío de un agente detenido o fallido."},
   "@messageWorkflowDone": {
     "description": "Status when a delegated workflow completed successfully."
   },

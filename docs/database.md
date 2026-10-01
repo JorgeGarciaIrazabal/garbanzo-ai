@@ -249,7 +249,9 @@ half-migrated schema.
     learns whether the diff has landed on the user's disk.
   - `conversation_id` is nullable for room-originated runs; when set, the
     final summary is written back as an assistant `Message` carrying
-    `meta.workflow_run_id` and a literal run ID in its content.
+    `meta.workflow_run_id`. Its content contains the result; provider-only
+    system context carries the internal retrieval reference. Chat serialization
+    and transcript export hide the exact legacy run-ID/tool-instruction preamble.
   - `session_epoch` (049_workflow_outputs.sql) captures the originating chat
     epoch at creation; completion stays in that epoch after a topic switch.
     `scope.originating_topic_id` keeps topic ingestion on the original topic.

@@ -14,6 +14,7 @@ from zoneinfo import ZoneInfo
 
 from app.core.config import get_settings
 from app.models.message import Message
+from app.schemas.chat import clean_workflow_completion
 from app.services.knowledge_base_service import KnowledgeBaseService
 from app.services.llm_provider import Message as LLMMessage
 from app.services.memory_service import MemoryService
@@ -129,14 +130,35 @@ class ChatContextBuilder:
         return images or None
 
     def build_message_history(self, messages: list[Message]) -> list[LLMMessage]:
-        return [
-            LLMMessage(
-                role=msg.role,
-                content=msg.content,
-                images=self._message_images(msg),
+        result = []
+        for msg in messages:
+            result.append(
+                LLMMessage(
+                    role=msg.role,
+                    content=clean_workflow_completion(msg.content, msg.meta)
+                    if msg.role == "assistant"
+                    else msg.content,
+                    images=self._message_images(msg),
+                )
             )
-            for msg in messages
-        ]
+            reference = self._workflow_reference(msg)
+            if reference:
+                result.append(reference)
+        return result
+
+    @staticmethod
+    def _workflow_reference(msg: Message) -> LLMMessage | None:
+        run_id = (msg.meta or {}).get("workflow_run_id")
+        if msg.role != "assistant" or not run_id:
+            return None
+        return LLMMessage(
+            role="system",
+            content=(
+                f"Internal output reference for the preceding completion: run_id={run_id}. "
+                "Use workflow_outputs to read its report and files for follow-up questions. "
+                "Keep run IDs and tool instructions out of user-facing answers."
+            ),
+        )
 
     async def build_history_with_system_prompt(
         self,
@@ -224,7 +246,16 @@ class ChatContextBuilder:
                 if inline is not None:
                     result.append(LLMMessage(role="assistant", content="", tool_calls=inline))
                 else:
-                    result.append(LLMMessage(role=msg.role, content=msg.content, images=images))
+                    result.append(
+                        LLMMessage(
+                            role=msg.role,
+                            content=clean_workflow_completion(msg.content, msg.meta),
+                            images=images,
+                        )
+                    )
+                    reference = self._workflow_reference(msg)
+                    if reference:
+                        result.append(reference)
             else:
                 result.append(LLMMessage(role=msg.role, content=msg.content, images=images))
 

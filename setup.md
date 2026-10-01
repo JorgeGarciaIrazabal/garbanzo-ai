@@ -58,8 +58,10 @@ dart --version
 
 ### Linux Desktop Build Dependencies
 ```bash
-# GStreamer (audio — required for audioplayers + record packages)
+# libmpv (required at startup by the desktop just_audio/media_kit adapter)
+# + GStreamer (audio capture and remaining native plugins)
 sudo apt-get install -y \
+    libmpv2 \
     libgstreamer1.0-dev \
     libgstreamer-plugins-base1.0-dev \
     gstreamer1.0-plugins-good \
@@ -81,10 +83,16 @@ sudo apt-get install -y \
 > time. Linux dev stays the developer's host; the panel shows an "open in
 > browser" card there because no stable inline webview plugin targets Linux.
 
-Or use the justfile shortcut for GStreamer:
+Or use the justfile shortcut for the audio libraries:
 ```bash
 just dev-deps
 ```
+
+On Debian/Ubuntu without sudo access, `just dev-deps-user` extracts libmpv and
+its missing dependencies privately under `.ai/local/native-libs/`. Set
+`LD_LIBRARY_PATH="$PWD/.ai/local/native-libs/root/usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH)"`
+when launching the desktop app. A missing libmpv prevents the first widget from
+rendering, so a connected VM service alone does not prove the app started.
 
 ---
 

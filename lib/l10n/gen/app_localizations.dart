@@ -4467,6 +4467,30 @@ abstract class AppLocalizations {
   /// **'Workflow finished'**
   String get messageWorkflowDone;
 
+  /// Opens the finished background workflow result from the persistent notice.
+  ///
+  /// In en, this message translates to:
+  /// **'View result'**
+  String get messageWorkflowViewResult;
+
+  /// Retryable failure loading saved background workflow results.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t load workflow results. Try again.'**
+  String get messageWorkflowLoadFailed;
+
+  /// Error saving a workflow completion dismissal.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t dismiss the completion notice. Try again.'**
+  String get messageWorkflowDismissFailed;
+
+  /// Empty result for a stopped or failed workflow.
+  ///
+  /// In en, this message translates to:
+  /// **'No report was produced.'**
+  String get messageWorkflowNoReport;
+
   /// Status when a delegated workflow ended in an error.
   ///
   /// In en, this message translates to:

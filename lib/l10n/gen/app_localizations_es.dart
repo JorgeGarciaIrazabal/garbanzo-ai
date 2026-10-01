@@ -2498,6 +2498,20 @@ class AppLocalizationsEs extends AppLocalizations {
   String get messageWorkflowDone => 'Tarea completada';
 
   @override
+  String get messageWorkflowViewResult => 'Ver resultado';
+
+  @override
+  String get messageWorkflowLoadFailed =>
+      'No se pudieron cargar los resultados. Inténtalo de nuevo.';
+
+  @override
+  String get messageWorkflowDismissFailed =>
+      'No se pudo descartar el aviso. Inténtalo de nuevo.';
+
+  @override
+  String get messageWorkflowNoReport => 'No se generó ningún informe.';
+
+  @override
   String get messageWorkflowFailed => 'La tarea falló';
 
   @override

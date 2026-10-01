@@ -160,10 +160,26 @@ install: be-install fe-install
 # Install Linux system dependencies required for audio (GStreamer for audioplayers + record)
 dev-deps:
     sudo apt-get install -y \
+        libmpv2 \
         libgstreamer1.0-dev \
         libgstreamer-plugins-base1.0-dev \
         gstreamer1.0-plugins-good \
         gstreamer1.0-plugins-bad
+
+# Extract Linux media libraries locally when sudo is unavailable (Debian/Ubuntu)
+dev-deps-user:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    native_root="{{justfile_directory()}}/.ai/local/native-libs"
+    mkdir -p "$native_root/archives" "$native_root/root"
+    simulation=$(apt-get -s --no-install-recommends install libmpv2)
+    mapfile -t native_packages < <(printf '%s\n' "$simulation" | awk '$1 == "Inst" {print $2}')
+    cd "$native_root/archives"
+    apt-get download libmpv2 "${native_packages[@]}"
+    for native_deb in ./*.deb; do
+        dpkg-deb -x "$native_deb" "$native_root/root"
+    done
+    printf 'Local libraries: %s/root/usr/lib/%s\n' "$native_root" "$(dpkg-architecture -qDEB_HOST_MULTIARCH)"
 
 
 opencode:
@@ -312,7 +328,7 @@ be-upgrade:
     cd backend; uv sync --upgrade --extra dev
 
 # Start FastAPI dev server with hot reload and separate Pocket read-aloud worker
-be-dev:
+be-dev port="8000":
     #!/usr/bin/env bash
     set -euo pipefail
     export READ_ALOUD_WORKER_TOKEN="${READ_ALOUD_WORKER_TOKEN:-$(openssl rand -hex 32)}"
@@ -321,7 +337,7 @@ be-dev:
     worker_pid=$!
     trap 'kill "$worker_pid" 2>/dev/null || true' EXIT INT TERM
     cd backend
-    uv run uvicorn app.main:app --reload --port 8000
+    uv run uvicorn app.main:app --reload --port {{port}}
 
 # Start FastAPI production server
 be-run:

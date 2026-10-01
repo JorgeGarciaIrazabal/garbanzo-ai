@@ -3420,6 +3420,14 @@
     "description": "Reassurance that a delegated workflow survives disconnecting."
   },
   "messageWorkflowDone": "Workflow finished",
+  "messageWorkflowViewResult": "View result",
+  "messageWorkflowLoadFailed": "Couldn't load workflow results. Try again.",
+  "@messageWorkflowLoadFailed": {"description": "Retryable failure loading saved background workflow results."},
+  "@messageWorkflowViewResult": {"description": "Opens the finished background workflow result from the persistent notice."},
+  "messageWorkflowDismissFailed": "Couldn't dismiss the completion notice. Try again.",
+  "@messageWorkflowDismissFailed": {"description": "Error saving a workflow completion dismissal."},
+  "messageWorkflowNoReport": "No report was produced.",
+  "@messageWorkflowNoReport": {"description": "Empty result for a stopped or failed workflow."},
   "@messageWorkflowDone": {
     "description": "Status when a delegated workflow completed successfully."
   },

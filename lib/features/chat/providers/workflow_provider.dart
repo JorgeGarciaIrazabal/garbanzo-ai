@@ -195,6 +195,58 @@ class WorkflowProvider extends ChangeNotifier {
   final Map<String, String> _runIdByToolCall = {};
   final Map<String, ({int skipped, bool truncated})> _snapshotGaps = {};
   final Map<String, Timer> _pollers = {};
+  final Set<String> _dismissedCompletions = {};
+  final Map<String, Object> _completionLoadErrors = {};
+  Future<void>? _completionRecordsLoad;
+  static const _completionRecordsKey = 'workflow_dismissed_completions';
+
+  bool hasCompletionLoadError(String conversationId) =>
+      _completionLoadErrors.containsKey(conversationId);
+
+  Future<void> _loadCompletionRecords() => _completionRecordsLoad ??= () async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _dismissedCompletions.addAll(
+        prefs.getStringList(_completionRecordsKey) ?? [],
+      );
+    } catch (_) {
+      _completionRecordsLoad = null;
+      rethrow;
+    }
+  }();
+
+  /// Available even when the launching tile and completion are outside the
+  /// loaded message window. Old primary epochs must not interrupt a new topic.
+  WorkflowRun? pendingCompletionFor(
+    String conversationId, {
+    int? sessionEpoch,
+  }) {
+    final pending =
+        _runs.values
+            .where(
+              (run) =>
+                  run.conversationId == conversationId &&
+                  run.isTerminal &&
+                  !_dismissedCompletions.contains(run.id) &&
+                  (sessionEpoch == null || run.sessionEpoch == sessionEpoch),
+            )
+            .toList()
+          ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+    return pending.firstOrNull;
+  }
+
+  Future<void> dismissCompletion(String runId) async {
+    await _loadCompletionRecords();
+    final prefs = await SharedPreferences.getInstance();
+    final records = {..._dismissedCompletions, runId}.toList();
+    if (!await prefs.setStringList(_completionRecordsKey, records)) {
+      throw StateError('Could not save workflow completion dismissal.');
+    }
+    _dismissedCompletions
+      ..clear()
+      ..addAll(records);
+    if (!_isDisposed) notifyListeners();
+  }
 
   /// A proposal tile can be rebuilt while its first start request is awaiting
   /// the server. Share that request across tile instances so one proposal
@@ -267,9 +319,11 @@ class WorkflowProvider extends ChangeNotifier {
   }
 
   Future<void> _hydrateConversation(String conversationId) async {
-    await _loadAppliedRuns();
     try {
+      await _loadCompletionRecords();
+      await _loadAppliedRuns();
       final runs = await _service.listForConversation(conversationId);
+      if (_isDisposed) return;
       for (final run in runs) {
         _runs[run.id] = run;
         final toolCallId = run.toolCallId;
@@ -298,11 +352,14 @@ class WorkflowProvider extends ChangeNotifier {
         }
       }
       _loadedConversations.add(conversationId);
+      _completionLoadErrors.remove(conversationId);
       notifyListeners();
     } catch (e) {
       // Let a failed hydrate be retried on the next card build.
       _loadedConversations.remove(conversationId);
+      _completionLoadErrors[conversationId] = e;
       logDebug('Could not load workflow runs: $e');
+      if (!_isDisposed) notifyListeners();
     }
   }
 

@@ -16,6 +16,7 @@ abstract class WorkflowRun with _$WorkflowRun {
     required String id,
     required String userId,
     String? conversationId,
+    int? sessionEpoch,
     String? roomId,
     String? toolCallId,
     required String status,

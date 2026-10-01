@@ -36,12 +36,12 @@ it for procedures. This file is the agent quick reference.
   `CHANGELOG.md`, bumps the patch version in `pubspec.yaml`, commits both on
   `main`, tags `v<version>` (tag message carries `API_URL: <PUBLIC_APP_URL>`
   plus the changelog section), and **pushes both to `origin`**.
-- The changelog is **LLM-authored**: `scripts/deploy.sh` feeds this release's git
-  log + the user-report list (prod DB) to `opencode` with
-  `scripts/changelog-instructions.md`, and opencode prepends a section to
-  `CHANGELOG.md` (User requests completed / Features / Fixes). Best-effort — if
-  opencode or its model is unavailable it falls back to a raw commit list, never
-  blocking the deploy. Override the model with `CHANGELOG_OPENCODE_MODEL`.
+- The changelog is **LLM-authored**: `scripts/deploy.sh` feeds sanitized commit
+  subjects and exact Report-ID/task associations to Codex with
+  `scripts/changelog-instructions.md`, and the controller prepends a section to
+  `CHANGELOG.md` (User requests completed / Features / Fixes). Raw report
+  diagnostics are not sent to the model. If generation fails, a deterministic
+  sanitized commit summary is used. See the releases skill for evidence rules.
 - The deploy host creates the GitHub Release and attaches its locally signed
   `garbanzo-ai-android-<version>.apk`; the Android signing key never leaves the
   host. The pushed `v*` tag triggers `.github/workflows/build-desktop-apps.yml`:

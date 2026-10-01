@@ -26,6 +26,21 @@ class AttachmentIn(BaseModel):
 # Chat messages
 
 
+def clean_workflow_completion(content: str, meta: dict[str, Any] | None) -> str:
+    """Hide the retrieval preamble from completions saved by older versions."""
+    run_id = (meta or {}).get("workflow_run_id")
+    if not run_id:
+        return content
+    for headline in ("✅ Workflow finished", "⚠️ Workflow failed"):
+        prefix = (
+            f"{headline}\nRun ID: {run_id}\n"
+            "Use workflow_outputs to read the complete report and generated files.\n\n"
+        )
+        if content.startswith(prefix):
+            return f"{headline}\n\n{content[len(prefix) :]}"
+    return content
+
+
 class ChatMessage(BaseModel):
     role: Literal["user", "assistant", "system"] = Field(..., description="Sender role")
     content: str = Field(..., description="Message content")
@@ -41,6 +56,12 @@ class ChatMessageOut(ChatMessage):
     session_epoch: int = Field(default=0, description="Session epoch within primary conversation")
     is_starred: bool = Field(default=False, description="Bookmarked by the conversation owner")
     model_config = {"from_attributes": True}
+
+    @model_validator(mode="after")
+    def clean_workflow_reference(self) -> "ChatMessageOut":
+        if self.role == "assistant":
+            self.content = clean_workflow_completion(self.content, self.meta)
+        return self
 
     @model_validator(mode="after")
     def clean_thinking_tags(self) -> "ChatMessageOut":

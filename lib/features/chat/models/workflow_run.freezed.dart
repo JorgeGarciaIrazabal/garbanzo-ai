@@ -16,7 +16,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$WorkflowRun {
 
- String get id; String get userId; String? get conversationId; String? get roomId; String? get toolCallId; String get status; String get instruction; Map<String, dynamic>? get scope; String? get summary; String? get error; List<Map<String, dynamic>> get progress; int get progressOffset; int get progressTotal; DateTime get createdAt; DateTime get updatedAt; DateTime? get completedAt;
+ String get id; String get userId; String? get conversationId; int? get sessionEpoch; String? get roomId; String? get toolCallId; String get status; String get instruction; Map<String, dynamic>? get scope; String? get summary; String? get error; List<Map<String, dynamic>> get progress; int get progressOffset; int get progressTotal; DateTime get createdAt; DateTime get updatedAt; DateTime? get completedAt;
 /// Create a copy of WorkflowRun
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -29,16 +29,16 @@ $WorkflowRunCopyWith<WorkflowRun> get copyWith => _$WorkflowRunCopyWithImpl<Work
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is WorkflowRun&&(identical(other.id, id) || other.id == id)&&(identical(other.userId, userId) || other.userId == userId)&&(identical(other.conversationId, conversationId) || other.conversationId == conversationId)&&(identical(other.roomId, roomId) || other.roomId == roomId)&&(identical(other.toolCallId, toolCallId) || other.toolCallId == toolCallId)&&(identical(other.status, status) || other.status == status)&&(identical(other.instruction, instruction) || other.instruction == instruction)&&const DeepCollectionEquality().equals(other.scope, scope)&&(identical(other.summary, summary) || other.summary == summary)&&(identical(other.error, error) || other.error == error)&&const DeepCollectionEquality().equals(other.progress, progress)&&(identical(other.progressOffset, progressOffset) || other.progressOffset == progressOffset)&&(identical(other.progressTotal, progressTotal) || other.progressTotal == progressTotal)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&(identical(other.completedAt, completedAt) || other.completedAt == completedAt));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is WorkflowRun&&(identical(other.id, id) || other.id == id)&&(identical(other.userId, userId) || other.userId == userId)&&(identical(other.conversationId, conversationId) || other.conversationId == conversationId)&&(identical(other.sessionEpoch, sessionEpoch) || other.sessionEpoch == sessionEpoch)&&(identical(other.roomId, roomId) || other.roomId == roomId)&&(identical(other.toolCallId, toolCallId) || other.toolCallId == toolCallId)&&(identical(other.status, status) || other.status == status)&&(identical(other.instruction, instruction) || other.instruction == instruction)&&const DeepCollectionEquality().equals(other.scope, scope)&&(identical(other.summary, summary) || other.summary == summary)&&(identical(other.error, error) || other.error == error)&&const DeepCollectionEquality().equals(other.progress, progress)&&(identical(other.progressOffset, progressOffset) || other.progressOffset == progressOffset)&&(identical(other.progressTotal, progressTotal) || other.progressTotal == progressTotal)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&(identical(other.completedAt, completedAt) || other.completedAt == completedAt));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,userId,conversationId,roomId,toolCallId,status,instruction,const DeepCollectionEquality().hash(scope),summary,error,const DeepCollectionEquality().hash(progress),progressOffset,progressTotal,createdAt,updatedAt,completedAt);
+int get hashCode => Object.hash(runtimeType,id,userId,conversationId,sessionEpoch,roomId,toolCallId,status,instruction,const DeepCollectionEquality().hash(scope),summary,error,const DeepCollectionEquality().hash(progress),progressOffset,progressTotal,createdAt,updatedAt,completedAt);
 
 @override
 String toString() {
-  return 'WorkflowRun(id: $id, userId: $userId, conversationId: $conversationId, roomId: $roomId, toolCallId: $toolCallId, status: $status, instruction: $instruction, scope: $scope, summary: $summary, error: $error, progress: $progress, progressOffset: $progressOffset, progressTotal: $progressTotal, createdAt: $createdAt, updatedAt: $updatedAt, completedAt: $completedAt)';
+  return 'WorkflowRun(id: $id, userId: $userId, conversationId: $conversationId, sessionEpoch: $sessionEpoch, roomId: $roomId, toolCallId: $toolCallId, status: $status, instruction: $instruction, scope: $scope, summary: $summary, error: $error, progress: $progress, progressOffset: $progressOffset, progressTotal: $progressTotal, createdAt: $createdAt, updatedAt: $updatedAt, completedAt: $completedAt)';
 }
 
 
@@ -49,7 +49,7 @@ abstract mixin class $WorkflowRunCopyWith<$Res>  {
   factory $WorkflowRunCopyWith(WorkflowRun value, $Res Function(WorkflowRun) _then) = _$WorkflowRunCopyWithImpl;
 @useResult
 $Res call({
- String id, String userId, String? conversationId, String? roomId, String? toolCallId, String status, String instruction, Map<String, dynamic>? scope, String? summary, String? error, List<Map<String, dynamic>> progress, int progressOffset, int progressTotal, DateTime createdAt, DateTime updatedAt, DateTime? completedAt
+ String id, String userId, String? conversationId, int? sessionEpoch, String? roomId, String? toolCallId, String status, String instruction, Map<String, dynamic>? scope, String? summary, String? error, List<Map<String, dynamic>> progress, int progressOffset, int progressTotal, DateTime createdAt, DateTime updatedAt, DateTime? completedAt
 });
 
 
@@ -66,12 +66,13 @@ class _$WorkflowRunCopyWithImpl<$Res>
 
 /// Create a copy of WorkflowRun
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? userId = null,Object? conversationId = freezed,Object? roomId = freezed,Object? toolCallId = freezed,Object? status = null,Object? instruction = null,Object? scope = freezed,Object? summary = freezed,Object? error = freezed,Object? progress = null,Object? progressOffset = null,Object? progressTotal = null,Object? createdAt = null,Object? updatedAt = null,Object? completedAt = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? userId = null,Object? conversationId = freezed,Object? sessionEpoch = freezed,Object? roomId = freezed,Object? toolCallId = freezed,Object? status = null,Object? instruction = null,Object? scope = freezed,Object? summary = freezed,Object? error = freezed,Object? progress = null,Object? progressOffset = null,Object? progressTotal = null,Object? createdAt = null,Object? updatedAt = null,Object? completedAt = freezed,}) {
   return _then(WorkflowRun(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,userId: null == userId ? _self.userId : userId // ignore: cast_nullable_to_non_nullable
 as String,conversationId: freezed == conversationId ? _self.conversationId : conversationId // ignore: cast_nullable_to_non_nullable
-as String?,roomId: freezed == roomId ? _self.roomId : roomId // ignore: cast_nullable_to_non_nullable
+as String?,sessionEpoch: freezed == sessionEpoch ? _self.sessionEpoch : sessionEpoch // ignore: cast_nullable_to_non_nullable
+as int?,roomId: freezed == roomId ? _self.roomId : roomId // ignore: cast_nullable_to_non_nullable
 as String?,toolCallId: freezed == toolCallId ? _self.toolCallId : toolCallId // ignore: cast_nullable_to_non_nullable
 as String?,status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
 as String,instruction: null == instruction ? _self.instruction : instruction // ignore: cast_nullable_to_non_nullable
@@ -169,10 +170,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String userId,  String? conversationId,  String? roomId,  String? toolCallId,  String status,  String instruction,  Map<String, dynamic>? scope,  String? summary,  String? error,  List<Map<String, dynamic>> progress,  int progressOffset,  int progressTotal,  DateTime createdAt,  DateTime updatedAt,  DateTime? completedAt)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String userId,  String? conversationId,  int? sessionEpoch,  String? roomId,  String? toolCallId,  String status,  String instruction,  Map<String, dynamic>? scope,  String? summary,  String? error,  List<Map<String, dynamic>> progress,  int progressOffset,  int progressTotal,  DateTime createdAt,  DateTime updatedAt,  DateTime? completedAt)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _WorkflowRun() when $default != null:
-return $default(_that.id,_that.userId,_that.conversationId,_that.roomId,_that.toolCallId,_that.status,_that.instruction,_that.scope,_that.summary,_that.error,_that.progress,_that.progressOffset,_that.progressTotal,_that.createdAt,_that.updatedAt,_that.completedAt);case _:
+return $default(_that.id,_that.userId,_that.conversationId,_that.sessionEpoch,_that.roomId,_that.toolCallId,_that.status,_that.instruction,_that.scope,_that.summary,_that.error,_that.progress,_that.progressOffset,_that.progressTotal,_that.createdAt,_that.updatedAt,_that.completedAt);case _:
   return orElse();
 
 }
@@ -190,10 +191,10 @@ return $default(_that.id,_that.userId,_that.conversationId,_that.roomId,_that.to
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String userId,  String? conversationId,  String? roomId,  String? toolCallId,  String status,  String instruction,  Map<String, dynamic>? scope,  String? summary,  String? error,  List<Map<String, dynamic>> progress,  int progressOffset,  int progressTotal,  DateTime createdAt,  DateTime updatedAt,  DateTime? completedAt)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String userId,  String? conversationId,  int? sessionEpoch,  String? roomId,  String? toolCallId,  String status,  String instruction,  Map<String, dynamic>? scope,  String? summary,  String? error,  List<Map<String, dynamic>> progress,  int progressOffset,  int progressTotal,  DateTime createdAt,  DateTime updatedAt,  DateTime? completedAt)  $default,) {final _that = this;
 switch (_that) {
 case _WorkflowRun():
-return $default(_that.id,_that.userId,_that.conversationId,_that.roomId,_that.toolCallId,_that.status,_that.instruction,_that.scope,_that.summary,_that.error,_that.progress,_that.progressOffset,_that.progressTotal,_that.createdAt,_that.updatedAt,_that.completedAt);case _:
+return $default(_that.id,_that.userId,_that.conversationId,_that.sessionEpoch,_that.roomId,_that.toolCallId,_that.status,_that.instruction,_that.scope,_that.summary,_that.error,_that.progress,_that.progressOffset,_that.progressTotal,_that.createdAt,_that.updatedAt,_that.completedAt);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -210,10 +211,10 @@ return $default(_that.id,_that.userId,_that.conversationId,_that.roomId,_that.to
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String userId,  String? conversationId,  String? roomId,  String? toolCallId,  String status,  String instruction,  Map<String, dynamic>? scope,  String? summary,  String? error,  List<Map<String, dynamic>> progress,  int progressOffset,  int progressTotal,  DateTime createdAt,  DateTime updatedAt,  DateTime? completedAt)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String userId,  String? conversationId,  int? sessionEpoch,  String? roomId,  String? toolCallId,  String status,  String instruction,  Map<String, dynamic>? scope,  String? summary,  String? error,  List<Map<String, dynamic>> progress,  int progressOffset,  int progressTotal,  DateTime createdAt,  DateTime updatedAt,  DateTime? completedAt)?  $default,) {final _that = this;
 switch (_that) {
 case _WorkflowRun() when $default != null:
-return $default(_that.id,_that.userId,_that.conversationId,_that.roomId,_that.toolCallId,_that.status,_that.instruction,_that.scope,_that.summary,_that.error,_that.progress,_that.progressOffset,_that.progressTotal,_that.createdAt,_that.updatedAt,_that.completedAt);case _:
+return $default(_that.id,_that.userId,_that.conversationId,_that.sessionEpoch,_that.roomId,_that.toolCallId,_that.status,_that.instruction,_that.scope,_that.summary,_that.error,_that.progress,_that.progressOffset,_that.progressTotal,_that.createdAt,_that.updatedAt,_that.completedAt);case _:
   return null;
 
 }
@@ -225,12 +226,13 @@ return $default(_that.id,_that.userId,_that.conversationId,_that.roomId,_that.to
 @JsonSerializable()
 
 class _WorkflowRun extends WorkflowRun {
-  const _WorkflowRun({required this.id, required this.userId, this.conversationId, this.roomId, this.toolCallId, required this.status, required this.instruction,  Map<String, dynamic>? scope, this.summary, this.error,  List<Map<String, dynamic>> progress = const <Map<String, dynamic>>[], this.progressOffset = 0, this.progressTotal = 0, required this.createdAt, required this.updatedAt, this.completedAt}): _scope = scope,_progress = progress,super._();
+  const _WorkflowRun({required this.id, required this.userId, this.conversationId, this.sessionEpoch, this.roomId, this.toolCallId, required this.status, required this.instruction,  Map<String, dynamic>? scope, this.summary, this.error,  List<Map<String, dynamic>> progress = const <Map<String, dynamic>>[], this.progressOffset = 0, this.progressTotal = 0, required this.createdAt, required this.updatedAt, this.completedAt}): _scope = scope,_progress = progress,super._();
   factory _WorkflowRun.fromJson(Map<String, dynamic> json) => _$WorkflowRunFromJson(json);
 
 @override final  String id;
 @override final  String userId;
 @override final  String? conversationId;
+@override final  int? sessionEpoch;
 @override final  String? roomId;
 @override final  String? toolCallId;
 @override final  String status;
@@ -272,16 +274,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _WorkflowRun&&(identical(other.id, id) || other.id == id)&&(identical(other.userId, userId) || other.userId == userId)&&(identical(other.conversationId, conversationId) || other.conversationId == conversationId)&&(identical(other.roomId, roomId) || other.roomId == roomId)&&(identical(other.toolCallId, toolCallId) || other.toolCallId == toolCallId)&&(identical(other.status, status) || other.status == status)&&(identical(other.instruction, instruction) || other.instruction == instruction)&&const DeepCollectionEquality().equals(other._scope, _scope)&&(identical(other.summary, summary) || other.summary == summary)&&(identical(other.error, error) || other.error == error)&&const DeepCollectionEquality().equals(other._progress, _progress)&&(identical(other.progressOffset, progressOffset) || other.progressOffset == progressOffset)&&(identical(other.progressTotal, progressTotal) || other.progressTotal == progressTotal)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&(identical(other.completedAt, completedAt) || other.completedAt == completedAt));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _WorkflowRun&&(identical(other.id, id) || other.id == id)&&(identical(other.userId, userId) || other.userId == userId)&&(identical(other.conversationId, conversationId) || other.conversationId == conversationId)&&(identical(other.sessionEpoch, sessionEpoch) || other.sessionEpoch == sessionEpoch)&&(identical(other.roomId, roomId) || other.roomId == roomId)&&(identical(other.toolCallId, toolCallId) || other.toolCallId == toolCallId)&&(identical(other.status, status) || other.status == status)&&(identical(other.instruction, instruction) || other.instruction == instruction)&&const DeepCollectionEquality().equals(other._scope, _scope)&&(identical(other.summary, summary) || other.summary == summary)&&(identical(other.error, error) || other.error == error)&&const DeepCollectionEquality().equals(other._progress, _progress)&&(identical(other.progressOffset, progressOffset) || other.progressOffset == progressOffset)&&(identical(other.progressTotal, progressTotal) || other.progressTotal == progressTotal)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&(identical(other.completedAt, completedAt) || other.completedAt == completedAt));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,userId,conversationId,roomId,toolCallId,status,instruction,const DeepCollectionEquality().hash(_scope),summary,error,const DeepCollectionEquality().hash(_progress),progressOffset,progressTotal,createdAt,updatedAt,completedAt);
+int get hashCode => Object.hash(runtimeType,id,userId,conversationId,sessionEpoch,roomId,toolCallId,status,instruction,const DeepCollectionEquality().hash(_scope),summary,error,const DeepCollectionEquality().hash(_progress),progressOffset,progressTotal,createdAt,updatedAt,completedAt);
 
 @override
 String toString() {
-  return 'WorkflowRun(id: $id, userId: $userId, conversationId: $conversationId, roomId: $roomId, toolCallId: $toolCallId, status: $status, instruction: $instruction, scope: $scope, summary: $summary, error: $error, progress: $progress, progressOffset: $progressOffset, progressTotal: $progressTotal, createdAt: $createdAt, updatedAt: $updatedAt, completedAt: $completedAt)';
+  return 'WorkflowRun(id: $id, userId: $userId, conversationId: $conversationId, sessionEpoch: $sessionEpoch, roomId: $roomId, toolCallId: $toolCallId, status: $status, instruction: $instruction, scope: $scope, summary: $summary, error: $error, progress: $progress, progressOffset: $progressOffset, progressTotal: $progressTotal, createdAt: $createdAt, updatedAt: $updatedAt, completedAt: $completedAt)';
 }
 
 
@@ -292,7 +294,7 @@ abstract mixin class _$WorkflowRunCopyWith<$Res> implements $WorkflowRunCopyWith
   factory _$WorkflowRunCopyWith(_WorkflowRun value, $Res Function(_WorkflowRun) _then) = __$WorkflowRunCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String userId, String? conversationId, String? roomId, String? toolCallId, String status, String instruction, Map<String, dynamic>? scope, String? summary, String? error, List<Map<String, dynamic>> progress, int progressOffset, int progressTotal, DateTime createdAt, DateTime updatedAt, DateTime? completedAt
+ String id, String userId, String? conversationId, int? sessionEpoch, String? roomId, String? toolCallId, String status, String instruction, Map<String, dynamic>? scope, String? summary, String? error, List<Map<String, dynamic>> progress, int progressOffset, int progressTotal, DateTime createdAt, DateTime updatedAt, DateTime? completedAt
 });
 
 
@@ -309,12 +311,13 @@ class __$WorkflowRunCopyWithImpl<$Res>
 
 /// Create a copy of WorkflowRun
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? userId = null,Object? conversationId = freezed,Object? roomId = freezed,Object? toolCallId = freezed,Object? status = null,Object? instruction = null,Object? scope = freezed,Object? summary = freezed,Object? error = freezed,Object? progress = null,Object? progressOffset = null,Object? progressTotal = null,Object? createdAt = null,Object? updatedAt = null,Object? completedAt = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? userId = null,Object? conversationId = freezed,Object? sessionEpoch = freezed,Object? roomId = freezed,Object? toolCallId = freezed,Object? status = null,Object? instruction = null,Object? scope = freezed,Object? summary = freezed,Object? error = freezed,Object? progress = null,Object? progressOffset = null,Object? progressTotal = null,Object? createdAt = null,Object? updatedAt = null,Object? completedAt = freezed,}) {
   return _then(_WorkflowRun(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,userId: null == userId ? _self.userId : userId // ignore: cast_nullable_to_non_nullable
 as String,conversationId: freezed == conversationId ? _self.conversationId : conversationId // ignore: cast_nullable_to_non_nullable
-as String?,roomId: freezed == roomId ? _self.roomId : roomId // ignore: cast_nullable_to_non_nullable
+as String?,sessionEpoch: freezed == sessionEpoch ? _self.sessionEpoch : sessionEpoch // ignore: cast_nullable_to_non_nullable
+as int?,roomId: freezed == roomId ? _self.roomId : roomId // ignore: cast_nullable_to_non_nullable
 as String?,toolCallId: freezed == toolCallId ? _self.toolCallId : toolCallId // ignore: cast_nullable_to_non_nullable
 as String?,status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
 as String,instruction: null == instruction ? _self.instruction : instruction // ignore: cast_nullable_to_non_nullable

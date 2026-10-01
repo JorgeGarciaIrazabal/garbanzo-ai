@@ -124,6 +124,12 @@ if you have restricted the conversation's tools. Reports and files remain
 available after the run finishes and after you reopen the app. A completion
 stays in the topic that launched it; you can explicitly ask chat to find earlier
 runs after switching topics.
+Completion messages show the result; chat handles report and file retrieval
+internally without requiring run IDs or tool commands from you.
+A **Workflow finished** notice stays above the message composer until you
+dismiss it. Select **View result** to read the result even after many more
+messages. Dismissal is saved on this device; old-topic completions do not
+interrupt a fresh topic.
 
 Text, PDF and supported Office documents can be read as extracted text. Binary
 files without a text representation remain available as downloads. Failed or

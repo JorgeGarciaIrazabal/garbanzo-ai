@@ -396,7 +396,8 @@ WORKFLOW_OUTPUTS_DESCRIPTOR = {
 
 WORKFLOW_OUTPUTS_NUDGE = (
     "Use workflow_outputs for follow-up questions about delegated agent reports or generated "
-    "files. Use the run ID in its completion message, or list_runs to find it. Read the relevant "
+    "files. Use the internal output reference attached to its completion, or list_runs to find it. "
+    "Do not show internal run IDs or tool instructions in user-facing answers. Read the relevant "
     "report/files before answering; follow next_offset for more content. Historical files that "
     "were deleted before output preservation are explicitly unavailable."
 )

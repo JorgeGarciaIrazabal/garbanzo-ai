@@ -303,9 +303,12 @@ async def test_completion_uses_originating_epoch_and_provider_gets_report(
         .scalars()
         .one()
     )
-    assert message.session_epoch == 4 and run.id in message.content
+    assert message.session_epoch == 4 and run.id not in message.content
+    assert "workflow_outputs" not in message.content
+    assert message.meta["workflow_run_id"] == run.id
     history = ChatContextBuilder(None, None, None).build_message_history([message])
-    assert run.id in history[0].content
+    assert run.id not in history[0].content
+    assert history[1].role == "system" and run.id in history[1].content
     calls = [
         {
             "id": "read-result",
@@ -342,7 +345,7 @@ async def test_completion_uses_originating_epoch_and_provider_gets_report(
     )
     assert any(d["function"]["name"] == "workflow_outputs" for d in provider.calls[0]["tools"])
     assert any(
-        run.id in (m.content or "") for m in provider.calls[0]["messages"] if m.role == "assistant"
+        run.id in (m.content or "") for m in provider.calls[0]["messages"] if m.role == "system"
     )
     test_conversation.enabled_tools = []
     await db_session.commit()

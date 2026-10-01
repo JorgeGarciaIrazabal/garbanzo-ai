@@ -7,6 +7,7 @@ punctuation leaked into the text.
 
 import io
 from datetime import UTC, datetime
+from types import SimpleNamespace
 
 import pytest
 from docx import Document
@@ -164,6 +165,30 @@ class TestDocumentStructure:
 
 
 class TestSectionBuilders:
+    def test_legacy_completion_exports_hide_internal_reference(self):
+        sections, _ = conversation_sections(
+            [
+                SimpleNamespace(
+                    role="assistant",
+                    content=(
+                        "✅ Workflow finished\nRun ID: private-run\n"
+                        "Use workflow_outputs to read the complete report and generated files.\n\n"
+                        "The measured performance was 3.18 COP."
+                    ),
+                    meta={"workflow_run_id": "private-run"},
+                )
+            ],
+            user_label="Tester",
+        )
+        markdown = render_transcript_markdown(title="Research", subtitle="", sections=sections)
+        document = Document(
+            io.BytesIO(render_transcript_docx(title="Research", subtitle="", sections=sections))
+        )
+        for text in (markdown, "\n".join(p.text for p in document.paragraphs)):
+            assert "3.18 COP" in text
+            assert "private-run" not in text
+            assert "workflow_outputs" not in text
+
     def test_conversation_sections_label_roles_and_count_machinery(self):
         class Message:
             def __init__(self, role, content):

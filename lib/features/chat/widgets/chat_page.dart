@@ -32,6 +32,7 @@ import 'package:garbanzo_ai/features/chat/widgets/chat_input_widget.dart';
 import 'package:garbanzo_ai/features/chat/widgets/input/file_picker_helper.dart';
 import 'package:garbanzo_ai/features/chat/widgets/panel_resize_handle.dart';
 import 'package:garbanzo_ai/features/chat/widgets/response_recovery_notice.dart';
+import 'package:garbanzo_ai/features/chat/widgets/workflow_completion_notice.dart';
 import 'package:garbanzo_ai/features/chat/widgets/chat_message_widget.dart';
 import 'package:garbanzo_ai/features/chat/widgets/chat_sidebar.dart';
 import 'package:garbanzo_ai/features/chat/widgets/mobile_drawer.dart';
@@ -909,6 +910,9 @@ class _ChatPageContentState extends State<_ChatPageContent>
                                     ),
                                   ],
                                 ),
+                              ),
+                              WorkflowCompletionNotice(
+                                conversation: chatProvider.currentConversation,
                               ),
                               Consumer<ChatProvider>(
                                 builder: (context, provider, _) {

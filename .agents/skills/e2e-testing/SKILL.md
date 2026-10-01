@@ -22,11 +22,22 @@ description: E2E testing workflow for the Flutter app using MCP tools
 just be-dev
 ```
 
-Verify it's up at `http://localhost:8000/health` before proceeding.
+Verify it's up at `http://localhost:8000/api/v1/health` before proceeding.
+The SPA catch-all can return HTML for `/health`; require the JSON health response.
+If port 8000 is occupied, use `just be-dev 8002` and
+`just fe-run-ngrok http://127.0.0.1:8002` for the local desktop session.
+Do not stop another process just to claim the default port.
 
-## Step 2 — Launch the Flutter App via Dart MCP
+## Step 2 — Launch the Flutter App
 
 Prefer Android (real device) > Linux desktop > Chrome (not supported).
+
+Always launch through a project `just` recipe. Some Dart MCP versions expose
+DTD connections and inspection without `launch_app`/`stop_app`. In that case
+use `just fe-run` (Linux), read the VM service URI from its output, then use
+DTD `listDtdUris` → `connect` and Marionette `connect`. Stop that owned
+`just` session with `q`. On Linux, `just dev-deps` must include libmpv; without
+sudo, use the documented `just dev-deps-user` local libraries.
 
 ```
 list_devices   → check for a real Android device (emulator: false, targetPlatform: android-arm64)

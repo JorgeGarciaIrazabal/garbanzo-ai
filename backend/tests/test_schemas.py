@@ -37,6 +37,34 @@ class TestChatMessage:
 
 
 class TestChatMessageOut:
+    @pytest.mark.parametrize("headline", ["✅ Workflow finished", "⚠️ Workflow failed"])
+    def test_hides_legacy_workflow_reference_without_removing_report(self, headline):
+        body = "Run ID: a public research identifier\nThe result is 917.63."
+        out = ChatMessageOut(
+            id="completion",
+            role="assistant",
+            content=(
+                f"{headline}\nRun ID: private-run\n"
+                "Use workflow_outputs to read the complete report and generated files.\n\n"
+                f"{body}"
+            ),
+            created_at=datetime.now(),
+            meta={"workflow_run_id": "private-run"},
+        )
+        assert out.content == f"{headline}\n\n{body}"
+        assert out.meta["workflow_run_id"] == "private-run"
+
+    def test_preserves_ordinary_message_with_workflow_words(self):
+        content = "Run ID: private-run\nUse workflow_outputs in an example."
+        out = ChatMessageOut(
+            id="ordinary",
+            role="assistant",
+            content=content,
+            created_at=datetime.now(),
+            meta=None,
+        )
+        assert out.content == content
+
     @pytest.mark.parametrize("role", ["tool_call", "tool_result"])
     def test_accepts_tool_roles(self, role):
         """Regression: tool_call/tool_result rows must validate when serialized

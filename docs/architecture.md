@@ -94,7 +94,10 @@ services/      chat_service.py (turn orchestration + tool loop)
                 asyncio task — it outlives the request, so progress is
                 persisted on WorkflowRun instead of streamed. On completion the
                 summary is written back as an assistant message in the originating
-                session epoch, with a literal run ID and output retrieval hint.
+                session epoch. The run ID stays in message metadata and is
+                injected into provider-only system context for follow-up reads;
+                completion text does not expose IDs or tool instructions.
+                Serialization hides the exact legacy retrieval preamble too.
                 Topic ingestion retains scope.originating_topic_id.
                 workflow_outputs.py snapshots bounded immutable bytes into
                 WorkflowArtifact before terminal status commits; research
@@ -183,7 +186,11 @@ features/chat/
                       a completed run is never launched again after restart;
                       on completion it calls back into ChatProvider to reload
                       the conversation, so the summary the runner wrote
-                      server-side actually appears)
+                      server-side actually appears. WorkflowCompletionNotice
+                      hydrates runs independently of visible proposal tiles,
+                      remains above the composer for terminal runs in the
+                      current epoch, and opens the result in a dialog.
+                      Explicit dismissals persist on the device.)
   services/          chat_service.dart (CRUD + SSE streaming),
                      audio_service.dart (STT/TTS), tts_audio_source.dart
                      (seekable temporary files on Android; in-memory sources

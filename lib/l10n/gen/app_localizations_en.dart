@@ -2465,6 +2465,20 @@ class AppLocalizationsEn extends AppLocalizations {
   String get messageWorkflowDone => 'Workflow finished';
 
   @override
+  String get messageWorkflowViewResult => 'View result';
+
+  @override
+  String get messageWorkflowLoadFailed =>
+      'Couldn\'t load workflow results. Try again.';
+
+  @override
+  String get messageWorkflowDismissFailed =>
+      'Couldn\'t dismiss the completion notice. Try again.';
+
+  @override
+  String get messageWorkflowNoReport => 'No report was produced.';
+
+  @override
   String get messageWorkflowFailed => 'Workflow failed';
 
   @override
