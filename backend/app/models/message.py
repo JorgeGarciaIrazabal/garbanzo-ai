@@ -2,7 +2,7 @@ import time
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import BigInteger, DateTime, ForeignKey, Index, Integer, String, Text, func
+from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, Index, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -29,6 +29,13 @@ class Message(Base):
         comment="One of: user, assistant, system, tool_call, tool_result",
     )
     content: Mapped[str] = mapped_column(Text, nullable=False)
+    is_starred: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default="false",
+        comment="Owner bookmark only; does not pin topic context or create memory",
+    )
     meta: Mapped[dict | None] = mapped_column(
         JSONB,
         nullable=True,

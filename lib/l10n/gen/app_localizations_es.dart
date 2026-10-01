@@ -3515,4 +3515,14 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get talkModeVoice => 'Voz de conversación';
+
+  @override
+  String get starMessage => 'Destacar mensaje';
+
+  @override
+  String get unstarMessage => 'Quitar destacado';
+
+  @override
+  String get messageStarUpdateFailed =>
+      'No se pudo actualizar el destacado del mensaje. Inténtalo de nuevo.';
 }

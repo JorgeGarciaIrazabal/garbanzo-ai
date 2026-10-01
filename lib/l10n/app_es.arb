@@ -2987,5 +2987,8 @@
   "readAloudSpanishVoice": "Voz de España para lectura",
   "readAloudPreview": "Escuchar muestra de voz",
   "readAloudVoicesUnavailable": "Las voces de lectura no están disponibles. Inténtalo más tarde.",
-  "talkModeVoice": "Voz de conversación"
+  "talkModeVoice": "Voz de conversación",
+  "starMessage": "Destacar mensaje",
+  "unstarMessage": "Quitar destacado",
+  "messageStarUpdateFailed": "No se pudo actualizar el destacado del mensaje. Inténtalo de nuevo."
 }

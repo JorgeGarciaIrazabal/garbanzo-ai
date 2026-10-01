@@ -16,7 +16,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$ChatMessage {
 
- String get id; String get role; String get content; DateTime get createdAt;@JsonKey(readValue: _readMetadata) Map<String, dynamic>? get metadata;@JsonKey(includeFromJson: false, includeToJson: false) List<ChatAttachment> get attachments;
+ String get id; String get role; String get content; DateTime get createdAt; bool get isStarred;@JsonKey(readValue: _readMetadata) Map<String, dynamic>? get metadata;@JsonKey(includeFromJson: false, includeToJson: false) List<ChatAttachment> get attachments;
 /// Create a copy of ChatMessage
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -29,16 +29,16 @@ $ChatMessageCopyWith<ChatMessage> get copyWith => _$ChatMessageCopyWithImpl<Chat
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ChatMessage&&(identical(other.id, id) || other.id == id)&&(identical(other.role, role) || other.role == role)&&(identical(other.content, content) || other.content == content)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&const DeepCollectionEquality().equals(other.metadata, metadata)&&const DeepCollectionEquality().equals(other.attachments, attachments));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ChatMessage&&(identical(other.id, id) || other.id == id)&&(identical(other.role, role) || other.role == role)&&(identical(other.content, content) || other.content == content)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.isStarred, isStarred) || other.isStarred == isStarred)&&const DeepCollectionEquality().equals(other.metadata, metadata)&&const DeepCollectionEquality().equals(other.attachments, attachments));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,role,content,createdAt,const DeepCollectionEquality().hash(metadata),const DeepCollectionEquality().hash(attachments));
+int get hashCode => Object.hash(runtimeType,id,role,content,createdAt,isStarred,const DeepCollectionEquality().hash(metadata),const DeepCollectionEquality().hash(attachments));
 
 @override
 String toString() {
-  return 'ChatMessage(id: $id, role: $role, content: $content, createdAt: $createdAt, metadata: $metadata, attachments: $attachments)';
+  return 'ChatMessage(id: $id, role: $role, content: $content, createdAt: $createdAt, isStarred: $isStarred, metadata: $metadata, attachments: $attachments)';
 }
 
 
@@ -49,7 +49,7 @@ abstract mixin class $ChatMessageCopyWith<$Res>  {
   factory $ChatMessageCopyWith(ChatMessage value, $Res Function(ChatMessage) _then) = _$ChatMessageCopyWithImpl;
 @useResult
 $Res call({
- String id, String role, String content, DateTime createdAt,@JsonKey(readValue: _readMetadata) Map<String, dynamic>? metadata,@JsonKey(includeFromJson: false, includeToJson: false) List<ChatAttachment> attachments
+ String id, String role, String content, DateTime createdAt, bool isStarred,@JsonKey(readValue: _readMetadata) Map<String, dynamic>? metadata,@JsonKey(includeFromJson: false, includeToJson: false) List<ChatAttachment> attachments
 });
 
 
@@ -66,13 +66,14 @@ class _$ChatMessageCopyWithImpl<$Res>
 
 /// Create a copy of ChatMessage
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? role = null,Object? content = null,Object? createdAt = null,Object? metadata = freezed,Object? attachments = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? role = null,Object? content = null,Object? createdAt = null,Object? isStarred = null,Object? metadata = freezed,Object? attachments = null,}) {
   return _then(ChatMessage(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,role: null == role ? _self.role : role // ignore: cast_nullable_to_non_nullable
 as String,content: null == content ? _self.content : content // ignore: cast_nullable_to_non_nullable
 as String,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
-as DateTime,metadata: freezed == metadata ? _self.metadata : metadata // ignore: cast_nullable_to_non_nullable
+as DateTime,isStarred: null == isStarred ? _self.isStarred : isStarred // ignore: cast_nullable_to_non_nullable
+as bool,metadata: freezed == metadata ? _self.metadata : metadata // ignore: cast_nullable_to_non_nullable
 as Map<String, dynamic>?,attachments: null == attachments ? _self.attachments : attachments // ignore: cast_nullable_to_non_nullable
 as List<ChatAttachment>,
   ));
@@ -159,10 +160,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String role,  String content,  DateTime createdAt, @JsonKey(readValue: _readMetadata)  Map<String, dynamic>? metadata, @JsonKey(includeFromJson: false, includeToJson: false)  List<ChatAttachment> attachments)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String role,  String content,  DateTime createdAt,  bool isStarred, @JsonKey(readValue: _readMetadata)  Map<String, dynamic>? metadata, @JsonKey(includeFromJson: false, includeToJson: false)  List<ChatAttachment> attachments)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _ChatMessage() when $default != null:
-return $default(_that.id,_that.role,_that.content,_that.createdAt,_that.metadata,_that.attachments);case _:
+return $default(_that.id,_that.role,_that.content,_that.createdAt,_that.isStarred,_that.metadata,_that.attachments);case _:
   return orElse();
 
 }
@@ -180,10 +181,10 @@ return $default(_that.id,_that.role,_that.content,_that.createdAt,_that.metadata
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String role,  String content,  DateTime createdAt, @JsonKey(readValue: _readMetadata)  Map<String, dynamic>? metadata, @JsonKey(includeFromJson: false, includeToJson: false)  List<ChatAttachment> attachments)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String role,  String content,  DateTime createdAt,  bool isStarred, @JsonKey(readValue: _readMetadata)  Map<String, dynamic>? metadata, @JsonKey(includeFromJson: false, includeToJson: false)  List<ChatAttachment> attachments)  $default,) {final _that = this;
 switch (_that) {
 case _ChatMessage():
-return $default(_that.id,_that.role,_that.content,_that.createdAt,_that.metadata,_that.attachments);case _:
+return $default(_that.id,_that.role,_that.content,_that.createdAt,_that.isStarred,_that.metadata,_that.attachments);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -200,10 +201,10 @@ return $default(_that.id,_that.role,_that.content,_that.createdAt,_that.metadata
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String role,  String content,  DateTime createdAt, @JsonKey(readValue: _readMetadata)  Map<String, dynamic>? metadata, @JsonKey(includeFromJson: false, includeToJson: false)  List<ChatAttachment> attachments)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String role,  String content,  DateTime createdAt,  bool isStarred, @JsonKey(readValue: _readMetadata)  Map<String, dynamic>? metadata, @JsonKey(includeFromJson: false, includeToJson: false)  List<ChatAttachment> attachments)?  $default,) {final _that = this;
 switch (_that) {
 case _ChatMessage() when $default != null:
-return $default(_that.id,_that.role,_that.content,_that.createdAt,_that.metadata,_that.attachments);case _:
+return $default(_that.id,_that.role,_that.content,_that.createdAt,_that.isStarred,_that.metadata,_that.attachments);case _:
   return null;
 
 }
@@ -215,13 +216,14 @@ return $default(_that.id,_that.role,_that.content,_that.createdAt,_that.metadata
 @JsonSerializable()
 
 class _ChatMessage extends ChatMessage {
-  const _ChatMessage({required this.id, required this.role, required this.content, required this.createdAt, @JsonKey(readValue: _readMetadata)  Map<String, dynamic>? metadata, @JsonKey(includeFromJson: false, includeToJson: false)  List<ChatAttachment> attachments = const []}): _metadata = metadata,_attachments = attachments,super._();
+  const _ChatMessage({required this.id, required this.role, required this.content, required this.createdAt, this.isStarred = false, @JsonKey(readValue: _readMetadata)  Map<String, dynamic>? metadata, @JsonKey(includeFromJson: false, includeToJson: false)  List<ChatAttachment> attachments = const []}): _metadata = metadata,_attachments = attachments,super._();
   factory _ChatMessage.fromJson(Map<String, dynamic> json) => _$ChatMessageFromJson(json);
 
 @override final  String id;
 @override final  String role;
 @override final  String content;
 @override final  DateTime createdAt;
+@override@JsonKey() final  bool isStarred;
  final  Map<String, dynamic>? _metadata;
 @override@JsonKey(readValue: _readMetadata) Map<String, dynamic>? get metadata {
   final value = _metadata;
@@ -252,16 +254,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ChatMessage&&(identical(other.id, id) || other.id == id)&&(identical(other.role, role) || other.role == role)&&(identical(other.content, content) || other.content == content)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&const DeepCollectionEquality().equals(other._metadata, _metadata)&&const DeepCollectionEquality().equals(other._attachments, _attachments));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ChatMessage&&(identical(other.id, id) || other.id == id)&&(identical(other.role, role) || other.role == role)&&(identical(other.content, content) || other.content == content)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.isStarred, isStarred) || other.isStarred == isStarred)&&const DeepCollectionEquality().equals(other._metadata, _metadata)&&const DeepCollectionEquality().equals(other._attachments, _attachments));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,role,content,createdAt,const DeepCollectionEquality().hash(_metadata),const DeepCollectionEquality().hash(_attachments));
+int get hashCode => Object.hash(runtimeType,id,role,content,createdAt,isStarred,const DeepCollectionEquality().hash(_metadata),const DeepCollectionEquality().hash(_attachments));
 
 @override
 String toString() {
-  return 'ChatMessage(id: $id, role: $role, content: $content, createdAt: $createdAt, metadata: $metadata, attachments: $attachments)';
+  return 'ChatMessage(id: $id, role: $role, content: $content, createdAt: $createdAt, isStarred: $isStarred, metadata: $metadata, attachments: $attachments)';
 }
 
 
@@ -272,7 +274,7 @@ abstract mixin class _$ChatMessageCopyWith<$Res> implements $ChatMessageCopyWith
   factory _$ChatMessageCopyWith(_ChatMessage value, $Res Function(_ChatMessage) _then) = __$ChatMessageCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String role, String content, DateTime createdAt,@JsonKey(readValue: _readMetadata) Map<String, dynamic>? metadata,@JsonKey(includeFromJson: false, includeToJson: false) List<ChatAttachment> attachments
+ String id, String role, String content, DateTime createdAt, bool isStarred,@JsonKey(readValue: _readMetadata) Map<String, dynamic>? metadata,@JsonKey(includeFromJson: false, includeToJson: false) List<ChatAttachment> attachments
 });
 
 
@@ -289,13 +291,14 @@ class __$ChatMessageCopyWithImpl<$Res>
 
 /// Create a copy of ChatMessage
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? role = null,Object? content = null,Object? createdAt = null,Object? metadata = freezed,Object? attachments = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? role = null,Object? content = null,Object? createdAt = null,Object? isStarred = null,Object? metadata = freezed,Object? attachments = null,}) {
   return _then(_ChatMessage(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,role: null == role ? _self.role : role // ignore: cast_nullable_to_non_nullable
 as String,content: null == content ? _self.content : content // ignore: cast_nullable_to_non_nullable
 as String,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
-as DateTime,metadata: freezed == metadata ? _self._metadata : metadata // ignore: cast_nullable_to_non_nullable
+as DateTime,isStarred: null == isStarred ? _self.isStarred : isStarred // ignore: cast_nullable_to_non_nullable
+as bool,metadata: freezed == metadata ? _self._metadata : metadata // ignore: cast_nullable_to_non_nullable
 as Map<String, dynamic>?,attachments: null == attachments ? _self._attachments : attachments // ignore: cast_nullable_to_non_nullable
 as List<ChatAttachment>,
   ));

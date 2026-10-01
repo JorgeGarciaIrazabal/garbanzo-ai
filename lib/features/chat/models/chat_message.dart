@@ -19,6 +19,7 @@ abstract class ChatMessage with _$ChatMessage {
     required String role,
     required String content,
     required DateTime createdAt,
+    @Default(false) bool isStarred,
     @JsonKey(readValue: _readMetadata) Map<String, dynamic>? metadata,
     @Default([])
     @JsonKey(includeFromJson: false, includeToJson: false)

@@ -17,6 +17,7 @@ import 'package:garbanzo_ai/features/chat/widgets/message/message_metadata.dart'
 import 'package:garbanzo_ai/features/chat/widgets/message/regenerate_button.dart';
 import 'package:garbanzo_ai/features/chat/widgets/message/reveal_on_hover.dart';
 import 'package:garbanzo_ai/features/chat/widgets/message/speak_button.dart';
+import 'package:garbanzo_ai/features/chat/widgets/message/star_button.dart';
 import 'package:garbanzo_ai/features/chat/widgets/message/thinking_content.dart';
 import 'package:garbanzo_ai/features/chat/widgets/remember_this_button.dart';
 import 'package:garbanzo_ai/features/chat/widgets/tool_bubble_widget.dart';
@@ -161,14 +162,23 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
           ),
           if (message.content.isNotEmpty)
             RevealOnHover(
-              revealed: _hovered,
+              revealed: _hovered || message.isStarred,
               child: Padding(
                 padding: const EdgeInsets.only(top: 4, right: 4),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  alignment: WrapAlignment.end,
                   children: [
                     CopyButton(content: message.content),
-                    const SizedBox(width: 8),
+                    if (widget.conversationId != null &&
+                        !widget.isStreaming &&
+                        !message.id.startsWith('temp-')) ...[
+                      StarButton(
+                        message: message,
+                        conversationId: widget.conversationId!,
+                      ),
+                    ],
                     if (!message.id.startsWith('temp-'))
                       Builder(
                         builder: (ctx) {
@@ -181,13 +191,11 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
                           );
                         },
                       ),
-                    const SizedBox(width: 8),
                     RememberThisButton(
                       content: message.content,
                       sourceConversationId: widget.conversationId,
                     ),
                     if (!message.id.startsWith('temp-')) ...[
-                      const SizedBox(width: 8),
                       Builder(
                         builder: (ctx) {
                           final chat = ctx.watch<ChatProvider>();
@@ -306,6 +314,7 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
             RevealOnHover(
               revealed:
                   _hovered ||
+                  message.isStarred ||
                   widget.isLastAssistant ||
                   context.select<ReadAloudController, bool>(
                     (c) => c.active && c.messageId == message.id,
@@ -318,6 +327,13 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     CopyButton(content: effectiveContent),
+                    if (widget.conversationId != null &&
+                        message.isAssistant &&
+                        !message.id.startsWith('temp-'))
+                      StarButton(
+                        message: message,
+                        conversationId: widget.conversationId!,
+                      ),
                     SpeakButton(
                       content: effectiveContent,
                       messageId: message.id,

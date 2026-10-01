@@ -6086,6 +6086,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Talk Mode voice'**
   String get talkModeVoice;
+
+  /// Message bookmark action or failure notice.
+  ///
+  /// In en, this message translates to:
+  /// **'Star message'**
+  String get starMessage;
+
+  /// Message bookmark action or failure notice.
+  ///
+  /// In en, this message translates to:
+  /// **'Unstar message'**
+  String get unstarMessage;
+
+  /// Message bookmark action or failure notice.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not update the message star. Please try again.'**
+  String get messageStarUpdateFailed;
 }
 
 class _AppLocalizationsDelegate

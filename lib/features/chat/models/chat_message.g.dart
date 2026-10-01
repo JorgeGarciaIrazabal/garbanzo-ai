@@ -11,6 +11,7 @@ _ChatMessage _$ChatMessageFromJson(Map<String, dynamic> json) => _ChatMessage(
   role: json['role'] as String,
   content: json['content'] as String,
   createdAt: DateTime.parse(json['created_at'] as String),
+  isStarred: json['is_starred'] as bool? ?? false,
   metadata: _readMetadata(json, 'metadata') as Map<String, dynamic>?,
 );
 
@@ -20,6 +21,7 @@ Map<String, dynamic> _$ChatMessageToJson(_ChatMessage instance) =>
       'role': instance.role,
       'content': instance.content,
       'created_at': instance.createdAt.toIso8601String(),
+      'is_starred': instance.isStarred,
       'metadata': instance.metadata,
     };
 

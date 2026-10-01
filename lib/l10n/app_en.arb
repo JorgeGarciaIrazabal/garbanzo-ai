@@ -4297,5 +4297,11 @@
   "readAloudSpanishVoice": "Read-aloud Spain Spanish voice",
   "readAloudPreview": "Preview voice",
   "readAloudVoicesUnavailable": "Read-aloud voices are unavailable. Try again later.",
-  "talkModeVoice": "Talk Mode voice"
+  "talkModeVoice": "Talk Mode voice",
+  "starMessage": "Star message",
+  "@starMessage": {"description": "Message bookmark action or failure notice."},
+  "unstarMessage": "Unstar message",
+  "@unstarMessage": {"description": "Message bookmark action or failure notice."},
+  "messageStarUpdateFailed": "Could not update the message star. Please try again.",
+  "@messageStarUpdateFailed": {"description": "Message bookmark action or failure notice."}
 }

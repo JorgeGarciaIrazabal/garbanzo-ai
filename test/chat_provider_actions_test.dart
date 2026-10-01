@@ -71,6 +71,24 @@ class _FakeChatService extends ChatService {
   /// When set, the corresponding call throws instead of succeeding.
   Exception? streamChatError;
   Exception? branchError;
+  Completer<bool>? starCompletion;
+  Completer<Conversation>? loadCompletion;
+  Exception? starError;
+  final List<({String conversationId, String messageId, bool isStarred})> starCalls = [];
+
+  @override
+  Future<bool> setMessageStar(String conversationId, String messageId,
+      {required bool isStarred}) async {
+    starCalls.add((conversationId: conversationId, messageId: messageId, isStarred: isStarred));
+    if (starError != null) throw starError!;
+    final saved = starCompletion == null ? isStarred : await starCompletion!.future;
+    final conversation = conversationsById[conversationId]!;
+    conversationsById[conversationId] = conversation.copyWith(messages: [
+      for (final message in conversation.messages ?? <ChatMessage>[])
+        if (message.id == messageId) message.copyWith(isStarred: saved) else message,
+    ]);
+    return saved;
+  }
 
   @override
   Future<Conversation> createConversation({
@@ -113,6 +131,7 @@ class _FakeChatService extends ChatService {
     int? messageLimit,
     bool silent = false,
   }) async {
+    if (loadCompletion != null) return loadCompletion!.future;
     return conversationsById[conversationId]!;
   }
 
@@ -243,6 +262,135 @@ Future<ChatProvider> _openConversation(_FakeChatService service) async {
 Future<void> _pump() => Future<void>.delayed(Duration.zero);
 
 void main() {
+  group('message stars', () {
+    test('persists a star across reload and supports unstar', () async {
+      final service = _FakeChatService()..seedMessages('conv-1', [_msg('a1', 'assistant', 'answer')]);
+      final provider = await _openConversation(service);
+      addTearDown(provider.dispose);
+      expect(await provider.setMessageStar('a1', isStarred: true), isTrue);
+      expect(provider.messages.single.isStarred, isTrue);
+      await provider.reloadCurrentConversationForTest();
+      expect(provider.messages.single.isStarred, isTrue);
+      await provider.setMessageStar('a1', isStarred: false);
+      expect(provider.messages.single.isStarred, isFalse);
+    });
+
+    test('serializes clicks and defers reloads until the star is saved', () async {
+      final service = _FakeChatService()
+        ..seedMessages('conv-1', [_msg('a1', 'assistant', 'answer')])
+        ..starCompletion = Completer<bool>();
+      final provider = await _openConversation(service);
+      addTearDown(provider.dispose);
+      final pending = provider.setMessageStar('a1', isStarred: true);
+      expect(provider.isUpdatingMessageStar('a1'), isTrue);
+      expect(await provider.setMessageStar('a1', isStarred: true), isFalse);
+      expect(await provider.reloadCurrentConversationForTest(), isFalse);
+      expect(service.starCalls, hasLength(1));
+      service.starCompletion!.complete(true);
+      await pending;
+      expect(provider.isUpdatingMessageStar('a1'), isFalse);
+      expect(provider.messages.single.isStarred, isTrue);
+    });
+
+    test('a late star response does not overwrite an edited message', () async {
+      final service = _FakeChatService()
+        ..seedMessages('conv-1', [_msg('u1', 'user', 'original')])
+        ..starCompletion = Completer<bool>();
+      final provider = await _openConversation(service);
+      addTearDown(provider.dispose);
+      final pending = provider.setMessageStar('u1', isStarred: true);
+      await provider.editUserMessage('u1', 'edited');
+      service.starCompletion!.complete(true);
+      await pending;
+      expect(provider.messages.first.content, 'edited');
+      expect(provider.messages.first.isStarred, isTrue);
+      service.seedMessages('conv-1', [
+        _msg('u1', 'user', 'edited').copyWith(isStarred: true),
+        _msg('a1', 'assistant', 'new answer'),
+      ]);
+      service.controller.add(const ChatResponseChunk(type: 'chunk', content: 'new answer'));
+      service.controller.add(const ChatResponseChunk(type: 'done'));
+      await service.controller.close();
+      await _pump();
+      await _pump();
+      expect(provider.messages.last.content, 'new answer');
+      expect(provider.isSending, isFalse);
+    });
+
+    test('a reload started before a save cannot erase the saved star', () async {
+      final service = _FakeChatService()
+        ..seedMessages('conv-1', [_msg('a1', 'assistant', 'answer')]);
+      final provider = await _openConversation(service);
+      addTearDown(provider.dispose);
+      final stale = service.conversationsById['conv-1']!;
+      service.loadCompletion = Completer<Conversation>();
+      final reload = provider.reloadCurrentConversationForTest();
+      await provider.setMessageStar('a1', isStarred: true);
+      service.loadCompletion!.complete(stale);
+      expect(await reload, isFalse);
+      expect(provider.messages.single.isStarred, isTrue);
+    });
+
+    test('reselecting a conversation during a save merges its newer confirmed star', () async {
+      final service = _FakeChatService()
+        ..seedMessages('conv-1', [_msg('a1', 'assistant', 'answer')])
+        ..starCompletion = Completer<bool>();
+      final provider = await _openConversation(service);
+      addTearDown(provider.dispose);
+      final stale = service.conversationsById['conv-1']!;
+      final save = provider.setMessageStar('a1', isStarred: true);
+      service.loadCompletion = Completer<Conversation>();
+      final load = provider.loadConversation('conv-1');
+      service.starCompletion!.complete(true);
+      await save;
+      service.loadCompletion!.complete(stale);
+      await load;
+      expect(provider.messages.single.content, 'answer');
+      expect(provider.messages.single.isStarred, isTrue);
+      expect(provider.currentConversation!.messages!.single.isStarred, isTrue);
+    });
+
+    test('late star results do not affect a different conversation', () async {
+      final service = _FakeChatService()
+        ..seedMessages('conv-1', [_msg('a1', 'assistant', 'old')])
+        ..starCompletion = Completer<bool>();
+      service.conversationsById['conv-2'] = _FakeChatService._conversation('conv-2',
+          messages: [_msg('a2', 'assistant', 'new')]);
+      final provider = await _openConversation(service);
+      addTearDown(provider.dispose);
+      final pending = provider.setMessageStar('a1', isStarred: true);
+      await provider.loadConversation('conv-2');
+      service.starCompletion!.complete(true);
+      await pending;
+      expect(provider.currentConversation!.id, 'conv-2');
+      expect(provider.messages.single.id, 'a2');
+      expect(provider.messages.single.isStarred, isFalse);
+    });
+
+    test('failed saves preserve state and expose the error', () async {
+      final service = _FakeChatService()
+        ..seedMessages('conv-1', [_msg('a1', 'assistant', 'answer')])
+        ..starError = Exception('save failed');
+      final provider = await _openConversation(service);
+      addTearDown(provider.dispose);
+      expect(await provider.setMessageStar('a1', isStarred: true), isFalse);
+      expect(provider.messages.single.isStarred, isFalse);
+      expect(provider.error, contains('save failed'));
+      expect(provider.isUpdatingMessageStar('a1'), isFalse);
+    });
+
+    test('temporary and machinery messages never call the star API', () async {
+      final service = _FakeChatService()..seedMessages('conv-1', [
+        _msg('temp-a', 'assistant', 'draft'), _msg('tool', 'tool_result', 'result'),
+      ]);
+      final provider = await _openConversation(service);
+      addTearDown(provider.dispose);
+      expect(await provider.setMessageStar('temp-a', isStarred: true), isFalse);
+      expect(await provider.setMessageStar('tool', isStarred: true), isFalse);
+      expect(service.starCalls, isEmpty);
+    });
+  });
+
   group('regenerateLastAssistant', () {
     test('trims the old reply, re-streams, and reconciles with the server',
         () async {

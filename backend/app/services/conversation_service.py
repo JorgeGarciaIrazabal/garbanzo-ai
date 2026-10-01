@@ -7,7 +7,7 @@ import time
 import uuid
 from dataclasses import dataclass
 
-from sqlalchemy import desc, func, select
+from sqlalchemy import desc, func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -469,6 +469,24 @@ class ConversationService:
             await self.db.commit()
         logger.info("Deleted conversation %s for user %s", conversation_id, user_id)
         return True
+
+    async def set_message_star(
+        self, conversation_id: str, message_id: str, user_id: str, *, is_starred: bool
+    ) -> Message | None:
+        """Set a bookmark atomically, scoped to an owned, non-deleted chat."""
+        owned = Conversation.active(user_id).where(Conversation.id == conversation_id)
+        message = await self.db.scalar(
+            update(Message)
+            .where(
+                Message.id == message_id,
+                Message.conversation_id.in_(owned.with_only_columns(Conversation.id)),
+                Message.role.in_(("user", "assistant")),
+            )
+            .values(is_starred=is_starred)
+            .returning(Message)
+        )
+        await self.db.commit()
+        return message
 
     async def branch_from_message(
         self, conversation_id: str, message_id: str, user_id: str

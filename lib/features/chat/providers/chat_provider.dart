@@ -103,6 +103,81 @@ class ChatProvider extends ChangeNotifier {
   List<ChatMessage> _messages = [];
   List<ChatMessage> get messages => List.unmodifiable(_messages);
 
+  final Set<({String conversationId, String messageId})> _starUpdates = {};
+  int _starEpoch = 0;
+  final Map<
+    ({String conversationId, String messageId}),
+    ({int epoch, bool isStarred})
+  >
+  _confirmedStars = {};
+  bool _disposed = false;
+
+  bool isUpdatingMessageStar(String messageId) => _starUpdates.contains((
+    conversationId: _currentConversation?.id ?? '',
+    messageId: messageId,
+  ));
+
+  /// Bookmarks are confirmed by the server before updating the visible flag.
+  /// Only that flag is merged so a delayed response cannot replace message text.
+  Future<bool> setMessageStar(
+    String messageId, {
+    required bool isStarred,
+  }) async {
+    final conversation = _currentConversation;
+    final message = _messages.where((m) => m.id == messageId).firstOrNull;
+    if (_disposed ||
+        conversation == null ||
+        isSending ||
+        message == null ||
+        messageId.startsWith('temp-') ||
+        (!message.isUser && !message.isAssistant)) {
+      return false;
+    }
+    final key = (conversationId: conversation.id, messageId: messageId);
+    if (!_starUpdates.add(key)) return false;
+    _starEpoch++;
+    _clearError();
+    notifyListeners();
+    bool stillVisible() =>
+        !_disposed &&
+        _currentConversation?.id == conversation.id &&
+        _currentConversation?.sessionEpoch == conversation.sessionEpoch;
+    try {
+      final saved = await _chatService.setMessageStar(
+        conversation.id,
+        messageId,
+        isStarred: isStarred,
+      );
+      if (!_disposed) {
+        _confirmedStars[key] = (epoch: ++_starEpoch, isStarred: saved);
+      }
+      if (stillVisible()) {
+        _messages = [
+          for (final current in _messages)
+            if (current.id == messageId)
+              current.copyWith(isStarred: saved)
+            else
+              current,
+        ];
+        _currentConversation = _currentConversation!.copyWith(
+          messages: _messages,
+        );
+      }
+      return true;
+    } catch (e) {
+      if (stillVisible()) {
+        _setError('Failed to update message star: $e');
+      }
+      return false;
+    } finally {
+      _starUpdates.remove(key);
+      if (!_disposed) {
+        _starEpoch++;
+        notifyListeners();
+      }
+    }
+  }
+
   // Initial/reload window size (B-03): a full multi-hundred-message history
   // is slow to transfer and parse, so only this many recent messages are
   // fetched up front. Older ones page in on demand via loadOlderMessages.
@@ -234,13 +309,17 @@ class ChatProvider extends ChangeNotifier {
     _actionEpoch++;
     notifyListeners();
 
+    final starEpoch = _starEpoch;
     try {
       final conversation = await _chatService.getConversation(
         conversationId,
         messageLimit: _messageWindow,
       );
-      _currentConversation = conversation;
-      _messages = _hydrateAttachments(conversation.messages ?? []);
+      _messages = [
+        for (final message in _hydrateAttachments(conversation.messages ?? []))
+          _mergeConfirmedStar(conversationId, message, starEpoch),
+      ];
+      _currentConversation = conversation.copyWith(messages: _messages);
       _setErrorContext();
       // Loading an existing conversation discards any folder the user picked
       // on a new-chat composer — it belonged to the chat they were about to
@@ -251,6 +330,23 @@ class ChatProvider extends ChangeNotifier {
     } finally {
       notifyListeners();
     }
+  }
+
+  /// An explicit navigation GET may have read its snapshot before an in-flight
+  /// PATCH committed. Keep just the newer confirmed star, retaining server text.
+  ChatMessage _mergeConfirmedStar(
+    String conversationId,
+    ChatMessage message,
+    int readEpoch,
+  ) {
+    final saved =
+        _confirmedStars[(
+          conversationId: conversationId,
+          messageId: message.id,
+        )];
+    return saved != null && saved.epoch > readEpoch
+        ? message.copyWith(isStarred: saved.isStarred)
+        : message;
   }
 
   /// Applies the committed primary-topic boundary before topic listeners run.
@@ -1276,7 +1372,9 @@ class ChatProvider extends ChangeNotifier {
   Future<bool> _reloadCurrentConversation() async {
     final id = _currentConversation?.id;
     if (id == null) return false;
+    if (_starUpdates.any((key) => key.conversationId == id)) return false;
     final epoch = _actionEpoch;
+    final starEpoch = _starEpoch;
     try {
       // Request at least as many messages as are already displayed (which
       // grows if the user paged older ones in via loadOlderMessages) so this
@@ -1294,7 +1392,9 @@ class ChatProvider extends ChangeNotifier {
         // Transient 5xx shouldn't fire user-facing error reports.
         silent: true,
       );
-      if (epoch != _actionEpoch || _currentConversation?.id != id) {
+      if (epoch != _actionEpoch ||
+          starEpoch != _starEpoch ||
+          _currentConversation?.id != id) {
         return false; // stale — a newer action owns the state now
       }
       _currentConversation = conversation;
@@ -1374,6 +1474,7 @@ class ChatProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
     _stream.dispose();
     _responseRecoveryTimer?.cancel();
     _titleRefreshTimer?.cancel();

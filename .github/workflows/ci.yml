@@ -3,6 +3,8 @@ name: CI
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
 
 permissions:
   contents: read
@@ -81,7 +83,7 @@ jobs:
           fail_ci_if_error: false # keep uploads non-blocking; codecov.yml gates via status checks
 
   frontend:
-    name: Frontend (lint + test)
+    name: Frontend (lint + test + build)
     runs-on: ubuntu-latest
 
     steps:
@@ -106,6 +108,9 @@ jobs:
 
       - name: Test (flutter test with coverage)
         run: just fe-test-cov
+
+      - name: Build production web app
+        run: just fe-build
 
       - name: Record dependency freshness
         run: just ai-dart-audit

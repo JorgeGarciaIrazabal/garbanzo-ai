@@ -169,6 +169,13 @@ generates a new one.
 Use the fork button on any message to start a new conversation that shares
 history up to that point. The original conversation is untouched.
 
+## How do I bookmark a message?
+Choose **Star message** below a saved user message or assistant reply. The
+filled star stays visible and the bookmark survives reloads. Choose
+**Unstar message** to remove it. A reply becomes available to star after it
+finishes streaming. This bookmarks the message; it does not create a memory
+or pin a source in Active Context. Copies in a new branch start unstarred.
+
 ## How do I search my conversations?
 Use the search icon above the conversation list. Results match titles and
 message content.

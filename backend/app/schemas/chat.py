@@ -39,6 +39,7 @@ class ChatMessageOut(ChatMessage):
     created_at: datetime = Field(..., description="When created")
     meta: dict[str, Any] | None = Field(None, description="Metadata (tokens, timing, etc.)")
     session_epoch: int = Field(default=0, description="Session epoch within primary conversation")
+    is_starred: bool = Field(default=False, description="Bookmarked by the conversation owner")
     model_config = {"from_attributes": True}
 
     @model_validator(mode="after")
@@ -59,6 +60,16 @@ class ChatMessageOut(ChatMessage):
 
 
 # Chat request / options
+
+
+class MessageStarUpdate(BaseModel):
+    is_starred: bool = Field(..., strict=True, description="Desired bookmark state")
+
+
+class MessageStarOut(BaseModel):
+    id: str
+    is_starred: bool
+    model_config = {"from_attributes": True}
 
 
 class ChatOptions(BaseModel):
@@ -293,6 +304,7 @@ def message_out(msg: Any) -> ChatMessageOut:
         created_at=msg.created_at,
         meta=msg.meta,
         session_epoch=getattr(msg, "session_epoch", 0),
+        is_starred=getattr(msg, "is_starred", False),
     )
 
 

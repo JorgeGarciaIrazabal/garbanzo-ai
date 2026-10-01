@@ -91,6 +91,10 @@ File → current % → why it matters.
 `.github/workflows/ci.yml` runs `just be-test-cov` / `just fe-test-cov` on
 every push to `main` and every PR, then uploads the reports to Codecov with
 `codecov/codecov-action@v5` (one upload per flag: `backend`, `frontend`).
+The frontend job also runs `just fe-build` after its tests, compiling the
+production web app (including the WASM output) without deploying it. The
+workflow uses the `pull_request` event with `main` as its target branch, and
+keeps `contents: read` permissions.
 `codecov.yml` at the repo root configures status checks:
 
 - **project** — per-flag floors (`backend` 75%, `frontend` 25%) with a 1pp

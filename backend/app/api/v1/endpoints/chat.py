@@ -27,6 +27,8 @@ from app.schemas.chat import (
     EditMessageRequest,
     MatchedMessage,
     MessagePage,
+    MessageStarOut,
+    MessageStarUpdate,
     ModelList,
     RegenerateRequest,
     message_out,
@@ -57,6 +59,26 @@ def get_chat_service(
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> ChatService:
     return ChatService(db, provider_name=settings.llm_provider)
+
+
+@router.patch(
+    "/conversations/{conversation_id}/messages/{message_id}/star",
+    response_model=MessageStarOut,
+    summary="Set a message bookmark",
+)
+async def set_message_star(
+    conversation_id: str,
+    message_id: str,
+    data: MessageStarUpdate,
+    current_user: Annotated[dict[str, Any], Depends(get_current_user)],
+    service: Annotated[ChatService, Depends(get_chat_service)],
+) -> MessageStarOut:
+    message = await service.conversations.set_message_star(
+        conversation_id, message_id, current_user["email"], is_starred=data.is_starred
+    )
+    if message is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Message not found")
+    return MessageStarOut.model_validate(message)
 
 
 # =============================================================================

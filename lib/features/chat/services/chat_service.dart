@@ -30,6 +30,19 @@ class ChatService {
   // Conversations
   // ==========================================================================
 
+  Future<bool> setMessageStar(
+    String conversationId,
+    String messageId, {
+    required bool isStarred,
+  }) async {
+    final response = await _api.patch(
+      '/api/v1/chat/conversations/$conversationId/messages/$messageId/star',
+      data: {'is_starred': isStarred},
+    );
+    if (response.statusCode != 200) throw _handleError(response);
+    return (response.data as Map<String, dynamic>)['is_starred'] as bool;
+  }
+
   Future<Conversation> createConversation({
     String? title,
     String model = 'deepseek-v4.1-flash:cloud',

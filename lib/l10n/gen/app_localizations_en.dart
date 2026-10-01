@@ -3473,4 +3473,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get talkModeVoice => 'Talk Mode voice';
+
+  @override
+  String get starMessage => 'Star message';
+
+  @override
+  String get unstarMessage => 'Unstar message';
+
+  @override
+  String get messageStarUpdateFailed =>
+      'Could not update the message star. Please try again.';
 }
