@@ -4,6 +4,10 @@ Release notes for Garbanzo AI. Each entry is generated automatically on
 `just deploy` — an LLM (via opencode) writes it from the release's commits and
 the user reports it addressed. See `scripts/changelog-instructions.md`.
 
+## v1.0.37 — 2026-10-01
+
+- No user-facing changes.
+
 ## v1.0.36 — 2026-10-01
 
 - Delegated agent results are now easier to find and read in chat.
