@@ -25,6 +25,7 @@ Original backlog and notes: [.ai/backlog-source.md](.ai/backlog-source.md).
 - [x] **garbanzo-1eb** P2 [closed] **Scheduled messages** — "Remind me to do X at 3pm" parsed and stored as a cron job
 - [x] **garbanzo-1xpj** P2 [closed] pip-audit finding 42a9c4b1c1ba66c33d186744
 - [x] **garbanzo-21eg** P2 [closed] pip-audit finding 877743bb4951de5b32dead50
+- [ ] **garbanzo-282n** P2 [open] Evaluate read-aloud replacement before Android rebuild
 - [x] **garbanzo-2gv1** P2 [closed] pip-audit finding deb849e3f36d27d75c0d71bc
 - [ ] **garbanzo-2qj** P2 [open] Production report e59fe65f-d273-4e65-901d-4c60412a91ac
 - [x] **garbanzo-2xz** P2 [closed] **WebSocket support** — Replace or extend SSE with WebSocket connections so multiple users receive messages in real time
@@ -34,6 +35,7 @@ Original backlog and notes: [.ai/backlog-source.md](.ai/backlog-source.md).
 - [x] **garbanzo-3a0** P2 [closed] **Room member management** — Add/remove members, assign roles, transfer ownership
 - [ ] **garbanzo-3dq** P2 [open] **Composer controls** (in progress)
 - [x] **garbanzo-3kfj** P2 [closed] pip-audit finding 3237b8acd9904a4460d491f0
+- [ ] **garbanzo-3lgc** P2 [open] Default new-topic composer style and medium thinking
 - [ ] **garbanzo-3nu** P2 [open] Production report d61e1b18-6087-413b-95c4-c732f8415017
 - [x] **garbanzo-3ox2** P2 [closed] pip-audit finding dff69e12deb5ac72a98bbbdc
 - [x] **garbanzo-3ro** P2 [closed] **STT: faster-whisper service** — Dockerized `faster-whisper-server` (MIT) exposing `POST /v1/audio/transcriptions`; defaults to `large-v3`; swap for Parakeet TDT 0.6B v3 if an NVIDIA GPU is present
@@ -60,6 +62,7 @@ Original backlog and notes: [.ai/backlog-source.md](.ai/backlog-source.md).
 - [ ] **garbanzo-5m88** P2 [open] Production report 7ebe5951-4b26-442e-b7c5-e0334ee268d7
 - [x] **garbanzo-5we** P2 [closed] **Message metadata** — Toggle to show/hide message metadata (tokens, time for response, etc.)
 - [x] **garbanzo-5wp** P2 [closed] **Memory toggle per conversation** — Option to disable memory for a specific conversation
+- [ ] **garbanzo-64wh** P2 [open] Rebuild Talk Mode as a streaming Android voice session
 - [x] **garbanzo-6ac9** P2 [closed] pip-audit finding 370fbc79a8a17e91d24a2f16
 - [x] **garbanzo-6dc** P2 [closed] **TTS: Auto-play mode** — Setting to auto-play TTS for every new assistant message as it finishes streaming
 - [ ] **garbanzo-6ft** P2 [open] Production report f64f04fe-ace4-4e53-90e3-3430808de8aa
@@ -100,6 +103,7 @@ Original backlog and notes: [.ai/backlog-source.md](.ai/backlog-source.md).
 - [x] **garbanzo-a2y** P2 [closed] **TTS/STT: Voice settings UI** — Settings panel to choose: STT model (faster-whisper / Parakeet), TTS voice (from Kokoro's 48 voices), TTS language, and speaking speed
 - [ ] **garbanzo-a4s** P2 [open] Production report f1af13d5-cc31-42cd-a3d3-c72b9c8e2fc2
 - [ ] **garbanzo-aa0** P2 [open] Production report 0bb4a790-c1fe-49cd-bbb9-79d3afd0e0da
+- [ ] **garbanzo-aakl** P2 [open] Production report 500633a5-48bc-4169-a885-9b006fce71a9
 - [ ] **garbanzo-abx** P2 [open] Production report 4409163c-c155-4d32-b45b-ce00e2e0b7c0
 - [ ] **garbanzo-agv** P2 [open] Production report 148e2af4-7a9c-4a7c-b145-6f0354e6ed37
 - [ ] **garbanzo-aq8** P2 [open] **TTS: Chatterbox Turbo voice cloning** — Optional: allow users to upload a 5-second voice sample; backend forwards to a Chatterbox Turbo service for personalized TTS output (MIT license)
@@ -114,6 +118,7 @@ Original backlog and notes: [.ai/backlog-source.md](.ai/backlog-source.md).
 - [x] **garbanzo-bgq** P2 [closed] **Code syntax highlighting** — `flutter_highlight` or `google_code_prettify`; copy-code button per block
 - [ ] **garbanzo-c2d** P2 [open] Production report e7821fd7-331a-41e7-a936-889fca98ec04
 - [x] **garbanzo-c5r4** P2 [closed] Make controller workflow paths match their environments
+- [ ] **garbanzo-ccm2** P2 [open] Production report 5eaba487-a07b-46d6-b58c-e2c4b2fc237a
 - [x] **garbanzo-clx** P2 [closed] **MCP server configuration UI** — Add/remove/toggle MCP server connections (URL, auth, description)
 - [x] **garbanzo-cmq** P2 [closed] **Per-conversation tool selection** — Toggle which tools are enabled for a conversation
 - [x] **garbanzo-ctv** P2 [closed] **Per-conversation system prompt** — Editable in conversation settings panel
@@ -138,6 +143,7 @@ Original backlog and notes: [.ai/backlog-source.md](.ai/backlog-source.md).
 - [ ] **garbanzo-efr** P2 [open] Production report 996bb13c-7dcb-4379-8537-2d0821400f1c
 - [x] **garbanzo-eh5n** P2 [closed] Document a proportional low-overhead development workflow
 - [ ] **garbanzo-emv** P2 [open] Production report dd378e0d-c7e3-4662-bf1a-103e880fb745
+- [ ] **garbanzo-erd6** P2 [open] Migrate public access to Cloudflare Tunnel with ngrok coexistence
 - [ ] **garbanzo-esi** P2 [open] Production report 83f0ff9a-6062-4d74-a7f4-b45bcb3ad002
 - [x] **garbanzo-et2** P2 [closed] **Embedding generation** — Background job to chunk and embed uploaded documents
 - [x] **garbanzo-exf** P2 [closed] **Global default system prompt** — Set in user settings, applied to all new conversations
@@ -155,6 +161,7 @@ Original backlog and notes: [.ai/backlog-source.md](.ai/backlog-source.md).
 - [ ] **garbanzo-gyl** P2 [open] **Threads** (in progress)
 - [ ] **garbanzo-h2j** P2 [open] Production report 492c5924-d402-41bd-9102-48c3ae2dbe41
 - [ ] **garbanzo-h30** P2 [open] **Redis integration** — Cache model lists, rate-limit counters, and active stream state
+- [ ] **garbanzo-h81d** P2 [open] Production report 75bb1d17-210b-4ba3-898c-37fdd0a869bc
 - [ ] **garbanzo-h94** P2 [open] **Multi-tenancy / workspaces** — Group users under organizations with shared knowledge bases and settings
 - [x] **garbanzo-hpq** P2 [closed] **In-app notification center** — Bell icon with read/unread notifications list
 - [x] **garbanzo-hqx0** P2 [closed] pip-audit finding 832b777956c6559ed11edc40
@@ -190,10 +197,12 @@ Original backlog and notes: [.ai/backlog-source.md](.ai/backlog-source.md).
 - [ ] **garbanzo-m72** P2 [open] Production report 65cfa380-1878-4031-8553-64746b8762e1
 - [x] **garbanzo-m84** P2 [closed] **Moderator agent** — Special agent role that summarizes discussion, breaks deadlocks, or routes questions to the right agent
 - [ ] **garbanzo-m9fx** P2 [open] Production report d7e765ad-38b1-4e40-b474-ab54b1531ac5
+- [x] **garbanzo-mfoj** P2 [closed] Allow attachment-only messages from Topics landing
 - [ ] **garbanzo-mg0** P2 [open] Production report 248cf6f6-1a67-4fe6-a35f-0591600afd09
 - [x] **garbanzo-mh3** P2 [closed] **Presence indicators** — Show which users are currently online in the room
 - [x] **garbanzo-mtc0** P2 [closed] Make existing-session AI startup lightweight
 - [ ] **garbanzo-n0o** P2 [open] Production report 71e9d25d-870b-4584-a6f8-15e0157f56cf
+- [ ] **garbanzo-n8cr** P2 [open] Topics prelaunch correctness and switch contract
 - [x] **garbanzo-n8i1** P2 [closed] pip-audit finding 57156f42e4c069aa9750e436
 - [ ] **garbanzo-nb7** P2 [open] Production report c8d4ca2c-b500-4e8d-b775-81e4e1a57d83
 - [ ] **garbanzo-nu1** P2 [open] Production report 85743194-443e-4a0b-b5db-bc1c5cb518b3
@@ -230,6 +239,7 @@ Original backlog and notes: [.ai/backlog-source.md](.ai/backlog-source.md).
 - [x] **garbanzo-tf5d** P2 [closed] pip-audit finding 5e94cac535df879c9306b2cf
 - [ ] **garbanzo-tjh** P2 [open] Production report 96db15cb-241f-456e-b958-f1d429e92b54
 - [ ] **garbanzo-tm4** P2 [open] Production report 085bc037-f289-4dbe-955b-550daa6ec049
+- [ ] **garbanzo-to9u** P2 [open] Production report f8f664d8-675a-4e61-a87a-612a2888859d
 - [ ] **garbanzo-u2g** P2 [open] Production report 287e7666-22c5-402b-9846-05a39a3e134d
 - [x] **garbanzo-u4d** P2 [closed] **Message regeneration** — "Regenerate" button to re-run the last assistant response
 - [x] **garbanzo-ucl** P2 [closed] **Memory store DB model** — `UserMemory` table: id, user_id, content, source_conversation_id, created_at, is_active
@@ -239,7 +249,9 @@ Original backlog and notes: [.ai/backlog-source.md](.ai/backlog-source.md).
 - [x] **garbanzo-v70** P2 [closed] **Room creation UI** — Create a named room, set description, invite members by email
 - [x] **garbanzo-v8a3** P2 [closed] pip-audit finding 2ba7b3089da4ae21ea4a666b
 - [x] **garbanzo-v8vi** P2 [closed] pip-audit finding 6037786e317c5eaec70dda93
+- [ ] **garbanzo-vbc3** P2 [open] Production report e81b6b14-f6a3-4375-ac33-e5e15bf54bc0
 - [x] **garbanzo-vkz** P2 [closed] **User settings page** — Dedicated `/settings` route with sections: Profile, Appearance, Models, Voice, Memory, Notifications
+- [ ] **garbanzo-vp6n** P2 [open] Production report 43edf5e0-3242-4da5-b8f0-eba871da8b90
 - [x] **garbanzo-vrf6** P2 [closed] pip-audit finding ee37495a23481eb7ec097223
 - [x] **garbanzo-vvyo** P2 [closed] pip-audit finding cd10b9238cdd64ca1d82f0f9
 - [x] **garbanzo-wgxz** P2 [closed] pip-audit finding 62629ac90a7e781c201edda9
@@ -251,6 +263,7 @@ Original backlog and notes: [.ai/backlog-source.md](.ai/backlog-source.md).
 - [x] **garbanzo-xj1** P2 [closed] **Backend FCM integration** — Store device tokens per user; send push via Firebase Admin SDK when SSE stream completes and client is disconnected
 - [x] **garbanzo-xp3** P2 [closed] **Tool execution backend** — Tool call loop: LLM requests tool → backend invokes MCP server → result fed back into context
 - [ ] **garbanzo-xri** P2 [open] **Frontend topic field** (in progress)
+- [ ] **garbanzo-y06k** P2 [in_progress] Production report 41c79409-ac36-4ca8-a823-9f1eb50b26e9
 - [x] **garbanzo-y1nu** P2 [closed] pip-audit finding 32ece94482f543496ac3e975
 - [x] **garbanzo-yfm0** P2 [closed] pip-audit finding 08a3923108488227b18525b6
 - [x] **garbanzo-yhzi** P2 [closed] pip-audit finding 2b0a66b011b0d55cae7864f3

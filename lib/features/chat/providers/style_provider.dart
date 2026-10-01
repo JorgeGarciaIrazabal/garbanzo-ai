@@ -112,10 +112,9 @@ class StyleProvider extends ChangeNotifier with GuardedStateMixin {
   }
 
   /// Reset the composer for a new-topic window: the user's default style (or
-  /// last-used fallback) is selected, and thinking starts at the style's own
-  /// level — or Medium when the style leaves it on Auto. Called whenever the
-  /// Topics landing opens (app startup or the New topic action) so a new topic
-  /// does not inherit whatever the previous chat happened to use.
+  /// last-used fallback) is selected, and thinking starts at Medium. Called
+  /// whenever the Topics landing opens (app startup or the New topic action)
+  /// so a new topic does not inherit whatever the previous chat happened to use.
   ///
   /// Returns the style the window was seeded from, or null when the user has
   /// no saved styles.
@@ -126,7 +125,7 @@ class StyleProvider extends ChangeNotifier with GuardedStateMixin {
     // re-seeded by a later refresh until the user changes it again.
     _pendingTouched = true;
     _selectedStyleId = seed?.id;
-    _pendingThinkingLevel = seed?.thinkingLevel ?? ThinkingLevel.medium;
+    _pendingThinkingLevel = ThinkingLevel.medium;
     _pendingSystemPrompt = await _resolveTemplateContent(
       seed?.systemPromptTemplateId,
     );

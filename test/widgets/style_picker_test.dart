@@ -1578,7 +1578,7 @@ void main() {
   });
 
   group('StyleProvider new-topic seeding', () {
-    test('new topic selects the default style and uses its thinking level',
+    test('new topic selects the default style and resets thinking to medium',
         () async {
       final defaultStyle = _style(
         'default',
@@ -1595,7 +1595,7 @@ void main() {
 
       expect(seed?.id, 'default');
       expect(provider.selectedStyleId, 'default');
-      expect(provider.pendingThinkingLevel, ThinkingLevel.high);
+      expect(provider.pendingThinkingLevel, ThinkingLevel.medium);
     });
 
     test('new topic defaults thinking to medium when the style is on Auto',
@@ -1629,7 +1629,7 @@ void main() {
       final seed = await restarted.applyDefaultForNewTopic();
 
       expect(seed?.id, 's1');
-      expect(restarted.pendingThinkingLevel, ThinkingLevel.low);
+      expect(restarted.pendingThinkingLevel, ThinkingLevel.medium);
     });
 
     test('new topic with no styles still seeds medium thinking', () async {

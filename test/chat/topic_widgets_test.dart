@@ -14,8 +14,10 @@ import 'package:garbanzo_ai/features/chat/models/thinking_level.dart';
 import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/model_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/style_provider.dart';
+import 'package:garbanzo_ai/features/chat/providers/system_prompt_provider.dart';
 import 'package:garbanzo_ai/features/chat/services/style_service.dart';
 import 'package:garbanzo_ai/features/chat/widgets/chat_page.dart';
+import 'package:garbanzo_ai/features/chat/widgets/chat_input_widget.dart';
 import 'package:garbanzo_ai/features/chat/widgets/chat_message_widget.dart';
 import 'package:garbanzo_ai/features/chat/widgets/topic_banner.dart';
 import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
@@ -126,6 +128,11 @@ class _FakeStyleService extends StyleService {
 
   @override
   Future<List<Style>> listStyles() async => _styles;
+}
+
+class _FakeSystemPromptProvider extends SystemPromptProvider {
+  @override
+  Future<void> refresh({String? locale}) async {}
 }
 
 class _FakeModelProvider extends ModelProvider {
@@ -244,6 +251,7 @@ Widget _wrapWithApp(
   SettingsProvider? settingsProvider,
   StyleProvider? styleProvider,
   ModelProvider? modelProvider,
+  SystemPromptProvider? promptProvider,
 }) =>
     MultiProvider(
       providers: [
@@ -253,6 +261,7 @@ Widget _wrapWithApp(
         if (settingsProvider != null) ChangeNotifierProvider.value(value: settingsProvider),
         if (styleProvider != null) ChangeNotifierProvider.value(value: styleProvider),
         if (modelProvider != null) ChangeNotifierProvider.value(value: modelProvider),
+        if (promptProvider != null) ChangeNotifierProvider.value(value: promptProvider),
       ],
       child: MaterialApp(
         localizationsDelegates: const [
@@ -1224,6 +1233,77 @@ How can I help you with **Retirement planning** today?
       await tester.pumpAndSettle();
     }
 
+    testWidgets('composer shows the default style and Medium on each new topic',
+        (tester) async {
+      final topics = TopicDiscoveryProvider(
+        service: _FakeTopicService(const []),
+      );
+      final styles = StyleProvider(
+        styleService: _FakeStyleService([
+          defaultStyle(thinkingLevel: ThinkingLevel.high),
+        ]),
+      );
+      final models = _FakeModelProvider(
+        models: const [
+          ModelInfo(
+            id: 'kimi-k3',
+            name: 'Kimi K3',
+            provider: 'ollama',
+            supportsThinking: true,
+            thinkingLevels: ThinkingLevel.values,
+          ),
+        ],
+        selectedId: 'kimi-k3',
+      );
+
+      await tester.pumpWidget(
+        _wrapWithApp(
+          Column(
+            children: [
+              Expanded(
+                child: TopicLanding(
+                  conversationId: 'primary',
+                  onStarterSelected: (_) {},
+                ),
+              ),
+              ChatInputWidget(
+                onSend: (_, _) {},
+                onNewTopic: topics.startNewTopic,
+              ),
+            ],
+          ),
+          topicProvider: topics,
+          chatProvider: _FakeChatProvider(),
+          styleProvider: styles,
+          modelProvider: models,
+          promptProvider: _FakeSystemPromptProvider(),
+          settingsProvider: SettingsProvider(),
+        ),
+      );
+      await settle(tester);
+
+      final stylePill = find.byKey(const ValueKey('style_picker_button'));
+      final thinkingChip = find.byKey(const ValueKey('thinking_effort_chip'));
+      expect(find.descendant(of: stylePill, matching: find.text('Deep work')),
+          findsOneWidget);
+      expect(find.descendant(of: thinkingChip, matching: find.text('Medium')),
+          findsOneWidget);
+
+      // Effort can be customized, then New topic must reset it while keeping
+      // the named default style visible even though its saved effort is High.
+      await tester.tap(thinkingChip);
+      await settle(tester);
+      expect(styles.pendingThinkingLevel, ThinkingLevel.high);
+      await tester.tap(find.byKey(const ValueKey('new_topic_button')));
+      await settle(tester);
+      expect(styles.pendingThinkingLevel, ThinkingLevel.medium);
+      expect(find.descendant(of: stylePill, matching: find.text('Deep work')),
+          findsOneWidget);
+      expect(find.descendant(of: thinkingChip, matching: find.text('Medium')),
+          findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets(
       'seeds the pending style and thinking, and applies them to the primary',
       (tester) async {
@@ -1268,12 +1348,12 @@ How can I help you with **Retirement planning** today?
         );
         await settle(tester);
 
-        expect(styles.pendingThinkingLevel, ThinkingLevel.high);
+        expect(styles.pendingThinkingLevel, ThinkingLevel.medium);
         expect(styles.selectedStyleId, 'default-style');
         expect(models.selectedModelId, 'kimi-k3');
         expect(chat.updates, hasLength(1));
         expect(chat.updates.single['model'], 'kimi-k3');
-        expect(chat.updates.single['thinkingLevel'], ThinkingLevel.high);
+        expect(chat.updates.single['thinkingLevel'], ThinkingLevel.medium);
         expect(chat.updates.single['setThinkingLevel'], true);
       },
     );

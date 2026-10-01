@@ -79,9 +79,9 @@ class _TopicLandingState extends State<TopicLanding> {
   }
 
   /// A new-topic window composes a clean slate: the user's default style
-  /// (or last-used fallback) is selected, thinking starts at the style's own
-  /// level or Medium, and the primary conversation adopts those settings so
-  /// topic chats and landing sends use them too. Runs on startup and every
+  /// (or last-used fallback) is selected, thinking starts at Medium, and the
+  /// primary conversation adopts those settings so topic chats and landing
+  /// sends use them too. Runs on startup and every
   /// New topic action; providers are optional so isolated widget tests that
   /// mount the landing alone keep working.
   Future<void> _seedNewTopicDefaults() async {

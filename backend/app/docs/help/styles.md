@@ -53,8 +53,10 @@ model becomes your default model. Without a default, your most recently
 applied style seeds new chats.
 
 Opening a new topic (at startup or from the New topic button) uses that same
-default style. If the style leaves thinking on Auto, new topics start at
-Medium reasoning so they are not left at the model's implicit default.
+default style's model and prompt, with thinking reset to Medium. The composer
+shows the style's name and a separate Medium thinking chip for models that
+support reasoning. You can change the effort for the current chat; opening
+another new topic resets it to Medium again.
 
 ## How do I edit a style?
 Open your style card's menu and choose **Edit…**. The picker switches to the

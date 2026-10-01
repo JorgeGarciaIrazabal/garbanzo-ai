@@ -18,3 +18,8 @@ Use real Docker PostgreSQL migration smoke tests alongside SQLite unit tests.
 One heavy Flutter test/build job at a time. Runtime exploratory inspection uses
 Dart MCP, Marionette and Playwright; see e2e-testing for established setup.
 Do not describe passing health checks as verification of a reported bug.
+
+For focused Flutter name filters, use a single-word substring such as
+`just fe-test test/widgets/style_picker_test.dart --plain-name new-topic`.
+The recipe expands arguments unquoted, so ordinary shell quotes around a
+multiword name do not preserve it as one Flutter argument.
