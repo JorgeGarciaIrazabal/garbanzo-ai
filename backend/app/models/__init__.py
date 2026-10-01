@@ -14,6 +14,7 @@ from app.models.shared_item import SharedItem
 from app.models.style import Style
 from app.models.system_prompt import SystemPromptTemplate
 from app.models.user import User
+from app.models.workflow_artifact import WorkflowArtifact
 from app.models.workflow_run import WorkflowRun
 from app.topics.models import (
     ActiveContextItem,
@@ -55,6 +56,7 @@ __all__ = [
     "RoomMessage",
     "RoomAudioNote",
     "WorkflowRun",
+    "WorkflowArtifact",
     "Topic",
     "TopicAlias",
     "TopicRelation",

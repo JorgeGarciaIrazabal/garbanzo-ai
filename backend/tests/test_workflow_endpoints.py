@@ -19,6 +19,7 @@ from app.main import app
 from app.models.message import Message
 from app.models.user import User
 from app.services import workflow_runner
+from app.services.workflow_outputs import capture_outputs
 
 _TEST_SETTINGS = Settings(
     secret_key="test-secret-key-do-not-use-in-prod",
@@ -127,6 +128,8 @@ async def test_full_round_trip(db_session, no_launch, monkeypatch):
             row = await db_session.get(WorkflowRun, run["id"])
             workdir = row.workdir
             _write(f"{workdir}/doc.md", "v2")
+            await capture_outputs(db_session, row)
+            row.artifacts_status = "ready"
             row.status = "done"
             row.summary = "Updated the doc."
             await db_session.commit()

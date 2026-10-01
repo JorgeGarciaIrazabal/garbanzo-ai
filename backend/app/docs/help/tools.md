@@ -50,3 +50,10 @@ Yes. A conversation's tool selection applies to every agent that works for
 you — the assistant, micro-app builds, and delegated `/agent` runs — so an
 MCP server you allow in a conversation is available to all of them, not just
 to the chat itself.
+
+## Can chat inspect delegated agent outputs?
+The native **workflow_outputs** tool finds your delegated runs and reads their
+complete reports and generated files. It works without an attached folder and
+follows the conversation's tool selection. Ask about an earlier run or a file
+by name; chat retrieves the saved content. Unsupported binary files remain
+downloadable, and missing or failed outputs produce an explicit error.

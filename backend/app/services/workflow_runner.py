@@ -26,7 +26,10 @@ import uuid
 from dataclasses import dataclass
 from pathlib import Path
 
+from sqlalchemy import select
+
 from app.core.config import Settings, get_settings
+from app.models.conversation import Conversation
 from app.models.message import Message
 from app.models.workflow_run import WorkflowRun
 from app.services import workflow_watchers
@@ -34,7 +37,14 @@ from app.services.mcp_service import build_opencode_mcp_config
 from app.services.microapp_agent import MicroappAgent
 from app.services.opencode_config import DEFAULT_PERMISSION, build_config, write_config
 from app.services.opencode_process import default_spawn, pick_free_port, terminate, wait_ready
-from app.services.workflow_service import WorkflowService, absorb_into_baseline, exclude_from_diff
+from app.services.workflow_outputs import capture_outputs
+from app.services.workflow_service import (
+    WorkflowService,
+    _run_git,
+    absorb_into_baseline,
+    exclude_from_diff,
+)
+from app.topics.topic_ingestion_service import TopicIngestionService, enqueue_message_event
 
 logger = logging.getLogger(__name__)
 
@@ -167,7 +177,9 @@ async def _run(run_id: str) -> None:
         mode = (run.scope or {}).get("mode", "folder")
         conversation_id = run.conversation_id
         user_id = run.user_id
-        proc: subprocess.Popen | None = None
+        run_body: asyncio.Task | None = None
+        idler: asyncio.Task | None = None
+        originating_epoch = run.session_epoch
         summary_parts: list[str] = []
         status = "done"
         error: str | None = None
@@ -239,7 +251,6 @@ async def _run(run_id: str) -> None:
             idler.cancel()
             with contextlib.suppress(asyncio.CancelledError, Exception):
                 await idler
-            proc = proc_holder.get("proc")
         except asyncio.CancelledError:
             status = "cancelled"
             error = "The workflow was cancelled."
@@ -249,26 +260,77 @@ async def _run(run_id: str) -> None:
             status = "error"
             error = str(exc)[:500]
         finally:
-            await asyncio.to_thread(terminate, proc)
-            summary = "".join(summary_parts).strip() or None
-            await service.finish(run_id, status=status, summary=summary, error=error)
-            if status != "cancelled":
-                await _report_completion(
-                    db=db,
-                    user_id=user_id,
-                    run_id=run_id,
-                    conversation_id=conversation_id,
-                    instruction=instruction,
-                    summary=summary,
-                    status=status,
-                    error=error,
-                )
-            # Research output is durable in ``summary`` and downloadable from
-            # the API, so its empty scratch workdir has no diff lifecycle and
-            # can be released immediately on every terminal outcome.
-            if mode == "research":
-                await db.refresh(run)
-                await service.cleanup(run)
+
+            async def finalize():
+                nonlocal status, error
+                for task in (run_body, idler):
+                    if task is not None:
+                        if not task.done():
+                            task.cancel()
+                        with contextlib.suppress(asyncio.CancelledError, Exception):
+                            await task
+                await asyncio.to_thread(terminate, proc_holder.get("proc"))
+                summary = "".join(summary_parts).strip() or None
+                outputs_ready = False
+                try:
+                    await db.refresh(run)
+                    await capture_outputs(db, run)
+                    await service.finish(
+                        run_id,
+                        status=status,
+                        summary=summary,
+                        error=error,
+                        artifacts_status="ready",
+                    )
+                    outputs_ready = True
+                except Exception as exc:
+                    logger.exception("could not preserve workflow %s outputs", run_id)
+                    await db.rollback()
+                    output_error = f"Output preservation failed: {exc}"[:500]
+                    if status == "done":
+                        status = "error"
+                    error = f"{error}\n{output_error}" if error else output_error
+                    await service.finish(
+                        run_id,
+                        status=status,
+                        summary=summary,
+                        error=error,
+                        artifacts_status="error",
+                        artifacts_error=output_error,
+                    )
+                if status != "cancelled":
+                    await _report_completion(
+                        db=db,
+                        user_id=user_id,
+                        run_id=run_id,
+                        conversation_id=conversation_id,
+                        instruction=instruction,
+                        summary=summary,
+                        status=status,
+                        error=error,
+                        session_epoch=originating_epoch,
+                    )
+                # Never discard the only copy when preservation fails.
+                if mode == "research" and outputs_ready:
+                    await db.refresh(run)
+                    await service.cleanup(run)
+
+            finalizing = asyncio.create_task(finalize())
+            _result, interrupted = await _settle_task(finalizing)
+            if interrupted:
+                raise asyncio.CancelledError
+
+
+async def _settle_task(task: asyncio.Task):
+    """Await mandatory cleanup/persistence even through repeated caller cancellation."""
+    interrupted = False
+    while True:
+        try:
+            return await asyncio.shield(task), interrupted
+        except asyncio.CancelledError:
+            if task.cancelled():
+                raise
+            interrupted = True
 
 
 def seed_opencode_config(
@@ -410,15 +472,28 @@ async def _run_stream(
         user_id,
         (run.scope or {}).get("mcp_tools", []),
     )
-    await asyncio.to_thread(
-        seed_opencode_config,
-        workdir,
-        settings,
-        mcp,
-        tool_rules,
+    seeding = asyncio.create_task(
+        asyncio.to_thread(
+            seed_opencode_config,
+            workdir,
+            settings,
+            mcp,
+            tool_rules,
+        )
     )
-    proc, base = await asyncio.to_thread(_start_opencode, workdir, settings)
+    _result, interrupted = await _settle_task(seeding)
+    if interrupted:
+        raise asyncio.CancelledError
+    # Permission-envelope edits are plumbing, absorbed into the baseline before
+    # the agent starts. Agent commits afterwards must not hide generated files.
+    baseline = await asyncio.to_thread(_run_git, workdir, "rev-parse", "HEAD")
+    run.scope = {**(run.scope or {}), "baseline_revision": baseline.stdout.decode().strip()}
+    await db.commit()
+    starting = asyncio.create_task(asyncio.to_thread(_start_opencode, workdir, settings))
+    (proc, base), interrupted = await _settle_task(starting)
     proc_holder["proc"] = proc
+    if interrupted:
+        raise asyncio.CancelledError
     if proc is None:
         raise RuntimeError(
             "opencode did not become ready — is the 'opencode' binary installed and Ollama running?"
@@ -491,6 +566,7 @@ async def _report_completion(
     summary: str | None,
     status: str,
     error: str | None,
+    session_epoch: int | None = None,
 ) -> None:
     """Post the summary into the conversation and push a notification.
 
@@ -502,15 +578,34 @@ async def _report_completion(
     if conversation_id:
         headline = "✅ Workflow finished" if status == "done" else "⚠️ Workflow failed"
         try:
-            db.add(
-                Message(
-                    id=str(uuid.uuid4()),
-                    conversation_id=conversation_id,
-                    role="assistant",
-                    content=f"{headline}\n\n{body}",
-                    meta={"workflow_run_id": run_id, "workflow_status": status},
+            result = await db.execute(
+                select(Conversation).where(
+                    Conversation.id == conversation_id,
+                    Conversation.user_id == user_id,
+                    Conversation.is_deleted.is_(False),
                 )
             )
+            conversation = result.scalar_one_or_none()
+            if conversation is None:
+                raise RuntimeError("Originating conversation is no longer available.")
+            message = Message(
+                id=str(uuid.uuid4()),
+                conversation_id=conversation_id,
+                role="assistant",
+                content=(
+                    f"{headline}\nRun ID: {run_id}\n"
+                    "Use workflow_outputs to read the complete report and generated files.\n\n"
+                    f"{body}" + (f"\n\n{error}" if error and summary else "")
+                ),
+                meta={"workflow_run_id": run_id, "workflow_status": status},
+                session_epoch=session_epoch
+                if session_epoch is not None
+                else conversation.session_epoch,
+            )
+            db.add(message)
+            await db.flush()
+            event = await enqueue_message_event(db, conversation, message, "create")
+            await TopicIngestionService(db).process_event(event)
             await db.commit()
         except Exception:
             logger.exception("could not post workflow %s summary to its conversation", run_id)

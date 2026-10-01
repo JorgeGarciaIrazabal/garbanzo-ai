@@ -18,7 +18,7 @@ when you add or change an endpoint, update the matching row in the same commit.
 | **Knowledge Base** | `POST /kb/documents`, `GET /kb/documents`, `GET /kb/documents/{id}`, `DELETE /kb/documents/{id}`, `GET /kb/search` |
 | **Rooms** | `POST /rooms`, `GET /rooms`, `GET /rooms/search`, `GET /rooms/{id}`, `PATCH /rooms/{id}`, `DELETE /rooms/{id}`, `GET /rooms/{id}/members`, `POST /rooms/{id}/members`, `DELETE /rooms/{id}/members/{email}`, `PATCH /rooms/{id}/members/me/mute`, `GET /rooms/{id}/agents`, `POST /rooms/{id}/agents`, `PATCH /rooms/{id}/agents/{id}`, `DELETE /rooms/{id}/agents/{id}`, `GET /rooms/{id}/messages`, `POST /rooms/{id}/chat`, `POST /rooms/{id}/audio-notes` (multipart 16 kHz mono WAV, ≤2 min; transcribes, persists, and starts detached agent turns), `GET /rooms/{id}/audio-notes/{note_id}` (member-only raw playback), `GET /rooms/{id}/export` (`?format=markdown|json|docx`; `docx` renders the transcript as a Word document), `WS /rooms/{id}` |
 | **Micro-apps** | `POST /microapps/workspace`, `GET /microapps/workspace`, `DELETE /microapps/workspace`, `GET /microapps/apps`, `GET /microapps/houses`, `POST /microapps/houses`, `POST /microapps/agent/chat`, `POST /microapps/agent/abort`, `GET /microapps/changes`, `POST /microapps/publish`, `POST /microapps/revert` |
-| **Workflows** | `POST /workflows` (create a delegated opencode run in `draft`; body `{instruction, mode:"folder"|"research", conversation_id?, room_id?, tool_call_id?, folder_label?}`; an owned conversation imports the launching user message's attachments into the isolated workspace), `GET /workflows?conversation_id=` (hydrate proposal cards after reload), `POST /workflows/{id}/files` (folder mode only: upload a snapshot batch), `POST /workflows/{id}/start` (git-baseline the folder snapshot or attachment-backed research workdir and launch the **detached** run), `POST /workflows/{id}/cancel` (stop a live run: cancels the runner task, terminates its opencode child, records `cancelled`; 409 when the run is not running), `GET /workflows/{id}?since=` (status + progress after the cursor; the poll doubles as the "user is watching" signal that suppresses the completion push), `GET /workflows/{id}/changes` and `POST /workflows/{id}/applied` (folder mode diff/cleanup), `GET /workflows/{id}/output` (completed research mode: markdown summary attachment) |
+| **Workflows** | `POST /workflows` (create a delegated opencode run in `draft`; body `{instruction, mode:"folder"|"research", conversation_id?, room_id?, tool_call_id?, folder_label?}`; an owned conversation imports the launching user message's attachments into the isolated workspace), `GET /workflows?conversation_id=` (hydrate proposal cards after reload), `POST /workflows/{id}/files` (folder mode only: upload a snapshot batch), `POST /workflows/{id}/start` (git-baseline the folder snapshot or attachment-backed research workdir and launch the **detached** run), `POST /workflows/{id}/cancel` (stop a live run: cancels the runner task, terminates its opencode child, records `cancelled`; 409 when the run is not running), `GET /workflows/{id}?since=` (status + progress after the cursor; the poll doubles as the "user is watching" signal that suppresses the completion push), `GET /workflows/{id}/changes` and `POST /workflows/{id}/applied` (folder mode diff/cleanup), `GET /workflows/{id}/output` (completed research mode: markdown summary attachment), `GET /workflows/{id}/outputs?offset=0&limit=20` (owner-scoped generated file metadata, max 50/page), `GET /workflows/{id}/outputs/file?path=` (exact preserved bytes, authenticated attachment download) |
 | **MCP (Tools)** | `GET /mcp/tools`, `GET /mcp/servers`, `POST /mcp/servers`, `PATCH /mcp/servers/{id}`, `DELETE /mcp/servers/{id}`, `POST /mcp/servers/{id}/test-connection` |
 | **Notifications** | `GET /notifications`, `GET /notifications/unread-count`, `POST /notifications/read-all`, `PATCH /notifications/{id}/read`, `DELETE /notifications/{id}`, `GET /notifications/preferences`, `PATCH /notifications/preferences` |
 | **Devices** | `POST /devices/register`, `DELETE /devices/register` |
@@ -102,3 +102,31 @@ source UI selects a recent message and sends its ID; IDs are not exposed as a
 manual user input. The summary, sections, excerpts, and token count use the same
 eligibility policy as prompt compilation; invalid or privacy-deleted rows are
 scrubbed instead of being rendered from client-supplied metadata.
+
+`GET /mcp/tools` includes built-in native descriptors under `server_id=__garbo__`
+so restricted conversations can enable output retrieval in the tool picker.
+
+**Workflow output retrieval.** Run responses include `session_epoch`,
+`artifacts_status` (`pending|ready|error|unavailable`) and `artifacts_error`.
+Terminal state and file artifacts commit atomically before research cleanup.
+Capture failure preserves the report/workspace and returns an error state.
+Historical files deleted before preservation are explicitly unavailable.
+`/outputs` returns `{run_id,status,artifacts_status,files:[{id,path,media_type,
+size_bytes,sha256}],next_offset}`. Downloads use private/no-store, attachment
+disposition and octet-stream; invalid canonical paths return 400, missing or
+foreign-owner runs/files 404, unavailable outputs 409. Folder `/changes` and
+`/applied` remain unchanged; applying does not discard archived outputs. Pending/failed preservation blocks
+workspace discard; startup marks interrupted pending preservation as an error.
+
+Native `workflow_outputs` respects the conversation's enabled-tools whitelist.
+Actions: `list_runs` (owner only, optional conversation_id filter), `read_report`,
+`list_files`, `read_file`. Reads require `run_id`; file reads require `path`.
+Offsets are zero-based; list pages max 50 entries, text pages max 12,000 characters.
+Text results include `{content,offset,total_chars,has_more,next_offset}` and file
+results identify `representation:extracted_text`. Pages shrink to fit the
+configured serialized tool-result budget, preserving the cursor. Running runs,
+missing reports, invalid arguments, unavailable files, unsupported binaries and
+failed extraction return explicit `{ok:false,error}`. Failed/cancelled reports
+are labelled with their actual status. Raw bytes remain downloadable. Document
+extraction runs in an isolated process (20s wall time, 10s CPU, 1 GiB address
+space), with 50 MiB expanded archive and 5 Mi-character extracted text limits.

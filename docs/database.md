@@ -235,7 +235,8 @@ half-migrated schema.
   - `workdir` is the absolute path of the server-side folder snapshot or empty
     research scratch directory, git-init'd at `/start`. It is internal and
     never serialized. Folder mode releases it after `/applied`; research
-    releases it as soon as the terminal summary is persisted.
+    releases it only after generated artifacts and terminal state commit together.
+    Capture failure retains the workspace and marks the run as an error.
   - `progress` (JSONB) is the appended list of translated opencode chunks,
     replayed via `GET /{id}?since=<n>`. Streamed text is coalesced into the
     previous entry and the list is capped (2000 entries) so a runaway run
@@ -248,8 +249,32 @@ half-migrated schema.
     learns whether the diff has landed on the user's disk.
   - `conversation_id` is nullable for room-originated runs; when set, the
     final summary is written back as an assistant `Message` carrying
-    `meta.workflow_run_id`.
+    `meta.workflow_run_id` and a literal run ID in its content.
+  - `session_epoch` (049_workflow_outputs.sql) captures the originating chat
+    epoch at creation; completion stays in that epoch after a topic switch.
+    `scope.originating_topic_id` keeps topic ingestion on the original topic.
+    Legacy runs have a null epoch. `scope.baseline_revision` is the pre-agent
+    git revision, including permission-envelope plumbing, so agent commits
+    cannot hide generated artifacts.
+  - `artifacts_status` is `pending`, `ready`, `error`, or `unavailable`.
+    Historical runs default to `unavailable`; that differs from a successful
+    capture with zero files. `artifacts_error` records explicit capture errors.
+    `summary` retains the complete captured agent text, including intermediate
+    streamed text; it is independently readable even if file capture fails.
   - Runs left in `queued`/`running` by a backend restart are swept to
     `error` at startup (`main._fail_stale_workflow_runs`) — their opencode
     subprocess died with the old process, so a polling client would
-    otherwise wait forever.
+    otherwise wait forever. Pending artifact capture is also marked as an
+    explicit preservation error and its workspace retained; `/applied` refuses
+    pending or failed preservation.
+
+- `WorkflowArtifact` (049_workflow_outputs.sql) stores immutable generated file
+  bytes in PostgreSQL BYTEA, with canonical relative `path`, `media_type`,
+  `size_bytes`, `sha256`, and timestamp. `(run_id, path)` is unique. The parent
+  run supplies ownership; run deletion cascades to artifacts. Bytes are deferred
+  in ORM metadata listings and included in normal database backups. Snapshot
+  bounds are 5 MiB/file, 50 MiB/run and 2,000 files, with 10,000 visited entries
+  and depth 100. Symlinks/special files are rejected. Input copies, Git/OpenCode
+  state, dependency/cache directories and generated configuration are excluded.
+  Folder artifacts contain added/modified files compared with the saved baseline;
+  deletions remain diff information. Artifacts survive scratch cleanup and apply.

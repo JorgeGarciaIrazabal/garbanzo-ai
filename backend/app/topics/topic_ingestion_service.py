@@ -20,6 +20,7 @@ from app.core.config import get_settings
 from app.db import session as db_session
 from app.models.conversation import Conversation
 from app.models.message import Message
+from app.models.workflow_run import WorkflowRun
 from app.services.embedding_provider import EmbeddingProvider, get_embedding_provider
 from app.topics.consolidation.clusterer import _GENERIC_TOPIC_LABELS as _GENERIC_SHELL_LABELS
 from app.topics.models import (
@@ -304,7 +305,9 @@ class TopicIngestionService:
         # long-lived request session (e.g. an SSE turn that outlived a user
         # topic switch). Reload the authoritative active-topic state so
         # ingestion never clobbers a deliberate user selection.
-        await self.db.refresh(conversation, attribute_names=["active_topic_id", "topic_is_pinned"])
+        await self.db.refresh(
+            conversation, attribute_names=["active_topic_id", "topic_is_pinned", "session_epoch"]
+        )
         if event.operation in {"edit", "backfill"}:
             await self._remove_message_derivations(message.id)
         topic = await self._choose_topic(conversation, message)
@@ -319,7 +322,7 @@ class TopicIngestionService:
         topic.signal = (
             self._historical_signal(activity_at) if event.operation == "backfill" else "active now"
         )
-        if conversation.is_primary:
+        if conversation.is_primary and message.session_epoch == conversation.session_epoch:
             await self._consider_active_topic(conversation, topic)
         if message.role == "user":
             await self._extract_user_assertions(topic, message, event.user_id)
@@ -343,6 +346,25 @@ class TopicIngestionService:
             topic.mention_count += 1
 
     async def _choose_topic(self, conversation: Conversation, message: Message) -> Topic | None:
+        # Detached completions retain their originating topic even if the user
+        # switches topics while the run is working. Also applies to backfills.
+        run_id = (message.meta or {}).get("workflow_run_id")
+        if run_id:
+            run = await self.db.get(WorkflowRun, run_id)
+            if (
+                run
+                and run.user_id == conversation.user_id
+                and run.conversation_id == conversation.id
+            ):
+                origin = (run.scope or {}).get("originating_topic_id")
+                if origin:
+                    topic = await self.db.get(Topic, origin)
+                    return topic if topic and topic.user_id == conversation.user_id else None
+                if (
+                    run.session_epoch is not None
+                    and run.session_epoch != conversation.session_epoch
+                ):
+                    return None
         if conversation.active_topic_id and conversation.topic_is_pinned:
             return await self.db.get(Topic, conversation.active_topic_id)
         if not conversation.is_primary:

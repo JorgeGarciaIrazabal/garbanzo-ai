@@ -21,6 +21,7 @@ from app.schemas.mcp import (
     MCPToolOut,
 )
 from app.services.mcp_service import MCPService
+from app.services.native_tools import NATIVE_GARBO_SERVER_ID, native_tool_descriptors
 
 router = APIRouter()
 
@@ -49,14 +50,24 @@ async def _get_owned_server_or_404(
 @router.get(
     "/tools",
     response_model=list[MCPToolOut],
-    summary="List all available tools from enabled MCP servers",
+    summary="List available MCP and built-in tools for conversation selection",
 )
 async def list_tools(
     user: Annotated[dict[str, Any], Depends(get_current_user)],
     service: Annotated[MCPService, Depends(get_mcp_service)],
 ) -> list[MCPToolOut]:
     tools = await service.list_all_tools(enabled_only=True, user_email=user["email"])
-    return [MCPToolOut(**t) for t in tools]
+    native = [
+        MCPToolOut(
+            server_id=NATIVE_GARBO_SERVER_ID,
+            server_name="Garbanzo",
+            name=descriptor["function"]["name"],
+            description=descriptor["function"]["description"],
+            input_schema=descriptor["function"]["parameters"],
+        )
+        for descriptor in native_tool_descriptors()
+    ]
+    return [MCPToolOut(**t) for t in tools] + native
 
 
 # ============================================================================

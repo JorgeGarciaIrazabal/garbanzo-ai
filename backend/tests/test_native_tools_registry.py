@@ -17,6 +17,7 @@ from app.services.native_tools import (
     READ_FILE_TOOL,
     SCHEDULED_ACTION_TOOL,
     SET_STYLE_TOOL,
+    WORKFLOW_OUTPUTS_TOOL,
     folder_tool_descriptors,
     native_tool_descriptors,
     native_tool_lookup,
@@ -67,4 +68,5 @@ def test_proposal_tools_advertise_as_proposals():
         NOTIFICATION_TOOL,
         APP_HELP_TOOL,
         "submit_report",
+        WORKFLOW_OUTPUTS_TOOL,
     }

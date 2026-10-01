@@ -93,7 +93,17 @@ services/      chat_service.py (turn orchestration + tool loop)
                 spawns opencode as a DETACHED
                 asyncio task — it outlives the request, so progress is
                 persisted on WorkflowRun instead of streamed. On completion the
-                summary is written back as an assistant message. Folder diffs
+                summary is written back as an assistant message in the originating
+                session epoch, with a literal run ID and output retrieval hint.
+                Topic ingestion retains scope.originating_topic_id.
+                workflow_outputs.py snapshots bounded immutable bytes into
+                WorkflowArtifact before terminal status commits; research
+                cleanup happens only after successful preservation. The native
+                workflow_outputs tool reads owner-scoped reports and extracted
+                file text in pages; REST serves exact downloadable bytes. Rich
+                document extraction runs in a resource-limited subprocess.
+                Capture failures retain scratch files and report an error.
+                Folder diffs
                 are served for AUTO-APPLY; research skips diff/apply and serves
                 the summary as markdown. An FCM push fires ONLY if nobody is
                 watching — workflow_watchers reads the client's own ~1.5s

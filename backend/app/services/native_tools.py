@@ -24,6 +24,7 @@ from app.services.memory_service import MemoryService
 from app.services.notification_service import NotificationService
 from app.services.report_service import ReportService
 from app.services.scheduled_action_service import ScheduledActionService
+from app.services.workflow_outputs import WORKFLOW_OUTPUTS_DESCRIPTOR, execute_workflow_outputs
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +44,7 @@ REPORT_TOOL = "submit_report"
 READ_FILE_TOOL = "read_file"
 LIST_FILES_TOOL = "list_files"
 DELEGATE_WORKFLOW_TOOL = "delegate_workflow"
+WORKFLOW_OUTPUTS_TOOL = "workflow_outputs"
 
 ALL_NATIVE_TOOLS = (
     SCHEDULED_ACTION_TOOL,
@@ -55,6 +57,7 @@ ALL_NATIVE_TOOLS = (
     # In the registry (so it can execute) but only advertised when a folder is
     # attached — see _GATED_TOOLS.
     DELEGATE_WORKFLOW_TOOL,
+    WORKFLOW_OUTPUTS_TOOL,
 )
 
 # Folder tools are *client-served*, not registry executors: they're advertised
@@ -1210,6 +1213,7 @@ _NATIVE_TOOL_REGISTRY: dict[str, tuple[dict[str, Any], Any]] = {
     SET_STYLE_TOOL: (_SET_STYLE_DESCRIPTOR, _execute_set_style),
     REPORT_TOOL: (_REPORT_DESCRIPTOR, _execute_submit_report),
     DELEGATE_WORKFLOW_TOOL: (_DELEGATE_WORKFLOW_DESCRIPTOR, _execute_delegate_workflow),
+    WORKFLOW_OUTPUTS_TOOL: (WORKFLOW_OUTPUTS_DESCRIPTOR, execute_workflow_outputs),
 }
 
 

@@ -101,6 +101,9 @@ class WorkflowOut(BaseModel):
     instruction: str
     scope: dict[str, Any] | None = None
     summary: str | None = None
+    session_epoch: int | None = None
+    artifacts_status: str = "unavailable"
+    artifacts_error: str | None = None
     error: str | None = None
     progress: list[dict[str, Any]] = Field(default_factory=list)
     # Index of the first chunk in ``progress`` (for ?since= paging) and the

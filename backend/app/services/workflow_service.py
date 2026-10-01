@@ -32,7 +32,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import select, update
+from sqlalchemy import case, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.conversation import Conversation
@@ -140,6 +140,21 @@ class WorkflowService:
         attached_files: list[tuple[str, bytes]] | None = None,
     ) -> WorkflowRun:
         """Create a ``draft`` run and its isolated server-side snapshot dir."""
+        session_epoch = None
+        originating_topic_id = None
+        if conversation_id:
+            result = await self.db.execute(
+                select(Conversation).where(
+                    Conversation.id == conversation_id,
+                    Conversation.user_id == user_id,
+                    Conversation.is_deleted.is_(False),
+                )
+            )
+            conversation = result.scalar_one_or_none()
+            if conversation is None:
+                raise WorkflowError("Conversation not found.")
+            session_epoch = conversation.session_epoch
+            originating_topic_id = conversation.active_topic_id
         workdir = await asyncio.to_thread(tempfile.mkdtemp, prefix=_WORKDIR_PREFIX)
         attachment_paths = await asyncio.to_thread(
             _write_workflow_inputs,
@@ -154,10 +169,13 @@ class WorkflowService:
             room_id=room_id,
             tool_call_id=tool_call_id,
             status="draft",
+            session_epoch=session_epoch,
+            artifacts_status="pending",
             workdir=workdir,
             progress=[],
             scope={
                 "mode": mode,
+                "originating_topic_id": originating_topic_id,
                 "folder_label": folder_label,
                 "file_count": 0,
                 "total_bytes": 0,
@@ -361,6 +379,8 @@ class WorkflowService:
         if not run.workdir:
             raise WorkflowError("This workflow has no snapshot directory.")
         await asyncio.to_thread(_git_baseline, Path(run.workdir))
+        baseline = await asyncio.to_thread(_run_git, Path(run.workdir), "rev-parse", "HEAD")
+        run.scope = {**(run.scope or {}), "baseline_revision": baseline.stdout.decode().strip()}
         run.status = "queued"
         await self.db.commit()
         # commit() expires the instance; callers serialize it straight after.
@@ -408,6 +428,8 @@ class WorkflowService:
         status: str,
         summary: str | None = None,
         error: str | None = None,
+        artifacts_status: str | None = None,
+        artifacts_error: str | None = None,
     ) -> None:
         await self.db.execute(
             update(WorkflowRun)
@@ -417,6 +439,11 @@ class WorkflowService:
                 summary=summary,
                 error=error,
                 completed_at=datetime.now(UTC),
+                **(
+                    {"artifacts_status": artifacts_status, "artifacts_error": artifacts_error}
+                    if artifacts_status is not None
+                    else {}
+                ),
             )
         )
         await self.db.commit()
@@ -433,6 +460,17 @@ class WorkflowService:
             .values(
                 status="error",
                 error="The server restarted while this workflow was running.",
+                artifacts_status=case(
+                    (WorkflowRun.artifacts_status == "pending", "error"),
+                    else_=WorkflowRun.artifacts_status,
+                ),
+                artifacts_error=case(
+                    (
+                        WorkflowRun.artifacts_status == "pending",
+                        "Output preservation was interrupted by a server restart; workspace retained.",
+                    ),
+                    else_=WorkflowRun.artifacts_error,
+                ),
                 completed_at=datetime.now(UTC),
             )
         )

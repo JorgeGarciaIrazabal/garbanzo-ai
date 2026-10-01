@@ -197,6 +197,7 @@ Original backlog and notes: [.ai/backlog-source.md](.ai/backlog-source.md).
 - [ ] **garbanzo-m72** P2 [open] Production report 65cfa380-1878-4031-8553-64746b8762e1
 - [x] **garbanzo-m84** P2 [closed] **Moderator agent** — Special agent role that summarizes discussion, breaks deadlocks, or routes questions to the right agent
 - [ ] **garbanzo-m9fx** P2 [open] Production report d7e765ad-38b1-4e40-b474-ab54b1531ac5
+- [ ] **garbanzo-mfkr** P2 [open] Make delegated agent reports and output files readable from chat
 - [x] **garbanzo-mfoj** P2 [closed] Allow attachment-only messages from Topics landing
 - [ ] **garbanzo-mg0** P2 [open] Production report 248cf6f6-1a67-4fe6-a35f-0591600afd09
 - [x] **garbanzo-mh3** P2 [closed] **Presence indicators** — Show which users are currently online in the room
@@ -228,6 +229,7 @@ Original backlog and notes: [.ai/backlog-source.md](.ai/backlog-source.md).
 - [x] **garbanzo-qst** P2 [closed] **Memory management UI** — `/memory` page to view, edit, and delete memories
 - [x] **garbanzo-qvp4** P2 [closed] pip-audit finding 558b766ea4ed222d7f5f8179
 - [x] **garbanzo-r8y** P2 [closed] **Image viewer** — Full-size lightbox when clicking image attachments in messages
+- [ ] **garbanzo-ra8h** P2 [open] Production report 1f32b406-2662-490c-93cd-de53a549e19a
 - [ ] **garbanzo-rbh** P2 [open] Production report 89b954f7-7c70-4183-8767-367d43404aaf
 - [x] **garbanzo-rbw** P2 [closed] **APScheduler integration** — Backend scheduler to execute due actions and create conversations
 - [x] **garbanzo-rjm7** P2 [closed] pip-audit finding 40b94a6e808781c3fb4ba49a
@@ -258,6 +260,7 @@ Original backlog and notes: [.ai/backlog-source.md](.ai/backlog-source.md).
 - [x] **garbanzo-wpfr** P2 [closed] pip-audit finding 2698bb2abf2fdb3bcd6d8aba
 - [x] **garbanzo-x11** P2 [closed] **Room search & discovery** — Browse and join public rooms; private rooms require invite
 - [x] **garbanzo-x1d** P2 [closed] **TTS: Clean up text for better speech** — Strip markdown formatting (#, **, `, code blocks, links) and emojis before sending text to TTS
+- [ ] **garbanzo-x30y** P2 [open] Production report 03925744-0a6c-42e3-b91e-2e596629f67f
 - [x] **garbanzo-xh0i** P2 [closed] pip-audit finding 2993cfdd34f30332e0744701
 - [ ] **garbanzo-xiy** P2 [open] **Conversation sharing** — Generate a read-only shareable link
 - [x] **garbanzo-xj1** P2 [closed] **Backend FCM integration** — Store device tokens per user; send push via Firebase Admin SDK when SSE stream completes and client is disconnected

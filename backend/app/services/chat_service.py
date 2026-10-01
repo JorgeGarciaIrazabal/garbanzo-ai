@@ -65,6 +65,7 @@ from app.services.native_tools import (
     FOLDER_TOOLS,
     NATIVE_GARBO_SERVER_ID,
     READ_FILE_TOOL,
+    WORKFLOW_OUTPUTS_TOOL,
     client_folder_nudge,
     execute_native_tool,
     folder_tool_descriptors,
@@ -73,6 +74,7 @@ from app.services.native_tools import (
 )
 from app.services.system_prompt_service import SystemPromptService
 from app.services.token_counter import get_token_counter
+from app.services.workflow_outputs import WORKFLOW_OUTPUTS_NUDGE
 from app.topics.topic_context_compiler import TopicContextCompiler
 from app.topics.topic_ingestion_service import (
     TopicIngestionService,
@@ -181,6 +183,8 @@ def _build_dynamic_context(
         block += f"\n\n{client_folder_nudge(client_folder_label)}"
     elif DELEGATE_WORKFLOW_TOOL in tool_lookup:
         block += f"\n\n{DELEGATE_RESEARCH_NUDGE}"
+    if WORKFLOW_OUTPUTS_TOOL in tool_lookup:
+        block += f"\n\n{WORKFLOW_OUTPUTS_NUDGE}"
     if talk_instruction := (talk_mode_instruction or "").strip():
         block += f"\n\n<talk_mode>\n{talk_instruction}\n</talk_mode>"
     return block

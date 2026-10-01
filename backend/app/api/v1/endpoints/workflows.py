@@ -6,6 +6,7 @@ follows along with ``GET /workflows/{id}?since=<cursor>``.
 """
 
 from typing import Annotated, Any
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,6 +22,8 @@ from app.schemas.workflow import (
     WorkflowUploadResult,
 )
 from app.services import workflow_runner, workflow_watchers
+from app.services.workflow_outputs import canonical_path, list_outputs
+from app.services.workflow_outputs import get_output as get_artifact
 from app.services.workflow_service import WorkflowError, WorkflowService
 
 router = APIRouter()
@@ -44,6 +47,9 @@ def _to_out(run: WorkflowRun, *, since: int = 0) -> WorkflowOut:
         instruction=run.instruction,
         scope=run.scope,
         summary=run.summary,
+        session_epoch=run.session_epoch,
+        artifacts_status=run.artifacts_status,
+        artifacts_error=run.artifacts_error,
         error=run.error,
         progress=progress[offset:],
         progress_offset=offset,
@@ -254,7 +260,55 @@ async def get_output(
     return Response(
         content=run.summary or "",
         media_type="text/markdown",
-        headers={"Content-Disposition": f'attachment; filename="research-{run.id}.md"'},
+        headers={
+            "Content-Disposition": f'attachment; filename="research-{run.id}.md"',
+            "Cache-Control": "private, no-store",
+        },
+    )
+
+
+@router.get("/{run_id}/outputs", summary="List preserved generated output files")
+async def get_outputs(
+    run_id: str,
+    current_user: Annotated[dict[str, Any], Depends(get_current_user)],
+    service: Annotated[WorkflowService, Depends(get_service)],
+    offset: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=50)] = 20,
+) -> dict:
+    run = await _owned(run_id, current_user["email"], service)
+    try:
+        return await list_outputs(service.db, run, offset, limit)
+    except WorkflowError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+@router.get(
+    "/{run_id}/outputs/file", response_class=Response, summary="Download exact output bytes"
+)
+async def download_output_file(
+    run_id: str,
+    path: Annotated[str, Query(min_length=1, max_length=1024)],
+    current_user: Annotated[dict[str, Any], Depends(get_current_user)],
+    service: Annotated[WorkflowService, Depends(get_service)],
+) -> Response:
+    run = await _owned(run_id, current_user["email"], service)
+    try:
+        canonical_path(path)
+    except WorkflowError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    try:
+        artifact = await get_artifact(service.db, run, path)
+    except WorkflowError as exc:
+        code = 409 if run.artifacts_status != "ready" else 404
+        raise HTTPException(status_code=code, detail=str(exc)) from exc
+    return Response(
+        content=artifact.data,
+        media_type="application/octet-stream",
+        headers={
+            "Content-Disposition": f"attachment; filename*=UTF-8''{quote(artifact.path.rsplit('/', 1)[-1], safe='')}",
+            "Cache-Control": "private, no-store",
+            "X-Content-Type-Options": "nosniff",
+        },
     )
 
 
@@ -273,5 +327,13 @@ async def mark_applied(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Research workflows have no file changes to apply.",
+        )
+    if run.status not in ("done", "error", "cancelled") or run.artifacts_status not in (
+        "ready",
+        "unavailable",
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="The workspace cannot be discarded before output preservation finishes successfully.",
         )
     await service.cleanup(run)

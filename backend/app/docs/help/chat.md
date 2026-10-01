@@ -116,6 +116,22 @@ Android as well as desktop. When it finishes, use **Download** on the progress
 line to export the markdown report (share sheet on web/Android, Save As on
 desktop).
 
+## Can chat read an agent's report and generated files?
+Yes. Ask a follow-up such as “explain the report” or “read the spreadsheet the
+agent created.” Chat can retrieve the complete report and preserved output files
+without asking you to paste them. Enable **workflow_outputs** in tool selection
+if you have restricted the conversation's tools. Reports and files remain
+available after the run finishes and after you reopen the app. A completion
+stays in the topic that launched it; you can explicitly ask chat to find earlier
+runs after switching topics.
+
+Text, PDF and supported Office documents can be read as extracted text. Binary
+files without a text representation remain available as downloads. Failed or
+cancelled runs may contain partial results. If preservation or extraction fails,
+chat reports the error. Files deleted by runs completed before output
+preservation was added cannot be recovered, although saved reports remain
+readable.
+
 ## How do I export a conversation?
 Open a thread's **⋮** menu in the sidebar and choose **Download transcript**,
 then pick a format:
