@@ -150,6 +150,12 @@ for a later release. Existing apps baked with ngrok continue to work while
 `PUBLIC_TUNNELS=cloudflare`, then run `just deploy-tunnel-stop ngrok`.
 `just deploy-restart` does not remove previously running connectors.
 
+For command-line verification, use `just deploy-status` or `curl` (include
+`ngrok-skip-browser-warning: 1` when probing ngrok). The Cloudflare hostname
+has returned HTTP 403 / error 1010 to Python urllib's default user agent while
+the same request succeeds with curl. Record the transport and response before
+diagnosing a backend failure; do not treat that rejection as a passed check.
+
 Cloudflare Tunnel carries HTTP and WebSockets. Talk Mode's WebRTC media still
 needs a separate public TURN relay; switching the HTTP tunnel does not provide
 TURN. Store any TURN credentials separately from the connector token.
