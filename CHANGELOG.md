@@ -1,7 +1,7 @@
 # Changelog
 
 Release notes for Garbanzo AI. Each entry is generated automatically on
-`just deploy` — an LLM (via opencode) writes it from the release's commits and
+`just deploy` — Codex writes it from the release's commits and
 the user reports it addressed. See `scripts/changelog-instructions.md`.
 
 ## v1.0.37 — 2026-10-01
@@ -332,4 +332,3 @@ the user reports it addressed. See `scripts/changelog-instructions.md`.
 - **Streamlined chat UX:** Sentence-by-sentence spoken replies, tool-progress indicators, auto-titling, jump-to-bottom scrolling, conversation search, a refreshed settings drawer, and a new Garbanzo brand identity across light and dark themes.
 - **Web search and MCP tools:** Built-in web search plus an extensible tool layer for models, with per-user rate limiting on chat, TTS, and STT endpoints.
 - **Web URLs and deep linking:** Proper URL routes on web and mobile so conversations and pages are linkable and the browser back button behaves as expected.
-
