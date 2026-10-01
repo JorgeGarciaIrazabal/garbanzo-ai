@@ -4,6 +4,12 @@ Release notes for Garbanzo AI. Each entry is generated automatically on
 `just deploy` — an LLM (via opencode) writes it from the release's commits and
 the user reports it addressed. See `scripts/changelog-instructions.md`.
 
+## v1.0.36 — 2026-10-01
+
+- Delegated agent results are now easier to find and read in chat.
+- Message stars now persist.
+- New chats reset thinking level to Medium while keeping your default style.
+
 ## v1.0.35 — 2026-09-24
 
 - Added Pocket read-aloud sessions with compact Android controls.
