@@ -17,6 +17,7 @@ per test (so pytest-asyncio's per-test event loop owns it cleanly) and
 disposed at teardown.
 """
 
+import socket
 from collections.abc import AsyncGenerator
 
 import pytest
@@ -145,6 +146,21 @@ async def db_session() -> AsyncGenerator[AsyncSession]:
     in-memory test DB rather than the real PostgreSQL ``DATABASE_URL``.
     A test user is seeded so conversation FK constraints pass.
     """
+    # asyncio uses local sockets to receive aiosqlite worker-thread results.
+    # Restricted runtimes can create the pair but reject send(), leaving the
+    # first database operation waiting indefinitely without an exception.
+    try:
+        reader, writer = socket.socketpair()
+        with reader, writer:
+            writer.send(b"\0")
+            reader.recv(1)
+    except OSError as exc:
+        pytest.exit(
+            f"Backend tests require local socket IPC for async SQLite: {exc}. "
+            "Run the tests in a session that permits local socket traffic.",
+            returncode=2,
+        )
+
     engine = _build_test_engine()
     _enable_fk_pragma(engine)
 

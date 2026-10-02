@@ -89,3 +89,6 @@ EXISTS`. Applied once each at startup (`db/migrations.py`), tracked in
   async_session_maker` at top level keep the old (Postgres) reference — those
   callers must be patched per-test, or call into `app.db.session` lazily (like
   `get_current_admin_user` does) to pick up the swap.
+  Async SQLite also requires local socket IPC for asyncio's thread wakeups.
+  A session that denies socket sends cannot run these tests; the fixture exits
+  with an explicit error before opening the DB instead of hanging.
