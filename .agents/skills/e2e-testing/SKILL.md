@@ -18,6 +18,13 @@ description: E2E testing workflow for the Flutter app using MCP tools
 
 ## Step 1 — Start the Backend
 
+For checks of an already deployed web app, use its public URL with browser tools
+or an installed headless Chrome; no debug Flutter session is needed. Add
+`ngrok-skip-browser-warning` only to requests for the ngrok origin. Setting it
+as a global browser header also changes third-party CanvasKit/skwasm requests
+and can fail their CORS preflights. Headless Chrome without GPU access can use
+`--enable-unsafe-swiftshader` for the verification session.
+
 ```bash
 just be-dev
 ```
