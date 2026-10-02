@@ -4106,7 +4106,7 @@
   "@topicArchiveCount": {"description": "Topic archive count badge.", "placeholders": {"count": {"type": "int"}}},
   "earlierSessions": "Earlier sessions",
   "@earlierSessions": {"description": "Opens preserved sessions for the active topic."},
-  "earlierSessionsDescription": "Read prior primary-chat sessions for this topic.",
+  "earlierSessionsDescription": "Open a previous conversation for this topic, or continue an archived session.",
   "@earlierSessionsDescription": {"description": "Explains the topic archive viewer."},
   "noEarlierSessions": "No earlier sessions for this topic yet.",
   "@noEarlierSessions": {"description": "Empty state for topic archives."},
@@ -4124,7 +4124,7 @@
   "@archiveSpeakerYou": {"description": "User speaker label in an archived session."},
   "archiveSpeakerGarbanzo": "Garbanzo",
   "@archiveSpeakerGarbanzo": {"description": "Assistant speaker label in an archived session."},
-  "topicSwitchFailed": "Could not switch topic",
+  "topicSwitchFailed": "Could not start the topic conversation",
   "@topicSwitchFailed": {"description": "Error message when topic switch fails."},
   "redirect": "Switch topic",
   "topicGraphRoot": "Topic Graph Root",
@@ -4216,11 +4216,11 @@
   "@topicSwitchDialogTitle": {"description": "Title of the topic switch confirmation dialog."},
   "topicSwitchWith": "with",
   "@topicSwitchWith": {"description": "Connector between topic names in the switch dialog."},
-  "topicSwitchChoiceDescription": "Combine to discuss both topics together, or switch to start a fresh chat session.",
+  "topicSwitchChoiceDescription": "Combine to discuss both topics in this conversation, or start a new thread with the selected topic context.",
   "@topicSwitchChoiceDescription": {"description": "Explains switch and combine choices."},
   "topicSwitchStartDescription": "Start a new conversation focused on this topic.",
   "@topicSwitchStartDescription": {"description": "Explains switching when no topic is active."},
-  "retainPinnedSourcesOnSwitch": "Keep pinned sources when switching",
+  "retainPinnedSourcesOnSwitch": "Copy pinned sources to the new conversation",
   "@retainPinnedSourcesOnSwitch": {"description": "Switch option for retaining explicit context pins."},
   "switchTopic": "Switch topic",
   "@switchTopic": {"description": "Action that starts a new topic session."},
@@ -4311,5 +4311,17 @@
   "unstarMessage": "Unstar message",
   "@unstarMessage": {"description": "Message bookmark action or failure notice."},
   "messageStarUpdateFailed": "Could not update the message star. Please try again.",
-  "@messageStarUpdateFailed": {"description": "Message bookmark action or failure notice."}
+  "@messageStarUpdateFailed": {"description": "Message bookmark action or failure notice."},
+  "archivedSessionContinueDescription": "Continue this session as a thread. Its messages and topic context will be preserved.",
+  "@archivedSessionContinueDescription": {
+    "description": "Explains opening an archived session as a resumable thread."
+  },
+  "continueTopicConversation": "Continue conversation",
+  "@continueTopicConversation": {
+    "description": "Action to open and continue an earlier topic conversation."
+  },
+  "archiveResumeFailed": "Could not open this session as a thread. Try again after any active reply has finished.",
+  "@archiveResumeFailed": {
+    "description": "Visible archive resume failure."
+  }
 }

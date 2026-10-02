@@ -8,8 +8,8 @@ when you add or change an endpoint, update the matching row in the same commit.
 |-------|-----------|
 | **Auth** | `POST /auth/login`, `POST /auth/register` (disabled, 403), `POST /auth/refresh`, `GET /auth/me`, `PATCH /auth/me` (profile incl. `timezone`/`locale`/`location`), `POST /auth/me/location` (coords → reverse-geocoded city, coords never stored), `POST /auth/me/password`, `POST /auth/me/avatar`, `DELETE /auth/me/avatar` |
 | **Admin** | `POST /admin/users`, `GET /admin/users`, `PATCH /admin/users/{email}`, `GET /admin/mcp-servers`, `POST /admin/mcp-servers`, `PATCH /admin/mcp-servers/{id}`, `DELETE /admin/mcp-servers/{id}`, `POST /admin/mcp-servers/{id}/test-connection`, `GET /admin/models`, `POST /admin/models/sync`, `PATCH /admin/models` |
-| **Chat** | `GET/POST /chat/conversations`, `POST /chat/conversations/primary` (idempotently ensure the user's unified primary conversation), `GET /chat/conversations/search`, `GET /chat/conversations/{id}` (optional `message_limit` — most-recent-N window instead of full history, B-03), `GET /chat/conversations/{id}/messages?before=&limit=` (page in older messages), `GET /chat/conversations/{id}/export?format=docx|markdown` (download the transcript; default `docx` is a real Word document with the assistant's markdown rendered as headings/lists/code/tables, `Content-Disposition` names the file `chat-<title>.<ext>`; primary chats export the visible session epoch), `PATCH /chat/conversations/{id}`, `PATCH /chat/conversations/{id}/mute`, `POST /chat/conversations/{id}/client-tool-result` (desktop client returns an on-demand folder read — idea 17; body `{tool_call_id, ok, filename?, data?(base64), entries?, error?}`), `DELETE /chat/conversations/{id}`, `POST /chat/conversations/{id}/chat` (SSE stream whose detached producer finishes if the client disconnects; accepts either nonblank `message` text or at least one attachment; `has_client_folder` advertises client-served read tools; optional `talk_mode_instruction` adds localized ephemeral system context for that turn; images sent to a known text-only model return `error_type=unsupported_image_input`; primary turns may begin with `topic_update`, `context_preparing`, and `context_update` metadata-only events), `POST /chat/conversations/{id}/messages/{mid}/regenerate` (detached SSE), `POST /chat/conversations/{id}/messages/{mid}/edit` (detached SSE), `POST /chat/conversations/{id}/messages/{mid}/branch`, `PATCH /chat/conversations/{id}/messages/{mid}/star` (idempotent owner bookmark; body `{is_starred: boolean}`, response `{id,is_starred}`; saved user/assistant messages only, unavailable or unowned messages return 404; message lists/detail/pages include `is_starred`), `DELETE /chat/conversations/{id}/chat` (cancel stream), `GET /chat/models` (includes provider-reported `thinking_levels` and `default_thinking_level` when known), `GET /chat/health/llm` |
-| **Topics & Context** | `GET /chat/topics?mode=personal|explore`, `POST /chat/conversations/{id}/topics/switch` (the sole topic-change/combine operation), `PATCH /chat/conversations/{id}/topic` (pin/unpin the active primary topic with `context_version`), `GET /chat/topics/{topic_id}/context-status`, `GET /chat/conversations/{id}/context`, `POST /chat/conversations/{id}/context/items`, `PATCH /chat/conversations/{id}/context/items/{item_id}`, `POST /chat/conversations/{id}/context/fresh-start`, `GET /chat/topics/{topic_id}/archives` (list preserved primary-chat session epochs), `GET /chat/topics/{topic_id}/archives/{archive_id}` (read a bounded message page from one owned epoch) |
+| **Chat** | `GET/POST /chat/conversations`, `POST /chat/conversations/primary` (idempotently ensure the user's unified primary conversation), `GET /chat/conversations/search`, `GET /chat/conversations/{id}` (optional `message_limit` — most-recent-N window instead of full history, B-03), `GET /chat/conversations/{id}/messages?before=&limit=` (page in older messages), `GET /chat/conversations/{id}/export?format=docx|markdown` (download the transcript; default `docx` is a real Word document with the assistant's markdown rendered as headings/lists/code/tables, `Content-Disposition` names the file `chat-<title>.<ext>`; primary chats export the visible session epoch), `PATCH /chat/conversations/{id}`, `PATCH /chat/conversations/{id}/mute`, `POST /chat/conversations/{id}/client-tool-result` (desktop client returns an on-demand folder read — idea 17; body `{tool_call_id, ok, filename?, data?(base64), entries?, error?}`), `DELETE /chat/conversations/{id}`, `POST /chat/conversations/{id}/chat` (SSE stream whose detached producer finishes if the client disconnects; accepts either nonblank `message` text or at least one attachment; `has_client_folder` advertises client-served read tools; optional `talk_mode_instruction` adds localized ephemeral system context for that turn; images sent to a known text-only model return `error_type=unsupported_image_input`; topic turns may begin with `topic_update`, `context_preparing`, and `context_update` metadata-only events), `POST /chat/conversations/{id}/messages/{mid}/regenerate` (detached SSE), `POST /chat/conversations/{id}/messages/{mid}/edit` (detached SSE), `POST /chat/conversations/{id}/messages/{mid}/branch`, `PATCH /chat/conversations/{id}/messages/{mid}/star` (idempotent owner bookmark; body `{is_starred: boolean}`, response `{id,is_starred}`; saved user/assistant messages only, unavailable or unowned messages return 404; message lists/detail/pages include `is_starred`), `DELETE /chat/conversations/{id}/chat` (cancel stream), `GET /chat/models` (includes provider-reported `thinking_levels` and `default_thinking_level` when known), `GET /chat/health/llm` |
+| **Topics & Context** | `GET /chat/topics?mode=personal|explore`, `POST /chat/conversations/{id}/topics/switch` (`mode:start` creates a resumable topic thread; `combine` updates context; legacy `switch` advances primary sessions), `PATCH /chat/conversations/{id}/topic` (pin/unpin the active conversation topic with `context_version`), `GET /chat/topics/{topic_id}/context-status`, `GET /chat/conversations/{id}/context`, `POST /chat/conversations/{id}/context/items`, `PATCH /chat/conversations/{id}/context/items/{item_id}`, `POST /chat/conversations/{id}/context/fresh-start`, `GET /chat/topics/{topic_id}/conversations` (owned active threads and the legacy primary for that topic, newest first, `limit` 1..200, default 100), `POST /chat/topics/{topic_id}/archives/{archive_id}/resume` (idempotently promote a closed owned session to a resumable thread while preserving message IDs), `GET /chat/topics/{topic_id}/archives` (list preserved primary-chat session epochs), `GET /chat/topics/{topic_id}/archives/{archive_id}` (read a bounded message page from one owned epoch) |
 | **System Prompts** | `GET /system-prompts/templates` (optional `?locale=` query — filters builtins to the requested language when one is seeded for it; user-saved templates always surface), `POST /system-prompts/templates`, `PATCH /system-prompts/templates/{id}`, `DELETE /system-prompts/templates/{id}`, `GET /system-prompts/user-default`, `PUT /system-prompts/user-default`, `POST /system-prompts/generate` (SSE stream) |
 | **STT** | `POST /stt/transcribe` (optional `language` form field — ISO code or `"auto"`/omitted for per-clip detection, idea 13), `GET /stt/health` |
 | **TTS** | `POST /tts/speak`, `POST /tts/speak/stream` (text is limited to 5,000 characters per request; both take optional `language` — ISO code; swaps in that language's default voice when `voice` doesn't speak it, idea 13), `GET /tts/voices` (each voice carries `language` + ISO `lang_code`; en/es/fr/hi/it/pt), `GET /tts/health` |
@@ -46,7 +46,7 @@ segment. A missing session returns 404, another user's session is hidden as
 update_seq}`. `update_seq` rises for each client report; older reports are
 ignored so a delayed request cannot undo a pause or backward seek.
 
-### Primary-chat topic/context behavior
+### Topic conversation/context behavior
 
 `POST /chat/conversations/primary` ensures the single primary (else legacy thread); `GET ?kind=primary|thread|all` filters. Compiler runs only for primary when `TOPIC_CONTEXT_ENABLED`. Legacy/regenerate/edit/tool loops keep old path.
 
@@ -63,10 +63,30 @@ caller's personal tools; rooms get global-only.
 
 **Delegated workflows (idea 18).** Folder lives only on desktop (idea 17); run works on server snapshot uploaded by client, opencode edits copy, diff is auto-applied — no review gate (`/start` is detached, survives client close, summary → assistant message + FCM). Paths forced inside snapshot (400 on `..`/abs/symlink), `workdir` never serialized, `/changes` returns `base_sha256` for conflict check. Research mode (`scope.mode=research`): no upload/diff, git-init workdir, MCP allowance from conversation, summary → `/output`; leading `/agent` forces it. `POST /workflows` copies attachments to `.garbanzo-workflow-inputs/` (5 MB/file, 50 MB/run, Unicode-safe) — reserved dir excluded from snapshot/diff.
 
-### Topic switch flow
+### Topic thread creation and legacy topic switching
+
+The app sends `mode: "start"` to
+`POST /chat/conversations/{id}/topics/switch`. It creates a non-primary
+conversation with the selected topic pinned and its eligible baseline context
+materialized before returning. The source conversation keeps its messages,
+settings, epoch, and topic. A new start of the same topic creates another thread;
+retrying a start with the same source and `idempotency_key` returns the original
+result. Reusing the key for a different operation or target returns 409.
+Model, system prompt, thinking effort, memory/knowledge settings and enabled tools
+inherit from the source. Optional `model`, `system_prompt` and `thinking_level`
+overrides apply only to `start`; an explicit null clears prompt or effort.
+`retain_pinned` copies eligible explicit pins into the new thread. The response
+is a `TopicSwitchResponse` with the **new** `conversation_id`.
+
+Topic threads support the context read/mutation endpoints, topic pinning, and
+`mode: "combine"` without replacing their message history. They appear in the
+regular `kind=thread` conversation list. Supplying an unavailable or foreign
+`active_topic_id` to regular conversation creation returns 404.
+
+The compatibility `mode: "switch"` path is still primary-only:
 
 `POST /chat/conversations/{id}/topics/switch` is the single entry point for
-changing the active topic in the primary conversation. It performs these
+changing the active topic in the legacy primary conversation. It performs these
 steps in one transaction:
 
 1. **Serialize and replay** — The server locks the primary conversation and
@@ -89,11 +109,20 @@ authoritative topic, `context_version`, `session_epoch`, `context_status`,
 `retained_items`, archive metadata, and the echoed `idempotency_key`.
 If the conversation is not primary or the topic is not owned, returns 409/404.
 
-`GET /chat/topics/{topic_id}/archives/{archive_id}` reopens preserved history
+`GET /chat/topics/{topic_id}/archives/{archive_id}` reads preserved history
 without changing the current topic or epoch. It returns the latest `limit`
 messages in chronological order (`1..200`, default 100); pass the oldest returned
 message ID as `before` to page backward. The archive, topic, conversation, and
 cursor must all belong to the authenticated user and the archived epoch.
+
+`POST /chat/topics/{topic_id}/archives/{archive_id}/resume` returns a
+`ConversationOut`. It locks the owned archive/source and moves only the closed
+epoch's original message rows into a normal topic thread. Message IDs, stars,
+metadata and evidence links are preserved; historical messages are not re-ingested.
+The archive exposes `resumed_conversation_id` and its detail reader follows that
+thread. Repeated resume returns the same thread; a deleted target returns 404.
+Current epochs and sessions with active replies/workflows return 409. The latest
+unarchived primary session stays accessible in the per-topic conversation list.
 
 `GET /chat/conversations/{id}/context` resolves each selected source from its
 owned authoritative row and includes a bounded `source_excerpt`, source label

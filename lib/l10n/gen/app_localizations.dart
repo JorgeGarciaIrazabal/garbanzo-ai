@@ -5478,7 +5478,7 @@ abstract class AppLocalizations {
   /// Explains the topic archive viewer.
   ///
   /// In en, this message translates to:
-  /// **'Read prior primary-chat sessions for this topic.'**
+  /// **'Open a previous conversation for this topic, or continue an archived session.'**
   String get earlierSessionsDescription;
 
   /// Empty state for topic archives.
@@ -5532,7 +5532,7 @@ abstract class AppLocalizations {
   /// Error message when topic switch fails.
   ///
   /// In en, this message translates to:
-  /// **'Could not switch topic'**
+  /// **'Could not start the topic conversation'**
   String get topicSwitchFailed;
 
   /// Changes the active topic.
@@ -5808,7 +5808,7 @@ abstract class AppLocalizations {
   /// Explains switch and combine choices.
   ///
   /// In en, this message translates to:
-  /// **'Combine to discuss both topics together, or switch to start a fresh chat session.'**
+  /// **'Combine to discuss both topics in this conversation, or start a new thread with the selected topic context.'**
   String get topicSwitchChoiceDescription;
 
   /// Explains switching when no topic is active.
@@ -5820,7 +5820,7 @@ abstract class AppLocalizations {
   /// Switch option for retaining explicit context pins.
   ///
   /// In en, this message translates to:
-  /// **'Keep pinned sources when switching'**
+  /// **'Copy pinned sources to the new conversation'**
   String get retainPinnedSourcesOnSwitch;
 
   /// Action that starts a new topic session.
@@ -6128,6 +6128,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Could not update the message star. Please try again.'**
   String get messageStarUpdateFailed;
+
+  /// Explains opening an archived session as a resumable thread.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue this session as a thread. Its messages and topic context will be preserved.'**
+  String get archivedSessionContinueDescription;
+
+  /// Action to open and continue an earlier topic conversation.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue conversation'**
+  String get continueTopicConversation;
+
+  /// Visible archive resume failure.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open this session as a thread. Try again after any active reply has finished.'**
+  String get archiveResumeFailed;
 }
 
 class _AppLocalizationsDelegate

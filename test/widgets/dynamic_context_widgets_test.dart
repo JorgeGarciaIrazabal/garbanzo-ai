@@ -45,7 +45,8 @@ class _TopicService extends TopicService {
     bool archive = true,
     bool retainPinned = true,
     required String idempotencyKey,
-    String mode = 'switch',
+    String mode = 'start',
+    Map<String, dynamic>? settings,
   }) async {
     if (topicId != null) activatedTopicIds.add(topicId);
     return TopicSwitchResponse(

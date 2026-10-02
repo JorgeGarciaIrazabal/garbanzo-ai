@@ -7,7 +7,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
-from app.schemas.chat import ChatMessageOut
+from app.schemas.chat import ChatMessageOut, ConversationOut, ThinkingLevel
 from app.topics.schemas import TopicContextStatus
 
 ContextSourceType = Literal[
@@ -124,12 +124,21 @@ class TopicSwitchRequest(BaseModel):
     label: str | None = Field(default=None, max_length=200)
     archive: bool = True
     retain_pinned: bool = True
-    mode: Literal["switch", "combine"] = "switch"
+    mode: Literal["switch", "combine", "start"] = "switch"
+    model: str | None = Field(default=None, min_length=1, max_length=100)
+    system_prompt: str | None = None
+    thinking_level: ThinkingLevel | None = None
 
     model_config = {"extra": "forbid"}
 
     @model_validator(mode="after")
     def require_one_target(self) -> TopicSwitchRequest:
+        if self.mode != "start" and self.model_fields_set & {
+            "model",
+            "system_prompt",
+            "thinking_level",
+        }:
+            raise ValueError("settings overrides require mode=start")
         if bool(self.topic_id) == bool(self.label and self.label.strip()):
             raise ValueError("provide exactly one of topic_id or label")
         return self
@@ -148,6 +157,10 @@ class TopicSwitchResponse(BaseModel):
     next_turn_summary: str | None = None
 
 
+class TopicConversationListResponse(BaseModel):
+    conversations: list[ConversationOut] = Field(default_factory=list)
+
+
 class TopicArchiveOut(BaseModel):
     id: str
     topic_id: str | None = None
@@ -155,7 +168,19 @@ class TopicArchiveOut(BaseModel):
     conversation_id: str
     message_count: int
     short_summary: str | None = None
+    resumed_conversation_id: str | None = None
     created_at: datetime
+
+    @model_validator(mode="before")
+    @classmethod
+    def include_resume_mapping(cls, archive: Any) -> Any:
+        if isinstance(archive, dict):
+            return archive
+        return {
+            field: getattr(archive, field)
+            for field in cls.model_fields
+            if field != "resumed_conversation_id"
+        } | {"resumed_conversation_id": (archive.payload or {}).get("resumed_conversation_id")}
 
     model_config = {"from_attributes": True}
 

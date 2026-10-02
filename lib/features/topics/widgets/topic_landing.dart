@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'package:garbanzo_ai/features/chat/models/style.dart';
-import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/model_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/style_provider.dart';
 import 'package:garbanzo_ai/features/topics/models/topic_node.dart';
@@ -12,7 +11,6 @@ import 'package:garbanzo_ai/features/topics/providers/topic_discovery_provider.d
 import 'package:garbanzo_ai/features/topics/widgets/topic_breadcrumbs.dart';
 import 'package:garbanzo_ai/features/topics/widgets/topic_field.dart';
 import 'package:garbanzo_ai/features/topics/widgets/topic_starter_card.dart';
-import 'package:garbanzo_ai/features/topics/widgets/topic_switch_dialog.dart';
 import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 AppLocalizations _l10n(BuildContext c) =>
@@ -80,9 +78,8 @@ class _TopicLandingState extends State<TopicLanding> {
 
   /// A new-topic window composes a clean slate: the user's default style
   /// (or last-used fallback) is selected, thinking starts at Medium, and the
-  /// primary conversation adopts those settings so topic chats and landing
-  /// sends use them too. Runs on startup and every
-  /// New topic action; providers are optional so isolated widget tests that
+  /// next thread adopts those settings when it is created. Runs on startup
+  /// and every New topic action; providers are optional so widget tests that
   /// mount the landing alone keep working.
   Future<void> _seedNewTopicDefaults() async {
     final topics = _topics;
@@ -90,9 +87,7 @@ class _TopicLandingState extends State<TopicLanding> {
     final epoch = topics.newTopicEpoch;
 
     // Styles are the heart of the seed; without the provider there is nothing
-    // to do. Model/chat are only needed to apply the seed to the primary, so
-    // they are read separately — isolated widget tests may mount the landing
-    // with only the providers they exercise.
+    // to do. Model selection is optional in isolated widget tests.
     final StyleProvider styles;
     try {
       styles = context.read<StyleProvider>();
@@ -103,24 +98,17 @@ class _TopicLandingState extends State<TopicLanding> {
     if (!mounted || (_topics?.newTopicEpoch ?? epoch) != epoch) return;
 
     final ModelProvider models;
-    final ChatProvider chat;
     try {
       models = context.read<ModelProvider>();
-      chat = context.read<ChatProvider>();
     } catch (_) {
       return;
     }
     await models.ensureLoaded();
     if (!mounted || (_topics?.newTopicEpoch ?? epoch) != epoch) return;
-    await _applySeedToPrimary(chat, models, styles, seed);
+    _applySeedModel(models, seed);
   }
 
-  Future<void> _applySeedToPrimary(
-    ChatProvider chat,
-    ModelProvider models,
-    StyleProvider styles,
-    Style? seed,
-  ) async {
+  void _applySeedModel(ModelProvider models, Style? seed) {
     // The style's model only applies when the model is installed; otherwise
     // keep the current selection and still apply its prompt/thinking.
     final modelId =
@@ -128,23 +116,6 @@ class _TopicLandingState extends State<TopicLanding> {
         ? seed.modelId
         : null;
     if (modelId != null) models.selectModel(modelId);
-
-    final conversation = chat.currentConversation;
-    if (conversation == null || !conversation.isPrimary) return;
-    final thinking = styles.pendingThinkingLevel;
-    final prompt = styles.pendingSystemPrompt;
-    final modelChanged = modelId != null && conversation.model != modelId;
-    final thinkingChanged = conversation.thinkingLevel != thinking;
-    final promptChanged =
-        (conversation.systemPrompt?.trim() ?? '') != (prompt ?? '');
-    if (!modelChanged && !thinkingChanged && !promptChanged) return;
-    await chat.updateConversation(
-      model: modelChanged ? modelId : null,
-      thinkingLevel: thinking,
-      setThinkingLevel: true,
-      systemPrompt: prompt,
-      clearSystemPrompt: prompt == null,
-    );
   }
 
   @override
@@ -176,28 +147,7 @@ class _TopicLandingState extends State<TopicLanding> {
         topics: topics,
         parentLabel: parentLabel,
         promotedCount: p.promotedCount,
-        onStart: (t) async {
-          ChatProvider? chat;
-          try {
-            chat = Provider.of<ChatProvider>(context, listen: false);
-          } catch (_) {
-            chat = null;
-          }
-          final currentTopic = p.selectedTopic;
-          if (chat != null &&
-              chat.messages.isNotEmpty &&
-              currentTopic != null &&
-              currentTopic.id.isNotEmpty &&
-              currentTopic.id != t.id) {
-            await TopicSwitchConfirmationDialog.show(
-              context,
-              conversationId: widget.conversationId,
-              targetTopic: t,
-            );
-            return;
-          }
-          await p.activate(widget.conversationId, t);
-        },
+        onStart: (t) => p.activate(widget.conversationId, t),
         onOpenChildren: p.openChildren,
       );
     }
@@ -245,6 +195,16 @@ class _TopicLandingState extends State<TopicLanding> {
                         ),
                       ],
                       const SizedBox(height: 16),
+                      if (p.startingTopic) const LinearProgressIndicator(),
+                      if (p.error != null && topics.isNotEmpty) ...[
+                        Text(
+                          _localizedTopicError(context, p.error!),
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.error,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                      ],
                       body,
                       if (p.mode == TopicOrigin.explore) ...[
                         const SizedBox(height: 18),
@@ -520,6 +480,7 @@ class _LandingNotice extends StatelessWidget {
 }
 
 String _localizedTopicError(BuildContext c, String e) => switch (e) {
+  'Could not start the topic conversation' => _l10n(c).topicSwitchFailed,
   'Topics are temporarily unavailable' => _l10n(c).messageCouldNotReachServer,
   'Historical context is temporarily limited' => _l10n(
     c,

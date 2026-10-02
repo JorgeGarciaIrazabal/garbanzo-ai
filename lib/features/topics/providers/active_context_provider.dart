@@ -24,25 +24,49 @@ class ActiveContextProvider extends ChangeNotifier {
 
   String? _error;
   String? get error => _error;
+  String? _conversationId;
+  int _requestEpoch = 0;
+
+  void bindConversation(String? conversationId) {
+    if (_conversationId == conversationId) return;
+    _conversationId = conversationId;
+    _requestEpoch++;
+    _context = null;
+    _error = null;
+    _loading = false;
+    notifyListeners();
+  }
+
+  bool _ownsRequest(String conversationId, int epoch) =>
+      _conversationId == conversationId && _requestEpoch == epoch;
 
   Future<void> load(String conversationId, {bool quiet = false}) async {
+    bindConversation(conversationId);
+    final epoch = ++_requestEpoch;
     if (!quiet) {
       _loading = true;
       notifyListeners();
     }
     try {
-      _context = await _service.getContext(conversationId);
+      final loaded = await _service.getContext(conversationId);
+      if (!_ownsRequest(conversationId, epoch)) return;
+      _context = loaded;
       _error = null;
     } catch (error) {
+      if (!_ownsRequest(conversationId, epoch)) return;
       _error = 'Active context is temporarily unavailable';
       logDebug('Failed to load active context: $error');
     } finally {
-      _loading = false;
-      notifyListeners();
+      if (_ownsRequest(conversationId, epoch)) {
+        _loading = false;
+        notifyListeners();
+      }
     }
   }
 
   void applyContextUpdate(Map<String, dynamic> payload) {
+    final conversationId = payload['conversation_id'] as String?;
+    if (conversationId != null && conversationId != _conversationId) return;
     final current = _context;
     final incomingVersion = (payload['context_version'] as num?)?.toInt();
     if (current != null &&
@@ -79,6 +103,8 @@ class ActiveContextProvider extends ChangeNotifier {
   /// Resets the context to a fresh state after a topic switch.
   /// Replace local state with the server's authoritative context snapshot.
   void resetFromServer(ActiveContext newContext) {
+    _conversationId = newContext.conversationId;
+    _requestEpoch++;
     _context = newContext;
     _error = null;
     notifyListeners();
@@ -88,6 +114,7 @@ class ActiveContextProvider extends ChangeNotifier {
     final current = _context;
     if (current == null) return;
     final before = current;
+    final epoch = _requestEpoch;
     _context = current.copyWith(
       items: [
         for (final item in current.items)
@@ -97,9 +124,12 @@ class ActiveContextProvider extends ChangeNotifier {
     notifyListeners();
     try {
       await _mutateWithOneConflictRetry(itemId, state, before);
-      _context = await _service.getContext(before.conversationId);
+      final loaded = await _service.getContext(before.conversationId);
+      if (!_ownsRequest(before.conversationId, epoch)) return;
+      _context = loaded;
       _error = null;
     } catch (error) {
+      if (!_ownsRequest(before.conversationId, epoch)) return;
       _context = before;
       _error = 'Could not update this context source';
       logDebug('Failed to update context item: $error');
@@ -137,6 +167,7 @@ class ActiveContextProvider extends ChangeNotifier {
   }) async {
     final current = _context;
     if (current == null) return;
+    final epoch = _requestEpoch;
     try {
       await _service.addSource(
         current.conversationId,
@@ -144,9 +175,12 @@ class ActiveContextProvider extends ChangeNotifier {
         sourceId: sourceId,
         contextVersion: current.version,
       );
-      _context = await _service.getContext(current.conversationId);
+      final loaded = await _service.getContext(current.conversationId);
+      if (!_ownsRequest(current.conversationId, epoch)) return;
+      _context = loaded;
       _error = null;
     } catch (error) {
+      if (!_ownsRequest(current.conversationId, epoch)) return;
       _error = 'Could not add this context source';
       logDebug('Failed to add context source: $error');
     }
@@ -156,6 +190,7 @@ class ActiveContextProvider extends ChangeNotifier {
   Future<void> setTopicPinned(bool pinned) async {
     final current = _context;
     if (current == null) return;
+    final epoch = _requestEpoch;
     _context = current.copyWith(topicPinned: pinned);
     notifyListeners();
     try {
@@ -164,7 +199,13 @@ class ActiveContextProvider extends ChangeNotifier {
         pinned: pinned,
         contextVersion: current.version,
       );
+      final loaded = await _service.getContext(current.conversationId);
+      if (!_ownsRequest(current.conversationId, epoch)) return;
+      _context = loaded;
+      _error = null;
+      notifyListeners();
     } catch (error) {
+      if (!_ownsRequest(current.conversationId, epoch)) return;
       _context = current;
       _error = 'Could not update topic pin';
       notifyListeners();

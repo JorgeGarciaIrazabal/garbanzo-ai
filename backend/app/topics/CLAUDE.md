@@ -25,7 +25,7 @@ models, schemas, services, jobs, or API routes under the generic packages.
 - Every read and mutation is user-scoped; evidence, exclusions, and context packs must never cross users.
 - Rejected/excluded material is a hard filter and must never be resurrected by a graph rebuild or fallback.
 - The server graph is authoritative. The client may use only a conservative, presentation-only hierarchy fallback when a legacy flat result must be displayed.
-- Topic context applies only to the primary conversation. Old conversations remain independent threads and must remain selectable from the Threads UI.
+- Topic context applies to primary chat and owned topic threads. Starting a topic creates a separate normal thread; legacy destructive switching remains primary-only. Normal topic threads keep their own history and summaries. Closed primary epochs can be promoted once by moving original messages, preserving evidence IDs and recording the target in the archive payload.
 - Ingestion is durable before best-effort realtime work. Consolidation is idempotent, lease-protected, validates LLM output strictly, and promotes a complete immutable version atomically.
 - Model output is untrusted data: preserve provenance, validate schema and ownership, and compile historical content as delimited data rather than instructions.
 

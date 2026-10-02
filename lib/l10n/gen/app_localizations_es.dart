@@ -3171,7 +3171,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get earlierSessionsDescription =>
-      'Consulta sesiones anteriores del chat principal para este tema.';
+      'Abre una conversación anterior de este tema o continúa una sesión archivada.';
 
   @override
   String get noEarlierSessions =>
@@ -3208,7 +3208,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get archiveSpeakerGarbanzo => 'Garbanzo';
 
   @override
-  String get topicSwitchFailed => 'No se pudo cambiar de tema';
+  String get topicSwitchFailed => 'No se pudo iniciar la conversación del tema';
 
   @override
   String get redirect => 'Cambiar tema';
@@ -3368,7 +3368,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get topicSwitchChoiceDescription =>
-      'Combina para hablar de ambos temas o cambia para iniciar una sesión de chat nueva.';
+      'Combina para tratar ambos temas en esta conversación o inicia un nuevo hilo con el contexto del tema seleccionado.';
 
   @override
   String get topicSwitchStartDescription =>
@@ -3376,7 +3376,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get retainPinnedSourcesOnSwitch =>
-      'Conservar las fuentes fijadas al cambiar';
+      'Copiar las fuentes fijadas a la nueva conversación';
 
   @override
   String get switchTopic => 'Cambiar de tema';
@@ -3539,4 +3539,15 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get messageStarUpdateFailed =>
       'No se pudo actualizar el destacado del mensaje. Inténtalo de nuevo.';
+
+  @override
+  String get archivedSessionContinueDescription =>
+      'Continúa esta sesión como un hilo. Se conservarán sus mensajes y el contexto del tema.';
+
+  @override
+  String get continueTopicConversation => 'Continuar conversación';
+
+  @override
+  String get archiveResumeFailed =>
+      'No se pudo abrir esta sesión como un hilo. Inténtalo de nuevo cuando haya terminado cualquier respuesta en curso.';
 }

@@ -270,7 +270,7 @@ class _TopicSwitchConfirmationDialogState
         topicId: widget.targetTopic.id,
         retainPinned: _retainPinned,
         idempotencyKey: _switchIdempotencyKey ??= const Uuid().v4(),
-        mode: 'switch',
+        mode: 'start',
       );
       if (mounted) Navigator.of(context).pop(result);
     } catch (e) {

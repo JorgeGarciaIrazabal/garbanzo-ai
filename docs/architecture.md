@@ -374,7 +374,35 @@ and after every single turn — slow for long-running conversations. Now:
   `created_at`, since rows from the same DB transaction can share a
   timestamp.
 
-### Topic switch flow
+### Topic thread creation and legacy switching
+
+The app starts topics with `mode:start` on the topic-switch endpoint. The
+orchestration locks the owned source, resolves an owned/suggested/free-text topic,
+creates an independent non-primary conversation with inherited settings and
+optional eligible pins, and materializes its baseline context in one transaction.
+The new conversation ID is recorded under the source's idempotency key. Original
+threads keep their messages and context; every successful fresh start appears in
+Threads and has a normal `/chat/{id}` link. Topic context read/mutation, pinning,
+and combine operations work on these threads. Their own full history and normal
+rolling summary remain available alongside compiled topic context.
+
+The current legacy primary is accessible in the topic conversation history.
+Closed archived epochs can be resumed explicitly: the server validates ownership,
+locks the archive and source, rejects active writers/current epochs, and moves
+original message rows into a topic thread while retaining message/evidence IDs.
+It updates message-ingestion and completed-workflow conversation references and
+stores the new thread ID in the archive payload. Repeated resume opens the same
+thread, and archive readers follow the mapping. There is no automatic data migration.
+Workflow completion locks its source and refreshes the run's destination before
+saving its summary, so a concurrent archive resume cannot leave a late summary
+behind in the old primary conversation.
+
+Client navigation detaches UI updates without cancelling the server's
+producer; a background SSE consumer still serves client folder tools until completion; the Stop button remains explicit cancellation. Conversation load guards
+ignore superseded results, and active-context loads/events/mutations are bound to
+the displayed conversation so versions from another thread cannot overwrite it.
+
+The compatibility `mode:switch` flow remains available for old primary sessions:
 
 `POST /api/v1/chat/conversations/{id}/topics/switch` is the primary-chat
 topic change action. It runs server-side as a single orchestration:
@@ -400,22 +428,21 @@ topic change action. It runs server-side as a single orchestration:
 `mode: "combine"` uses the same endpoint and idempotency contract, adds the
 topic relation, and keeps the current session epoch.
 
-Archived epochs remain read-only. The archive detail endpoint resolves messages
+Archived epochs remain readable until explicitly resumed into a normal thread. The archive detail endpoint resolves messages
 from the original conversation and exact stored epoch, pages backward by message
 sequence, and checks archive/topic ownership without changing active chat state.
 
 **Frontend coordination** — `TopicDiscoveryProvider.switchTopic()` calls
 the endpoint and applies its authoritative topic. `ChatProvider.applyTopicSwitch()`
-cancels any active client stream, advances the local action guard, clears the
-visible session, and applies the returned topic, context version, and session
-epoch before listeners refresh active context. Late chunks and reloads from the
+opens and adds a new response conversation ID to Threads, with stream detachment
+and guarded history loading. Same-ID legacy switches retain the session-clearing
+path before listeners refresh active context. Late chunks and reloads from the
 old action are ignored. `ActiveContextProvider.resetFromServer()` replaces the
 local context snapshot; retained pins are returned as `retained_items`. The
-active-context panel lists earlier sessions for the topic and opens their paged
-messages in a localized read-only dialog. Submitting from the Topics landing
+active-context panel lists topic threads and archived sessions; ordinary entries
+reopen directly, while archived paged messages offer Continue conversation. Submitting from the Topics landing
 without a selected topic creates a regular thread and carries the complete first
-turn, including attachment-only turns; selecting a topic keeps submission in the
-primary conversation.
+turn, including attachment-only turns; selecting a topic creates an independent thread with preloaded topic context.
 
 All active-context mutations and topic pin changes lock the same primary
 conversation row and require its current `context_version`. This serializes them
@@ -563,7 +590,7 @@ never disagree about the local user after a mute/unmute round trip.
 
 Main providers per `ChatPage` tree:
 - **`ModelProvider`** — available models + selected model. Kept separate so model selection survives conversation switches. For image capability errors it exposes only enabled Vision choices, preferring GLM 5.3 Flash for speed/cost and Kimi K3 for capability, then falling back to its location- and capability-aware ranking.
-- **`StyleProvider`** — saved styles + built-in styles (model + thinking level + prompt template bundles, `/api/v1/styles`) plus the *pending* thinking level / system prompt the style picker composes for the next new conversation. Same survives-switches rationale as `ModelProvider`. On load it seeds the pendings from the default style (`is_default`) or, absent one, from the last saved style the user explicitly applied (id persisted locally in `SharedPreferences` via `recordLastUsed`, `style_last_used_style_id`) — an explicit default always wins over last-used. Opening a new-topic window (`TopicLanding`, at startup or via New topic) re-composes the pendings through `applyDefaultForNewTopic()`: the default/last-used style is selected, thinking resets to `Medium` regardless of the saved style's effort, and the landing applies the same settings to the primary conversation so subsequent topic chats use them. There is no backend column for "the active style": `selectedStyleId` retains the named model + resolved-prompt identity locally, so the composer pill keeps the selected style name when thinking is overridden. Without a compatible selected identity, the pill and saved-style cards recover the style from an exact model/thinking/resolved-prompt match (`_resolveActiveStyle` in `style_picker.dart`).
+- **`StyleProvider`** — saved styles + built-in styles (model + thinking level + prompt template bundles, `/api/v1/styles`) plus the *pending* thinking level / system prompt the style picker composes for the next new conversation. Same survives-switches rationale as `ModelProvider`. On load it seeds the pendings from the default style (`is_default`) or, absent one, from the last saved style the user explicitly applied (id persisted locally in `SharedPreferences` via `recordLastUsed`, `style_last_used_style_id`) — an explicit default always wins over last-used. Opening a new-topic window (`TopicLanding`, at startup or via New topic) re-composes the pendings through `applyDefaultForNewTopic()`: the default/last-used style is selected, thinking resets to `Medium` regardless of the saved style's effort, and the new topic thread receives those pending settings at creation; opening the landing does not edit an existing conversation. There is no backend column for "the active style": `selectedStyleId` retains the named model + resolved-prompt identity locally, so the composer pill keeps the selected style name when thinking is overridden. Without a compatible selected identity, the pill and saved-style cards recover the style from an exact model/thinking/resolved-prompt match (`_resolveActiveStyle` in `style_picker.dart`).
 
 ### Built-in styles
 

@@ -3132,7 +3132,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get earlierSessionsDescription =>
-      'Read prior primary-chat sessions for this topic.';
+      'Open a previous conversation for this topic, or continue an archived session.';
 
   @override
   String get noEarlierSessions => 'No earlier sessions for this topic yet.';
@@ -3168,7 +3168,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get archiveSpeakerGarbanzo => 'Garbanzo';
 
   @override
-  String get topicSwitchFailed => 'Could not switch topic';
+  String get topicSwitchFailed => 'Could not start the topic conversation';
 
   @override
   String get redirect => 'Switch topic';
@@ -3326,7 +3326,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get topicSwitchChoiceDescription =>
-      'Combine to discuss both topics together, or switch to start a fresh chat session.';
+      'Combine to discuss both topics in this conversation, or start a new thread with the selected topic context.';
 
   @override
   String get topicSwitchStartDescription =>
@@ -3334,7 +3334,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get retainPinnedSourcesOnSwitch =>
-      'Keep pinned sources when switching';
+      'Copy pinned sources to the new conversation';
 
   @override
   String get switchTopic => 'Switch topic';
@@ -3497,4 +3497,15 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get messageStarUpdateFailed =>
       'Could not update the message star. Please try again.';
+
+  @override
+  String get archivedSessionContinueDescription =>
+      'Continue this session as a thread. Its messages and topic context will be preserved.';
+
+  @override
+  String get continueTopicConversation => 'Continue conversation';
+
+  @override
+  String get archiveResumeFailed =>
+      'Could not open this session as a thread. Try again after any active reply has finished.';
 }

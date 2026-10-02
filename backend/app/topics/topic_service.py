@@ -233,7 +233,7 @@ class TopicService:
         conv = await self.db.scalar(statement)
         if conv is None:
             raise TopicNotFoundError
-        if not conv.is_primary:
+        if not conv.is_primary and not conv.active_topic_id:
             raise PrimaryConversationRequiredError
         return conv
 

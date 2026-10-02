@@ -18,6 +18,7 @@ import 'package:garbanzo_ai/features/settings/widgets/settings_drawer.dart';
 import 'package:garbanzo_ai/features/chat/models/chat_attachment.dart';
 import 'package:garbanzo_ai/features/chat/models/agent_liveness.dart';
 import 'package:garbanzo_ai/features/chat/utils/agent_progress_builder.dart';
+import 'package:garbanzo_ai/features/chat/utils/composer_conversation.dart';
 import 'package:garbanzo_ai/features/chat/models/chat_message.dart';
 import 'package:garbanzo_ai/features/chat/models/conversation.dart';
 import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
@@ -26,6 +27,7 @@ import 'package:garbanzo_ai/features/chat/providers/read_aloud_controller.dart';
 import 'package:garbanzo_ai/features/chat/services/transcript_export_service.dart';
 import 'package:garbanzo_ai/features/chat/providers/model_provider.dart';
 import 'package:garbanzo_ai/features/topics/models/topic_node.dart';
+import 'package:garbanzo_ai/features/topics/providers/active_context_provider.dart';
 import 'package:garbanzo_ai/features/topics/providers/topic_discovery_provider.dart';
 import 'package:garbanzo_ai/features/chat/widgets/chat_app_bar.dart';
 import 'package:garbanzo_ai/features/chat/widgets/chat_input_widget.dart';
@@ -59,6 +61,7 @@ Future<void> submitChatComposerMessage({
   required String message,
   required List<ChatAttachment> attachments,
 }) async {
+  if (topicDiscovery.startingTopic || chatProvider.isSending) return;
   // The landing map is the "no topic chosen yet" surface: every explicit
   // selection closes it (setSelectedTopic/activate set showLanding false), so
   // while it is visible a send starts a clean regular thread. Do not key this
@@ -178,6 +181,7 @@ class _ChatPageState extends State<ChatPage> {
       }
     }
     final conv = provider.currentConversation;
+    context.read<ActiveContextProvider>().bindConversation(conv?.id);
     final topicDiscovery = context.read<TopicDiscoveryProvider>();
     final targetTopic = conv?.activeTopic;
     if (targetTopic != topicDiscovery.selectedTopic) {
@@ -681,7 +685,7 @@ class _ChatPageContentState extends State<_ChatPageContent>
     if (folder != null) {
       try {
         await chatProvider.attachClientFolder(
-          chatProvider.currentConversation?.id,
+          composerConversation(context, listen: false)?.id,
           folder.path,
         );
       } catch (_) {
@@ -842,9 +846,13 @@ class _ChatPageContentState extends State<_ChatPageContent>
                                     _deleteWithUndo(chatProvider, id),
                                 onNewChat:
                                     chatProvider
-                                            .currentConversation
-                                            ?.isPrimary ==
-                                        true
+                                                .currentConversation
+                                                ?.isPrimary ==
+                                            true ||
+                                        chatProvider
+                                                .currentConversation
+                                                ?.activeTopicId !=
+                                            null
                                     ? _newTopic
                                     : _newChat,
                               ),
@@ -880,11 +888,21 @@ class _ChatPageContentState extends State<_ChatPageContent>
                                   return const SizedBox.shrink();
                                 },
                               ),
-                              if (chatProvider.currentConversation?.isPrimary ==
-                                      true &&
-                                  !context
-                                      .watch<TopicDiscoveryProvider>()
-                                      .showLanding)
+                              if ((chatProvider
+                                              .currentConversation
+                                              ?.isPrimary ==
+                                          true ||
+                                      chatProvider
+                                              .currentConversation
+                                              ?.activeTopicId !=
+                                          null) &&
+                                  (chatProvider
+                                              .currentConversation
+                                              ?.isPrimary !=
+                                          true ||
+                                      !context
+                                          .watch<TopicDiscoveryProvider>()
+                                          .showLanding))
                                 const TopicBanner(),
                               Expanded(
                                 child: Stack(
@@ -934,15 +952,29 @@ class _ChatPageContentState extends State<_ChatPageContent>
                                         attachments: merged,
                                       );
                                     },
-                                    onStop: () => chatProvider.stopStreaming(),
-                                    isLoading: chatProvider.isSending,
+                                    onStop:
+                                        provider.canStopGeneration &&
+                                            !context
+                                                .watch<TopicDiscoveryProvider>()
+                                                .startingTopic
+                                        ? () => provider.stopStreaming()
+                                        : null,
+                                    isLoading:
+                                        chatProvider.isSending ||
+                                        context
+                                            .watch<TopicDiscoveryProvider>()
+                                            .startingTopic,
                                     initialAttachments:
                                         provider.pendingAttachments,
                                     isPrimary:
                                         provider
-                                            .currentConversation
-                                            ?.isPrimary ==
-                                        true,
+                                                .currentConversation
+                                                ?.isPrimary ==
+                                            true ||
+                                        provider
+                                                .currentConversation
+                                                ?.activeTopicId !=
+                                            null,
                                     onNewTopic: _newTopic,
                                     onOpenContext: _openActiveContext,
                                   );
@@ -956,9 +988,11 @@ class _ChatPageContentState extends State<_ChatPageContent>
                                   true ||
                               chatProvider.currentConversation?.activeTopicId !=
                                   null) &&
-                          !context
-                              .watch<TopicDiscoveryProvider>()
-                              .showLanding &&
+                          (chatProvider.currentConversation?.isPrimary !=
+                                  true ||
+                              !context
+                                  .watch<TopicDiscoveryProvider>()
+                                  .showLanding) &&
                           _showActiveContext &&
                           context.isWide)
                         SizedBox(
@@ -1129,31 +1163,24 @@ class _ChatPageContentState extends State<_ChatPageContent>
         (conversation?.activeTopicId != null &&
                 topicDiscovery.selectedTopic?.id == conversation?.activeTopicId
             ? topicDiscovery.selectedTopic
-            : (topicDiscovery.selectedTopic ??
-                  (conversation?.activeTopicId != null
-                      ? TopicNode(
-                          id: conversation!.activeTopicId!,
-                          label: conversation.title ?? 'Topic',
-                          origin: TopicOrigin.history,
-                          description: conversation.contextSummary,
-                          starterPrompts: [
-                            'Continue with ${conversation.title ?? 'Topic'}',
-                            'What should I do next about ${conversation.title ?? 'Topic'}?',
-                          ],
-                        )
-                      : null)));
+            : (conversation?.activeTopicId != null
+                  ? TopicNode(
+                      id: conversation!.activeTopicId!,
+                      label: conversation.title ?? 'Topic',
+                      origin: TopicOrigin.history,
+                      description: conversation.contextSummary,
+                      starterPrompts: [
+                        'Continue with ${conversation.title ?? 'Topic'}',
+                        'What should I do next about ${conversation.title ?? 'Topic'}?',
+                      ],
+                    )
+                  : null));
 
     if (!hasUserMessages && activeTopic != null && conversation != null) {
       return TopicContextEmptyState(
         conversationId: conversation.id,
         topic: activeTopic,
-        onStarterSelected: (message) async {
-          if (conversation.isPrimary) {
-            await chatProvider.sendMessage(message);
-          } else {
-            await chatProvider.sendMessage(message);
-          }
-        },
+        onStarterSelected: (message) => chatProvider.sendMessage(message),
         onOpenContext: _openActiveContext,
       );
     }

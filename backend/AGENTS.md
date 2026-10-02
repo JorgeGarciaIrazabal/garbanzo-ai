@@ -41,6 +41,10 @@ EXISTS`. Applied once each at startup (`db/migrations.py`), tracked in
 
 ## Gotchas
 
+- `app.services` eagerly exports `ConversationService`. In that service, import
+  `topic_context_compiler` as a module and access its compiler at runtime;
+  importing the compiler class eagerly creates a cycle when a topic service is
+  imported first (including the PostgreSQL smoke check).
 - Work that must outlive the HTTP request (delegated workflows) is started with
   `asyncio.create_task` from the endpoint and **never awaited there** — awaiting
   re-couples it to the client's connection, which is the exact bug the feature

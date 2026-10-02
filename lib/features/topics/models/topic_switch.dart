@@ -104,6 +104,7 @@ class TopicArchive {
     required this.messageCount,
     this.shortSummary,
     required this.createdAt,
+    this.resumedConversationId,
   });
 
   factory TopicArchive.fromJson(Map<String, dynamic> json) {
@@ -117,6 +118,7 @@ class TopicArchive {
       createdAt:
           DateTime.tryParse(json['created_at'] as String? ?? '') ??
           DateTime.now(),
+      resumedConversationId: json['resumed_conversation_id'] as String?,
     );
   }
 
@@ -127,6 +129,7 @@ class TopicArchive {
   final int messageCount;
   final String? shortSummary;
   final DateTime createdAt;
+  final String? resumedConversationId;
 }
 
 class TopicArchivePage {

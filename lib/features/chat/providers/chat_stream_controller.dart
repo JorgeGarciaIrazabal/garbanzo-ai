@@ -10,6 +10,9 @@ class ChatStreamController {
 
   final ValueNotifier<ChatMessage?> streamingMessage = ValueNotifier(null);
   StreamSubscription<ChatResponseChunk>? _subscription;
+  Object? _activeListener;
+  final Set<StreamSubscription<ChatResponseChunk>> _backgroundSubscriptions =
+      {};
   String? _messageId;
   DateTime _lastPush = DateTime.fromMillisecondsSinceEpoch(0);
   Timer? _flushTimer;
@@ -26,18 +29,30 @@ class ChatStreamController {
     required void Function() onDone,
   }) {
     _messageId = messageId;
-    _subscription = stream.listen(
+    final listener = Object();
+    _activeListener = listener;
+    StreamSubscription<ChatResponseChunk>? subscription;
+    subscription = stream.listen(
       onChunk,
       onError: (Object error) {
-        _subscription = null;
+        if (_activeListener == listener) {
+          _subscription = null;
+          _activeListener = null;
+        }
+        _backgroundSubscriptions.remove(subscription);
         onError(error);
       },
       onDone: () {
-        _subscription = null;
+        if (_activeListener == listener) {
+          _subscription = null;
+          _activeListener = null;
+        }
+        _backgroundSubscriptions.remove(subscription);
         onDone();
       },
       cancelOnError: true,
     );
+    _subscription = subscription;
   }
 
   void push(ChatMessage message, {bool force = false}) {
@@ -68,7 +83,16 @@ class ChatStreamController {
   Future<void> cancel() async {
     final subscription = _subscription;
     _subscription = null;
+    _activeListener = null;
     await subscription?.cancel();
+  }
+
+  /// Keep delivery of client tools for a turn after its thread leaves the UI.
+  void detach() {
+    final subscription = _subscription;
+    if (subscription != null) _backgroundSubscriptions.add(subscription);
+    _subscription = null;
+    _activeListener = null;
   }
 
   void clear() {
@@ -81,6 +105,10 @@ class ChatStreamController {
 
   void dispose() {
     _subscription?.cancel();
+    for (final subscription in _backgroundSubscriptions) {
+      subscription.cancel();
+    }
+    _backgroundSubscriptions.clear();
     _flushTimer?.cancel();
     streamingMessage.dispose();
   }

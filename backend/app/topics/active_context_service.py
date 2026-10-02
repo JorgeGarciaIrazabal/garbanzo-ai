@@ -460,7 +460,7 @@ class ActiveContextService:
     ) -> Conversation:
         statement = (
             Conversation.active(user_id)
-            .where(Conversation.id == conversation_id, Conversation.is_primary.is_(True))
+            .where(Conversation.id == conversation_id)
             .options(selectinload(Conversation.active_topic))
         )
         if for_update:

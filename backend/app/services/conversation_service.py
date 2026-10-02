@@ -7,6 +7,7 @@ import time
 import uuid
 from dataclasses import dataclass
 
+from fastapi import HTTPException
 from sqlalchemy import desc, func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,6 +17,7 @@ from app.core.config import get_settings
 from app.models.conversation import Conversation
 from app.models.message import Message
 from app.services.mute_util import resolve_mute_until
+from app.topics import topic_context_compiler
 from app.topics.models import Topic, TopicAssertion
 from app.topics.topic_description_helper import (
     get_topic_high_level_description,
@@ -26,6 +28,7 @@ from app.topics.topic_ingestion_service import (
     enqueue_conversation_event,
     enqueue_message_event,
 )
+from app.topics.topic_service import TopicService
 
 logger = logging.getLogger(__name__)
 
@@ -152,6 +155,9 @@ class ConversationService:
                 )
             )
 
+            if topic is None:
+                raise HTTPException(status_code=404, detail="not_found")
+
         if title is None:
             if topic:
                 title = topic.label
@@ -168,6 +174,13 @@ class ConversationService:
             active_topic_id=topic.id if topic else None,
         )
         self.db.add(conversation)
+
+        if topic:
+            TopicService.apply_activation(conversation, topic)
+            await self.db.flush()
+            await topic_context_compiler.TopicContextCompiler(self.db).materialize_baseline(
+                conversation, topic
+            )
 
         now_ns = time.time_ns()
         if topic:

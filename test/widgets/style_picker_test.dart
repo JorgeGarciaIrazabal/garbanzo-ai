@@ -15,6 +15,7 @@ import 'package:garbanzo_ai/features/chat/services/chat_service.dart';
 import 'package:garbanzo_ai/features/chat/services/style_service.dart';
 import 'package:garbanzo_ai/features/chat/widgets/chat_input_widget.dart';
 import 'package:garbanzo_ai/features/chat/widgets/style_picker.dart';
+import 'package:garbanzo_ai/features/topics/providers/topic_discovery_provider.dart';
 import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -317,6 +318,7 @@ Widget _wrap({
   required _FakeStyleProvider styles,
   required _FakeSystemPromptProvider prompts,
   SettingsProvider? settings,
+  TopicDiscoveryProvider? topics,
 }) {
   // Providers live below the navigator like on the real chat page, so these
   // tests exercise showStylePicker's provider re-exposure across routes.
@@ -325,6 +327,7 @@ Widget _wrap({
     ChangeNotifierProvider<ModelProvider>.value(value: models),
     ChangeNotifierProvider<StyleProvider>.value(value: styles),
     ChangeNotifierProvider<SystemPromptProvider>.value(value: prompts),
+    if (topics != null) ChangeNotifierProvider.value(value: topics),
     if (settings != null)
       ChangeNotifierProvider<SettingsProvider>.value(value: settings),
   ];
@@ -399,6 +402,25 @@ void main() {
   });
 
   group('StylePickerButton', () {
+    _testPicker('topic-landing shows and customizes pending settings without editing its source', (tester) async {
+      _setScreenSize(tester, const Size(390, 844));
+      final chat = _FakeChatProvider(conversation: _conversation(model: 'llama3.2').copyWith(isPrimary: true));
+      final models = _FakeModelProvider(models: _defaultModels, selectedId: 'qwen3');
+      final styles = _FakeStyleProvider(styles: [_style('new-style', 'New thread style', modelId: 'qwen3', thinkingLevel: ThinkingLevel.high)]);
+      await tester.pumpWidget(_wrap(
+        chat: chat, models: models, styles: styles, prompts: _FakeSystemPromptProvider(),
+        topics: TopicDiscoveryProvider(),
+      ));
+      expect(find.text('qwen3'), findsOneWidget);
+      expect(find.text('llama3.2'), findsNothing);
+      await _openPicker(tester);
+      await tester.tap(find.text('New thread style'));
+      await tester.pumpAndSettle();
+      expect(chat.updates, isEmpty);
+      expect(chat.currentConversation?.model, 'llama3.2');
+      expect(styles.pendingThinkingLevel, ThinkingLevel.high);
+      expect(models.selectedModelId, 'qwen3');
+    });
     _testPicker('shows the effective model name without exceptions', (
       tester,
     ) async {

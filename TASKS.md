@@ -175,6 +175,7 @@ Original backlog and notes: [.ai/backlog-source.md](.ai/backlog-source.md).
 - [ ] **garbanzo-ir0** P2 [open] **Audit logging** — Log all admin actions and sensitive user actions
 - [x] **garbanzo-izp** P2 [closed] **STT: Backend transcription endpoint** — `POST /api/v1/stt/transcribe` that forwards audio to the faster-whisper service and returns the transcript text
 - [ ] **garbanzo-j1o** P2 [open] **Tests, docs, and E2E** (in progress)
+- [ ] **garbanzo-j2jb** P2 [open] Make topic conversations normal resumable threads
 - [x] **garbanzo-j439** P2 [closed] pip-audit finding ba4e257c989dd61921873272
 - [x] **garbanzo-jat** P2 [closed] **Recurring prompts** — Daily/weekly AI check-ins (e.g., "Summarize my tasks every Monday")
 - [x] **garbanzo-jcof** P2 [closed] pip-audit finding 323c7e9275a8516707eb27b2

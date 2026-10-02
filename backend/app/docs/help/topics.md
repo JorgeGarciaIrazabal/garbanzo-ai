@@ -1,19 +1,17 @@
 # Topics and active context
 
-The primary chat is one unified conversation where Garbanzo can keep related
-context available across turns. Topics are derived from your messages and
-legacy threads; they do not create a new conversation for every subject.
-Separate threads remain available for conversations that should stay isolated.
+Selecting a topic starts a new conversation thread with relevant topic context
+already available. Each conversation keeps its own messages and can be reopened
+and continued from **Threads**. Starting the same topic again creates another
+thread; it does not replace the previous conversation.
 
 ## How do I choose a topic?
 
 Open the Topics view and select a personal topic, or activate one from Explore.
-The primary chat opens on this topic map by default and stays there while its
-saved active-topic state loads. It opens a topic only after you select one.
+The chat opens on the topic map by default. Selecting a topic opens a new thread.
 When the new-topic map opens, Garbanzo resets the composer to your default
-style (or the style you used last) and starts thinking at that style's level,
-or Medium when the style leaves it on Auto; the primary conversation adopts
-those settings so the topic you pick starts with them.
+style (or the style you used last) and starts thinking at Medium. These settings
+apply to the next thread you create.
 If you send from the map without selecting a topic, Garbanzo starts a separate
 regular thread so that message does not create or rename a primary-chat topic.
 Larger topics are currently
@@ -22,7 +20,7 @@ without implying a rigid list. A broad parent and a visible subtopic are both
 selectable conversation starting points. Sub-topics only appear on the map
 when they are highly relevant; less relevant ones are one tap away — open the
 parent topic to browse its full list.
-You can also activate a topic directly from the primary chat. A selected topic
+You can also start another topic from the context panel. A selected topic
 is shown with its parent when it belongs to a topic hierarchy. Your selection
 always stays put: Garbanzo never changes the active topic on its own, it only
 suggests a switch through the drift banner. Pinning controls whether active
@@ -30,7 +28,7 @@ context items stay pinned across turns.
 
 ## What is active context?
 
-Active context is the material selected for the next primary-chat turn. For a
+Active context is the material selected for the next turn in a topic conversation. For a
 prepared topic, Garbanzo uses concise, grounded assertions curated from the
 topic's message history instead of replaying a list of raw messages. Explicitly
 pinned messages, threads, memories, knowledge-base items, or attachments can
@@ -77,7 +75,7 @@ evidence size, with a much higher database scan safety ceiling, so dozens or
 hundreds of short messages can shape one topic instead of only 24. `ready` means
 the latest pack is current; `live` means new evidence is available on top of
 that pack; `preparing` means no current pack is available yet. A reply is not
-blocked while a pack is being prepared: the primary compiler uses bounded
+blocked while a pack is being prepared: the topic compiler uses bounded
 coherent evidence within the configured token budget and marks the response as
 a fallback when necessary.
 
@@ -102,18 +100,23 @@ validation or the consolidation run fails and is retried later.
 ## Do legacy threads change?
 
 No. A legacy thread keeps its normal message history, summary, memory, and
-knowledge-base context path. Topic SSE updates and active-context controls are
-available only for the primary chat.
+knowledge-base context path. Topic threads have their own topic context and active-context controls in
+addition to their normal message history.
 
 ## What happens when I switch topics?
 
-Switching to a new topic advances the conversation to a new session epoch.
-Historical messages and evidence links are preserved intact in the database,
-while the active chat view displays only the messages for the current session.
-Open **Earlier sessions** in Active Context to read a prior session for the
-topic. This history is read-only; sending a new message continues the current
-topic session.
-You can choose whether to keep sources you explicitly pinned. Each retained
+Starting another topic creates a new thread. Your previous conversation stays
+in **Threads**, where you can reopen it and continue from its existing messages.
+Open **Earlier sessions** in Active Context to find conversations for the topic.
+For an older archived session, select **Continue conversation** to reopen its
+preserved messages as a thread. If a reply is still finishing in that session,
+wait for it to complete and try again. Opening an archive again returns the same
+thread. The latest conversation from the older primary chat is also listed.
+
+Changing threads lets a reply finish and save in its original conversation.
+Use the Stop button when you want to cancel the reply.
+
+You can choose whether to keep sources you explicitly pinned. Each copied
 source is checked again before every turn, so deletion, expiry, correction, or
 an exclusion still removes it from the model's context. The switch returns
 immediately with a preparing, live, or ready state while background processing

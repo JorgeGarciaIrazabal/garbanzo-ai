@@ -48,6 +48,8 @@ class _FakeTopicService extends TopicService {
   String? lastMode;
   String? lastIdempotencyKey;
   bool? lastRetainPinned;
+  Map<String, dynamic>? lastSettings;
+  final List<String> actionKeys = [];
 
   @override
   Future<List<TopicNode>> listTopics(TopicOrigin mode) =>
@@ -61,13 +63,16 @@ class _FakeTopicService extends TopicService {
     bool archive = true,
     bool retainPinned = true,
     required String idempotencyKey,
-    String mode = 'switch',
+    String mode = 'start',
+    Map<String, dynamic>? settings,
   }) async {
     activatedTopicId = topicId;
     activatedLabel = label;
     lastMode = mode;
     lastIdempotencyKey = idempotencyKey;
     lastRetainPinned = retainPinned;
+    lastSettings = settings;
+    actionKeys.add(idempotencyKey);
     if (switchError != null) throw switchError!;
     return switchResult ??
         _response(
@@ -264,6 +269,7 @@ void main() {
     expect(provider.contextStatus, TopicContextStatus.preparing);
     expect(provider.retainedItems, [retained]);
     expect(provider.lastSwitchIdempotencyKey, 'server-key');
+    expect(service.lastMode, 'start');
   });
 
   test('server selection sync does not close the explicitly opened landing', () {
@@ -312,8 +318,31 @@ void main() {
 
     await provider.activate('primary-conversation', child);
 
-    expect(provider.contextStatus, TopicContextStatus.limited);
+    expect(provider.showLanding, isTrue);
+    expect(provider.selectedTopic, isNull);
     expect(provider.error, isNotNull);
+  });
+
+  test('failed navigation retries the same created thread and settings', () async {
+    final service = _FakeTopicService(switchResult: _response(
+      conversationId: 'new-thread',
+      topic: TopicSwitchTopic(id: child.id, label: child.label, pinned: true),
+    ));
+    final provider = TopicDiscoveryProvider(service: service)
+      ..newThreadSettings = () => {'model': 'test-model', 'system_prompt': null, 'thinking_level': 'medium'};
+    var failed = false;
+    provider.onTopicSwitched = (response) async {
+      expect(response.conversationId, 'new-thread');
+      if (!failed) { failed = true; throw StateError('load failed'); }
+    };
+    await provider.activate('source-thread', child);
+    expect(provider.showLanding, isTrue);
+    await provider.activate('source-thread', child);
+    expect(service.actionKeys[0], service.actionKeys[1]);
+    expect(service.lastSettings?['model'], 'test-model');
+    expect(service.lastSettings?['system_prompt'], isNull);
+    expect(provider.showLanding, isFalse);
+    expect(provider.error, isNull);
   });
 
   test('combine keeps combine behavior and sends a distinct action key', () async {

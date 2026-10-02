@@ -9,6 +9,7 @@ import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
 import 'package:garbanzo_ai/features/chat/models/chat_attachment.dart';
 import 'package:garbanzo_ai/features/chat/models/model_info.dart';
 import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
+import 'package:garbanzo_ai/features/chat/utils/composer_conversation.dart';
 import 'package:garbanzo_ai/features/chat/providers/model_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/style_provider.dart';
 import 'package:garbanzo_ai/features/chat/models/thinking_level.dart';
@@ -287,7 +288,7 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
   Future<void> _pickFolder() async {
     final chatProvider = context.read<ChatProvider>();
     final l10n = AppLocalizations.of(context)!;
-    final conversationId = chatProvider.currentConversation?.id;
+    final conversationId = composerConversation(context, listen: false)?.id;
     final path = await FilePicker.getDirectoryPath();
     if (path == null || !mounted) return;
     try {
@@ -300,7 +301,7 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
 
   void _removeFolder() => unawaited(
     context.read<ChatProvider>().clearClientFolder(
-      context.read<ChatProvider>().currentConversation?.id,
+      composerConversation(context, listen: false)?.id,
     ),
   );
 
@@ -308,19 +309,22 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
     final chat = context.read<ChatProvider>();
     final models = context.read<ModelProvider>();
     final styles = context.read<StyleProvider>();
-    final modelId = chat.currentConversation?.model ?? models.selectedModelId;
+    final modelId =
+        composerConversation(context, listen: false)?.model ??
+        models.selectedModelId;
     final model = models.availableModels
         .where((c) => c.id == modelId)
         .firstOrNull;
     final supported = model?.supportedThinkingLevels ?? const <ThinkingLevel>[];
     if (supported.length < 2) return;
     final current =
-        chat.currentConversation?.thinkingLevel ?? styles.pendingThinkingLevel;
+        composerConversation(context, listen: false)?.thinkingLevel ??
+        styles.pendingThinkingLevel;
     final next =
         supported[(supported.indexOf(current ?? supported.last) + 1) %
             supported.length];
     styles.setPendingThinkingLevel(next);
-    if (chat.currentConversation != null) {
+    if (composerConversation(context, listen: false) != null) {
       await chat.updateConversation(
         thinkingLevel: next,
         setThinkingLevel: true,
@@ -393,19 +397,18 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
     final cs = theme.colorScheme;
     final chatProvider = context.watch<ChatProvider>();
     final allowedFolder = chatProvider.clientFolderFor(
-      chatProvider.currentConversation?.id,
+      composerConversation(context)?.id,
     );
     final modelProvider = context.watch<ModelProvider>();
     final styleProvider = context.watch<StyleProvider>();
     final l10n = AppLocalizations.of(context)!;
     final currentModelId =
-        chatProvider.currentConversation?.model ??
-        modelProvider.selectedModelId;
+        composerConversation(context)?.model ?? modelProvider.selectedModelId;
     final currentModel = modelProvider.availableModels
         .where((m) => m.id == currentModelId)
         .firstOrNull;
     final effort =
-        chatProvider.currentConversation?.thinkingLevel ??
+        composerConversation(context)?.thinkingLevel ??
         styleProvider.pendingThinkingLevel;
     final supportedEffort =
         currentModel?.supportedThinkingLevels ?? const <ThinkingLevel>[];

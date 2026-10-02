@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.security import get_current_user
 from app.db.session import get_db
 from app.models.user import User
-from app.schemas.chat import message_out
+from app.schemas.chat import ConversationOut, message_out
 from app.topics.active_context_schemas import (
     ActiveContextItemCreate,
     ActiveContextItemOut,
@@ -20,6 +20,7 @@ from app.topics.active_context_schemas import (
     TopicArchiveDetailResponse,
     TopicArchiveListResponse,
     TopicArchiveOut,
+    TopicConversationListResponse,
     TopicSwitchRequest,
     TopicSwitchResponse,
 )
@@ -252,7 +253,7 @@ async def fresh_start_context(
 @router.post(
     "/conversations/{conversation_id}/topics/switch",
     response_model=TopicSwitchResponse,
-    summary="Idempotently switch or combine the primary chat topic",
+    summary="Start a topic thread, switch primary chat, or combine topics",
 )
 async def switch_topic(
     conversation_id: str,
@@ -264,6 +265,21 @@ async def switch_topic(
     if user is None:
         raise _not_found()
     try:
+        if data.mode == "start":
+            return await service.start(
+                conversation_id=conversation_id,
+                user=user,
+                topic_id=data.topic_id,
+                label=data.label,
+                idempotency_key=data.idempotency_key,
+                archive=data.archive,
+                retain_pinned=data.retain_pinned,
+                settings={
+                    field: getattr(data, field)
+                    for field in data.model_fields_set
+                    & {"model", "system_prompt", "thinking_level"}
+                },
+            )
         if data.mode == "combine":
             return await service.combine(
                 conversation_id=conversation_id,
@@ -293,6 +309,61 @@ async def switch_topic(
         raise _primary_required() from error
     except TopicNotFoundError as error:
         raise _not_found() from error
+
+
+@router.get(
+    "/topics/{topic_id}/conversations",
+    response_model=TopicConversationListResponse,
+    summary="List current conversations attached to a topic",
+)
+async def list_topic_conversations(
+    topic_id: str,
+    current_user: Annotated[dict[str, Any], Depends(get_current_user)],
+    service: Annotated[TopicSwitchService, Depends(_switch_service)],
+    limit: Annotated[int, Query(ge=1, le=200)] = 100,
+) -> TopicConversationListResponse:
+    user = await service.db.get(User, current_user["email"])
+    if user is None:
+        raise _not_found()
+    try:
+        conversations = await service.list_conversations(topic_id, user, limit=limit)
+    except TopicNotFoundError as error:
+        raise _not_found() from error
+    counts = await service.message_counts(conversations)
+    return TopicConversationListResponse(
+        conversations=[
+            ConversationOut.from_model(conversation).model_copy(
+                update={"message_count": counts.get(conversation.id, 0)}
+            )
+            for conversation in conversations
+        ]
+    )
+
+
+@router.post(
+    "/topics/{topic_id}/archives/{archive_id}/resume",
+    response_model=ConversationOut,
+    summary="Resume a closed topic session as an independent thread",
+)
+async def resume_topic_archive(
+    topic_id: str,
+    archive_id: str,
+    current_user: Annotated[dict[str, Any], Depends(get_current_user)],
+    service: Annotated[TopicSwitchService, Depends(_switch_service)],
+) -> ConversationOut:
+    user = await service.db.get(User, current_user["email"])
+    if user is None:
+        raise _not_found()
+    try:
+        conversation = await service.resume_archive(topic_id, archive_id, user)
+    except TopicNotFoundError as error:
+        raise _not_found() from error
+    except TopicSwitchError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    counts = await service.message_counts([conversation])
+    return ConversationOut.from_model(conversation).model_copy(
+        update={"message_count": counts.get(conversation.id, 0)}
+    )
 
 
 @router.get(

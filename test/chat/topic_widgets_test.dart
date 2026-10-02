@@ -163,16 +163,31 @@ class _FakeTopicService extends TopicService {
     this.topics, {
     this.archives = const [],
     this.archivePage,
+    this.conversations = const [],
   }) : super.forTesting();
   final List<TopicNode> topics;
   final List<TopicArchive> archives;
   final TopicArchivePage? archivePage;
+  final List<Conversation> conversations;
+  int resumeCalls = 0;
 
   @override
   Future<List<TopicNode>> listTopics(TopicOrigin mode) async => topics;
 
   @override
   Future<List<TopicArchive>> listArchives(String topicId) async => archives;
+
+  @override
+  Future<List<Conversation>> listTopicConversations(String topicId) async => conversations;
+
+  @override
+  Future<Conversation> resumeArchive(String topicId, String archiveId) async {
+    resumeCalls++;
+    return Conversation(
+      id: 'resumed-thread', model: 'test-model', activeTopicId: topicId,
+      createdAt: DateTime(2026), updatedAt: DateTime(2026),
+    );
+  }
 
   @override
   Future<TopicArchivePage> getArchivePage(
@@ -197,7 +212,8 @@ class _FakeTopicService extends TopicService {
     bool archive = true,
     bool retainPinned = true,
     required String idempotencyKey,
-    String mode = 'switch',
+    String mode = 'start',
+    Map<String, dynamic>? settings,
   }) async {
     if ((topicId == null) == (label == null)) {
       throw StateError('exactly one topic target is required');
@@ -885,7 +901,7 @@ void main() {
     expect(redirected, isTrue);
   });
 
-  testWidgets('ActiveContextPanel opens a read-only archived topic session', (tester) async {
+  testWidgets('ActiveContextPanel opens and resumes an archived topic session', (tester) async {
     final archive = TopicArchive(
       id: 'archive-1',
       topicId: 'topic-active',
@@ -928,13 +944,18 @@ void main() {
     final contextProvider = ActiveContextProvider(
       service: _FakeActiveContextService(activeContext),
     );
-    final topicProvider = TopicDiscoveryProvider(
-      service: _FakeTopicService(
+    final topicService = _FakeTopicService(
         const [],
         archives: [archive],
         archivePage: archivePage,
-      ),
+        conversations: [Conversation(
+          id: 'topic-thread', title: 'Earlier topic conversation', model: 'test-model',
+          activeTopicId: 'topic-active', messageCount: 4,
+          createdAt: DateTime(2026), updatedAt: DateTime(2026),
+        )],
     );
+    final topicProvider = TopicDiscoveryProvider(service: topicService);
+    final chat = _FakeChatProvider();
 
     await tester.pumpWidget(
       _wrapWithApp(
@@ -947,6 +968,7 @@ void main() {
         ),
         contextProvider: contextProvider,
         topicProvider: topicProvider,
+        chatProvider: chat,
       ),
     );
     await tester.pumpAndSettle();
@@ -954,6 +976,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('context_view_archives')));
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('topic_archives_dialog')), findsOneWidget);
+    expect(find.byKey(const ValueKey('topic_conversation_topic-thread')), findsOneWidget);
     expect(find.textContaining('2 messages'), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('topic_archive_archive-1')));
@@ -962,12 +985,18 @@ void main() {
       find.byKey(const ValueKey('topic_archive_messages_dialog')),
       findsOneWidget,
     );
-    expect(find.textContaining('Read-only history'), findsOneWidget);
+    expect(find.textContaining('Continue this session as a thread'), findsOneWidget);
+    expect(find.byKey(const ValueKey('topic_archive_resume')), findsOneWidget);
     expect(find.text('Explain the previous deployment decision.'), findsOneWidget);
     expect(
       find.text('The earlier session selected the Virginia region.'),
       findsOneWidget,
     );
+    await tester.tap(find.byKey(const ValueKey('topic_archive_resume')));
+    await tester.pumpAndSettle();
+    expect(topicService.resumeCalls, 1);
+    expect(chat.loadedConversationId, 'resumed-thread');
+    expect(find.byKey(const ValueKey('topic_archives_dialog')), findsNothing);
   });
 
   testWidgets('ActiveContextPanel explains background preparation without a fake ETA', (tester) async {
@@ -1305,7 +1334,7 @@ How can I help you with **Retirement planning** today?
     });
 
     testWidgets(
-      'seeds the pending style and thinking, and applies them to the primary',
+      'seeds settings for the next thread without changing the primary',
       (tester) async {
         final topics = TopicDiscoveryProvider(
           service: _FakeTopicService(const []),
@@ -1351,10 +1380,7 @@ How can I help you with **Retirement planning** today?
         expect(styles.pendingThinkingLevel, ThinkingLevel.medium);
         expect(styles.selectedStyleId, 'default-style');
         expect(models.selectedModelId, 'kimi-k3');
-        expect(chat.updates, hasLength(1));
-        expect(chat.updates.single['model'], 'kimi-k3');
-        expect(chat.updates.single['thinkingLevel'], ThinkingLevel.medium);
-        expect(chat.updates.single['setThinkingLevel'], true);
+        expect(chat.updates, isEmpty);
       },
     );
 
@@ -1401,8 +1427,7 @@ How can I help you with **Retirement planning** today?
         await settle(tester);
 
         expect(styles.pendingThinkingLevel, ThinkingLevel.medium);
-        expect(chat.updates.single['thinkingLevel'], ThinkingLevel.medium);
-        expect(chat.updates.single['model'], isNull);
+        expect(chat.updates, isEmpty);
       },
     );
 

@@ -53,6 +53,19 @@ class ActiveContextPanel extends StatefulWidget {
 
 class _ActiveContextPanelState extends State<ActiveContextPanel> {
   @override
+  void didUpdateWidget(covariant ActiveContextPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.conversationId == widget.conversationId) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        unawaited(
+          context.read<ActiveContextProvider>().load(widget.conversationId),
+        );
+      }
+    });
+  }
+
+  @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -68,7 +81,9 @@ class _ActiveContextPanelState extends State<ActiveContextPanel> {
   Widget build(BuildContext context) {
     final provider = context.watch<ActiveContextProvider>();
     final l10n = _l10n(context);
-    final active = provider.context;
+    final active = provider.context?.conversationId == widget.conversationId
+        ? provider.context
+        : null;
     final cs = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
@@ -336,10 +351,18 @@ class _ActiveContextPanelState extends State<ActiveContextPanel> {
   ) async {
     await discovery.loadArchives(topicId);
     if (!mounted) return;
-    await showDialog<void>(
+    final conversationId = await showDialog<String>(
       context: context,
       builder: (_) => _TopicArchivesDialog(topicId: topicId),
     );
+    if (!mounted || conversationId == null) return;
+    final chat = context.read<ChatProvider>();
+    await chat.loadConversation(conversationId);
+    if (!mounted || chat.currentConversation?.id != conversationId) return;
+    discovery.setSelectedTopic(chat.currentConversation?.activeTopic);
+    await chat.refreshConversations();
+    if (!mounted) return;
+    widget.onClose?.call();
   }
 
   bool _canOpenConversationSource(BuildContext context) {
@@ -929,6 +952,7 @@ class _TopicArchivesDialog extends StatelessWidget {
     final l10n = _l10n(context);
     final provider = context.watch<TopicDiscoveryProvider>();
     final archives = provider.topicArchives[topicId] ?? const <TopicArchive>[];
+    final conversations = provider.topicConversations(topicId);
     final loading = provider.isArchiveListLoading(topicId);
     final error = provider.archiveListError(topicId);
     return AlertDialog(
@@ -946,9 +970,9 @@ class _TopicArchivesDialog extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Expanded(
-              child: loading && archives.isEmpty
+              child: loading && archives.isEmpty && conversations.isEmpty
                   ? const Center(child: CircularProgressIndicator())
-                  : error != null && archives.isEmpty
+                  : error != null
                   ? Center(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
@@ -961,13 +985,36 @@ class _TopicArchivesDialog extends StatelessWidget {
                         ],
                       ),
                     )
-                  : archives.isEmpty
+                  : archives.isEmpty && conversations.isEmpty
                   ? Center(child: Text(l10n.noEarlierSessions))
                   : ListView.separated(
-                      itemCount: archives.length,
+                      itemCount: conversations.length + archives.length,
                       separatorBuilder: (_, _) => const Divider(height: 1),
                       itemBuilder: (itemContext, index) {
-                        final archive = archives[index];
+                        if (index < conversations.length) {
+                          final conversation = conversations[index];
+                          final date = MaterialLocalizations.of(
+                            itemContext,
+                          ).formatMediumDate(conversation.updatedAt.toLocal());
+                          return ListTile(
+                            key: ValueKey(
+                              'topic_conversation_${conversation.id}',
+                            ),
+                            leading: const Icon(
+                              Icons.chat_bubble_outline_rounded,
+                            ),
+                            title: Text(
+                              conversation.title ?? l10n.archivedSession,
+                            ),
+                            subtitle: Text(
+                              '$date • ${l10n.archiveMessageCount(conversation.messageCount)}',
+                            ),
+                            trailing: const Icon(Icons.chevron_right_rounded),
+                            onTap: () =>
+                                Navigator.pop(context, conversation.id),
+                          );
+                        }
+                        final archive = archives[index - conversations.length];
                         final date = MaterialLocalizations.of(
                           itemContext,
                         ).formatMediumDate(archive.createdAt.toLocal());
@@ -984,13 +1031,16 @@ class _TopicArchivesDialog extends StatelessWidget {
                           onTap: () async {
                             await provider.loadArchivePage(topicId, archive.id);
                             if (!itemContext.mounted) return;
-                            await showDialog<void>(
+                            final openedId = await showDialog<String>(
                               context: itemContext,
                               builder: (_) => _TopicArchiveMessagesDialog(
                                 topicId: topicId,
                                 archive: archive,
                               ),
                             );
+                            if (openedId != null && context.mounted) {
+                              Navigator.pop(context, openedId);
+                            }
                           },
                         );
                       },
@@ -1009,7 +1059,7 @@ class _TopicArchivesDialog extends StatelessWidget {
   }
 }
 
-class _TopicArchiveMessagesDialog extends StatelessWidget {
+class _TopicArchiveMessagesDialog extends StatefulWidget {
   const _TopicArchiveMessagesDialog({
     required this.topicId,
     required this.archive,
@@ -1019,9 +1069,45 @@ class _TopicArchiveMessagesDialog extends StatelessWidget {
   final TopicArchive archive;
 
   @override
+  State<_TopicArchiveMessagesDialog> createState() =>
+      _TopicArchiveMessagesDialogState();
+}
+
+class _TopicArchiveMessagesDialogState
+    extends State<_TopicArchiveMessagesDialog> {
+  bool _resuming = false;
+  bool _resumeFailed = false;
+
+  Future<void> _resume() async {
+    setState(() {
+      _resuming = true;
+      _resumeFailed = false;
+    });
+    try {
+      final existing = widget.archive.resumedConversationId;
+      final conversationId =
+          existing ??
+          (await context.read<TopicDiscoveryProvider>().resumeArchive(
+            widget.topicId,
+            widget.archive.id,
+          )).id;
+      if (mounted) Navigator.pop(context, conversationId);
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _resuming = false;
+          _resumeFailed = true;
+        });
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final l10n = _l10n(context);
     final provider = context.watch<TopicDiscoveryProvider>();
+    final archive = widget.archive;
+    final topicId = widget.topicId;
     final page = provider.archivePage(archive.id);
     final loading = provider.isArchiveLoading(archive.id);
     final error = provider.archiveError(archive.id);
@@ -1036,12 +1122,14 @@ class _TopicArchiveMessagesDialog extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              l10n.archivedSessionReadOnly,
+              l10n.archivedSessionContinueDescription,
               style: Theme.of(
                 context,
               ).textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
             ),
             const SizedBox(height: 10),
+            if (_resumeFailed)
+              Text(l10n.archiveResumeFailed, style: TextStyle(color: cs.error)),
             if (page?.hasMore == true)
               Align(
                 alignment: Alignment.centerLeft,
@@ -1119,6 +1207,17 @@ class _TopicArchiveMessagesDialog extends StatelessWidget {
         ),
       ),
       actions: [
+        FilledButton.icon(
+          key: const ValueKey('topic_archive_resume'),
+          onPressed: _resuming ? null : _resume,
+          icon: _resuming
+              ? const SizedBox.square(
+                  dimension: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.chat_bubble_outline_rounded),
+          label: Text(l10n.continueTopicConversation),
+        ),
         TextButton(
           onPressed: () => Navigator.pop(context),
           child: Text(l10n.close),

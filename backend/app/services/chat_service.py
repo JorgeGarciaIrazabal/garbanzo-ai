@@ -75,6 +75,7 @@ from app.services.native_tools import (
 from app.services.system_prompt_service import SystemPromptService
 from app.services.token_counter import get_token_counter
 from app.services.workflow_outputs import WORKFLOW_OUTPUTS_NUDGE
+from app.topics.generation_state import active_streams
 from app.topics.topic_context_compiler import TopicContextCompiler
 from app.topics.topic_ingestion_service import (
     TopicIngestionService,
@@ -197,7 +198,7 @@ class ChatService:
     to ``ChatContextBuilder``.
     """
 
-    _active_streams: dict[str, asyncio.Event] = {}
+    _active_streams: dict[str, asyncio.Event] = active_streams
 
     def __init__(self, db: AsyncSession, *, provider_name: str = "ollama"):
         self.db = db
@@ -543,14 +544,12 @@ class ChatService:
                 )
             return
 
-        is_topic_chat = bool(
-            (conversation.is_primary or conversation.active_topic_id)
-            and get_settings().topic_context_enabled
+        is_primary_topic_chat = bool(
+            conversation.is_primary and get_settings().topic_context_enabled
         )
-        # Topic conversations use the evidence-first compiler below. The
-        # legacy summary is intentionally retained for non-topic threads and
-        # for users who disable topic context.
-        if not is_topic_chat:
+        # Normal threads retain their own history and summaries alongside topic
+        # evidence. Primary chat uses recent continuity within its active epoch.
+        if not is_primary_topic_chat:
             await self._maybe_summarize_context(conversation, existing_messages)
 
         user = await self.db.get(User, conversation.user_id)
@@ -573,9 +572,9 @@ class ChatService:
             conversation.user_id,
             use_memory=conversation.use_memory,
             use_knowledge_base=conversation.use_knowledge_base,
-            context_summary=None if is_topic_chat else conversation.context_summary,
+            context_summary=None if is_primary_topic_chat else conversation.context_summary,
             context_summary_until_id=(
-                None if is_topic_chat else conversation.context_summary_until_id
+                None if is_primary_topic_chat else conversation.context_summary_until_id
             ),
             conversation_system_prompt=conversation.system_prompt,
             dynamic_context=dynamic_context,

@@ -2824,7 +2824,7 @@
   "@topicArchiveCount": {"description": "Topic archive count badge.", "placeholders": {"count": {"type": "int"}}},
   "earlierSessions": "Sesiones anteriores",
   "@earlierSessions": {"description": "Opens preserved sessions for the active topic."},
-  "earlierSessionsDescription": "Consulta sesiones anteriores del chat principal para este tema.",
+  "earlierSessionsDescription": "Abre una conversación anterior de este tema o continúa una sesión archivada.",
   "@earlierSessionsDescription": {"description": "Explains the topic archive viewer."},
   "noEarlierSessions": "Todavía no hay sesiones anteriores para este tema.",
   "@noEarlierSessions": {"description": "Empty state for topic archives."},
@@ -2842,7 +2842,7 @@
   "@archiveSpeakerYou": {"description": "User speaker label in an archived session."},
   "archiveSpeakerGarbanzo": "Garbanzo",
   "@archiveSpeakerGarbanzo": {"description": "Assistant speaker label in an archived session."},
-  "topicSwitchFailed": "No se pudo cambiar de tema",
+  "topicSwitchFailed": "No se pudo iniciar la conversación del tema",
   "@topicSwitchFailed": {"description": "Error message when topic switch fails."},
   "redirect": "Cambiar tema",
   "topicGraphRoot": "Raíz del mapa de temas",
@@ -2934,11 +2934,11 @@
   "@topicSwitchDialogTitle": {"description": "Title of the topic switch confirmation dialog."},
   "topicSwitchWith": "con",
   "@topicSwitchWith": {"description": "Connector between topic names in the switch dialog."},
-  "topicSwitchChoiceDescription": "Combina para hablar de ambos temas o cambia para iniciar una sesión de chat nueva.",
+  "topicSwitchChoiceDescription": "Combina para tratar ambos temas en esta conversación o inicia un nuevo hilo con el contexto del tema seleccionado.",
   "@topicSwitchChoiceDescription": {"description": "Explains switch and combine choices."},
   "topicSwitchStartDescription": "Inicia una conversación nueva centrada en este tema.",
   "@topicSwitchStartDescription": {"description": "Explains switching when no topic is active."},
-  "retainPinnedSourcesOnSwitch": "Conservar las fuentes fijadas al cambiar",
+  "retainPinnedSourcesOnSwitch": "Copiar las fuentes fijadas a la nueva conversación",
   "@retainPinnedSourcesOnSwitch": {"description": "Switch option for retaining explicit context pins."},
   "switchTopic": "Cambiar de tema",
   "@switchTopic": {"description": "Action that starts a new topic session."},
@@ -2998,5 +2998,17 @@
   "talkModeVoice": "Voz de conversación",
   "starMessage": "Destacar mensaje",
   "unstarMessage": "Quitar destacado",
-  "messageStarUpdateFailed": "No se pudo actualizar el destacado del mensaje. Inténtalo de nuevo."
+  "messageStarUpdateFailed": "No se pudo actualizar el destacado del mensaje. Inténtalo de nuevo.",
+  "archivedSessionContinueDescription": "Continúa esta sesión como un hilo. Se conservarán sus mensajes y el contexto del tema.",
+  "@archivedSessionContinueDescription": {
+    "description": "Explains opening an archived session as a resumable thread."
+  },
+  "continueTopicConversation": "Continuar conversación",
+  "@continueTopicConversation": {
+    "description": "Action to open and continue an earlier topic conversation."
+  },
+  "archiveResumeFailed": "No se pudo abrir esta sesión como un hilo. Inténtalo de nuevo cuando haya terminado cualquier respuesta en curso.",
+  "@archiveResumeFailed": {
+    "description": "Visible archive resume failure."
+  }
 }

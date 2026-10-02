@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
 import 'package:garbanzo_ai/core/api_client.dart';
+import 'package:garbanzo_ai/features/chat/models/conversation.dart';
 import 'package:garbanzo_ai/features/topics/models/topic_node.dart';
 import 'package:garbanzo_ai/features/topics/models/topic_switch.dart';
 
@@ -56,7 +57,8 @@ class TopicService {
     bool archive = true,
     bool retainPinned = true,
     required String idempotencyKey,
-    String mode = 'switch',
+    String mode = 'start',
+    Map<String, dynamic>? settings,
   }) async {
     if ((topicId == null) == (label == null || label.trim().isEmpty)) {
       throw ArgumentError('Provide exactly one topic ID or label');
@@ -68,6 +70,7 @@ class TopicService {
       'mode': mode,
       'retain_pinned': retainPinned,
       'idempotency_key': idempotencyKey,
+      ...?settings,
     });
     if (response.statusCode != 200) {
       throw TopicServiceException(response.statusCode ?? 0);
@@ -111,6 +114,29 @@ class TopicService {
         .whereType<Map<String, dynamic>>()
         .map(TopicArchive.fromJson)
         .toList(growable: false);
+  }
+
+  Future<List<Conversation>> listTopicConversations(String topicId) async {
+    final response = await _api.get(
+      '/api/v1/chat/topics/$topicId/conversations',
+    );
+    if (response.statusCode != 200) {
+      throw TopicServiceException(response.statusCode ?? 0);
+    }
+    final body = response.data as Map<String, dynamic>;
+    return (body['conversations'] as List<dynamic>)
+        .map((row) => Conversation.fromJson(row as Map<String, dynamic>))
+        .toList(growable: false);
+  }
+
+  Future<Conversation> resumeArchive(String topicId, String archiveId) async {
+    final response = await _api.post(
+      '/api/v1/chat/topics/$topicId/archives/$archiveId/resume',
+    );
+    if (response.statusCode != 200) {
+      throw TopicServiceException(response.statusCode ?? 0);
+    }
+    return Conversation.fromJson(response.data as Map<String, dynamic>);
   }
 
   Future<TopicArchivePage> getArchivePage(

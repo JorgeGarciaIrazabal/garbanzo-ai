@@ -578,12 +578,37 @@ async def _report_completion(
     if conversation_id:
         headline = "✅ Workflow finished" if status == "done" else "⚠️ Workflow failed"
         try:
+            # Resume locks the original conversation before its workflow rows.
+            # Hold that same source -> run order through message publication:
+            # either resume moves this message afterwards, or we observe the
+            # promoted destination after waiting for resume to commit.
+            await db.scalar(
+                select(Conversation)
+                .where(Conversation.id == conversation_id, Conversation.user_id == user_id)
+                .with_for_update()
+            )
+            current_run = await db.scalar(
+                select(WorkflowRun)
+                .where(WorkflowRun.id == run_id, WorkflowRun.user_id == user_id)
+                .with_for_update()
+                .execution_options(populate_existing=True)
+            )
+            if current_run is None or not current_run.conversation_id:
+                raise RuntimeError("Workflow conversation is no longer available.")
+            conversation_id = current_run.conversation_id
+            session_epoch = (
+                current_run.session_epoch
+                if current_run.session_epoch is not None
+                else session_epoch
+            )
             result = await db.execute(
-                select(Conversation).where(
+                select(Conversation)
+                .where(
                     Conversation.id == conversation_id,
                     Conversation.user_id == user_id,
                     Conversation.is_deleted.is_(False),
                 )
+                .execution_options(populate_existing=True)
             )
             conversation = result.scalar_one_or_none()
             if conversation is None:

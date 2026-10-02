@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import 'package:garbanzo_ai/core/log.dart';
+import 'package:garbanzo_ai/features/chat/models/conversation.dart';
 import 'package:garbanzo_ai/features/topics/models/active_context.dart';
 import 'package:garbanzo_ai/features/topics/models/topic_node.dart';
 import 'package:garbanzo_ai/features/topics/models/topic_switch.dart';
@@ -10,7 +11,7 @@ import 'package:garbanzo_ai/features/topics/services/topic_service.dart';
 import 'package:uuid/uuid.dart';
 
 const _kUnavailable = 'Topics are temporarily unavailable';
-const _kLimited = 'Historical context is temporarily limited';
+const _kStartFailed = 'Could not start the topic conversation';
 
 class TopicDiscoveryProvider extends ChangeNotifier {
   TopicDiscoveryProvider({TopicService? service})
@@ -34,6 +35,9 @@ class TopicDiscoveryProvider extends ChangeNotifier {
 
   Future<void> Function(TopicSwitchResponse response)? onTopicSwitched;
   Future<void> Function(TopicSwitchResponse response)? onTopicCombined;
+  Map<String, dynamic> Function()? newThreadSettings;
+  bool _startingTopic = false;
+  bool get startingTopic => _startingTopic;
 
   String _searchQuery = '';
   String get searchQuery => _searchQuery;
@@ -58,6 +62,9 @@ class TopicDiscoveryProvider extends ChangeNotifier {
   int get promotedCount => _promotedCount;
 
   final Map<String, List<TopicArchive>> _topicArchives = {};
+  final Map<String, List<Conversation>> _topicConversations = {};
+  List<Conversation> topicConversations(String topicId) =>
+      List.unmodifiable(_topicConversations[topicId] ?? const []);
   Map<String, List<TopicArchive>> get topicArchives =>
       Map.unmodifiable(_topicArchives);
   final Set<String> _loadingArchiveTopics = {};
@@ -83,6 +90,7 @@ class TopicDiscoveryProvider extends ChangeNotifier {
   String? _lastSwitchIdempotencyKey;
   String? get lastSwitchIdempotencyKey => _lastSwitchIdempotencyKey;
   final Map<String, String> _pendingSwitchKeys = {};
+  final Map<String, Map<String, dynamic>> _pendingSwitchSettings = {};
 
   void setPromotedCount(int count) {
     final next = count.clamp(1, 4);
@@ -117,7 +125,12 @@ class TopicDiscoveryProvider extends ChangeNotifier {
     _archiveListErrors.remove(topicId);
     notifyListeners();
     try {
-      _topicArchives[topicId] = await _service.listArchives(topicId);
+      final results = await Future.wait<Object>([
+        _service.listArchives(topicId),
+        _service.listTopicConversations(topicId),
+      ]);
+      _topicArchives[topicId] = results[0] as List<TopicArchive>;
+      _topicConversations[topicId] = results[1] as List<Conversation>;
     } catch (e) {
       _archiveListErrors[topicId] = 'Could not load earlier sessions';
       logDebug('Failed to load topic archives: $e');
@@ -126,6 +139,9 @@ class TopicDiscoveryProvider extends ChangeNotifier {
       notifyListeners();
     }
   }
+
+  Future<Conversation> resumeArchive(String topicId, String archiveId) =>
+      _service.resumeArchive(topicId, archiveId);
 
   Future<void> loadArchivePage(
     String topicId,
@@ -166,19 +182,17 @@ class TopicDiscoveryProvider extends ChangeNotifier {
     bool archive = true,
     bool retainPinned = true,
     String? idempotencyKey,
-    String mode = 'switch',
+    String mode = 'start',
   }) async {
     _error = null;
-    final signature = _switchSignature(
-      topicId,
-      label,
-      mode,
-      archive: archive,
-      retainPinned: retainPinned,
-    );
+    final signature =
+        '$conversationId:${_switchSignature(topicId, label, mode, archive: archive, retainPinned: retainPinned)}';
     final actionKey =
         idempotencyKey ??
         _pendingSwitchKeys.putIfAbsent(signature, () => const Uuid().v4());
+    if (mode == 'start' && _showLanding && newThreadSettings != null) {
+      _pendingSwitchSettings.putIfAbsent(actionKey, () => newThreadSettings!());
+    }
     final r = await _service.switchTopic(
       conversationId,
       topicId: topicId,
@@ -187,10 +201,8 @@ class TopicDiscoveryProvider extends ChangeNotifier {
       retainPinned: retainPinned,
       idempotencyKey: actionKey,
       mode: mode,
+      settings: _pendingSwitchSettings[actionKey],
     );
-    _applySwitchResponse(r, origin: _originForTopic(topicId));
-    _pendingSwitchKeys.remove(signature);
-    _lastSwitchIdempotencyKey = r.idempotencyKey;
     if (mode == 'combine') {
       final combined = onTopicCombined;
       if (combined != null) await combined(r);
@@ -198,6 +210,10 @@ class TopicDiscoveryProvider extends ChangeNotifier {
       final switched = onTopicSwitched;
       if (switched != null) await switched(r);
     }
+    _applySwitchResponse(r, origin: _originForTopic(topicId));
+    _pendingSwitchKeys.remove(signature);
+    _pendingSwitchSettings.remove(actionKey);
+    _lastSwitchIdempotencyKey = r.idempotencyKey;
     notifyListeners();
     return r;
   }
@@ -258,84 +274,33 @@ class TopicDiscoveryProvider extends ChangeNotifier {
   }
 
   Future<void> activate(String conversationId, TopicNode topic) async {
-    _selectedTopic =
-        topic.origin != TopicOrigin.suggested &&
-            topic.contextStatus != TopicContextStatus.ready
-        ? topic.copyWith(contextStatus: TopicContextStatus.preparing)
-        : topic;
-    _showLanding = false;
+    if (_startingTopic) return;
+    _startingTopic = true;
     _error = null;
     notifyListeners();
-    final signature = _switchSignature(
-      topic.id,
-      null,
-      'switch',
-      archive: true,
-      retainPinned: true,
-    );
-    final actionKey = _pendingSwitchKeys.putIfAbsent(
-      signature,
-      () => const Uuid().v4(),
-    );
     try {
-      final res = await _service.switchTopic(
-        conversationId,
-        topicId: topic.id,
-        idempotencyKey: actionKey,
-      );
-      _applySwitchResponse(res, origin: topic.origin);
-      _pendingSwitchKeys.remove(signature);
-      _lastSwitchIdempotencyKey = res.idempotencyKey;
-      final switched = onTopicSwitched;
-      if (switched != null) await switched(res);
+      await switchTopic(conversationId, topicId: topic.id);
     } catch (e) {
-      _selectedTopic = topic.copyWith(
-        contextStatus: TopicContextStatus.limited,
-      );
-      _error = _kLimited;
+      _error = _kStartFailed;
       logDebug('Failed to activate topic: $e');
+    } finally {
+      _startingTopic = false;
       notifyListeners();
     }
   }
 
   Future<void> activateFreeText(String conversationId, String label) async {
-    final requestedOrigin = _mode;
-    final topic = TopicNode(
-      id: 'provisional-${DateTime.now().microsecondsSinceEpoch}',
-      label: label,
-      origin: requestedOrigin,
-      contextStatus: TopicContextStatus.preparing,
-    );
-    _selectedTopic = topic;
-    _showLanding = false;
+    if (_startingTopic) return;
+    _startingTopic = true;
+    _error = null;
     notifyListeners();
-    final signature = _switchSignature(
-      null,
-      label,
-      'switch',
-      archive: true,
-      retainPinned: true,
-    );
-    final actionKey = _pendingSwitchKeys.putIfAbsent(
-      signature,
-      () => const Uuid().v4(),
-    );
     try {
-      final response = await _service.switchTopic(
-        conversationId,
-        label: label,
-        idempotencyKey: actionKey,
-      );
-      _applySwitchResponse(response, origin: requestedOrigin);
-      _pendingSwitchKeys.remove(signature);
-      _lastSwitchIdempotencyKey = response.idempotencyKey;
-      final switched = onTopicSwitched;
-      if (switched != null) await switched(response);
-    } catch (_) {
-      _selectedTopic = topic.copyWith(
-        contextStatus: TopicContextStatus.limited,
-      );
-      _error = _kLimited;
+      await switchTopic(conversationId, label: label);
+    } catch (e) {
+      _error = _kStartFailed;
+      logDebug('Failed to start topic: $e');
+    } finally {
+      _startingTopic = false;
       notifyListeners();
     }
   }
@@ -419,7 +384,7 @@ class TopicDiscoveryProvider extends ChangeNotifier {
 
   Future<TopicSwitchResponse?> acceptDrift(
     String conversationId, {
-    String mode = 'switch',
+    String mode = 'start',
   }) async {
     final drift = _pendingDrift;
     if (drift == null) return null;

@@ -8,14 +8,22 @@ the conversation.
 
 import asyncio
 from pathlib import Path
+from unittest.mock import AsyncMock
 
 import pytest
+from sqlalchemy import select
 
+from app.db import session as db_session_module
 from app.models.message import Message
+from app.models.user import User
 from app.models.workflow_run import WorkflowRun
 from app.schemas.chat import ChatResponseChunk
 from app.services import workflow_runner
 from app.services.workflow_service import WorkflowService
+from app.topics.models import TopicIngestionEvent
+from app.topics.topic_ingestion_service import TopicIngestionService
+from app.topics.topic_switch_service import TopicSwitchService
+from tests.test_topic_threads import _closed_archive, _topic
 
 OWNER = "test@example.com"
 
@@ -432,3 +440,86 @@ async def test_launch_tracks_and_clears_the_task(db_session, monkeypatch, captur
     assert run.id in workflow_runner.active_run_ids()
     await task
     assert run.id not in workflow_runner.active_run_ids()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("promote_first", [True, False])
+async def test_terminal_workflow_completion_serializes_with_archive_promotion(
+    db_session,
+    monkeypatch,
+    captured_push,
+    promote_first,
+):
+    """A terminal row may move before its detached publisher resumes work."""
+    topic = await _topic(db_session)
+    source, archive, _, _, run, _ = await _closed_archive(db_session, topic)
+    source_id, archive_id, topic_id, run_id = source.id, archive.id, topic.id, run.id
+    original_epoch = run.session_epoch
+    run.status = "running"
+    await db_session.commit()
+    await WorkflowService(db_session).finish(
+        run_id, status="done", summary="Late completion findings"
+    )
+    # Keep the runner's long-lived identity map stale while a separate HTTP
+    # transaction promotes the now-terminal epoch, just as the race does.
+    assert run.conversation_id == source_id
+    monkeypatch.setattr(TopicIngestionService, "process_event", AsyncMock())
+
+    async def promote():
+        async with db_session_module.async_session_maker() as promotion_db:
+            target = await TopicSwitchService(promotion_db).resume_archive(
+                topic_id,
+                archive_id,
+                await promotion_db.get(User, OWNER),
+            )
+            return target.id
+
+    if promote_first:
+        target_id = await promote()
+        assert run.conversation_id == source_id  # intentionally stale
+    await workflow_runner._report_completion(
+        db=db_session,
+        user_id=OWNER,
+        run_id=run_id,
+        conversation_id=source_id,
+        instruction="Old epoch work",
+        summary="Late completion findings",
+        status="done",
+        error=None,
+        session_epoch=original_epoch,
+    )
+    if not promote_first:
+        target_id = await promote()
+    async with db_session_module.async_session_maker() as verifying_db:
+        messages = list(
+            (
+                await verifying_db.scalars(
+                    select(Message).where(
+                        Message.conversation_id == target_id,
+                        Message.role == "assistant",
+                    )
+                )
+            ).all()
+        )
+        completion = next(
+            message for message in messages if (message.meta or {}).get("workflow_run_id") == run_id
+        )
+        assert completion.session_epoch == original_epoch
+        assert "Late completion findings" in completion.content
+        assert not await verifying_db.scalar(
+            select(Message.id).where(
+                Message.conversation_id == source_id,
+                Message.content.contains("Late completion findings"),
+            )
+        )
+        event = await verifying_db.scalar(
+            select(TopicIngestionEvent).where(
+                TopicIngestionEvent.source_id == completion.id,
+            )
+        )
+        assert event.conversation_id == target_id
+        assert (await verifying_db.get(WorkflowRun, run_id)).conversation_id == target_id
+    assert len(captured_push) == 1
+    assert captured_push[0]["data"]["conversation_id"] == (
+        target_id if promote_first else source_id
+    )

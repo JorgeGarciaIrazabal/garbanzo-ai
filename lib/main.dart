@@ -195,10 +195,16 @@ class _AppProviders extends StatelessWidget {
         >(
           create: (_) => ChatProvider(),
           update: (_, model, style, topics, activeContext, chat) {
+            topics.newThreadSettings = () => {
+              if (model.selectedModelId != null) 'model': model.selectedModelId,
+              'system_prompt': style.pendingSystemPrompt,
+              'thinking_level': style.pendingThinkingLevel?.name,
+            };
             topics.onTopicSwitched = (response) async {
               await chat!.applyTopicSwitch(response);
               final convId = chat.currentConversation?.id;
               if (convId != null && convId.isNotEmpty) {
+                activeContext.bindConversation(convId);
                 await activeContext.load(convId, quiet: true);
               }
             };

@@ -191,7 +191,7 @@ class TopicBanner extends StatelessWidget {
                       } catch (_) {}
                       final conversationId =
                           chat?.currentConversation?.id ?? '';
-                      topics.acceptDrift(conversationId, mode: 'switch');
+                      topics.acceptDrift(conversationId, mode: 'start');
                     },
                     child: Text(
                       l10n.switchAction,

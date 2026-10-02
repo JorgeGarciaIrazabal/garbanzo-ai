@@ -194,7 +194,11 @@ class ChatProvider extends ChangeNotifier {
   bool get loadingOlderMessages => _loadingOlderMessages;
 
   bool _isSending = false;
-  bool get isSending => _isSending || isRecoveringResponse;
+  bool _isOpeningConversation = false;
+  bool get isSending =>
+      _isSending || isRecoveringResponse || _isOpeningConversation;
+  bool get canStopGeneration =>
+      !_isOpeningConversation && (_isSending || isRecoveringResponse);
 
   ChatResponseRecoveryState? _responseRecoveryState;
   ChatResponseRecoveryState? get responseRecoveryState =>
@@ -297,24 +301,26 @@ class ChatProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> loadConversation(String conversationId) async {
-    // Switching away mid-stream: stop the old stream so its chunks can't
-    // bleed into the newly loaded conversation's message list.
-    if (_stream.isActive && _currentConversation?.id != conversationId) {
-      await stopStreaming();
-    }
+  Future<void> loadConversation(String conversationId) =>
+      _openConversation(conversationId);
 
-    _cancelResponseRecovery();
+  Future<void> _openConversation(
+    String conversationId, {
+    bool adoptPendingFolder = false,
+  }) async {
+    final navigation = _detachStreamForNavigation();
+    final actionEpoch = _actionEpoch;
+    _isOpeningConversation = true;
     _clearError();
-    _actionEpoch++;
     notifyListeners();
-
     final starEpoch = _starEpoch;
     try {
+      await navigation;
       final conversation = await _chatService.getConversation(
         conversationId,
         messageLimit: _messageWindow,
       );
+      if (actionEpoch != _actionEpoch || _disposed) return;
       _messages = [
         for (final message in _hydrateAttachments(conversation.messages ?? []))
           _mergeConfirmedStar(conversationId, message, starEpoch),
@@ -324,11 +330,17 @@ class ChatProvider extends ChangeNotifier {
       // Loading an existing conversation discards any folder the user picked
       // on a new-chat composer — it belonged to the chat they were about to
       // start, not this one. (The create path adopts it instead.)
-      unawaited(_folders.clear(null));
+      if (adoptPendingFolder) {
+        await _folders.adoptPending(conversationId);
+      } else {
+        unawaited(_folders.clear(null));
+      }
     } catch (e) {
+      if (actionEpoch != _actionEpoch) return;
       _setError('Failed to load conversation: $e');
     } finally {
-      notifyListeners();
+      if (actionEpoch == _actionEpoch) _isOpeningConversation = false;
+      if (!_disposed) notifyListeners();
     }
   }
 
@@ -352,7 +364,20 @@ class ChatProvider extends ChangeNotifier {
   /// Applies the committed primary-topic boundary before topic listeners run.
   Future<void> applyTopicSwitch(TopicSwitchResponse response) async {
     final current = _currentConversation;
-    if (current == null || current.id != response.conversationId) return;
+    if (current?.id != response.conversationId) {
+      await _openConversation(
+        response.conversationId,
+        adoptPendingFolder: true,
+      );
+      final opened = _currentConversation;
+      if (opened?.id != response.conversationId || _error != null) {
+        throw StateError(_error ?? 'Could not open the topic conversation');
+      }
+      conversationList.prepend(opened!);
+      notifyListeners();
+      return;
+    }
+    if (current == null) return;
     if (_stream.isActive) await stopStreaming();
     _actionEpoch++;
     _messages = [];
@@ -426,33 +451,35 @@ class ChatProvider extends ChangeNotifier {
   }
 
   Future<void> _ensurePrimaryConversation() async {
+    final navigation = _detachStreamForNavigation();
+    final actionEpoch = _actionEpoch;
+    _isOpeningConversation = true;
     _error = null;
     notifyListeners();
     try {
+      await navigation;
       final conversation = await _chatService.getOrCreatePrimary(
         model: _selectedModelId() ?? 'deepseek-v4.1-flash:cloud',
         systemPrompt: _pendingSystemPromptValue,
         thinkingLevel: _pendingThinkingLevelValue,
       );
-      _currentConversation = conversation;
-      try {
-        final detailed = await _chatService.getConversation(
-          conversation.id,
-          messageLimit: _messageWindow,
-          silent: true,
-        );
-        _currentConversation = detailed;
-        _messages = _hydrateAttachments(detailed.messages ?? const []);
-      } catch (_) {
-        _messages = _hydrateAttachments(conversation.messages ?? const []);
-      }
+      final detailed = await _chatService.getConversation(
+        conversation.id,
+        messageLimit: _messageWindow,
+        silent: true,
+      );
+      if (actionEpoch != _actionEpoch) return;
+      _currentConversation = detailed;
+      _messages = _hydrateAttachments(detailed.messages ?? const []);
       _setErrorContext();
     } catch (error) {
+      if (actionEpoch != _actionEpoch) return;
       _error = 'Failed to open your primary chat: $error';
       logDebug(_error!);
     } finally {
       _primaryEnsureFuture = null;
-      notifyListeners();
+      if (actionEpoch == _actionEpoch) _isOpeningConversation = false;
+      if (!_disposed) notifyListeners();
     }
   }
 
@@ -497,10 +524,14 @@ class ChatProvider extends ChangeNotifier {
     String? activeTopicId,
     List<ChatAttachment> initialAttachments = const [],
   }) async {
+    final navigation = _detachStreamForNavigation();
+    final actionEpoch = _actionEpoch;
+    _isOpeningConversation = true;
     _clearError();
     notifyListeners();
 
     try {
+      await navigation;
       final selectedModel =
           model ?? _selectedModelId() ?? 'deepseek-v4.1-flash:cloud';
       final derivedTitle =
@@ -524,6 +555,8 @@ class ChatProvider extends ChangeNotifier {
         messageLimit: _messageWindow,
       );
 
+      if (actionEpoch != _actionEpoch) return null;
+
       _currentConversation = detailed;
       _messages = _hydrateAttachments(detailed.messages ?? []);
       _setErrorContext();
@@ -532,6 +565,8 @@ class ChatProvider extends ChangeNotifier {
       // the real conversation id now that it exists, so the first send
       // carries `has_client_folder=true` and the chip keeps showing.
       await _folders.adoptPending(conversation.id);
+      if (actionEpoch != _actionEpoch || _disposed) return null;
+      _isOpeningConversation = false;
 
       // Immediately add the new conversation to the list for sidebar visibility
       conversationList.prepend(detailed);
@@ -550,11 +585,14 @@ class ChatProvider extends ChangeNotifier {
       await conversationList.load();
       return detailed;
     } catch (e) {
+      if (actionEpoch != _actionEpoch) return null;
       _setError('Failed to create conversation: $e');
       _isSending = false;
       logDebug(_error!);
       notifyListeners();
       return null;
+    } finally {
+      if (actionEpoch == _actionEpoch) _isOpeningConversation = false;
     }
   }
 
@@ -700,14 +738,12 @@ class ChatProvider extends ChangeNotifier {
       conversationList.undoDelete(conversationId);
 
   void clearCurrentConversation() {
-    if (_stream.isActive) {
-      unawaited(stopStreaming());
-    }
+    unawaited(_detachStreamForNavigation());
+    _isOpeningConversation = false;
     _currentConversation = null;
     _messages = [];
     _cancelResponseRecovery();
     _clearError();
-    _actionEpoch++;
     notifyListeners();
   }
 
@@ -762,12 +798,12 @@ class ChatProvider extends ChangeNotifier {
       if (_currentConversation == null) return;
     }
 
+    // Guard: prevent sending while already streaming.
+    if (isSending) return;
+
     if (_currentConversation?.isPrimary == true) {
       onConversationStarted?.call();
     }
-
-    // Guard: prevent sending while already streaming.
-    if (isSending) return;
 
     _clearError();
     _actionEpoch++;
@@ -947,13 +983,23 @@ class ChatProvider extends ChangeNotifier {
       stream,
       messageId: assistantMessageId,
       onChunk: (chunk) {
+        if (chunk.isClientToolRequest) {
+          final request = chunk.clientToolRequest;
+          if (!_disposed && streamConversationId != null && request != null) {
+            unawaited(_folders.serveToolRequest(streamConversationId, request));
+          }
+          return;
+        }
         if (!ownsCurrentState()) return;
         if (chunk.type == 'topic_update') {
           onTopicUpdate?.call(_dynamicEventPayload(chunk));
         } else if (chunk.type == 'context_preparing') {
           onContextPreparing?.call(_dynamicEventPayload(chunk));
         } else if (chunk.type == 'context_update') {
-          onContextUpdate?.call(_dynamicEventPayload(chunk));
+          onContextUpdate?.call({
+            ..._dynamicEventPayload(chunk),
+            'conversation_id': streamConversationId,
+          });
         } else if (chunk.type == 'topic_drift') {
           onTopicDrift?.call(_dynamicEventPayload(chunk));
         } else if (chunk.isThinking && chunk.content != null) {
@@ -988,13 +1034,6 @@ class ChatProvider extends ChangeNotifier {
           // the progress object honest during long silent stretches (a loading
           // model, a slow tool) and proves the turn is still running.
           _applyHeartbeat(chunk.heartbeat);
-        } else if (chunk.isClientToolRequest) {
-          // The backend is asking us to read a file from the attached folder
-          // (idea 17). Serve it locally without blocking the stream.
-          final request = chunk.clientToolRequest;
-          if (streamConversationId != null && request != null) {
-            unawaited(_folders.serveToolRequest(streamConversationId, request));
-          }
         } else if (chunk.isDone) {
           // The backend emits a `done` chunk PER LLM ITERATION (one for the
           // tool-call iteration, one for the final-answer iteration). It is
@@ -1166,7 +1205,19 @@ class ChatProvider extends ChangeNotifier {
     _assistantIdsBeforeRecovery = const {};
   }
 
+  /// Detach UI updates; preserve background delivery of client folder tools.
+  /// The server finishes and saves in the original thread. Stop cancels it.
+  Future<void> _detachStreamForNavigation() {
+    _actionEpoch++;
+    _cancelResponseRecovery();
+    _isSending = false;
+    _stream.detach();
+    _clearStreamingState();
+    return Future.value();
+  }
+
   Future<void> stopStreaming() async {
+    if (_isOpeningConversation) return;
     unawaited(_stream.cancel());
     _isSending = false;
     _cancelResponseRecovery();

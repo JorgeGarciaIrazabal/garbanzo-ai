@@ -8,6 +8,8 @@ import 'package:garbanzo_ai/features/chat/models/style.dart';
 import 'package:garbanzo_ai/features/chat/models/system_prompt_template.dart';
 import 'package:garbanzo_ai/features/chat/models/thinking_level.dart';
 import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
+import 'package:garbanzo_ai/features/chat/utils/composer_conversation.dart';
+import 'package:garbanzo_ai/features/topics/providers/topic_discovery_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/model_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/style_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/system_prompt_provider.dart';
@@ -195,7 +197,6 @@ class StylePickerButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final chat = context.watch<ChatProvider>();
     final modelP = context.watch<ModelProvider>();
     final styleP = context.watch<StyleProvider>();
     final promptP = context.watch<SystemPromptProvider>();
@@ -203,7 +204,7 @@ class StylePickerButton extends StatelessWidget {
     final models = modelP.availableModels;
     if (models.isEmpty) return const SizedBox.shrink();
 
-    final conv = chat.currentConversation;
+    final conv = composerConversation(context);
     // In a conversation the backend answers with the conversation's model,
     // so that is what the pill reports; outside one it shows the selection
     // the next conversation will use.
@@ -235,7 +236,7 @@ class StylePickerButton extends StatelessWidget {
         activeStyle?.name ?? effectiveModel?.name ?? effectiveId ?? 'Model';
     final monogram = activeStyle == null ? null : _monogram(activeStyle.name);
     final thinkingActive = thinking != null && thinking != ThinkingLevel.off;
-    final enabled = !chat.isSending;
+    final enabled = !context.watch<ChatProvider>().isSending;
     final fg = enabled
         ? colorScheme.onSurfaceVariant
         : colorScheme.onSurfaceVariant.withValues(alpha: 0.5);
@@ -330,6 +331,7 @@ Future<void> showStylePicker(BuildContext context) {
   final models = context.read<ModelProvider>();
   final styles = context.read<StyleProvider>();
   final prompts = context.read<SystemPromptProvider>();
+  final topics = context.read<TopicDiscoveryProvider?>();
   SettingsProvider? settings;
   try {
     settings = context.read<SettingsProvider>();
@@ -340,6 +342,7 @@ Future<void> showStylePicker(BuildContext context) {
       ChangeNotifierProvider.value(value: models),
       ChangeNotifierProvider.value(value: styles),
       ChangeNotifierProvider.value(value: prompts),
+      if (topics != null) ChangeNotifierProvider.value(value: topics),
       if (settings != null)
         ChangeNotifierProvider<SettingsProvider>.value(value: settings),
     ],
@@ -492,6 +495,7 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
     final modelP = context.read<ModelProvider>();
     final styleP = context.read<StyleProvider>();
     final templates = context.read<SystemPromptProvider>().templates;
+    final conversationId = composerConversation(context, listen: false)?.id;
 
     if (!modelP.availableModels.any((m) => m.id == style.modelId)) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -513,8 +517,10 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
     // Persisted locally so this style also seeds new-conversation pendings
     // on the next app start when no style is marked default.
     await styleP.recordLastUsed(style.id);
+    if (!mounted) return;
 
-    if (chat.currentConversation != null) {
+    if (conversationId != null &&
+        composerConversation(context, listen: false)?.id == conversationId) {
       await chat.updateConversation(
         model: style.modelId,
         thinkingLevel: style.thinkingLevel,
@@ -534,7 +540,7 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
         .firstOrNull;
     final current = _editing != null
         ? _editThinking
-        : context.read<ChatProvider>().currentConversation?.thinkingLevel ??
+        : composerConversation(context, listen: false)?.thinkingLevel ??
               context.read<StyleProvider>().pendingThinkingLevel;
     final supported = model?.supportedThinkingLevels ?? const <ThinkingLevel>[];
     final adjusted = current != null && !supported.contains(current)
@@ -549,13 +555,13 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
     }
     final chat = context.read<ChatProvider>();
     final currentModelId =
-        chat.currentConversation?.model ??
+        composerConversation(context, listen: false)?.model ??
         context.read<ModelProvider>().selectedModelId;
     if (modelId != currentModelId) {
       context.read<StyleProvider>().clearSelectedStyle();
     }
     context.read<ModelProvider>().selectModel(modelId);
-    if (chat.currentConversation != null) {
+    if (composerConversation(context, listen: false) != null) {
       await chat.updateConversation(
         model: modelId,
         thinkingLevel: adjusted,
@@ -585,7 +591,7 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
     }
     final chat = context.read<ChatProvider>();
     context.read<StyleProvider>().setPendingThinkingLevel(level);
-    if (chat.currentConversation != null) {
+    if (composerConversation(context, listen: false) != null) {
       await chat.updateConversation(
         thinkingLevel: level,
         setThinkingLevel: true,
@@ -603,14 +609,14 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
     final content = _resolveTemplateContent(templates, templateId);
     final styleProvider = context.read<StyleProvider>();
     final currentPrompt = _normalize(
-      chat.currentConversation?.systemPrompt ??
+      composerConversation(context, listen: false)?.systemPrompt ??
           styleProvider.pendingSystemPrompt,
     );
     if (_normalize(content) != currentPrompt) {
       styleProvider.clearSelectedStyle();
     }
     styleProvider.setPendingSystemPrompt(content);
-    if (chat.currentConversation != null) {
+    if (composerConversation(context, listen: false) != null) {
       await chat.updateConversation(
         systemPrompt: content,
         clearSystemPrompt: content == null,
@@ -732,12 +738,11 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final chat = context.watch<ChatProvider>();
     final modelP = context.watch<ModelProvider>();
     final styleP = context.watch<StyleProvider>();
     final promptP = context.watch<SystemPromptProvider>();
 
-    final conv = chat.currentConversation;
+    final conv = composerConversation(context);
     final models = modelP.availableModels;
     final templates = promptP.templates;
     // Built-in styles are seeded per locale; surface only the ones matching
@@ -784,7 +789,7 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
     final section =
         _section ??
         (styles.isEmpty ? _PickerSection.customize : _PickerSection.styles);
-    final busy = chat.isSending;
+    final busy = context.watch<ChatProvider>().isSending;
 
     final activeStyle = _resolveActiveStyle(
       styleP,

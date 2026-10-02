@@ -210,7 +210,7 @@ class TopicContextCompiler:
         epoch = getattr(conversation, "session_epoch", 0)
         if conversation.is_primary:
             messages = [m for m in messages if getattr(m, "session_epoch", 0) == epoch]
-        history = self._recent_continuity(messages)
+        history = self._recent_continuity(messages) if conversation.is_primary else messages
         if (
             not conversation.is_primary and not conversation.active_topic_id
         ) or not get_settings().topic_context_enabled:
