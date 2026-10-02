@@ -4,6 +4,11 @@ Release notes for Garbanzo AI. Each entry is generated automatically on
 `just deploy` — Codex writes it from the release's commits and
 the user reports it addressed. See `scripts/changelog-instructions.md`.
 
+## v1.0.38 — 2026-10-02
+
+- Simplified conversation navigation into Threads and Rooms.
+- Topic conversations now run as independent, resumable threads.
+
 ## v1.0.37 — 2026-10-01
 
 - No user-facing changes.
