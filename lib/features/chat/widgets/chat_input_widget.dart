@@ -40,8 +40,6 @@ class ChatInputWidget extends StatefulWidget {
     this.onStop,
     this.isLoading = false,
     this.initialAttachments,
-    this.isPrimary = false,
-    this.onNewTopic,
     this.onOpenContext,
   });
 
@@ -49,8 +47,6 @@ class ChatInputWidget extends StatefulWidget {
   final VoidCallback? onStop;
   final bool isLoading;
   final List<ChatAttachment>? initialAttachments;
-  final bool isPrimary;
-  final VoidCallback? onNewTopic;
   final VoidCallback? onOpenContext;
 
   @override
@@ -352,27 +348,6 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
   }
 
   // Toolbar helpers extracted for clarity and line reduction
-  Widget _newTopicButton(bool isMobile, ColorScheme cs, AppLocalizations l10n) {
-    const key = ValueKey('new_topic_button');
-    return isMobile
-        ? IconButton(
-            key: key,
-            onPressed: widget.onNewTopic,
-            tooltip: l10n.newTopic,
-            icon: const Icon(Icons.post_add_rounded),
-            style: IconButton.styleFrom(
-              foregroundColor: cs.primary,
-              visualDensity: VisualDensity.compact,
-            ),
-          )
-        : TextButton.icon(
-            key: key,
-            onPressed: widget.onNewTopic,
-            icon: const Icon(Icons.post_add_rounded, size: 18),
-            label: Text(l10n.newTopic),
-          );
-  }
-
   Widget _thinkingChip(
     bool isMobile,
     ColorScheme cs,
@@ -462,15 +437,13 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
     List<ThinkingLevel> supported,
   ) => Row(
     children: [
-      if (widget.onNewTopic != null) _newTopicButton(isMobile, cs, l10n),
-      if (widget.onNewTopic != null) SizedBox(width: isMobile ? 2 : 6),
       StylePickerButton(compact: isMobile),
       if (supported.length > 1) ...[
         SizedBox(width: isMobile ? 2 : 6),
         _thinkingChip(isMobile, cs, effort, l10n),
       ],
       const Spacer(),
-      if (widget.isPrimary)
+      if (widget.onOpenContext != null)
         IconButton(
           key: const ValueKey('active_context_button'),
           onPressed: widget.onOpenContext,

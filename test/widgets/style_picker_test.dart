@@ -13,7 +13,6 @@ import 'package:garbanzo_ai/features/chat/providers/style_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/system_prompt_provider.dart';
 import 'package:garbanzo_ai/features/chat/services/chat_service.dart';
 import 'package:garbanzo_ai/features/chat/services/style_service.dart';
-import 'package:garbanzo_ai/features/chat/widgets/chat_input_widget.dart';
 import 'package:garbanzo_ai/features/chat/widgets/style_picker.dart';
 import 'package:garbanzo_ai/features/topics/providers/topic_discovery_provider.dart';
 import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
@@ -1680,45 +1679,6 @@ void main() {
 
       expect(provider.pendingThinkingLevel, ThinkingLevel.medium);
     });
-  });
-
-  testWidgets('ChatInputWidget renders new topic button in text input and triggers onNewTopic when isPrimary is false', (tester) async {
-    bool newTopicTriggered = false;
-    final chat = _FakeChatProvider(
-      conversation: _conversation(isPrimary: false),
-    );
-    final models = _FakeModelProvider(models: _defaultModels);
-    final styles = _FakeStyleProvider();
-    final prompts = _FakeSystemPromptProvider();
-
-    await tester.pumpWidget(
-      MaterialApp(
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: MultiProvider(
-          providers: [
-            ChangeNotifierProvider<ChatProvider>.value(value: chat),
-            ChangeNotifierProvider<ModelProvider>.value(value: models),
-            ChangeNotifierProvider<StyleProvider>.value(value: styles),
-            ChangeNotifierProvider<SystemPromptProvider>.value(value: prompts),
-          ],
-          child: Scaffold(
-            body: ChatInputWidget(
-              onSend: (_, _) {},
-              isPrimary: false,
-              onNewTopic: () => newTopicTriggered = true,
-            ),
-          ),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    expect(find.byKey(const ValueKey('new_topic_button')), findsOneWidget);
-    await tester.tap(find.byKey(const ValueKey('new_topic_button')));
-    await tester.pumpAndSettle();
-
-    expect(newTopicTriggered, isTrue);
   });
 }
 

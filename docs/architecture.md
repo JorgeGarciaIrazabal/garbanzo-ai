@@ -443,11 +443,15 @@ active-context panel lists topic threads and archived sessions; ordinary entries
 reopen directly, while archived paged messages offer Continue conversation. Submitting from the Topics landing
 without a selected topic creates a regular thread and carries the complete first
 turn, including attachment-only turns; selecting a topic creates an independent thread with preloaded topic context.
+Desktop and mobile navigation contain only Threads and Rooms. Every New
+conversation action opens the topic picker using the same page callback;
+the composer contains only controls for the current conversation. The primary
+conversation remains an internal source for topic creation and legacy history.
 
-All active-context mutations and topic pin changes lock the same primary
-conversation row and require its current `context_version`. This serializes them
-against topic switching, so a stale mutation returns the authoritative version
-instead of crossing a session boundary.
+All active-context mutations and topic pin changes lock their conversation row
+and require its current `context_version`. This serializes concurrent changes,
+so a stale mutation returns the authoritative version instead of crossing a
+session boundary.
 
 ## SSE Streaming Protocol
 

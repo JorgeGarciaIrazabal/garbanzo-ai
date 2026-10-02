@@ -25,7 +25,6 @@ class ConversationListWidget extends StatelessWidget {
     this.onDownload,
     this.isLoading = false,
     this.embedded = false,
-    this.newConversationLabel,
   });
 
   final List<Conversation> conversations;
@@ -49,7 +48,6 @@ class ConversationListWidget extends StatelessWidget {
   /// When true, drop the outer width / border chrome — caller is responsible
   /// for those. Used when this widget is hosted inside a tabbed sidebar.
   final bool embedded;
-  final String? newConversationLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -74,10 +72,7 @@ class ConversationListWidget extends StatelessWidget {
                 child: FilledButton.icon(
                   onPressed: onNewChat,
                   icon: const Icon(Icons.add, size: 18),
-                  label: Text(
-                    newConversationLabel ??
-                        AppLocalizations.of(context)!.labelNewChat,
-                  ),
+                  label: Text(AppLocalizations.of(context)!.labelNewChat),
                   style: FilledButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),

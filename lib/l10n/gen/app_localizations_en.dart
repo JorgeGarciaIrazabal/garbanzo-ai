@@ -526,10 +526,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get labelNew => 'New';
 
   @override
-  String get labelNewChat => 'New Chat';
-
-  @override
-  String get tooltipNewChat => 'New chat';
+  String get labelNewChat => 'New conversation';
 
   @override
   String get labelNewPassword => 'New password';
@@ -3039,25 +3036,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get messageResponseSyncing => 'Back online. Syncing your response…';
 
   @override
-  String get topics => 'Topics';
-
-  @override
   String get threads => 'Threads';
 
   @override
-  String get newTopic => 'New topic';
-
-  @override
-  String get newThread => 'New thread';
-
-  @override
-  String get primaryChat => 'Primary chat';
-
-  @override
   String get currentTopic => 'Current topic';
-
-  @override
-  String get activeNow => 'Active now';
 
   @override
   String get preparingContext => 'Preparing context';

@@ -724,13 +724,9 @@
   "@labelNew": {
     "description": "features/scheduled_actions/pages/scheduled_actions_page.dart:42 (Text)"
   },
-  "labelNewChat": "New Chat",
+  "labelNewChat": "New conversation",
   "@labelNewChat": {
-    "description": "features/chat/widgets/mobile_drawer.dart:197 (Text); features/chat/widgets/conversation_list_widget.dart:68 (Text)"
-  },
-  "tooltipNewChat": "New chat",
-  "@tooltipNewChat": {
-    "description": "Tooltip for the New chat icon button in the chat app bar on narrow layouts."
+    "description": "Title and button label for starting a new conversation."
   },
   "labelNewPassword": "New password",
   "@labelNewPassword": {
@@ -4054,20 +4050,10 @@
   "@messageResponseSyncing": {
     "description": "Chat status shown after reconnecting while waiting for the saved AI response."
   },
-  "topics": "Topics",
-  "@topics": {"description": "Topics navigation tab."},
   "threads": "Threads",
-  "@threads": {"description": "Legacy conversation threads navigation tab."},
-  "newTopic": "New topic",
-  "@newTopic": {"description": "Starts topic discovery without deleting chat history."},
-  "newThread": "New thread",
-  "@newThread": {"description": "Creates a compatibility conversation thread."},
-  "primaryChat": "Primary chat",
-  "@primaryChat": {"description": "The user's continuous unified chat."},
+  "@threads": {"description": "Conversation history navigation tab."},
   "currentTopic": "Current topic",
   "@currentTopic": {"description": "Label for the currently active topic."},
-  "activeNow": "Active now",
-  "@activeNow": {"description": "Current topic status."},
   "preparingContext": "Preparing context",
   "@preparingContext": {"description": "Topic context preparation status."},
   "personal": "Personal",
@@ -4081,7 +4067,7 @@
   "topicEmpty": "Your topics will appear as you keep talking.",
   "@topicEmpty": {"description": "Empty personal topic discovery state."},
   "topicFocusHint": "Choose what Garbanzo should focus on",
-  "@topicFocusHint": {"description": "New-topic navigation subtitle."},
+  "@topicFocusHint": {"description": "Hint for choosing a topic for a new conversation."},
   "subtopicIn": "Subtopic in {parent}",
   "@subtopicIn": {"description": "Promoted subtopic parent label.", "placeholders": {"parent": {"type": "String"}}},
   "subtopicCount": "{count} subtopics",

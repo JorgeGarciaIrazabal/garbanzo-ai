@@ -457,20 +457,10 @@ class _ChatPageContentState extends State<_ChatPageContent>
   }
 
   void _newChat() {
-    context.read<TopicDiscoveryProvider>().setSelectedTopic(null);
-    context.read<ChatProvider>().clearCurrentConversation();
-    if (widget.roomId != null) context.go('/chat');
-  }
-
-  void _openPrimary() {
     final chat = context.read<ChatProvider>();
+    context.read<TopicDiscoveryProvider>().startNewTopic();
     context.go('/chat');
     unawaited(chat.enterPrimaryConversation());
-  }
-
-  void _newTopic() {
-    context.read<TopicDiscoveryProvider>().startNewTopic();
-    _openPrimary();
   }
 
   void _openActiveContext() {
@@ -487,7 +477,7 @@ class _ChatPageContentState extends State<_ChatPageContent>
       ActiveContextPanel.showSheet(
         context,
         conversationId: conversation.id,
-        onRedirect: _newTopic,
+        onRedirect: _newChat,
       ),
     );
   }
@@ -533,7 +523,7 @@ class _ChatPageContentState extends State<_ChatPageContent>
       onMuteConversation: (id, duration) => chatProvider.setMute(id, duration),
       onDownloadConversation: _downloadConversation,
       onDownloadRoom: _downloadRoom,
-      initialTab: 1,
+      initialTab: widget.roomId != null ? 1 : 0,
       selectedRoomId: widget.roomId,
       onSelectRoom: _selectRoom,
       onDeleteRoom: _deleteRoom,
@@ -819,8 +809,7 @@ class _ChatPageContentState extends State<_ChatPageContent>
                           isLoadingConversations:
                               chatProvider.isLoadingConversations,
                           selectedRoomId: widget.roomId,
-                          initialTab: widget.roomId != null ? 2 : 1,
-                          onOpenPrimary: _openPrimary,
+                          initialTab: widget.roomId != null ? 1 : 0,
                           onSelectRoom: _selectRoom,
                           onDeleteRoom: _deleteRoom,
                         ),
@@ -844,17 +833,7 @@ class _ChatPageContentState extends State<_ChatPageContent>
                                     _scaffoldKey.currentState?.openEndDrawer(),
                                 onDeleteConversation: (id) =>
                                     _deleteWithUndo(chatProvider, id),
-                                onNewChat:
-                                    chatProvider
-                                                .currentConversation
-                                                ?.isPrimary ==
-                                            true ||
-                                        chatProvider
-                                                .currentConversation
-                                                ?.activeTopicId !=
-                                            null
-                                    ? _newTopic
-                                    : _newChat,
+                                onNewChat: _newChat,
                               ),
                               if (chatProvider.error != null &&
                                   chatProvider.errorType !=
@@ -966,17 +945,17 @@ class _ChatPageContentState extends State<_ChatPageContent>
                                             .startingTopic,
                                     initialAttachments:
                                         provider.pendingAttachments,
-                                    isPrimary:
+                                    onOpenContext:
                                         provider
-                                                .currentConversation
-                                                ?.isPrimary ==
-                                            true ||
-                                        provider
-                                                .currentConversation
-                                                ?.activeTopicId !=
-                                            null,
-                                    onNewTopic: _newTopic,
-                                    onOpenContext: _openActiveContext,
+                                                    .currentConversation
+                                                    ?.isPrimary ==
+                                                true ||
+                                            provider
+                                                    .currentConversation
+                                                    ?.activeTopicId !=
+                                                null
+                                        ? _openActiveContext
+                                        : null,
                                   );
                                 },
                               ),
@@ -1000,7 +979,7 @@ class _ChatPageContentState extends State<_ChatPageContent>
                           child: ActiveContextPanel(
                             conversationId:
                                 chatProvider.currentConversation!.id,
-                            onRedirect: _newTopic,
+                            onRedirect: _newChat,
                             onClose: () =>
                                 setState(() => _showActiveContext = false),
                           ),

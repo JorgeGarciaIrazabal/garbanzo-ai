@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import 'package:garbanzo_ai/core/responsive.dart';
 import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
+import 'package:garbanzo_ai/features/chat/utils/composer_conversation.dart';
 import 'package:garbanzo_ai/features/chat/widgets/mobile_drawer.dart';
 import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
@@ -24,9 +25,9 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
   /// Delete-with-undo flow owned by the page (needs its ScaffoldMessenger).
   final ValueChanged<String> onDeleteConversation;
 
-  /// Starts a new conversation (clears the current one). On narrow layouts
+  /// Opens the topic picker for a new conversation. On narrow layouts
   /// this is surfaced as an icon button in the app bar; on wide layouts the
-  /// sidebar already hosts a full "New chat" button.
+  /// sidebar already hosts a full "New conversation" button.
   final VoidCallback onNewChat;
 
   @override
@@ -39,7 +40,7 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
 
     return AppBar(
       title: Text(
-        chatProvider.currentConversation?.displayTitle ??
+        composerConversation(context)?.displayTitle ??
             AppLocalizations.of(context)!.labelNewChat,
         overflow: TextOverflow.ellipsis,
       ),
@@ -54,7 +55,7 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
                 selectedId: chatProvider.currentConversation?.id,
                 onSelect: (id) => chatProvider.loadConversation(id),
                 onDelete: onDeleteConversation,
-                onNewChat: () => chatProvider.clearCurrentConversation(),
+                onNewChat: onNewChat,
                 onTogglePin: (id) => chatProvider.togglePin(id),
                 onMuteConversation: (id, duration) =>
                     chatProvider.setMute(id, duration),
@@ -64,7 +65,7 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
         if (!showSidebar)
           IconButton(
             icon: const Icon(Icons.add_comment_outlined),
-            tooltip: AppLocalizations.of(context)!.tooltipNewChat,
+            tooltip: AppLocalizations.of(context)!.labelNewChat,
             onPressed: onNewChat,
           ),
         // Closed micro-app panel: offer a way back in without re-running

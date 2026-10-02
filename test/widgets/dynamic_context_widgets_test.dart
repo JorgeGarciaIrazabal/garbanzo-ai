@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
+import 'package:garbanzo_ai/features/chat/models/conversation.dart';
+import 'package:garbanzo_ai/features/chat/services/chat_service.dart';
+import 'package:garbanzo_ai/features/chat/widgets/chat_app_bar.dart';
 import 'package:garbanzo_ai/features/topics/models/active_context.dart';
 import 'package:garbanzo_ai/features/topics/models/topic_node.dart';
 import 'package:garbanzo_ai/features/topics/models/topic_switch.dart';
@@ -17,6 +22,27 @@ import 'package:garbanzo_ai/features/chat/widgets/topic_banner.dart';
 import 'package:garbanzo_ai/features/rooms/providers/room_provider.dart';
 import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 import 'package:provider/provider.dart';
+
+class _ChatService extends ChatService {
+  _ChatService() : super.forTesting();
+
+  @override
+  Future<ConversationList> listConversations({int page = 1, int pageSize = 20, bool silent = false}) async =>
+      ConversationList(items: const [], total: 0, page: page, pageSize: pageSize);
+
+  @override
+  Future<Conversation> getConversation(String conversationId, {int? messageLimit, bool silent = false}) async =>
+      Conversation(id: conversationId, title: 'Old primary topic', model: 'test-model', isPrimary: true, createdAt: DateTime(2026), updatedAt: DateTime(2026));
+}
+
+class _RoomProvider extends RoomProvider {
+  int loads = 0;
+
+  @override
+  Future<void> loadRooms() async {
+    loads++;
+  }
+}
 
 class _ContextService extends ActiveContextService {
   _ContextService(this.value) : super.forTesting();
@@ -80,6 +106,7 @@ Widget _app(Widget child) => MaterialApp(
 );
 
 void main() {
+  setUp(() => SharedPreferences.setMockInitialValues({}));
   final topics = [
     const TopicNode(
       id: 'finance',
@@ -575,13 +602,12 @@ void main() {
     expect(find.text('Why included: Pinned by you'), findsOneWidget);
   });
 
-  testWidgets('topics sidebar provides its own Material surface for tiles', (
+  testWidgets('threads sidebar provides its own Material surface for tiles', (
     tester,
   ) async {
     await tester.pumpWidget(
       MultiProvider(
         providers: [
-          ChangeNotifierProvider(create: (_) => TopicDiscoveryProvider()),
           ChangeNotifierProvider(create: (_) => RoomProvider()),
           ChangeNotifierProvider(create: (_) => SearchProvider()),
         ],
@@ -600,7 +626,6 @@ void main() {
               isLoadingConversations: false,
               onSelectRoom: _discardString,
               onDeleteRoom: _discardString,
-              onOpenPrimary: _noop,
               initialTab: 0,
             ),
           ),
@@ -612,14 +637,15 @@ void main() {
     expect(find.byKey(const ValueKey('chat_sidebar_material')), findsOneWidget);
   });
 
-  testWidgets('sidebar navigation keeps Topics and legacy Threads distinct', (
+  testWidgets('sidebar offers Threads, Rooms, and one new conversation action', (
     tester,
   ) async {
+    var starts = 0;
+    final rooms = _RoomProvider();
     await tester.pumpWidget(
       MultiProvider(
         providers: [
-          ChangeNotifierProvider(create: (_) => TopicDiscoveryProvider()),
-          ChangeNotifierProvider(create: (_) => RoomProvider()),
+          ChangeNotifierProvider<RoomProvider>.value(value: rooms),
           ChangeNotifierProvider(create: (_) => SearchProvider()),
         ],
         child: MaterialApp(
@@ -632,43 +658,45 @@ void main() {
               selectedConversationId: null,
               onSelectConversation: _discardString,
               onDeleteConversation: _discardString,
-              onNewChat: _noop,
+              onNewChat: () => starts++,
               onTogglePin: _discardString,
               isLoadingConversations: false,
               onSelectRoom: _discardString,
               onDeleteRoom: _discardString,
-              onOpenPrimary: _noop,
             ),
           ),
         ),
       ),
     );
 
-    expect(find.byKey(const ValueKey('sidebar_tab_topics')), findsOneWidget);
+    expect(find.byKey(const ValueKey('sidebar_tab_topics')), findsNothing);
     expect(find.byKey(const ValueKey('sidebar_tab_threads')), findsOneWidget);
     expect(find.byKey(const ValueKey('sidebar_tab_rooms')), findsOneWidget);
-    expect(find.text('New thread'), findsOneWidget);
-    expect(find.byKey(const ValueKey('new_topic_sidebar')), findsNothing);
+    expect(find.text('New conversation'), findsOneWidget);
+    await tester.tap(find.text('New conversation'));
+    expect(starts, 1);
 
-    await tester.tap(find.byKey(const ValueKey('sidebar_tab_topics')));
+    await tester.tap(find.byKey(const ValueKey('sidebar_tab_rooms')));
     await tester.pump();
-    expect(find.byKey(const ValueKey('new_topic_sidebar')), findsOneWidget);
-    expect(find.text('New thread'), findsNothing);
+    expect(rooms.loads, 1);
+    expect(find.text('New Room'), findsOneWidget);
+    expect(find.text('New conversation'), findsNothing);
 
     await tester.tap(find.byKey(const ValueKey('sidebar_tab_threads')));
     await tester.pump();
-    expect(find.text('New thread'), findsOneWidget);
+    expect(find.text('New conversation'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('mobile drawer exposes the same reachable Topics and Threads tabs', (
+  testWidgets('mobile drawer offers Threads and Rooms with the same start action', (
     tester,
   ) async {
+    var starts = 0;
+    final rooms = _RoomProvider();
     await tester.pumpWidget(
       MultiProvider(
         providers: [
-          ChangeNotifierProvider(create: (_) => TopicDiscoveryProvider()),
-          ChangeNotifierProvider(create: (_) => RoomProvider()),
+          ChangeNotifierProvider<RoomProvider>.value(value: rooms),
           ChangeNotifierProvider(create: (_) => SearchProvider()),
         ],
         child: MaterialApp(
@@ -684,8 +712,7 @@ void main() {
                     selectedId: null,
                     onSelect: _discardString,
                     onDelete: _discardString,
-                    onNewChat: _noop,
-                    initialTab: 1,
+                    onNewChat: () => starts++,
                   ),
                   child: const Text('Open navigation'),
                 ),
@@ -698,12 +725,63 @@ void main() {
 
     await tester.tap(find.text('Open navigation'));
     await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('mobile_drawer_tab_topics')), findsNothing);
     expect(find.byKey(const ValueKey('mobile_drawer_tab_threads')), findsOneWidget);
-    expect(find.byKey(const ValueKey('mobile_new_thread')), findsOneWidget);
-
-    await tester.tap(find.byKey(const ValueKey('mobile_drawer_tab_topics')));
+    expect(find.text('New conversation'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('mobile_drawer_tab_rooms')));
     await tester.pump();
-    expect(find.byKey(const ValueKey('mobile_new_topic')), findsOneWidget);
+    expect(rooms.loads, 1);
+    expect(find.text('New Room'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('mobile_drawer_tab_threads')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('mobile_new_conversation')));
+    await tester.pumpAndSettle();
+    expect(starts, 1);
+    expect(find.byKey(const ValueKey('mobile_new_conversation')), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('mobile app bar and its drawer share the new conversation callback', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(400, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    var starts = 0;
+    final chat = ChatProvider(chatService: _ChatService());
+    await chat.loadConversation('primary');
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider<ChatProvider>.value(value: chat),
+          ChangeNotifierProvider(create: (_) => TopicDiscoveryProvider(service: _TopicService(const []))),
+          ChangeNotifierProvider<RoomProvider>(create: (_) => _RoomProvider()),
+          ChangeNotifierProvider(create: (_) => SearchProvider()),
+        ],
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            appBar: ChatAppBar(
+              onOpenSettings: _noop,
+              onDeleteConversation: _discardString,
+              onNewChat: () => starts++,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('New conversation'), findsOneWidget);
+    expect(find.text('Old primary topic'), findsNothing);
+    await tester.tap(find.byTooltip('New conversation'));
+    expect(starts, 1);
+    await tester.tap(find.byIcon(Icons.menu));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('mobile_new_conversation')));
+    await tester.pumpAndSettle();
+    expect(starts, 2);
     expect(tester.takeException(), isNull);
   });
 

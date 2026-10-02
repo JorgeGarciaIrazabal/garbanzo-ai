@@ -1052,17 +1052,11 @@ abstract class AppLocalizations {
   /// **'New'**
   String get labelNew;
 
-  /// features/chat/widgets/mobile_drawer.dart:197 (Text); features/chat/widgets/conversation_list_widget.dart:68 (Text)
+  /// Title and button label for starting a new conversation.
   ///
   /// In en, this message translates to:
-  /// **'New Chat'**
+  /// **'New conversation'**
   String get labelNewChat;
-
-  /// Tooltip for the New chat icon button in the chat app bar on narrow layouts.
-  ///
-  /// In en, this message translates to:
-  /// **'New chat'**
-  String get tooltipNewChat;
 
   /// features/settings/widgets/change_password_dialog.dart:90 (Text)
   ///
@@ -5319,47 +5313,17 @@ abstract class AppLocalizations {
   /// **'Back online. Syncing your response…'**
   String get messageResponseSyncing;
 
-  /// Topics navigation tab.
-  ///
-  /// In en, this message translates to:
-  /// **'Topics'**
-  String get topics;
-
-  /// Legacy conversation threads navigation tab.
+  /// Conversation history navigation tab.
   ///
   /// In en, this message translates to:
   /// **'Threads'**
   String get threads;
-
-  /// Starts topic discovery without deleting chat history.
-  ///
-  /// In en, this message translates to:
-  /// **'New topic'**
-  String get newTopic;
-
-  /// Creates a compatibility conversation thread.
-  ///
-  /// In en, this message translates to:
-  /// **'New thread'**
-  String get newThread;
-
-  /// The user's continuous unified chat.
-  ///
-  /// In en, this message translates to:
-  /// **'Primary chat'**
-  String get primaryChat;
 
   /// Label for the currently active topic.
   ///
   /// In en, this message translates to:
   /// **'Current topic'**
   String get currentTopic;
-
-  /// Current topic status.
-  ///
-  /// In en, this message translates to:
-  /// **'Active now'**
-  String get activeNow;
 
   /// Topic context preparation status.
   ///
@@ -5397,7 +5361,7 @@ abstract class AppLocalizations {
   /// **'Your topics will appear as you keep talking.'**
   String get topicEmpty;
 
-  /// New-topic navigation subtitle.
+  /// Hint for choosing a topic for a new conversation.
   ///
   /// In en, this message translates to:
   /// **'Choose what Garbanzo should focus on'**

@@ -117,6 +117,7 @@ Original backlog and notes: [.ai/backlog-source.md](.ai/backlog-source.md).
 - [x] **garbanzo-baj** P2 [closed] **@mention routing** — `@AgentName` in a message triggers only that agent to respond; `@all` triggers all agents
 - [x] **garbanzo-bgm** P2 [closed] **Request-time context compiler**
 - [x] **garbanzo-bgq** P2 [closed] **Code syntax highlighting** — `flutter_highlight` or `google_code_prettify`; copy-code button per block
+- [ ] **garbanzo-bw4i** P2 [open] Simplify conversation navigation to Threads and Rooms
 - [ ] **garbanzo-c2d** P2 [open] Production report e7821fd7-331a-41e7-a936-889fca98ec04
 - [x] **garbanzo-c5r4** P2 [closed] Make controller workflow paths match their environments
 - [ ] **garbanzo-ccm2** P2 [open] Production report 5eaba487-a07b-46d6-b58c-e2c4b2fc237a

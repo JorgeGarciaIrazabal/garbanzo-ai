@@ -10,8 +10,6 @@ import 'package:garbanzo_ai/features/rooms/widgets/create_room_dialog.dart';
 import 'package:garbanzo_ai/features/rooms/widgets/rooms_list_view.dart';
 import 'package:garbanzo_ai/features/chat/models/conversation.dart';
 import 'package:garbanzo_ai/features/chat/providers/search_provider.dart';
-import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
-import 'package:garbanzo_ai/features/topics/providers/topic_discovery_provider.dart';
 import 'package:garbanzo_ai/features/chat/widgets/search_results_widget.dart';
 import 'package:garbanzo_ai/features/chat/widgets/search_widget.dart';
 import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
@@ -30,7 +28,7 @@ void showMobileConversationDrawer({
   ValueChanged<String>? onSelectRoom,
   ValueChanged<String>? onDeleteRoom,
   String? selectedRoomId,
-  int initialTab = 1,
+  int initialTab = 0,
 }) {
   showModalBottomSheet(
     context: context,
@@ -104,7 +102,7 @@ class _MobileDrawerBodyState extends State<_MobileDrawerBody> {
   @override
   void initState() {
     super.initState();
-    if (_tab == 2) {
+    if (_tab == 1) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _loadRoomsIfEmpty();
       });
@@ -173,12 +171,11 @@ class _MobileDrawerBodyState extends State<_MobileDrawerBody> {
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
               child: _MobileNavigationTabs(
                 value: _tab,
-                topicsLabel: l10n.topics,
                 threadsLabel: l10n.threads,
                 roomsLabel: l10n.labelRooms,
                 onChange: (tab) {
                   setState(() => _tab = tab);
-                  if (tab == 2) _loadRoomsIfEmpty();
+                  if (tab == 1) _loadRoomsIfEmpty();
                 },
               ),
             ),
@@ -188,55 +185,13 @@ class _MobileDrawerBodyState extends State<_MobileDrawerBody> {
             ),
             Expanded(
               child: switch (_tab) {
-                0 => _buildTopics(context),
-                1 => _buildChats(context),
+                0 => _buildChats(context),
                 _ => _buildRooms(context),
               },
             ),
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildTopics(BuildContext context) {
-    final topics = context.watch<TopicDiscoveryProvider>();
-    final l10n = AppLocalizations.of(context)!;
-    void popAndPrimary() {
-      Navigator.pop(context);
-      context.read<ChatProvider>().enterPrimaryConversation();
-    }
-
-    return ListView(
-      controller: widget.scrollController,
-      padding: const EdgeInsets.all(16),
-      children: [
-        FilledButton.tonalIcon(
-          onPressed: popAndPrimary,
-          icon: const Icon(Icons.forum_outlined),
-          label: Text(l10n.primaryChat),
-        ),
-        const SizedBox(height: 12),
-        ListTile(
-          key: const ValueKey('mobile_new_topic'),
-          leading: const Icon(Icons.add_comment_outlined),
-          title: Text(l10n.newTopic),
-          subtitle: Text(l10n.topicFocusHint),
-          onTap: () {
-            topics.startNewTopic();
-            popAndPrimary();
-          },
-        ),
-        if (topics.selectedTopic != null) ...[
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.bookmark_outline),
-            title: Text(topics.selectedTopic!.label),
-            subtitle: Text(l10n.currentTopic),
-            onTap: popAndPrimary,
-          ),
-        ],
-      ],
     );
   }
 
@@ -248,13 +203,13 @@ class _MobileDrawerBodyState extends State<_MobileDrawerBody> {
           child: SizedBox(
             width: double.infinity,
             child: FilledButton.icon(
-              key: const ValueKey('mobile_new_thread'),
+              key: const ValueKey('mobile_new_conversation'),
               onPressed: () {
                 Navigator.pop(context);
                 widget.onNewChat();
               },
               icon: const Icon(Icons.add),
-              label: Text(AppLocalizations.of(context)!.newThread),
+              label: Text(AppLocalizations.of(context)!.labelNewChat),
             ),
           ),
         ),
@@ -407,14 +362,12 @@ class _MobileDrawerBodyState extends State<_MobileDrawerBody> {
 class _MobileNavigationTabs extends StatelessWidget {
   const _MobileNavigationTabs({
     required this.value,
-    required this.topicsLabel,
     required this.threadsLabel,
     required this.roomsLabel,
     required this.onChange,
   });
 
   final int value;
-  final String topicsLabel;
   final String threadsLabel;
   final String roomsLabel;
   final ValueChanged<int> onChange;
@@ -423,11 +376,6 @@ class _MobileNavigationTabs extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final tabs = [
-      (
-        label: topicsLabel,
-        icon: Icons.auto_awesome_outlined,
-        key: 'mobile_drawer_tab_topics',
-      ),
       (
         label: threadsLabel,
         icon: Icons.chat_bubble_outline,
@@ -441,7 +389,7 @@ class _MobileNavigationTabs extends StatelessWidget {
     ];
     return Semantics(
       container: true,
-      label: '$topicsLabel, $threadsLabel, $roomsLabel',
+      label: '$threadsLabel, $roomsLabel',
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: cs.surfaceContainerHighest.withValues(alpha: 0.55),

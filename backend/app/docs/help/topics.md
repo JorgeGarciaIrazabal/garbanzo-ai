@@ -7,8 +7,12 @@ thread; it does not replace the previous conversation.
 
 ## How do I choose a topic?
 
-Open the Topics view and select a personal topic, or activate one from Explore.
-The chat opens on the topic map by default. Selecting a topic opens a new thread.
+Select **New conversation** to choose a personal topic, or activate one from
+Explore. Selecting a topic opens a new thread. You can also start typing without
+choosing a topic to open a regular thread.
+The sidebar and mobile menu contain **Threads** for all your conversations and
+**Rooms** for group conversations. The current topic stays visible in the chat
+banner and context panel.
 When the new-topic map opens, Garbanzo resets the composer to your default
 style (or the style you used last) and starts thinking at Medium. These settings
 apply to the next thread you create.

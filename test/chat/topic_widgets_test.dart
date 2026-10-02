@@ -1253,7 +1253,7 @@ How can I help you with **Retirement planning** today?
       updatedAt: DateTime(2026),
     );
 
-    // The landing seeds asynchronously (styles load + primary PATCH), so pump
+    // The landing seeds asynchronously (styles load + pending settings), so pump
     // a few frames after mount to let its post-frame callback settle.
     Future<void> settle(WidgetTester tester) async {
       await tester.pump();
@@ -1297,7 +1297,6 @@ How can I help you with **Retirement planning** today?
               ),
               ChatInputWidget(
                 onSend: (_, _) {},
-                onNewTopic: topics.startNewTopic,
               ),
             ],
           ),
@@ -1318,12 +1317,12 @@ How can I help you with **Retirement planning** today?
       expect(find.descendant(of: thinkingChip, matching: find.text('Medium')),
           findsOneWidget);
 
-      // Effort can be customized, then New topic must reset it while keeping
+      // Effort can be customized, then a new conversation must reset it while keeping
       // the named default style visible even though its saved effort is High.
       await tester.tap(thinkingChip);
       await settle(tester);
       expect(styles.pendingThinkingLevel, ThinkingLevel.high);
-      await tester.tap(find.byKey(const ValueKey('new_topic_button')));
+      topics.startNewTopic();
       await settle(tester);
       expect(styles.pendingThinkingLevel, ThinkingLevel.medium);
       expect(find.descendant(of: stylePill, matching: find.text('Deep work')),

@@ -2,16 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'package:garbanzo_ai/features/chat/models/conversation.dart';
-import 'package:garbanzo_ai/features/topics/models/topic_node.dart';
 import 'package:garbanzo_ai/features/chat/widgets/conversation_list_widget.dart';
-import 'package:garbanzo_ai/features/topics/providers/topic_discovery_provider.dart';
 import 'package:garbanzo_ai/features/rooms/models/room_models.dart';
 import 'package:garbanzo_ai/features/rooms/providers/room_provider.dart';
 import 'package:garbanzo_ai/features/rooms/widgets/create_room_dialog.dart';
 import 'package:garbanzo_ai/features/rooms/widgets/rooms_list_view.dart';
 import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
-/// Sidebar shown on wide layouts. Contains Topics / Threads / Rooms.
+/// Sidebar shown on wide layouts. Contains Threads and Rooms.
 class ChatSidebar extends StatefulWidget {
   const ChatSidebar({
     super.key,
@@ -27,9 +25,8 @@ class ChatSidebar extends StatefulWidget {
     required this.isLoadingConversations,
     required this.onSelectRoom,
     required this.onDeleteRoom,
-    required this.onOpenPrimary,
     this.selectedRoomId,
-    this.initialTab = 1,
+    this.initialTab = 0,
   });
 
   final List<Conversation> conversations;
@@ -46,7 +43,6 @@ class ChatSidebar extends StatefulWidget {
   final ValueChanged<String> onSelectRoom;
   final ValueChanged<String> onDeleteRoom;
   final String? selectedRoomId;
-  final VoidCallback onOpenPrimary;
   final int initialTab;
 
   @override
@@ -59,7 +55,7 @@ class _ChatSidebarState extends State<ChatSidebar> {
   @override
   void initState() {
     super.initState();
-    if (_tab == 2) {
+    if (_tab == 1) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _loadRoomsIfEmpty();
       });
@@ -92,7 +88,7 @@ class _ChatSidebarState extends State<ChatSidebar> {
                 value: _tab,
                 onChange: (i) {
                   setState(() => _tab = i);
-                  if (i == 2) _loadRoomsIfEmpty();
+                  if (i == 1) _loadRoomsIfEmpty();
                 },
               ),
             ),
@@ -102,8 +98,7 @@ class _ChatSidebarState extends State<ChatSidebar> {
             ),
             Expanded(
               child: switch (_tab) {
-                0 => _TopicsTab(onOpenPrimary: widget.onOpenPrimary),
-                1 => ConversationListWidget(
+                0 => ConversationListWidget(
                   conversations: widget.conversations,
                   selectedId: widget.selectedConversationId,
                   onSelect: widget.onSelectConversation,
@@ -116,7 +111,6 @@ class _ChatSidebarState extends State<ChatSidebar> {
                   onDownload: widget.onDownloadConversation,
                   isLoading: widget.isLoadingConversations,
                   embedded: true,
-                  newConversationLabel: AppLocalizations.of(context)!.newThread,
                 ),
                 _ => _RoomsTab(
                   selectedRoomId: widget.selectedRoomId,
@@ -144,11 +138,6 @@ class _Tabs extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final tabs = [
       (
-        key: 'sidebar_tab_topics',
-        label: l10n.topics,
-        icon: Icons.auto_awesome_outlined,
-      ),
-      (
         key: 'sidebar_tab_threads',
         label: l10n.threads,
         icon: Icons.chat_bubble_outline,
@@ -161,7 +150,7 @@ class _Tabs extends StatelessWidget {
     ];
     return Semantics(
       container: true,
-      label: '${l10n.topics}, ${l10n.threads}, ${l10n.labelRooms}',
+      label: '${l10n.threads}, ${l10n.labelRooms}',
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: cs.surfaceContainerHighest.withValues(alpha: 0.55),
@@ -247,81 +236,6 @@ class _NavigationTab extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _TopicsTab extends StatelessWidget {
-  const _TopicsTab({required this.onOpenPrimary});
-  final VoidCallback onOpenPrimary;
-
-  Widget _card(
-    BuildContext context, {
-    required Color color,
-    required Widget child,
-  }) => Card(elevation: 0, color: color, child: child);
-
-  @override
-  Widget build(BuildContext context) {
-    final topics = context.watch<TopicDiscoveryProvider>();
-    final l10n = AppLocalizations.of(context)!;
-    final cs = Theme.of(context).colorScheme;
-    final selected = topics.selectedTopic;
-    return ListView(
-      padding: const EdgeInsets.all(12),
-      children: [
-        FilledButton.tonalIcon(
-          key: const ValueKey('open_primary_chat'),
-          onPressed: onOpenPrimary,
-          icon: const Icon(Icons.forum_outlined),
-          label: Text(l10n.primaryChat),
-        ),
-        const SizedBox(height: 12),
-        Semantics(
-          button: true,
-          label: l10n.newTopic,
-          child: _card(
-            context,
-            color: cs.surfaceContainerHighest.withValues(alpha: 0.48),
-            child: ListTile(
-              key: const ValueKey('new_topic_sidebar'),
-              leading: const Icon(Icons.add_comment_outlined),
-              title: Text(l10n.newTopic),
-              subtitle: Text(l10n.topicFocusHint),
-              onTap: () {
-                topics.startNewTopic();
-                onOpenPrimary();
-              },
-            ),
-          ),
-        ),
-        if (selected != null) ...[
-          const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-            child: Text(
-              l10n.currentTopic,
-              style: Theme.of(
-                context,
-              ).textTheme.labelLarge?.copyWith(color: cs.onSurfaceVariant),
-            ),
-          ),
-          _card(
-            context,
-            color: cs.secondaryContainer.withValues(alpha: 0.45),
-            child: ListTile(
-              leading: const Icon(Icons.bookmark_outline),
-              title: Text(selected.label),
-              subtitle: Text(
-                selected.contextStatus == TopicContextStatus.preparing
-                    ? l10n.preparingContext
-                    : l10n.activeNow,
-              ),
-              onTap: onOpenPrimary,
-            ),
-          ),
-        ],
-      ],
     );
   }
 }
