@@ -214,7 +214,7 @@ tap(text: "Create an account")  # Navigate to register page
 │ [☰] [Conversation Title]        [Model ▼] [⚙️] [👤]        │ ← AppBar
 ├───────────────┬─────────────────────────────────────────────┤
 │               │                                             │
-│  [New Chat]   │                                             │
+│  [New conversation]   │                                             │
 │               │         (Message Area)                       │
 │ Conversation  │                                             │
 │    List       │    "Start a conversation"                   │
@@ -229,15 +229,18 @@ tap(text: "Create an account")  # Navigate to register page
 | Element | Type | Location | Action |
 |---------|------|----------|--------|
 | Menu button (mobile) | `IconButton` | Leading | Open conversation drawer (mobile only) |
-| Title | `Text` | Center | Shows conversation title or "New Chat" |
-| Model selector | `DropdownButton` | Actions area | Select LLM model |
+| Title | `Text` | Center | Shows conversation title or "New conversation" |
+| Style/model picker | `StylePickerButton` | Composer toolbar | Select style and LLM model |
 | Settings | `IconButton` (tooltip: "Settings") | Actions area | Open settings drawer |
 | Account menu | `IconButton` (tooltip: "Account menu") | Actions area | Show logout option |
 
-### Sidebar (Conversation List)
+### Sidebar (Threads and Rooms)
+Only Threads and Rooms have navigation tabs; topic discovery is part of starting
+a new conversation. The mobile drawer exposes the same tabs and start action.
+
 | Element | Text/Type | Action |
 |---------|-----------|--------|
-| New Chat button | FilledButton "New Chat" | Create new conversation |
+| New conversation button | FilledButton "New conversation" | Open the topic picker; choose a topic or type directly |
 | Conversation item | `InkWell` with title + "N messages" | Select conversation |
 | Delete button | `IconButton` (trash icon) | Delete conversation (with confirmation dialog) |
 
@@ -268,7 +271,8 @@ tap(text: "Create an account")  # Navigate to register page
 
 ### Creating New Conversation
 ```
-tap(text: "New Chat")  # In sidebar
+tap(text: "New conversation")  # In Threads
+# Choose a topic to start a thread with topic context, or type directly for a regular thread.
 ```
 
 ### Selecting a Conversation
@@ -404,8 +408,8 @@ tap(coordinates: {x: 640, y: 432})  # Password field
 enter_text(focused_element: true, input: "password123")
 tap(text: "Sign in")
 
-# 2. Wait for chat page (verify "New Chat" appears)
-get_interactive_elements()  # Should show "New Chat" FilledButton
+# 2. Wait for chat page (verify "New conversation" appears)
+get_interactive_elements()  # Should show "New conversation" FilledButton
 
 # 3. Send a message
 tap(text: "Explain quantum computing")  # Or type custom message
