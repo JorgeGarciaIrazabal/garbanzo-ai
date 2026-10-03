@@ -35,6 +35,7 @@ async def create_style(
             model_id=data.model_id,
             thinking_level=data.thinking_level,
             system_prompt_template_id=data.system_prompt_template_id,
+            system_prompt_content=data.system_prompt_content,
             is_default=data.is_default,
         )
     except ValueError as exc:
@@ -82,7 +83,7 @@ async def update_style(
     current_user: Annotated[dict[str, Any], Depends(get_current_user)],
     service: Annotated[StyleService, Depends(get_service)],
 ) -> StyleOut:
-    # thinking_level / system_prompt_template_id both need three-way
+    # Thinking, template ID, and inline content need three-way
     # semantics — null is itself a meaningful target value (reset to
     # provider default / clear the template), so the column is only
     # touched when the key was actually present in the request payload.
@@ -90,6 +91,7 @@ async def update_style(
     payload_set = data.model_fields_set
     set_thinking_level = "thinking_level" in payload_set
     set_template_id = "system_prompt_template_id" in payload_set
+    set_prompt_content = "system_prompt_content" in payload_set
 
     try:
         style = await service.update(
@@ -101,6 +103,8 @@ async def update_style(
             set_thinking_level=set_thinking_level,
             system_prompt_template_id=data.system_prompt_template_id,
             set_template_id=set_template_id,
+            system_prompt_content=data.system_prompt_content,
+            set_prompt_content=set_prompt_content,
             is_default=data.is_default,
         )
     except BuiltinReadOnlyError as exc:

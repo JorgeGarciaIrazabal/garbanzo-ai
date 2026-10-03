@@ -31,6 +31,19 @@ when you add or change an endpoint, update the matching row in the same commit.
 | **Health** | `GET /health` (includes `version` — the release baked in at deploy, `APP_VERSION`) |
 | **Version** | `GET /version/latest` (no auth; latest GitHub release for `GITHUB_REPO`, ~5-min cache — tag/notes/assets; feeds Linux, Windows, and Android auto-updaters) |
 
+Style creation and updates accept optional `system_prompt_content` for inline
+instructions. Nonempty content creates a user-owned system prompt template named
+after the style, in the same transaction as the style and any default selection.
+On update, unchanged content keeps the existing template; changed content creates
+a new template without modifying the original or other styles that use it.
+Omitted content leaves the template unchanged; explicit null or an empty string
+clears its reference (and means no template on creation). Content follows saved
+template string constraints, with empty content allowed for clearing. Supplying
+both `system_prompt_content` and `system_prompt_template_id`, even as null,
+returns 422. Built-in styles still reject content updates with 403. Responses
+include `system_prompt_template_id`; clients reload the template list after a save
+to obtain any newly created instructions.
+
 Read-aloud session creation accepts `{text, voice_en, voice_es, language_mode,
 start_paragraph?}`. Text over 100,000 characters returns 413. A new session
 cancels the user's prior active session. Status includes ordered segments with

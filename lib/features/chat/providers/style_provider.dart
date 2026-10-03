@@ -185,6 +185,7 @@ class StyleProvider extends ChangeNotifier with GuardedStateMixin {
     required String modelId,
     ThinkingLevel? thinkingLevel,
     String? systemPromptTemplateId,
+    String? systemPromptContent,
     bool isDefault = false,
   }) async {
     return runGuarded('Failed to save style', () async {
@@ -193,6 +194,7 @@ class StyleProvider extends ChangeNotifier with GuardedStateMixin {
         modelId: modelId,
         thinkingLevel: thinkingLevel,
         systemPromptTemplateId: systemPromptTemplateId,
+        systemPromptContent: systemPromptContent,
         isDefault: isDefault,
       );
       _styles = [
@@ -216,6 +218,7 @@ class StyleProvider extends ChangeNotifier with GuardedStateMixin {
     ThinkingLevel? thinkingLevel,
     bool setThinkingLevel = false,
     String? systemPromptTemplateId,
+    String? systemPromptContent,
     bool setTemplateId = false,
     bool? isDefault,
   }) async {
@@ -227,6 +230,7 @@ class StyleProvider extends ChangeNotifier with GuardedStateMixin {
         thinkingLevel: thinkingLevel,
         setThinkingLevel: setThinkingLevel,
         systemPromptTemplateId: systemPromptTemplateId,
+        systemPromptContent: systemPromptContent,
         setTemplateId: setTemplateId,
         isDefault: isDefault,
       );

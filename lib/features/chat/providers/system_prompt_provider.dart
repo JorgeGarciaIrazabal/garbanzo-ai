@@ -50,6 +50,19 @@ class SystemPromptProvider extends ChangeNotifier with GuardedStateMixin {
     await refresh(locale: locale);
   }
 
+  /// Resolve a saved style's reference even when its builtin is in another locale.
+  Future<SystemPromptTemplate?> resolveTemplate(String templateId) async {
+    final cached = _templates.where((t) => t.id == templateId).firstOrNull;
+    if (cached != null) return cached;
+    return runGuarded('Failed to load style instructions', () async {
+      final all = await _service.listTemplates();
+      final template = all.where((t) => t.id == templateId).firstOrNull;
+      if (template == null) throw StateError('Style prompt template not found');
+      _templates = [..._templates.where((t) => t.id != templateId), template];
+      return template;
+    }, trackLoading: false);
+  }
+
   Future<SystemPromptTemplate?> createTemplate({
     required String name,
     required String content,

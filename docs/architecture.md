@@ -596,25 +596,36 @@ Main providers per `ChatPage` tree:
 - **`ModelProvider`** — available models + selected model. Kept separate so model selection survives conversation switches. For image capability errors it exposes only enabled Vision choices, preferring GLM 5.3 Flash for speed/cost and Kimi K3 for capability, then falling back to its location- and capability-aware ranking.
 - **`StyleProvider`** — saved styles + built-in styles (model + thinking level + prompt template bundles, `/api/v1/styles`) plus the *pending* thinking level / system prompt the style picker composes for the next new conversation. Same survives-switches rationale as `ModelProvider`. On load it seeds the pendings from the default style (`is_default`) or, absent one, from the last saved style the user explicitly applied (id persisted locally in `SharedPreferences` via `recordLastUsed`, `style_last_used_style_id`) — an explicit default always wins over last-used. Opening a new-topic window (`TopicLanding`, at startup or via New topic) re-composes the pendings through `applyDefaultForNewTopic()`: the default/last-used style is selected, thinking resets to `Medium` regardless of the saved style's effort, and the new topic thread receives those pending settings at creation; opening the landing does not edit an existing conversation. There is no backend column for "the active style": `selectedStyleId` retains the named model + resolved-prompt identity locally, so the composer pill keeps the selected style name when thinking is overridden. Without a compatible selected identity, the pill and saved-style cards recover the style from an exact model/thinking/resolved-prompt match (`_resolveActiveStyle` in `style_picker.dart`).
 
-### Built-in styles
+### Style editing and built-in styles
 
-The app ships six built-in styles — Concise, Truth Seeker, Writing & Stories,
-Coding, Tutoring, Brainstorm — seeded at startup. Each is a row in `styles`
+**Styles → New style** and a custom card's **Edit** action open one draft form
+for name and instructions, with model/thinking settings collapsed. Customize's
+**Save style** opens that form seeded from the live conversation (including an
+inline prompt with no saved template). Draft changes do not touch the chat.
+The style POST/PATCH accepts `system_prompt_content` as an alternative to a
+template ID. The service creates a private template and saves the style/default
+pointer in one transaction. Changed instructions get a new template; unchanged
+instructions keep the reference, so editing never mutates a shared prompt.
+The client refreshes templates after saving. If that refresh or default-model
+sync fails, the editor retains the saved ID and retries sync without creating
+another style. Editing and applying a saved style resolve its required prompt
+reference independently of the current language filter; a failed resolution
+blocks application before any chat settings change.
+
+The app ships five built-in styles — Concise, Truth Seeker, Writing & Stories,
+Tutoring, Brainstorm — seeded at startup. Each is a row in `styles`
 with `is_builtin=TRUE`, `user_id=NULL`, `locale`='en' or 'es', and a
-`system_prompt_template_id` referencing the built-in
-`SystemPromptTemplate` of the same `(name, locale)`. `StyleService.
-seed_builtin_styles` runs after `seed_builtin_templates` in `main.lifespan`,
-keys idempotency on `(name, locale)`, and skips a style whose template isn't
-seeded yet (retry next startup). `GET /styles` lists built-ins first (by
-name within a locale) then the user's own styles in creation order, so the
-picker surfaces the shared presets as one-tap cards above the user's saved
-styles. Built-ins are read-only: `StyleService.update`/`delete` raise
-`BuiltinReadOnlyError` (the endpoint maps to 403). The picker never shows
-the default/edit/share/delete menu on a built-in card — they're applied,
-not owned — and the Customize prompt dropdown lists only the user's own
-custom templates (the built-in personas are surfaced as built-in styles
-instead), so the dropdown's job stays "create your own". A built-in whose
-model isn't installed is hidden by the picker rather than shown as broken.
+`system_prompt_template_id` referencing a built-in `SystemPromptTemplate`.
+`StyleService.seed_builtin_styles` runs after `seed_builtin_templates` in
+`main.lifespan`, keys idempotency on `(name, locale)`, and skips a style whose
+template isn't seeded yet (retry next startup). `GET /styles` lists the user's
+styles first, followed by built-ins. The picker groups these under **Your styles**
+and **Predefined**. Built-in content is read-only; edit/delete return 403, but
+users can share them or select one as their default through a per-user pointer.
+The Customize prompt dropdown lists user templates; the style editor can copy
+instructions from existing prompts. Unavailable models disable style application
+and display a warning.
+
 - **`ChatProvider`** — conversation/message state and user actions. Message stars are server-confirmed bookmarks: pending saves are serialized per message, the returned boolean is merged into the current message without replacing its content, and reloads wait until outstanding saves finish. Late responses are scoped to the original conversation/session. `StarButton` exposes localized actions for saved user/assistant messages; temporary and streaming messages have no star action. Its focused `ChatStreamController` owns the SSE subscription and throttled live-message notifier; `ClientFolderController` owns local folder persistence and client-served `read_file`/`list_files` responses. A `ChangeNotifierProxyProvider2` in `main.dart` pushes `ModelProvider.selectedModelId` and `StyleProvider`'s pending thinking/prompt into it; new conversations are created with those values. Applying a style to a live conversation is a plain conversation PATCH (model + `thinking_level` + `system_prompt`) — there is no dedicated backend endpoint.
 
 Additional providers:

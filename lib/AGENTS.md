@@ -74,3 +74,7 @@ provider map, chat/SSE flow, rooms WebSocket) and `../docs/api.md` (endpoints).
   no stable inline-webview plugin targets those platforms. Both the Android
   and Windows paths share the same load-state model (`onHttpError`/`onReceivedError`
   → retry card) — keep them in sync when changing the failure UI.
+
+- An `AlertDialog` measures intrinsic dimensions even with `scrollable: true`.
+  Give embedded lazy lists (including lists inside an `ExpansionTile`) a bounded
+  height; an unconstrained shrink-wrapped viewport throws when expanded.

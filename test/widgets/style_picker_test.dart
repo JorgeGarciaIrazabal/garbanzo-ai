@@ -113,6 +113,7 @@ class _FakeStyleProvider extends StyleProvider {
   _FakeStyleProvider({List<Style> styles = const []}) : _fakeStyles = styles;
 
   List<Style> _fakeStyles;
+  bool failSave = false;
   final List<Map<String, Object?>> created = [];
   final List<Map<String, Object?>> updated = [];
 
@@ -128,6 +129,7 @@ class _FakeStyleProvider extends StyleProvider {
     required String modelId,
     ThinkingLevel? thinkingLevel,
     String? systemPromptTemplateId,
+    String? systemPromptContent,
     bool isDefault = false,
   }) async {
     created.add({
@@ -135,14 +137,17 @@ class _FakeStyleProvider extends StyleProvider {
       'modelId': modelId,
       'thinkingLevel': thinkingLevel,
       'systemPromptTemplateId': systemPromptTemplateId,
+      'systemPromptContent': systemPromptContent,
       'isDefault': isDefault,
     });
+    if (failSave) return null;
     final style = Style(
       id: 'new-${created.length}',
       name: name,
       modelId: modelId,
       thinkingLevel: thinkingLevel,
-      systemPromptTemplateId: systemPromptTemplateId,
+      systemPromptTemplateId: systemPromptTemplateId ??
+          (systemPromptContent != null && systemPromptContent.isNotEmpty ? 'saved-prompt' : null),
       isDefault: isDefault,
       createdAt: DateTime(2026),
       updatedAt: DateTime(2026),
@@ -167,6 +172,7 @@ class _FakeStyleProvider extends StyleProvider {
     ThinkingLevel? thinkingLevel,
     bool setThinkingLevel = false,
     String? systemPromptTemplateId,
+    String? systemPromptContent,
     bool setTemplateId = false,
     bool? isDefault,
   }) async {
@@ -177,6 +183,7 @@ class _FakeStyleProvider extends StyleProvider {
       'thinkingLevel': thinkingLevel,
       'setThinkingLevel': setThinkingLevel,
       'systemPromptTemplateId': systemPromptTemplateId,
+      'systemPromptContent': systemPromptContent,
       'setTemplateId': setTemplateId,
       'isDefault': isDefault,
     });
@@ -220,6 +227,10 @@ class _FakeSystemPromptProvider extends SystemPromptProvider {
     : _fakeTemplates = templates;
 
   final List<SystemPromptTemplate> _fakeTemplates;
+  bool failRefresh = false;
+
+  @override
+  String? get error => failRefresh ? 'Refresh failed' : null;
 
   @override
   List<SystemPromptTemplate> get templates =>
@@ -227,6 +238,15 @@ class _FakeSystemPromptProvider extends SystemPromptProvider {
 
   @override
   bool get isLoading => false;
+
+  SystemPromptTemplate? uncachedTemplate;
+
+  @override
+  Future<SystemPromptTemplate?> resolveTemplate(String templateId) async =>
+      templates.where((t) => t.id == templateId).firstOrNull ?? uncachedTemplate;
+
+  @override
+  Future<void> refresh({String? locale}) async {}
 }
 
 // ============================================================================
@@ -727,13 +747,10 @@ void main() {
         expect(find.byKey(const ValueKey('model_row_qwen3')), findsNothing);
         expect(find.textContaining('No saved styles yet'), findsOneWidget);
 
-        await tester.tap(find.text('Compose a style'));
-        await tester.pump();
-        await tester.pump(const Duration(milliseconds: 400));
-        expect(
-          find.byKey(const ValueKey('model_row_qwen3')),
-          findsOneWidget,
-        );
+        await tester.tap(find.text('New style'));
+        await tester.pumpAndSettle();
+        expect(find.byKey(const ValueKey('style_name_field')), findsOneWidget);
+        expect(find.byKey(const ValueKey('style_instructions_field')), findsOneWidget);
       },
     );
 
@@ -1067,6 +1084,124 @@ void main() {
       },
     );
 
+    for (final width in [390.0, 1100.0]) {
+      _testPicker('one-save instructions form at width $width', (tester) async {
+        _setScreenSize(tester, Size(width, 844));
+        final chat = _FakeChatProvider(conversation: _conversation(systemPrompt: 'Original instructions'));
+        final styles = _FakeStyleProvider(styles: [_style('s1', 'Existing')]);
+        final models = _FakeModelProvider(models: _defaultModels, selectedId: 'qwen3');
+        await tester.pumpWidget(_wrap(chat: chat, models: models,
+          styles: styles, prompts: _FakeSystemPromptProvider()));
+        await _openPicker(tester);
+        await tester.tap(find.text('New style'));
+        await tester.pumpAndSettle();
+        expect(find.text('Original instructions'), findsOneWidget);
+        await tester.enterText(find.byKey(const ValueKey('style_name_field')), 'My tutor');
+        await tester.enterText(find.byKey(const ValueKey('style_instructions_field')), 'Ask one question at a time.');
+        expect(find.byKey(const ValueKey('template_dropdown')), findsNothing);
+        await tester.tap(find.byKey(const ValueKey('save_style_confirm')));
+        await tester.pumpAndSettle();
+        expect(styles.created, hasLength(1));
+        expect(styles.created.single['name'], 'My tutor');
+        expect(styles.created.single['systemPromptContent'], 'Ask one question at a time.');
+        expect(chat.updates, isEmpty);
+        expect(models.selections, isEmpty);
+        expect(find.byKey(const ValueKey('style_card_new-1')), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      });
+    }
+
+    _testPicker('failed save retains draft and retry finishes only once', (tester) async {
+      _setScreenSize(tester, const Size(390, 844));
+      final styles = _FakeStyleProvider(styles: [_style('s1', 'Existing')])..failSave = true;
+      final prompts = _FakeSystemPromptProvider();
+      await tester.pumpWidget(_wrap(chat: _FakeChatProvider(),
+        models: _FakeModelProvider(models: _defaultModels, selectedId: 'qwen3'),
+        styles: styles, prompts: prompts));
+      await _openPicker(tester);
+      await tester.tap(find.text('New style'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(const ValueKey('style_name_field')), 'Keep me');
+      await tester.enterText(find.byKey(const ValueKey('style_instructions_field')), 'Be brief.');
+      await tester.tap(find.byKey(const ValueKey('save_style_confirm')));
+      await tester.pumpAndSettle();
+      expect(find.text('Keep me'), findsOneWidget);
+      expect(find.text('Be brief.'), findsOneWidget);
+      expect(find.byKey(const ValueKey('style_save_error')), findsOneWidget);
+      styles.failSave = false;
+      prompts.failRefresh = true;
+      await tester.tap(find.byKey(const ValueKey('save_style_confirm')));
+      await tester.pumpAndSettle();
+      expect(styles.created, hasLength(2));
+      expect(find.text('Retry'), findsOneWidget);
+      prompts.failRefresh = false;
+      await tester.tap(find.text('Retry'));
+      await tester.pumpAndSettle();
+      expect(styles.created, hasLength(2), reason: 'Sync retry must not create another style');
+      expect(find.byKey(const ValueKey('style_name_field')), findsNothing);
+    });
+
+    _testPicker('closing after failed refresh never applies empty instructions', (tester) async {
+      _setScreenSize(tester, const Size(390, 844));
+      final chat = _FakeChatProvider(conversation: _conversation(systemPrompt: 'Original'));
+      final styles = _FakeStyleProvider(styles: [_style('s1', 'Existing')]);
+      final prompts = _FakeSystemPromptProvider()..failRefresh = true;
+      await tester.pumpWidget(_wrap(chat: chat,
+        models: _FakeModelProvider(models: _defaultModels, selectedId: 'qwen3'),
+        styles: styles, prompts: prompts));
+      await _openPicker(tester);
+      await tester.tap(find.text('New style'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(const ValueKey('style_name_field')), 'New instructions');
+      await tester.enterText(find.byKey(const ValueKey('style_instructions_field')), 'Be brief.');
+      await tester.tap(find.byKey(const ValueKey('save_style_confirm')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Close'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('style_card_new-1')));
+      await tester.pumpAndSettle();
+      expect(chat.updates, isEmpty);
+      expect(chat.currentConversation!.systemPrompt, 'Original');
+      expect(find.text('Could not load this style’s instructions. Please try again.'), findsOneWidget);
+    });
+
+    _testPicker('missing instructions block style application without clearing chat', (tester) async {
+      _setScreenSize(tester, const Size(390, 844));
+      final chat = _FakeChatProvider(conversation: _conversation(systemPrompt: 'Keep this'));
+      final models = _FakeModelProvider(models: _defaultModels, selectedId: 'qwen3');
+      final styles = _FakeStyleProvider(styles: [_style('s1', 'Needs refresh', templateId: 'missing')]);
+      final prompts = _FakeSystemPromptProvider();
+      await tester.pumpWidget(_wrap(chat: chat, models: models, styles: styles, prompts: prompts));
+      await _openPicker(tester);
+      await tester.tap(find.byKey(const ValueKey('style_card_s1')));
+      await tester.pumpAndSettle();
+      expect(chat.updates, isEmpty);
+      expect(models.selections, isEmpty);
+      expect(find.text('Could not load this style’s instructions. Please try again.'), findsOneWidget);
+      prompts.uncachedTemplate = _template('missing', 'Recovered');
+      await tester.tap(find.byKey(const ValueKey('style_card_s1')));
+      await tester.pumpAndSettle();
+      expect(chat.updates.single['systemPrompt'], 'content of Recovered');
+      expect(chat.updates.single['clearSystemPrompt'], false);
+    });
+
+    _testPicker('cancel discards style draft without changing chat', (tester) async {
+      _setScreenSize(tester, const Size(390, 844));
+      final chat = _FakeChatProvider(conversation: _conversation());
+      final styles = _FakeStyleProvider(styles: [_style('s1', 'Existing')]);
+      await tester.pumpWidget(_wrap(chat: chat,
+        models: _FakeModelProvider(models: _defaultModels, selectedId: 'qwen3'),
+        styles: styles, prompts: _FakeSystemPromptProvider()));
+      await _openPicker(tester);
+      await tester.tap(find.text('New style'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(const ValueKey('style_instructions_field')), 'Discard this');
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(styles.created, isEmpty);
+      expect(chat.updates, isEmpty);
+    });
+
     _testPicker('save style composes the current selection', (tester) async {
       _setScreenSize(tester, const Size(390, 844));
       final styles = _FakeStyleProvider();
@@ -1135,6 +1270,7 @@ void main() {
             'Deep work',
             modelId: 'llama3.2',
             thinkingLevel: ThinkingLevel.high,
+            templateId: 'english-builtin',
           ),
         ],
       );
@@ -1143,7 +1279,8 @@ void main() {
           chat: chat,
           models: models,
           styles: styles,
-          prompts: _FakeSystemPromptProvider(),
+          prompts: _FakeSystemPromptProvider()
+            ..uncachedTemplate = _template('english-builtin', 'English instructions', isBuiltin: true),
         ),
       );
       await _openPicker(tester);
@@ -1158,26 +1295,15 @@ void main() {
       await tester.tap(find.text('Edit…'));
       await tester.pumpAndSettle();
 
-      // The picker switches to the Customize section in edit mode, seeded
-      // from the style.
-      expect(find.text('Editing "Deep work"'), findsOneWidget);
-
-      // Recomposing the model only changes the edit state, not the live chat.
-      await tester.ensureVisible(find.byKey(const ValueKey('model_row_qwen3')));
+      expect(find.text('Edit style'), findsOneWidget);
+      expect(find.text('content of English instructions'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('style_advanced_settings')));
       await tester.pumpAndSettle();
+      await tester.ensureVisible(find.byKey(const ValueKey('model_row_qwen3')));
       await tester.tap(find.byKey(const ValueKey('model_row_qwen3')));
       await tester.pump();
       expect(models.selections, isEmpty);
       expect(chat.updates, isEmpty);
-
-      await tester.ensureVisible(
-        find.byKey(const ValueKey('save_style_button')),
-      );
-      await tester.pumpAndSettle();
-      expect(find.text('Save changes'), findsOneWidget);
-      await tester.tap(find.byKey(const ValueKey('save_style_button')));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 400));
 
       // The dialog is the edit variant, pre-filled with the style's name.
       expect(find.text('Edit style'), findsOneWidget);
@@ -1194,6 +1320,7 @@ void main() {
       expect(u['modelId'], 'qwen3');
       expect(u['thinkingLevel'], ThinkingLevel.high);
       expect(u['setThinkingLevel'], true);
+      expect(u['systemPromptContent'], 'content of English instructions');
       // Edit mode ends after saving.
       expect(find.text('Editing "Deep work"'), findsNothing);
     });

@@ -2307,7 +2307,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get messageNoSavedStylesYet =>
-      'Aún no hay estilos guardados. Compón un modelo, nivel de razonamiento e instrucción en Personalizar, luego guarda la combinación para cambiar con un toque.';
+      'Aún no hay estilos guardados. Crea un estilo con nombre e instrucciones para usarlo en cualquier chat.';
 
   @override
   String messageEditing(String name) {
@@ -3532,4 +3532,35 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get archiveResumeFailed =>
       'No se pudo abrir esta sesión como un hilo. Inténtalo de nuevo cuando haya terminado cualquier respuesta en curso.';
+
+  @override
+  String get styleInstructions => 'Instrucciones (opcional)';
+
+  @override
+  String get styleInstructionsHint =>
+      'Describe cómo quieres que responda el asistente. Por ejemplo: Da respuestas breves y explica las cosas con palabras sencillas.';
+
+  @override
+  String get styleUseExistingPrompt => 'Partir de un prompt existente';
+
+  @override
+  String get styleModelAndThinking => 'Modelo y razonamiento';
+
+  @override
+  String get styleSelectModel => 'Selecciona un modelo';
+
+  @override
+  String get styleSaveFailed =>
+      'No se pudo guardar tu estilo. Tu borrador sigue aquí; inténtalo de nuevo.';
+
+  @override
+  String get styleSavedSyncFailed =>
+      'Estilo guardado, pero no se pudieron actualizar los ajustes. Reintenta para terminar.';
+
+  @override
+  String get styleInstructionsLoadFailed =>
+      'No se pudieron cargar las instrucciones de este estilo. Inténtalo de nuevo.';
+
+  @override
+  String get styleNew => 'Nuevo estilo';
 }

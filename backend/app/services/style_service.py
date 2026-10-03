@@ -154,6 +154,20 @@ class StyleService:
         if result.scalar_one_or_none() is None:
             raise ValueError("System prompt template not found")
 
+    async def _create_inline_template(self, user_id: str, name: str, content: str) -> str:
+        """Stage a private template in the style's transaction, without committing."""
+        template = SystemPromptTemplate(
+            id=str(uuid.uuid4()),
+            user_id=user_id,
+            name=name,
+            content=content,
+            is_builtin=False,
+        )
+        self.db.add(template)
+        # Insert the referenced row before flushing the style's foreign key.
+        await self.db.flush()
+        return template.id
+
     async def _get_user(self, user_id: str) -> User | None:
         """Fetch the user row (for the per-user default-style pointer)."""
         result = await self.db.execute(select(User).where(User.email == user_id))
@@ -208,12 +222,20 @@ class StyleService:
         model_id: str,
         thinking_level: str | None = None,
         system_prompt_template_id: str | None = None,
+        system_prompt_content: str | None = None,
         is_default: bool = False,
     ) -> Style:
+        if system_prompt_template_id is not None and system_prompt_content is not None:
+            raise ValueError("Supply either system_prompt_template_id or system_prompt_content")
         await self._validate_template(system_prompt_template_id, user_id)
 
         if is_default:
             await self._clear_other_defaults(user_id, exclude_id=None)
+
+        if system_prompt_content:
+            system_prompt_template_id = await self._create_inline_template(
+                user_id, name, system_prompt_content
+            )
 
         style = Style(
             id=str(uuid.uuid4()),
@@ -225,14 +247,13 @@ class StyleService:
             is_default=is_default,
         )
         self.db.add(style)
+        # Set the per-user pointer so the new style is the default for this
+        # user in the same transaction as the style and its inline template.
+        if is_default:
+            await self.db.flush()
+            await self._set_user_default(user_id, style.id)
         await self.db.commit()
         await self.db.refresh(style)
-        # Set the per-user pointer so the new style is the default for this
-        # user (does not mutate shared built-in rows).
-        if is_default:
-            await self._set_user_default(user_id, style.id)
-            await self.db.commit()
-            await self.db.refresh(style)
         logger.info("Created style %s for user %s", style.id, user_id)
         return style
 
@@ -280,9 +301,12 @@ class StyleService:
         set_thinking_level: bool = False,
         system_prompt_template_id: str | None = None,
         set_template_id: bool = False,
+        system_prompt_content: str | None = None,
+        set_prompt_content: bool = False,
         is_default: bool | None = None,
     ) -> Style | None:
-        """Partial update. ``set_thinking_level`` / ``set_template_id`` let
+        """Partial update. ``set_thinking_level`` / ``set_template_id`` /
+        ``set_prompt_content`` let
         callers explicitly clear those fields by passing None; otherwise
         None means "leave alone" (mirrors ScheduledActionService.update).
 
@@ -302,9 +326,13 @@ class StyleService:
             any(v is not None for v in (name, model_id, system_prompt_template_id))
             or set_thinking_level
             or set_template_id
+            or set_prompt_content
         )
         if style.is_builtin and content_requested:
             raise BuiltinReadOnlyError(style_id)
+
+        if set_template_id and set_prompt_content:
+            raise ValueError("Supply either system_prompt_template_id or system_prompt_content")
 
         if not style.is_builtin:
             if name is not None:
@@ -316,6 +344,20 @@ class StyleService:
             if set_template_id:
                 await self._validate_template(system_prompt_template_id, user_id)
                 style.system_prompt_template_id = system_prompt_template_id
+            if set_prompt_content:
+                if not system_prompt_content:
+                    style.system_prompt_template_id = None
+                else:
+                    template = None
+                    if style.system_prompt_template_id is not None:
+                        await self._validate_template(style.system_prompt_template_id, user_id)
+                        template = await self.db.get(
+                            SystemPromptTemplate, style.system_prompt_template_id
+                        )
+                    if template is None or template.content != system_prompt_content:
+                        style.system_prompt_template_id = await self._create_inline_template(
+                            user_id, style.name, system_prompt_content
+                        )
 
         if is_default is True:
             await self._set_user_default(user_id, style.id)

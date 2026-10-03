@@ -5,6 +5,7 @@ Mirrors ``test_scheduled_action_service.py`` in structure.
 """
 
 import pytest
+from sqlalchemy import select
 
 from app.core.security import hash_password
 from app.models.system_prompt import SystemPromptTemplate
@@ -35,6 +36,62 @@ async def _template(db_session, user_id: str | None, name: str = "tpl") -> Syste
 
 
 class TestStyleServiceCreate:
+    async def test_inline_instructions_create_private_template(self, db_session, test_user_email):
+        svc = StyleService(db_session)
+        style = await svc.create(
+            user_id=test_user_email,
+            name="Private coach",
+            model_id="qwen3",
+            system_prompt_content="Ask guiding questions.",
+            is_default=True,
+        )
+        template = await db_session.get(SystemPromptTemplate, style.system_prompt_template_id)
+        assert template.name == style.name
+        assert template.content == "Ask guiding questions."
+        assert template.user_id == test_user_email
+        assert template.is_builtin is False
+        assert template.locale is None
+        assert style.is_default is True
+        other = await _other_user(db_session)
+        result = await db_session.execute(SystemPromptTemplate.visible_to(other))
+        assert template.id not in {item.id for item in result.scalars()}
+
+    @pytest.mark.parametrize("content", [None, ""])
+    async def test_empty_inline_content_creates_no_template(
+        self, db_session, test_user_email, content
+    ):
+        style = await StyleService(db_session).create(
+            user_id=test_user_email, name="Plain", model_id="qwen3", system_prompt_content=content
+        )
+        assert style.system_prompt_template_id is None
+        assert not (await db_session.execute(select(SystemPromptTemplate))).scalars().all()
+
+    async def test_failed_default_assignment_rolls_back_style_and_template(
+        self, db_session, test_user_email, monkeypatch
+    ):
+        svc = StyleService(db_session)
+        previous = await svc.create(
+            user_id=test_user_email, name="Previous", model_id="qwen3", is_default=True
+        )
+        previous_id = previous.id
+
+        async def fail_default(*args):
+            raise RuntimeError("default assignment failed")
+
+        monkeypatch.setattr(svc, "_set_user_default", fail_default)
+        with pytest.raises(RuntimeError, match="default assignment failed"):
+            await svc.create(
+                user_id=test_user_email,
+                name="Failed",
+                model_id="qwen3",
+                system_prompt_content="Private instructions",
+                is_default=True,
+            )
+        await db_session.rollback()
+        styles = await svc.list_for_user(test_user_email)
+        assert [(style.id, style.is_default) for style in styles] == [(previous_id, True)]
+        assert not (await db_session.execute(select(SystemPromptTemplate))).scalars().all()
+
     async def test_create_minimal(self, db_session, test_user_email):
         svc = StyleService(db_session)
         style = await svc.create(user_id=test_user_email, name="Quick Answers", model_id="llama3.2")
@@ -169,6 +226,108 @@ class TestStyleServiceReadsAndIsolation:
 
 
 class TestStyleServiceUpdate:
+    @pytest.mark.parametrize("builtin", [False, True])
+    async def test_changed_instructions_copy_template_without_mutating_shared_style(
+        self, db_session, test_user_email, builtin
+    ):
+        svc = StyleService(db_session)
+        original = await _template(db_session, None if builtin else test_user_email)
+        edited = await svc.create(
+            user_id=test_user_email,
+            name="Edited",
+            model_id="qwen3",
+            system_prompt_template_id=original.id,
+        )
+        shared = await svc.create(
+            user_id=test_user_email,
+            name="Shared",
+            model_id="qwen3",
+            system_prompt_template_id=original.id,
+        )
+        updated = await svc.update(
+            edited.id,
+            test_user_email,
+            name="Renamed",
+            system_prompt_content="New instructions",
+            set_prompt_content=True,
+        )
+        assert updated.system_prompt_template_id != original.id
+        replacement = await db_session.get(SystemPromptTemplate, updated.system_prompt_template_id)
+        assert replacement.name == "Renamed"
+        assert replacement.content == "New instructions"
+        assert replacement.user_id == test_user_email
+        assert replacement.is_builtin is False
+        await db_session.refresh(original)
+        await db_session.refresh(shared)
+        assert original.content == "You are a helpful assistant."
+        assert shared.system_prompt_template_id == original.id
+
+    async def test_unchanged_and_omitted_instructions_reuse_template(
+        self, db_session, test_user_email
+    ):
+        svc = StyleService(db_session)
+        original = await _template(db_session, test_user_email)
+        style = await svc.create(
+            user_id=test_user_email,
+            name="Same",
+            model_id="qwen3",
+            system_prompt_template_id=original.id,
+        )
+        for values in (
+            {"system_prompt_content": original.content, "set_prompt_content": True},
+            {"name": "Renamed"},
+        ):
+            updated = await svc.update(style.id, test_user_email, **values)
+            assert updated.system_prompt_template_id == original.id
+        assert len((await db_session.execute(select(SystemPromptTemplate))).scalars().all()) == 1
+
+    @pytest.mark.parametrize("content", [None, ""])
+    async def test_empty_inline_content_clears_reference_only(
+        self, db_session, test_user_email, content
+    ):
+        svc = StyleService(db_session)
+        original = await _template(db_session, test_user_email)
+        style = await svc.create(
+            user_id=test_user_email,
+            name="Clear",
+            model_id="qwen3",
+            system_prompt_template_id=original.id,
+        )
+        updated = await svc.update(
+            style.id, test_user_email, system_prompt_content=content, set_prompt_content=True
+        )
+        assert updated.system_prompt_template_id is None
+        assert await db_session.get(SystemPromptTemplate, original.id) is original
+
+    async def test_failed_update_rolls_back_template_style_and_default(
+        self, db_session, test_user_email, monkeypatch
+    ):
+        svc = StyleService(db_session)
+        style = await svc.create(
+            user_id=test_user_email, name="Original", model_id="qwen3", system_prompt_content="Old"
+        )
+        style_id, template_id = style.id, style.system_prompt_template_id
+
+        async def fail_default(*args):
+            raise RuntimeError("default assignment failed")
+
+        monkeypatch.setattr(svc, "_set_user_default", fail_default)
+        with pytest.raises(RuntimeError, match="default assignment failed"):
+            await svc.update(
+                style_id,
+                test_user_email,
+                name="Changed",
+                system_prompt_content="New",
+                set_prompt_content=True,
+                is_default=True,
+            )
+        await db_session.rollback()
+        persisted = await svc.get(style_id, test_user_email)
+        assert persisted.name == "Original"
+        assert persisted.system_prompt_template_id == template_id
+        assert persisted.is_default is False
+        assert len((await db_session.execute(select(SystemPromptTemplate))).scalars().all()) == 1
+
     async def test_update_name_and_model(self, db_session, test_user_email):
         svc = StyleService(db_session)
         style = await svc.create(user_id=test_user_email, name="orig", model_id="llama3.2")

@@ -455,14 +455,6 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
   /// Customize otherwise — so saving a first style flips the view to it.
   _PickerSection? _section;
 
-  /// When set, the customize section edits this saved style with the local
-  /// `_edit*` composition below instead of the live conversation/pendings —
-  /// so re-shaping a style never touches the current chat.
-  Style? _editing;
-  String? _editModelId;
-  ThinkingLevel? _editThinking;
-  String? _editTemplateId;
-
   @override
   void initState() {
     super.initState();
@@ -494,7 +486,7 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
     final chat = context.read<ChatProvider>();
     final modelP = context.read<ModelProvider>();
     final styleP = context.read<StyleProvider>();
-    final templates = context.read<SystemPromptProvider>().templates;
+    final prompts = context.read<SystemPromptProvider>();
     final conversationId = composerConversation(context, listen: false)?.id;
 
     if (!modelP.availableModels.any((m) => m.id == style.modelId)) {
@@ -507,10 +499,27 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
     // a possibly-stale BuildContext.
     final navigator = Navigator.of(context);
 
-    final content = _resolveTemplateContent(
-      templates,
-      style.systemPromptTemplateId,
-    );
+    String? content;
+    final templateId = style.systemPromptTemplateId;
+    if (templateId != null) {
+      final template = await prompts.resolveTemplate(templateId);
+      if (!mounted) return;
+      if (template == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(context)!.styleInstructionsLoadFailed,
+            ),
+          ),
+        );
+        return;
+      }
+      content = template.content;
+    }
+    if (!mounted ||
+        composerConversation(context, listen: false)?.id != conversationId) {
+      return;
+    }
     modelP.selectModel(style.modelId);
     styleP.setPendingThinkingLevel(style.thinkingLevel);
     styleP.setPendingSystemPrompt(content);
@@ -538,21 +547,13 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
         .availableModels
         .where((candidate) => candidate.id == modelId)
         .firstOrNull;
-    final current = _editing != null
-        ? _editThinking
-        : composerConversation(context, listen: false)?.thinkingLevel ??
-              context.read<StyleProvider>().pendingThinkingLevel;
+    final current =
+        composerConversation(context, listen: false)?.thinkingLevel ??
+        context.read<StyleProvider>().pendingThinkingLevel;
     final supported = model?.supportedThinkingLevels ?? const <ThinkingLevel>[];
     final adjusted = current != null && !supported.contains(current)
         ? model?.defaultThinkingLevel ?? supported.firstOrNull
         : current;
-    if (_editing != null) {
-      setState(() {
-        _editModelId = modelId;
-        _editThinking = adjusted;
-      });
-      return;
-    }
     final chat = context.read<ChatProvider>();
     final currentModelId =
         composerConversation(context, listen: false)?.model ??
@@ -585,10 +586,6 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
   }
 
   Future<void> _setThinking(ThinkingLevel? level) async {
-    if (_editing != null) {
-      setState(() => _editThinking = level);
-      return;
-    }
     final chat = context.read<ChatProvider>();
     context.read<StyleProvider>().setPendingThinkingLevel(level);
     if (composerConversation(context, listen: false) != null) {
@@ -600,10 +597,6 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
   }
 
   Future<void> _setTemplate(String? templateId) async {
-    if (_editing != null) {
-      setState(() => _editTemplateId = templateId);
-      return;
-    }
     final chat = context.read<ChatProvider>();
     final templates = context.read<SystemPromptProvider>().templates;
     final content = _resolveTemplateContent(templates, templateId);
@@ -624,32 +617,57 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
     }
   }
 
-  void _startEditing(Style style) {
-    setState(() {
-      _editing = style;
-      _editModelId = style.modelId;
-      _editThinking = style.thinkingLevel;
-      _editTemplateId = style.systemPromptTemplateId;
-      _section = _PickerSection.customize;
-    });
-    _scrollToTop();
-  }
+  void _startEditing(Style style) => _openStyleEditor(existing: style);
 
-  /// Jump to Customize in "create" mode (no `_editing` style) — the Compose
-  /// controls then shape a brand-new style rather than reshaping an existing
-  /// one. Triggered by the + button on the Styles segment.
-  void _startCreating() {
-    setState(() {
-      _editing = null;
-      _editModelId = null;
-      _editThinking = null;
-      _editTemplateId = null;
-      _section = _PickerSection.customize;
-    });
-    _scrollToTop();
-  }
+  void _startCreating() => _openStyleEditor();
 
-  void _cancelEditing() => setState(() => _editing = null);
+  Future<void> _openStyleEditor({Style? existing}) async {
+    final models = context.read<ModelProvider>();
+    final styles = context.read<StyleProvider>();
+    final prompts = context.read<SystemPromptProvider>();
+    final conv = composerConversation(context, listen: false);
+    final templateId = existing?.systemPromptTemplateId;
+    SystemPromptTemplate? template;
+    if (templateId != null) {
+      template = await prompts.resolveTemplate(templateId);
+      if (!mounted) return;
+      if (template == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(context)!.styleInstructionsLoadFailed,
+            ),
+          ),
+        );
+        return;
+      }
+    }
+    if (!mounted) return;
+    final saved = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => _SaveStyleDialog(
+        existing: existing,
+        modelId: existing?.modelId ?? conv?.model ?? models.selectedModelId,
+        thinkingLevel: existing != null
+            ? existing.thinkingLevel
+            : conv != null
+            ? conv.thinkingLevel
+            : styles.pendingThinkingLevel,
+        instructions: existing != null
+            ? template?.content ?? ''
+            : (conv != null ? conv.systemPrompt : styles.pendingSystemPrompt) ??
+                  '',
+        models: models,
+        styles: styles,
+        prompts: prompts,
+      ),
+    );
+    if (saved == true && mounted) {
+      setState(() => _section = _PickerSection.styles);
+      _scrollToTop();
+    }
+  }
 
   /// Section swaps change the content under the same scroll view, so reset
   /// the position or the new section can start scrolled halfway down.
@@ -687,49 +705,7 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
       ),
     );
     if (confirmed != true || !mounted) return;
-    final ok = await context.read<StyleProvider>().deleteStyle(style.id);
-    if (ok && _editing?.id == style.id) _cancelEditing();
-  }
-
-  Future<void> _saveStyle({
-    required String modelId,
-    required ThinkingLevel? thinkingLevel,
-    required String? templateId,
-  }) async {
-    final editing = _editing;
-    final result = await showDialog<({String name, bool isDefault})>(
-      context: context,
-      builder: (_) => _SaveStyleDialog(existing: editing),
-    );
-    if (result == null || !mounted) return;
-    final styleP = context.read<StyleProvider>();
-    final modelP = context.read<ModelProvider>();
-    if (editing != null) {
-      final updated = await styleP.updateStyle(
-        editing.id,
-        name: result.name,
-        modelId: modelId,
-        thinkingLevel: thinkingLevel,
-        setThinkingLevel: true,
-        systemPromptTemplateId: templateId,
-        setTemplateId: true,
-        isDefault: result.isDefault,
-      );
-      if (updated == null) return;
-      if (updated.isDefault) await modelP.setDefaultModel(updated.modelId);
-      if (mounted) _cancelEditing();
-      return;
-    }
-    final created = await styleP.createStyle(
-      name: result.name,
-      modelId: modelId,
-      thinkingLevel: thinkingLevel,
-      systemPromptTemplateId: templateId,
-      isDefault: result.isDefault,
-    );
-    if (created != null && created.isDefault) {
-      await modelP.setDefaultModel(created.modelId);
-    }
+    await context.read<StyleProvider>().deleteStyle(style.id);
   }
 
   // ---- build -----------------------------------------------------------
@@ -737,7 +713,6 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
     final modelP = context.watch<ModelProvider>();
     final styleP = context.watch<StyleProvider>();
     final promptP = context.watch<SystemPromptProvider>();
@@ -772,18 +747,9 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
     final hasCustomPrompt =
         effectivePrompt != null && selectedTemplateId == null;
 
-    // What the customize controls show: the live conversation/pendings, or —
-    // while editing a saved style — the local edit composition.
-    final editing = _editing;
-    final composeModelId = editing != null ? _editModelId : effectiveModelId;
     final composeModel = models
-        .where((m) => m.id == composeModelId)
+        .where((m) => m.id == effectiveModelId)
         .firstOrNull;
-    final composeThinking = editing != null ? _editThinking : effectiveThinking;
-    final composeTemplateId = editing != null
-        ? _editTemplateId
-        : selectedTemplateId;
-    final composeHasCustomPrompt = editing == null && hasCustomPrompt;
 
     // With no saved styles yet, composing is the only thing to do here.
     final section =
@@ -879,47 +845,15 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
                   : Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        if (editing != null) ...[
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.edit_outlined,
-                                size: 16,
-                                color: colorScheme.primary,
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  AppLocalizations.of(
-                                    context,
-                                  )!.messageEditing(editing.name),
-                                  style: theme.textTheme.labelMedium?.copyWith(
-                                    color: colorScheme.primary,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              IconButton(
-                                key: const ValueKey('cancel_edit_style'),
-                                tooltip: AppLocalizations.of(
-                                  context,
-                                )!.tooltipStopEditing,
-                                icon: const Icon(Icons.close, size: 16),
-                                onPressed: _cancelEditing,
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                        ],
                         _ModelList(
                           models: models,
-                          selectedId: composeModelId,
+                          selectedId: effectiveModelId,
                           enabled: !busy,
                           onSelect: _selectModel,
                         ),
                         const SizedBox(height: 16),
                         _ThinkingControl(
-                          value: composeThinking,
+                          value: effectiveThinking,
                           enabled:
                               !busy && composeModel?.supportsThinking != false,
                           supported: composeModel?.supportsThinking != false,
@@ -930,8 +864,8 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
                         const SizedBox(height: 16),
                         _TemplatePicker(
                           templates: templates,
-                          selectedId: composeTemplateId,
-                          hasCustomPrompt: composeHasCustomPrompt,
+                          selectedId: selectedTemplateId,
+                          hasCustomPrompt: hasCustomPrompt,
                           enabled: !busy,
                           onChanged: _setTemplate,
                         ),
@@ -940,20 +874,10 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
                           alignment: Alignment.centerRight,
                           child: FilledButton.tonalIcon(
                             key: const ValueKey('save_style_button'),
-                            onPressed: (busy || composeModelId == null)
-                                ? null
-                                : () => _saveStyle(
-                                    modelId: composeModelId,
-                                    thinkingLevel: composeThinking,
-                                    templateId: composeTemplateId,
-                                  ),
-                            icon: Icon(
-                              editing != null
-                                  ? Icons.save_outlined
-                                  : Icons.bookmark_add_outlined,
-                            ),
+                            onPressed: busy ? null : _startCreating,
+                            icon: const Icon(Icons.bookmark_add_outlined),
                             label: Text(
-                              editing != null ? 'Save changes' : 'Save style',
+                              AppLocalizations.of(context)!.titleSaveStyle,
                             ),
                           ),
                         ),
@@ -1284,8 +1208,7 @@ class _StyleCard extends StatelessWidget {
 }
 
 /// Dashed-outline "New style" affordance shown at the bottom of the Styles
-/// segment. A tappable, full-width tile that switches the picker to the
-/// Customize (create) section.
+/// segment. Opens the single-form style editor.
 class _NewStyleTile extends StatelessWidget {
   const _NewStyleTile({this.onTap});
 
@@ -1319,7 +1242,7 @@ class _NewStyleTile extends StatelessWidget {
                 Icon(Icons.add_rounded, size: 20, color: color),
                 const SizedBox(width: 8),
                 Text(
-                  AppLocalizations.of(context)!.composeAStyle,
+                  AppLocalizations.of(context)!.styleNew,
                   style: theme.textTheme.labelLarge?.copyWith(
                     color: color,
                     fontWeight: FontWeight.w600,
@@ -1788,86 +1711,265 @@ class _TemplatePicker extends StatelessWidget {
 // ============================================================================
 
 class _SaveStyleDialog extends StatefulWidget {
-  const _SaveStyleDialog({this.existing});
+  const _SaveStyleDialog({
+    this.existing,
+    required this.modelId,
+    required this.thinkingLevel,
+    required this.instructions,
+    required this.models,
+    required this.styles,
+    required this.prompts,
+  });
 
-  /// When set, the dialog edits this style: name/default pre-filled.
   final Style? existing;
+  final String? modelId;
+  final ThinkingLevel? thinkingLevel;
+  final String instructions;
+  final ModelProvider models;
+  final StyleProvider styles;
+  final SystemPromptProvider prompts;
 
   @override
   State<_SaveStyleDialog> createState() => _SaveStyleDialogState();
 }
 
 class _SaveStyleDialogState extends State<_SaveStyleDialog> {
-  final TextEditingController _nameController = TextEditingController();
-  bool _isDefault = false;
+  late final TextEditingController _nameController;
+  late final TextEditingController _instructionsController;
+  late String? _modelId;
+  late ThinkingLevel? _thinking;
+  late bool _isDefault;
+  bool _saving = false;
+  String? _error;
+  // A retry after a refresh/default-model failure must not create a second style.
+  Style? _saved;
 
   @override
   void initState() {
     super.initState();
-    final existing = widget.existing;
-    if (existing != null) {
-      _nameController.text = existing.name;
-      _isDefault = existing.isDefault;
-    }
+    _nameController = TextEditingController(text: widget.existing?.name ?? '');
+    _instructionsController = TextEditingController(text: widget.instructions);
+    _modelId = widget.modelId;
+    _thinking = widget.thinkingLevel;
+    _isDefault = widget.existing?.isDefault ?? false;
   }
 
   @override
   void dispose() {
     _nameController.dispose();
+    _instructionsController.dispose();
     super.dispose();
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     final name = _nameController.text.trim();
-    if (name.isEmpty) return;
-    Navigator.of(context).pop((name: name, isDefault: _isDefault));
+    if (_saving || name.isEmpty || _modelId == null) return;
+    final l = AppLocalizations.of(context)!;
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      final existing = widget.existing;
+      final content = _instructionsController.text.trim();
+      _saved ??= existing == null
+          ? await widget.styles.createStyle(
+              name: name,
+              modelId: _modelId!,
+              thinkingLevel: _thinking,
+              systemPromptContent: content,
+              isDefault: _isDefault,
+            )
+          : await widget.styles.updateStyle(
+              existing.id,
+              name: name,
+              modelId: _modelId!,
+              thinkingLevel: _thinking,
+              setThinkingLevel: true,
+              systemPromptContent: content,
+              isDefault: _isDefault,
+            );
+      final saved = _saved;
+      if (saved == null) {
+        if (mounted) setState(() => _error = l.styleSaveFailed);
+        return;
+      }
+      await widget.prompts.refresh();
+      if (widget.prompts.error != null) {
+        if (mounted) setState(() => _error = l.styleSavedSyncFailed);
+        return;
+      }
+      if (saved.isDefault &&
+          !await widget.models.setDefaultModel(saved.modelId)) {
+        if (mounted) setState(() => _error = l.styleSavedSyncFailed);
+        return;
+      }
+      if (mounted) {
+        Navigator.of(context).pop(true);
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(
+          () => _error = _saved == null
+              ? l.styleSaveFailed
+              : l.styleSavedSyncFailed,
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(
-        widget.existing == null
-            ? AppLocalizations.of(context)!.titleSaveStyle
-            : AppLocalizations.of(context)!.titleEditStyle,
-      ),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          TextField(
-            key: const ValueKey('style_name_field'),
-            controller: _nameController,
-            autofocus: true,
-            textInputAction: TextInputAction.done,
-            onSubmitted: (_) => _submit(),
-            onChanged: (_) => setState(() {}),
-            decoration: InputDecoration(
-              labelText: AppLocalizations.of(context)!.labelName,
-              hintText: AppLocalizations.of(context)!.hintDeepWorkQuickAnswers,
-            ),
+    final l = AppLocalizations.of(context)!;
+    final models = widget.models.availableModels;
+    final model = models.where((m) => m.id == _modelId).firstOrNull;
+    final editable = !_saving && _saved == null;
+    return PopScope(
+      canPop: !_saving,
+      child: AlertDialog(
+        title: Text(widget.existing == null ? l.styleNew : l.titleEditStyle),
+        scrollable: true,
+        content: SizedBox(
+          width: 480,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              TextField(
+                key: const ValueKey('style_name_field'),
+                controller: _nameController,
+                enabled: editable,
+                autofocus: true,
+                maxLength: 100,
+                textInputAction: TextInputAction.next,
+                onChanged: (_) => setState(() {}),
+                decoration: InputDecoration(
+                  labelText: l.labelName,
+                  hintText: l.hintDeepWorkQuickAnswers,
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                key: const ValueKey('style_instructions_field'),
+                controller: _instructionsController,
+                enabled: editable,
+                minLines: 4,
+                maxLines: 8,
+                decoration: InputDecoration(
+                  labelText: l.styleInstructions,
+                  hintText: l.styleInstructionsHint,
+                  alignLabelWithHint: true,
+                ),
+              ),
+              if (widget.prompts.templates.isNotEmpty)
+                ExpansionTile(
+                  title: Text(l.styleUseExistingPrompt),
+                  tilePadding: EdgeInsets.zero,
+                  children: [
+                    DropdownButtonFormField<String>(
+                      key: const ValueKey('style_existing_prompt'),
+                      isExpanded: true,
+                      hint: Text(l.styleUseExistingPrompt),
+                      items: [
+                        for (final t in widget.prompts.templates)
+                          DropdownMenuItem(
+                            value: t.id,
+                            child: Text(
+                              t.name,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                      ],
+                      onChanged: editable
+                          ? (id) {
+                              final template = widget.prompts.templates
+                                  .firstWhere((t) => t.id == id);
+                              _instructionsController.text = template.content;
+                            }
+                          : null,
+                    ),
+                  ],
+                ),
+              ExpansionTile(
+                key: const ValueKey('style_advanced_settings'),
+                title: Text(l.styleModelAndThinking),
+                subtitle: Text(model?.name ?? l.styleSelectModel),
+                initiallyExpanded: model == null,
+                tilePadding: EdgeInsets.zero,
+                children: [
+                  SizedBox(
+                    height: 200,
+                    child: _ModelList(
+                      models: models,
+                      selectedId: _modelId,
+                      enabled: editable,
+                      onSelect: (id) => setState(() {
+                        _modelId = id;
+                        final selected = models.firstWhere((m) => m.id == id);
+                        final supported = selected.supportedThinkingLevels;
+                        if (_thinking != null &&
+                            !supported.contains(_thinking)) {
+                          _thinking =
+                              selected.defaultThinkingLevel ??
+                              supported.firstOrNull;
+                        }
+                      }),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _ThinkingControl(
+                    value: _thinking,
+                    enabled: editable && model?.supportsThinking == true,
+                    supported: model?.supportsThinking == true,
+                    supportedLevels: model?.supportedThinkingLevels ?? const [],
+                    onChanged: (v) => setState(() => _thinking = v),
+                  ),
+                ],
+              ),
+              CheckboxListTile(
+                value: _isDefault,
+                onChanged: editable
+                    ? (v) => setState(() => _isDefault = v ?? false)
+                    : null,
+                contentPadding: EdgeInsets.zero,
+                controlAffinity: ListTileControlAffinity.leading,
+                title: Text(l.titleUseForNewChats),
+                dense: true,
+              ),
+              if (_error != null)
+                Text(
+                  _error!,
+                  key: const ValueKey('style_save_error'),
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+            ],
           ),
-          const SizedBox(height: 8),
-          CheckboxListTile(
-            value: _isDefault,
-            onChanged: (v) => setState(() => _isDefault = v ?? false),
-            contentPadding: EdgeInsets.zero,
-            controlAffinity: ListTileControlAffinity.leading,
-            title: Text(AppLocalizations.of(context)!.titleUseForNewChats),
-            dense: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: _saving
+                ? null
+                : () => Navigator.of(context).pop(_saved != null),
+            child: Text(_saved == null ? l.cancel : l.labelClose),
+          ),
+          FilledButton(
+            key: const ValueKey('save_style_confirm'),
+            onPressed:
+                _saving || _nameController.text.trim().isEmpty || model == null
+                ? null
+                : _submit,
+            child: _saving
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Text(_saved == null ? l.save : l.retry),
           ),
         ],
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: Text(AppLocalizations.of(context)!.cancel),
-        ),
-        FilledButton(
-          key: const ValueKey('save_style_confirm'),
-          onPressed: _nameController.text.trim().isEmpty ? null : _submit,
-          child: Text(AppLocalizations.of(context)!.save),
-        ),
-      ],
     );
   }
 }

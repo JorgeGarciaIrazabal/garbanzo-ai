@@ -2274,7 +2274,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get messageNoSavedStylesYet =>
-      'No saved styles yet. Compose a model, thinking level, and prompt in Customize, then save the combination to switch in one tap.';
+      'No saved styles yet. Create a style with a name and instructions to use it in any chat.';
 
   @override
   String messageEditing(String name) {
@@ -3490,4 +3490,35 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get archiveResumeFailed =>
       'Could not open this session as a thread. Try again after any active reply has finished.';
+
+  @override
+  String get styleInstructions => 'Instructions (optional)';
+
+  @override
+  String get styleInstructionsHint =>
+      'Describe how you want the assistant to respond. For example: Keep answers brief and explain things in plain language.';
+
+  @override
+  String get styleUseExistingPrompt => 'Start from an existing prompt';
+
+  @override
+  String get styleModelAndThinking => 'Model and thinking';
+
+  @override
+  String get styleSelectModel => 'Select a model';
+
+  @override
+  String get styleSaveFailed =>
+      'Could not save your style. Your draft is still here; please try again.';
+
+  @override
+  String get styleSavedSyncFailed =>
+      'Style saved, but settings could not be refreshed. Retry to finish.';
+
+  @override
+  String get styleInstructionsLoadFailed =>
+      'Could not load this style’s instructions. Please try again.';
+
+  @override
+  String get styleNew => 'New style';
 }

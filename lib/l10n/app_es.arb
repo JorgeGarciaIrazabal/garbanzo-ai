@@ -1860,7 +1860,7 @@
       }
     }
   },
-  "messageNoSavedStylesYet": "Aún no hay estilos guardados. Compón un modelo, nivel de razonamiento e instrucción en Personalizar, luego guarda la combinación para cambiar con un toque.",
+  "messageNoSavedStylesYet": "Aún no hay estilos guardados. Crea un estilo con nombre e instrucciones para usarlo en cualquier chat.",
   "@messageNoSavedStylesYet": {
     "description": "Empty state in saved styles list."
   },
@@ -2999,5 +2999,14 @@
   "archiveResumeFailed": "No se pudo abrir esta sesión como un hilo. Inténtalo de nuevo cuando haya terminado cualquier respuesta en curso.",
   "@archiveResumeFailed": {
     "description": "Visible archive resume failure."
-  }
+  },
+  "styleInstructions": "Instrucciones (opcional)",
+  "styleInstructionsHint": "Describe cómo quieres que responda el asistente. Por ejemplo: Da respuestas breves y explica las cosas con palabras sencillas.",
+  "styleUseExistingPrompt": "Partir de un prompt existente",
+  "styleModelAndThinking": "Modelo y razonamiento",
+  "styleSelectModel": "Selecciona un modelo",
+  "styleSaveFailed": "No se pudo guardar tu estilo. Tu borrador sigue aquí; inténtalo de nuevo.",
+  "styleSavedSyncFailed": "Estilo guardado, pero no se pudieron actualizar los ajustes. Reintenta para terminar.",
+  "styleInstructionsLoadFailed": "No se pudieron cargar las instrucciones de este estilo. Inténtalo de nuevo.",
+  "styleNew": "Nuevo estilo"
 }

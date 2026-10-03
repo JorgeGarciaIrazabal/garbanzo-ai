@@ -4188,7 +4188,7 @@ abstract class AppLocalizations {
   /// Empty state in saved styles list.
   ///
   /// In en, this message translates to:
-  /// **'No saved styles yet. Compose a model, thinking level, and prompt in Customize, then save the combination to switch in one tap.'**
+  /// **'No saved styles yet. Create a style with a name and instructions to use it in any chat.'**
   String get messageNoSavedStylesYet;
 
   /// Header while editing a saved style.
@@ -6110,6 +6110,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Could not open this session as a thread. Try again after any active reply has finished.'**
   String get archiveResumeFailed;
+
+  /// Custom style editor: Instructions (optional)
+  ///
+  /// In en, this message translates to:
+  /// **'Instructions (optional)'**
+  String get styleInstructions;
+
+  /// Custom style editor: Describe how you want the assistant to respond. For example: Keep answers brief and explain things in plain language.
+  ///
+  /// In en, this message translates to:
+  /// **'Describe how you want the assistant to respond. For example: Keep answers brief and explain things in plain language.'**
+  String get styleInstructionsHint;
+
+  /// Custom style editor: Start from an existing prompt
+  ///
+  /// In en, this message translates to:
+  /// **'Start from an existing prompt'**
+  String get styleUseExistingPrompt;
+
+  /// Custom style editor: Model and thinking
+  ///
+  /// In en, this message translates to:
+  /// **'Model and thinking'**
+  String get styleModelAndThinking;
+
+  /// Custom style editor: Select a model
+  ///
+  /// In en, this message translates to:
+  /// **'Select a model'**
+  String get styleSelectModel;
+
+  /// Custom style editor: Could not save your style. Your draft is still here; please try again.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save your style. Your draft is still here; please try again.'**
+  String get styleSaveFailed;
+
+  /// Custom style editor: Style saved, but settings could not be refreshed. Retry to finish.
+  ///
+  /// In en, this message translates to:
+  /// **'Style saved, but settings could not be refreshed. Retry to finish.'**
+  String get styleSavedSyncFailed;
+
+  /// Custom style editor: Could not load this style’s instructions. Please try again.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load this style’s instructions. Please try again.'**
+  String get styleInstructionsLoadFailed;
+
+  /// Button and dialog title to create a custom style.
+  ///
+  /// In en, this message translates to:
+  /// **'New style'**
+  String get styleNew;
 }
 
 class _AppLocalizationsDelegate

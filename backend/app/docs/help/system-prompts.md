@@ -24,8 +24,7 @@ by picking a different template or editing it out in the banner.
 
 ## How do I set a default prompt for all new chats?
 Mark a style that bundles your preferred template as **Use for new chats**.
-Built-in styles can't be defaulted; make your own copy (apply a built-in,
-switch to Customize, **Save style**) and default that. New conversations
+Built-in styles can also be marked as the default. New conversations
 start with the default style's prompt (and model + thinking level).
 
 ## How do I use templates?
@@ -41,3 +40,6 @@ describe what you want
 **Generate** — the draft streams in. Refine it with feedback
 ("make it friendlier") before accepting, then **Save to library** so it
 appears in the dropdown.
+To create a custom style, use **Styles → New style** and write its instructions
+directly. A single **Save** stores the style and its instructions together;
+a separate prompt template is not required.

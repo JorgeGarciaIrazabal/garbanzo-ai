@@ -1,8 +1,9 @@
 """Pydantic schemas for saved styles (Idea 2: "Styles")."""
 
 from datetime import datetime
+from typing import Self
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from app.core.config import get_settings
 from app.schemas.chat import ThinkingLevel
@@ -28,6 +29,10 @@ class StyleCreate(BaseModel):
         None,
         description="A system prompt template this style applies, or null for none",
     )
+    system_prompt_content: str | None = Field(
+        None,
+        description="Inline instructions saved as a user-owned template; null or empty means none",
+    )
     is_default: bool = Field(
         False,
         description=(
@@ -35,6 +40,12 @@ class StyleCreate(BaseModel):
             "this unsets any previous default for the user."
         ),
     )
+
+    @model_validator(mode="after")
+    def validate_prompt_source(self) -> Self:
+        if {"system_prompt_template_id", "system_prompt_content"} <= self.model_fields_set:
+            raise ValueError("Supply either system_prompt_template_id or system_prompt_content")
+        return self
 
 
 class StyleUpdate(BaseModel):
@@ -60,6 +71,13 @@ class StyleUpdate(BaseModel):
         None,
         description=("Not sent in the payload -> unchanged. Sent as null -> clear it."),
     )
+    system_prompt_content: str | None = Field(
+        None,
+        description=(
+            "Omitted -> unchanged. Null or empty -> clear. Changed instructions create "
+            "a new user-owned template without modifying the existing template."
+        ),
+    )
     is_default: bool | None = Field(
         None,
         description=(
@@ -68,6 +86,12 @@ class StyleUpdate(BaseModel):
             "rather than mutating the shared row."
         ),
     )
+
+    @model_validator(mode="after")
+    def validate_prompt_source(self) -> Self:
+        if {"system_prompt_template_id", "system_prompt_content"} <= self.model_fields_set:
+            raise ValueError("Supply either system_prompt_template_id or system_prompt_content")
+        return self
 
 
 class StyleOut(BaseModel):

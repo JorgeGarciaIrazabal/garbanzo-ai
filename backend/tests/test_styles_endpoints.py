@@ -11,6 +11,8 @@ from app.db.session import get_db
 from app.main import app
 from app.models.system_prompt import SystemPromptTemplate
 from app.models.user import User
+from app.services.style_service import StyleService
+from app.services.system_prompt_service import SystemPromptService
 
 pytestmark = pytest.mark.asyncio
 
@@ -51,6 +53,120 @@ async def _client() -> AsyncClient:
 
 def _auth(email: str = "test@example.com") -> dict[str, str]:
     return {"Authorization": f"Bearer {_token(email)}"}
+
+
+class TestInlineInstructions:
+    async def test_create_then_edit_instructions_in_one_request(self, db_session):
+        _install_overrides(db_session)
+        try:
+            async with await _client() as client:
+                created = await client.post(
+                    "/api/v1/styles",
+                    headers=_auth(),
+                    json={
+                        "name": "Coach",
+                        "model_id": "qwen3",
+                        "system_prompt_content": "Ask questions.",
+                        "is_default": True,
+                    },
+                )
+                assert created.status_code == 201, created.text
+                body = created.json()
+                assert body["is_default"] is True
+                assert "system_prompt_content" not in body
+                original_id = body["system_prompt_template_id"]
+                original = await db_session.get(SystemPromptTemplate, original_id)
+                assert original.content == "Ask questions."
+                assert original.user_id == "test@example.com"
+                assert original.name == "Coach"
+                changed = await client.patch(
+                    f"/api/v1/styles/{body['id']}",
+                    headers=_auth(),
+                    json={"name": "New coach", "system_prompt_content": "Give examples."},
+                )
+                assert changed.status_code == 200, changed.text
+                replacement_id = changed.json()["system_prompt_template_id"]
+                assert replacement_id != original_id
+                replacement = await db_session.get(SystemPromptTemplate, replacement_id)
+                assert replacement.name == "New coach"
+                assert replacement.content == "Give examples."
+                await db_session.refresh(original)
+                assert original.content == "Ask questions."
+                assert changed.json()["is_default"] is True
+        finally:
+            _clear_overrides()
+
+    @pytest.mark.parametrize("content", [None, ""])
+    async def test_patch_empty_or_null_clears_instructions(self, db_session, content):
+        style = await StyleService(db_session).create(
+            user_id="test@example.com",
+            name="Clear",
+            model_id="qwen3",
+            system_prompt_content="Instructions",
+        )
+        _install_overrides(db_session)
+        try:
+            async with await _client() as client:
+                response = await client.patch(
+                    f"/api/v1/styles/{style.id}",
+                    headers=_auth(),
+                    json={"system_prompt_content": content},
+                )
+            assert response.status_code == 200, response.text
+            assert response.json()["system_prompt_template_id"] is None
+        finally:
+            _clear_overrides()
+
+    @pytest.mark.parametrize("method", ["post", "patch"])
+    @pytest.mark.parametrize("template_id", [None, "some-template"])
+    async def test_explicit_prompt_sources_conflict_422(self, db_session, method, template_id):
+        _install_overrides(db_session)
+        try:
+            async with await _client() as client:
+                response = await client.request(
+                    method,
+                    "/api/v1/styles" if method == "post" else "/api/v1/styles/missing",
+                    headers=_auth(),
+                    json={
+                        "name": "Conflict",
+                        "system_prompt_template_id": template_id,
+                        "system_prompt_content": "Instructions",
+                    },
+                )
+            assert response.status_code == 422, response.text
+        finally:
+            _clear_overrides()
+
+    @pytest.mark.parametrize("content", [42, ["instructions"]])
+    async def test_content_requires_string_422(self, db_session, content):
+        _install_overrides(db_session)
+        try:
+            async with await _client() as client:
+                response = await client.post(
+                    "/api/v1/styles",
+                    headers=_auth(),
+                    json={"name": "Invalid", "system_prompt_content": content},
+                )
+            assert response.status_code == 422, response.text
+        finally:
+            _clear_overrides()
+
+    async def test_inline_content_cannot_modify_builtin_403(self, db_session):
+        await SystemPromptService(db_session).seed_builtin_templates()
+        service = StyleService(db_session)
+        await service.seed_builtin_styles()
+        builtin = next(iter(await service.list_for_user("test@example.com")))
+        _install_overrides(db_session)
+        try:
+            async with await _client() as client:
+                response = await client.patch(
+                    f"/api/v1/styles/{builtin.id}",
+                    headers=_auth(),
+                    json={"system_prompt_content": None},
+                )
+            assert response.status_code == 403, response.text
+        finally:
+            _clear_overrides()
 
 
 class TestCreate:

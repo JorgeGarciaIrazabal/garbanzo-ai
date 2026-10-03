@@ -3142,7 +3142,7 @@
       }
     }
   },
-  "messageNoSavedStylesYet": "No saved styles yet. Compose a model, thinking level, and prompt in Customize, then save the combination to switch in one tap.",
+  "messageNoSavedStylesYet": "No saved styles yet. Create a style with a name and instructions to use it in any chat.",
   "@messageNoSavedStylesYet": {
     "description": "Empty state in saved styles list."
   },
@@ -4309,5 +4309,41 @@
   "archiveResumeFailed": "Could not open this session as a thread. Try again after any active reply has finished.",
   "@archiveResumeFailed": {
     "description": "Visible archive resume failure."
+  },
+  "styleInstructions": "Instructions (optional)",
+  "@styleInstructions": {
+    "description": "Custom style editor: Instructions (optional)"
+  },
+  "styleInstructionsHint": "Describe how you want the assistant to respond. For example: Keep answers brief and explain things in plain language.",
+  "@styleInstructionsHint": {
+    "description": "Custom style editor: Describe how you want the assistant to respond. For example: Keep answers brief and explain things in plain language."
+  },
+  "styleUseExistingPrompt": "Start from an existing prompt",
+  "@styleUseExistingPrompt": {
+    "description": "Custom style editor: Start from an existing prompt"
+  },
+  "styleModelAndThinking": "Model and thinking",
+  "@styleModelAndThinking": {
+    "description": "Custom style editor: Model and thinking"
+  },
+  "styleSelectModel": "Select a model",
+  "@styleSelectModel": {
+    "description": "Custom style editor: Select a model"
+  },
+  "styleSaveFailed": "Could not save your style. Your draft is still here; please try again.",
+  "@styleSaveFailed": {
+    "description": "Custom style editor: Could not save your style. Your draft is still here; please try again."
+  },
+  "styleSavedSyncFailed": "Style saved, but settings could not be refreshed. Retry to finish.",
+  "@styleSavedSyncFailed": {
+    "description": "Custom style editor: Style saved, but settings could not be refreshed. Retry to finish."
+  },
+  "styleInstructionsLoadFailed": "Could not load this style’s instructions. Please try again.",
+  "@styleInstructionsLoadFailed": {
+    "description": "Custom style editor: Could not load this style’s instructions. Please try again."
+  },
+  "styleNew": "New style",
+  "@styleNew": {
+    "description": "Button and dialog title to create a custom style."
   }
 }

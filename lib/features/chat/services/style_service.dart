@@ -31,6 +31,7 @@ class StyleService {
     required String modelId,
     ThinkingLevel? thinkingLevel,
     String? systemPromptTemplateId,
+    String? systemPromptContent,
     bool isDefault = false,
   }) async {
     final response = await _api.post(
@@ -40,6 +41,7 @@ class StyleService {
         'model_id': modelId,
         'thinking_level': ?thinkingLevel?.name,
         'system_prompt_template_id': ?systemPromptTemplateId,
+        'system_prompt_content': ?systemPromptContent,
         'is_default': isDefault,
       },
     );
@@ -59,6 +61,7 @@ class StyleService {
     ThinkingLevel? thinkingLevel,
     bool setThinkingLevel = false,
     String? systemPromptTemplateId,
+    String? systemPromptContent,
     bool setTemplateId = false,
     bool? isDefault,
   }) async {
@@ -70,6 +73,7 @@ class StyleService {
         'is_default': ?isDefault,
         if (setThinkingLevel) 'thinking_level': thinkingLevel?.name,
         if (setTemplateId) 'system_prompt_template_id': systemPromptTemplateId,
+        'system_prompt_content': ?systemPromptContent,
       },
     );
     if (response.statusCode == 200) {
