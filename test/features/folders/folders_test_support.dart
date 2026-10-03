@@ -9,6 +9,14 @@ class RecordingApi implements ApiClient {
   Object? data;
   Response<dynamic> response = Response(requestOptions: RequestOptions(), statusCode: 200);
   @override
+  Future<Response> post(String path, {Object? data}) async {
+    this.path = path; this.data = data; return response;
+  }
+  @override
+  Future<Response> patch(String path, {Object? data}) async {
+    this.path = path; this.data = data; return response;
+  }
+  @override
   Future<Response> put(String path, {Object? data}) async {
     this.path = path; this.data = data; return response;
   }

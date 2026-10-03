@@ -3664,4 +3664,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String foldersRevision(int revision, int size) {
     return 'Revision $revision · $size bytes';
   }
+
+  @override
+  String get foldersAttachSaved => 'Attach saved folder';
+
+  @override
+  String get foldersEdit => 'Edit folder';
+
+  @override
+  String get foldersDescription => 'Purpose or context (optional)';
+
+  @override
+  String get foldersDescriptionHelp =>
+      'The AI uses this context to understand the folder and its files when it is attached to a chat.';
 }

@@ -26,6 +26,7 @@ class MessageComposer extends StatefulWidget {
     this.onPasteImage,
     this.isLoading = false,
     this.enabled = true,
+    this.submitEnabled = true,
     this.hintText,
     this.hasExtraContent = false,
     this.above,
@@ -49,6 +50,9 @@ class MessageComposer extends StatefulWidget {
   final ValueChanged<List<ClipboardImage>>? onPasteImage;
   final bool isLoading;
   final bool enabled;
+
+  /// Allows typing while a prerequisite such as folder attachment is saving.
+  final bool submitEnabled;
   final String? hintText;
   final bool hasExtraContent;
   final Widget? leading;
@@ -70,7 +74,9 @@ class MessageComposerState extends State<MessageComposer> {
   bool _hasFocus = false;
 
   bool get _canSend =>
-      (_isComposing || widget.hasExtraContent) && widget.enabled;
+      (_isComposing || widget.hasExtraContent) &&
+      widget.enabled &&
+      widget.submitEnabled;
 
   static const _mobileBreakpoint = 620.0;
   static double _btnSize(bool m) => m ? 32 : 40;
@@ -382,6 +388,16 @@ class MessageComposerState extends State<MessageComposer> {
         icon: Icon(Icons.send, size: isMobile ? 18 : 20),
         tooltip: 'Send message',
         style: style(bg: cs.primary, fg: cs.onPrimary),
+        constraints: constraints,
+      );
+    }
+    if (!widget.submitEnabled) {
+      return IconButton.filled(
+        key: const ValueKey('send_button'),
+        tooltip: 'Send message',
+        onPressed: null,
+        icon: Icon(Icons.send, size: isMobile ? 18 : 20),
+        style: style(bg: cs.surfaceContainerHighest, fg: cs.onSurfaceVariant),
         constraints: constraints,
       );
     }

@@ -144,6 +144,24 @@ async def _virtual_folder_concurrency_smoke(engine: Any) -> dict[str, bool]:
         file = await service.create_text(folder.id, owner, "notes.txt", "base")
         folder_id, file_id = folder.id, file.id
 
+    async def metadata_edit(**changes):
+        async with sessions() as session:
+            await VirtualFolderService(session).update_folder(folder_id, owner, **changes)
+
+    await asyncio.wait_for(
+        asyncio.gather(
+            metadata_edit(name="Renamed smoke folder"),
+            metadata_edit(description="Purpose preserved during a concurrent rename"),
+        ),
+        timeout=20,
+    )
+    async with sessions() as session:
+        folder = await VirtualFolderService(session).owned_folder(folder_id, owner)
+        if folder.name != "Renamed smoke folder" or folder.description != (
+            "Purpose preserved during a concurrent rename"
+        ):
+            raise RuntimeError("Concurrent partial folder metadata edits lost a field")
+
     arrived = 0
     ready = asyncio.Event()
 
@@ -200,7 +218,11 @@ async def _virtual_folder_concurrency_smoke(engine: Any) -> dict[str, bool]:
         folder_module.MAX_FOLDER_BYTES = old_limit
     if sorted(str(result) for result in uploads) != ["413", "saved"]:
         raise RuntimeError(f"Virtual folder quota serialization failed: {uploads}")
-    return {"serialized_file_revisions": True, "serialized_folder_quotas": True}
+    return {
+        "serialized_file_revisions": True,
+        "serialized_folder_quotas": True,
+        "serialized_folder_metadata": True,
+    }
 
 
 async def run_database_smoke(
@@ -222,11 +244,48 @@ async def run_database_smoke(
             )
         original = migrations.MIGRATIONS_DIR
         migrations.MIGRATIONS_DIR = migrations_dir
+        dsn = database_url.replace("postgresql+asyncpg://", "postgresql://", 1)
         try:
-            await migrations.run_migrations(database_url)
-            dsn = database_url.replace("postgresql+asyncpg://", "postgresql://", 1)
+            # Seed a pre-metadata folder so 051 verifies an upgrade with real data.
             connection = await asyncpg.connect(dsn)
             try:
+                await connection.execute(
+                    (migrations_dir / "050_virtual_folders.sql").read_text(encoding="utf-8")
+                )
+                await connection.execute(
+                    "INSERT INTO users (email, hashed_password) VALUES ($1, $2)",
+                    "folder-metadata-smoke@example.com",
+                    "unused-smoke-hash",
+                )
+                await connection.execute(
+                    "INSERT INTO virtual_folders (id, user_id, name) VALUES ($1, $2, $3)",
+                    "metadata-upgrade-smoke",
+                    "folder-metadata-smoke@example.com",
+                    "Legacy folder",
+                )
+            finally:
+                await connection.close()
+            await migrations.run_migrations(database_url)
+            connection = await asyncpg.connect(dsn)
+            try:
+                description = await connection.fetchval(
+                    "SELECT description FROM virtual_folders WHERE id = 'metadata-upgrade-smoke'"
+                )
+                if description != "":
+                    raise RuntimeError("Legacy folder description was not initialized to empty")
+                await connection.execute(
+                    "UPDATE virtual_folders SET description = $1 WHERE id = $2",
+                    "Existing purpose and context",
+                    "metadata-upgrade-smoke",
+                )
+                await connection.execute(
+                    (migrations_dir / "051_virtual_folder_metadata.sql").read_text(encoding="utf-8")
+                )
+                description = await connection.fetchval(
+                    "SELECT description FROM virtual_folders WHERE id = 'metadata-upgrade-smoke'"
+                )
+                if description != "Existing purpose and context":
+                    raise RuntimeError("Metadata migration rerun changed an existing description")
                 first = await connection.fetch(
                     "SELECT filename, applied_at FROM schema_migrations ORDER BY filename"
                 )
@@ -316,6 +375,7 @@ async def run_database_smoke(
         "idempotent": True,
         "pgvector": True,
         "hybrid_query": True,
+        "folder_metadata_upgrade": True,
         **concurrency,
         **folder_concurrency,
     }
@@ -350,7 +410,9 @@ def main() -> int:
         f"serialized_switches={result['serialized_switches']}, "
         f"stream_epoch_isolated={result['stream_epoch_isolated']}, "
         f"serialized_file_revisions={result['serialized_file_revisions']}, "
-        f"serialized_folder_quotas={result['serialized_folder_quotas']}"
+        f"serialized_folder_quotas={result['serialized_folder_quotas']}, "
+        f"serialized_folder_metadata={result['serialized_folder_metadata']}, "
+        f"folder_metadata_upgrade={result['folder_metadata_upgrade']}"
     )
     return 0
 

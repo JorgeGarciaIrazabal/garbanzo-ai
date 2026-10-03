@@ -14,8 +14,9 @@ from app.schemas.virtual_folder import (
     MAX_PAGE_CHARS,
     FileOut,
     FileText,
-    FolderName,
+    FolderCreate,
     FolderOut,
+    FolderUpdate,
     TextCreate,
     TextUpdate,
 )
@@ -56,8 +57,8 @@ async def list_folders(user: User, service: Service):
 
 
 @router.post("", response_model=FolderOut, status_code=201)
-async def create_folder(data: FolderName, user: User, service: Service):
-    return await service.create_folder(user["email"], data.name)
+async def create_folder(data: FolderCreate, user: User, service: Service):
+    return await service.create_folder(user["email"], data.name, description=data.description)
 
 
 # Static conversation routes precede folder-id routes.
@@ -77,8 +78,10 @@ async def detach_folder(conversation_id: str, folder_id: str, user: User, servic
 
 
 @router.patch("/{folder_id}", response_model=FolderOut)
-async def rename_folder(folder_id: str, data: FolderName, user: User, service: Service):
-    return await service.rename_folder(folder_id, user["email"], data.name)
+async def update_folder(folder_id: str, data: FolderUpdate, user: User, service: Service):
+    return await service.update_folder(
+        folder_id, user["email"], **data.model_dump(exclude_unset=True)
+    )
 
 
 @router.delete("/{folder_id}", status_code=204)

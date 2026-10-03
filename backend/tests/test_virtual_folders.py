@@ -151,6 +151,7 @@ async def test_owner_scoping_for_every_operation_and_chat_link(
         ("get", f"/{folder_id}/files/{file['id']}/text", {}),
         ("delete", f"/{folder_id}", {}),
         ("patch", f"/{folder_id}", {"json": {"name": "stolen"}}),
+        ("patch", f"/{folder_id}", {"json": {"description": "stolen context"}}),
         ("post", f"/{folder_id}/text", {"json": {"path": "new.txt", "content": "bad"}}),
         (
             "put",
@@ -174,6 +175,91 @@ async def test_owner_scoping_for_every_operation_and_chat_link(
     assert (await client.get(f"/api/v1/folders/{folder_id}/files/{file['id']}/text")).json()[
         "text"
     ] == "secret"
+
+
+@pytest.mark.asyncio
+async def test_folder_metadata_partial_edits_clear_and_persist(folders_client, db_session):
+    client, _ = folders_client
+    description = "Orchid research 🌱\nReferences for next year's field trials."
+    created = await client.post(
+        "/api/v1/folders", json={"name": "Research", "description": description}
+    )
+    assert created.status_code == 201, created.text
+    folder_id = created.json()["id"]
+    url = f"/api/v1/folders/{folder_id}"
+    renamed = await client.patch(url, json={"name": "Orchids"})
+    assert renamed.status_code == 200 and renamed.json()["description"] == description
+    updated = await client.patch(url, json={"description": "Field trials and source papers"})
+    assert updated.status_code == 200 and updated.json()["name"] == "Orchids"
+    async with db_session_module.async_session_maker() as session:
+        folder = await VirtualFolderService(session).owned_folder(folder_id, OWNER)
+        assert folder.name == "Orchids" and folder.description == "Field trials and source papers"
+    cleared = await client.patch(url, json={"description": ""})
+    assert cleared.status_code == 200 and cleared.json()["description"] == ""
+    assert (await client.get("/api/v1/folders")).json()[0]["description"] == ""
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "changes",
+    [
+        {},
+        {"description": None},
+        {"name": None},
+        {"name": "   "},
+        {"description": "x" * 2001},
+        {"description": "bad\x00context"},
+        {"context": "unknown field"},
+    ],
+)
+async def test_invalid_metadata_patch_leaves_folder_intact(folders_client, changes):
+    client, _ = folders_client
+    folder_id = await _folder(client)
+    response = await client.patch(f"/api/v1/folders/{folder_id}", json=changes)
+    assert response.status_code == 422, response.text
+    folder = (await client.get("/api/v1/folders")).json()[0]
+    assert folder["name"] == "My research 🌱" and folder["description"] == ""
+
+
+@pytest.mark.asyncio
+async def test_ai_metadata_discovery_update_and_current_manifest(db_session, test_conversation):
+    created = await _tool(
+        db_session, action="create", name="Trip", description="Receipts and plans for Madrid"
+    )
+    assert created["ok"], created
+    folder_id = created["folder"]["id"]
+    assert (await _tool(db_session, action="list"))["folders"][0]["description"] == (
+        "Receipts and plans for Madrid"
+    )
+    service = VirtualFolderService(db_session)
+    await service.attach(test_conversation.id, folder_id, OWNER)
+    updated = await _tool(
+        db_session,
+        action="update_folder",
+        folder_id=folder_id,
+        description="Madrid and Barcelona trip planning",
+    )
+    assert updated["ok"] and updated["folder"]["name"] == "Trip", updated
+    manifest = await service.context_manifest(test_conversation.id, OWNER)
+    assert "Madrid and Barcelona trip planning" in manifest
+    assert "Receipts and plans for Madrid" not in manifest
+    assert "not instructions" in manifest
+    renamed = await _tool(db_session, action="update_folder", folder_id=folder_id, name="Spain")
+    assert renamed["ok"] and renamed["folder"]["description"] == updated["folder"]["description"]
+    for changes in [{}, {"description": None}, {"description": "x" * 2001}]:
+        rejected = await _tool(db_session, action="update_folder", folder_id=folder_id, **changes)
+        assert not rejected["ok"]
+    cleared = await _tool(db_session, action="update_folder", folder_id=folder_id, description="")
+    assert cleared["ok"] and cleared["folder"]["description"] == ""
+    db_session.add(User(email="stranger@example.com", hashed_password="unused"))
+    await db_session.commit()
+    rejected = await execute_native_tool(
+        name="virtual_folders",
+        args={"action": "update_folder", "folder_id": folder_id, "description": "stolen"},
+        db=db_session,
+        user_id="stranger@example.com",
+    )
+    assert not rejected["ok"] and "not found" in rejected["error"].lower()
 
 
 @pytest.mark.asyncio
@@ -281,7 +367,9 @@ async def test_attached_manifest_and_tools_honor_disabled_tools(
     db_session, test_conversation, monkeypatch
 ):
     service = VirtualFolderService(db_session)
-    folder = await service.create_folder(OWNER, "My saved folder")
+    folder = await service.create_folder(
+        OWNER, "My saved folder", description="Published orchid field trials"
+    )
     await service.create_text(folder.id, OWNER, "notes.txt", "Do not inject this content")
     await service.attach(test_conversation.id, folder.id, OWNER)
     provider = _ScriptedProvider(
@@ -296,6 +384,7 @@ async def test_attached_manifest_and_tools_honor_disabled_tools(
     assert any(c.content == "Ready" for c in chunks)
     prompt = "\n".join(m.content for m in provider.calls[0]["messages"] if m.role == "system")
     assert folder.id in prompt and folder.name in prompt
+    assert folder.description in prompt
     assert "Do not inject this content" not in prompt
     assert any(t["function"]["name"] == "virtual_folders" for t in provider.calls[0]["tools"])
     test_conversation.enabled_tools = []
@@ -326,7 +415,7 @@ async def test_failed_folder_storage_preserves_chat_call_result_and_origin_epoch
     conversation_id = test_conversation.id
     epoch = test_conversation.session_epoch
 
-    async def fail_create(service, user_id, name):
+    async def fail_create(service, user_id, name, *, description=""):
         await service.db.rollback()
         # Emulate a concurrent session switch before the tool error is handled.
         await service.db.execute(

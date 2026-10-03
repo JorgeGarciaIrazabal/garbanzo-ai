@@ -43,13 +43,36 @@ class FoldersService {
 
   Future<List<VirtualFolder>> list() async =>
       _folders(_checked(await _api.get(_base)));
-  Future<VirtualFolder> create(String name) async => VirtualFolder.fromJson(
-    _checked(await _api.post(_base, data: {'name': name}), 201),
-  );
-  Future<VirtualFolder> rename(String id, String name) async =>
+  Future<VirtualFolder> create(String name, {String description = ''}) async =>
       VirtualFolder.fromJson(
-        _checked(await _api.patch('$_base/$id', data: {'name': name})),
+        _checked(
+          await _api.post(
+            _base,
+            data: {'name': name, 'description': description},
+          ),
+          201,
+        ),
       );
+  Future<VirtualFolder> update(
+    String id, {
+    String? name,
+    String? description,
+  }) async {
+    if (name == null && description == null) {
+      throw ArgumentError('Provide a folder name or description');
+    }
+    return VirtualFolder.fromJson(
+      _checked(
+        await _api.patch(
+          '$_base/$id',
+          data: {'name': ?name, 'description': ?description},
+        ),
+      ),
+    );
+  }
+
+  Future<VirtualFolder> rename(String id, String name) =>
+      update(id, name: name);
   Future<void> delete(String id) async =>
       _checked(await _api.delete('$_base/$id'), 204);
   Future<List<FolderFile>> files(String id) async =>

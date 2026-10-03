@@ -65,17 +65,30 @@ class _FoldersPageState extends State<FoldersPage> {
   }
 
   Future<void> _name([VirtualFolder? folder]) async {
-    final name = await showDialog<String>(
+    final metadata = await showDialog<({String name, String description})>(
       context: context,
-      builder: (_) => _FolderNameDialog(folder: folder),
+      builder: (_) => _FolderMetadataDialog(folder: folder),
     );
-    if (name == null || !mounted) return;
+    if (metadata == null || !mounted) return;
     await _run(() async {
       if (folder == null) {
-        final created = await _service.create(name);
+        final created = await _service.create(
+          metadata.name,
+          description: metadata.description,
+        );
         _selected = created.id;
       } else {
-        await _service.rename(folder.id, name);
+        final name = metadata.name == folder.name ? null : metadata.name;
+        final description = metadata.description == folder.description
+            ? null
+            : metadata.description;
+        if (name != null || description != null) {
+          await _service.update(
+            folder.id,
+            name: name,
+            description: description,
+          );
+        }
       }
     });
   }
@@ -277,7 +290,7 @@ class _FoldersPageState extends State<FoldersPage> {
                                   enabled: !_busy,
                                   onSelected: (action) async {
                                     switch (action) {
-                                      case 'rename':
+                                      case 'edit':
                                         await _name(folder);
                                       case 'download':
                                         await _download(folder);
@@ -296,8 +309,8 @@ class _FoldersPageState extends State<FoldersPage> {
                                   },
                                   itemBuilder: (_) => [
                                     PopupMenuItem(
-                                      value: 'rename',
-                                      child: Text(l.foldersRename),
+                                      value: 'edit',
+                                      child: Text(l.foldersEdit),
                                     ),
                                     PopupMenuItem(
                                       value: 'download',
@@ -311,6 +324,18 @@ class _FoldersPageState extends State<FoldersPage> {
                                 ),
                               ],
                             ),
+                            if (folder.description.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 8,
+                                ),
+                                child: Text(folder.description),
+                              ),
+                            Text(
+                              l.foldersDescriptionHelp,
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                            const SizedBox(height: 8),
                             Wrap(
                               spacing: 8,
                               children: [
@@ -404,20 +429,24 @@ class _FoldersPageState extends State<FoldersPage> {
   }
 }
 
-class _FolderNameDialog extends StatefulWidget {
-  const _FolderNameDialog({this.folder});
+class _FolderMetadataDialog extends StatefulWidget {
+  const _FolderMetadataDialog({this.folder});
   final VirtualFolder? folder;
   @override
-  State<_FolderNameDialog> createState() => _FolderNameDialogState();
+  State<_FolderMetadataDialog> createState() => _FolderMetadataDialogState();
 }
 
-class _FolderNameDialogState extends State<_FolderNameDialog> {
+class _FolderMetadataDialogState extends State<_FolderMetadataDialog> {
   late final _controller = TextEditingController(
     text: widget.folder?.name ?? '',
+  );
+  late final _description = TextEditingController(
+    text: widget.folder?.description ?? '',
   );
   @override
   void dispose() {
     _controller.dispose();
+    _description.dispose();
     super.dispose();
   }
 
@@ -425,13 +454,37 @@ class _FolderNameDialogState extends State<_FolderNameDialog> {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     return AlertDialog(
-      title: Text(widget.folder == null ? l.foldersCreate : l.foldersRename),
-      content: TextField(
-        controller: _controller,
-        autofocus: true,
-        maxLength: 200,
-        onChanged: (_) => setState(() {}),
-        decoration: InputDecoration(labelText: l.foldersName),
+      title: Text(widget.folder == null ? l.foldersCreate : l.foldersEdit),
+      scrollable: true,
+      content: SizedBox(
+        width: 440,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextField(
+              key: const ValueKey('folder_name'),
+              controller: _controller,
+              autofocus: true,
+              maxLength: 200,
+              onChanged: (_) => setState(() {}),
+              decoration: InputDecoration(labelText: l.foldersName),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              key: const ValueKey('folder_description'),
+              controller: _description,
+              minLines: 3,
+              maxLines: 6,
+              maxLength: 2000,
+              decoration: InputDecoration(labelText: l.foldersDescription),
+            ),
+            Text(
+              l.foldersDescriptionHelp,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
       ),
       actions: [
         TextButton(
@@ -441,7 +494,10 @@ class _FolderNameDialogState extends State<_FolderNameDialog> {
         FilledButton(
           onPressed: _controller.text.trim().isEmpty
               ? null
-              : () => Navigator.pop(context, _controller.text.trim()),
+              : () => Navigator.pop(context, (
+                  name: _controller.text.trim(),
+                  description: _description.text,
+                )),
           child: Text(l.save),
         ),
       ],

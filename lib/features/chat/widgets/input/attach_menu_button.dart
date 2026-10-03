@@ -22,6 +22,7 @@ class AttachMenuButton extends StatefulWidget {
     required this.existingNames,
     required this.onAdded,
     this.onPickFolder,
+    this.onPickSavedFolder,
     this.buttonKey,
   });
 
@@ -37,6 +38,9 @@ class AttachMenuButton extends StatefulWidget {
   /// Desktop-only: when set, a "Folder" option appears that lets the user
   /// attach a folder for the agent to read. Null on mobile/web (no option).
   final Future<void> Function()? onPickFolder;
+
+  /// Persistent virtual folders, available on every platform.
+  final Future<void> Function()? onPickSavedFolder;
 
   /// Key applied to the inner [IconButton] (E2E tests locate it by key).
   final Key? buttonKey;
@@ -114,6 +118,15 @@ class _AttachMenuButtonState extends State<AttachMenuButton> {
                 title: Text(option.label),
                 onTap: () => Navigator.of(ctx).pop(option),
               ),
+            if (widget.onPickSavedFolder != null)
+              ListTile(
+                leading: const Icon(Icons.folder_copy_outlined),
+                title: Text(AppLocalizations.of(ctx)!.foldersAttachSaved),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  widget.onPickSavedFolder!();
+                },
+              ),
             if (_showFolder)
               ListTile(
                 leading: const Icon(Icons.create_new_folder_outlined),
@@ -162,6 +175,12 @@ class _AttachMenuButtonState extends State<AttachMenuButton> {
             leadingIcon: Icon(option.icon, size: 20),
             onPressed: () => _runPick(option),
             child: Text(option.label),
+          ),
+        if (widget.onPickSavedFolder != null)
+          MenuItemButton(
+            leadingIcon: const Icon(Icons.folder_copy_outlined, size: 20),
+            onPressed: widget.onPickSavedFolder,
+            child: Text(AppLocalizations.of(context)!.foldersAttachSaved),
           ),
         if (_showFolder)
           MenuItemButton(

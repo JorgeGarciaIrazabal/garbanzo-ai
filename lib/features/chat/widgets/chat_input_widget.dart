@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'package:garbanzo_ai/core/log.dart';
+import 'package:garbanzo_ai/features/folders/widgets/chat_folder_attachments.dart';
+import 'package:garbanzo_ai/features/folders/services/folders_service.dart';
 import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
 import 'package:garbanzo_ai/features/chat/models/chat_attachment.dart';
 import 'package:garbanzo_ai/features/chat/models/model_info.dart';
@@ -41,6 +43,9 @@ class ChatInputWidget extends StatefulWidget {
     this.isLoading = false,
     this.initialAttachments,
     this.onOpenContext,
+    this.ensureFolderConversation,
+    this.onFolderAttached,
+    this.foldersService,
   });
 
   final void Function(String message, List<ChatAttachment> attachments) onSend;
@@ -48,6 +53,9 @@ class ChatInputWidget extends StatefulWidget {
   final bool isLoading;
   final List<ChatAttachment>? initialAttachments;
   final VoidCallback? onOpenContext;
+  final Future<String> Function()? ensureFolderConversation;
+  final Future<void> Function(String conversationId)? onFolderAttached;
+  final FoldersService? foldersService;
 
   @override
   State<ChatInputWidget> createState() => _ChatInputWidgetState();
@@ -61,6 +69,10 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
   final GlobalKey<MessageComposerState> _composerKey = GlobalKey();
   final List<ChatAttachment> _attachments = [];
   StreamSubscription<SharedContent>? _sharedContentSub;
+  bool _draftIdentityInitialized = false;
+  String? _draftConversationId;
+  bool _creatingFolderConversation = false;
+  String? _folderDraftConversationId;
 
   final VoiceRecordingHelper _voiceHelper = VoiceRecordingHelper();
   bool _isRecording = false;
@@ -80,6 +92,50 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
     WidgetsBinding.instance.addPostFrameCallback(
       (_) => _consumeSharedContent(),
     );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final id = composerConversation(context)?.id;
+    if (_draftIdentityInitialized && id != _draftConversationId) {
+      // The shared chat route page preserves a draft when folder attachment
+      // creates its first conversation. Other landing/thread transitions keep
+      // the previous behavior of starting with an empty composer.
+      final adoptsFolderDraft =
+          _creatingFolderConversation ||
+          (id != null && id == _folderDraftConversationId);
+      if ((_draftConversationId == null || id == null) && !adoptsFolderDraft) {
+        _controller.clear();
+        _attachments.clear();
+      }
+      if (id == _folderDraftConversationId) _folderDraftConversationId = null;
+    }
+    _draftIdentityInitialized = true;
+    _draftConversationId = id;
+  }
+
+  Future<String> _ensureFolderConversation() async {
+    final existingId = composerConversation(context, listen: false)?.id;
+    _creatingFolderConversation = existingId == null;
+    try {
+      final ensure = widget.ensureFolderConversation;
+      if (ensure == null) {
+        if (existingId == null) {
+          throw StateError('Could not create conversation');
+        }
+        return existingId;
+      }
+      final id = await ensure();
+      if (_creatingFolderConversation &&
+          mounted &&
+          _draftConversationId != id) {
+        _folderDraftConversationId = id;
+      }
+      return id;
+    } finally {
+      _creatingFolderConversation = false;
+    }
   }
 
   @override
@@ -395,34 +451,48 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
           controller: _controller,
           focusNode: _focusNode,
           sources: {'/': _templateCandidates, '#': _toolCandidates},
-          child: MessageComposer(
-            key: _composerKey,
-            controller: _controller,
-            focusNode: _focusNode,
-            onSend: _handleSend,
-            onStop: widget.onStop,
-            isLoading: widget.isLoading,
-            hasExtraContent: _attachments.isNotEmpty,
-            onPasteImage: (images) => unawaited(_stagePastedImages(images)),
-            above: _buildAbove(allowedFolder, cs, theme),
-            bottomToolbar: _buildToolbar(
-              isMobile,
-              cs,
-              l10n,
-              effort,
-              supportedEffort,
+          child: ChatFolderAttachments(
+            conversationId: composerConversation(context)?.id,
+            isSending: widget.isLoading,
+            ensureConversation: _ensureFolderConversation,
+            onAttached: widget.onFolderAttached,
+            service: widget.foldersService,
+            builder: (context, attachFolder, folderChips) => MessageComposer(
+              key: _composerKey,
+              controller: _controller,
+              focusNode: _focusNode,
+              onSend: _handleSend,
+              onStop: widget.onStop,
+              isLoading: widget.isLoading,
+              // The folder action is unavailable until attach/detach persists.
+              submitEnabled: attachFolder != null,
+              hasExtraContent: _attachments.isNotEmpty,
+              onPasteImage: (images) => unawaited(_stagePastedImages(images)),
+              above: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [folderChips, ?_buildAbove(allowedFolder, cs, theme)],
+              ),
+              bottomToolbar: _buildToolbar(
+                isMobile,
+                cs,
+                l10n,
+                effort,
+                supportedEffort,
+              ),
+              leading: AttachMenuButton(
+                buttonKey: const ValueKey('attach_button'),
+                enabled: !widget.isLoading,
+                existingNames: () => _attachments.map((a) => a.name).toSet(),
+                onAdded: (added) => setState(() => _attachments.addAll(added)),
+                onPickFolder: _pickFolder,
+                onPickSavedFolder: attachFolder,
+              ),
+              overlay: _isRecording
+                  ? _recordingOverlay(isMobile, cs, theme, l10n)
+                  : null,
+              idleTrailingBuilder: (_) => _idleTrailing(isMobile, cs),
             ),
-            leading: AttachMenuButton(
-              buttonKey: const ValueKey('attach_button'),
-              enabled: !widget.isLoading,
-              existingNames: () => _attachments.map((a) => a.name).toSet(),
-              onAdded: (added) => setState(() => _attachments.addAll(added)),
-              onPickFolder: _pickFolder,
-            ),
-            overlay: _isRecording
-                ? _recordingOverlay(isMobile, cs, theme, l10n)
-                : null,
-            idleTrailingBuilder: (_) => _idleTrailing(isMobile, cs),
           ),
         );
       },

@@ -60,6 +60,7 @@ downloadable, and missing or failed outputs produce an explicit error.
 
 ## Can the assistant use my saved folders?
 The native **virtual_folders** tool finds and attaches your private saved folders
-to this chat, reads documents, creates or edits text files, and provides file or
-ZIP download buttons. Allow it in this conversation's tool settings. See the
+to this chat, reads documents, creates or edits text files, updates folder names
+and purpose/context descriptions, and provides file or ZIP download buttons.
+Allow it in this conversation's tool settings. See the
 Virtual folders guide for uploads, file management and limits.

@@ -8,6 +8,7 @@ abstract class VirtualFolder with _$VirtualFolder {
   const factory VirtualFolder({
     required String id,
     required String name,
+    @Default('') String description,
     @JsonKey(name: 'created_at') required DateTime createdAt,
     @JsonKey(name: 'updated_at') required DateTime updatedAt,
   }) = _VirtualFolder;

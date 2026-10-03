@@ -7,19 +7,30 @@ available after you close a chat or switch devices. Virtual folders are separate
 from a live folder on your desktop and from the knowledge base.
 
 ## Where do I see all my files?
-Open **Virtual folders** from the Settings pages list or the folder control above
-the chat composer. Create a folder, open it and upload one or several files.
-The folder browser lets you rename/delete folders, create text files, preview or
+Open **Virtual folders** from the Settings pages list or the chat attachment
+menu. Create a folder, open it and upload one or several files.
+The folder browser lets you edit/delete folders, create text files, preview or
 edit files, remove files and download them. Deleting a folder removes its saved
 files from every chat; removing a folder from a chat only detaches it.
 
 ## How do I use a folder in a chat?
-Use the chat's virtual-folder control to select an existing folder. Attached
-folders appear as chips above the composer; open a chip to browse its files or
+Open **Attach photos or files** (the paperclip in the input box) and choose
+**Attach saved folder** to select a saved folder on desktop or Android. Attached
+folders appear as chips inside the composer; open a chip to browse its files or
 detach it. You can also ask **"Use my Research folder in this chat"**. The
 assistant can find and attach your saved folder through its virtual_folders tool.
 Allow this tool in the conversation's tool settings when using a restricted list.
 The same folder can be used in multiple chats.
+
+## How does the assistant know what a folder is about?
+Add a **Purpose or context (optional)** description when creating a folder, or
+choose **Edit folder** in the folder browser. Describe the project, what the documents contain,
+and any background the assistant should know. Descriptions allow up to 2,000
+characters and are saved across devices and chats. The assistant receives the
+description whenever the folder is attached, without automatically loading every
+file. You can also ask **"Update my Research folder's description to say it
+contains orchid field trials"**. The assistant can change its name or description
+through chat; editing one preserves the other. Clear the description to remove it.
 
 ## Can the assistant create or edit files?
 Yes. Ask it to create a summary, update notes, edit code or write a CSV in an

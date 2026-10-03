@@ -3707,4 +3707,17 @@ class AppLocalizationsEs extends AppLocalizations {
   String foldersRevision(int revision, int size) {
     return 'Revisión $revision · $size bytes';
   }
+
+  @override
+  String get foldersAttachSaved => 'Adjuntar carpeta guardada';
+
+  @override
+  String get foldersEdit => 'Editar carpeta';
+
+  @override
+  String get foldersDescription => 'Propósito o contexto (opcional)';
+
+  @override
+  String get foldersDescriptionHelp =>
+      'La IA usa este contexto para entender la carpeta y sus archivos cuando se adjunta a un chat.';
 }

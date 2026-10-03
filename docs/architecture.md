@@ -8,12 +8,19 @@ change layouts, flows, or services (see "Maintaining agent docs" in the root
 
 ## Persistent virtual folders
 
-`/folders` is a private file browser available through Settings pages and the
-chat folder control. Flutter uses `features/folders/` services and page-local
+`/folders` is a private file browser available through Settings pages, the
+composer's attachment menu and attached-folder chips. Saved folders are attached
+through **Attach photos or files** on desktop and mobile; their chips sit inside
+the composer and refresh after AI turns or chat changes. Flutter uses
+`features/folders/` services and page-local
 state. Desktop/Android upload picked bytes with authenticated multipart requests;
 downloads fetch bytes through Dio and use the shared `ExportDownloader` (desktop
 Save As, mobile share/save). AI download results store resource IDs, rendered
 as authenticated buttons rather than token-bearing URLs.
+
+The `/chat` and `/chat/:conversationId` routes share a page key so creating the
+first thread during attachment keeps the composer, typed draft and staged files
+mounted. `ChatPage.didUpdateWidget` still binds changed conversation IDs.
 
 `VirtualFolderService` persists folders, original file bytes and reusable chat
 links in PostgreSQL. Ownership is checked for every operation and both sides of
@@ -21,6 +28,11 @@ each chat link. Quotas serialize on user/folder row locks; text updates require
 the previous revision. File metadata does not load blobs. Binary documents are
 read through the existing isolated strict extractor; PDF/Office extraction is
 read-only, while genuine UTF-8 text/source/CSV files support editing.
+
+Folders store a bounded purpose/context description editable in the browser
+or through the native tool's `update_folder` action. Partial metadata updates
+preserve omitted fields. Descriptions accompany names in the attached-folder
+manifest as untrusted user-authored context, with file contents read on demand.
 
 The native `virtual_folders` tool discovers folders, attaches them to the current
 chat, lists/reads paginated files, creates/edits text, and returns download

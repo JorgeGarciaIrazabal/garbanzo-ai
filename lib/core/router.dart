@@ -53,11 +53,21 @@ GoRouter buildRouter(AuthState auth) {
     routes: [
       GoRoute(path: '/', redirect: (_, _) => '/chat'),
       GoRoute(path: '/login', builder: (_, _) => const LoginPage()),
-      GoRoute(path: '/chat', builder: (_, _) => const ChatPage()),
+      // Keep the composer mounted when attachments create the first thread.
+      // ChatPage.didUpdateWidget still loads a newly selected conversation.
+      GoRoute(
+        path: '/chat',
+        pageBuilder: (_, _) =>
+            const NoTransitionPage(key: ValueKey('chat'), child: ChatPage()),
+      ),
       GoRoute(
         path: '/chat/:conversationId',
-        builder: (_, state) =>
-            ChatPage(conversationId: state.pathParameters['conversationId']),
+        pageBuilder: (_, state) => NoTransitionPage(
+          key: const ValueKey('chat'),
+          child: ChatPage(
+            conversationId: state.pathParameters['conversationId'],
+          ),
+        ),
       ),
       // Rooms render inside the chat shell (sidebar stays put); the bare
       // /rooms list page is gone — the sidebar's Rooms tab replaced it.

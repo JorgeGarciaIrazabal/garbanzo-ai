@@ -11,6 +11,13 @@ traversal, control characters and file/directory prefix collisions rejected.
 edits. Both edits and file deletion require the revision read by the caller;
 stale requests fail with 409. Text extraction never changes stored bytes.
 
+Migration `051_virtual_folder_metadata.sql` adds non-null `description` TEXT,
+defaulting existing folders to an empty string. The purpose/context description
+is limited to 2,000 characters at the API/service boundary, persists independently
+of chat links, and is included with the name in attached-folder AI context.
+Metadata updates lock the folder and apply only supplied fields, so renaming
+preserves its description and editing the description preserves its name.
+
 The service locks the user, then folder, then conversation as applicable so
 concurrent writes cannot evade user/folder quotas or overwrite stale revisions.
 Locks use PostgreSQL `FOR NO KEY UPDATE`: the IDs never change, and chat ingestion

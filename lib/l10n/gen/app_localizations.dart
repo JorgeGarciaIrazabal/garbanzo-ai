@@ -6416,6 +6416,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Revision {revision} · {size} bytes'**
   String foldersRevision(int revision, int size);
+
+  /// Virtual folders: foldersAttachSaved
+  ///
+  /// In en, this message translates to:
+  /// **'Attach saved folder'**
+  String get foldersAttachSaved;
+
+  /// Virtual folders: foldersEdit
+  ///
+  /// In en, this message translates to:
+  /// **'Edit folder'**
+  String get foldersEdit;
+
+  /// Virtual folders: foldersDescription
+  ///
+  /// In en, this message translates to:
+  /// **'Purpose or context (optional)'**
+  String get foldersDescription;
+
+  /// Virtual folders: foldersDescriptionHelp
+  ///
+  /// In en, this message translates to:
+  /// **'The AI uses this context to understand the folder and its files when it is attached to a chat.'**
+  String get foldersDescriptionHelp;
 }
 
 class _AppLocalizationsDelegate

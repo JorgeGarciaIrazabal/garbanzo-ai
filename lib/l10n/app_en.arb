@@ -4526,5 +4526,13 @@
         "type": "int"
       }
     }
-  }
+  },
+  "foldersAttachSaved": "Attach saved folder",
+  "@foldersAttachSaved": {"description": "Virtual folders: foldersAttachSaved"},
+  "foldersEdit": "Edit folder",
+  "@foldersEdit": {"description": "Virtual folders: foldersEdit"},
+  "foldersDescription": "Purpose or context (optional)",
+  "@foldersDescription": {"description": "Virtual folders: foldersDescription"},
+  "foldersDescriptionHelp": "The AI uses this context to understand the folder and its files when it is attached to a chat.",
+  "@foldersDescriptionHelp": {"description": "Virtual folders: foldersDescriptionHelp"}
 }

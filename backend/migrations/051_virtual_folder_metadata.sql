@@ -1,0 +1,2 @@
+ALTER TABLE virtual_folders
+    ADD COLUMN IF NOT EXISTS description TEXT NOT NULL DEFAULT '';

@@ -7,7 +7,6 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import 'package:garbanzo_ai/core/api_client.dart';
-import 'package:garbanzo_ai/features/folders/widgets/chat_folders_bar.dart';
 import 'package:garbanzo_ai/core/platform_info.dart';
 import 'package:garbanzo_ai/core/reading_column.dart';
 import 'package:garbanzo_ai/core/smart_scroll_controller.dart';
@@ -909,55 +908,44 @@ class _ChatPageContentState extends State<_ChatPageContent>
                                   ],
                                 ),
                               ),
-                              ChatFoldersBar(
-                                conversationId:
-                                    chatProvider
-                                                .currentConversation
-                                                ?.isPrimary ==
-                                            true &&
-                                        context
-                                            .watch<TopicDiscoveryProvider>()
-                                            .showLanding
-                                    ? null
-                                    : chatProvider.currentConversation?.id,
-                                isSending: chatProvider.isSending,
-                                onAttached: (id) async {
-                                  // Creating a conversation can replace this
-                                  // route before attach finishes. Reloading the
-                                  // provider lets the new bar fetch attachments.
-                                  if (chatProvider.currentConversation?.id ==
-                                          id &&
-                                      !chatProvider.isSending) {
-                                    await chatProvider.loadConversation(id);
-                                  }
-                                },
-                                ensureConversation: () async {
-                                  final topicDiscovery = context
-                                      .read<TopicDiscoveryProvider>();
-                                  var conversation =
-                                      chatProvider.currentConversation;
-                                  if (conversation == null ||
-                                      (conversation.isPrimary &&
-                                          topicDiscovery.showLanding)) {
-                                    conversation = await chatProvider
-                                        .createConversation();
-                                    if (conversation == null) {
-                                      throw StateError(
-                                        chatProvider.error ??
-                                            'Could not create conversation',
-                                      );
-                                    }
-                                    topicDiscovery.conversationStarted();
-                                  }
-                                  return conversation.id;
-                                },
-                              ),
                               WorkflowCompletionNotice(
                                 conversation: chatProvider.currentConversation,
                               ),
                               Consumer<ChatProvider>(
                                 builder: (context, provider, _) {
                                   return ChatInputWidget(
+                                    onFolderAttached: (id) async {
+                                      // Creating a conversation can replace this
+                                      // route before attach finishes. Reloading the
+                                      // provider lets the new composer fetch attachments.
+                                      if (chatProvider
+                                                  .currentConversation
+                                                  ?.id ==
+                                              id &&
+                                          !chatProvider.isSending) {
+                                        await chatProvider.loadConversation(id);
+                                      }
+                                    },
+                                    ensureFolderConversation: () async {
+                                      final topicDiscovery = context
+                                          .read<TopicDiscoveryProvider>();
+                                      var conversation =
+                                          chatProvider.currentConversation;
+                                      if (conversation == null ||
+                                          (conversation.isPrimary &&
+                                              topicDiscovery.showLanding)) {
+                                        conversation = await chatProvider
+                                            .createConversation();
+                                        if (conversation == null) {
+                                          throw StateError(
+                                            chatProvider.error ??
+                                                'Could not create conversation',
+                                          );
+                                        }
+                                        topicDiscovery.conversationStarted();
+                                      }
+                                      return conversation.id;
+                                    },
                                     onSend: (message, attachments) async {
                                       // Merge any pending attachments from drag-drop
                                       final merged = [...attachments];

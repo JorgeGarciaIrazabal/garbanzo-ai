@@ -3,12 +3,32 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:garbanzo_ai/features/folders/services/folders_service.dart';
+import 'package:garbanzo_ai/features/folders/models/virtual_folder.dart';
 import 'package:garbanzo_ai/features/folders/widgets/folder_download_button.dart';
 
 
 import 'folders_test_support.dart';
 
 void main() {
+  test('folder context survives serialization and metadata updates send only supplied fields', () async {
+    final api = RecordingApi();
+    final json = {'id': 'folder', 'name': 'Research', 'description': 'Compare source evidence', 'created_at': '2026-01-01T00:00:00Z', 'updated_at': '2026-01-01T00:00:00Z'};
+    api.response = Response(requestOptions: RequestOptions(), statusCode: 201, data: json);
+    final service = FoldersService(api: api);
+    final created = await service.create('Research', description: 'Compare source evidence');
+    expect(api.data, {'name': 'Research', 'description': 'Compare source evidence'});
+    expect(VirtualFolder.fromJson(created.toJson()).description, 'Compare source evidence');
+    api.response = Response(requestOptions: RequestOptions(), statusCode: 200, data: {...json, 'name': 'Sources'});
+    final renamed = await service.rename('folder', 'Sources');
+    expect(api.data, {'name': 'Sources'});
+    expect(renamed.description, 'Compare source evidence');
+    api.response = Response(requestOptions: RequestOptions(), statusCode: 200, data: {...json, 'description': ''});
+    final cleared = await service.update('folder', description: '');
+    expect(api.data, {'description': ''});
+    expect(cleared.description, isEmpty);
+    await expectLater(service.update('folder'), throwsArgumentError);
+    expect(VirtualFolder.fromJson({...json}..remove('description')).description, isEmpty);
+  });
   test('download filenames cannot contain path separators or reserved names', () {
     expect(safeDownloadFilename('Research/project.zip'), 'Research_project.zip');
     expect(safeDownloadFilename(r'notes\final.txt'), 'notes_final.txt');
