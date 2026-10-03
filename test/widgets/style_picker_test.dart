@@ -697,6 +697,97 @@ void main() {
   });
 
   group('StylePicker panel (mobile bottom sheet)', () {
+    for (final size in [
+      const Size(320, 568),
+      const Size(390, 844),
+      const Size(700, 900),
+    ]) {
+      _testPicker('mobile picker uses the safe screen and pins creation at $size', (tester) async {
+        _setScreenSize(tester, size);
+        tester.view.padding = const FakeViewPadding(top: 24, bottom: 24);
+        addTearDown(tester.view.resetPadding);
+        await tester.pumpWidget(_wrap(
+          chat: _FakeChatProvider(),
+          models: _FakeModelProvider(models: _defaultModels, selectedId: 'qwen3'),
+          styles: _FakeStyleProvider(styles: [
+            for (var i = 0; i < 20; i++) _style('s$i', 'Style $i'),
+          ]),
+          prompts: _FakeSystemPromptProvider(),
+        ));
+        await _openPicker(tester);
+
+        final sheet = tester.getRect(find.byType(BottomSheet));
+        expect(sheet.width, size.width);
+        expect(sheet.top, greaterThanOrEqualTo(24));
+        expect(sheet.top, lessThan(size.height * 0.12));
+        final create = find.byKey(const ValueKey('new_style_button'));
+        final buttonRect = tester.getRect(create);
+        expect(create.hitTestable(), findsOneWidget);
+        expect(buttonRect.bottom, lessThanOrEqualTo(size.height - 24));
+
+        await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -700));
+        await tester.pumpAndSettle();
+        expect(tester.getRect(create), buttonRect);
+        expect(create.hitTestable(), findsOneWidget);
+        expect(find.text('Chat style').hitTestable(), findsOneWidget);
+        await tester.tap(create);
+        await tester.pumpAndSettle();
+        expect(find.byKey(const ValueKey('style_editor_page')), findsOneWidget);
+        expect(tester.testTextInput.isVisible, isFalse);
+        expect(tester.takeException(), isNull);
+      });
+    }
+
+    _testPicker('mobile editor keeps Save visible with the keyboard and after rotation', (tester) async {
+      _setScreenSize(tester, const Size(320, 568));
+      final styles = _FakeStyleProvider(styles: [_style('s1', 'Existing')]);
+      await tester.pumpWidget(_wrap(
+        chat: _FakeChatProvider(),
+        models: _FakeModelProvider(models: _defaultModels, selectedId: 'qwen3'),
+        styles: styles,
+        prompts: _FakeSystemPromptProvider(),
+      ));
+      await _openPicker(tester);
+      await tester.tap(find.text('New style'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(tester.getSize(find.byKey(const ValueKey('style_editor_page'))), const Size(320, 568));
+      expect(tester.testTextInput.isVisible, isFalse);
+      await tester.enterText(find.byKey(const ValueKey('style_name_field')), 'Phone style');
+      await tester.enterText(find.byKey(const ValueKey('style_instructions_field')), 'Use examples.');
+      tester.view.viewInsets = const FakeViewPadding(bottom: 280);
+      addTearDown(tester.view.resetViewInsets);
+      await tester.pumpAndSettle();
+      final save = find.byKey(const ValueKey('save_style_confirm'));
+      final buttonRect = tester.getRect(save);
+      expect(save.hitTestable(), findsOneWidget);
+      expect(buttonRect.bottom, lessThan(568 - 280));
+      await tester.ensureVisible(find.byKey(const ValueKey('style_advanced_settings')));
+      await tester.tap(find.byKey(const ValueKey('style_advanced_settings')));
+      await tester.pumpAndSettle();
+      expect(tester.getRect(save), buttonRect);
+      expect(save.hitTestable(), findsOneWidget);
+
+      tester.view.viewInsets = const FakeViewPadding();
+      tester.view.physicalSize = const Size(844, 390);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('style_editor_page')), findsOneWidget);
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(save.hitTestable(), findsOneWidget);
+      await tester.tap(save);
+      await tester.pumpAndSettle();
+      expect(styles.created.single['name'], 'Phone style');
+      expect(styles.created.single['systemPromptContent'], 'Use examples.');
+      expect(tester.getSize(find.byType(BottomSheet)).width, 844);
+      expect(find.byKey(const ValueKey('new_style_button')).hitTestable(), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('new_style_button')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('style_editor_page')), findsOneWidget);
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+
     _testPicker('opens with saved style cards and no exceptions', (
       tester,
     ) async {
@@ -1107,6 +1198,8 @@ void main() {
         await _openPicker(tester);
         await tester.tap(find.text('New style'));
         await tester.pumpAndSettle();
+        expect(find.byType(AlertDialog), width > 800 ? findsOneWidget : findsNothing);
+        expect(find.byKey(const ValueKey('style_editor_page')), width > 800 ? findsNothing : findsOneWidget);
         expect(find.text('Original instructions'), findsOneWidget);
         await tester.enterText(find.byKey(const ValueKey('style_name_field')), 'My tutor');
         await tester.enterText(find.byKey(const ValueKey('style_instructions_field')), 'Ask one question at a time.');
@@ -1206,7 +1299,7 @@ void main() {
       await tester.enterText(find.byKey(const ValueKey('style_instructions_field')), 'Be brief.');
       await tester.tap(find.byKey(const ValueKey('save_style_confirm')));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Close'));
+      await tester.tap(find.byKey(const ValueKey('style_editor_back')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('style_card_new-1')));
       await tester.pumpAndSettle();
@@ -1246,7 +1339,7 @@ void main() {
       await tester.tap(find.text('New style'));
       await tester.pumpAndSettle();
       await tester.enterText(find.byKey(const ValueKey('style_instructions_field')), 'Discard this');
-      await tester.tap(find.text('Cancel'));
+      await tester.tap(find.byKey(const ValueKey('style_editor_back')));
       await tester.pumpAndSettle();
       expect(styles.created, isEmpty);
       expect(chat.updates, isEmpty);
@@ -1346,6 +1439,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Edit style'), findsOneWidget);
+      expect(find.byKey(const ValueKey('style_editor_page')), findsOneWidget);
       expect(find.text('content of English instructions'), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('style_advanced_settings')));
       await tester.pumpAndSettle();

@@ -21,10 +21,10 @@ import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// The style picker: replaces the plain model dropdown with a "chat style"
 /// surface — saved styles (model + thinking level + system prompt bundles)
-/// as one-tap cards, plus a Customize section with a searchable model list,
+/// as one-tap cards, plus a Customize section with a model list,
 /// thinking-level control, and prompt template picker. A segmented control
-/// swaps between the two sections so the surface stays content-sized on
-/// every form factor.
+/// swaps between the two sections. Phones use the available screen height;
+/// desktop popovers stay content-sized.
 ///
 /// [StylePickerButton] is the app-bar trigger; [showStylePicker] opens the
 /// panel as an anchored popover on wide layouts and a bottom sheet on narrow
@@ -408,14 +408,21 @@ Future<void> showStylePicker(BuildContext context) {
     showDragHandle: true,
     isScrollControlled: true,
     useSafeArea: true,
-    constraints: BoxConstraints(
-      maxHeight: MediaQuery.of(context).size.height * 0.8,
-    ),
-    builder: (sheetContext) => Padding(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(sheetContext).viewInsets.bottom,
+    // Override Material 3's 640px cap and follow the width after rotation.
+    constraints: const BoxConstraints(maxWidth: double.infinity),
+    builder: (sheetContext) => FractionallySizedBox(
+      heightFactor: 0.96,
+      child: Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(sheetContext).bottom,
+        ),
+        child: SafeArea(
+          top: false,
+          child: wrap(
+            const StylePickerPanel(showCloseButton: true, isBottomSheet: true),
+          ),
+        ),
       ),
-      child: SafeArea(child: wrap(const StylePickerPanel())),
     ),
   );
 }
@@ -434,16 +441,20 @@ enum _PickerSection { styles, customize }
 /// always to the pending state used for the next new conversation) — there
 /// is no Apply button.
 ///
-/// The segmented layout replaces an inline expanding Customize section:
-/// expanding inline let the bottom sheet balloon to near-fullscreen on
-/// phones, while swapping sections keeps the surface content-sized on every
-/// form factor.
+/// On phones, the header and creation action stay visible while the content
+/// scrolls. Desktop keeps its content-sized popover.
 class StylePickerPanel extends StatefulWidget {
-  const StylePickerPanel({super.key, this.showCloseButton = false});
+  const StylePickerPanel({
+    super.key,
+    this.showCloseButton = false,
+    this.isBottomSheet = false,
+  });
 
-  /// Popovers get an explicit close affordance; the bottom sheet has its
-  /// drag handle instead.
+  /// An explicit close affordance supplements the sheet's drag handle.
   final bool showCloseButton;
+
+  /// Keep the mobile presentation paired with its route after rotation.
+  final bool isBottomSheet;
 
   @override
   State<StylePickerPanel> createState() => _StylePickerPanelState();
@@ -644,26 +655,33 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
       }
     }
     if (!mounted) return;
-    final saved = await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => _SaveStyleDialog(
-        existing: existing,
-        modelId: existing?.modelId ?? conv?.model ?? models.selectedModelId,
-        thinkingLevel: existing != null
-            ? existing.thinkingLevel
-            : conv != null
-            ? conv.thinkingLevel
-            : styles.pendingThinkingLevel,
-        instructions: existing != null
-            ? template?.content ?? ''
-            : (conv != null ? conv.systemPrompt : styles.pendingSystemPrompt) ??
-                  '',
-        models: models,
-        styles: styles,
-        prompts: prompts,
-      ),
+    final fullscreen = widget.isBottomSheet;
+    final editor = _StyleEditor(
+      fullscreen: fullscreen,
+      existing: existing,
+      modelId: existing?.modelId ?? conv?.model ?? models.selectedModelId,
+      thinkingLevel: existing != null
+          ? existing.thinkingLevel
+          : conv != null
+          ? conv.thinkingLevel
+          : styles.pendingThinkingLevel,
+      instructions: existing != null
+          ? template?.content ?? ''
+          : (conv != null ? conv.systemPrompt : styles.pendingSystemPrompt) ??
+                '',
+      models: models,
+      styles: styles,
+      prompts: prompts,
     );
+    final saved = fullscreen
+        ? await Navigator.of(context, rootNavigator: true).push<bool>(
+            MaterialPageRoute(fullscreenDialog: true, builder: (_) => editor),
+          )
+        : await showDialog<bool>(
+            context: context,
+            barrierDismissible: false,
+            builder: (_) => editor,
+          );
     if (saved == true && mounted) {
       setState(() => _section = _PickerSection.styles);
       _scrollToTop();
@@ -714,6 +732,7 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isNarrow = widget.isBottomSheet;
     final modelP = context.watch<ModelProvider>();
     final styleP = context.watch<StyleProvider>();
     final promptP = context.watch<SystemPromptProvider>();
@@ -769,11 +788,13 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
     bool styleIsActive(Style style) => style.id == activeStyle?.id;
 
     return Column(
-      mainAxisSize: MainAxisSize.min,
+      mainAxisSize: isNarrow ? MainAxisSize.max : MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 8, 4),
+          padding: isNarrow
+              ? const EdgeInsets.fromLTRB(16, 0, 8, 0)
+              : const EdgeInsets.fromLTRB(20, 12, 8, 4),
           child: Row(
             children: [
               Expanded(
@@ -822,6 +843,7 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
           ),
         ),
         Flexible(
+          fit: isNarrow ? FlexFit.tight : FlexFit.loose,
           child: SingleChildScrollView(
             controller: _scrollController,
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -842,6 +864,7 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
                       onEdit: _startEditing,
                       onDelete: _deleteStyle,
                       onCreate: _startCreating,
+                      showCreateTile: !isNarrow,
                     )
                   : Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -870,23 +893,43 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
                           enabled: !busy,
                           onChanged: _setTemplate,
                         ),
-                        const SizedBox(height: 16),
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: FilledButton.tonalIcon(
-                            key: const ValueKey('save_style_button'),
-                            onPressed: busy ? null : _startCreating,
-                            icon: const Icon(Icons.bookmark_add_outlined),
-                            label: Text(
-                              AppLocalizations.of(context)!.titleSaveStyle,
+                        if (!isNarrow) ...[
+                          const SizedBox(height: 16),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: FilledButton.tonalIcon(
+                              key: const ValueKey('save_style_button'),
+                              onPressed: busy ? null : _startCreating,
+                              icon: const Icon(Icons.bookmark_add_outlined),
+                              label: Text(
+                                AppLocalizations.of(context)!.titleSaveStyle,
+                              ),
                             ),
                           ),
-                        ),
+                        ],
                       ],
                     ),
             ),
           ),
         ),
+        if (isNarrow)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+            child: FilledButton.icon(
+              key: ValueKey(
+                section == _PickerSection.styles
+                    ? 'new_style_button'
+                    : 'save_style_button',
+              ),
+              onPressed: busy ? null : _startCreating,
+              icon: const Icon(Icons.add),
+              label: Text(
+                section == _PickerSection.styles
+                    ? AppLocalizations.of(context)!.styleNew
+                    : AppLocalizations.of(context)!.titleSaveStyle,
+              ),
+            ),
+          ),
       ],
     );
   }
@@ -912,6 +955,7 @@ class _StylesSegment extends StatelessWidget {
     required this.onEdit,
     required this.onDelete,
     required this.onCreate,
+    required this.showCreateTile,
   });
 
   final bool isLoading;
@@ -925,6 +969,7 @@ class _StylesSegment extends StatelessWidget {
   final void Function(Style) onEdit;
   final void Function(Style) onDelete;
   final VoidCallback onCreate;
+  final bool showCreateTile;
 
   @override
   Widget build(BuildContext context) {
@@ -967,7 +1012,7 @@ class _StylesSegment extends StatelessWidget {
           ...custom.map((s) => _styleCard(context, s)),
         // Footer: a dashed-outline "+ New style" tile. Full-width and
         // tappable; disabled while busy (sending) for parity with the cards.
-        _NewStyleTile(onTap: busy ? null : onCreate),
+        if (showCreateTile) _NewStyleTile(onTap: busy ? null : onCreate),
         if (predefined.isNotEmpty) ...[
           _SectionHeader(label: l.labelPredefinedStyles),
           ...predefined.map((s) => _styleCard(context, s)),
@@ -1708,11 +1753,12 @@ class _TemplatePicker extends StatelessWidget {
 }
 
 // ============================================================================
-// Save style dialog
+// Style editor (fullscreen on phones, dialog on desktop)
 // ============================================================================
 
-class _SaveStyleDialog extends StatefulWidget {
-  const _SaveStyleDialog({
+class _StyleEditor extends StatefulWidget {
+  const _StyleEditor({
+    required this.fullscreen,
     this.existing,
     required this.modelId,
     required this.thinkingLevel,
@@ -1722,6 +1768,7 @@ class _SaveStyleDialog extends StatefulWidget {
     required this.prompts,
   });
 
+  final bool fullscreen;
   final Style? existing;
   final String? modelId;
   final ThinkingLevel? thinkingLevel;
@@ -1731,10 +1778,10 @@ class _SaveStyleDialog extends StatefulWidget {
   final SystemPromptProvider prompts;
 
   @override
-  State<_SaveStyleDialog> createState() => _SaveStyleDialogState();
+  State<_StyleEditor> createState() => _StyleEditorState();
 }
 
-class _SaveStyleDialogState extends State<_SaveStyleDialog> {
+class _StyleEditorState extends State<_StyleEditor> {
   late final TextEditingController _nameController;
   late final TextEditingController _instructionsController;
   late String? _modelId;
@@ -1828,161 +1875,185 @@ class _SaveStyleDialogState extends State<_SaveStyleDialog> {
     final models = widget.models.availableModels;
     final model = models.where((m) => m.id == _modelId).firstOrNull;
     final editable = !_saving && _saved == null && !_aiPending;
+    // Keep the presentation paired with the route, including after rotation.
+    final isNarrow = widget.fullscreen;
+    final title = widget.existing == null ? l.styleNew : l.titleEditStyle;
+    void close() => Navigator.of(context).pop(_saved != null);
+    final saveButton = FilledButton(
+      key: const ValueKey('save_style_confirm'),
+      onPressed:
+          _saving ||
+              _aiPending ||
+              _nameController.text.trim().isEmpty ||
+              model == null
+          ? null
+          : _submit,
+      child: _saving
+          ? const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : Text(_saved == null ? l.save : l.retry),
+    );
+    final content = Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        TextField(
+          key: const ValueKey('style_name_field'),
+          controller: _nameController,
+          enabled: editable,
+          autofocus: !isNarrow,
+          maxLength: 100,
+          textInputAction: TextInputAction.next,
+          onChanged: (_) => setState(() {}),
+          decoration: InputDecoration(
+            labelText: l.labelName,
+            hintText: l.hintDeepWorkQuickAnswers,
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          key: const ValueKey('style_instructions_field'),
+          controller: _instructionsController,
+          enabled: editable,
+          minLines: isNarrow ? 8 : 4,
+          maxLines: isNarrow ? 16 : 8,
+          decoration: InputDecoration(
+            labelText: l.styleInstructions,
+            hintText: l.styleInstructionsHint,
+            alignLabelWithHint: true,
+          ),
+        ),
+        StyleInstructionsAssistant(
+          controller: _instructionsController,
+          prompts: widget.prompts,
+          modelId: model?.id,
+          enabled: !_saving && _saved == null,
+          onPendingChanged: (pending) => setState(() => _aiPending = pending),
+        ),
+        if (widget.prompts.templates.isNotEmpty)
+          ExpansionTile(
+            title: Text(l.styleUseExistingPrompt),
+            tilePadding: EdgeInsets.zero,
+            children: [
+              DropdownButtonFormField<String>(
+                key: const ValueKey('style_existing_prompt'),
+                isExpanded: true,
+                hint: Text(l.styleUseExistingPrompt),
+                items: [
+                  for (final t in widget.prompts.templates)
+                    DropdownMenuItem(
+                      value: t.id,
+                      child: Text(t.name, overflow: TextOverflow.ellipsis),
+                    ),
+                ],
+                onChanged: editable
+                    ? (id) {
+                        final template = widget.prompts.templates.firstWhere(
+                          (t) => t.id == id,
+                        );
+                        _instructionsController.text = template.content;
+                      }
+                    : null,
+              ),
+            ],
+          ),
+        ExpansionTile(
+          key: const ValueKey('style_advanced_settings'),
+          title: Text(l.styleModelAndThinking),
+          subtitle: Text(model?.name ?? l.styleSelectModel),
+          initiallyExpanded: model == null,
+          tilePadding: EdgeInsets.zero,
+          children: [
+            SizedBox(
+              height: 200,
+              child: _ModelList(
+                models: models,
+                selectedId: _modelId,
+                enabled: editable,
+                onSelect: (id) => setState(() {
+                  _modelId = id;
+                  final selected = models.firstWhere((m) => m.id == id);
+                  final supported = selected.supportedThinkingLevels;
+                  if (_thinking != null && !supported.contains(_thinking)) {
+                    _thinking =
+                        selected.defaultThinkingLevel ?? supported.firstOrNull;
+                  }
+                }),
+              ),
+            ),
+            const SizedBox(height: 12),
+            _ThinkingControl(
+              value: _thinking,
+              enabled: editable && model?.supportsThinking == true,
+              supported: model?.supportsThinking == true,
+              supportedLevels: model?.supportedThinkingLevels ?? const [],
+              onChanged: (v) => setState(() => _thinking = v),
+            ),
+          ],
+        ),
+        CheckboxListTile(
+          value: _isDefault,
+          onChanged: editable
+              ? (v) => setState(() => _isDefault = v ?? false)
+              : null,
+          contentPadding: EdgeInsets.zero,
+          controlAffinity: ListTileControlAffinity.leading,
+          title: Text(l.titleUseForNewChats),
+          dense: true,
+        ),
+        if (_error != null)
+          Text(
+            _error!,
+            key: const ValueKey('style_save_error'),
+            style: TextStyle(color: Theme.of(context).colorScheme.error),
+          ),
+      ],
+    );
     return PopScope(
       canPop: !_saving,
-      child: AlertDialog(
-        title: Text(widget.existing == null ? l.styleNew : l.titleEditStyle),
-        scrollable: true,
-        content: SizedBox(
-          width: 480,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              TextField(
-                key: const ValueKey('style_name_field'),
-                controller: _nameController,
-                enabled: editable,
-                autofocus: true,
-                maxLength: 100,
-                textInputAction: TextInputAction.next,
-                onChanged: (_) => setState(() {}),
-                decoration: InputDecoration(
-                  labelText: l.labelName,
-                  hintText: l.hintDeepWorkQuickAnswers,
+      child: isNarrow
+          ? Scaffold(
+              key: const ValueKey('style_editor_page'),
+              appBar: AppBar(
+                leading: IconButton(
+                  key: const ValueKey('style_editor_back'),
+                  tooltip: _saved == null ? l.cancel : l.labelClose,
+                  icon: const BackButtonIcon(),
+                  onPressed: _saving ? null : close,
                 ),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                key: const ValueKey('style_instructions_field'),
-                controller: _instructionsController,
-                enabled: editable,
-                minLines: 4,
-                maxLines: 8,
-                decoration: InputDecoration(
-                  labelText: l.styleInstructions,
-                  hintText: l.styleInstructionsHint,
-                  alignLabelWithHint: true,
-                ),
-              ),
-              StyleInstructionsAssistant(
-                controller: _instructionsController,
-                prompts: widget.prompts,
-                modelId: model?.id,
-                enabled: !_saving && _saved == null,
-                onPendingChanged: (pending) =>
-                    setState(() => _aiPending = pending),
-              ),
-              if (widget.prompts.templates.isNotEmpty)
-                ExpansionTile(
-                  title: Text(l.styleUseExistingPrompt),
-                  tilePadding: EdgeInsets.zero,
-                  children: [
-                    DropdownButtonFormField<String>(
-                      key: const ValueKey('style_existing_prompt'),
-                      isExpanded: true,
-                      hint: Text(l.styleUseExistingPrompt),
-                      items: [
-                        for (final t in widget.prompts.templates)
-                          DropdownMenuItem(
-                            value: t.id,
-                            child: Text(
-                              t.name,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                      ],
-                      onChanged: editable
-                          ? (id) {
-                              final template = widget.prompts.templates
-                                  .firstWhere((t) => t.id == id);
-                              _instructionsController.text = template.content;
-                            }
-                          : null,
-                    ),
-                  ],
-                ),
-              ExpansionTile(
-                key: const ValueKey('style_advanced_settings'),
-                title: Text(l.styleModelAndThinking),
-                subtitle: Text(model?.name ?? l.styleSelectModel),
-                initiallyExpanded: model == null,
-                tilePadding: EdgeInsets.zero,
-                children: [
-                  SizedBox(
-                    height: 200,
-                    child: _ModelList(
-                      models: models,
-                      selectedId: _modelId,
-                      enabled: editable,
-                      onSelect: (id) => setState(() {
-                        _modelId = id;
-                        final selected = models.firstWhere((m) => m.id == id);
-                        final supported = selected.supportedThinkingLevels;
-                        if (_thinking != null &&
-                            !supported.contains(_thinking)) {
-                          _thinking =
-                              selected.defaultThinkingLevel ??
-                              supported.firstOrNull;
-                        }
-                      }),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  _ThinkingControl(
-                    value: _thinking,
-                    enabled: editable && model?.supportsThinking == true,
-                    supported: model?.supportsThinking == true,
-                    supportedLevels: model?.supportedThinkingLevels ?? const [],
-                    onChanged: (v) => setState(() => _thinking = v),
+                title: Text(title),
+                actions: [
+                  Padding(
+                    padding: const EdgeInsets.only(right: 16),
+                    child: saveButton,
                   ),
                 ],
               ),
-              CheckboxListTile(
-                value: _isDefault,
-                onChanged: editable
-                    ? (v) => setState(() => _isDefault = v ?? false)
-                    : null,
-                contentPadding: EdgeInsets.zero,
-                controlAffinity: ListTileControlAffinity.leading,
-                title: Text(l.titleUseForNewChats),
-                dense: true,
-              ),
-              if (_error != null)
-                Text(
-                  _error!,
-                  key: const ValueKey('style_save_error'),
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+              body: SafeArea(
+                top: false,
+                child: SingleChildScrollView(
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
+                  padding: const EdgeInsets.all(16),
+                  child: content,
                 ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: _saving
-                ? null
-                : () => Navigator.of(context).pop(_saved != null),
-            child: Text(_saved == null ? l.cancel : l.labelClose),
-          ),
-          FilledButton(
-            key: const ValueKey('save_style_confirm'),
-            onPressed:
-                _saving ||
-                    _aiPending ||
-                    _nameController.text.trim().isEmpty ||
-                    model == null
-                ? null
-                : _submit,
-            child: _saving
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : Text(_saved == null ? l.save : l.retry),
-          ),
-        ],
-      ),
+              ),
+            )
+          : AlertDialog(
+              title: Text(title),
+              scrollable: true,
+              content: SizedBox(width: 480, child: content),
+              actions: [
+                TextButton(
+                  onPressed: _saving ? null : close,
+                  child: Text(_saved == null ? l.cancel : l.labelClose),
+                ),
+                saveButton,
+              ],
+            ),
     );
   }
 }

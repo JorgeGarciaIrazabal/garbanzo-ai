@@ -19,11 +19,13 @@ Built-in styles surface in the app's current language (English or Spanish).
 A style whose model isn't installed shows a warning; install or enable its
 model before applying it.
 
+On phones, the picker opens as a nearly full-height sheet. Its header and
+**New style** button stay visible while you scroll through the styles.
+
 ## How do I change the model?
 Tap the style pill in the chat app bar to open the style picker, switch to
-the **Customize** section, and pick a model from the list. You can search by
-name and filter by capability (vision / tools / thinking) using the chips
-above the list; the same icons appear as badges on each model row.
+the **Customize** section, and pick a model from the list. Capability badges
+on each model row show support for vision, tools, and thinking.
 
 ## How do I control how long the model "thinks"?
 In the style picker's Customize section, set the thinking level: Auto, Off,
@@ -44,6 +46,10 @@ Open the style picker, choose **Styles → New style**, enter a name, and write
 how you want the assistant to respond in **Instructions**. Press **Save** once.
 There is no need to create or name a separate prompt template. Instructions
 are optional; leave them empty for a style with only model/thinking settings.
+
+On phones, creating or editing a style opens a full-screen form. Tap a field
+to start typing; the keyboard stays closed until then. **Save** stays in the
+top bar while you scroll or type, and the back arrow discards an unsaved draft.
 
 The form starts from the current chat's settings. Expand **Model and thinking**
 to change them, or **Start from an existing prompt** to reuse instructions.
@@ -79,8 +85,9 @@ another new topic resets it to Medium again.
 ## How do I edit a style?
 Open your style card's menu and choose **Edit…**. The same form opens with
 its name, instructions, model, thinking level and default setting. Edit and
-press **Save**, or **Cancel** to discard the draft. Changing instructions here
-does not change the original prompt template or other styles using it.
+press **Save**, or go back (**Cancel** on desktop) to discard the draft.
+Changing instructions here does not change the original prompt template or
+other styles using it.
 If saving fails, the draft stays open so you can retry.
 
 To make your own version of a built-in style, apply it, then choose **New style**.
@@ -93,5 +100,4 @@ only — no conversations are affected. Built-ins can't be deleted.
 - Eye: supports images (vision)
 - Wrench: supports tools
 - Brain: supports thinking
-A faded badge under an active capability filter means the capability is
-unknown for that model (it may still work).
+A faded badge means the capability is unknown for that model (it may still work).

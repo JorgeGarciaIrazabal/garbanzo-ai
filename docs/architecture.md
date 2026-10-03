@@ -602,6 +602,12 @@ Main providers per `ChatPage` tree:
 for name and instructions, with model/thinking settings collapsed. Customize's
 **Save style** opens that form seeded from the live conversation (including an
 inline prompt with no saved template). Draft changes do not touch the chat.
+On narrow screens, the picker is a full-width sheet using nearly all safe
+height, with a fixed header and creation action around its scrolling content.
+Its editor uses a fullscreen route with Back and Save in the app bar and no
+automatic field focus. Both keep their mobile presentation after rotation;
+the sheet's width follows the available screen. Wide screens use the anchored
+popover and an editor dialog, sharing the same draft and save logic.
 `StyleInstructionsAssistant` provides inline generation/refinement through the
 existing `/system-prompts/generate` stream using the selected model. It holds
 suggestions separately until explicitly accepted; incomplete/error streams and
