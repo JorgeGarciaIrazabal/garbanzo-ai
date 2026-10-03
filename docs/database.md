@@ -1,5 +1,26 @@
 # Database Reference
 
+## Persistent virtual folders
+
+Migration `050_virtual_folders.sql` adds `VirtualFolder` (owner is `users.email`),
+`VirtualFile` and `ConversationFolder`. Files store original bytes in PostgreSQL
+BYTEA, deferred in metadata queries and included in normal database backups.
+`(folder_id,path)` is unique; relative paths are canonical and portable, with
+traversal, control characters and file/directory prefix collisions rejected.
+`sha256` hashes the current bytes; `revision` starts at 1 and increments on text
+edits. Both edits and file deletion require the revision read by the caller;
+stale requests fail with 409. Text extraction never changes stored bytes.
+
+The service locks the user, then folder, then conversation as applicable so
+concurrent writes cannot evade user/folder quotas or overwrite stale revisions.
+Locks use PostgreSQL `FOR NO KEY UPDATE`: the IDs never change, and chat ingestion
+can already hold foreign-key `KEY SHARE` locks on the same owner/conversation.
+Limits are 10 MiB/file, 100 MiB and 500 files/folder, 500 MiB and 100 folders/user,
+and 20 folder links/conversation. `ConversationFolder` links are independent of
+file ownership: detaching or deleting a chat retains the folder and its files.
+Deleting a folder cascades to its files and chat links; deleting its user also
+cascades. A folder can be linked to multiple conversations of the same owner.
+
 PostgreSQL with the `pgvector` extension (embeddings). ORM models live in
 `backend/app/models/`. Keep this file current: new models or columns with
 non-obvious semantics get a bullet here in the same commit.

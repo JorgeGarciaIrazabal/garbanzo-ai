@@ -6230,6 +6230,192 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'AI can improve up to 8,000 characters. Shorten the instructions to continue.'**
   String get styleAiTooLong;
+
+  /// Virtual folders: foldersTitle
+  ///
+  /// In en, this message translates to:
+  /// **'Folders'**
+  String get foldersTitle;
+
+  /// Virtual folders: foldersSubtitle
+  ///
+  /// In en, this message translates to:
+  /// **'Persistent files you and the assistant can work with'**
+  String get foldersSubtitle;
+
+  /// Virtual folders: foldersCreate
+  ///
+  /// In en, this message translates to:
+  /// **'New folder'**
+  String get foldersCreate;
+
+  /// Virtual folders: foldersName
+  ///
+  /// In en, this message translates to:
+  /// **'Folder name'**
+  String get foldersName;
+
+  /// Virtual folders: foldersRename
+  ///
+  /// In en, this message translates to:
+  /// **'Rename'**
+  String get foldersRename;
+
+  /// Virtual folders: foldersDeleteConfirm
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this folder and all its files? This cannot be undone.'**
+  String get foldersDeleteConfirm;
+
+  /// Virtual folders: foldersFileDeleteConfirm
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this file? This cannot be undone.'**
+  String get foldersFileDeleteConfirm;
+
+  /// Virtual folders: foldersEmpty
+  ///
+  /// In en, this message translates to:
+  /// **'No folders yet. Create one to add files.'**
+  String get foldersEmpty;
+
+  /// Virtual folders: foldersAll
+  ///
+  /// In en, this message translates to:
+  /// **'All folders'**
+  String get foldersAll;
+
+  /// Virtual folders: foldersFilesEmpty
+  ///
+  /// In en, this message translates to:
+  /// **'No files in this folder'**
+  String get foldersFilesEmpty;
+
+  /// Virtual folders: foldersUpload
+  ///
+  /// In en, this message translates to:
+  /// **'Upload files'**
+  String get foldersUpload;
+
+  /// Virtual folders: foldersNewText
+  ///
+  /// In en, this message translates to:
+  /// **'New text file'**
+  String get foldersNewText;
+
+  /// Virtual folders: foldersPath
+  ///
+  /// In en, this message translates to:
+  /// **'File path (for example notes/todo.md)'**
+  String get foldersPath;
+
+  /// Virtual folders: foldersContent
+  ///
+  /// In en, this message translates to:
+  /// **'Content'**
+  String get foldersContent;
+
+  /// Virtual folders: foldersDownload
+  ///
+  /// In en, this message translates to:
+  /// **'Download'**
+  String get foldersDownload;
+
+  /// Virtual folders: foldersDownloadZip
+  ///
+  /// In en, this message translates to:
+  /// **'Download folder ZIP'**
+  String get foldersDownloadZip;
+
+  /// Virtual folders: foldersPreview
+  ///
+  /// In en, this message translates to:
+  /// **'Read / edit'**
+  String get foldersPreview;
+
+  /// Virtual folders: foldersRefresh
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh'**
+  String get foldersRefresh;
+
+  /// Virtual folders: foldersLimits
+  ///
+  /// In en, this message translates to:
+  /// **'Up to 10 MiB per file, 100 MiB and 500 files per folder.'**
+  String get foldersLimits;
+
+  /// Virtual folders: foldersLimitExceeded
+  ///
+  /// In en, this message translates to:
+  /// **'Upload exceeds the folder limit: 10 MiB per file, 100 MiB or 500 files per folder.'**
+  String get foldersLimitExceeded;
+
+  /// Virtual folders: foldersBytesUnavailable
+  ///
+  /// In en, this message translates to:
+  /// **'Selected file could not be read. Try selecting it again.'**
+  String get foldersBytesUnavailable;
+
+  /// Virtual folders: foldersAttach
+  ///
+  /// In en, this message translates to:
+  /// **'Attach folder'**
+  String get foldersAttach;
+
+  /// Virtual folders: foldersDetach
+  ///
+  /// In en, this message translates to:
+  /// **'Detach folder'**
+  String get foldersDetach;
+
+  /// Virtual folders: foldersOpen
+  ///
+  /// In en, this message translates to:
+  /// **'Open folders'**
+  String get foldersOpen;
+
+  /// Virtual folders: foldersAttachEmpty
+  ///
+  /// In en, this message translates to:
+  /// **'Create a folder in Folders, then attach it here.'**
+  String get foldersAttachEmpty;
+
+  /// Virtual folders: foldersLoadMore
+  ///
+  /// In en, this message translates to:
+  /// **'Read more'**
+  String get foldersLoadMore;
+
+  /// Virtual folders: foldersReadOnly
+  ///
+  /// In en, this message translates to:
+  /// **'Extracted preview. Download the original file to edit it.'**
+  String get foldersReadOnly;
+
+  /// Virtual folders: foldersConflict
+  ///
+  /// In en, this message translates to:
+  /// **'This file changed since you opened it. Close and reopen it before saving again.'**
+  String get foldersConflict;
+
+  /// Virtual folders: foldersSaved
+  ///
+  /// In en, this message translates to:
+  /// **'Saved'**
+  String get foldersSaved;
+
+  /// Virtual folders: foldersError
+  ///
+  /// In en, this message translates to:
+  /// **'Folder operation failed: {detail}'**
+  String foldersError(String detail);
+
+  /// Virtual folders: foldersRevision
+  ///
+  /// In en, this message translates to:
+  /// **'Revision {revision} · {size} bytes'**
+  String foldersRevision(int revision, int size);
 }
 
 class _AppLocalizationsDelegate

@@ -68,7 +68,8 @@ def test_nudge_names_the_attached_folder():
 def test_tool_description_covers_research_and_folder_writes():
     description = _DELEGATE_WORKFLOW_DESCRIPTOR["function"]["description"]
     assert "deep research" in description
-    assert "ONLY way to create, edit, or delete" in description
+    assert "create, edit, or delete files in a live desktop folder" in description
+    assert "virtual_folders instead" in description
     assert "single new file" in description  # not just big refactors
 
 

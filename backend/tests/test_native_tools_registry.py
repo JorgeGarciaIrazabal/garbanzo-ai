@@ -69,4 +69,5 @@ def test_proposal_tools_advertise_as_proposals():
         APP_HELP_TOOL,
         "submit_report",
         WORKFLOW_OUTPUTS_TOOL,
+        "virtual_folders",
     }

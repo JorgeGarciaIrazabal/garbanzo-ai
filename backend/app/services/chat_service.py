@@ -7,8 +7,9 @@ import logging
 import uuid
 from collections.abc import AsyncIterator
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, inspect, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm.attributes import set_committed_value
 
 from app.core.config import get_settings
 from app.models.conversation import Conversation
@@ -74,6 +75,8 @@ from app.services.native_tools import (
 )
 from app.services.system_prompt_service import SystemPromptService
 from app.services.token_counter import get_token_counter
+from app.services.virtual_folder_service import VirtualFolderService
+from app.services.virtual_folder_tools import VIRTUAL_FOLDERS_NUDGE, VIRTUAL_FOLDERS_TOOL
 from app.services.workflow_outputs import WORKFLOW_OUTPUTS_NUDGE
 from app.topics.generation_state import active_streams
 from app.topics.topic_context_compiler import TopicContextCompiler
@@ -559,6 +562,13 @@ class ChatService:
         dynamic_context = _build_dynamic_context(
             user, tool_lookup, has_client_folder, client_folder_label, talk_mode_instruction
         )
+        if VIRTUAL_FOLDERS_TOOL in tool_lookup:
+            dynamic_context += "\n\n" + VIRTUAL_FOLDERS_NUDGE
+            manifest = await VirtualFolderService(self.db).context_manifest(
+                conversation.id, conversation.user_id
+            )
+            if manifest:
+                dynamic_context += "\n\n" + manifest
         (
             compiled_context,
             history_for_prompt,
@@ -808,7 +818,9 @@ class ChatService:
 
         target = lookup.get(name)
         if target is None and ":" in name:
-            target = split_tool_key(name)
+            legacy_target = split_tool_key(name)
+            if legacy_target in lookup.values():
+                target = legacy_target
         if target is None:
             return {"ok": False, "error": f"Unknown tool: {name}"}
 
@@ -882,12 +894,28 @@ class ChatService:
         user_email = getattr(conversation, "user_id", None)
         if not user_email:
             return {"ok": False, "error": "No user for this tool."}
+        if name == VIRTUAL_FOLDERS_TOOL:
+            args = {**args, "_conversation_id": conversation.id}
+        captured_context = (
+            {
+                "session_epoch": conversation.session_epoch,
+                "active_topic_id": conversation.active_topic_id,
+            }
+            if isinstance(conversation, Conversation)
+            else {}
+        )
+        if name == VIRTUAL_FOLDERS_TOOL:
+            # Folder storage has its own durable commits. Preserve the already
+            # flushed tool-call announcement if a later storage write rolls back.
+            await self.db.commit()
         result = await execute_native_tool(
             name=name,
             args=args,
             db=self.db,
             user_id=user_email,
         )
+        if captured_context and inspect(conversation).expired:
+            await self._restore_after_tool_rollback(conversation, captured_context)
         # Eagerly commit writes so they survive a turn rollback/cancel.
         if result.get("ok"):
             try:
@@ -895,7 +923,20 @@ class ChatService:
             except Exception:
                 logger.exception("Commit after native tool '%s' failed", name)
                 await self.db.rollback()
+                if captured_context:
+                    await self._restore_after_tool_rollback(conversation, captured_context)
+                return {
+                    "ok": False,
+                    "error": "The tool's database commit failed. Changes were not saved.",
+                }
         return result
+
+    async def _restore_after_tool_rollback(self, conversation, captured_context: dict) -> None:
+        """Rehydrate expired ORM state without moving a detached turn into a new epoch."""
+        await self.db.refresh(conversation)
+        await self.db.refresh(conversation, attribute_names=["messages"])
+        for key, value in captured_context.items():
+            set_committed_value(conversation, key, value)
 
     async def _execute_client_folder_tool(
         self,

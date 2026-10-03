@@ -57,3 +57,9 @@ complete reports and generated files. It works without an attached folder and
 follows the conversation's tool selection. Ask about an earlier run or a file
 by name; chat retrieves the saved content. Unsupported binary files remain
 downloadable, and missing or failed outputs produce an explicit error.
+
+## Can the assistant use my saved folders?
+The native **virtual_folders** tool finds and attaches your private saved folders
+to this chat, reads documents, creates or edits text files, and provides file or
+ZIP download buttons. Allow it in this conversation's tool settings. See the
+Virtual folders guide for uploads, file management and limits.

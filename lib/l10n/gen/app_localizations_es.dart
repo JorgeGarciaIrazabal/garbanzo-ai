@@ -3600,4 +3600,111 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get styleAiTooLong =>
       'La IA puede mejorar hasta 8000 caracteres. Acorta las instrucciones para continuar.';
+
+  @override
+  String get foldersTitle => 'Carpetas';
+
+  @override
+  String get foldersSubtitle =>
+      'Archivos persistentes para trabajar con el asistente';
+
+  @override
+  String get foldersCreate => 'Nueva carpeta';
+
+  @override
+  String get foldersName => 'Nombre de carpeta';
+
+  @override
+  String get foldersRename => 'Renombrar';
+
+  @override
+  String get foldersDeleteConfirm =>
+      '¿Eliminar esta carpeta y todos sus archivos? No se puede deshacer.';
+
+  @override
+  String get foldersFileDeleteConfirm =>
+      '¿Eliminar este archivo? No se puede deshacer.';
+
+  @override
+  String get foldersEmpty =>
+      'Aún no hay carpetas. Crea una para añadir archivos.';
+
+  @override
+  String get foldersAll => 'Todas las carpetas';
+
+  @override
+  String get foldersFilesEmpty => 'No hay archivos en esta carpeta';
+
+  @override
+  String get foldersUpload => 'Subir archivos';
+
+  @override
+  String get foldersNewText => 'Nuevo archivo de texto';
+
+  @override
+  String get foldersPath => 'Ruta del archivo (por ejemplo notas/tareas.md)';
+
+  @override
+  String get foldersContent => 'Contenido';
+
+  @override
+  String get foldersDownload => 'Descargar';
+
+  @override
+  String get foldersDownloadZip => 'Descargar ZIP de la carpeta';
+
+  @override
+  String get foldersPreview => 'Leer / editar';
+
+  @override
+  String get foldersRefresh => 'Actualizar';
+
+  @override
+  String get foldersLimits =>
+      'Hasta 10 MiB por archivo, 100 MiB y 500 archivos por carpeta.';
+
+  @override
+  String get foldersLimitExceeded =>
+      'La carga supera el límite: 10 MiB por archivo, 100 MiB o 500 archivos por carpeta.';
+
+  @override
+  String get foldersBytesUnavailable =>
+      'No se pudo leer el archivo seleccionado. Vuelve a seleccionarlo.';
+
+  @override
+  String get foldersAttach => 'Adjuntar carpeta';
+
+  @override
+  String get foldersDetach => 'Desvincular carpeta';
+
+  @override
+  String get foldersOpen => 'Abrir carpetas';
+
+  @override
+  String get foldersAttachEmpty =>
+      'Crea una carpeta en Carpetas y adjúntala aquí.';
+
+  @override
+  String get foldersLoadMore => 'Leer más';
+
+  @override
+  String get foldersReadOnly =>
+      'Vista del texto extraído. Descarga el archivo original para editarlo.';
+
+  @override
+  String get foldersConflict =>
+      'Este archivo cambió desde que lo abriste. Ciérralo y vuelve a abrirlo antes de guardar.';
+
+  @override
+  String get foldersSaved => 'Guardado';
+
+  @override
+  String foldersError(String detail) {
+    return 'No se pudo completar la operación: $detail';
+  }
+
+  @override
+  String foldersRevision(int revision, int size) {
+    return 'Revisión $revision · $size bytes';
+  }
 }

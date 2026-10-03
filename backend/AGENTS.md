@@ -55,6 +55,11 @@ EXISTS`. Applied once each at startup (`db/migrations.py`), tracked in
 - Chat SSE turns follow the same lifetime rule through `DetachedChatStream`:
   the model producer owns a fresh DB session and feeds the HTTP response via a
   queue, so cancelling the response consumer must never cancel generation.
+  `ConversationTurnSink` captures the originating epoch once. Topic ingestion
+  refreshes conversation state after each persisted message, so reading the
+  conversation's live epoch for later tool/assistant messages can put a detached
+  turn into a newer session. Native folder tools commit their announcement before
+  storage mutations and rehydrate conversation state after a database rollback.
 - Spawning opencode? Use `opencode_process.py` (setsid + `PR_SET_PDEATHSIG`,
   port picking, readiness probe) and `opencode_config.py` — shared by micro-apps
   and workflows, so the child-never-outlives-us guarantee holds in one place.

@@ -24,6 +24,11 @@ from app.services.memory_service import MemoryService
 from app.services.notification_service import NotificationService
 from app.services.report_service import ReportService
 from app.services.scheduled_action_service import ScheduledActionService
+from app.services.virtual_folder_tools import (
+    VIRTUAL_FOLDERS_DESCRIPTOR,
+    VIRTUAL_FOLDERS_TOOL,
+    execute_virtual_folders,
+)
 from app.services.workflow_outputs import WORKFLOW_OUTPUTS_DESCRIPTOR, execute_workflow_outputs
 
 logger = logging.getLogger(__name__)
@@ -47,6 +52,7 @@ DELEGATE_WORKFLOW_TOOL = "delegate_workflow"
 WORKFLOW_OUTPUTS_TOOL = "workflow_outputs"
 
 ALL_NATIVE_TOOLS = (
+    VIRTUAL_FOLDERS_TOOL,
     SCHEDULED_ACTION_TOOL,
     MEMORY_TOOL,
     NOTIFICATION_TOOL,
@@ -1126,7 +1132,7 @@ _DELEGATE_WORKFLOW_DESCRIPTOR: dict[str, Any] = {
             "for several minutes. Without an attached folder, use it for deep "
             "research, multi-source investigations, and broad comparisons; "
             "the result is a markdown report. With an attached folder, this "
-            "is also the ONLY way to create, edit, or delete the user's files — use it for any "
+            "is also the way to create, edit, or delete files in a live desktop folder — use it for any "
             "write, from a single new file to a large multi-step task: "
             "'create a summary README', "
             "'refactor this module', 'add tests for the whole package', "
@@ -1136,6 +1142,7 @@ _DELEGATE_WORKFLOW_DESCRIPTOR: dict[str, Any] = {
             "immediately — no confirmation is asked. Folder runs work on an "
             "uploaded copy and auto-apply the resulting changes. Research runs "
             "start in an empty server-side workspace. "
+            "For persistent virtual folders, use virtual_folders instead. "
             "Write the instruction as a complete, self-contained brief — the "
             "agent cannot see this conversation."
         ),
@@ -1205,6 +1212,7 @@ def folder_tool_descriptors() -> list[dict[str, Any]]:
 # ---------------------------------------------------------------------------
 
 _NATIVE_TOOL_REGISTRY: dict[str, tuple[dict[str, Any], Any]] = {
+    VIRTUAL_FOLDERS_TOOL: (VIRTUAL_FOLDERS_DESCRIPTOR, execute_virtual_folders),
     SCHEDULED_ACTION_TOOL: (_SCHEDULED_ACTIONS_DESCRIPTOR, _execute_scheduled_actions),
     MEMORY_TOOL: (_MEMORY_TOOL_DESCRIPTOR, _execute_memories),
     NOTIFICATION_TOOL: (_NOTIFICATION_TOOL_DESCRIPTOR, _execute_notifications),

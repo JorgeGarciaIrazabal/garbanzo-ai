@@ -130,6 +130,79 @@ def _compose(root: Path, project: str, env: dict[str, str], *args: str) -> str:
     return result.stdout
 
 
+async def _virtual_folder_concurrency_smoke(engine: Any) -> dict[str, bool]:
+    """Verify file revisions and folder quotas under real PostgreSQL row locks."""
+    from app.services import virtual_folder_service as folder_module
+    from app.services.virtual_folder_service import FolderError, VirtualFolderService
+    from app.topics.models import TopicIngestionEvent
+
+    owner = "topic-smoke@example.com"
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    async with sessions() as session:
+        service = VirtualFolderService(session)
+        folder = await service.create_folder(owner, "Revision smoke")
+        file = await service.create_text(folder.id, owner, "notes.txt", "base")
+        folder_id, file_id = folder.id, file.id
+
+    arrived = 0
+    ready = asyncio.Event()
+
+    async def edit(content: str):
+        nonlocal arrived
+        async with sessions() as session:
+            # Real chat ingestion takes FK KEY SHARE locks before tool execution.
+            session.add(
+                TopicIngestionEvent(
+                    user_id=owner,
+                    operation="create",
+                    source_type="message",
+                    source_id=f"folder-edit-{content}",
+                    source_version="smoke",
+                    payload={},
+                )
+            )
+            await session.flush()
+            arrived += 1
+            if arrived == 2:
+                ready.set()
+            await ready.wait()
+            try:
+                await VirtualFolderService(session).update_text(
+                    folder_id, file_id, owner, content, 1
+                )
+                return "saved"
+            except FolderError as exc:
+                return exc.status_code
+
+    edits = await asyncio.wait_for(asyncio.gather(edit("one"), edit("two")), timeout=20)
+    if sorted(str(result) for result in edits) != ["409", "saved"]:
+        raise RuntimeError(f"Virtual file revision serialization failed: {edits}")
+
+    async with sessions() as session:
+        folder = await VirtualFolderService(session).create_folder(owner, "Quota smoke")
+        quota_folder_id = folder.id
+
+    async def upload(path: str):
+        async with sessions() as session:
+            try:
+                await VirtualFolderService(session).create_file(
+                    quota_folder_id, owner, path, b"1234"
+                )
+                return "saved"
+            except FolderError as exc:
+                return exc.status_code
+
+    old_limit = folder_module.MAX_FOLDER_BYTES
+    try:
+        folder_module.MAX_FOLDER_BYTES = 6
+        uploads = await asyncio.gather(upload("one.txt"), upload("two.txt"))
+    finally:
+        folder_module.MAX_FOLDER_BYTES = old_limit
+    if sorted(str(result) for result in uploads) != ["413", "saved"]:
+        raise RuntimeError(f"Virtual folder quota serialization failed: {uploads}")
+    return {"serialized_file_revisions": True, "serialized_folder_quotas": True}
+
+
 async def run_database_smoke(
     database_url: str, migrations_dir: Path, expected: list[str]
 ) -> dict[str, Any]:
@@ -143,6 +216,10 @@ async def run_database_smoke(
         async with engine.begin() as connection:
             await connection.exec_driver_sql("CREATE EXTENSION IF NOT EXISTS vector")
             await connection.run_sync(Base.metadata.create_all)
+            # Exercise migration 050's CREATE path in this disposable database.
+            await connection.exec_driver_sql(
+                "DROP TABLE conversation_folders, virtual_files, virtual_folders"
+            )
         original = migrations.MIGRATIONS_DIR
         migrations.MIGRATIONS_DIR = migrations_dir
         try:
@@ -209,6 +286,7 @@ async def run_database_smoke(
             finally:
                 await connection.close()
             concurrency = await _topic_switch_concurrency_smoke(engine)
+            folder_concurrency = await _virtual_folder_concurrency_smoke(engine)
             await migrations.run_migrations(database_url)
             connection = await asyncpg.connect(dsn)
             try:
@@ -239,6 +317,7 @@ async def run_database_smoke(
         "pgvector": True,
         "hybrid_query": True,
         **concurrency,
+        **folder_concurrency,
     }
 
 
@@ -269,7 +348,9 @@ def main() -> int:
         f"idempotent={result['idempotent']}, pgvector={result['pgvector']}, "
         f"hybrid_query={result['hybrid_query']}, "
         f"serialized_switches={result['serialized_switches']}, "
-        f"stream_epoch_isolated={result['stream_epoch_isolated']}"
+        f"stream_epoch_isolated={result['stream_epoch_isolated']}, "
+        f"serialized_file_revisions={result['serialized_file_revisions']}, "
+        f"serialized_folder_quotas={result['serialized_folder_quotas']}"
     )
     return 0
 

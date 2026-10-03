@@ -1,10 +1,38 @@
 # Architecture Reference
 
 On-demand reference — read the section you need, not the whole file. For
-package-local conventions see `backend/CLAUDE.md`, `lib/CLAUDE.md`,
-`deploy/CLAUDE.md`. Keep this file current: update the matching section when you
+package-local conventions see `backend/AGENTS.md`, `lib/AGENTS.md`,
+`deploy/AGENTS.md`. Keep this file current: update the matching section when you
 change layouts, flows, or services (see "Maintaining agent docs" in the root
-`CLAUDE.md`).
+`AGENTS.md`).
+
+## Persistent virtual folders
+
+`/folders` is a private file browser available through Settings pages and the
+chat folder control. Flutter uses `features/folders/` services and page-local
+state. Desktop/Android upload picked bytes with authenticated multipart requests;
+downloads fetch bytes through Dio and use the shared `ExportDownloader` (desktop
+Save As, mobile share/save). AI download results store resource IDs, rendered
+as authenticated buttons rather than token-bearing URLs.
+
+`VirtualFolderService` persists folders, original file bytes and reusable chat
+links in PostgreSQL. Ownership is checked for every operation and both sides of
+each chat link. Quotas serialize on user/folder row locks; text updates require
+the previous revision. File metadata does not load blobs. Binary documents are
+read through the existing isolated strict extractor; PDF/Office extraction is
+read-only, while genuine UTF-8 text/source/CSV files support editing.
+
+The native `virtual_folders` tool discovers folders, attaches them to the current
+chat, lists/reads paginated files, creates/edits text, and returns download
+references. The backend supplies the current chat identity. Each turn includes
+a bounded attached-folder manifest, with file contents loaded only on demand.
+Tool results fit the configured model result budget without losing page cursors.
+Tool-call announcements commit before folder mutations. On storage rollback,
+chat rehydrates ORM state; the turn sink retains the originating epoch so its
+error result and assistant reply stay with the original session.
+Chat attachment chips refresh when generation ends; the browser reloads on open.
+These folders are distinct from live desktop folders served through
+`ClientToolBridge` and `delegate_workflow`.
 
 ## Stack
 

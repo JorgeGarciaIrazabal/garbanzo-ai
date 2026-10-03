@@ -18,15 +18,17 @@ class ConversationTurnSink:
     def __init__(self, db: AsyncSession, conversation):
         self.db = db
         self.conversation = conversation
+        self.conversation_id = conversation.id
+        self.session_epoch = conversation.session_epoch
 
     async def persist_assistant(self, content: str, meta: dict | None) -> None:
         message = Message(
             id=str(uuid.uuid4()),
-            conversation_id=self.conversation.id,
+            conversation_id=self.conversation_id,
             role="assistant",
             content=content,
             meta=meta,
-            session_epoch=self.conversation.session_epoch,
+            session_epoch=self.session_epoch,
             # Keep the in-session relationship collection in sync
             # (raw FK writes don't update conversation.messages),
             # so a later turn on the same session sees this one.
@@ -40,11 +42,11 @@ class ConversationTurnSink:
     async def persist_tool_call(self, tool_calls: list[dict]) -> None:
         message = Message(
             id=str(uuid.uuid4()),
-            conversation_id=self.conversation.id,
+            conversation_id=self.conversation_id,
             role="tool_call",
             content=json.dumps(tool_calls),
             meta={"tool_calls": tool_calls},
-            session_epoch=self.conversation.session_epoch,
+            session_epoch=self.session_epoch,
             conversation=self.conversation,
         )
         self.db.add(message)
@@ -55,11 +57,11 @@ class ConversationTurnSink:
     async def persist_tool_result(self, content: str, meta: dict) -> None:
         message = Message(
             id=str(uuid.uuid4()),
-            conversation_id=self.conversation.id,
+            conversation_id=self.conversation_id,
             role="tool_result",
             content=content,
             meta=meta,
-            session_epoch=self.conversation.session_epoch,
+            session_epoch=self.session_epoch,
             conversation=self.conversation,
         )
         self.db.add(message)

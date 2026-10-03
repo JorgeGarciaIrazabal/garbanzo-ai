@@ -3558,4 +3558,110 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get styleAiTooLong =>
       'AI can improve up to 8,000 characters. Shorten the instructions to continue.';
+
+  @override
+  String get foldersTitle => 'Folders';
+
+  @override
+  String get foldersSubtitle =>
+      'Persistent files you and the assistant can work with';
+
+  @override
+  String get foldersCreate => 'New folder';
+
+  @override
+  String get foldersName => 'Folder name';
+
+  @override
+  String get foldersRename => 'Rename';
+
+  @override
+  String get foldersDeleteConfirm =>
+      'Delete this folder and all its files? This cannot be undone.';
+
+  @override
+  String get foldersFileDeleteConfirm =>
+      'Delete this file? This cannot be undone.';
+
+  @override
+  String get foldersEmpty => 'No folders yet. Create one to add files.';
+
+  @override
+  String get foldersAll => 'All folders';
+
+  @override
+  String get foldersFilesEmpty => 'No files in this folder';
+
+  @override
+  String get foldersUpload => 'Upload files';
+
+  @override
+  String get foldersNewText => 'New text file';
+
+  @override
+  String get foldersPath => 'File path (for example notes/todo.md)';
+
+  @override
+  String get foldersContent => 'Content';
+
+  @override
+  String get foldersDownload => 'Download';
+
+  @override
+  String get foldersDownloadZip => 'Download folder ZIP';
+
+  @override
+  String get foldersPreview => 'Read / edit';
+
+  @override
+  String get foldersRefresh => 'Refresh';
+
+  @override
+  String get foldersLimits =>
+      'Up to 10 MiB per file, 100 MiB and 500 files per folder.';
+
+  @override
+  String get foldersLimitExceeded =>
+      'Upload exceeds the folder limit: 10 MiB per file, 100 MiB or 500 files per folder.';
+
+  @override
+  String get foldersBytesUnavailable =>
+      'Selected file could not be read. Try selecting it again.';
+
+  @override
+  String get foldersAttach => 'Attach folder';
+
+  @override
+  String get foldersDetach => 'Detach folder';
+
+  @override
+  String get foldersOpen => 'Open folders';
+
+  @override
+  String get foldersAttachEmpty =>
+      'Create a folder in Folders, then attach it here.';
+
+  @override
+  String get foldersLoadMore => 'Read more';
+
+  @override
+  String get foldersReadOnly =>
+      'Extracted preview. Download the original file to edit it.';
+
+  @override
+  String get foldersConflict =>
+      'This file changed since you opened it. Close and reopen it before saving again.';
+
+  @override
+  String get foldersSaved => 'Saved';
+
+  @override
+  String foldersError(String detail) {
+    return 'Folder operation failed: $detail';
+  }
+
+  @override
+  String foldersRevision(int revision, int size) {
+    return 'Revision $revision · $size bytes';
+  }
 }

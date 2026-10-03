@@ -5,6 +5,7 @@ from app.api.v1.endpoints import (
     auth,
     chat,
     devices,
+    folders,
     friends,
     health,
     knowledge_base,
@@ -36,6 +37,7 @@ api_router.include_router(chat.router, prefix="/chat", tags=["chat"])
 api_router.include_router(topics.router, prefix="/chat", tags=["topics", "context"])
 api_router.include_router(devices.router, prefix="/devices", tags=["devices"])
 api_router.include_router(friends.router, prefix="/friends", tags=["friends"])
+api_router.include_router(folders.router, prefix="/folders", tags=["folders"])
 api_router.include_router(shares.router, prefix="/shares", tags=["shares"])
 api_router.include_router(health.router, prefix="", tags=["health"])
 api_router.include_router(knowledge_base.router, prefix="/kb", tags=["knowledge-base"])

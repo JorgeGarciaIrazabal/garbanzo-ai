@@ -14,6 +14,7 @@ from app.models.shared_item import SharedItem
 from app.models.style import Style
 from app.models.system_prompt import SystemPromptTemplate
 from app.models.user import User
+from app.models.virtual_folder import ConversationFolder, VirtualFile, VirtualFolder
 from app.models.workflow_artifact import WorkflowArtifact
 from app.models.workflow_run import WorkflowRun
 from app.topics.models import (
@@ -33,6 +34,9 @@ from app.topics.models import (
 )
 
 __all__ = [
+    "VirtualFolder",
+    "VirtualFile",
+    "ConversationFolder",
     "User",
     "AvailableModel",
     "Conversation",

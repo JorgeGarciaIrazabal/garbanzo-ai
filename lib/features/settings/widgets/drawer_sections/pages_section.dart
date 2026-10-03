@@ -43,6 +43,13 @@ class PagesSection extends StatelessWidget {
           onTap: () => _open(context, '/kb'),
         ),
         ListTile(
+          leading: const Icon(Icons.folder_outlined),
+          title: Text(AppLocalizations.of(context)!.foldersTitle),
+          subtitle: Text(AppLocalizations.of(context)!.foldersSubtitle),
+          dense: true,
+          onTap: () => _open(context, '/folders'),
+        ),
+        ListTile(
           leading: const Icon(Icons.auto_awesome),
           title: Text(AppLocalizations.of(context)!.titleSkillsLibrary),
           subtitle: Text(

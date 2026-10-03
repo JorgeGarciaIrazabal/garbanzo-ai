@@ -219,7 +219,10 @@ async def test_capped_pass_drops_stray_tool_calls(db_session, test_user_email):
     ]
     provider = _ScriptedProvider([loop_iter])  # repeats indefinitely
     service = await _make_service(db_session, provider)
-    conv_id = await _new_conversation(db_session, test_user_email, enabled_tools=[])
+    conv_id = await _new_conversation(db_session, test_user_email, enabled_tools=["srv:loop"])
+    service._resolve_tools_for_conversation = AsyncMock(
+        return_value=([], {"loop": ("srv", "loop")})
+    )
 
     executions = []
 
@@ -615,7 +618,10 @@ async def test_tool_result_truncated_to_cap(db_session, test_user_email, monkeyp
         ]
     )
     service = await _make_service(db_session, provider)
-    conv_id = await _new_conversation(db_session, test_user_email, enabled_tools=[])
+    conv_id = await _new_conversation(db_session, test_user_email, enabled_tools=["srv:dump"])
+    service._resolve_tools_for_conversation = AsyncMock(
+        return_value=([], {"dump": ("srv", "dump")})
+    )
 
     async def _fake_call_tool(server_id, tool_name, args):
         return {"ok": True, "content": "x" * 5000}

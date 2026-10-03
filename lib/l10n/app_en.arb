@@ -4389,5 +4389,142 @@
   "styleAiTooLong": "AI can improve up to 8,000 characters. Shorten the instructions to continue.",
   "@styleAiTooLong": {
     "description": "AI assistance in the custom style editor."
+  },
+  "foldersTitle": "Folders",
+  "@foldersTitle": {
+    "description": "Virtual folders: foldersTitle"
+  },
+  "foldersSubtitle": "Persistent files you and the assistant can work with",
+  "@foldersSubtitle": {
+    "description": "Virtual folders: foldersSubtitle"
+  },
+  "foldersCreate": "New folder",
+  "@foldersCreate": {
+    "description": "Virtual folders: foldersCreate"
+  },
+  "foldersName": "Folder name",
+  "@foldersName": {
+    "description": "Virtual folders: foldersName"
+  },
+  "foldersRename": "Rename",
+  "@foldersRename": {
+    "description": "Virtual folders: foldersRename"
+  },
+  "foldersDeleteConfirm": "Delete this folder and all its files? This cannot be undone.",
+  "@foldersDeleteConfirm": {
+    "description": "Virtual folders: foldersDeleteConfirm"
+  },
+  "foldersFileDeleteConfirm": "Delete this file? This cannot be undone.",
+  "@foldersFileDeleteConfirm": {
+    "description": "Virtual folders: foldersFileDeleteConfirm"
+  },
+  "foldersEmpty": "No folders yet. Create one to add files.",
+  "@foldersEmpty": {
+    "description": "Virtual folders: foldersEmpty"
+  },
+  "foldersAll": "All folders",
+  "@foldersAll": {
+    "description": "Virtual folders: foldersAll"
+  },
+  "foldersFilesEmpty": "No files in this folder",
+  "@foldersFilesEmpty": {
+    "description": "Virtual folders: foldersFilesEmpty"
+  },
+  "foldersUpload": "Upload files",
+  "@foldersUpload": {
+    "description": "Virtual folders: foldersUpload"
+  },
+  "foldersNewText": "New text file",
+  "@foldersNewText": {
+    "description": "Virtual folders: foldersNewText"
+  },
+  "foldersPath": "File path (for example notes/todo.md)",
+  "@foldersPath": {
+    "description": "Virtual folders: foldersPath"
+  },
+  "foldersContent": "Content",
+  "@foldersContent": {
+    "description": "Virtual folders: foldersContent"
+  },
+  "foldersDownload": "Download",
+  "@foldersDownload": {
+    "description": "Virtual folders: foldersDownload"
+  },
+  "foldersDownloadZip": "Download folder ZIP",
+  "@foldersDownloadZip": {
+    "description": "Virtual folders: foldersDownloadZip"
+  },
+  "foldersPreview": "Read / edit",
+  "@foldersPreview": {
+    "description": "Virtual folders: foldersPreview"
+  },
+  "foldersRefresh": "Refresh",
+  "@foldersRefresh": {
+    "description": "Virtual folders: foldersRefresh"
+  },
+  "foldersLimits": "Up to 10 MiB per file, 100 MiB and 500 files per folder.",
+  "@foldersLimits": {
+    "description": "Virtual folders: foldersLimits"
+  },
+  "foldersLimitExceeded": "Upload exceeds the folder limit: 10 MiB per file, 100 MiB or 500 files per folder.",
+  "@foldersLimitExceeded": {
+    "description": "Virtual folders: foldersLimitExceeded"
+  },
+  "foldersBytesUnavailable": "Selected file could not be read. Try selecting it again.",
+  "@foldersBytesUnavailable": {
+    "description": "Virtual folders: foldersBytesUnavailable"
+  },
+  "foldersAttach": "Attach folder",
+  "@foldersAttach": {
+    "description": "Virtual folders: foldersAttach"
+  },
+  "foldersDetach": "Detach folder",
+  "@foldersDetach": {
+    "description": "Virtual folders: foldersDetach"
+  },
+  "foldersOpen": "Open folders",
+  "@foldersOpen": {
+    "description": "Virtual folders: foldersOpen"
+  },
+  "foldersAttachEmpty": "Create a folder in Folders, then attach it here.",
+  "@foldersAttachEmpty": {
+    "description": "Virtual folders: foldersAttachEmpty"
+  },
+  "foldersLoadMore": "Read more",
+  "@foldersLoadMore": {
+    "description": "Virtual folders: foldersLoadMore"
+  },
+  "foldersReadOnly": "Extracted preview. Download the original file to edit it.",
+  "@foldersReadOnly": {
+    "description": "Virtual folders: foldersReadOnly"
+  },
+  "foldersConflict": "This file changed since you opened it. Close and reopen it before saving again.",
+  "@foldersConflict": {
+    "description": "Virtual folders: foldersConflict"
+  },
+  "foldersSaved": "Saved",
+  "@foldersSaved": {
+    "description": "Virtual folders: foldersSaved"
+  },
+  "foldersError": "Folder operation failed: {detail}",
+  "@foldersError": {
+    "description": "Virtual folders: foldersError",
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "foldersRevision": "Revision {revision} · {size} bytes",
+  "@foldersRevision": {
+    "description": "Virtual folders: foldersRevision",
+    "placeholders": {
+      "revision": {
+        "type": "int"
+      },
+      "size": {
+        "type": "int"
+      }
+    }
   }
 }

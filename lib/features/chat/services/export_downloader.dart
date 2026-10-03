@@ -34,11 +34,12 @@ class ExportDownloader {
     required String mimeType,
   }) async {
     if (PlatformInfo.isDesktop) {
+      final extension = _extensionOf(filename);
       await FilePicker.saveFile(
         dialogTitle: title,
         fileName: filename,
-        type: FileType.custom,
-        allowedExtensions: [_extensionOf(filename)],
+        type: extension.isEmpty ? FileType.any : FileType.custom,
+        allowedExtensions: extension.isEmpty ? null : [extension],
         bytes: bytes,
       );
       return;

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import 'package:garbanzo_ai/features/chat/models/chat_message.dart';
+import 'package:garbanzo_ai/features/folders/widgets/folder_download_button.dart';
 import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// A single entry on the tool-activity rail — either an MCP tool invocation
@@ -194,6 +195,9 @@ class _ToolBubbleWidgetState extends State<ToolBubbleWidget> {
     final resultData = _resultData;
     final args = callData?['arguments'];
     final result = resultData?['result'];
+    final folderDownload = _isResult
+        ? folderDownloadResult(_toolName, result)
+        : null;
 
     final isError = _isResult && _isErrorResult();
     final accent = isError ? colorScheme.error : colorScheme.onSurfaceVariant;
@@ -286,6 +290,8 @@ class _ToolBubbleWidgetState extends State<ToolBubbleWidget> {
             ),
           ),
         ),
+        if (folderDownload != null)
+          FolderDownloadButton(download: folderDownload),
         // Expanded payload is only mounted when open, so collapsed rows stay
         // cheap even for very large tool outputs.
         ClipRect(
