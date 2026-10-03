@@ -96,3 +96,7 @@ EXISTS`. Applied once each at startup (`db/migrations.py`), tracked in
   Async SQLite also requires local socket IPC for asyncio's thread wakeups.
   A session that denies socket sends cannot run these tests; the fixture exits
   with an explicit error before opening the DB instead of hanging.
+
+- Ollama treats a system-only chat request as model loading (`done_reason=load`),
+  yielding no generated text. Prompt-generation flows must include an explicit
+  user turn after their system instructions.

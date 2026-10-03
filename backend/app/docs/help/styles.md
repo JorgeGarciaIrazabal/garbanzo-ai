@@ -51,6 +51,18 @@ You can also open the same form with **Save style** in Customize. Your saved
 styles appear under **Your styles**, above the predefined ones; tap a card to
 apply it. Creating or editing a style does not change the current chat.
 
+## Can AI help write the instructions?
+Yes. In **New style** or **Edit style**, select **Help with AI** below the
+instructions. With an empty draft, describe the style you want and choose
+**Generate**. With existing instructions, describe what to change and choose
+**Improve instructions**. AI uses the model selected under **Model and thinking**.
+
+Review the suggestion, then choose **Use these instructions** or **Discard**.
+You can edit the accepted text before saving the style. Generating does not save
+anything or change your original instructions. Canceling or a failed generation
+keeps your draft. Resolve a pending suggestion before saving the style.
+AI refinement supports existing instructions up to 8,000 characters.
+
 ## How do I make a style the default for new chats?
 On any style card, choose **Use for new chats**, or enable it in the style
 editor. Built-in styles can also be your default. New

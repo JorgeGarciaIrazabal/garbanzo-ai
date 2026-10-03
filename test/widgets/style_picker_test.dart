@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:garbanzo_ai/features/chat/models/chat_attachment.dart';
@@ -244,6 +246,16 @@ class _FakeSystemPromptProvider extends SystemPromptProvider {
   @override
   Future<SystemPromptTemplate?> resolveTemplate(String templateId) async =>
       templates.where((t) => t.id == templateId).firstOrNull ?? uncachedTemplate;
+
+  Stream<ChatResponseChunk> generatedInstructions = const Stream.empty();
+
+  @override
+  Stream<ChatResponseChunk> generateInstructions({
+    required String intent,
+    String? existingPrompt,
+    String? feedback,
+    required String model,
+  }) => generatedInstructions;
 
   @override
   Future<void> refresh({String? locale}) async {}
@@ -1110,6 +1122,44 @@ void main() {
         expect(tester.takeException(), isNull);
       });
     }
+
+    _testPicker('AI suggestion must be accepted before the style can save', (tester) async {
+      _setScreenSize(tester, const Size(390, 844));
+      final stream = StreamController<ChatResponseChunk>();
+      addTearDown(stream.close);
+      final styles = _FakeStyleProvider(styles: [_style('s1', 'Existing')]);
+      final prompts = _FakeSystemPromptProvider()..generatedInstructions = stream.stream;
+      await tester.pumpWidget(_wrap(chat: _FakeChatProvider(),
+        models: _FakeModelProvider(models: _defaultModels, selectedId: 'qwen3'),
+        styles: styles, prompts: prompts));
+      await _openPicker(tester);
+      await tester.tap(find.text('New style'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(const ValueKey('style_name_field')), 'AI tutor');
+      await tester.ensureVisible(find.byKey(const ValueKey('style_ai_help')));
+      await tester.tap(find.byKey(const ValueKey('style_ai_help')));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(const ValueKey('style_ai_request')), 'A friendly tutor');
+      await tester.pump();
+      await tester.ensureVisible(find.byKey(const ValueKey('style_ai_generate')));
+      await tester.tap(find.byKey(const ValueKey('style_ai_generate')));
+      await tester.pump();
+      expect(tester.widget<FilledButton>(find.byKey(const ValueKey('save_style_confirm'))).onPressed, isNull);
+      stream.add(const ChatResponseChunk(type: 'chunk', content: 'Explain patiently.'));
+      stream.add(const ChatResponseChunk(type: 'done'));
+      await tester.pumpAndSettle();
+      expect(tester.widget<FilledButton>(find.byKey(const ValueKey('save_style_confirm'))).onPressed, isNull);
+      expect(styles.created, isEmpty);
+      await tester.ensureVisible(find.byKey(const ValueKey('style_ai_accept')));
+      await tester.tap(find.byKey(const ValueKey('style_ai_accept')));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.byKey(const ValueKey('style_instructions_field')));
+      await tester.enterText(find.byKey(const ValueKey('style_instructions_field')), 'Explain patiently. Give examples.');
+      await tester.tap(find.byKey(const ValueKey('save_style_confirm')));
+      await tester.pumpAndSettle();
+      expect(styles.created.single['systemPromptContent'], 'Explain patiently. Give examples.');
+      expect(tester.takeException(), isNull);
+    });
 
     _testPicker('failed save retains draft and retry finishes only once', (tester) async {
       _setScreenSize(tester, const Size(390, 844));

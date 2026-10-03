@@ -432,7 +432,14 @@ User's feedback:
         else:
             meta_prompt = self._META_PROMPT_INITIAL.format(intent=intent)
 
-        messages = [Message(role="system", content=meta_prompt)]
+        # Ollama treats a system-only conversation as a load request and returns
+        # done_reason=load with no text. A user turn requests actual generation.
+        messages = [
+            Message(role="system", content=meta_prompt),
+            Message(
+                role="user", content="Write the system prompt now. Return only the instructions."
+            ),
+        ]
 
         async for chunk in provider.stream_chat(
             messages=messages,

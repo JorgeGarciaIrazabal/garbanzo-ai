@@ -3008,5 +3008,16 @@
   "styleSaveFailed": "No se pudo guardar tu estilo. Tu borrador sigue aquí; inténtalo de nuevo.",
   "styleSavedSyncFailed": "Estilo guardado, pero no se pudieron actualizar los ajustes. Reintenta para terminar.",
   "styleInstructionsLoadFailed": "No se pudieron cargar las instrucciones de este estilo. Inténtalo de nuevo.",
-  "styleNew": "Nuevo estilo"
+  "styleNew": "Nuevo estilo",
+  "styleAiHelp": "Ayuda con IA",
+  "styleAiIdea": "¿Qué debe hacer este estilo?",
+  "styleAiIdeaHint": "Un tutor paciente que explica con ejemplos",
+  "styleAiChangeRequest": "¿Qué te gustaría mejorar?",
+  "styleAiChangeHint": "Hazlo más claro y amable, con respuestas más breves",
+  "styleAiImprove": "Mejorar instrucciones",
+  "styleAiGenerating": "Escribiendo una sugerencia… Tus instrucciones no han cambiado.",
+  "styleAiSuggestion": "Instrucciones sugeridas",
+  "styleAiUse": "Usar estas instrucciones",
+  "styleAiFailed": "No se pudieron generar instrucciones. Tu borrador no ha cambiado. Inténtalo de nuevo.",
+  "styleAiTooLong": "La IA puede mejorar hasta 8000 caracteres. Acorta las instrucciones para continuar."
 }

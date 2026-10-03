@@ -3563,4 +3563,41 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get styleNew => 'Nuevo estilo';
+
+  @override
+  String get styleAiHelp => 'Ayuda con IA';
+
+  @override
+  String get styleAiIdea => '¿Qué debe hacer este estilo?';
+
+  @override
+  String get styleAiIdeaHint => 'Un tutor paciente que explica con ejemplos';
+
+  @override
+  String get styleAiChangeRequest => '¿Qué te gustaría mejorar?';
+
+  @override
+  String get styleAiChangeHint =>
+      'Hazlo más claro y amable, con respuestas más breves';
+
+  @override
+  String get styleAiImprove => 'Mejorar instrucciones';
+
+  @override
+  String get styleAiGenerating =>
+      'Escribiendo una sugerencia… Tus instrucciones no han cambiado.';
+
+  @override
+  String get styleAiSuggestion => 'Instrucciones sugeridas';
+
+  @override
+  String get styleAiUse => 'Usar estas instrucciones';
+
+  @override
+  String get styleAiFailed =>
+      'No se pudieron generar instrucciones. Tu borrador no ha cambiado. Inténtalo de nuevo.';
+
+  @override
+  String get styleAiTooLong =>
+      'La IA puede mejorar hasta 8000 caracteres. Acorta las instrucciones para continuar.';
 }

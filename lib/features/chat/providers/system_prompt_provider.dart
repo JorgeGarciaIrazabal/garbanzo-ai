@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import 'package:garbanzo_ai/core/guarded_state.dart';
+import 'package:garbanzo_ai/features/chat/models/chat_message.dart';
 import 'package:garbanzo_ai/features/chat/models/system_prompt_template.dart';
 import 'package:garbanzo_ai/features/chat/services/system_prompt_service.dart';
 
@@ -62,6 +63,19 @@ class SystemPromptProvider extends ChangeNotifier with GuardedStateMixin {
       return template;
     }, trackLoading: false);
   }
+
+  /// Draft-only AI assistance; does not persist a template or change chat state.
+  Stream<ChatResponseChunk> generateInstructions({
+    required String intent,
+    String? existingPrompt,
+    String? feedback,
+    required String model,
+  }) => _service.generate(
+    intent: intent,
+    existingPrompt: existingPrompt,
+    feedback: feedback,
+    model: model,
+  );
 
   Future<SystemPromptTemplate?> createTemplate({
     required String name,

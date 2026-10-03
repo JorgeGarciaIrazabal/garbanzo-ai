@@ -3521,4 +3521,41 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get styleNew => 'New style';
+
+  @override
+  String get styleAiHelp => 'Help with AI';
+
+  @override
+  String get styleAiIdea => 'What should this style do?';
+
+  @override
+  String get styleAiIdeaHint => 'A patient tutor who explains with examples';
+
+  @override
+  String get styleAiChangeRequest => 'What would you like to improve?';
+
+  @override
+  String get styleAiChangeHint =>
+      'Make it clearer and friendlier, with shorter answers';
+
+  @override
+  String get styleAiImprove => 'Improve instructions';
+
+  @override
+  String get styleAiGenerating =>
+      'Writing a suggestion… Your instructions are unchanged.';
+
+  @override
+  String get styleAiSuggestion => 'Suggested instructions';
+
+  @override
+  String get styleAiUse => 'Use these instructions';
+
+  @override
+  String get styleAiFailed =>
+      'Could not generate instructions. Your draft is unchanged. Please try again.';
+
+  @override
+  String get styleAiTooLong =>
+      'AI can improve up to 8,000 characters. Shorten the instructions to continue.';
 }

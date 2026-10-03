@@ -6164,6 +6164,72 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'New style'**
   String get styleNew;
+
+  /// AI assistance in the custom style editor.
+  ///
+  /// In en, this message translates to:
+  /// **'Help with AI'**
+  String get styleAiHelp;
+
+  /// AI assistance in the custom style editor.
+  ///
+  /// In en, this message translates to:
+  /// **'What should this style do?'**
+  String get styleAiIdea;
+
+  /// AI assistance in the custom style editor.
+  ///
+  /// In en, this message translates to:
+  /// **'A patient tutor who explains with examples'**
+  String get styleAiIdeaHint;
+
+  /// AI assistance in the custom style editor.
+  ///
+  /// In en, this message translates to:
+  /// **'What would you like to improve?'**
+  String get styleAiChangeRequest;
+
+  /// AI assistance in the custom style editor.
+  ///
+  /// In en, this message translates to:
+  /// **'Make it clearer and friendlier, with shorter answers'**
+  String get styleAiChangeHint;
+
+  /// AI assistance in the custom style editor.
+  ///
+  /// In en, this message translates to:
+  /// **'Improve instructions'**
+  String get styleAiImprove;
+
+  /// AI assistance in the custom style editor.
+  ///
+  /// In en, this message translates to:
+  /// **'Writing a suggestion… Your instructions are unchanged.'**
+  String get styleAiGenerating;
+
+  /// AI assistance in the custom style editor.
+  ///
+  /// In en, this message translates to:
+  /// **'Suggested instructions'**
+  String get styleAiSuggestion;
+
+  /// AI assistance in the custom style editor.
+  ///
+  /// In en, this message translates to:
+  /// **'Use these instructions'**
+  String get styleAiUse;
+
+  /// AI assistance in the custom style editor.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not generate instructions. Your draft is unchanged. Please try again.'**
+  String get styleAiFailed;
+
+  /// AI assistance in the custom style editor.
+  ///
+  /// In en, this message translates to:
+  /// **'AI can improve up to 8,000 characters. Shorten the instructions to continue.'**
+  String get styleAiTooLong;
 }
 
 class _AppLocalizationsDelegate

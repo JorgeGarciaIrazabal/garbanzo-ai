@@ -4345,5 +4345,49 @@
   "styleNew": "New style",
   "@styleNew": {
     "description": "Button and dialog title to create a custom style."
+  },
+  "styleAiHelp": "Help with AI",
+  "@styleAiHelp": {
+    "description": "AI assistance in the custom style editor."
+  },
+  "styleAiIdea": "What should this style do?",
+  "@styleAiIdea": {
+    "description": "AI assistance in the custom style editor."
+  },
+  "styleAiIdeaHint": "A patient tutor who explains with examples",
+  "@styleAiIdeaHint": {
+    "description": "AI assistance in the custom style editor."
+  },
+  "styleAiChangeRequest": "What would you like to improve?",
+  "@styleAiChangeRequest": {
+    "description": "AI assistance in the custom style editor."
+  },
+  "styleAiChangeHint": "Make it clearer and friendlier, with shorter answers",
+  "@styleAiChangeHint": {
+    "description": "AI assistance in the custom style editor."
+  },
+  "styleAiImprove": "Improve instructions",
+  "@styleAiImprove": {
+    "description": "AI assistance in the custom style editor."
+  },
+  "styleAiGenerating": "Writing a suggestion… Your instructions are unchanged.",
+  "@styleAiGenerating": {
+    "description": "AI assistance in the custom style editor."
+  },
+  "styleAiSuggestion": "Suggested instructions",
+  "@styleAiSuggestion": {
+    "description": "AI assistance in the custom style editor."
+  },
+  "styleAiUse": "Use these instructions",
+  "@styleAiUse": {
+    "description": "AI assistance in the custom style editor."
+  },
+  "styleAiFailed": "Could not generate instructions. Your draft is unchanged. Please try again.",
+  "@styleAiFailed": {
+    "description": "AI assistance in the custom style editor."
+  },
+  "styleAiTooLong": "AI can improve up to 8,000 characters. Shorten the instructions to continue.",
+  "@styleAiTooLong": {
+    "description": "AI assistance in the custom style editor."
   }
 }

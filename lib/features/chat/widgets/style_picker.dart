@@ -16,6 +16,7 @@ import 'package:garbanzo_ai/features/chat/providers/system_prompt_provider.dart'
 import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
 import 'package:garbanzo_ai/features/friends/widgets/share_with_friend_dialog.dart';
 import 'package:garbanzo_ai/features/chat/widgets/system_prompt_editor_dialog.dart';
+import 'package:garbanzo_ai/features/chat/widgets/style_instructions_assistant.dart';
 import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// The style picker: replaces the plain model dropdown with a "chat style"
@@ -1740,6 +1741,7 @@ class _SaveStyleDialogState extends State<_SaveStyleDialog> {
   late ThinkingLevel? _thinking;
   late bool _isDefault;
   bool _saving = false;
+  bool _aiPending = false;
   String? _error;
   // A retry after a refresh/default-model failure must not create a second style.
   Style? _saved;
@@ -1763,7 +1765,7 @@ class _SaveStyleDialogState extends State<_SaveStyleDialog> {
 
   Future<void> _submit() async {
     final name = _nameController.text.trim();
-    if (_saving || name.isEmpty || _modelId == null) return;
+    if (_saving || _aiPending || name.isEmpty || _modelId == null) return;
     final l = AppLocalizations.of(context)!;
     setState(() {
       _saving = true;
@@ -1825,7 +1827,7 @@ class _SaveStyleDialogState extends State<_SaveStyleDialog> {
     final l = AppLocalizations.of(context)!;
     final models = widget.models.availableModels;
     final model = models.where((m) => m.id == _modelId).firstOrNull;
-    final editable = !_saving && _saved == null;
+    final editable = !_saving && _saved == null && !_aiPending;
     return PopScope(
       canPop: !_saving,
       child: AlertDialog(
@@ -1862,6 +1864,14 @@ class _SaveStyleDialogState extends State<_SaveStyleDialog> {
                   hintText: l.styleInstructionsHint,
                   alignLabelWithHint: true,
                 ),
+              ),
+              StyleInstructionsAssistant(
+                controller: _instructionsController,
+                prompts: widget.prompts,
+                modelId: model?.id,
+                enabled: !_saving && _saved == null,
+                onPendingChanged: (pending) =>
+                    setState(() => _aiPending = pending),
               ),
               if (widget.prompts.templates.isNotEmpty)
                 ExpansionTile(
@@ -1957,7 +1967,10 @@ class _SaveStyleDialogState extends State<_SaveStyleDialog> {
           FilledButton(
             key: const ValueKey('save_style_confirm'),
             onPressed:
-                _saving || _nameController.text.trim().isEmpty || model == null
+                _saving ||
+                    _aiPending ||
+                    _nameController.text.trim().isEmpty ||
+                    model == null
                 ? null
                 : _submit,
             child: _saving

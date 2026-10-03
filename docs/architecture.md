@@ -602,6 +602,11 @@ Main providers per `ChatPage` tree:
 for name and instructions, with model/thinking settings collapsed. Customize's
 **Save style** opens that form seeded from the live conversation (including an
 inline prompt with no saved template). Draft changes do not touch the chat.
+`StyleInstructionsAssistant` provides inline generation/refinement through the
+existing `/system-prompts/generate` stream using the selected model. It holds
+suggestions separately until explicitly accepted; incomplete/error streams and
+cancellation preserve the draft. Style saving is disabled while generating or
+reviewing a suggestion.
 The style POST/PATCH accepts `system_prompt_content` as an alternative to a
 template ID. The service creates a private template and saves the style/default
 pointer in one transaction. Changed instructions get a new template; unchanged

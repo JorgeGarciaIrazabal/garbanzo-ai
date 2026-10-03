@@ -115,6 +115,11 @@ class TestGenerateService:
         assert "You are a concise assistant." in contents
         assert fake.calls[0]["model"] is not None
         assert fake.calls[0]["options"].temperature == 0.7
+        # A system-only request just loads the model in Ollama (no generation).
+        messages = fake.calls[0]["messages"]
+        assert messages[-1].role == "user"
+        assert messages[-1].content.strip()
+        assert "Make me a coding mentor" in messages[0].content
 
     async def test_generate_refine_mode(self, db_session):
         svc = SystemPromptService(db_session)
@@ -140,6 +145,8 @@ class TestGenerateService:
             or "current system prompt" in messages[0].content.lower()
         )
         assert "make it friendlier" in messages[0].content
+        assert messages[-1].role == "user"
+        assert messages[-1].content.strip()
 
     async def test_generate_uses_specified_model(self, db_session):
         svc = SystemPromptService(db_session)
