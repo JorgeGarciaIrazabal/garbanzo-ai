@@ -196,6 +196,33 @@ async def _virtual_folder_concurrency_smoke(engine: Any) -> dict[str, bool]:
     if sorted(str(result) for result in edits) != ["409", "saved"]:
         raise RuntimeError(f"Virtual file revision serialization failed: {edits}")
 
+    async def replace(content: bytes):
+        async with sessions() as session:
+            try:
+                await VirtualFolderService(session).replace_file(
+                    folder_id, file_id, owner, content, 2
+                )
+                return "saved"
+            except FolderError as exc:
+                return exc.status_code
+
+    replacements = await asyncio.wait_for(
+        asyncio.gather(replace(b"first replacement"), replace(b"second replacement")), timeout=20
+    )
+    if sorted(str(result) for result in replacements) != ["409", "saved"]:
+        raise RuntimeError(f"Virtual file replacement serialization failed: {replacements}")
+
+    async def keep_both():
+        async with sessions() as session:
+            copy = await VirtualFolderService(session).create_file(
+                folder_id, owner, "notes.txt", b"copy", keep_both=True
+            )
+            return copy.path
+
+    copies = await asyncio.wait_for(asyncio.gather(keep_both(), keep_both()), timeout=20)
+    if sorted(copies) != ["notes (2).txt", "notes (3).txt"]:
+        raise RuntimeError(f"Concurrent copies did not receive unique names: {copies}")
+
     async with sessions() as session:
         folder = await VirtualFolderService(session).create_folder(owner, "Quota smoke")
         quota_folder_id = folder.id
@@ -222,6 +249,8 @@ async def _virtual_folder_concurrency_smoke(engine: Any) -> dict[str, bool]:
         "serialized_file_revisions": True,
         "serialized_folder_quotas": True,
         "serialized_folder_metadata": True,
+        "serialized_file_replacements": True,
+        "unique_concurrent_copies": True,
     }
 
 
@@ -412,6 +441,8 @@ def main() -> int:
         f"serialized_file_revisions={result['serialized_file_revisions']}, "
         f"serialized_folder_quotas={result['serialized_folder_quotas']}, "
         f"serialized_folder_metadata={result['serialized_folder_metadata']}, "
+        f"serialized_file_replacements={result['serialized_file_replacements']}, "
+        f"unique_concurrent_copies={result['unique_concurrent_copies']}, "
         f"folder_metadata_upgrade={result['folder_metadata_upgrade']}"
     )
     return 0

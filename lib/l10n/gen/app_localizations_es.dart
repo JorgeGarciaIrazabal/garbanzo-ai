@@ -3720,4 +3720,18 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get foldersDescriptionHelp =>
       'La IA usa este contexto para entender la carpeta y sus archivos cuando se adjunta a un chat.';
+
+  @override
+  String get foldersDuplicateTitle => 'El archivo ya existe';
+
+  @override
+  String foldersDuplicateBody(String name) {
+    return '«$name» ya está en esta carpeta. ¿Quieres reemplazarlo o conservar ambos archivos?';
+  }
+
+  @override
+  String get foldersReplace => 'Reemplazar';
+
+  @override
+  String get foldersKeepBoth => 'Conservar ambos';
 }

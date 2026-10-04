@@ -3054,5 +3054,9 @@
   "foldersAttachSaved": "Adjuntar carpeta guardada",
   "foldersEdit": "Editar carpeta",
   "foldersDescription": "Propósito o contexto (opcional)",
-  "foldersDescriptionHelp": "La IA usa este contexto para entender la carpeta y sus archivos cuando se adjunta a un chat."
+  "foldersDescriptionHelp": "La IA usa este contexto para entender la carpeta y sus archivos cuando se adjunta a un chat.",
+  "foldersDuplicateTitle": "El archivo ya existe",
+  "foldersDuplicateBody": "«{name}» ya está en esta carpeta. ¿Quieres reemplazarlo o conservar ambos archivos?",
+  "foldersReplace": "Reemplazar",
+  "foldersKeepBoth": "Conservar ambos"
 }

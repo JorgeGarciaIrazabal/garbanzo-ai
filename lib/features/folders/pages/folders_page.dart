@@ -6,10 +6,18 @@ import 'package:garbanzo_ai/features/folders/widgets/folder_feedback.dart';
 import 'package:garbanzo_ai/features/folders/widgets/folder_text_dialog.dart';
 import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
+enum _DuplicateChoice { replace, keepBoth }
+
 class FoldersPage extends StatefulWidget {
-  const FoldersPage({super.key, this.initialFolderId, this.service});
+  const FoldersPage({
+    super.key,
+    this.initialFolderId,
+    this.service,
+    this.pickFiles,
+  });
   final String? initialFolderId;
   final FoldersService? service;
+  final Future<FilePickerResult?> Function()? pickFiles;
   @override
   State<FoldersPage> createState() => _FoldersPageState();
 }
@@ -96,19 +104,13 @@ class _FoldersPageState extends State<FoldersPage> {
   Future<void> _upload(String id) async {
     final l = AppLocalizations.of(context)!;
     try {
-      final picked = await FilePicker.pickFiles(
-        allowMultiple: true,
-        withData: true,
-      );
+      final picked =
+          await (widget.pickFiles?.call() ??
+              FilePicker.pickFiles(allowMultiple: true, withData: true));
       if (picked == null || !mounted) return;
-      final existing = _files[id] ?? [];
-      final bytes =
-          existing.fold<int>(0, (sum, file) => sum + file.sizeBytes) +
-          picked.files.fold<int>(0, (sum, file) => sum + file.size);
-      if (picked.files.any((file) => file.size > FoldersService.maxFileBytes) ||
-          bytes > FoldersService.maxFolderBytes ||
-          existing.length + picked.files.length >
-              FoldersService.maxFolderFiles) {
+      // Aggregate limits depend on Replace/Keep both decisions and are checked
+      // under server locks using the actual replacement size delta.
+      if (picked.files.any((file) => file.size > FoldersService.maxFileBytes)) {
         throw FolderException(413, l.foldersLimitExceeded);
       }
       if (picked.files.any((f) => f.bytes == null)) {
@@ -119,18 +121,65 @@ class _FoldersPageState extends State<FoldersPage> {
       setState(() => _busy = true);
       final errors = <String>[];
       for (final file in picked.files) {
+        if (!mounted) break;
         try {
-          await _service.upload(id, file.name, file.bytes!);
+          await _uploadFile(id, file);
         } catch (e) {
           errors.add('${file.name}: $e');
         }
       }
-      await _refresh();
+      if (mounted) await _refresh();
       if (errors.isNotEmpty && mounted) folderError(context, errors.join('\n'));
     } catch (e) {
       if (mounted) folderError(context, e);
     } finally {
       if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _uploadFile(String folderId, PlatformFile picked) async {
+    final data = picked.bytes!;
+    try {
+      await _service.upload(folderId, picked.name, data);
+      return;
+    } on FolderException catch (e) {
+      if (e.status != 409) rethrow;
+      // Re-read after a conflict: another device or an earlier file in this
+      // batch may have created/changed the filename since the page loaded.
+      final files = await _service.files(folderId);
+      final existing = files.where((f) => f.path == picked.name).firstOrNull;
+      if (existing == null) rethrow;
+      if (!mounted) return;
+      final l = AppLocalizations.of(context)!;
+      final choice = await showDialog<_DuplicateChoice>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text(l.foldersDuplicateTitle),
+          content: Text(l.foldersDuplicateBody(picked.name)),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(l.cancel),
+            ),
+            TextButton(
+              onPressed: () =>
+                  Navigator.pop(context, _DuplicateChoice.keepBoth),
+              child: Text(l.foldersKeepBoth),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, _DuplicateChoice.replace),
+              child: Text(l.foldersReplace),
+            ),
+          ],
+        ),
+      );
+      if (!mounted || choice == null) return;
+      switch (choice) {
+        case _DuplicateChoice.replace:
+          await _service.replaceFile(existing, data);
+        case _DuplicateChoice.keepBoth:
+          await _service.upload(folderId, picked.name, data, keepBoth: true);
+      }
     }
   }
 

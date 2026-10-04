@@ -6440,6 +6440,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The AI uses this context to understand the folder and its files when it is attached to a chat.'**
   String get foldersDescriptionHelp;
+
+  /// Title of the duplicate upload decision dialog
+  ///
+  /// In en, this message translates to:
+  /// **'File already exists'**
+  String get foldersDuplicateTitle;
+
+  /// Explains the duplicate file upload choices
+  ///
+  /// In en, this message translates to:
+  /// **'“{name}” is already in this folder. Replace it or keep both files?'**
+  String foldersDuplicateBody(String name);
+
+  /// Replace the saved file with the uploaded bytes
+  ///
+  /// In en, this message translates to:
+  /// **'Replace'**
+  String get foldersReplace;
+
+  /// Upload a separate copy with a unique filename
+  ///
+  /// In en, this message translates to:
+  /// **'Keep both'**
+  String get foldersKeepBoth;
 }
 
 class _AppLocalizationsDelegate

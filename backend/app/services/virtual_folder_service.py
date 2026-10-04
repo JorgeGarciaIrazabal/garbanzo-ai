@@ -219,15 +219,34 @@ class VirtualFolderService:
             raise FolderError("Virtual folders exceed your 500 MiB storage limit.", 413)
 
     async def create_file(
-        self, folder_id: str, user_id: str, path: str, data: bytes
+        self, folder_id: str, user_id: str, path: str, data: bytes, *, keep_both: bool = False
     ) -> VirtualFile:
         path = file_path(path)
         await self._lock_user(user_id)
         folder = await self.owned_folder(folder_id, user_id, lock=True)
-        for existing in await self.list_files(folder_id, user_id):
+        files = await self.list_files(folder_id, user_id)
+        if keep_both and any(f.path == path for f in files):
+            original = PurePosixPath(path)
+            stem, suffix = original.stem, original.suffix
+            number = 2
+            while True:
+                tail = f" ({number}){suffix}"
+                parent = str(original.parent)
+                prefix = "" if parent == "." else parent + "/"
+                available = 1024 - len(prefix) - len(tail)
+                if available < 1:
+                    raise FolderError("File name is too long to create a copy.")
+                path = prefix + stem[:available] + tail
+                if not any(
+                    f.path == path or f.path.startswith(path + "/") or path.startswith(f.path + "/")
+                    for f in files
+                ):
+                    break
+                number += 1
+        for existing in files:
             if existing.path == path:
                 raise FolderError(
-                    "A file already exists at this path; edit it using its revision.", 409
+                    "A file already exists at this path; choose replace or keep both.", 409
                 )
             if existing.path.startswith(path + "/") or path.startswith(existing.path + "/"):
                 raise FolderError("This path conflicts with an existing file or directory.", 409)
@@ -246,6 +265,26 @@ class VirtualFolderService:
         self.db.add(file)
         await self.db.commit()
         await self.db.refresh(file)
+        return file
+
+    async def replace_file(
+        self, folder_id: str, file_id: str, user_id: str, data: bytes, revision: int
+    ) -> VirtualFile:
+        await self._lock_user(user_id)
+        folder = await self.owned_folder(folder_id, user_id, lock=True)
+        file = await self.get_file(folder_id, file_id, user_id)
+        if file.revision != revision:
+            raise FolderError(
+                "File changed since you selected it. Refresh before replacing it.", 409
+            )
+        await self._quota(folder_id, user_id, len(data), old_size=file.size_bytes, creating=False)
+        file.data = data
+        file.size_bytes = len(data)
+        file.sha256 = hashlib.sha256(data).hexdigest()
+        file.media_type = mimetypes.guess_type(file.path)[0] or "application/octet-stream"
+        file.revision += 1
+        file.updated_at = folder.updated_at = datetime.now(UTC)
+        await self.db.commit()
         return file
 
     async def create_text(self, folder_id: str, user_id: str, path: str, content: str):

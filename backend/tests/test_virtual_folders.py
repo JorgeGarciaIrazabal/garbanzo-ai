@@ -1,5 +1,6 @@
 """Persistence, ownership, original downloads and revision-safe AI folder editing."""
 
+import hashlib
 import io
 import json
 import zipfile
@@ -117,6 +118,74 @@ async def test_text_edit_conflicts_and_binary_is_read_only(folders_client):
 
 
 @pytest.mark.asyncio
+async def test_duplicate_upload_choices_preserve_originals_and_guard_replacements(folders_client):
+    client, _ = folders_client
+    folder_id = await _folder(client)
+    url = f"/api/v1/folders/{folder_id}/files"
+    original = (
+        await client.post(
+            url,
+            files={"file": ("report.pdf", b"old PDF bytes")},
+            data={"path": "nested/report.pdf"},
+        )
+    ).json()
+    duplicate = await client.post(
+        url,
+        files={"file": ("report.pdf", b"new PDF bytes")},
+        data={"path": original["path"]},
+    )
+    assert duplicate.status_code == 409
+    for number in [2, 3]:
+        copy = await client.post(
+            url,
+            files={"file": ("report.pdf", b"copy bytes")},
+            data={"path": original["path"], "keep_both": "true"},
+        )
+        assert copy.status_code == 201, copy.text
+        assert copy.json()["path"] == f"nested/report ({number}).pdf"
+        assert copy.json()["id"] != original["id"] and copy.json()["revision"] == 1
+    content_url = f"{url}/{original['id']}/content"
+    assert (await client.get(content_url)).content == b"old PDF bytes"
+    replacement = b"\x00\xffnew PDF original bytes"
+    replaced = await client.put(
+        content_url, files={"file": ("report.pdf", replacement)}, data={"revision": 1}
+    )
+    assert replaced.status_code == 200, replaced.text
+    metadata = replaced.json()
+    assert metadata["id"] == original["id"] and metadata["path"] == original["path"]
+    assert metadata["revision"] == 2 and metadata["media_type"] == "application/pdf"
+    assert metadata["size_bytes"] == len(replacement)
+    assert metadata["sha256"] == hashlib.sha256(replacement).hexdigest()
+    stale = await client.put(
+        content_url, files={"file": ("report.pdf", b"stale")}, data={"revision": 1}
+    )
+    assert stale.status_code == 409
+    assert (await client.get(content_url)).content == replacement
+    zipped = await client.get(f"/api/v1/folders/{folder_id}/download")
+    with zipfile.ZipFile(io.BytesIO(zipped.content)) as archive:
+        assert archive.read("nested/report.pdf") == replacement
+        assert archive.read("nested/report (2).pdf") == b"copy bytes"
+
+
+@pytest.mark.asyncio
+async def test_raw_replacement_uses_quota_delta_without_adding_file(db_session, monkeypatch):
+    service = VirtualFolderService(db_session)
+    folder = await service.create_folder(OWNER, "Full folder")
+    monkeypatch.setattr(virtual_folder_service, "MAX_FILES", 1)
+    monkeypatch.setattr(virtual_folder_service, "MAX_FOLDER_BYTES", 6)
+    monkeypatch.setattr(virtual_folder_service, "MAX_USER_BYTES", 6)
+    file = await service.create_file(folder.id, OWNER, "data.bin", b"123456")
+    replaced = await service.replace_file(folder.id, file.id, OWNER, b"1234", 1)
+    assert replaced.revision == 2 and replaced.size_bytes == 4
+    with pytest.raises(FolderError, match="100 MiB"):
+        await service.replace_file(folder.id, file.id, OWNER, b"1234567", 2)
+    with pytest.raises(FolderError, match="500-file"):
+        await service.create_file(folder.id, OWNER, file.path, b"x", keep_both=True)
+    assert len(await service.list_files(folder.id, OWNER)) == 1
+    assert (await service.get_file(folder.id, file.id, OWNER, data=True)).data == b"1234"
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "path", ["../outside", "/absolute", "a/../b", "a\\b", "a//b", ".", "a\nb", "C:evil", "a/./b"]
 )
@@ -148,6 +217,11 @@ async def test_owner_scoping_for_every_operation_and_chat_link(
         ("get", f"/{folder_id}/files", {}),
         ("get", f"/{folder_id}/download", {}),
         ("get", f"/{folder_id}/files/{file['id']}/content", {}),
+        (
+            "put",
+            f"/{folder_id}/files/{file['id']}/content",
+            {"files": {"file": ("private.txt", b"stolen")}, "data": {"revision": 1}},
+        ),
         ("get", f"/{folder_id}/files/{file['id']}/text", {}),
         ("delete", f"/{folder_id}", {}),
         ("patch", f"/{folder_id}", {"json": {"name": "stolen"}}),

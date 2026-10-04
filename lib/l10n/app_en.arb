@@ -4534,5 +4534,26 @@
   "foldersDescription": "Purpose or context (optional)",
   "@foldersDescription": {"description": "Virtual folders: foldersDescription"},
   "foldersDescriptionHelp": "The AI uses this context to understand the folder and its files when it is attached to a chat.",
-  "@foldersDescriptionHelp": {"description": "Virtual folders: foldersDescriptionHelp"}
+  "@foldersDescriptionHelp": {"description": "Virtual folders: foldersDescriptionHelp"},
+  "foldersDuplicateTitle": "File already exists",
+  "@foldersDuplicateTitle": {
+    "description": "Title of the duplicate upload decision dialog"
+  },
+  "foldersDuplicateBody": "“{name}” is already in this folder. Replace it or keep both files?",
+  "@foldersDuplicateBody": {
+    "description": "Explains the duplicate file upload choices",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "foldersReplace": "Replace",
+  "@foldersReplace": {
+    "description": "Replace the saved file with the uploaded bytes"
+  },
+  "foldersKeepBoth": "Keep both",
+  "@foldersKeepBoth": {
+    "description": "Upload a separate copy with a unique filename"
+  }
 }

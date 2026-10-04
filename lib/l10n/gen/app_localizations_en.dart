@@ -3677,4 +3677,18 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get foldersDescriptionHelp =>
       'The AI uses this context to understand the folder and its files when it is attached to a chat.';
+
+  @override
+  String get foldersDuplicateTitle => 'File already exists';
+
+  @override
+  String foldersDuplicateBody(String name) {
+    return '“$name” is already in this folder. Replace it or keep both files?';
+  }
+
+  @override
+  String get foldersReplace => 'Replace';
+
+  @override
+  String get foldersKeepBoth => 'Keep both';
 }

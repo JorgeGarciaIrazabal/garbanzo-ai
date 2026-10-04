@@ -8,7 +8,11 @@ BYTEA, deferred in metadata queries and included in normal database backups.
 `(folder_id,path)` is unique; relative paths are canonical and portable, with
 traversal, control characters and file/directory prefix collisions rejected.
 `sha256` hashes the current bytes; `revision` starts at 1 and increments on text
-edits. Both edits and file deletion require the revision read by the caller;
+edits or explicit original-byte upload replacements. Replacement preserves ID/path
+while updating bytes, MIME, size, hash and timestamps; it uses the size delta for
+quotas and does not add a file slot. Keeping both creates a separate file with
+a unique numbered sibling path selected under the same user/folder locks.
+Edits, replacements and file deletion require the revision read by the caller;
 stale requests fail with 409. Text extraction never changes stored bytes.
 
 Migration `051_virtual_folder_metadata.sql` adds non-null `description` TEXT,

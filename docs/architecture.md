@@ -28,6 +28,10 @@ each chat link. Quotas serialize on user/folder row locks; text updates require
 the previous revision. File metadata does not load blobs. Binary documents are
 read through the existing isolated strict extractor; PDF/Office extraction is
 read-only, while genuine UTF-8 text/source/CSV files support editing.
+Duplicate uploads prompt for Replace, Keep both or Cancel. Replacement uses an
+owner-scoped multipart content PUT with the selected revision. Keep both retries
+creation with explicit copy intent; the server chooses the unique sibling path
+under locks. Batch uploads refresh successful writes even when another file fails.
 
 Folders store a bounded purpose/context description editable in the browser
 or through the native tool's `update_folder` action. Partial metadata updates

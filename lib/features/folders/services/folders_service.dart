@@ -80,7 +80,12 @@ class FoldersService {
           .map((row) => FolderFile.fromJson(row as Map<String, dynamic>))
           .toList();
 
-  Future<FolderFile> upload(String id, String path, Uint8List bytes) async {
+  Future<FolderFile> upload(
+    String id,
+    String path,
+    Uint8List bytes, {
+    bool keepBoth = false,
+  }) async {
     if (bytes.length > maxFileBytes) {
       throw const FolderException(413, 'File exceeds 10 MiB');
     }
@@ -90,6 +95,7 @@ class FoldersService {
           '$_base/$id/files',
           data: FormData.fromMap({
             'path': path,
+            if (keepBoth) 'keep_both': true,
             'file': MultipartFile.fromBytes(
               bytes,
               filename: path.split('/').last,
@@ -97,6 +103,26 @@ class FoldersService {
           }),
         ),
         201,
+      ),
+    );
+  }
+
+  Future<FolderFile> replaceFile(FolderFile file, Uint8List bytes) async {
+    if (bytes.length > maxFileBytes) {
+      throw const FolderException(413, 'File exceeds 10 MiB');
+    }
+    return FolderFile.fromJson(
+      _checked(
+        await _api.put(
+          '$_base/${file.folderId}/files/${file.id}/content',
+          data: FormData.fromMap({
+            'revision': file.revision,
+            'file': MultipartFile.fromBytes(
+              bytes,
+              filename: file.path.split('/').last,
+            ),
+          }),
+        ),
       ),
     );
   }

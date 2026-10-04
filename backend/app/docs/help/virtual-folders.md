@@ -13,6 +13,13 @@ The folder browser lets you edit/delete folders, create text files, preview or
 edit files, remove files and download them. Deleting a folder removes its saved
 files from every chat; removing a folder from a chat only detaches it.
 
+If an uploaded filename already exists, choose **Replace** to update that file,
+**Keep both** to save a separate copy (for example, `report (2).pdf`), or **Cancel**
+to skip it. Other files in the selected batch can still upload. Replacement also
+works for PDFs and Office documents and keeps the same saved file identity.
+If another device or the assistant changes the file while you are choosing,
+replacement fails visibly; refresh and upload again before replacing it.
+
 ## How do I use a folder in a chat?
 Open **Attach photos or files** (the paperclip in the input box) and choose
 **Attach saved folder** to select a saved folder on desktop or Android. Attached
@@ -50,6 +57,7 @@ share/save options. Downloads contain the original file bytes.
 
 ## What are the limits?
 10 MiB per file, 100 MiB and 500 files per folder, 100 folders and 500 MiB total
-per user, and 20 attached folders per chat. Empty files are allowed. Uploading
-the same path twice reports a conflict; use the editor to change an existing text
-file. Invalid paths, unreadable documents and exceeded limits show explicit errors.
+per user, and 20 attached folders per chat. Empty files are allowed. Replacing a
+file uses only its change in size for storage limits and does not add another file.
+Keeping both uses a new file slot and stores the new copy separately.
+Invalid paths, unreadable documents and exceeded limits show explicit errors.

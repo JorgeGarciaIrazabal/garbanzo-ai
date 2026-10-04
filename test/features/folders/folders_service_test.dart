@@ -10,6 +10,24 @@ import 'package:garbanzo_ai/features/folders/widgets/folder_download_button.dart
 import 'folders_test_support.dart';
 
 void main() {
+  test('duplicate upload choices send copy intent or original replacement revision', () async {
+    final api = RecordingApi();
+    final service = FoldersService(api: api);
+    final bytes = Uint8List.fromList([0, 255, 65]);
+    api.response = Response(requestOptions: RequestOptions(), statusCode: 201, data: testFile.toJson());
+    await service.upload('folder', 'notes.txt', bytes, keepBoth: true);
+    final copy = api.data as FormData;
+    expect(Map.fromEntries(copy.fields), {'path': 'notes.txt', 'keep_both': 'true'});
+    api.response = Response(requestOptions: RequestOptions(), statusCode: 200, data: testFile.copyWith(revision: 8).toJson());
+    final replaced = await service.replaceFile(testFile, bytes);
+    expect(api.path, '/api/v1/folders/folder/files/file/content');
+    final replacement = api.data as FormData;
+    expect(Map.fromEntries(replacement.fields), {'revision': '7'});
+    expect(replacement.files.single.value.filename, 'notes.txt');
+    expect(replaced.revision, 8);
+    api.response = Response(requestOptions: RequestOptions(), statusCode: 409, data: {'detail': 'File changed'});
+    await expectLater(service.replaceFile(testFile, bytes), throwsA(isA<FolderException>().having((e) => e.status, 'status', 409)));
+  });
   test('folder context survives serialization and metadata updates send only supplied fields', () async {
     final api = RecordingApi();
     final json = {'id': 'folder', 'name': 'Research', 'description': 'Compare source evidence', 'created_at': '2026-01-01T00:00:00Z', 'updated_at': '2026-01-01T00:00:00Z'};

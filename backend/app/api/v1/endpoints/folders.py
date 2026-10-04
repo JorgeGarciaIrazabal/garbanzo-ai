@@ -101,13 +101,14 @@ async def upload_file(
     service: Service,
     file: Annotated[UploadFile, File()],
     path: Annotated[str | None, Form()] = None,
+    keep_both: Annotated[bool, Form()] = False,
 ):
     await service.owned_folder(folder_id, user["email"])
     payload = await file.read(MAX_FILE_BYTES + 1)
     if len(payload) > MAX_FILE_BYTES:
         raise FolderError("File exceeds the 10 MiB limit.", 413)
     return await service.create_file(
-        folder_id, user["email"], path or file.filename or "file", payload
+        folder_id, user["email"], path or file.filename or "file", payload, keep_both=keep_both
     )
 
 
@@ -120,6 +121,22 @@ async def create_text(folder_id: str, data: TextCreate, user: User, service: Ser
 async def download_file(folder_id: str, file_id: str, user: User, service: Service):
     file = await service.get_file(folder_id, file_id, user["email"], data=True)
     return download(file.data, file.path.rsplit("/", 1)[-1], file.media_type)
+
+
+@router.put("/{folder_id}/files/{file_id}/content", response_model=FileOut)
+async def replace_file(
+    folder_id: str,
+    file_id: str,
+    user: User,
+    service: Service,
+    file: Annotated[UploadFile, File()],
+    revision: Annotated[int, Form(ge=1)],
+):
+    await service.get_file(folder_id, file_id, user["email"])
+    payload = await file.read(MAX_FILE_BYTES + 1)
+    if len(payload) > MAX_FILE_BYTES:
+        raise FolderError("File exceeds the 10 MiB limit.", 413)
+    return await service.replace_file(folder_id, file_id, user["email"], payload, revision)
 
 
 @router.get("/{folder_id}/files/{file_id}/text", response_model=FileText)
