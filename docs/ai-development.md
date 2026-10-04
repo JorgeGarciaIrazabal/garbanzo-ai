@@ -219,6 +219,16 @@ subjects and stable `Report-ID` associations, with a deterministic fallback.
 Raw production reports are not sent to the changelog model. Optional override:
 `CHANGELOG_CODEX_MODEL`. Deploy success does not automatically close reports.
 
+The changelog and deployment-evidence steps run *after* the stack is live and the
+tag is pushed, so a failure there leaves a shipped release with a fallback
+changelog and no evidence file. The ai_dev CLI builds its subcommands through
+`argparse`, which %-formats help strings: a bare `%` in any `help=` aborts the
+whole controller (every subcommand), and the deploy reports it as `error: Recipe
+'ai-changelog' failed`. Escape it as `%%`. Confirm the ai_dev CLI starts under
+the interpreter `python3` actually resolves to before deploying, and run the
+skipped steps by hand (`just ai-changelog`/`just ai-deployment-evidence`) rather
+than redeploying to fill the gap.
+
 ## Overnight lane and recovery
 
 The optional user systemd timer runs once at midnight America/New_York, without
