@@ -82,6 +82,12 @@ shows the style's name and a separate Medium thinking chip for models that
 support reasoning. You can change the effort for the current chat; opening
 another new topic resets it to Medium again.
 
+If the style's required instructions cannot be loaded, the topic map shows a
+message with **Try again**. The composer keeps its previous settings until the
+instructions load successfully; starting a new thread waits for the retry or
+an explicit replacement of the prompt in Customize. Styles saved in another app language still
+load their original instructions. A style with no instructions needs no lookup.
+
 ## How do I edit a style?
 Open your style card's menu and choose **Edit…**. The same form opens with
 its name, instructions, model, thinking level and default setting. Edit and

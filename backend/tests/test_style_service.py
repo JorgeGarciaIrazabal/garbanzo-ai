@@ -8,6 +8,7 @@ import pytest
 from sqlalchemy import select
 
 from app.core.security import hash_password
+from app.models.style import Style
 from app.models.system_prompt import SystemPromptTemplate
 from app.models.user import User
 from app.services.style_service import BuiltinReadOnlyError, StyleService
@@ -258,7 +259,7 @@ class TestStyleServiceUpdate:
         assert replacement.user_id == test_user_email
         assert replacement.is_builtin is False
         await db_session.refresh(original)
-        await db_session.refresh(shared)
+        await db_session.refresh(await db_session.get(Style, shared.id))
         assert original.content == "You are a helpful assistant."
         assert shared.system_prompt_template_id == original.id
 
@@ -448,14 +449,14 @@ class TestStyleTemplateDeletionBehavior:
         await db_session.delete(tpl)
         await db_session.commit()
         # The test session has expire_on_commit=False (see conftest), so the
-        # already-loaded ``style`` object's Python-side attributes wouldn't
+        # already-loaded mapped row's Python-side attributes wouldn't
         # otherwise reflect a DB-level cascade the ORM never issued itself.
         # A fresh request-scoped session in production wouldn't have this
         # staleness — it would query cold and see the post-cascade row. Use
         # an explicit async-safe refresh rather than expire_all(), which
         # would trigger a sync attribute-reload path AsyncSession can't run
         # outside a greenlet context.
-        await db_session.refresh(style)
+        await db_session.refresh(await db_session.get(Style, style.id))
 
         survivor = await svc.get(style.id, test_user_email)
         assert survivor is not None

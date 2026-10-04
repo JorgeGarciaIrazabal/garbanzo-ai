@@ -1,6 +1,7 @@
-import 'dart:typed_data';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
@@ -10,17 +11,22 @@ import 'package:garbanzo_ai/features/chat/models/chat_message.dart';
 import 'package:garbanzo_ai/features/chat/models/conversation.dart';
 import 'package:garbanzo_ai/features/chat/models/model_info.dart';
 import 'package:garbanzo_ai/features/chat/models/style.dart';
+import 'package:garbanzo_ai/features/chat/models/system_prompt_template.dart';
 import 'package:garbanzo_ai/features/chat/models/thinking_level.dart';
 import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/model_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/style_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/system_prompt_provider.dart';
 import 'package:garbanzo_ai/features/chat/services/style_service.dart';
+import 'package:garbanzo_ai/features/chat/services/system_prompt_service.dart';
+import 'package:garbanzo_ai/features/chat/widgets/input/message_composer.dart';
 import 'package:garbanzo_ai/features/chat/widgets/chat_page.dart';
 import 'package:garbanzo_ai/features/chat/widgets/chat_input_widget.dart';
 import 'package:garbanzo_ai/features/chat/widgets/chat_message_widget.dart';
 import 'package:garbanzo_ai/features/chat/widgets/topic_banner.dart';
 import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
+import 'package:garbanzo_ai/features/folders/models/virtual_folder.dart';
+import 'package:garbanzo_ai/features/folders/services/folders_service.dart';
 import 'package:garbanzo_ai/features/topics/models/active_context.dart';
 import 'package:garbanzo_ai/features/topics/models/topic_node.dart';
 import 'package:garbanzo_ai/features/topics/models/topic_switch.dart';
@@ -30,8 +36,10 @@ import 'package:garbanzo_ai/features/topics/services/active_context_service.dart
 import 'package:garbanzo_ai/features/topics/services/topic_service.dart';
 import 'package:garbanzo_ai/features/topics/widgets/active_context_panel.dart';
 import 'package:garbanzo_ai/features/topics/widgets/topic_context_empty_state.dart';
+import 'package:garbanzo_ai/features/topics/widgets/topic_field.dart';
 import 'package:garbanzo_ai/features/topics/widgets/topic_greeting_card.dart';
 import 'package:garbanzo_ai/features/topics/widgets/topic_landing.dart';
+import 'package:garbanzo_ai/features/topics/widgets/topic_starter_card.dart';
 import 'package:garbanzo_ai/features/topics/widgets/topic_switch_dialog.dart';
 import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -130,6 +138,19 @@ class _FakeStyleService extends StyleService {
   Future<List<Style>> listStyles() async => _styles;
 }
 
+class _EmptyFoldersService extends FoldersService {
+  @override
+  Future<List<VirtualFolder>> attached(String conversationId) async => [];
+}
+
+class _SeedPromptService extends SystemPromptService {
+  _SeedPromptService() : super.forTesting();
+  Future<List<SystemPromptTemplate>> Function()? load;
+
+  @override
+  Future<List<SystemPromptTemplate>> listTemplates({String? locale}) => load!();
+}
+
 class _FakeSystemPromptProvider extends SystemPromptProvider {
   @override
   Future<void> refresh({String? locale}) async {}
@@ -170,6 +191,7 @@ class _FakeTopicService extends TopicService {
   final TopicArchivePage? archivePage;
   final List<Conversation> conversations;
   int resumeCalls = 0;
+  int switchCalls = 0;
 
   @override
   Future<List<TopicNode>> listTopics(TopicOrigin mode) async => topics;
@@ -215,6 +237,7 @@ class _FakeTopicService extends TopicService {
     String mode = 'start',
     Map<String, dynamic>? settings,
   }) async {
+    switchCalls++;
     if ((topicId == null) == (label == null)) {
       throw StateError('exactly one topic target is required');
     }
@@ -1243,9 +1266,10 @@ How can I help you with **Retirement planning** today?
   });
 
   group('TopicLanding new-topic defaults', () {
-    Style defaultStyle({ThinkingLevel? thinkingLevel}) => Style(
+    Style defaultStyle({ThinkingLevel? thinkingLevel, String? templateId}) => Style(
       id: 'default-style',
       name: 'Deep work',
+      systemPromptTemplateId: templateId,
       modelId: 'kimi-k3',
       thinkingLevel: thinkingLevel,
       isDefault: true,
@@ -1261,6 +1285,163 @@ How can I help you with **Retirement planning** today?
       await tester.pump();
       await tester.pumpAndSettle();
     }
+
+    testWidgets('required seed blocks keyboard and stale topic/starter callbacks', (tester) async {
+      const topic = TopicNode(
+        id: 'topic', label: 'Plan a trip', origin: TopicOrigin.explore,
+        starterPrompts: ['Suggest destinations'],
+      );
+      final service = _FakeTopicService([topic]);
+      final topics = TopicDiscoveryProvider(service: service);
+      await topics.setMode(TopicOrigin.explore);
+      topics.synchronizeSelectedTopic(topic);
+      final prompt = SystemPromptTemplate(
+        id: 'required', name: 'Required', content: 'Use these instructions',
+        createdAt: DateTime(2026),
+      );
+      final prompts = _SeedPromptService()..load = () async => [prompt];
+      final styles = StyleProvider(
+        styleService: _FakeStyleService([defaultStyle(templateId: 'required')]),
+        systemPromptService: prompts,
+      );
+      await styles.ensureLoaded();
+      final submitted = <String>[];
+      await tester.pumpWidget(_wrapWithApp(
+        TopicLanding(conversationId: 'primary', onStarterSelected: submitted.add),
+        topicProvider: topics, styleProvider: styles,
+      ));
+      await settle(tester);
+      expect(styles.pendingSeedBlocked, isFalse);
+      final somethingNew = find.byKey(const ValueKey('something_new_topic'));
+      final focus = Focus.of(tester.element(find.descendant(
+        of: somethingNew, matching: find.byType(Container),
+      ).first));
+      focus.requestFocus();
+      await tester.pump();
+      expect(focus.hasFocus, isTrue);
+      final startTopic = tester.widget<TopicField>(find.byType(TopicField)).onStart;
+      final startNew = tester.widget<InkWell>(somethingNew).onTap!;
+      final startPrompt = tester.widget<TopicStarterCard>(find.byType(TopicStarterCard)).onTap;
+
+      final slow = Completer<List<SystemPromptTemplate>>();
+      prompts.load = () => slow.future;
+      final seeding = styles.applyDefaultForNewTopic();
+      expect(styles.pendingSeedBlocked, isTrue);
+      // Existing focus and callbacks predate the next rebuild. Check live state.
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      startTopic(topic);
+      startNew();
+      startPrompt();
+      expect(service.switchCalls, 0);
+      expect(submitted, isEmpty);
+      await tester.pump();
+      expect(focus.hasFocus, isFalse);
+
+      slow.complete([prompt]);
+      await seeding;
+      await settle(tester);
+      expect(styles.pendingSeedBlocked, isFalse);
+      await tester.ensureVisible(find.text('Suggest destinations'));
+      await tester.tap(find.text('Suggest destinations'));
+      expect(submitted, ['Suggest destinations']);
+    });
+
+    testWidgets('required instructions block submission, show retry and recover without editing the chat',
+        (tester) async {
+      final topics = TopicDiscoveryProvider(service: _FakeTopicService(const []));
+      final prompts = _SeedPromptService()..load = () async => [];
+      final styles = StyleProvider(
+        styleService: _FakeStyleService([defaultStyle(templateId: 'required')]),
+        systemPromptService: prompts,
+      );
+      await styles.ensureLoaded();
+      final slow = Completer<List<SystemPromptTemplate>>();
+      prompts.load = () => slow.future;
+      final chat = _FakeChatProvider();
+      final models = _FakeModelProvider(
+        models: const [ModelInfo(id: 'kimi-k3', name: 'Kimi', provider: 'ollama')],
+        selectedId: 'kimi-k3',
+      );
+      final submitted = <String>[];
+      await tester.pumpWidget(_wrapWithApp(
+        Column(children: [
+          Expanded(child: TopicLanding(conversationId: 'primary', onStarterSelected: (_) {})),
+          ChatInputWidget(onSend: (text, _) => submitted.add(text)),
+        ]),
+        topicProvider: topics,
+        chatProvider: chat,
+        styleProvider: styles,
+        modelProvider: models,
+        promptProvider: _FakeSystemPromptProvider(),
+        settingsProvider: SettingsProvider(),
+      ));
+      await tester.pump();
+      await tester.pump();
+      var composer = tester.widget<MessageComposer>(find.byType(MessageComposer));
+      expect(styles.isSeeding, isTrue);
+      expect(composer.submitEnabled, isFalse);
+      composer.controller!.text = 'Keep this draft';
+      tester.state<MessageComposerState>(find.byType(MessageComposer)).submit();
+      // Also guard a direct callback racing the rebuild.
+      composer.onSend('Keep this draft');
+      expect(submitted, isEmpty);
+      expect(composer.controller!.text, 'Keep this draft');
+      slow.complete([]);
+      await settle(tester);
+      expect(find.byKey(const ValueKey('topic_style_seed_error')), findsOneWidget);
+      expect(tester.widget<MessageComposer>(find.byType(MessageComposer)).submitEnabled, isFalse);
+      expect(chat.updates, isEmpty);
+      expect(styles.pendingSystemPrompt, isNull);
+      prompts.load = () async => [SystemPromptTemplate(
+        id: 'required', name: 'Required', content: 'Use these instructions',
+        locale: 'es', createdAt: DateTime(2026),
+      )];
+      await tester.tap(find.descendant(
+        of: find.byKey(const ValueKey('topic_style_seed_error')),
+        matching: find.text('Try again'),
+      ));
+      await settle(tester);
+      expect(find.byKey(const ValueKey('topic_style_seed_error')), findsNothing);
+      expect(styles.pendingSystemPrompt, 'Use these instructions');
+      expect(styles.pendingThinkingLevel, ThinkingLevel.medium);
+      composer = tester.widget<MessageComposer>(find.byType(MessageComposer));
+      expect(composer.submitEnabled, isTrue);
+      expect(composer.controller!.text, 'Keep this draft');
+      expect(chat.updates, isEmpty);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('required new-topic failure leaves existing-chat sending available',
+        (tester) async {
+      final topics = TopicDiscoveryProvider(service: _FakeTopicService(const []));
+      topics.conversationStarted();
+      final styles = StyleProvider(
+        styleService: _FakeStyleService([defaultStyle(templateId: 'missing')]),
+        systemPromptService: _SeedPromptService()..load = () async => [],
+      );
+      await styles.ensureLoaded();
+      final chat = _FakeChatProvider(conversation: Conversation(
+        id: 'existing', model: 'kimi-k3', systemPrompt: 'Existing instructions',
+        createdAt: DateTime(2026), updatedAt: DateTime(2026),
+      ));
+      await tester.pumpWidget(_wrapWithApp(
+        ChatInputWidget(onSend: (_, _) {}, foldersService: _EmptyFoldersService()),
+        topicProvider: topics,
+        chatProvider: chat,
+        styleProvider: styles,
+        modelProvider: _FakeModelProvider(
+          models: const [ModelInfo(id: 'kimi-k3', name: 'Kimi', provider: 'ollama')],
+          selectedId: 'kimi-k3',
+        ),
+        promptProvider: _FakeSystemPromptProvider(),
+        settingsProvider: SettingsProvider(),
+      ));
+      await settle(tester);
+      expect(styles.pendingSeedBlocked, isTrue);
+      expect(tester.widget<MessageComposer>(find.byType(MessageComposer)).submitEnabled, isTrue);
+      expect(chat.updates, isEmpty);
+      expect(tester.takeException(), isNull);
+    });
 
     testWidgets('composer shows the default style and Medium on each new topic',
         (tester) async {

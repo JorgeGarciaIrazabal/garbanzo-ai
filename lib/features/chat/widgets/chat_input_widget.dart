@@ -160,6 +160,10 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
   }
 
   void _handleSend(String text) {
+    if (composerConversation(context, listen: false) == null &&
+        context.read<StyleProvider>().pendingSeedBlocked) {
+      return;
+    }
     final attachments = List<ChatAttachment>.from(_attachments);
     final tools = context.read<ToolProvider>().tools;
     widget.onSend(
@@ -465,7 +469,10 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
               onStop: widget.onStop,
               isLoading: widget.isLoading,
               // The folder action is unavailable until attach/detach persists.
-              submitEnabled: attachFolder != null,
+              submitEnabled:
+                  attachFolder != null &&
+                  (composerConversation(context) != null ||
+                      !styleProvider.pendingSeedBlocked),
               hasExtraContent: _attachments.isNotEmpty,
               onPasteImage: (images) => unawaited(_stagePastedImages(images)),
               above: Column(

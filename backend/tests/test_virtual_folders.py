@@ -19,6 +19,7 @@ from app.models.user import User
 from app.models.virtual_folder import ConversationFolder
 from app.services import virtual_folder_service, virtual_folder_tools
 from app.services.chat_service import ChatService
+from app.services.document_extraction import DocumentExtractionError
 from app.services.llm_provider import ChatChunk
 from app.services.native_tools import execute_native_tool
 from app.services.virtual_folder_service import FolderError, VirtualFolderService
@@ -580,4 +581,27 @@ async def test_spreadsheet_extraction_is_read_only_and_retains_original_bytes(fo
     assert not page.json()["editable"]
     assert "España" in page.json()["text"] and "731.42" in page.json()["text"]
     assert (await client.put(url, json={"revision": 1, "content": "overwrite"})).status_code == 400
+    assert (await client.get(f"/api/v1/folders/{folder_id}/files/{file_id}/content")).content == raw
+
+
+@pytest.mark.asyncio
+async def test_document_failure_is_mapped_to_folder_error_without_changing_bytes(
+    folders_client, monkeypatch
+):
+    client, _ = folders_client
+    folder_id = await _folder(client)
+    raw = b"original document bytes"
+    response = await client.post(
+        f"/api/v1/folders/{folder_id}/files", files={"file": ("data.pdf", raw)}
+    )
+    assert response.status_code == 201
+    file_id = response.json()["id"]
+
+    def fail_extraction(path, data):
+        raise DocumentExtractionError("Document extraction timed out; download it instead.")
+
+    monkeypatch.setattr(virtual_folder_service, "extract_isolated", fail_extraction)
+    response = await client.get(f"/api/v1/folders/{folder_id}/files/{file_id}/text")
+    assert response.status_code == 400
+    assert "Cannot read this document" in response.text and "timed out" in response.text
     assert (await client.get(f"/api/v1/folders/{folder_id}/files/{file_id}/content")).content == raw

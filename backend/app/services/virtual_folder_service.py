@@ -31,10 +31,8 @@ from app.schemas.virtual_folder import (
     FolderCreate,
     FolderUpdate,
 )
-from app.services.client_file_extract import TEXT_EXTENSIONS
-from app.services.knowledge_base_service import _looks_like_text
-from app.services.workflow_outputs import extract_isolated
-from app.services.workflow_service import WorkflowError
+from app.services.document_extraction import DocumentExtractionError, extract_isolated
+from app.services.document_text import TEXT_EXTENSIONS, looks_like_text
 
 
 class FolderError(ValueError):
@@ -75,7 +73,7 @@ def editable_text(path: str, data: bytes) -> str:
         text = data.decode("utf-8")
     except UnicodeDecodeError as exc:
         raise FolderError("This file is not UTF-8 text and cannot be edited.") from exc
-    if "\x00" in text or (text and not _looks_like_text(text)):
+    if "\x00" in text or (text and not looks_like_text(text)):
         raise FolderError("This file is binary and cannot be edited as text.")
     return text
 
@@ -340,7 +338,7 @@ class VirtualFolderService:
         else:
             try:
                 text = await asyncio.to_thread(extract_isolated, file.path, file.data)
-            except (WorkflowError, ValueError, OSError) as exc:
+            except DocumentExtractionError as exc:
                 raise FolderError(f"Cannot read this document: {exc}") from exc
         end = min(offset + limit, len(text))
         return FileText(

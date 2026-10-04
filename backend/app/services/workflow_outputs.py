@@ -4,20 +4,14 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
-import io
 import json
 import mimetypes
 import os
 import stat
-import subprocess
-import sys
-import tempfile
 import uuid
-import zipfile
 from pathlib import Path, PurePosixPath
 from typing import Any, Literal
 
-from markitdown import MarkItDown
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,17 +21,11 @@ from app.core.config import get_settings
 from app.models.workflow_artifact import WorkflowArtifact
 from app.models.workflow_run import WorkflowRun
 from app.schemas.workflow import MAX_FILE_BYTES, MAX_FILE_COUNT, MAX_TOTAL_BYTES, TERMINAL_STATUSES
-from app.services.client_file_extract import (
-    _MARKITDOWN_EXTENSIONS,
-    _STRUCTURED_EXTENSIONS,
-    TEXT_EXTENSIONS,
-)
-from app.services.knowledge_base_service import _looks_like_text, extract_text
+from app.services.document_extraction import DocumentExtractionError, extract_isolated
 from app.services.workflow_service import WorkflowError, _run_git
 
 # Traversal itself is bounded, including directories and files that are not outputs.
 MAX_TREE_ENTRIES = 10000
-MAX_TEXT_CHARS = 5 * 1024 * 1024
 MAX_PAGE_CHARS = 12000
 _EXCLUDED_DIRS = frozenset(
     {
@@ -238,46 +226,6 @@ async def get_output(db: AsyncSession, run: WorkflowRun, path: str) -> WorkflowA
     return row
 
 
-def extract_output(path: str, data: bytes) -> str:
-    """Strict extraction: unsupported/corrupt/oversized content is an error, never text."""
-    suffix = Path(path).suffix.lower()
-    if suffix in {".xlsx", ".ods", ".docx", ".pptx", ".epub"}:
-        with zipfile.ZipFile(io.BytesIO(data)) as archive:
-            if (
-                len(archive.infolist()) > MAX_TREE_ENTRIES
-                or sum(entry.file_size for entry in archive.infolist()) > MAX_TOTAL_BYTES
-            ):
-                raise WorkflowError(
-                    "Document exceeds the expanded extraction limits; download it instead."
-                )
-    if suffix in _STRUCTURED_EXTENSIONS and suffix != ".csv":
-        text = extract_text(data, path, "")
-    elif suffix in _MARKITDOWN_EXTENSIONS:
-        text = _strict_markdown(path, data)
-    else:
-        try:
-            text = data.decode("utf-8")
-        except UnicodeDecodeError as exc:
-            raise WorkflowError(
-                "This file has no supported text representation; download it instead."
-            ) from exc
-        if suffix not in TEXT_EXTENSIONS and text and not _looks_like_text(text):
-            raise WorkflowError(
-                "This file has no supported text representation; download it instead."
-            )
-    if len(text) > MAX_TEXT_CHARS:
-        raise WorkflowError("Extracted document exceeds the text limit; download it instead.")
-    return text
-
-
-def _strict_markdown(path: str, data: bytes) -> str:
-    # The legacy client helper suppresses conversion errors; workflow reads must propagate them.
-    with tempfile.NamedTemporaryFile(suffix=Path(path).suffix) as tmp:
-        tmp.write(data)
-        tmp.flush()
-        return MarkItDown().convert(tmp.name).text_content
-
-
 def text_page(text: str, offset: int, limit: int) -> dict:
     end = min(offset + limit, len(text))
     return {
@@ -352,7 +300,7 @@ async def _execute_workflow_outputs(*, args: dict, db: AsyncSession, user_id: st
     artifact = await get_output(db, run, request.path)
     try:
         text = await asyncio.to_thread(extract_isolated, artifact.path, artifact.data)
-    except Exception as exc:
+    except DocumentExtractionError as exc:
         raise WorkflowError(f"Cannot extract {artifact.path!r}: {exc}") from exc
     return {
         "ok": True,
@@ -401,31 +349,6 @@ WORKFLOW_OUTPUTS_NUDGE = (
     "report/files before answering; follow next_offset for more content. Historical files that "
     "were deleted before output preservation are explicitly unavailable."
 )
-
-
-def extract_isolated(path: str, data: bytes) -> str:
-    """Document parsers run with memory/CPU/time limits outside the API process."""
-    suffix = Path(path).suffix.lower()
-    if suffix not in _STRUCTURED_EXTENSIONS | _MARKITDOWN_EXTENSIONS or suffix == ".csv":
-        return extract_output(path, data)
-    try:
-        proc = subprocess.run(  # noqa: S603
-            [sys.executable, "-m", "app.services.workflow_extract_worker", path],
-            input=data,
-            capture_output=True,
-            timeout=20,
-            check=False,
-        )
-    except subprocess.TimeoutExpired as exc:
-        raise WorkflowError("Document extraction timed out; download it instead.") from exc
-    if proc.returncode != 0:
-        raise WorkflowError(
-            "Document extraction failed or exceeded resource limits; download it instead."
-        )
-    result = json.loads(proc.stdout)
-    if not result["ok"]:
-        raise WorkflowError(result["error"])
-    return result["text"]
 
 
 async def execute_workflow_outputs(*, args: dict, db: AsyncSession, user_id: str) -> dict:

@@ -11,7 +11,6 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from openpyxl import Workbook
-from pypdf.errors import PdfReadError
 from sqlalchemy import select, update
 
 from app.db import session as db_session_module
@@ -19,16 +18,16 @@ from app.models.conversation import Conversation
 from app.models.message import Message
 from app.models.workflow_run import WorkflowRun
 from app.schemas.chat import ChatResponseChunk
-from app.services import workflow_outputs, workflow_runner
+from app.services import document_extraction, workflow_outputs, workflow_runner
 from app.services.chat_context import ChatContextBuilder
 from app.services.chat_service import ChatService
+from app.services.document_extraction import DocumentExtractionError, extract_document
 from app.services.llm_provider import ChatChunk
 from app.services.native_tools import execute_native_tool
 from app.services.workflow_outputs import (
     canonical_path,
     capture_outputs,
     collect_artifacts,
-    extract_output,
     get_output,
 )
 from app.services.workflow_service import WorkflowError, WorkflowService, _run_git
@@ -176,19 +175,19 @@ def test_capture_limits_are_explicit(tmp_path, monkeypatch, bound):
 
 
 def test_corrupt_supported_document_is_not_returned_as_report():
-    with pytest.raises(PdfReadError):
-        extract_output("broken.pdf", b"not a pdf")
-    with pytest.raises(WorkflowError, match="no supported text"):
-        extract_output("image.png", b"\x89PNG\x00\xff")
+    with pytest.raises(DocumentExtractionError, match="Document extraction failed"):
+        extract_document("broken.pdf", b"not a pdf")
+    with pytest.raises(DocumentExtractionError, match="no supported text"):
+        extract_document("image.png", b"\x89PNG\x00\xff")
 
 
 def test_compressed_document_limits_are_explicit(monkeypatch):
     data = io.BytesIO()
     with zipfile.ZipFile(data, "w", compression=zipfile.ZIP_DEFLATED) as archive:
         archive.writestr("large.xml", "a" * 1000)
-    monkeypatch.setattr(workflow_outputs, "MAX_TOTAL_BYTES", 100)
-    with pytest.raises(WorkflowError, match="expanded extraction"):
-        extract_output("report.docx", data.getvalue())
+    monkeypatch.setattr(document_extraction, "MAX_EXPANDED_BYTES", 100)
+    with pytest.raises(DocumentExtractionError, match="expanded extraction"):
+        extract_document("report.docx", data.getvalue())
 
 
 @pytest.mark.asyncio
@@ -500,7 +499,7 @@ async def test_completion_ingestion_remains_in_original_topic(
 def _spreadsheet():
     workbook = Workbook()
     workbook.active.append(["Country", "Measurement"])
-    workbook.active.append(["España", "731.42"])
+    workbook.active.append(["España", 731.42])
     data = io.BytesIO()
     workbook.save(data)
     workbook.close()
@@ -520,6 +519,23 @@ async def test_read_spreadsheet_uses_full_strict_isolated_extraction(db_session)
     result = await _tool(db_session, action="read_file", run_id=run.id, path="measurements.xlsx")
     assert result["ok"], result
     assert "España" in result["content"] and "731.42" in result["content"]
+    assert (await get_output(db_session, run, "measurements.xlsx")).data == payload
+
+
+@pytest.mark.asyncio
+async def test_document_failure_is_mapped_to_workflow_error_without_changing_bytes(
+    db_session, monkeypatch
+):
+    run = await _finished(db_session)
+
+    def fail_extraction(path, data):
+        raise DocumentExtractionError("Document extraction timed out; download it instead.")
+
+    monkeypatch.setattr(workflow_outputs, "extract_isolated", fail_extraction)
+    result = await _tool(db_session, action="read_file", run_id=run.id, path="hallazgos España.md")
+    assert not result["ok"]
+    assert "Cannot extract" in result["error"] and "timed out" in result["error"]
+    assert (await get_output(db_session, run, "hallazgos España.md")).data == REPORT.encode()
 
 
 @pytest.mark.asyncio

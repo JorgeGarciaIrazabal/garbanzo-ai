@@ -4,11 +4,14 @@ subtask 2). Mirrors ``test_scheduled_actions_endpoints.py`` in structure.
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import select
 
 from app.core.config import Settings, get_settings
 from app.core.security import create_access_token, get_current_user, hash_password
+from app.db import session as db_session_module
 from app.db.session import get_db
 from app.main import app
+from app.models.style import Style
 from app.models.system_prompt import SystemPromptTemplate
 from app.models.user import User
 from app.services.style_service import StyleService
@@ -556,7 +559,7 @@ class TestTemplateReference:
                 # keep serving the pre-cascade in-memory Style attributes.
                 # An explicit async-safe refresh stands in for what a fresh
                 # per-request session would see cold.
-                await db_session.refresh(style)
+                await db_session.refresh(await db_session.get(Style, style.id))
                 resp = await c.get(f"/api/v1/styles/{style.id}", headers=_auth())
             assert resp.status_code == 200
             body = resp.json()
@@ -576,6 +579,67 @@ async def _seed_builtins(db_session):
 
 
 class TestBuiltinStyles:
+    async def test_default_responses_do_not_persist_viewer_flags(self, db_session):
+        """Exercise the real get_db commit, then inspect storage in a fresh session."""
+        other_email = "other@example.com"
+        db_session.add(User(email=other_email, hashed_password=hash_password("x")))
+        await db_session.commit()
+        await _seed_builtins(db_session)
+        service = StyleService(db_session)
+        owned = await service.create(
+            user_id="test@example.com", name="Old default", model_id="qwen3", is_default=True
+        )
+        other = await service.create(
+            user_id=other_email, name="Other default", model_id="qwen3", is_default=True
+        )
+        builtin_id = (
+            (await db_session.execute(select(Style.id).where(Style.is_builtin))).scalars().first()
+        )
+        before_flags = dict((await db_session.execute(select(Style.id, Style.is_default))).all())
+
+        _install_overrides(db_session)
+        # conftest swaps the session maker, so production get_db uses the test DB.
+        app.dependency_overrides.pop(get_db)
+        try:
+            async with await _client() as client:
+                changed = await client.patch(
+                    f"/api/v1/styles/{builtin_id}", headers=_auth(), json={"is_default": True}
+                )
+                assert changed.status_code == 200, changed.text
+                assert changed.json()["is_default"] is True
+                listed = await client.get("/api/v1/styles", headers=_auth())
+                assert listed.status_code == 200
+                assert {item["id"] for item in listed.json() if item["is_default"]} == {builtin_id}
+                viewed = await client.get(f"/api/v1/styles/{builtin_id}", headers=_auth())
+                assert viewed.json()["is_default"] is True
+                async with db_session_module.async_session_maker() as fresh:
+                    assert (
+                        dict((await fresh.execute(select(Style.id, Style.is_default))).all())
+                        == before_flags
+                    )
+
+                _install_overrides(db_session, email=other_email)
+                app.dependency_overrides.pop(get_db)
+                viewed_by_other = await client.get(
+                    f"/api/v1/styles/{builtin_id}", headers=_auth(other_email)
+                )
+                assert viewed_by_other.json()["is_default"] is False
+                listed_by_other = await client.get("/api/v1/styles", headers=_auth(other_email))
+                assert {item["id"] for item in listed_by_other.json() if item["is_default"]} == {
+                    other.id
+                }
+        finally:
+            _clear_overrides()
+
+        async with db_session_module.async_session_maker() as fresh:
+            assert (
+                dict((await fresh.execute(select(Style.id, Style.is_default))).all())
+                == before_flags
+            )
+            assert (await fresh.get(User, "test@example.com")).default_style_id == builtin_id
+            assert (await fresh.get(User, other_email)).default_style_id == other.id
+            assert (await fresh.get(Style, owned.id)).is_default is True  # legacy flag is untouched
+
     async def test_list_includes_builtins(self, db_session):
         await _seed_builtins(db_session)
         _install_overrides(db_session)

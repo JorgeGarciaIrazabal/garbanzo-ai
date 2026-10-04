@@ -192,8 +192,9 @@ half-migrated schema.
   *visible* style (built-in or user-owned), so a shared built-in like
   "Truth Seeker" can be a user's default without mutating the shared row
   (which would affect every user). `ON DELETE SET NULL`. The response's
-  `style.is_default` is recomputed per-user from this pointer by
-  `StyleService`; the stored `Style.is_default` column + its partial
+  `style.is_default` is projected per-user into a detached `StyleOut` response
+  by `StyleService`, without assigning it to the mapped row. Reads remain
+  read-only even when request teardown commits. The stored `Style.is_default` column + its partial
   unique index are vestigial legacy, kept only so older code paths that
   still set `Style.is_default` stay consistent.
 - `Report` (026; extended by 033, idea 22) stores in-app bug reports / feature requests:
@@ -220,17 +221,18 @@ half-migrated schema.
 - `Style` (Idea 2: "Styles", subtask 2) is a saved, reusable bundle of
   `model_id` + `thinking_level` + `system_prompt_template_id` a user can name
   ("Deep Work", "Quick Answers") and reuse across conversations — the picker
-  UI and per-conversation "apply a style" wiring are later subtasks. A style
+  picker applies it through a conversation PATCH. A style
   is either owned by a user (`user_id` = their email) or shared as a
   **built-in** (`user_id = NULL`, `is_builtin = TRUE`); built-ins are seeded
   by `StyleService.seed_builtin_styles` at startup from
-  `StyleService.BUILTIN_STYLES` (six per supported locale — Concise, Truth
-  Seeker, Writing & Stories, Coding, Tutoring, Brainstorm in English; the
-  same six named in Spanish), each referencing a built-in
+  `BUILTIN_STYLES` (five per supported locale — Concise, Truth
+  Seeker, Writing & Stories, Tutoring, Brainstorm in English; the
+  same five named in Spanish), each referencing a built-in
   `SystemPromptTemplate` of the same `(name, locale)` as its prompt half.
-  They surface in the picker as one-tap cards above the user's own styles
-  and are read-only — `StyleService.update`/`delete` raise
-  `BuiltinReadOnlyError` (the endpoint maps to 403). `locale` on built-ins
+  They surface in the picker as one-tap cards below the user's own styles
+  and their content is read-only — `StyleService.update`/`delete` raise
+  `BuiltinReadOnlyError` for content updates/deletion (the endpoint maps to 403).
+  Per-user default changes remain allowed. `locale` on built-ins
   holds the BCP-47 tag ('en'/'es') so the picker surfaces them in the user's
   language; user-saved rows keep `locale = NULL` (language-neutral, surface
   in every locale). `description` is a short subtitle shown under the
@@ -248,11 +250,11 @@ half-migrated schema.
   (018_styles.sql): deleting the referenced template only clears that
   half of the bundle — it never cascades to delete the style itself, since
   the model/thinking-level choices remain meaningful on their own (mirrors
-  `UserMemory.source_conversation_id`). `is_default` marks the style used to
-  seed new conversations; at most one per user is enforced by a partial
-  unique index (`ix_styles_one_default_per_user`), with `StyleService`
-  unsetting any prior default before setting a new one so callers don't hit
-  the constraint in normal use.
+  `UserMemory.source_conversation_id`). `User.default_style_id` selects the
+  style used for new conversations; the response flag is viewer-specific.
+  The legacy `is_default` column/index are retained without schema changes.
+  Creation still clears older owned flags before writing a legacy default;
+  selection updates and reads use the per-user pointer alone.
 - Conversations use soft delete (`is_deleted=True`), not hard delete.
 - `WorkflowRun` (032_workflow_runs.sql) is one delegated opencode run (idea
   18). It exists because the run is **detached**: it keeps going after the

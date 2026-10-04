@@ -65,7 +65,9 @@ template string constraints, with empty content allowed for clearing. Supplying
 both `system_prompt_content` and `system_prompt_template_id`, even as null,
 returns 422. Built-in styles still reject content updates with 403. Responses
 include `system_prompt_template_id`; clients reload the template list after a save
-to obtain any newly created instructions.
+to obtain any newly created instructions. `is_default` is computed from the
+requesting user's `default_style_id` for every response. Reading a style or its
+list does not update stored flags, including shared built-in rows.
 
 Read-aloud session creation accepts `{text, voice_en, voice_es, language_mode,
 start_paragraph?}`. Text over 100,000 characters returns 413. A new session

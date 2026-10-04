@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:garbanzo_ai/core/api_client.dart';
 import 'package:garbanzo_ai/features/chat/models/chat_message.dart';
 import 'package:garbanzo_ai/features/chat/models/system_prompt_template.dart';
@@ -9,6 +10,10 @@ import 'package:garbanzo_ai/features/chat/services/chat_service.dart';
 /// Client for the `/api/v1/system-prompts` endpoints.
 class SystemPromptService {
   SystemPromptService._();
+
+  /// Allows focused tests to supply prompt transport without a singleton.
+  @visibleForTesting
+  SystemPromptService.forTesting();
   static final SystemPromptService instance = SystemPromptService._();
 
   final ApiClient _api = ApiClient.instance;
@@ -25,6 +30,21 @@ class SystemPromptService {
           .toList();
     }
     throw Exception('Failed to list templates (${response.statusCode})');
+  }
+
+  /// Resolve a style reference independently of the visible picker locale.
+  /// No reference is legitimate; a required reference must exist or fail.
+  Future<SystemPromptTemplate?> resolveTemplate(
+    String? templateId, {
+    Iterable<SystemPromptTemplate> cachedTemplates = const [],
+  }) async {
+    if (templateId == null) return null;
+    final cached = cachedTemplates.where((t) => t.id == templateId).firstOrNull;
+    if (cached != null) return cached;
+    final templates = await listTemplates();
+    final template = templates.where((t) => t.id == templateId).firstOrNull;
+    if (template == null) throw StateError('Style prompt template not found');
+    return template;
   }
 
   Future<SystemPromptTemplate> createTemplate({

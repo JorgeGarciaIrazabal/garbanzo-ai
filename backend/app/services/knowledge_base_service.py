@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import io
 import logging
 import uuid
 from dataclasses import dataclass
@@ -14,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import get_settings
 from app.db.session import async_session_maker
 from app.models.knowledge_base import KnowledgeChunk, KnowledgeDocument
+from app.services.document_text import extract_text, looks_like_text
 from app.services.embedding_provider import EmbeddingProvider, get_embedding_provider
 
 logger = logging.getLogger(__name__)
@@ -25,76 +25,6 @@ class RetrievedChunk:
     document_filename: str
     content: str
     score: float
-
-
-# ---------------------------------------------------------------------------
-# Text extraction helpers
-# ---------------------------------------------------------------------------
-
-
-def _extract_pdf(data: bytes) -> str:
-    from pypdf import PdfReader
-
-    reader = PdfReader(io.BytesIO(data))
-    pages: list[str] = []
-    for page in reader.pages:
-        text = page.extract_text() or ""
-        if text.strip():
-            pages.append(text)
-    return "\n\n".join(pages)
-
-
-def _extract_csv(data: bytes) -> str:
-    return data.decode("utf-8", errors="replace")
-
-
-def _extract_spreadsheet(data: bytes) -> str:
-    from openpyxl import load_workbook
-
-    wb = load_workbook(filename=io.BytesIO(data), read_only=True, data_only=True)
-    parts: list[str] = []
-    for sheet_name in wb.sheetnames:
-        sheet = wb[sheet_name]
-        parts.append(f"## Sheet: {sheet_name}")
-        for row in sheet.iter_rows(values_only=True):
-            cells = [str(c) if c is not None else "" for c in row]
-            parts.append(" | ".join(cells))
-    return "\n".join(parts)
-
-
-def _extract_plain(data: bytes) -> str:
-    return data.decode("utf-8", errors="replace")
-
-
-def _looks_like_text(text: str, sample_size: int = 4000) -> bool:
-    """Heuristic check that extracted content is human-readable text.
-
-    Binary input decoded with errors="replace" is dominated by U+FFFD
-    replacement characters and control bytes; readable text is not.
-    """
-    sample = text[:sample_size]
-    if not sample:
-        return False
-    bad = sum(1 for ch in sample if ch == "�" or (ord(ch) < 32 and ch not in "\n\r\t"))
-    return bad / len(sample) < 0.10
-
-
-def extract_text(data: bytes, filename: str, mime_type: str) -> str:
-    """Dispatch to the right extractor for ``mime_type`` / filename."""
-    mime = (mime_type or "").lower()
-    lower_name = filename.lower()
-
-    if mime == "application/pdf" or lower_name.endswith(".pdf"):
-        return _extract_pdf(data)
-    if mime == "text/csv" or lower_name.endswith(".csv"):
-        return _extract_csv(data)
-    if mime in {
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "application/vnd.ms-excel",
-        "application/vnd.oasis.opendocument.spreadsheet",
-    } or lower_name.endswith((".xlsx", ".xls", ".ods")):
-        return _extract_spreadsheet(data)
-    return _extract_plain(data)
 
 
 # ---------------------------------------------------------------------------
@@ -173,7 +103,7 @@ class KnowledgeBaseService:
         text = extract_text(file_bytes, filename, mime_type).strip()
         if not text:
             raise ValueError("Could not extract any text from this file.")
-        if not _looks_like_text(text):
+        if not looks_like_text(text):
             # MIME types are client-controlled, so binary files (executables,
             # images renamed .txt, …) can reach the plain-text fallback. The
             # mojibake they extract would pollute search results — validate

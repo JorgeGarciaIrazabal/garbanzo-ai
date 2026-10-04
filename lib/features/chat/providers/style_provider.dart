@@ -18,12 +18,55 @@ import 'package:garbanzo_ai/features/chat/services/system_prompt_service.dart';
 /// no pending slot here: applying a style routes it through
 /// [ModelProvider.selectModel], the existing mechanism.
 class StyleProvider extends ChangeNotifier with GuardedStateMixin {
-  StyleProvider({StyleService? styleService})
-    : _service = styleService ?? StyleService.instance {
+  StyleProvider({
+    StyleService? styleService,
+    SystemPromptService? systemPromptService,
+  }) : _service = styleService ?? StyleService.instance,
+       _promptService = systemPromptService ?? SystemPromptService.instance {
     _loadFuture = refresh();
   }
 
   final StyleService _service;
+  final SystemPromptService _promptService;
+  bool _stylesLoaded = false;
+
+  int _seedRequest = 0;
+  int _pendingRevision = 0;
+  bool _disposed = false;
+  String? _seedError;
+  bool _isSeeding = false;
+  bool _seedBlocked = false;
+
+  /// Required instructions failed to load; the landing offers an explicit retry.
+  String? get seedError => _seedError;
+  bool get isSeeding => _isSeeding;
+
+  /// New-thread submission waits for required settings or an explicit prompt
+  /// replacement. Thinking/model tweaks alone cannot discard required content.
+  bool get pendingSeedBlocked => _seedBlocked;
+
+  /// Guards model selection and explicit Apply against later composer changes.
+  int get pendingRevision => _pendingRevision;
+
+  void _customizePending({bool replacePrompt = false}) {
+    _pendingTouched = true;
+    _pendingRevision++;
+    _seedRequest++;
+    if (replacePrompt) {
+      _seedBlocked = false;
+      _seedError = null;
+    } else if (_seedBlocked) {
+      _seedError ??= 'Failed to load style instructions. Please try again.';
+    }
+    _isSeeding = false;
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    _seedRequest++;
+    super.dispose();
+  }
 
   /// Completes when the initial [refresh] finishes. Lets the new-topic window
   /// await the style list instead of seeding from an empty one.
@@ -70,13 +113,13 @@ class StyleProvider extends ChangeNotifier with GuardedStateMixin {
   bool _pendingTouched = false;
 
   void setPendingThinkingLevel(ThinkingLevel? level) {
-    _pendingTouched = true;
+    _customizePending();
     _pendingThinkingLevel = level;
     notifyListeners();
   }
 
   void setPendingSystemPrompt(String? content) {
-    _pendingTouched = true;
+    _customizePending(replacePrompt: true);
     final trimmed = content?.trim();
     _pendingSystemPrompt = (trimmed == null || trimmed.isEmpty)
         ? null
@@ -87,6 +130,7 @@ class StyleProvider extends ChangeNotifier with GuardedStateMixin {
   Future<void> refresh() async {
     await runGuarded('Failed to load styles', () async {
       _styles = await _service.listStyles();
+      _stylesLoaded = true;
       await _seedPendingFromDefault();
     });
   }
@@ -101,52 +145,71 @@ class StyleProvider extends ChangeNotifier with GuardedStateMixin {
   /// [ModelProvider] already handles that side, and last-used intentionally
   /// only follows the existing default-style seeding contract.
   Future<void> _seedPendingFromDefault() async {
-    final seed = defaultStyle ?? await _lastUsedStyle();
-    _selectedStyleId ??= seed?.id;
     if (_pendingTouched) return;
-    if (seed == null) return;
-    _pendingThinkingLevel = seed.thinkingLevel;
-    _pendingSystemPrompt = await _resolveTemplateContent(
-      seed.systemPromptTemplateId,
-    );
+    await _seedPending(newTopic: false);
   }
 
-  /// Reset the composer for a new-topic window: the user's default style (or
-  /// last-used fallback) is selected, and thinking starts at Medium. Called
-  /// whenever the Topics landing opens (app startup or the New topic action)
-  /// so a new topic does not inherit whatever the previous chat happened to use.
-  ///
-  /// Returns the style the window was seeded from, or null when the user has
-  /// no saved styles.
-  Future<Style?> applyDefaultForNewTopic() async {
-    await ensureLoaded();
-    final seed = defaultStyle ?? await _lastUsedStyle();
-    // The window composes a deliberate pending state; protect it from being
-    // re-seeded by a later refresh until the user changes it again.
+  /// Reset the composer for a new-topic window, resolving instructions before
+  /// publishing identity, Medium effort and prompt together. A required lookup
+  /// failure preserves the prior composed state and exposes [seedError].
+  /// [isCurrent] also guards a landing that closes while lookup is in flight.
+  Future<Style?> applyDefaultForNewTopic({bool Function()? isCurrent}) {
     _pendingTouched = true;
-    _selectedStyleId = seed?.id;
-    _pendingThinkingLevel = ThinkingLevel.medium;
-    _pendingSystemPrompt = await _resolveTemplateContent(
-      seed?.systemPromptTemplateId,
-    );
-    notifyListeners();
-    return seed;
+    return _seedPending(newTopic: true, isCurrent: isCurrent);
   }
 
-  /// Content of a system-prompt template, or null when there is no template
-  /// or the template list could not be fetched. Best-effort: a failed fetch
-  /// only loses the prompt seed.
-  Future<String?> _resolveTemplateContent(String? templateId) async {
-    if (templateId == null) return null;
+  Future<Style?> _seedPending({
+    required bool newTopic,
+    bool Function()? isCurrent,
+  }) async {
+    final request = ++_seedRequest;
+    final revision = _pendingRevision;
+    bool current() =>
+        !_disposed &&
+        request == _seedRequest &&
+        revision == _pendingRevision &&
+        (isCurrent?.call() ?? true);
+    _seedError = null;
+    _isSeeding = true;
+    _seedBlocked = true;
+    notifyListeners();
     try {
-      final templates = await SystemPromptService.instance.listTemplates();
-      final content = templates
-          .where((t) => t.id == templateId)
-          .firstOrNull
-          ?.content
-          .trim();
-      return (content == null || content.isEmpty) ? null : content;
-    } catch (_) {
+      if (newTopic) {
+        await ensureLoaded();
+        if (!current()) return null;
+        // Retry a failed style-list load as well as a failed prompt lookup.
+        if (!_stylesLoaded) await refresh();
+        if (!current()) return null;
+        if (!_stylesLoaded) throw StateError('Styles have not loaded');
+      }
+      final seed = defaultStyle ?? await _lastUsedStyle();
+      if (!current()) return null;
+      final template = await _promptService.resolveTemplate(
+        seed?.systemPromptTemplateId,
+      );
+      if (!current()) return null;
+      final content = template?.content.trim();
+      _selectedStyleId = seed?.id;
+      _pendingThinkingLevel = newTopic
+          ? ThinkingLevel.medium
+          : seed?.thinkingLevel;
+      _pendingSystemPrompt = content == null || content.isEmpty
+          ? null
+          : content;
+      _pendingRevision++;
+      _isSeeding = false;
+      _seedBlocked = false;
+      notifyListeners();
+      return seed;
+    } catch (e) {
+      if (current()) {
+        _seedError = describeFailure(
+          e,
+          label: 'Failed to load style instructions',
+        );
+        _isSeeding = false;
+        notifyListeners();
+      }
       return null;
     }
   }
@@ -155,6 +218,7 @@ class StyleProvider extends ChangeNotifier with GuardedStateMixin {
   /// SharedPreferences (local-only, mirrors [SettingsProvider]'s prefs) so it
   /// survives app restarts.
   Future<void> recordLastUsed(String styleId) async {
+    _customizePending();
     if (_selectedStyleId != styleId) {
       _selectedStyleId = styleId;
       notifyListeners();
@@ -167,7 +231,7 @@ class StyleProvider extends ChangeNotifier with GuardedStateMixin {
   /// Thinking effort intentionally does not call this: it is a per-chat
   /// override layered on top of the selected style.
   void clearSelectedStyle() {
-    if (_selectedStyleId == null) return;
+    _customizePending();
     _selectedStyleId = null;
     notifyListeners();
   }

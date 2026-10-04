@@ -14,6 +14,7 @@ from app.core.config import Settings
 from app.core.security import hash_password
 from app.models.knowledge_base import KnowledgeChunk
 from app.models.user import User
+from app.services.document_text import extract_text, looks_like_text
 from app.services.knowledge_base_service import (
     KnowledgeBaseService,
     RetrievedChunk,
@@ -240,18 +241,11 @@ class TestBinaryContentRejection:
     """Binary uploads must not pollute the KB via the plain-text fallback."""
 
     def test_looks_like_text_accepts_prose(self):
-        from app.services.knowledge_base_service import _looks_like_text
-
-        assert _looks_like_text("A perfectly normal paragraph of text.\nMore.")
+        assert looks_like_text("A perfectly normal paragraph of text.\nMore.")
 
     def test_looks_like_text_rejects_binary_mojibake(self):
-        from app.services.knowledge_base_service import (
-            _extract_plain,
-            _looks_like_text,
-        )
-
         binary = bytes(range(256)) * 16  # e.g. an executable renamed .txt
-        assert not _looks_like_text(_extract_plain(binary))
+        assert not looks_like_text(extract_text(binary, "binary.txt", "text/plain"))
 
     @pytest.mark.asyncio
     async def test_create_document_rejects_binary(self, db_session):

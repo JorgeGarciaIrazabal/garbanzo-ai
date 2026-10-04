@@ -94,8 +94,16 @@ class _TopicLandingState extends State<TopicLanding> {
     } catch (_) {
       return;
     }
-    final seed = await styles.applyDefaultForNewTopic();
-    if (!mounted || (_topics?.newTopicEpoch ?? epoch) != epoch) return;
+    bool current() =>
+        mounted &&
+        _topics?.newTopicEpoch == epoch &&
+        (_topics?.showLanding ?? false);
+    final beforeSeed = styles.pendingRevision;
+    final seed = await styles.applyDefaultForNewTopic(isCurrent: current);
+    if (!mounted || !current() || styles.pendingRevision != beforeSeed + 1) {
+      return;
+    }
+    final seededRevision = styles.pendingRevision;
 
     final ModelProvider models;
     try {
@@ -104,7 +112,7 @@ class _TopicLandingState extends State<TopicLanding> {
       return;
     }
     await models.ensureLoaded();
-    if (!mounted || (_topics?.newTopicEpoch ?? epoch) != epoch) return;
+    if (!current() || styles.pendingRevision != seededRevision) return;
     _applySeedModel(models, seed);
   }
 
@@ -118,10 +126,14 @@ class _TopicLandingState extends State<TopicLanding> {
     if (modelId != null) models.selectModel(modelId);
   }
 
+  bool _canActivate() =>
+      mounted && !(context.read<StyleProvider?>()?.pendingSeedBlocked ?? false);
+
   @override
   Widget build(BuildContext context) {
     final p = context.watch<TopicDiscoveryProvider>();
     final l10n = _l10n(context);
+    final styles = context.watch<StyleProvider?>();
     final topics = p.visibleTopics;
     final parentLabel = p.searchQuery.isEmpty ? p.path.lastOrNull?.label : null;
     final starters = p.selectedTopic?.starterPrompts ?? const <String>[];
@@ -147,7 +159,11 @@ class _TopicLandingState extends State<TopicLanding> {
         topics: topics,
         parentLabel: parentLabel,
         promotedCount: p.promotedCount,
-        onStart: (t) => p.activate(widget.conversationId, t),
+        onStart: (t) {
+          if (_canActivate()) {
+            unawaited(p.activate(widget.conversationId, t));
+          }
+        },
         onOpenChildren: p.openChildren,
       );
     }
@@ -195,7 +211,15 @@ class _TopicLandingState extends State<TopicLanding> {
                         ),
                       ],
                       const SizedBox(height: 16),
-                      if (p.startingTopic) const LinearProgressIndicator(),
+                      if (styles?.seedError != null)
+                        _LandingNotice(
+                          key: const ValueKey('topic_style_seed_error'),
+                          icon: Icons.error_outline,
+                          text: l10n.styleInstructionsLoadFailed,
+                          onRetry: () => unawaited(_seedNewTopicDefaults()),
+                        ),
+                      if (p.startingTopic || styles?.isSeeding == true)
+                        const LinearProgressIndicator(),
                       if (p.error != null && topics.isNotEmpty) ...[
                         Text(
                           _localizedTopicError(context, p.error!),
@@ -205,21 +229,49 @@ class _TopicLandingState extends State<TopicLanding> {
                         ),
                         const SizedBox(height: 8),
                       ],
-                      body,
+                      ExcludeFocus(
+                        excluding: styles?.pendingSeedBlocked ?? false,
+                        child: IgnorePointer(
+                          ignoring: styles?.pendingSeedBlocked ?? false,
+                          child: body,
+                        ),
+                      ),
                       if (p.mode == TopicOrigin.explore) ...[
                         const SizedBox(height: 18),
-                        _SomethingNewButton(
-                          onTap: () => p.activateFreeText(
-                            widget.conversationId,
-                            l10n.somethingNew,
+                        ExcludeFocus(
+                          excluding: styles?.pendingSeedBlocked ?? false,
+                          child: IgnorePointer(
+                            ignoring: styles?.pendingSeedBlocked ?? false,
+                            child: _SomethingNewButton(
+                              onTap: () {
+                                if (_canActivate()) {
+                                  unawaited(
+                                    p.activateFreeText(
+                                      widget.conversationId,
+                                      l10n.somethingNew,
+                                    ),
+                                  );
+                                }
+                              },
+                            ),
                           ),
                         ),
                       ],
                       if (starters.isNotEmpty) ...[
                         const SizedBox(height: 20),
-                        _PromptCard(
-                          starters: starters,
-                          onSelected: widget.onStarterSelected,
+                        ExcludeFocus(
+                          excluding: styles?.pendingSeedBlocked ?? false,
+                          child: IgnorePointer(
+                            ignoring: styles?.pendingSeedBlocked ?? false,
+                            child: _PromptCard(
+                              starters: starters,
+                              onSelected: (starter) {
+                                if (_canActivate()) {
+                                  widget.onStarterSelected(starter);
+                                }
+                              },
+                            ),
+                          ),
                         ),
                       ],
                     ],
@@ -437,7 +489,12 @@ class _PromptCard extends StatelessWidget {
 }
 
 class _LandingNotice extends StatelessWidget {
-  const _LandingNotice({required this.icon, required this.text, this.onRetry});
+  const _LandingNotice({
+    super.key,
+    required this.icon,
+    required this.text,
+    this.onRetry,
+  });
   final IconData icon;
   final String text;
   final VoidCallback? onRetry;

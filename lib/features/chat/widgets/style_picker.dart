@@ -500,6 +500,9 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
     final styleP = context.read<StyleProvider>();
     final prompts = context.read<SystemPromptProvider>();
     final conversationId = composerConversation(context, listen: false)?.id;
+    final pendingRevision = styleP.pendingRevision;
+    final topics = context.read<TopicDiscoveryProvider?>();
+    final topicEpoch = topics?.newTopicEpoch;
 
     if (!modelP.availableModels.any((m) => m.id == style.modelId)) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -529,7 +532,9 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
       content = template.content;
     }
     if (!mounted ||
-        composerConversation(context, listen: false)?.id != conversationId) {
+        composerConversation(context, listen: false)?.id != conversationId ||
+        styleP.pendingRevision != pendingRevision ||
+        topics?.newTopicEpoch != topicEpoch) {
       return;
     }
     modelP.selectModel(style.modelId);
@@ -638,11 +643,19 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
     final styles = context.read<StyleProvider>();
     final prompts = context.read<SystemPromptProvider>();
     final conv = composerConversation(context, listen: false);
+    final pendingRevision = styles.pendingRevision;
+    final topics = context.read<TopicDiscoveryProvider?>();
+    final topicEpoch = topics?.newTopicEpoch;
     final templateId = existing?.systemPromptTemplateId;
     SystemPromptTemplate? template;
     if (templateId != null) {
       template = await prompts.resolveTemplate(templateId);
-      if (!mounted) return;
+      if (!mounted ||
+          composerConversation(context, listen: false)?.id != conv?.id ||
+          styles.pendingRevision != pendingRevision ||
+          topics?.newTopicEpoch != topicEpoch) {
+        return;
+      }
       if (template == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -654,7 +667,12 @@ class _StylePickerPanelState extends State<StylePickerPanel> {
         return;
       }
     }
-    if (!mounted) return;
+    if (!mounted ||
+        composerConversation(context, listen: false)?.id != conv?.id ||
+        styles.pendingRevision != pendingRevision ||
+        topics?.newTopicEpoch != topicEpoch) {
+      return;
+    }
     final fullscreen = widget.isBottomSheet;
     final editor = _StyleEditor(
       fullscreen: fullscreen,

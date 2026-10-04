@@ -40,7 +40,7 @@ async def create_style(
         )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-    return StyleOut.model_validate(style)
+    return style
 
 
 @router.get(
@@ -52,8 +52,7 @@ async def list_styles(
     current_user: Annotated[dict[str, Any], Depends(get_current_user)],
     service: Annotated[StyleService, Depends(get_service)],
 ) -> list[StyleOut]:
-    styles = await service.list_for_user(current_user["email"])
-    return [StyleOut.model_validate(s) for s in styles]
+    return await service.list_for_user(current_user["email"])
 
 
 @router.get(
@@ -69,7 +68,7 @@ async def get_style(
     style = await service.get(style_id, current_user["email"])
     if style is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Style not found")
-    return StyleOut.model_validate(style)
+    return style
 
 
 @router.patch(
@@ -119,7 +118,7 @@ async def update_style(
 
     if style is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Style not found")
-    return StyleOut.model_validate(style)
+    return style
 
 
 @router.delete(

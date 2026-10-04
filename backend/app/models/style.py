@@ -31,11 +31,11 @@ class Style(Base):
     the same view. Owned styles keep it NULL (language-neutral — the user
     named them), matching the ``system_prompt_templates.locale`` convention.
 
-    ``is_default`` marks the style used to seed brand-new conversations. At
-    most one default per user is enforced by a partial unique index
-    (``ix_styles_one_default_per_user``); ``StyleService`` unsets any prior
-    default before setting a new one so callers never hit that constraint
-    in normal use.
+    ``User.default_style_id`` is authoritative for the user's default, including
+    shared built-ins. ``is_default`` and its partial unique index remain legacy
+    storage for creation compatibility. API responses derive their default flag
+    from the user's pointer without changing this mapped column; read results
+    must never be assigned to persisted rows.
     """
 
     __tablename__ = "styles"

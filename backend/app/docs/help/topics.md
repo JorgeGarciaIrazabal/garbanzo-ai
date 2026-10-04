@@ -15,7 +15,12 @@ The sidebar and mobile menu contain **Threads** for all your conversations and
 banner and context panel.
 When the new-topic map opens, Garbanzo resets the composer to your default
 style (or the style you used last) and starts thinking at Medium. These settings
-apply to the next thread you create.
+apply to the next thread you create; opening the map does not edit an existing
+conversation. If the default style's instructions cannot load, the map shows a
+message with **Try again** and preserves the previous composer settings.
+Starting a new thread waits for the retry or an explicit replacement of the
+prompt in Customize. Changing only thinking or model cannot skip the required
+instructions.
 If you send from the map without selecting a topic, Garbanzo starts a separate
 regular thread so that message does not create or rename a primary-chat topic.
 Larger topics are currently

@@ -26,7 +26,7 @@ mounted. `ChatPage.didUpdateWidget` still binds changed conversation IDs.
 links in PostgreSQL. Ownership is checked for every operation and both sides of
 each chat link. Quotas serialize on user/folder row locks; text updates require
 the previous revision. File metadata does not load blobs. Binary documents are
-read through the existing isolated strict extractor; PDF/Office extraction is
+read through `document_extraction.extract_isolated`; PDF/Office extraction is
 read-only, while genuine UTF-8 text/source/CSV files support editing.
 Duplicate uploads prompt for Replace, Keep both or Cancel. Replacement uses an
 owner-scoped multipart content PUT with the selected revision. Keep both retries
@@ -104,6 +104,7 @@ services/      chat_service.py (turn orchestration + tool loop)
                memory_service.py, memory_extraction.py
                system_prompt_service.py, mcp_service.py
                knowledge_base_service.py, embedding_provider.py, document_parser.py
+               document_text.py, document_extraction.py, document_extract_worker.py
                room_service.py, room_chat_service.py, room_connection_manager.py
                agent_turn.py (shared single-agent turn logic)
                scheduled_action_service.py, usage_service.py, token_counter.py
@@ -125,7 +126,7 @@ services/      chat_service.py (turn orchestration + tool loop)
                are delegated to the desktop client via a client_tool_request
                SSE chunk parked on ClientToolBridge until the client POSTs
                to /client-tool-result; client_file_extract turns the returned
-               bytes into text (KB extractors + markitdown). The backend never
+               bytes into text (shared document readers + markitdown). The backend never
                reads the host filesystem — the folder lives only on the client)
                 workflow_service.py + workflow_runner.py (idea 18: delegated
                 opencode workflows. The originating user message's file
@@ -148,7 +149,8 @@ services/      chat_service.py (turn orchestration + tool loop)
                 cleanup happens only after successful preservation. The native
                 workflow_outputs tool reads owner-scoped reports and extracted
                 file text in pages; REST serves exact downloadable bytes. Rich
-                document extraction runs in a resource-limited subprocess.
+                document extraction runs in the resource-limited
+                document_extract_worker.py subprocess.
                 Capture failures retain scratch files and report an error.
                 Folder diffs
                 are served for AUTO-APPLY; research skips diff/apply and serves
@@ -176,6 +178,20 @@ jobs/          extract_memories_job.py (daily at 2 AM; dedicated
                microapps_sync_job.py (periodic git pull of micro-apps repo)
 scheduler.py   APScheduler lifecycle + action registration
 ```
+
+### Shared document extraction
+
+`document_text.py` owns byte readers, public format extensions and readable-text
+classification. `document_extraction.py` owns strict filename/bytes parsing,
+archive/text limits and subprocess execution. Folders and workflow outputs map
+`DocumentExtractionError` to their own errors. `document_extract_worker.py`
+enforces a 5 MiB rich-document input limit, 1 GiB address-space limit and
+10-second CPU limit; the parent times out at 20 seconds. Extraction preserves
+stored bytes and raises for corruption or unsupported content. Client-file
+conversion retains its distinct legacy replacement-decoding/conversion contract.
+The parser modules have no direct workflow, persistence or provider imports;
+the eager exports in `app.services.__init__` still initialize service modules
+when starting the worker.
 
 ### Startup sequence (`main.py`)
 
@@ -666,6 +682,19 @@ sync fails, the editor retains the saved ID and retries sync without creating
 another style. Editing and applying a saved style resolve its required prompt
 reference independently of the current language filter; a failed resolution
 blocks application before any chat settings change.
+`SystemPromptService` owns that lookup for both prompt and style providers.
+Startup and new-topic seeding resolve required instructions before publishing
+pending style identity, effort and prompt together. Request/revision guards and
+the landing epoch reject late results after another seed or user customization.
+Missing required references and transport failures show a localized landing
+error with Retry; new-thread submission and topic activation wait for resolution
+or an explicit prompt replacement. Existing-thread sending remains available.
+
+`StyleService` returns detached `StyleOut` projections for create/get/list/update;
+their `is_default` comes from the viewing user's `default_style_id`. Mutations
+load mapped rows through the visibility-scoped internal lookup. Reads never
+assign viewer flags to ORM state, including at request teardown commits. Legacy
+style flags/index remain for creation compatibility; selection uses the pointer.
 
 The app ships five built-in styles — Concise, Truth Seeker, Writing & Stories,
 Tutoring, Brainstorm — seeded at startup. Each is a row in `styles`

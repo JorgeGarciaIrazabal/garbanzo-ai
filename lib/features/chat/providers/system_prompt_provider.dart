@@ -8,11 +8,12 @@ import 'package:garbanzo_ai/features/chat/services/system_prompt_service.dart';
 /// Manages the list of system prompt templates (builtins + user-saved) and
 /// the user's global default system prompt.
 class SystemPromptProvider extends ChangeNotifier with GuardedStateMixin {
-  SystemPromptProvider() {
+  SystemPromptProvider({SystemPromptService? systemPromptService})
+    : _service = systemPromptService ?? SystemPromptService.instance {
     refresh();
   }
 
-  final SystemPromptService _service = SystemPromptService.instance;
+  final SystemPromptService _service;
 
   /// BCP-47 language tag used to filter built-in templates on the backend.
   /// Null surfaces builtins in every language. Set from the UI layer via
@@ -53,11 +54,12 @@ class SystemPromptProvider extends ChangeNotifier with GuardedStateMixin {
 
   /// Resolve a saved style's reference even when its builtin is in another locale.
   Future<SystemPromptTemplate?> resolveTemplate(String templateId) async {
-    final cached = _templates.where((t) => t.id == templateId).firstOrNull;
-    if (cached != null) return cached;
     return runGuarded('Failed to load style instructions', () async {
-      final all = await _service.listTemplates();
-      final template = all.where((t) => t.id == templateId).firstOrNull;
+      final template = await _service.resolveTemplate(
+        templateId,
+        cachedTemplates: _templates,
+      );
+      // A non-null reference cannot resolve to null through the service contract.
       if (template == null) throw StateError('Style prompt template not found');
       _templates = [..._templates.where((t) => t.id != templateId), template];
       return template;

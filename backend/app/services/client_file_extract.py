@@ -6,7 +6,7 @@ locally and sends its raw bytes to the backend; this module turns those bytes
 into text. The backend never reads the host filesystem — it only processes an
 upload, exactly like a chat attachment.
 
-Reuses the knowledge-base extractors (PDF/CSV/spreadsheet/plain) and falls back
+Reuses the shared document byte readers (PDF/CSV/spreadsheet/plain) and falls back
 to markitdown for Office/HTML formats (DOCX/PPTX/HTML/…).
 """
 
@@ -15,67 +15,16 @@ from __future__ import annotations
 import tempfile
 from pathlib import Path
 
-from app.services.knowledge_base_service import _looks_like_text, extract_text
+from app.services.document_text import (
+    MARKITDOWN_EXTENSIONS,
+    STRUCTURED_EXTENSIONS,
+    TEXT_EXTENSIONS,
+    extract_text,
+    looks_like_text,
+)
 
 # Files larger than this are refused rather than slurped into the model context.
 MAX_FILE_BYTES = 5 * 1024 * 1024
-
-# Handled directly by knowledge_base_service.extract_text (bytes-based).
-_STRUCTURED_EXTENSIONS = frozenset({".pdf", ".csv", ".xlsx", ".xls", ".ods"})
-
-# Rich formats with no bytes-native extractor here — routed through markitdown.
-_MARKITDOWN_EXTENSIONS = frozenset(
-    {".docx", ".pptx", ".doc", ".ppt", ".epub", ".rtf", ".htm", ".html"}
-)
-
-# Curated plain-text / source-code extensions decoded directly as UTF-8.
-TEXT_EXTENSIONS = frozenset(
-    {
-        ".txt",
-        ".md",
-        ".markdown",
-        ".rst",
-        ".log",
-        ".json",
-        ".jsonl",
-        ".yaml",
-        ".yml",
-        ".toml",
-        ".ini",
-        ".cfg",
-        ".conf",
-        ".env",
-        ".xml",
-        ".css",
-        ".scss",
-        ".tsv",
-        ".py",
-        ".js",
-        ".ts",
-        ".tsx",
-        ".jsx",
-        ".dart",
-        ".java",
-        ".kt",
-        ".go",
-        ".rs",
-        ".rb",
-        ".php",
-        ".c",
-        ".h",
-        ".cpp",
-        ".hpp",
-        ".cs",
-        ".swift",
-        ".scala",
-        ".sh",
-        ".bash",
-        ".zsh",
-        ".sql",
-        ".gradle",
-        ".properties",
-    }
-)
 
 
 def _extract_with_markitdown(filename: str, data: bytes) -> str | None:
@@ -110,10 +59,10 @@ def extract_file_text(filename: str, data: bytes) -> str:
 
     suffix = Path(filename).suffix.lower()
 
-    if suffix in _STRUCTURED_EXTENSIONS:
+    if suffix in STRUCTURED_EXTENSIONS:
         return extract_text(data, filename, "")
 
-    if suffix in _MARKITDOWN_EXTENSIONS:
+    if suffix in MARKITDOWN_EXTENSIONS:
         text = _extract_with_markitdown(filename, data)
         if text is not None:
             return text
@@ -126,6 +75,6 @@ def extract_file_text(filename: str, data: bytes) -> str:
     if text is not None:
         return text
     decoded = data.decode("utf-8", errors="replace")
-    if _looks_like_text(decoded):
+    if looks_like_text(decoded):
         return decoded
     return f"File '{filename}' does not appear to be readable text."

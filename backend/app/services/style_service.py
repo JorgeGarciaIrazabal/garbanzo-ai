@@ -21,6 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.style import Style
 from app.models.system_prompt import SystemPromptTemplate
 from app.models.user import User
+from app.schemas.style import StyleOut
 
 logger = logging.getLogger(__name__)
 
@@ -173,10 +174,6 @@ class StyleService:
         result = await self.db.execute(select(User).where(User.email == user_id))
         return result.scalar_one_or_none()
 
-    def _is_default_for(self, style: Style, user: User | None) -> bool:
-        """True when ``style`` is this user's default (per-user pointer)."""
-        return user is not None and style.id == user.default_style_id
-
     async def _set_user_default(self, user_id: str, style_id: str | None) -> None:
         """Point ``user.default_style_id`` at ``style_id`` (or clear it)."""
         user = await self._get_user(user_id)
@@ -185,14 +182,18 @@ class StyleService:
         user.default_style_id = style_id
         await self.db.flush()
 
-    def _annotate_default(self, styles: list[Style], user: User | None) -> list[Style]:
-        """Set ``is_default`` on each style in-memory from the per-user
-        pointer, leaving the stored rows untouched (built-ins are shared).
-        """
+    @staticmethod
+    def _to_response(style: Style, user: User | None) -> StyleOut:
+        """Project viewer state onto a response, never onto a tracked ORM row."""
         default_id = user.default_style_id if user is not None else None
-        for s in styles:
-            s.is_default = s.id == default_id
-        return styles
+        return StyleOut.model_validate(style).model_copy(
+            update={"is_default": style.id == default_id}
+        )
+
+    async def _get_visible(self, style_id: str, user_id: str) -> Style | None:
+        """Load mapped state for mutations with the same visibility as reads."""
+        result = await self.db.execute(Style.owned_by(user_id).where(Style.id == style_id))
+        return result.scalar_one_or_none()
 
     async def _clear_other_defaults(self, user_id: str, exclude_id: str | None) -> None:
         """Unset ``is_default`` on every other style owned by ``user_id``.
@@ -224,7 +225,7 @@ class StyleService:
         system_prompt_template_id: str | None = None,
         system_prompt_content: str | None = None,
         is_default: bool = False,
-    ) -> Style:
+    ) -> StyleOut:
         if system_prompt_template_id is not None and system_prompt_content is not None:
             raise ValueError("Supply either system_prompt_template_id or system_prompt_content")
         await self._validate_template(system_prompt_template_id, user_id)
@@ -255,21 +256,19 @@ class StyleService:
         await self.db.commit()
         await self.db.refresh(style)
         logger.info("Created style %s for user %s", style.id, user_id)
-        return style
+        return self._to_response(style, await self._get_user(user_id))
 
-    async def get(self, style_id: str, user_id: str) -> Style | None:
+    async def get(self, style_id: str, user_id: str) -> StyleOut | None:
         """Return the style if it's a built-in or one owned by ``user_id``,
         with ``is_default`` resolved from the per-user pointer.
         """
-        result = await self.db.execute(Style.owned_by(user_id).where(Style.id == style_id))
-        style = result.scalar_one_or_none()
+        style = await self._get_visible(style_id, user_id)
         if style is None:
             return None
         user = await self._get_user(user_id)
-        self._annotate_default([style], user)
-        return style
+        return self._to_response(style, user)
 
-    async def list_for_user(self, user_id: str) -> list[Style]:
+    async def list_for_user(self, user_id: str) -> list[StyleOut]:
         """The user's own styles first (in creation order), then built-ins by
         name within a locale — so the picker renders the user's editable saved
         styles at the top of the Styles segment and the shared, read-only
@@ -288,7 +287,7 @@ class StyleService:
         )
         styles = list(result.scalars().all())
         user = await self._get_user(user_id)
-        return self._annotate_default(styles, user)
+        return [self._to_response(style, user) for style in styles]
 
     async def update(
         self,
@@ -304,7 +303,7 @@ class StyleService:
         system_prompt_content: str | None = None,
         set_prompt_content: bool = False,
         is_default: bool | None = None,
-    ) -> Style | None:
+    ) -> StyleOut | None:
         """Partial update. ``set_thinking_level`` / ``set_template_id`` /
         ``set_prompt_content`` let
         callers explicitly clear those fields by passing None; otherwise
@@ -317,7 +316,7 @@ class StyleService:
         the per-user pointer (``user.default_style_id``), not the shared
         row, so a built-in can be set as the user's default for new chats.
         """
-        style = await self.get(style_id, user_id)
+        style = await self._get_visible(style_id, user_id)
         if style is None:
             return None
 
@@ -368,18 +367,17 @@ class StyleService:
                 await self._set_user_default(user_id, None)
 
         await self.db.commit()
-        # Refresh and re-annotate is_default from the per-user pointer.
+        # Refresh persisted fields, then project the viewer's default pointer.
         await self.db.refresh(style)
         user = await self._get_user(user_id)
-        self._annotate_default([style], user)
-        return style
+        return self._to_response(style, user)
 
     async def delete(self, style_id: str, user_id: str) -> bool:
         """Return True on success, False when the style isn't visible to the
         user (404 in the endpoint). Raises [BuiltinReadOnlyError] for a
         read-only built-in style (403 in the endpoint).
         """
-        style = await self.get(style_id, user_id)
+        style = await self._get_visible(style_id, user_id)
         if style is None:
             return False
         if style.is_builtin:
