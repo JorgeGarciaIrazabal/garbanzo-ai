@@ -31,7 +31,8 @@ just be-dev
 
 Verify it's up at `http://localhost:8000/api/v1/health` before proceeding.
 The SPA catch-all can return HTML for `/health`; require the JSON health response.
-If port 8000 is occupied, use `just be-dev 8002` and
+If default ports are occupied, use `just be-dev 8002 8023` (backend and
+read-aloud worker ports) and
 `just fe-run-ngrok http://127.0.0.1:8002` for the local desktop session.
 Do not stop another process just to claim the default port.
 

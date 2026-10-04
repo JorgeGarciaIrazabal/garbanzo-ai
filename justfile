@@ -339,12 +339,12 @@ be-upgrade *packages:
     uv sync --extra dev "${upgrade_args[@]}"
 
 # Start FastAPI dev server with hot reload and separate Pocket read-aloud worker
-be-dev port="8000":
+be-dev port="8000" worker_port="8021":
     #!/usr/bin/env bash
     set -euo pipefail
     export READ_ALOUD_WORKER_TOKEN="${READ_ALOUD_WORKER_TOKEN:-$(openssl rand -hex 32)}"
-    export READ_ALOUD_WORKER_URL="${READ_ALOUD_WORKER_URL:-http://127.0.0.1:8021}"
-    (cd scripts/read_aloud_service && uv run --frozen uvicorn app:app --host 127.0.0.1 --port 8021) &
+    export READ_ALOUD_WORKER_URL="${READ_ALOUD_WORKER_URL:-http://127.0.0.1:{{worker_port}}}"
+    (cd scripts/read_aloud_service && uv run --frozen uvicorn app:app --host 127.0.0.1 --port {{worker_port}}) &
     worker_pid=$!
     trap 'kill "$worker_pid" 2>/dev/null || true' EXIT INT TERM
     cd backend
