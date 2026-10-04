@@ -198,7 +198,7 @@ def evaluate(
 
 def register(subparsers) -> None:
     parser = subparsers.add_parser("capacity", help="Show Codex and Ollama allowance capacity")
-    parser.add_argument("--unattended", action="store_true", help="Apply the overnight 80% cutoff")
+    parser.add_argument("--unattended", action="store_true", help="Apply the overnight 80%% cutoff")
     parser.set_defaults(func=handle)
 
 
