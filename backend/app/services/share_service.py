@@ -106,7 +106,6 @@ class ShareService:
                 model_id=item.payload["model_id"],
                 thinking_level=item.payload.get("thinking_level"),
                 system_prompt_template_id=template_id,
-                is_default=False,
             )
             self.db.add(style)
             created_id = style.id

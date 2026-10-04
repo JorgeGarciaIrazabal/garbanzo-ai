@@ -1,25 +1,5 @@
-"""Services for business logic and external integrations."""
+"""Business logic and integrations; import classes from their owning modules.
 
-from app.services.conversation_service import ConversationService
-from app.services.llm_provider import (
-    ChatChunk,
-    ChatOptions,
-    LLMProvider,
-    Message,
-    ModelInfo,
-    ProviderRegistry,
-)
-from app.services.ollama_provider import OllamaProvider
-from app.services.user_service import UserService
-
-__all__ = [
-    "ChatChunk",
-    "ChatOptions",
-    "ConversationService",
-    "LLMProvider",
-    "Message",
-    "ModelInfo",
-    "OllamaProvider",
-    "ProviderRegistry",
-    "UserService",
-]
+Keep this namespace free of service imports so isolated workers and simple
+helpers do not initialize database, conversation or provider dependencies.
+"""

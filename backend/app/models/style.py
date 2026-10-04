@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Index, Select, String, func, select, text
+from sqlalchemy import DateTime, ForeignKey, Select, String, func, select
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -21,10 +21,7 @@ class Style(Base):
     ``user_id`` is NULL for built-in styles (the column was made nullable in
     030_styles_builtin.sql). Owned styles keep it non-null. The FK to
     ``users(email) ON DELETE CASCADE`` is unchanged — NULL never matches a
-    user row, so built-ins survive user deletes, and the
-    ``ix_styles_one_default_per_user`` partial unique index keys on
-    ``user_id`` so a NULL row never collides with a user's default (built-ins
-    are never marked ``is_default`` anyway).
+    user row, so built-ins survive user deletes.
 
     ``locale`` on built-ins holds a BCP-47 language tag ('en', 'es') so the
     picker surfaces them in the user's language without mixing languages in
@@ -32,27 +29,12 @@ class Style(Base):
     named them), matching the ``system_prompt_templates.locale`` convention.
 
     ``User.default_style_id`` is authoritative for the user's default, including
-    shared built-ins. ``is_default`` and its partial unique index remain legacy
-    storage for creation compatibility. API responses derive their default flag
-    from the user's pointer without changing this mapped column; read results
-    must never be assigned to persisted rows.
+    shared built-ins. API responses derive ``is_default`` from that pointer;
+    no default flag is stored on a style row (migration 052 retires legacy
+    storage). Read results must never be assigned to persisted rows.
     """
 
     __tablename__ = "styles"
-    __table_args__ = (
-        # Partial unique index: at most one is_default=true row per user.
-        # Mirrors ix_styles_one_default_per_user in 018_styles.sql. Declared
-        # on the model too (with a sqlite_where twin) so the in-memory
-        # SQLite test database — created via Base.metadata.create_all,
-        # never via the raw SQL migration — enforces the same invariant.
-        Index(
-            "ix_styles_one_default_per_user",
-            "user_id",
-            unique=True,
-            postgresql_where=text("is_default"),
-            sqlite_where=text("is_default"),
-        ),
-    )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     # NULL for built-in styles (shared, read-only); a user email for owned.
@@ -84,7 +66,6 @@ class Style(Base):
     # (language-neutral). NULL acts as a wildcard, surfacing in any locale
     # request — same convention as system_prompt_templates.locale.
     locale: Mapped[str | None] = mapped_column(String(5), nullable=True, default=None)
-    is_default: Mapped[bool] = mapped_column(default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

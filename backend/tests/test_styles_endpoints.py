@@ -579,7 +579,7 @@ async def _seed_builtins(db_session):
 
 
 class TestBuiltinStyles:
-    async def test_default_responses_do_not_persist_viewer_flags(self, db_session):
+    async def test_default_responses_do_not_mutate_style_rows(self, db_session):
         """Exercise the real get_db commit, then inspect storage in a fresh session."""
         other_email = "other@example.com"
         db_session.add(User(email=other_email, hashed_password=hash_password("x")))
@@ -595,7 +595,7 @@ class TestBuiltinStyles:
         builtin_id = (
             (await db_session.execute(select(Style.id).where(Style.is_builtin))).scalars().first()
         )
-        before_flags = dict((await db_session.execute(select(Style.id, Style.is_default))).all())
+        before_rows = (await db_session.execute(select(Style.__table__))).all()
 
         _install_overrides(db_session)
         # conftest swaps the session maker, so production get_db uses the test DB.
@@ -613,10 +613,7 @@ class TestBuiltinStyles:
                 viewed = await client.get(f"/api/v1/styles/{builtin_id}", headers=_auth())
                 assert viewed.json()["is_default"] is True
                 async with db_session_module.async_session_maker() as fresh:
-                    assert (
-                        dict((await fresh.execute(select(Style.id, Style.is_default))).all())
-                        == before_flags
-                    )
+                    assert (await fresh.execute(select(Style.__table__))).all() == before_rows
 
                 _install_overrides(db_session, email=other_email)
                 app.dependency_overrides.pop(get_db)
@@ -632,13 +629,10 @@ class TestBuiltinStyles:
             _clear_overrides()
 
         async with db_session_module.async_session_maker() as fresh:
-            assert (
-                dict((await fresh.execute(select(Style.id, Style.is_default))).all())
-                == before_flags
-            )
+            assert (await fresh.execute(select(Style.__table__))).all() == before_rows
             assert (await fresh.get(User, "test@example.com")).default_style_id == builtin_id
             assert (await fresh.get(User, other_email)).default_style_id == other.id
-            assert (await fresh.get(Style, owned.id)).is_default is True  # legacy flag is untouched
+            assert (await fresh.get(Style, owned.id)).name == "Old default"
 
     async def test_list_includes_builtins(self, db_session):
         await _seed_builtins(db_session)

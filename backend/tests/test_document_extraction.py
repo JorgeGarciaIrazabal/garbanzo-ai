@@ -89,21 +89,31 @@ def test_worker_input_limit_is_explicit():
         extract_isolated("report.pdf", b"x" * (document_extraction.MAX_INPUT_BYTES + 1))
 
 
-def test_worker_enforces_memory_and_cpu_limits():
+def test_worker_only_loads_document_services_and_enforces_limits():
     # Inspect only the child process; importing this worker in pytest would limit pytest itself.
     proc = subprocess.run(  # noqa: S603
         [
             sys.executable,
             "-c",
-            "import app.services.document_extract_worker; import json, resource; "
-            "print(json.dumps([resource.getrlimit(resource.RLIMIT_AS), "
-            "resource.getrlimit(resource.RLIMIT_CPU)]))",
+            "import app.services.document_extract_worker; import json, resource, sys; "
+            "print(json.dumps({'limits': [resource.getrlimit(resource.RLIMIT_AS), "
+            "resource.getrlimit(resource.RLIMIT_CPU)], "
+            "'services': sorted(n for n in sys.modules if n.startswith('app.services.')), "
+            "'state': sorted(n for n in sys.modules if n.startswith("
+            "('app.db', 'app.models', 'app.core', 'app.schemas')))}))",
         ],
         capture_output=True,
         timeout=20,
         check=True,
     )
-    assert json.loads(proc.stdout) == [[1024 * 1024 * 1024] * 2, [10, 10]]
+    result = json.loads(proc.stdout)
+    assert result["limits"] == [[1024 * 1024 * 1024] * 2, [10, 10]]
+    assert result["services"] == [
+        "app.services.document_extract_worker",
+        "app.services.document_extraction",
+        "app.services.document_text",
+    ]
+    assert result["state"] == []
 
 
 def test_client_legacy_conversion_failure_keeps_its_distinct_contract(monkeypatch):

@@ -49,5 +49,16 @@ CREATE TABLE IF NOT EXISTS styles (
 
 CREATE INDEX IF NOT EXISTS ix_styles_user_id ON styles (user_id);
 
-CREATE UNIQUE INDEX IF NOT EXISTS ix_styles_one_default_per_user
-    ON styles (user_id) WHERE is_default;
+-- ORM-first startup may already have the current schema, which retires this
+-- historical column in 052. SQL-only creation above still needs its old index.
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = current_schema()
+          AND table_name = 'styles' AND column_name = 'is_default'
+    ) THEN
+        CREATE UNIQUE INDEX IF NOT EXISTS ix_styles_one_default_per_user
+            ON styles (user_id) WHERE is_default;
+    END IF;
+END $$;

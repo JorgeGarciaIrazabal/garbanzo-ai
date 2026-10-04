@@ -254,6 +254,80 @@ async def _virtual_folder_concurrency_smoke(engine: Any) -> dict[str, bool]:
     }
 
 
+async def _style_default_upgrade_smoke(connection: Any, migrations_dir: Path) -> dict[str, bool]:
+    """Retirement preserves pointers even when old flags disagree with them."""
+    # Reconstruct the pre-052 storage in this disposable DB after fresh startup
+    # has already proved ORM-first migration replay works without the column.
+    await connection.execute(
+        "ALTER TABLE styles ADD COLUMN is_default BOOLEAN NOT NULL DEFAULT FALSE; "
+        "CREATE UNIQUE INDEX ix_styles_one_default_per_user ON styles(user_id) WHERE is_default"
+    )
+    for owner in (
+        "style-cleared@example.com",
+        "style-owned@example.com",
+        "style-builtin@example.com",
+    ):
+        await connection.execute(
+            "INSERT INTO users(email, hashed_password) VALUES ($1, $2)", owner, "unused-smoke-hash"
+        )
+    await connection.execute(
+        """INSERT INTO styles(id, user_id, name, model_id, is_builtin, is_default) VALUES
+        ('style-cleared-legacy', 'style-cleared@example.com', 'Cleared', 'model', FALSE, TRUE),
+        ('style-owned-legacy', 'style-owned@example.com', 'Superseded', 'model', FALSE, TRUE),
+        ('style-owned-current', 'style-owned@example.com', 'Selected', 'model', FALSE, FALSE),
+        ('style-shared-current', NULL, 'Shared', 'model', TRUE, FALSE)"""
+    )
+    await connection.execute(
+        "UPDATE users SET default_style_id = 'style-owned-current' WHERE email = 'style-owned@example.com'; "
+        "UPDATE users SET default_style_id = 'style-shared-current' WHERE email = 'style-builtin@example.com'"
+    )
+    before_pointers = await connection.fetch(
+        "SELECT email, default_style_id FROM users WHERE email LIKE 'style-%' ORDER BY email"
+    )
+    before_styles = await connection.fetch(
+        "SELECT id, user_id, name, model_id, created_at, updated_at FROM styles "
+        "WHERE id LIKE 'style-%' ORDER BY id"
+    )
+    retirement = (migrations_dir / "052_retire_style_default_flag.sql").read_text(encoding="utf-8")
+    for _ in range(2):
+        await connection.execute(retirement)
+        if (
+            await connection.fetch(
+                "SELECT email, default_style_id FROM users WHERE email LIKE 'style-%' ORDER BY email"
+            )
+            != before_pointers
+        ):
+            raise RuntimeError("Style retirement changed selected or cleared defaults")
+        if (
+            await connection.fetch(
+                "SELECT id, user_id, name, model_id, created_at, updated_at FROM styles "
+                "WHERE id LIKE 'style-%' ORDER BY id"
+            )
+            != before_styles
+        ):
+            raise RuntimeError("Style retirement changed style content or timestamps")
+        legacy_column = await connection.fetchval(
+            """SELECT EXISTS(SELECT 1 FROM information_schema.columns
+            WHERE table_schema = current_schema() AND table_name = 'styles'
+              AND column_name = 'is_default')"""
+        )
+        legacy_index = await connection.fetchval(
+            "SELECT to_regclass('ix_styles_one_default_per_user')"
+        )
+        if legacy_column or legacy_index is not None:
+            raise RuntimeError("Legacy style default storage was not retired")
+    # The retained user pointer still clears when its selected style is deleted.
+    await connection.execute("DELETE FROM styles WHERE id = 'style-owned-current'")
+    if (
+        await connection.fetchval(
+            "SELECT default_style_id FROM users WHERE email = 'style-owned@example.com'"
+        )
+        is not None
+    ):
+        raise RuntimeError("Style default pointer lost ON DELETE SET NULL")
+    return {"style_default_upgrade": True}
+
+
 async def run_database_smoke(
     database_url: str, migrations_dir: Path, expected: list[str]
 ) -> dict[str, Any]:
@@ -297,6 +371,7 @@ async def run_database_smoke(
             await migrations.run_migrations(database_url)
             connection = await asyncpg.connect(dsn)
             try:
+                style_upgrade = await _style_default_upgrade_smoke(connection, migrations_dir)
                 description = await connection.fetchval(
                     "SELECT description FROM virtual_folders WHERE id = 'metadata-upgrade-smoke'"
                 )
@@ -405,6 +480,7 @@ async def run_database_smoke(
         "pgvector": True,
         "hybrid_query": True,
         "folder_metadata_upgrade": True,
+        **style_upgrade,
         **concurrency,
         **folder_concurrency,
     }
@@ -443,7 +519,8 @@ def main() -> int:
         f"serialized_folder_metadata={result['serialized_folder_metadata']}, "
         f"serialized_file_replacements={result['serialized_file_replacements']}, "
         f"unique_concurrent_copies={result['unique_concurrent_copies']}, "
-        f"folder_metadata_upgrade={result['folder_metadata_upgrade']}"
+        f"folder_metadata_upgrade={result['folder_metadata_upgrade']}, "
+        f"style_default_upgrade={result['style_default_upgrade']}"
     )
     return 0
 

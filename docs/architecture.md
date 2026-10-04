@@ -189,9 +189,11 @@ enforces a 5 MiB rich-document input limit, 1 GiB address-space limit and
 10-second CPU limit; the parent times out at 20 seconds. Extraction preserves
 stored bytes and raises for corruption or unsupported content. Client-file
 conversion retains its distinct legacy replacement-decoding/conversion contract.
-The parser modules have no direct workflow, persistence or provider imports;
-the eager exports in `app.services.__init__` still initialize service modules
-when starting the worker.
+The parser modules have no workflow, persistence or provider imports.
+`app.services` has an import-free initializer; classes are imported from their
+owning modules. Worker startup loads only document service modules, so its
+resource limits are installed before the parser dependencies load. Provider
+registration remains explicit in the application startup flow.
 
 ### Startup sequence (`main.py`)
 
@@ -693,8 +695,9 @@ or an explicit prompt replacement. Existing-thread sending remains available.
 `StyleService` returns detached `StyleOut` projections for create/get/list/update;
 their `is_default` comes from the viewing user's `default_style_id`. Mutations
 load mapped rows through the visibility-scoped internal lookup. Reads never
-assign viewer flags to ORM state, including at request teardown commits. Legacy
-style flags/index remain for creation compatibility; selection uses the pointer.
+assign viewer flags to ORM state, including at request teardown commits.
+`User.default_style_id` is the only stored default selection. Migration 052
+removes the old style flag/index without changing selected or cleared pointers.
 
 The app ships five built-in styles — Concise, Truth Seeker, Writing & Stories,
 Tutoring, Brainstorm — seeded at startup. Each is a row in `styles`

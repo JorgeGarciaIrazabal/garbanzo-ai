@@ -194,9 +194,11 @@ half-migrated schema.
   (which would affect every user). `ON DELETE SET NULL`. The response's
   `style.is_default` is projected per-user into a detached `StyleOut` response
   by `StyleService`, without assigning it to the mapped row. Reads remain
-  read-only even when request teardown commits. The stored `Style.is_default` column + its partial
-  unique index are vestigial legacy, kept only so older code paths that
-  still set `Style.is_default` stay consistent.
+  read-only even when request teardown commits. Migration 052 removes the legacy
+  `Style.is_default` column and partial unique index. It preserves existing
+  pointers, including NULL, without backfilling from stale legacy flags: doing
+  so could resurrect a default the user explicitly cleared. The API's
+  `is_default` field remains a per-user response value.
 - `Report` (026; extended by 033, idea 22) stores in-app bug reports / feature requests:
   `type` is `bug|feature`, `status` flows `open → in_progress → closed` and is
   admin-controlled (`PATCH /admin/reports/{id}`); values are enforced by
@@ -239,10 +241,8 @@ half-migrated schema.
   built-in's name in the card (e.g. "Short, direct, to-the-point
   answers"). All three columns added by 030_styles_builtin.sql; the
   migration also makes `user_id` nullable so a built-in can exist (`NULL`
-  never matches a user row, so the partial unique index
-  `ix_styles_one_default_per_user` — which keys on `user_id` — never
-  collides with a built-in; built-ins are never marked `is_default`
-  anyway).
+  never matches a user row). Default selection lives on the user, allowing
+  different users to select the same built-in independently.
   `thinking_level` reuses the exact `off`/`low`/`medium`/`high`
   representation as `Conversation.thinking_level` above (shared Pydantic
   `ThinkingLevel` literal in `app/schemas/chat.py`, not redefined).
@@ -252,9 +252,10 @@ half-migrated schema.
   the model/thinking-level choices remain meaningful on their own (mirrors
   `UserMemory.source_conversation_id`). `User.default_style_id` selects the
   style used for new conversations; the response flag is viewer-specific.
-  The legacy `is_default` column/index are retained without schema changes.
-  Creation still clears older owned flags before writing a legacy default;
-  selection updates and reads use the per-user pointer alone.
+  Creation and selection updates write only the per-user pointer, and reads
+  project it without mutating style rows. Migration 052 retires the redundant
+  flag/index; historical migration 018 skips its old index when ORM-first
+  startup has already created the current schema without the flag.
 - Conversations use soft delete (`is_deleted=True`), not hard delete.
 - `WorkflowRun` (032_workflow_runs.sql) is one delegated opencode run (idea
   18). It exists because the run is **detached**: it keeps going after the

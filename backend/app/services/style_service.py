@@ -186,34 +186,24 @@ class StyleService:
     def _to_response(style: Style, user: User | None) -> StyleOut:
         """Project viewer state onto a response, never onto a tracked ORM row."""
         default_id = user.default_style_id if user is not None else None
-        return StyleOut.model_validate(style).model_copy(
-            update={"is_default": style.id == default_id}
+        return StyleOut(
+            id=style.id,
+            name=style.name,
+            description=style.description,
+            model_id=style.model_id,
+            thinking_level=style.thinking_level,
+            system_prompt_template_id=style.system_prompt_template_id,
+            is_builtin=style.is_builtin,
+            locale=style.locale,
+            is_default=style.id == default_id,
+            created_at=style.created_at,
+            updated_at=style.updated_at,
         )
 
     async def _get_visible(self, style_id: str, user_id: str) -> Style | None:
         """Load mapped state for mutations with the same visibility as reads."""
         result = await self.db.execute(Style.owned_by(user_id).where(Style.id == style_id))
         return result.scalar_one_or_none()
-
-    async def _clear_other_defaults(self, user_id: str, exclude_id: str | None) -> None:
-        """Unset ``is_default`` on every other style owned by ``user_id``.
-
-        Vestigial since the per-user pointer enforces uniqueness on its
-        own; kept for callers that still set Style.is_default (e.g. legacy
-        create paths) so the partial unique index never sees two true rows
-        in one transaction. Built-ins are never flagged default, so they
-        stay out of this query naturally.
-        """
-        query = select(Style).where(
-            Style.user_id == user_id,
-            Style.is_default == True,  # noqa: E712
-        )
-        if exclude_id is not None:
-            query = query.where(Style.id != exclude_id)
-        result = await self.db.execute(query)
-        for other in result.scalars().all():
-            other.is_default = False
-        await self.db.flush()
 
     async def create(
         self,
@@ -230,9 +220,6 @@ class StyleService:
             raise ValueError("Supply either system_prompt_template_id or system_prompt_content")
         await self._validate_template(system_prompt_template_id, user_id)
 
-        if is_default:
-            await self._clear_other_defaults(user_id, exclude_id=None)
-
         if system_prompt_content:
             system_prompt_template_id = await self._create_inline_template(
                 user_id, name, system_prompt_content
@@ -245,7 +232,6 @@ class StyleService:
             model_id=model_id,
             thinking_level=thinking_level,
             system_prompt_template_id=system_prompt_template_id,
-            is_default=is_default,
         )
         self.db.add(style)
         # Set the per-user pointer so the new style is the default for this
@@ -441,7 +427,6 @@ class StyleService:
                     system_prompt_template_id=template_id,
                     is_builtin=True,
                     locale=spec["locale"],
-                    is_default=False,
                 )
             )
             created += 1

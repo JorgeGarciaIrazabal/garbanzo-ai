@@ -41,10 +41,12 @@ EXISTS`. Applied once each at startup (`db/migrations.py`), tracked in
 
 ## Gotchas
 
-- `app.services` eagerly exports `ConversationService`. In that service, import
-  `topic_context_compiler` as a module and access its compiler at runtime;
-  importing the compiler class eagerly creates a cycle when a topic service is
-  imported first (including the PostgreSQL smoke check).
+- `app.services` is an import-free namespace. Import classes from their owning
+  modules; do not re-export them eagerly from the package initializer. Document
+  workers must load parsers without database, conversation or provider modules.
+- Startup creates current ORM tables before replaying historical migrations.
+  Guard references to retired columns in old SQL when the current fresh schema
+  no longer has them; test fresh startup and legacy upgrades in Docker.
 - Work that must outlive the HTTP request (delegated workflows) is started with
   `asyncio.create_task` from the endpoint and **never awaited there** — awaiting
   re-couples it to the client's connection, which is the exact bug the feature
