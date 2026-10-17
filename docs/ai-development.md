@@ -185,6 +185,17 @@ GET assertions tied to one stable report ID. The runner checks the actual
 deployed image revision and stores response evidence privately; health-only and
 version-only assertions are rejected.
 
+Binary Word exports can assert response `headers` and `zip_xml`: each XML entry
+lists required ElementTree `paths` (the `w` prefix denotes WordprocessingML)
+and/or `text_contains` fragments. The runner bounds compressed responses to 1 MB,
+ZIP expansion to 10 MB and 200 entries, and checks actual parsed XML. Headers
+alone do not establish behavior. Keep private conversation/room IDs out of specs:
+use `{conversation_id}` or `{room_id}` in `path`, with `path_parameters` mapping
+the name to an explicit `AI_DEPLOYED_*_ID` environment variable. Values must be
+UUIDs; unresolved placeholders fail. Authentication stays in the ephemeral
+`AI_DEPLOYED_AUTHORIZATION` environment variable. The evidence output retains the
+path template and assertions, never the token or response body.
+
 ## Quality gates and releases
 
 Match effort to risk. Trivial documentation and similarly low-risk edits require

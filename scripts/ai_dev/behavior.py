@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import argparse
+import io
 import json
 import os
 import re
 import urllib.error
 import urllib.parse
 import urllib.request
+import xml.etree.ElementTree as ET
+import zipfile
 from pathlib import Path
 from typing import Any
 
@@ -16,6 +19,7 @@ from .common import WorkflowError
 
 DEFAULT_BASE_URL = "http://127.0.0.1:8001"
 FORBIDDEN_PATHS = frozenset({"/health", "/api/v1/health"})
+XML_NAMESPACES = {"w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main"}
 
 
 def load_spec(root: Path, path: Path, report_id: str) -> dict[str, Any]:
@@ -48,16 +52,46 @@ def load_spec(root: Path, path: Path, report_id: str) -> dict[str, Any]:
     expected = value.get("expect")
     if not isinstance(expected, dict) or not expected:
         raise WorkflowError("behavior spec requires explicit response assertions")
-    assertion_keys = set(expected) - {"status"}
-    if not assertion_keys:
-        raise WorkflowError("HTTP status alone does not verify reported behavior")
+    if set(expected) - {"status", "text_contains", "json_equals", "headers", "zip_xml"}:
+        raise WorkflowError("unknown behavior response assertion")
     json_equals = expected.get("json_equals", {})
-    if (
-        isinstance(json_equals, dict)
-        and set(json_equals) <= {"version", "status"}
-        and not expected.get("text_contains")
+    if not isinstance(json_equals, dict):
+        raise WorkflowError("json_equals must be an object")
+    texts = expected.get("text_contains", [])
+    if not isinstance(texts, list) or any(not isinstance(s, str) or not s for s in texts):
+        raise WorkflowError("text_contains requires nonempty strings")
+    documents = expected.get("zip_xml", {})
+    if not isinstance(documents, dict):
+        raise WorkflowError("zip_xml must be an object")
+    for name, assertions in documents.items():
+        if not name.endswith(".xml") or not isinstance(assertions, dict):
+            raise WorkflowError("zip_xml entries require XML assertions")
+        if set(assertions) - {"paths", "text_contains"}:
+            raise WorkflowError("unknown ZIP XML assertion")
+        paths, fragments = assertions.get("paths", []), assertions.get("text_contains", [])
+        if not isinstance(paths, list) or not isinstance(fragments, list) or not paths + fragments:
+            raise WorkflowError("ZIP XML requires nonempty assertions")
+        if any(not isinstance(s, str) or not s for s in paths + fragments):
+            raise WorkflowError("ZIP XML assertions require nonempty strings")
+    if not texts and not documents and set(json_equals) <= {"version", "status"}:
+        raise WorkflowError("status/header/version-only checks do not verify reported behavior")
+    headers = expected.get("headers", {})
+    if not isinstance(headers, dict) or any(
+        not isinstance(v, str) or not v for v in headers.values()
     ):
-        raise WorkflowError("version-only checks do not verify reported behavior")
+        raise WorkflowError("header assertions require nonempty string values")
+    parameters = value.get("path_parameters", {})
+    if not isinstance(parameters, dict):
+        raise WorkflowError("path_parameters must be an object")
+    for name, variable in parameters.items():
+        if (
+            not re.fullmatch(r"[a-z_]+", name)
+            or not isinstance(variable, str)
+            or not re.fullmatch(r"AI_DEPLOYED_[A-Z_]+_ID", variable)
+        ):
+            raise WorkflowError("path parameters must reference explicit deployed ID variables")
+        if "{" + name + "}" not in request_path:
+            raise WorkflowError("unused behavior path parameter")
     return value
 
 
@@ -84,11 +118,20 @@ def execute(
     authorization = os.getenv("AI_DEPLOYED_AUTHORIZATION")
     if authorization:
         headers["Authorization"] = authorization
-    request = urllib.request.Request(base_url + spec["path"], headers=headers, method="GET")
+    request_path = spec["path"]
+    for name, variable in spec.get("path_parameters", {}).items():
+        identifier = os.getenv(variable, "")
+        if not re.fullmatch(r"[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}", identifier):
+            raise WorkflowError(f"{variable} must contain a UUID")
+        request_path = request_path.replace("{" + name + "}", identifier)
+    if "{" in request_path or "}" in request_path:
+        raise WorkflowError("unresolved behavior path parameter")
+    request = urllib.request.Request(base_url + request_path, headers=headers, method="GET")
     try:
         with opener(request, timeout=20) as response:
             status = response.status
             body = response.read(1_000_001)
+            response_headers = getattr(response, "headers", {})
     except (urllib.error.URLError, TimeoutError) as exc:
         raise WorkflowError(f"deployed behavior request failed: {type(exc).__name__}") from exc
     if len(body) > 1_000_000:
@@ -96,6 +139,30 @@ def execute(
     expected = spec["expect"]
     if status != int(expected.get("status", 200)):
         raise WorkflowError(f"expected HTTP {expected.get('status', 200)}, received {status}")
+    for name, wanted in expected.get("headers", {}).items():
+        if wanted not in response_headers.get(name, ""):
+            raise WorkflowError("deployed response header did not contain an expected fragment")
+    if expected.get("zip_xml"):
+        try:
+            with zipfile.ZipFile(io.BytesIO(body)) as archive:
+                if (
+                    len(archive.infolist()) > 200
+                    or sum(i.file_size for i in archive.infolist()) > 10_000_000
+                ):
+                    raise WorkflowError("deployed ZIP exceeded verification bounds")
+                for name, assertions in expected["zip_xml"].items():
+                    document = ET.fromstring(archive.read(name))
+                    for path in assertions.get("paths", []):
+                        if document.find(path, XML_NAMESPACES) is None:
+                            raise WorkflowError("deployed ZIP XML is missing an expected element")
+                    document_text = "".join(document.itertext())
+                    for fragment in assertions.get("text_contains", []):
+                        if fragment not in document_text:
+                            raise WorkflowError("deployed ZIP XML is missing expected text")
+        except WorkflowError:
+            raise
+        except (zipfile.BadZipFile, KeyError, ET.ParseError, SyntaxError, RuntimeError) as exc:
+            raise WorkflowError("deployed response failed ZIP XML validation") from exc
     text = body.decode("utf-8", errors="replace")
     for fragment in expected.get("text_contains", []):
         if str(fragment) not in text:

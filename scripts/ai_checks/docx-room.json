@@ -1,0 +1,15 @@
+{
+  "report_id": "5eaba487-a07b-46d6-b58c-e2c4b2fc237a",
+  "path": "/api/v1/rooms/{room_id}/export?format=docx",
+  "path_parameters": {"room_id": "AI_DEPLOYED_ROOM_ID"},
+  "expect": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "Content-Disposition": ".docx"
+    },
+    "zip_xml": {
+      "word/document.xml": {"paths": [".//w:pStyle[@w:val='Heading1']", ".//w:t"]}
+    }
+  }
+}
