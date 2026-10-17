@@ -527,6 +527,15 @@ Event types: `chunk`, `thinking`, `tool_call`, `tool_execution`, `tool_result`,
 
 ### Liveness: `heartbeat` and `tool_execution`
 
+`run_agent_turn` bounds tool execution by iteration count. At the limit it
+adds a request-local instruction to finish the original request using the
+collected results and streams a final pass without tools. One empty synthesis
+attempt is retried automatically, still without tools. Final completion is
+withheld until a substantive answer is persisted; repeated empty answers take
+the normal reported error/rollback path. Synthesis instructions never enter the
+persisted conversation history. The engine never fabricates a successful reply
+or asks the user to choose a direction merely because the tool limit was hit.
+
 Long runs must never be silent, so the client can tell "still working" from
 "hung" without waiting for the turn to end:
 

@@ -7,11 +7,12 @@ tool_result / tool_execution-finished markers.
 
 import asyncio
 from collections.abc import AsyncIterator
+from unittest.mock import AsyncMock
 
 import pytest
 
 from app.schemas.chat import ChatOptions, ModelInfo
-from app.services.agent_turn import run_agent_turn
+from app.services.agent_turn import TurnResult, run_agent_turn
 from app.services.llm_provider import ChatChunk
 from app.services.llm_provider import Message as LLMMessage
 
@@ -214,6 +215,147 @@ async def test_expected_capability_error_does_not_file_report(monkeypatch):
 
     assert len(chunks) == 1
     assert reports == []
+
+
+@pytest.mark.parametrize("persist_partial_on_error", [False, True])
+@pytest.mark.parametrize("empty_kind", ["empty", "whitespace", "thinking", "stray_tool"])
+async def test_repeated_empty_synthesis_is_reported_as_failure(
+    monkeypatch, persist_partial_on_error, empty_kind
+):
+    monkeypatch.setattr(
+        "app.services.agent_turn.resolve_context_length",
+        lambda provider, model: _async_return(4096),
+    )
+    empty_chunks = {
+        "empty": [],
+        "whitespace": [ChatChunk(content=" \n")],
+        "thinking": [ChatChunk(content="Still considering", is_thinking=True)],
+        "stray_tool": [ChatChunk(content="", tool_calls=[{"id": "stray", "name": "search"}])],
+    }[empty_kind]
+    provider = _ScriptedProvider(
+        [
+            [ChatChunk(content="", tool_calls=[{"id": "first", "name": "search"}])],
+            [*empty_chunks, ChatChunk(content="", is_finished=True)],
+            [*empty_chunks, ChatChunk(content="", is_finished=True)],
+        ]
+    )
+    sink = AsyncMock(spec=_NoopSink)
+    execute_tool = AsyncMock(return_value={"ok": True, "content": "Evidence"})
+    on_error = AsyncMock()
+    result = TurnResult()
+    chunks = [
+        chunk
+        async for chunk in run_agent_turn(
+            provider=provider,
+            model="fake",
+            llm_messages=[LLMMessage(role="user", content="Research it")],
+            sink=sink,
+            execute_tool=execute_tool,
+            max_tool_iterations=1,
+            persist_partial_on_error=persist_partial_on_error,
+            on_error=on_error,
+            result=result,
+        )
+    ]
+
+    assert provider._call == 3
+    execute_tool.assert_awaited_once()
+    on_error.assert_awaited_once()
+    assert result.error and not result.completed
+    finishes = [c for c in chunks if c.is_finished]
+    assert len(finishes) == 1
+    assert finishes[0].metadata["error"] is True
+    assert "no final answer" in finishes[0].content
+    if persist_partial_on_error:
+        sink.persist_assistant.assert_awaited_once()
+        assert sink.persist_assistant.call_args.args[1]["error"] is True
+    else:
+        sink.persist_assistant.assert_not_awaited()
+        sink.rollback.assert_awaited_once()
+
+
+async def test_cancel_during_empty_synthesis_does_not_retry_or_report(monkeypatch):
+    monkeypatch.setattr(
+        "app.services.agent_turn.resolve_context_length",
+        lambda provider, model: _async_return(4096),
+    )
+    cancel_event = asyncio.Event()
+
+    class CancellingFinalProvider(_ScriptedProvider):
+        async def stream_chat(self, *args, **kwargs):
+            async for chunk in super().stream_chat(*args, **kwargs):
+                if self._call == 2:
+                    cancel_event.set()
+                yield chunk
+
+    provider = CancellingFinalProvider(
+        [
+            [ChatChunk(content="", tool_calls=[{"id": "first", "name": "search"}])],
+            [ChatChunk(content="", is_finished=True)],
+        ]
+    )
+    sink = AsyncMock(spec=_NoopSink)
+    on_error = AsyncMock()
+    result = TurnResult()
+    chunks = []
+    with pytest.raises(asyncio.CancelledError):
+        async for chunk in run_agent_turn(
+            provider=provider,
+            model="fake",
+            llm_messages=[LLMMessage(role="user", content="Research it")],
+            sink=sink,
+            execute_tool=AsyncMock(return_value={"ok": True}),
+            max_tool_iterations=1,
+            cancel_event=cancel_event,
+            result=result,
+            on_error=on_error,
+        ):
+            chunks.append(chunk)
+
+    assert provider._call == 2
+    assert not any(c.is_finished for c in chunks)
+    assert not result.completed and not result.error
+    sink.persist_assistant.assert_not_awaited()
+    on_error.assert_not_awaited()
+
+
+async def test_cancel_before_synthesis_does_not_duplicate_committed_preamble(monkeypatch):
+    monkeypatch.setattr(
+        "app.services.agent_turn.resolve_context_length",
+        lambda provider, model: _async_return(4096),
+    )
+    cancel_event = asyncio.Event()
+    provider = _ScriptedProvider(
+        [
+            [
+                ChatChunk(content="I will look that up."),
+                ChatChunk(content="", tool_calls=[{"id": "first", "name": "search"}]),
+            ]
+        ]
+    )
+    sink = AsyncMock(spec=_NoopSink)
+    result = TurnResult()
+
+    async def execute_tool(call, emit):
+        cancel_event.set()
+        return {"ok": True, "content": "Evidence"}
+
+    with pytest.raises(asyncio.CancelledError):
+        async for _ in run_agent_turn(
+            provider=provider,
+            model="fake",
+            llm_messages=[LLMMessage(role="user", content="Research it")],
+            sink=sink,
+            execute_tool=execute_tool,
+            max_tool_iterations=1,
+            cancel_event=cancel_event,
+            result=result,
+        ):
+            pass
+
+    assert provider._call == 1
+    sink.persist_assistant.assert_awaited_once_with("I will look that up.", None)
+    assert not result.completed and not result.error
 
 
 class _CancellingProvider:

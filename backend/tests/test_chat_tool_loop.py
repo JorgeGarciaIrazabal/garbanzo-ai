@@ -189,6 +189,9 @@ async def test_iteration_cap_forces_final_no_tools_answer(db_session, test_user_
     assert provider.iteration == MAX_TOOL_ITERATIONS + 1
     # The final pass must not be offered tools.
     assert provider.calls[-1]["tools"] is None
+    final_messages = provider.calls[-1]["messages"]
+    assert any(m.role == "tool" and "ok" in m.content for m in final_messages)
+    assert "Finish the user's original request now" in final_messages[-1].content
     # No error chunk — the turn ends cleanly with the forced answer.
     assert not any((c.metadata or {}).get("error_type") for c in collected)
     text = "".join(c.content for c in collected if c.content and not c.is_thinking)
@@ -242,20 +245,16 @@ async def test_capped_pass_drops_stray_tool_calls(db_session, test_user_email):
         ):
             collected.append(c)
 
-    assert provider.iteration == MAX_TOOL_ITERATIONS + 1
+    assert provider.iteration == MAX_TOOL_ITERATIONS + 2
     assert len(executions) == MAX_TOOL_ITERATIONS
     # The stray tool_call chunk from the capped pass is not forwarded.
     tool_call_chunks = [c for c in collected if c.tool_calls]
     assert len(tool_call_chunks) == MAX_TOOL_ITERATIONS
+    assert (collected[-1].metadata or {}).get("error") is True
 
 
-async def test_capped_pass_with_no_reply_synthesizes_fallback(db_session, test_user_email):
-    """Regression for the silent cap-ending bug: a model that spends every
-    iteration on tool calls (e.g. ``web_search``) and then emits no content on
-    the final tools-stripped pass must NOT end the turn with silence. The
-    engine synthesizes a fallback assistant message that tells the user what
-    happened, so they can nudge (the real failure was "just does a search but
-    doesn't give a response or update the app" — user report)."""
+async def test_empty_capped_pass_recovers_an_answer_in_same_turn(db_session, test_user_email):
+    """An empty final pass recovers from collected evidence without a user nudge."""
     tool_calls = [{"id": "call", "name": "web_search", "arguments": {"query": "x"}}]
     # Every iteration emits a tool call; the capped pass emits NOTHING (no
     # content, no stray tool call) — the dead-end shape that used to silently
@@ -265,12 +264,19 @@ async def test_capped_pass_with_no_reply_synthesizes_fallback(db_session, test_u
         ChatChunk(content="", is_finished=True, metadata={"has_tool_calls": True}),
     ]
     empty_capped_iter = [ChatChunk(content="", is_finished=True, metadata={})]
-    provider = _ScriptedProvider([loop_iter] * MAX_TOOL_ITERATIONS + [empty_capped_iter])
+    answer = "The robot is available by contacting the vendor at https://example.com/buy."
+    provider = _ScriptedProvider(
+        [loop_iter] * MAX_TOOL_ITERATIONS
+        + [empty_capped_iter, [ChatChunk(content=answer), ChatChunk(content="", is_finished=True)]]
+    )
     service = await _make_service(db_session, provider)
     conv_id = await _new_conversation(db_session, test_user_email, enabled_tools=[])
+    service._resolve_tools_for_conversation = AsyncMock(
+        return_value=([], {"web_search": ("srv", "search")})
+    )
 
     async def _fake_call_tool(server_id, tool_name, args):
-        return {"ok": True, "content": "search results"}
+        return {"ok": True, "content": "Buy the robot: https://example.com/buy"}
 
     with patch(
         "app.services.chat_service.MCPService.call_tool",
@@ -280,20 +286,26 @@ async def test_capped_pass_with_no_reply_synthesizes_fallback(db_session, test_u
         async for c in service.send_message(
             conversation_id=conv_id,
             user_id=test_user_email,
-            content="find a better place and update the app",
+            content="How can I buy this robot?",
         ):
             collected.append(c)
 
-    # No error chunk — the turn ends cleanly with the synthesized fallback.
-    assert not any((c.metadata or {}).get("error_type") for c in collected)
-    # A non-empty assistant reply was emitted where the model produced none.
+    assert provider.iteration == MAX_TOOL_ITERATIONS + 2
+    assert all(call["tools"] is None for call in provider.calls[-2:])
+    for call in provider.calls[-2:]:
+        assert any(
+            m.role == "tool" and "https://example.com/buy" in m.content for m in call["messages"]
+        )
+    assert "previous attempt returned no answer" in provider.calls[-1]["messages"][-1].content
+    assert not any((c.metadata or {}).get("error") for c in collected)
     text = "".join(c.content for c in collected if c.content and not c.is_thinking)
-    assert text, "capped pass with no model reply must synthesize a fallback message"
-    assert "web_search" in text  # the tools that ran are named
+    assert text == answer
+    # No successful finish for the empty attempt may escape before recovery.
     # The finish chunk is flagged so clients can surface the cap.
     finish = [c for c in collected if c.is_finished]
+    assert len(finish) == MAX_TOOL_ITERATIONS + 1
     assert (finish[-1].metadata or {}).get("tool_iteration_cap") is True
-    # The fallback is persisted as the last assistant message.
+    # The actual answer is persisted, never the internal synthesis prompt.
     from sqlalchemy import select
 
     from app.models.message import Message
@@ -304,6 +316,7 @@ async def test_capped_pass_with_no_reply_synthesizes_fallback(db_session, test_u
     messages = list(res.scalars().all())
     assert messages[-1].role == "assistant"
     assert messages[-1].content == text
+    assert not any("Finish the user's original request" in m.content for m in messages)
 
 
 async def test_clean_function_name_resolves_via_lookup(db_session, test_user_email):

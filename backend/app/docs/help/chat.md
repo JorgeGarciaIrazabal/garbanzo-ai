@@ -29,6 +29,12 @@ suggests available tools; picking one inserts a `#tool_name` mention that
 nudges the assistant to use that tool for your request. Use the arrow keys
 and Enter (or tap) to pick a suggestion; Esc dismisses it.
 
+## What happens when the assistant reaches its research limit?
+The assistant answers from the results it has already collected and explains
+any gaps. You do not need to send **Continue** to get that answer. If the model
+returns no answer, the app automatically tries once more. If it still cannot
+answer, the app shows an error rather than claiming the request was completed.
+
 ## How do I attach images or files?
 Use the paperclip (**Attach photos or files**) next to the input bar, or paste
 an image straight from the clipboard: copy a screenshot and press **Ctrl+V**
