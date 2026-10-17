@@ -1,3 +1,4 @@
+import argparse
 import json
 import stat
 import tempfile
@@ -7,9 +8,30 @@ from types import SimpleNamespace
 from unittest import mock
 
 from scripts.ai_dev import reports
+from scripts.ai_dev.common import foreground_command
 
 
 class ReportTests(unittest.TestCase):
+    def test_verify_cli_preserves_controller_command_and_dispatches_checks(self):
+        parser = argparse.ArgumentParser()
+        reports.register(parser.add_subparsers(dest="command", required=True))
+        checks = [
+            "just ai-prod-behavior --spec scripts/ai_checks/conversation.json --report report-1",
+            "just ai-prod-behavior --spec scripts/ai_checks/room.json --report report-1",
+        ]
+        args = parser.parse_args(
+            ["reports", "verify", "report-1", "--deployed-revision", "source-revision"]
+            + [argument for check in checks for argument in ("--command", check)]
+        )
+        args.root = Path("/synthetic")
+        self.assertEqual(args.command, "reports")
+        self.assertTrue(foreground_command(args.command))
+        with mock.patch.object(
+            reports, "verify_report", return_value={"status": "verified"}
+        ) as verify:
+            self.assertEqual(reports.handle(args), {"status": "verified"})
+        verify.assert_called_once_with(args.root, "report-1", "source-revision", checks)
+
     def test_incremental_page_passes_tuple_cursor_and_preserves_metadata(self):
         seen = []
         payload = [

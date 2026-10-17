@@ -196,6 +196,11 @@ UUIDs; unresolved placeholders fail. Authentication stays in the ephemeral
 `AI_DEPLOYED_AUTHORIZATION` environment variable. The evidence output retains the
 path template and assertions, never the token or response body.
 
+The controller reserves argparse's `command` destination for the selected
+top-level subcommand. Nested `--command` options must use a different destination
+(report verification uses `verification_commands`), or foreground dispatch
+receives a list instead of the subcommand name and fails before verification.
+
 ## Quality gates and releases
 
 Match effort to risk. Trivial documentation and similarly low-risk edits require

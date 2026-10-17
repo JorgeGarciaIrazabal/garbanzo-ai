@@ -451,7 +451,7 @@ def handle(args) -> dict[str, Any]:
     if args.action == "snapshot":
         return triage.production_snapshot(str(args.root))
     if args.action == "verify":
-        return verify_report(args.root, args.id, args.deployed_revision, args.command)
+        return verify_report(args.root, args.id, args.deployed_revision, args.verification_commands)
     evidence = read_json(local_dir(args.root) / "reports/reports.json", [])
     if args.action == "list":
         selected = (
@@ -529,7 +529,7 @@ def register(subparsers) -> None:
     verify = actions.add_parser("verify")
     verify.add_argument("id")
     verify.add_argument("--deployed-revision", required=True)
-    verify.add_argument("--command", action="append", required=True)
+    verify.add_argument("--command", dest="verification_commands", action="append", required=True)
     status = actions.add_parser("status")
     status.add_argument("id")
     status.add_argument("status", choices=("open", "in_progress", "closed"))
