@@ -484,7 +484,7 @@ class TestStyleServiceBuiltins:
         # Every user sees the built-ins, even without an account row.
         listed = await svc.list_for_user("anyone@example.com")
         names = sorted((s.name, s.locale) for s in listed if s.is_builtin)
-        # 5 English + 5 Spanish built-ins (see StyleService.BUILTIN_STYLES).
+        # 6 English + 6 Spanish built-ins (see StyleService.BUILTIN_STYLES).
         # "Coding"/"Programación" were dropped from the seed list and pruned by
         # migration 031, so neither should appear.
         assert ("Concise", "en") in names
@@ -493,15 +493,43 @@ class TestStyleServiceBuiltins:
         assert ("Buscador de la verdad", "es") in names
         assert ("Coding", "en") not in names
         assert ("Programación", "es") not in names
-        assert sum(1 for s in listed if s.is_builtin) == 10
+        assert sum(1 for s in listed if s.is_builtin) == 12
         by_name = {s.name: s.model_id for s in listed if s.is_builtin}
-        assert by_name["Concise"] == "deepseek-v4.1-flash:cloud"
-        assert by_name["Truth Seeker"] == "deepseek-v4.1-flash:cloud"
+        assert by_name.pop("Mistral Writing") == "mistral-large-4:cloud"
+        assert by_name.pop("Escritura con Mistral") == "mistral-large-4:cloud"
+        assert set(by_name.values()) == {"deepseek-v4.1-flash:1017-cloud"}
 
     async def test_seed_is_idempotent(self, db_session):
         await self._seed_builtins(db_session)
         first = await self._seed_builtins(db_session)
         assert first == 0
+
+    async def test_seed_adds_mistral_to_existing_catalog(self, db_session):
+        await self._seed_builtins(db_session)
+        styles = (await db_session.execute(select(Style))).scalars().all()
+        existing = {}
+        for style in styles:
+            if style.model_id == "mistral-large-4:cloud":
+                await db_session.delete(style)
+            else:
+                existing[(style.name, style.locale)] = style.id
+        await db_session.commit()
+
+        assert await self._seed_builtins(db_session) == 2
+        listed = await StyleService(db_session).list_for_user("anyone@example.com")
+        assert len(listed) == 12
+        for style in listed:
+            if style.model_id == "mistral-large-4:cloud":
+                template = await db_session.get(
+                    SystemPromptTemplate, style.system_prompt_template_id
+                )
+                assert (
+                    template.name
+                    == {"en": "Writing Coach", "es": "Coach de escritura"}[style.locale]
+                )
+                assert style.thinking_level is None
+            else:
+                assert style.id == existing[(style.name, style.locale)]
 
     async def test_builtins_link_to_builtin_templates(self, db_session):
         await self._seed_builtins(db_session)

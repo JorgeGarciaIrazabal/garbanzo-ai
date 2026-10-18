@@ -710,8 +710,11 @@ assign viewer flags to ORM state, including at request teardown commits.
 `User.default_style_id` is the only stored default selection. Migration 052
 removes the old style flag/index without changing selected or cleared pointers.
 
-The app ships five built-in styles — Concise, Truth Seeker, Writing & Stories,
-Tutoring, Brainstorm — seeded at startup. Each is a row in `styles`
+The app ships six built-in styles — Concise, Truth Seeker, Writing & Stories,
+Tutoring, Brainstorm, Mistral Writing — in English and Spanish, seeded at startup.
+The first five use `deepseek-v4.1-flash:1017-cloud`; Mistral Writing uses
+`mistral-large-4:cloud` with the existing localized Writing Coach template.
+Each is a row in `styles`
 with `is_builtin=TRUE`, `user_id=NULL`, `locale`='en' or 'es', and a
 `system_prompt_template_id` referencing a built-in `SystemPromptTemplate`.
 `StyleService.seed_builtin_styles` runs after `seed_builtin_templates` in

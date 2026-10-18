@@ -96,9 +96,17 @@ before the production Compose stack is replaced.
      ```
      Normal chats default to the multimodal `deepseek-v4.1-flash:cloud`;
      automatic memory extraction and scheduled actions default to
-     `deepseek-v4.1-flash:cloud` too. The built-in styles (Concise, Truth
-     Seeker, etc.) also ride `deepseek-v4.1-flash:cloud`; only user-saved styles
-     keep a model of their own choosing.
+     `deepseek-v4.1-flash:cloud` too. The built-in DeepSeek styles (Concise,
+     Truth Seeker, etc.) use `deepseek-v4.1-flash:1017-cloud`; the separate
+     Mistral Writing preset uses `mistral-large-4:cloud`. Provision both before
+     releasing migration 053 so the styles can be applied:
+     ```
+     just deploy-model deepseek-v4.1-flash:1017-cloud
+     just deploy-model mistral-large-4:cloud
+     ```
+     Migration 053 also moves existing DeepSeek-backed user-saved styles and
+     pending style shares to the 1017 snapshot. Other user-selected models and
+     existing conversations keep their model.
      Migration 037 upgrades the app's retired MiniMax M3, GLM 5.2, dated
      DeepSeek V4 Flash/Pro preview aliases, Kimi K2.7 Code, and Qwen 3.6
      identifiers in persisted user configurations and pending shared-style

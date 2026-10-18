@@ -1,21 +1,27 @@
 # Styles (model, thinking level, system prompt)
 
 A **style** bundles a model, a thinking level, and a system prompt template
-into one reusable preset (e.g. "Concise", "Truth Seeker"). The app ships five
-**built-in styles** — Concise, Truth Seeker, Writing & Stories, Tutoring, and
-Brainstorm — shown as one-tap cards under **Predefined** in the Styles
+into one reusable preset (e.g. "Concise", "Truth Seeker"). The app ships six
+**built-in styles** — Concise, Truth Seeker, Writing & Stories, Tutoring,
+Brainstorm, and Mistral Writing — shown as one-tap cards under **Predefined** in the Styles
 section in the style picker. They are read-only: tap to apply, or start
 from the Customize section to save your own variant.
 
 | Built-in | Model | Template | For |
 |----------|-------|----------|-----|
-| **Concise** | DeepSeek V4.1 Flash | Concise | Short, direct answers |
-| **Truth Seeker** | DeepSeek V4.1 Flash (medium thinking) | Truth Seeker | Verifies claims, cites sources |
-| **Writing & Stories** | DeepSeek V4.1 Flash | Writing Coach | Fiction + non-fiction writing |
-| **Tutoring** | DeepSeek V4.1 Flash (medium thinking) | Socratic Tutor | Learns by guiding questions |
-| **Brainstorm** | DeepSeek V4.1 Flash | Brainstorm Partner | Generates varied ideas quickly |
+| **Concise** | DeepSeek V4.1 Flash 1017 | Concise | Short, direct answers |
+| **Truth Seeker** | DeepSeek V4.1 Flash 1017 (medium thinking) | Truth Seeker | Verifies claims, cites sources |
+| **Writing & Stories** | DeepSeek V4.1 Flash 1017 | Writing Coach | Fiction + non-fiction writing |
+| **Tutoring** | DeepSeek V4.1 Flash 1017 (medium thinking) | Socratic Tutor | Learns by guiding questions |
+| **Brainstorm** | DeepSeek V4.1 Flash 1017 | Brainstorm Partner | Generates varied ideas quickly |
+| **Mistral Writing** | Mistral Large 4 | Writing Coach | Long-form writing, editing, and prose polishing |
+
+Existing DeepSeek-backed saved styles also use the 1017 snapshot after the
+update. Their instructions, thinking levels, and default selections stay the
+same. Existing conversations keep their model until you apply a style to them.
 
 Built-in styles surface in the app's current language (English or Spanish).
+The Spanish Mistral preset is named **Escritura con Mistral**.
 A style whose model isn't installed shows a warning; install or enable its
 model before applying it.
 

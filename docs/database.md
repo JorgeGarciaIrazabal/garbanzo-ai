@@ -90,6 +90,13 @@ half-migrated schema.
   and registers the new model in `available_models`. It deliberately leaves
   `conversations.model` (in-flight thread history) and user-saved styles
   untouched, so those keep the model they were created with.
+  Migration 053 subsequently moves all DeepSeek-family style selections
+  (`deepseek-*` / `deepseek:*`), including user-saved styles and pending style
+  share snapshots, to `deepseek-v4.1-flash:1017-cloud`. It preserves other style
+  fields, default pointers, namespaced custom models, and existing conversations.
+  It registers the snapshot and `mistral-large-4:cloud` without overriding
+  existing admin visibility choices. Startup seeds the new localized Mistral
+  writing styles using the existing writing-coach templates.
 - `Conversation.use_memory` (boolean) controls whether user memories are injected into LLM context.
 - `Conversation.use_knowledge_base` (boolean) controls whether KB chunks are injected.
 - `Conversation.is_pinned` (boolean) surfaces conversations in the sidebar.
@@ -227,9 +234,9 @@ half-migrated schema.
   is either owned by a user (`user_id` = their email) or shared as a
   **built-in** (`user_id = NULL`, `is_builtin = TRUE`); built-ins are seeded
   by `StyleService.seed_builtin_styles` at startup from
-  `BUILTIN_STYLES` (five per supported locale — Concise, Truth
-  Seeker, Writing & Stories, Tutoring, Brainstorm in English; the
-  same five named in Spanish), each referencing a built-in
+  `BUILTIN_STYLES` (six per supported locale — Concise, Truth
+  Seeker, Writing & Stories, Tutoring, Brainstorm, Mistral Writing in English; the
+  same six named in Spanish), each referencing a built-in
   `SystemPromptTemplate` of the same `(name, locale)` as its prompt half.
   They surface in the picker as one-tap cards below the user's own styles
   and their content is read-only — `StyleService.update`/`delete` raise

@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import importlib
+import json
 import os
 import socket
 import subprocess
@@ -328,6 +329,115 @@ async def _style_default_upgrade_smoke(connection: Any, migrations_dir: Path) ->
     return {"style_default_upgrade": True}
 
 
+async def _style_model_refresh_smoke(connection: Any, migrations_dir: Path) -> dict[str, bool]:
+    """Exercise style model upgrades and JSON snapshots against real PostgreSQL."""
+    migration = (migrations_dir / "053_style_model_refresh.sql").read_text(encoding="utf-8")
+    snapshot_model = "deepseek-v4.1-flash:1017-cloud"
+    originals = {
+        "refresh-builtin": "deepseek-v4.1-flash:cloud",
+        "refresh-owned": "deepseek-v4-pro:cloud",
+        "refresh-local": "deepseek-r1:8b",
+        "refresh-base": "deepseek:latest",
+        "refresh-current": snapshot_model,
+        "refresh-other": "glm-5.3:cloud",
+        "refresh-custom": "my-org/deepseek-r1:custom",
+    }
+    transaction = connection.transaction()
+    await transaction.start()
+    try:
+        owner = "style-owned@example.com"
+        for style_id, model in originals.items():
+            await connection.execute(
+                """INSERT INTO styles(id, user_id, name, model_id, thinking_level, is_builtin)
+                VALUES ($1, $2, $1, $3, 'high', $4)""",
+                style_id,
+                None if style_id == "refresh-builtin" else owner,
+                model,
+                style_id == "refresh-builtin",
+            )
+        await connection.execute(
+            "UPDATE users SET default_style_id = 'refresh-owned' WHERE email = $1", owner
+        )
+        await connection.execute(
+            """INSERT INTO conversations
+            (id, user_id, title, model, is_deleted, is_pinned, use_memory,
+             use_knowledge_base, is_primary, topic_is_pinned, context_version)
+            VALUES ('refresh-history', $1, 'Existing chat', 'deepseek-v4-pro:cloud',
+                    FALSE, FALSE, TRUE, TRUE, FALSE, FALSE, 0)""",
+            owner,
+        )
+        payloads = {
+            "refresh-share": {
+                "name": "Shared",
+                "model_id": "deepseek-v4-flash:cloud",
+                "thinking_level": "high",
+                "prompt": {"content": "Keep my voice"},
+            },
+            "refresh-other-share": {"name": "Other", "model_id": "glm-5.3:cloud"},
+            "refresh-prompt": {
+                "model_id": "deepseek-v4-flash:cloud",
+                "content": "Keep this prompt",
+            },
+        }
+        for item_id, payload in payloads.items():
+            await connection.execute(
+                """INSERT INTO shared_items(id, sender_email, recipient_email, kind, payload)
+                VALUES ($1, $2, 'style-builtin@example.com', $3, $4::jsonb)""",
+                item_id,
+                owner,
+                "prompt" if item_id == "refresh-prompt" else "style",
+                json.dumps(payload),
+            )
+        await connection.execute(
+            "UPDATE available_models SET is_enabled = FALSE WHERE model_id = $1", snapshot_model
+        )
+        before = await connection.fetch(
+            "SELECT * FROM styles WHERE id LIKE 'refresh-%' ORDER BY id"
+        )
+        expected = [dict(row) for row in before]
+        for row in expected:
+            if row["model_id"].startswith(("deepseek-", "deepseek:")):
+                row["model_id"] = snapshot_model
+        payloads["refresh-share"]["model_id"] = snapshot_model
+        for _ in range(2):
+            await connection.execute(migration)
+            after = await connection.fetch(
+                "SELECT * FROM styles WHERE id LIKE 'refresh-%' ORDER BY id"
+            )
+            if [dict(row) for row in after] != expected:
+                raise RuntimeError("Style model refresh changed unrelated style fields or models")
+            for item_id, payload in payloads.items():
+                actual = await connection.fetchval(
+                    "SELECT payload FROM shared_items WHERE id = $1", item_id
+                )
+                if json.loads(actual) != payload:
+                    raise RuntimeError("Style model refresh damaged a shared snapshot")
+            if (
+                await connection.fetchval(
+                    "SELECT default_style_id FROM users WHERE email = $1", owner
+                )
+                != "refresh-owned"
+            ):
+                raise RuntimeError("Style model refresh changed the default pointer")
+            if (
+                await connection.fetchval(
+                    "SELECT model FROM conversations WHERE id = 'refresh-history'"
+                )
+                != "deepseek-v4-pro:cloud"
+            ):
+                raise RuntimeError("Style model refresh changed an existing conversation")
+            if (
+                await connection.fetchval(
+                    "SELECT is_enabled FROM available_models WHERE model_id = $1", snapshot_model
+                )
+                is not False
+            ):
+                raise RuntimeError("Style model refresh overrode an admin model disable")
+    finally:
+        await transaction.rollback()
+    return {"style_model_refresh": True}
+
+
 async def run_database_smoke(
     database_url: str, migrations_dir: Path, expected: list[str]
 ) -> dict[str, Any]:
@@ -372,6 +482,7 @@ async def run_database_smoke(
             connection = await asyncpg.connect(dsn)
             try:
                 style_upgrade = await _style_default_upgrade_smoke(connection, migrations_dir)
+                style_models = await _style_model_refresh_smoke(connection, migrations_dir)
                 description = await connection.fetchval(
                     "SELECT description FROM virtual_folders WHERE id = 'metadata-upgrade-smoke'"
                 )
@@ -481,6 +592,7 @@ async def run_database_smoke(
         "hybrid_query": True,
         "folder_metadata_upgrade": True,
         **style_upgrade,
+        **style_models,
         **concurrency,
         **folder_concurrency,
     }
@@ -520,7 +632,8 @@ def main() -> int:
         f"serialized_file_replacements={result['serialized_file_replacements']}, "
         f"unique_concurrent_copies={result['unique_concurrent_copies']}, "
         f"folder_metadata_upgrade={result['folder_metadata_upgrade']}, "
-        f"style_default_upgrade={result['style_default_upgrade']}"
+        f"style_default_upgrade={result['style_default_upgrade']}, "
+        f"style_model_refresh={result['style_model_refresh']}"
     )
     return 0
 

@@ -4,7 +4,7 @@ A system prompt shapes the assistant's persona and rules. Three levels, most
 specific wins: conversation override → your default style's prompt → none.
 
 The built-in personas ship as **built-in styles** (Concise, Truth Seeker,
-Writing & Stories, Coding, Tutoring, Brainstorm) shown as one-tap cards in
+Writing & Stories, Tutoring, Brainstorm, Mistral Writing) shown as one-tap cards in
 the style picker's Styles section — apply one and its prompt + model land
 on the conversation. The Customize section's **Prompt** dropdown lists only
 your own custom templates. Next to the dropdown:
