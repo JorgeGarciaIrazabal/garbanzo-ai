@@ -4,6 +4,11 @@ Release notes for Garbanzo AI. Each entry is generated automatically on
 `just deploy` — Codex writes it from the release's commits and
 the user reports it addressed. See `scripts/changelog-instructions.md`.
 
+## v1.0.41 — 2026-10-18
+
+- Preset thinking preferences are now honored.
+- Delegated workflow limits now respect your Settings defaults.
+
 ## v1.0.40 — 2026-10-04
 
 - No user-facing changes.
