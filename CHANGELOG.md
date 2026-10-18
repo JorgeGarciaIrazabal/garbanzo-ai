@@ -4,6 +4,10 @@ Release notes for Garbanzo AI. Each entry is generated automatically on
 `just deploy` — Codex writes it from the release's commits and
 the user reports it addressed. See `scripts/changelog-instructions.md`.
 
+## v1.0.42 — 2026-10-18
+
+- Refreshed DeepSeek styles and added Mistral writing presets.
+
 ## v1.0.41 — 2026-10-18
 
 - Preset thinking preferences are now honored.
