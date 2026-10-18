@@ -18,6 +18,24 @@ from app.services.ollama_provider import OllamaProvider
 pytestmark = pytest.mark.asyncio
 
 
+async def test_list_models_excludes_decision_models_by_capability():
+    provider = OllamaProvider()
+    names = ["clef:cloud", "future-decision:latest", "chat:latest"]
+    provider._model_meta = {
+        "clef:cloud": (65536, ["vision", "decision"]),
+        "future-decision:latest": (65536, ["systemone"]),
+        "chat:latest": (65536, ["completion", "tools", "thinking"]),
+    }
+    response = MagicMock()
+    response.models = [MagicMock(model=name, details=None) for name in names]
+    client = MagicMock()
+    client.list = AsyncMock(return_value=response)
+    with patch.object(provider, "_get_client", return_value=client):
+        models = await provider.list_models()
+    assert [model.id for model in models] == ["chat:latest"]
+    assert models[0].supports_thinking is True
+
+
 class _FakeStream:
     """Async-iterable that yields a single non-streaming-style 'done' chunk
     so the provider exits its loop cleanly."""

@@ -667,7 +667,7 @@ never disagree about the local user after a mute/unmute round trip.
 
 Main providers per `ChatPage` tree:
 - **`ModelProvider`** — available models + selected model. Kept separate so model selection survives conversation switches. For image capability errors it exposes only enabled Vision choices, preferring GLM 5.3 Flash for speed/cost and Kimi K3 for capability, then falling back to its location- and capability-aware ranking.
-- **`StyleProvider`** — saved styles + built-in styles (model + thinking level + prompt template bundles, `/api/v1/styles`) plus the *pending* thinking level / system prompt the style picker composes for the next new conversation. Same survives-switches rationale as `ModelProvider`. On load it seeds the pendings from the default style (`is_default`) or, absent one, from the last saved style the user explicitly applied (id persisted locally in `SharedPreferences` via `recordLastUsed`, `style_last_used_style_id`) — an explicit default always wins over last-used. Opening a new-topic window (`TopicLanding`, at startup or via New topic) re-composes the pendings through `applyDefaultForNewTopic()`: the default/last-used style is selected, thinking resets to `Medium` regardless of the saved style's effort, and the new topic thread receives those pending settings at creation; opening the landing does not edit an existing conversation. There is no backend column for "the active style": `selectedStyleId` retains the named model + resolved-prompt identity locally, so the composer pill keeps the selected style name when thinking is overridden. Without a compatible selected identity, the pill and saved-style cards recover the style from an exact model/thinking/resolved-prompt match (`_resolveActiveStyle` in `style_picker.dart`).
+- **`StyleProvider`** — saved styles + built-in styles (model + thinking level + prompt template bundles, `/api/v1/styles`) plus the *pending* thinking level / system prompt the style picker composes for the next new conversation. Same survives-switches rationale as `ModelProvider`. On load it seeds the pendings from the default style (`is_default`) or, absent one, from the last saved style the user explicitly applied (id persisted locally in `SharedPreferences` via `recordLastUsed`, `style_last_used_style_id`) — an explicit default always wins over last-used. Opening a new-topic window (`TopicLanding`, at startup or via New topic) re-composes the pendings through `applyDefaultForNewTopic()`: the default/last-used style is selected, thinking uses the selected style's saved effort (including `off`), or `Medium` when the style has no saved effort, and the new topic thread receives those pending settings at creation; opening the landing does not edit an existing conversation. There is no backend column for "the active style": `selectedStyleId` retains the named model + resolved-prompt identity locally, so the composer pill keeps the selected style name when thinking is overridden. Without a compatible selected identity, the pill and saved-style cards recover the style from an exact model/thinking/resolved-prompt match (`_resolveActiveStyle` in `style_picker.dart`).
 
 ### Style editing and built-in styles
 
@@ -803,3 +803,35 @@ same service URL; its token stays in `deploy/.env`. See `deploy/AGENTS.md` and
 > prefetching each newly arrived chunk during current playback so sentence
 > boundaries do not wait on inference. Read-aloud uses the separate Pocket
 > service and does not change Talk Mode voice settings.
+
+
+### Typed decisions (Clef)
+
+`services/decision_service.py` uses Ollama `/v1/systemone` independently of the
+chat-provider interface. It validates bounded yes/no question maps, exact model
+and question identities, finite probabilities and token usage. Enabled decision
+features validate server version and model capability before database startup;
+a failed runtime classification raises `DecisionError` and is never converted
+to a successful negative answer. Decision-only models are hidden from chat pickers.
+
+Room auto-agent eligibility can use Clef instead of generating judge JSON.
+A first check considers only the latest utterance and one preceding utterance
+for brief acceptances; a positive request then gets a second expertise/context
+check. This avoids historical questions making closing acknowledgments trigger
+a reply. Each stage has its own configured deadline.
+Mentions, active/self filters, always/round-robin modes and depth caps remain
+deterministic. Selection failures broadcast a room error while preserving the
+already-saved user message. Replies themselves still use each agent's model.
+
+Topic decisions respect local-only/cloud-allowed privacy. Clef confirms the
+existing embedding drift candidate as advice only; it never switches or merges
+topics. Relevance classification covers at most 16 already-budgeted optional
+context groups. Required/pinned groups are untouched, unscored units keep their
+existing selection, and accepted units are ordered by their decision probability
+without mixing it into hybrid retrieval scores. Inputs are bounded. Topic,
+epoch/version and source eligibility/content are revalidated after network
+inference; stale results raise a retryable turn error rather than injecting
+obsolete context. This path does not alter generative topic curation or memory
+extraction. Flags are optional in local development; production Compose enables
+both after provisioning Clef. The explicit policy accepts only probabilities
+above 0.5; this is not an accuracy or calibrated-confidence guarantee.

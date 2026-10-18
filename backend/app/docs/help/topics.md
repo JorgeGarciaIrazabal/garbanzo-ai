@@ -14,7 +14,9 @@ The sidebar and mobile menu contain **Threads** for all your conversations and
 **Rooms** for group conversations. The current topic stays visible in the chat
 banner and context panel.
 When the new-topic map opens, Garbanzo resets the composer to your default
-style (or the style you used last) and starts thinking at Medium. These settings
+style (or the style you used last) and uses that style's saved thinking level,
+including Off. Thinking starts at Medium if the style is set to Auto or no
+saved style applies. These settings
 apply to the next thread you create; opening the map does not edit an existing
 conversation. If the default style's instructions cannot load, the map shows a
 message with **Try again** and preserves the previous composer settings.
@@ -139,3 +141,10 @@ Rather than overwhelming you with raw message transcripts or technical IDs, both
 - **About This Topic**: A clear, synthesized sentence outlining the scope, purpose, and domain of the topic.
 - **Information Included in Context**: High-level, declarative statements summarizing the established preferences, decisions, and criteria that will be fed into Garbanzo's context for upcoming turns.
 - **Topic Hierarchy & Controls**: Clear parent domain relationships (e.g. `Real Estate & Housing` → `Guadarrama & Aranjuez Property Search`), topic locking against drift, and switch options.
+
+
+When decision-based relevance is enabled, Garbanzo checks a bounded set of
+optional context against your latest request. Your pins and required context
+stay protected. Topic drift remains a suggestion: Garbanzo does not switch a
+topic you selected. If context changes while the check is running, the turn
+reports an error so you can retry with current context.

@@ -1443,75 +1443,77 @@ How can I help you with **Retirement planning** today?
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('composer shows the default style and Medium on each new topic',
-        (tester) async {
-      final topics = TopicDiscoveryProvider(
-        service: _FakeTopicService(const []),
-      );
-      final styles = StyleProvider(
-        styleService: _FakeStyleService([
-          defaultStyle(thinkingLevel: ThinkingLevel.high),
-        ]),
-      );
-      final models = _FakeModelProvider(
-        models: const [
-          ModelInfo(
-            id: 'kimi-k3',
-            name: 'Kimi K3',
-            provider: 'ollama',
-            supportsThinking: true,
-            thinkingLevels: ThinkingLevel.values,
-          ),
-        ],
-        selectedId: 'kimi-k3',
-      );
+    for (final savedLevel in <ThinkingLevel?>[...ThinkingLevel.values, null]) {
+      testWidgets('composer shows the default style and ${savedLevel?.name ?? 'Medium for Auto'} on each new topic',
+          (tester) async {
+        final topics = TopicDiscoveryProvider(
+          service: _FakeTopicService(const []),
+        );
+        final styles = StyleProvider(
+          styleService: _FakeStyleService([
+            defaultStyle(thinkingLevel: savedLevel),
+          ]),
+        );
+        final models = _FakeModelProvider(
+          models: const [
+            ModelInfo(
+              id: 'kimi-k3',
+              name: 'Kimi K3',
+              provider: 'ollama',
+              supportsThinking: true,
+              thinkingLevels: ThinkingLevel.values,
+            ),
+          ],
+          selectedId: 'kimi-k3',
+        );
 
-      await tester.pumpWidget(
-        _wrapWithApp(
-          Column(
-            children: [
-              Expanded(
-                child: TopicLanding(
-                  conversationId: 'primary',
-                  onStarterSelected: (_) {},
+        await tester.pumpWidget(
+          _wrapWithApp(
+            Column(
+              children: [
+                Expanded(
+                  child: TopicLanding(
+                    conversationId: 'primary',
+                    onStarterSelected: (_) {},
+                  ),
                 ),
-              ),
-              ChatInputWidget(
-                onSend: (_, _) {},
-              ),
-            ],
+                ChatInputWidget(
+                  onSend: (_, _) {},
+                ),
+              ],
+            ),
+            topicProvider: topics,
+            chatProvider: _FakeChatProvider(),
+            styleProvider: styles,
+            modelProvider: models,
+            promptProvider: _FakeSystemPromptProvider(),
+            settingsProvider: SettingsProvider(),
           ),
-          topicProvider: topics,
-          chatProvider: _FakeChatProvider(),
-          styleProvider: styles,
-          modelProvider: models,
-          promptProvider: _FakeSystemPromptProvider(),
-          settingsProvider: SettingsProvider(),
-        ),
-      );
-      await settle(tester);
+        );
+        await settle(tester);
 
-      final stylePill = find.byKey(const ValueKey('style_picker_button'));
-      final thinkingChip = find.byKey(const ValueKey('thinking_effort_chip'));
-      expect(find.descendant(of: stylePill, matching: find.text('Deep work')),
-          findsOneWidget);
-      expect(find.descendant(of: thinkingChip, matching: find.text('Medium')),
-          findsOneWidget);
+        final stylePill = find.byKey(const ValueKey('style_picker_button'));
+        final thinkingChip = find.byKey(const ValueKey('thinking_effort_chip'));
+        expect(find.descendant(of: stylePill, matching: find.text('Deep work')),
+            findsOneWidget);
+        final expectedLevel = savedLevel ?? ThinkingLevel.medium;
+        expect(find.descendant(of: thinkingChip, matching: find.text(expectedLevel.label)),
+            findsOneWidget);
 
-      // Effort can be customized, then a new conversation must reset it while keeping
-      // the named default style visible even though its saved effort is High.
-      await tester.tap(thinkingChip);
-      await settle(tester);
-      expect(styles.pendingThinkingLevel, ThinkingLevel.high);
-      topics.startNewTopic();
-      await settle(tester);
-      expect(styles.pendingThinkingLevel, ThinkingLevel.medium);
-      expect(find.descendant(of: stylePill, matching: find.text('Deep work')),
-          findsOneWidget);
-      expect(find.descendant(of: thinkingChip, matching: find.text('Medium')),
-          findsOneWidget);
-      expect(tester.takeException(), isNull);
-    });
+        // Cycling effort customizes this window; re-entry restores the saved value.
+        await tester.tap(thinkingChip);
+        await settle(tester);
+        expect(styles.pendingThinkingLevel, isNot(expectedLevel));
+        topics.startNewTopic();
+        await settle(tester);
+        expect(styles.pendingThinkingLevel, expectedLevel);
+        expect(find.descendant(of: stylePill, matching: find.text('Deep work')),
+            findsOneWidget);
+        expect(find.descendant(of: thinkingChip, matching: find.text(expectedLevel.label)),
+            findsOneWidget);
+        expect(tester.takeException(), isNull);
+      });
+    }
 
     testWidgets(
       'seeds settings for the next thread without changing the primary',
@@ -1528,6 +1530,7 @@ How can I help you with **Retirement planning** today?
           conversation: Conversation(
             id: 'primary',
             model: 'llama3.2',
+            thinkingLevel: ThinkingLevel.low,
             isPrimary: true,
             createdAt: DateTime(2026),
             updatedAt: DateTime(2026),
@@ -1557,10 +1560,11 @@ How can I help you with **Retirement planning** today?
         );
         await settle(tester);
 
-        expect(styles.pendingThinkingLevel, ThinkingLevel.medium);
+        expect(styles.pendingThinkingLevel, ThinkingLevel.high);
         expect(styles.selectedStyleId, 'default-style');
         expect(models.selectedModelId, 'kimi-k3');
         expect(chat.updates, isEmpty);
+        expect(chat.currentConversation?.thinkingLevel, ThinkingLevel.low);
       },
     );
 

@@ -15,6 +15,7 @@ from app.api.v1.router import api_router
 from app.core.config import get_settings
 from app.core.security import decode_token
 from app.db.session import init_db
+from app.services.decision_service import validate_decision_config
 from app.services.read_aloud_sessions import shutdown_read_aloud_manager
 
 # Structured logging configuration
@@ -160,6 +161,7 @@ def _check_config() -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     _check_config()
+    await validate_decision_config(settings)
     await init_db()
     _register_default_llm_provider()
     await _ensure_test_user()

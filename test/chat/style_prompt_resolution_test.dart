@@ -130,13 +130,15 @@ void main() {
     expect(provider.selectedStyleId, 'saved-style');
     expect(snapshots.every((s) => s == (null, null, null) ||
         s == ('saved-style', ThinkingLevel.high, 'Instrucciones')), isTrue);
+    provider.setPendingThinkingLevel(ThinkingLevel.off);
+    provider.setPendingSystemPrompt('Custom instructions');
     snapshots.clear();
     await provider.applyDefaultForNewTopic();
-    expect(provider.pendingThinkingLevel, ThinkingLevel.medium);
+    expect(provider.pendingThinkingLevel, ThinkingLevel.high);
     expect(provider.pendingSystemPrompt, 'Instrucciones');
     expect(snapshots.every((s) =>
-        s == ('saved-style', ThinkingLevel.high, 'Instrucciones') ||
-        s == ('saved-style', ThinkingLevel.medium, 'Instrucciones')), isTrue);
+        s == ('saved-style', ThinkingLevel.off, 'Custom instructions') ||
+        s == ('saved-style', ThinkingLevel.high, 'Instrucciones')), isTrue);
     expect(prompts.locales.every((l) => l == null), isTrue);
     expect(provider.pendingSeedBlocked, isFalse);
     provider.dispose();
@@ -169,7 +171,7 @@ void main() {
       prompts.load = (_) async => [_prompt('spanish', 'Recovered')];
       expect((await provider.applyDefaultForNewTopic())?.id, 'saved-style');
       expect(provider.seedError, isNull);
-      expect(provider.pendingThinkingLevel, ThinkingLevel.medium);
+      expect(provider.pendingThinkingLevel, ThinkingLevel.high);
       expect(provider.pendingSystemPrompt, 'Recovered');
       expect(provider.pendingSeedBlocked, isFalse);
       provider.dispose();
@@ -211,7 +213,7 @@ void main() {
       await provider.ensureLoaded();
       await provider.applyDefaultForNewTopic();
       expect(provider.pendingSystemPrompt, isNull);
-      expect(provider.pendingThinkingLevel, ThinkingLevel.medium);
+      expect(provider.pendingThinkingLevel, ThinkingLevel.high);
       expect(provider.selectedStyleId, 'saved-style');
       expect(provider.seedError, isNull);
       expect(provider.pendingSeedBlocked, isFalse);
@@ -221,6 +223,33 @@ void main() {
   });
 
   test('a slower seed cannot overwrite a newer new-topic result', () async {
+    final prompts = _Prompts([_prompt('spanish', 'Initial')]);
+    final rows = [_style().copyWith(thinkingLevel: ThinkingLevel.low)];
+    final provider = StyleProvider(
+      styleService: _Styles(rows),
+      systemPromptService: prompts,
+    );
+    await provider.ensureLoaded();
+    final slow = Completer<List<SystemPromptTemplate>>();
+    final started = Completer<void>();
+    prompts.load = (_) {
+      started.complete();
+      return slow.future;
+    };
+    final older = provider.applyDefaultForNewTopic();
+    await started.future;
+    rows[0] = _style().copyWith(thinkingLevel: ThinkingLevel.off);
+    prompts.load = (_) async => [_prompt('spanish', 'Newer')];
+    await provider.applyDefaultForNewTopic();
+    slow.complete([_prompt('spanish', 'Older')]);
+    expect(await older, isNull);
+    expect(provider.pendingSystemPrompt, 'Newer');
+    expect(provider.pendingThinkingLevel, ThinkingLevel.off);
+    expect(provider.seedError, isNull);
+    provider.dispose();
+  });
+
+  test('late new-topic lookup cannot replace manual thinking or prompt', () async {
     final prompts = _Prompts([_prompt('spanish', 'Initial')]);
     final provider = StyleProvider(
       styleService: _Styles([_style()]),
@@ -233,15 +262,17 @@ void main() {
       started.complete();
       return slow.future;
     };
-    final older = provider.applyDefaultForNewTopic();
+    final result = provider.applyDefaultForNewTopic();
     await started.future;
-    prompts.load = (_) async => [_prompt('spanish', 'Newer')];
-    await provider.applyDefaultForNewTopic();
-    slow.complete([_prompt('spanish', 'Older')]);
-    expect(await older, isNull);
-    expect(provider.pendingSystemPrompt, 'Newer');
-    expect(provider.pendingThinkingLevel, ThinkingLevel.medium);
+    provider.setPendingThinkingLevel(ThinkingLevel.low);
+    provider.setPendingSystemPrompt('Manual instructions');
+    slow.complete([_prompt('spanish', 'Late default')]);
+
+    expect(await result, isNull);
+    expect(provider.pendingThinkingLevel, ThinkingLevel.low);
+    expect(provider.pendingSystemPrompt, 'Manual instructions');
     expect(provider.seedError, isNull);
+    expect(provider.pendingSeedBlocked, isFalse);
     provider.dispose();
   });
 

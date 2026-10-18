@@ -78,3 +78,10 @@ desktop you get a Save As dialog; on web and Android, the share sheet.
 ## How do I delete a room?
 Room owners can delete a room from its menu (**Delete room**). This removes
 the room and its history for everyone.
+
+
+Automatic agents can use a dedicated decision model to decide whether a reply
+would be useful. Explicit mentions and configured response modes still take
+priority, and each agent's selected chat model writes its actual reply. If the
+automatic selection service fails, the room shows an error; your posted message
+stays saved.

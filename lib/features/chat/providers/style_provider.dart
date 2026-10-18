@@ -150,8 +150,8 @@ class StyleProvider extends ChangeNotifier with GuardedStateMixin {
   }
 
   /// Reset the composer for a new-topic window, resolving instructions before
-  /// publishing identity, Medium effort and prompt together. A required lookup
-  /// failure preserves the prior composed state and exposes [seedError].
+  /// publishing identity, saved effort (or Medium) and prompt together. A required
+  /// lookup failure preserves the prior composed state and exposes [seedError].
   /// [isCurrent] also guards a landing that closes while lookup is in flight.
   Future<Style?> applyDefaultForNewTopic({bool Function()? isCurrent}) {
     _pendingTouched = true;
@@ -191,7 +191,7 @@ class StyleProvider extends ChangeNotifier with GuardedStateMixin {
       final content = template?.content.trim();
       _selectedStyleId = seed?.id;
       _pendingThinkingLevel = newTopic
-          ? ThinkingLevel.medium
+          ? seed?.thinkingLevel ?? ThinkingLevel.medium
           : seed?.thinkingLevel;
       _pendingSystemPrompt = content == null || content.isEmpty
           ? null

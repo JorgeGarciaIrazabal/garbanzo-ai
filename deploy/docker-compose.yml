@@ -25,7 +25,7 @@ services:
     # No host port: reachable only inside the prod network.
 
   ollama:
-    image: ollama/ollama:latest
+    image: ${OLLAMA_IMAGE:-ollama/ollama:0.40.6}
     restart: unless-stopped
     volumes:
       # Models + the `ollama signin` identity key (cloud models need a one-time
@@ -77,6 +77,10 @@ services:
       DEBUG: "false"
       DATABASE_URL: postgresql+asyncpg://garbanzo:${POSTGRES_PASSWORD}@postgres:5432/garbanzo_ai_prod
       OLLAMA_BASE_URL: http://ollama:11434
+      DECISION_MODEL: ${DECISION_MODEL:-clef:cloud}
+      ROOM_DECISIONS_ENABLED: ${ROOM_DECISIONS_ENABLED:-true}
+      TOPIC_DECISIONS_ENABLED: ${TOPIC_DECISIONS_ENABLED:-true}
+      DECISION_TIMEOUT_SECONDS: ${DECISION_TIMEOUT_SECONDS:-10}
       STT_MODE: local
       STT_DEVICE: ${STT_DEVICE:-cpu}
       TTS_DEVICE: ${TTS_DEVICE:-cpu}

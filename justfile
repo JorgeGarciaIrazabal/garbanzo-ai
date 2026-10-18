@@ -513,6 +513,14 @@ deploy-android-signing-setup:
 deploy-model model:
     {{ prod_compose }} exec ollama ollama pull "{{ model }}"
 
+# Prepare the pinned Ollama image without restarting a service
+deploy-ollama-pull:
+    {{ prod_compose }} pull ollama
+
+# Upgrade only Ollama, preserving its model/sign-in volume and backend
+deploy-ollama-upgrade:
+    {{ prod_compose }} up -d --no-deps --wait ollama
+
 # Install the latest built APK from dist/ onto a connected Android device
 deploy-apk-install:
     #!/usr/bin/env bash

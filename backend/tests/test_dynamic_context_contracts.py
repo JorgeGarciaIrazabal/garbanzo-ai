@@ -340,7 +340,11 @@ async def test_committed_primary_turn_emits_context_before_provider_and_deduplic
         lambda: type(
             "SettingsStub",
             (),
-            {"topic_context_enabled": True, "topic_context_token_budget": 12000},
+            {
+                "topic_context_enabled": True,
+                "topic_context_token_budget": 12000,
+                "topic_decisions_enabled": False,
+            },
         )(),
     )
     service = ChatService(db_session, provider_name=provider.name)

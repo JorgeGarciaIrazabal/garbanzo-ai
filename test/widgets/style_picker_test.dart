@@ -1870,63 +1870,45 @@ void main() {
   });
 
   group('StyleProvider new-topic seeding', () {
-    test('new topic selects the default style and resets thinking to medium',
-        () async {
-      final defaultStyle = _style(
-        'default',
-        'Default',
-        thinkingLevel: ThinkingLevel.high,
-        isDefault: true,
-      );
-      final provider = StyleProvider(
-        styleService: _FakeStyleService([defaultStyle]),
-      );
-      await _waitForLoad(provider);
+    for (final savedLevel in <ThinkingLevel?>[...ThinkingLevel.values, null]) {
+      for (final hasDefault in [true, false]) {
+        test('new topic uses ${hasDefault ? 'default' : 'last-used'} '
+            '${savedLevel?.name ?? 'Auto'} thinking', () async {
+          final style = _style(
+            'seed',
+            'Saved style',
+            thinkingLevel: savedLevel,
+            isDefault: hasDefault,
+          );
+          // A default must win even when a different last-used style exists.
+          SharedPreferences.setMockInitialValues({
+            'style_last_used_style_id': hasDefault ? 'other' : 'seed',
+          });
+          final provider = StyleProvider(
+            styleService: _FakeStyleService([
+              style,
+              _style('other', 'Other style', thinkingLevel: ThinkingLevel.high),
+            ]),
+          );
+          addTearDown(provider.dispose);
+          await provider.ensureLoaded();
+          // Ordinary startup retains Auto; only the topic window adds Medium.
+          expect(provider.pendingThinkingLevel, savedLevel);
+          provider.setPendingThinkingLevel(ThinkingLevel.medium);
 
-      final seed = await provider.applyDefaultForNewTopic();
+          final seed = await provider.applyDefaultForNewTopic();
 
-      expect(seed?.id, 'default');
-      expect(provider.selectedStyleId, 'default');
-      expect(provider.pendingThinkingLevel, ThinkingLevel.medium);
-    });
-
-    test('new topic defaults thinking to medium when the style is on Auto',
-        () async {
-      final defaultStyle = _style('default', 'Default', isDefault: true);
-      final provider = StyleProvider(
-        styleService: _FakeStyleService([defaultStyle]),
-      );
-      await _waitForLoad(provider);
-
-      await provider.applyDefaultForNewTopic();
-
-      expect(provider.pendingThinkingLevel, ThinkingLevel.medium);
-    });
-
-    test('new topic falls back to the last-used style without a default',
-        () async {
-      final style = _style(
-        's1',
-        'Deep work',
-        thinkingLevel: ThinkingLevel.low,
-      );
-      final first = StyleProvider(styleService: _FakeStyleService([style]));
-      await _waitForLoad(first);
-      await first.recordLastUsed('s1');
-
-      final restarted = StyleProvider(
-        styleService: _FakeStyleService([style]),
-      );
-      await _waitForLoad(restarted);
-      final seed = await restarted.applyDefaultForNewTopic();
-
-      expect(seed?.id, 's1');
-      expect(restarted.pendingThinkingLevel, ThinkingLevel.medium);
-    });
+          expect(seed?.id, 'seed');
+          expect(provider.selectedStyleId, 'seed');
+          expect(provider.pendingThinkingLevel, savedLevel ?? ThinkingLevel.medium);
+        });
+      }
+    }
 
     test('new topic with no styles still seeds medium thinking', () async {
       final provider = StyleProvider(styleService: _FakeStyleService(const []));
       await _waitForLoad(provider);
+      expect(provider.pendingThinkingLevel, isNull);
 
       final seed = await provider.applyDefaultForNewTopic();
 
@@ -1937,7 +1919,8 @@ void main() {
 
     test('re-entering a new topic recomposes over a picker override',
         () async {
-      final defaultStyle = _style('default', 'Default', isDefault: true);
+      final defaultStyle = _style('default', 'Default',
+          thinkingLevel: ThinkingLevel.low, isDefault: true);
       final provider = StyleProvider(
         styleService: _FakeStyleService([defaultStyle]),
       );
@@ -1948,7 +1931,7 @@ void main() {
       // ...then opens a fresh new-topic window.
       await provider.applyDefaultForNewTopic();
 
-      expect(provider.pendingThinkingLevel, ThinkingLevel.medium);
+      expect(provider.pendingThinkingLevel, ThinkingLevel.low);
     });
   });
 }

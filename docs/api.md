@@ -197,3 +197,10 @@ failed extraction return explicit `{ok:false,error}`. Failed/cancelled reports
 are labelled with their actual status. Raw bytes remain downloadable. Document
 extraction runs in an isolated process (20s wall time, 10s CPU, 1 GiB address
 space), with 50 MiB expanded archive and 5 Mi-character extracted text limits.
+
+
+Room WebSocket `error` events also report automatic reply-selection failures
+after a post has been saved. This error does not mean the user's message was
+lost; clients should keep the message and show the error. Topic classification
+failures use the existing chat error path, with stale-context errors requiring
+a retry rather than silently using obsolete evidence.

@@ -165,7 +165,7 @@ TURN. Store any TURN credentials separately from the connector token.
 | Service  | Image                    | Notes                                             |
 |----------|--------------------------|---------------------------------------------------|
 | postgres | pgvector/pgvector:pg16   | no host port, healthchecked, `postgres_data` vol  |
-| ollama   | ollama/ollama:latest     | no host port, healthchecked, `ollama_data` vol    |
+| ollama   | ollama/ollama:0.40.6     | no host port, healthchecked, `ollama_data` vol    |
 | backend  | garbanzo-backend:latest  | 127.0.0.1:8001 for smoke tests; serves web + API  |
 | read-aloud | garbanzo-read-aloud:latest | private Pocket int8 worker on port 8021; 6 GiB RAM limit and separate model caches |
 | ngrok    | ngrok/ngrok:latest       | optional legacy route → backend:8000              |
@@ -227,3 +227,27 @@ keeps its original credentials) and `just deploy` again.
 just deploy-down
 docker volume rm garbanzo-prod_postgres_data garbanzo-prod_hf_cache garbanzo-prod_microapps_repo
 ```
+
+
+### Ollama / Clef upgrade
+
+Production pins `OLLAMA_IMAGE` to `ollama/ollama:0.40.6` by default. Record the
+running image ID before upgrading, run the complete test gate, then:
+
+```bash
+just deploy-ollama-pull
+just deploy-ollama-upgrade
+just deploy-model clef:cloud
+```
+
+Only Ollama is recreated (`--no-deps --wait`). Keep `ollama_data`; it contains
+model files and the existing cloud sign-in key. Verify `/api/version`, a known
+chat request, a Nomic embedding request, and a typed `/v1/systemone` decision.
+A Clef tag must advertise `decision`, and cloud proxying requires >=0.40.5.
+Application releases enable `ROOM_DECISIONS_ENABLED` and
+`TOPIC_DECISIONS_ENABLED` by default in production Compose; provision Clef first
+or startup deliberately fails. The application implementation still needs its
+normal explicit release; upgrading Ollama alone does not deploy new app code.
+For server rollback set `OLLAMA_IMAGE` to the previously recorded image/tag and
+run `just deploy-ollama-upgrade`; never remove the volume or sign in again merely
+because a model call failed.

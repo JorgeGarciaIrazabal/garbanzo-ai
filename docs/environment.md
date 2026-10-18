@@ -152,3 +152,23 @@ The backend's `READ_ALOUD_CACHE_DIR` stores continuous session MP3 files in a pr
 with a 512 MiB total cache budget. Sessions and their files expire after 30
 minutes idle; leftovers from an earlier backend process are deleted at startup.
 The production default is an ephemeral path inside the backend container.
+
+
+## Typed decisions
+
+`DECISION_MODEL=clef:cloud` selects the model for the separate System One API,
+not chat generation. `ROOM_DECISIONS_ENABLED` and `TOPIC_DECISIONS_ENABLED`
+default to false in Settings; production Compose defaults both to true.
+`DECISION_TIMEOUT_SECONDS=10` is a positive finite total HTTP deadline.
+Provision the model and a supported Ollama server before enabling these flags.
+Enabled features fail startup for unavailable/misconfigured decision capability;
+runtime errors are surfaced without a model fallback. Local-only topic privacy
+blocks cloud tags, including size/dated `-cloud` aliases and metadata-advertised
+cloud execution. Unmarked aliases require positive local-weight metadata at
+startup rather than an assumption that they run locally. Cloud topic decisions require `cloud_allowed`; local-only
+installations using cloud room decisions should disable topic decisions.
+
+`OLLAMA_IMAGE` selects the production server image, default
+`ollama/ollama:0.40.6`. Clef cloud proxy requires at least 0.40.5; local Clef
+requires 0.35.1. Upgrade only the Ollama service with `just deploy-ollama-pull`
+then `just deploy-ollama-upgrade`, preserving its model/sign-in volume.

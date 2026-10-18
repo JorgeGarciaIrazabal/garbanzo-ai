@@ -68,3 +68,8 @@ it for procedures. This file is the agent quick reference.
   `WORKFLOW_IDLE_TIMEOUT_SECONDS` from `deploy/.env`, defaulting to 10800 and
   600 seconds. The runner uses Settings directly; do not add independent
   timeout defaults or ignore values absent from `model_fields_set`.
+
+- Ollama is pinned through `OLLAMA_IMAGE` (0.40.6 default). Use
+  `just deploy-ollama-pull` / `just deploy-ollama-upgrade` to update only that
+  service and preserve `ollama_data`. Provision `clef:cloud` before releasing
+  enabled room/topic decisions; startup validates server and model capability.

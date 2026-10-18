@@ -10,6 +10,7 @@ from typing import Any
 import httpx
 from ollama import AsyncClient, RequestError, ResponseError
 
+from app.services.decision_service import DECISION_CAPABILITIES
 from app.services.llm_provider import ChatChunk, ChatOptions, LLMProvider, Message, ModelInfo
 
 logger = logging.getLogger(__name__)
@@ -429,6 +430,8 @@ class OllamaProvider(LLMProvider):
             metas = await asyncio.gather(*(self._get_model_meta(name) for name in model_names))
             models = []
             for m, (real_context, capabilities) in zip(visible_models, metas, strict=True):
+                if DECISION_CAPABILITIES.intersection(capabilities):
+                    continue
                 model_name = m.model or ""
                 details = m.details
                 display_name = model_name.split(":")[0].replace("-", " ").title()

@@ -45,7 +45,12 @@ class WorkflowLimitConfigTests(unittest.TestCase):
                     env=env, capture_output=True, text=True, check=False,
                 )
                 self.assertEqual(result.returncode, 0, result.stderr)
-                backend_env = json.loads(result.stdout)["services"]["backend"]["environment"]
+                config = json.loads(result.stdout)
+                backend_env = config["services"]["backend"]["environment"]
+                self.assertEqual(config["services"]["ollama"]["image"], "ollama/ollama:0.40.6")
+                self.assertEqual(backend_env["DECISION_MODEL"], "clef:cloud")
+                self.assertEqual(str(backend_env["ROOM_DECISIONS_ENABLED"]).lower(), "true")
+                self.assertEqual(str(backend_env["TOPIC_DECISIONS_ENABLED"]).lower(), "true")
                 self.assertEqual(
                     (int(backend_env["WORKFLOW_MAX_RUN_SECONDS"]),
                      int(backend_env["WORKFLOW_IDLE_TIMEOUT_SECONDS"])),

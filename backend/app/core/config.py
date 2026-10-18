@@ -40,6 +40,10 @@ class Settings(BaseSettings):
     room_auto_judge_model: str = (
         "deepseek-v4.1-flash:cloud"  # see benchmark notes in docs/environment.md
     )
+    decision_model: str = "clef:cloud"
+    room_decisions_enabled: bool = False
+    topic_decisions_enabled: bool = False
+    decision_timeout_seconds: float = Field(default=10.0, gt=0, allow_inf_nan=False)
     llm_image_max_dim: int = 1024  # downscaled before storage/vision model
 
     # Dev / location
