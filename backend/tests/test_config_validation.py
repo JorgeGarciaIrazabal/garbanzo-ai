@@ -1,5 +1,8 @@
 """Tests for boot-time config validation (validate_startup_config / feature_summary)."""
 
+import pytest
+from pydantic import ValidationError
+
 from app.core.config import Settings, feature_summary, validate_startup_config
 
 STRONG_KEY = "x" * 48
@@ -51,6 +54,14 @@ def test_model_defaults_are_workload_specific():
     assert settings.default_model == "deepseek-v4.1-flash:cloud"
     assert settings.memory_extraction_model == "deepseek-v4.1-flash:cloud"
     assert settings.scheduled_action_model == "deepseek-v4.1-flash:cloud"
+
+
+@pytest.mark.parametrize("variable", ["WORKFLOW_MAX_RUN_SECONDS", "WORKFLOW_IDLE_TIMEOUT_SECONDS"])
+@pytest.mark.parametrize("value", ["0", "-1", "not-a-duration"])
+def test_workflow_timeouts_reject_invalid_environment(monkeypatch, variable, value):
+    monkeypatch.setenv(variable, value)
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None)
 
 
 def test_proxy_mode_without_repo_path_warns():

@@ -135,6 +135,8 @@ services/      chat_service.py (turn orchestration + tool loop)
                 then uploads + git-baselines a client snapshot; research mode
                 baselines the input-only workdir.
                 workflow_runner seeds the conversation's allowed MCPs and
+                reads its hard runtime ceiling and inactivity timeout directly
+                from Settings (three hours and ten minutes by default), and
                 spawns opencode as a DETACHED
                 asyncio task — it outlives the request, so progress is
                 persisted on WorkflowRun instead of streamed. On completion the

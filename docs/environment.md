@@ -110,6 +110,10 @@ ROOM_AUTO_JUDGE_MODEL=deepseek-v4.1-flash:cloud
 WORKFLOW_MAX_RUN_SECONDS=10800        # 3 hours, hard ceiling
 WORKFLOW_IDLE_TIMEOUT_SECONDS=600     # 10 minutes with NO signal at all → end the run
 
+# Both durations must be positive integer seconds. The runner uses these
+# Settings defaults even when no environment override is supplied. Production
+# Compose forwards both variables from deploy/.env with the defaults above.
+
 # Micro-apps agentic workspace (dev points at a locally-managed repo)
 MICROAPPS_REPO_PATH=/abs/path/to/micro-apps
 MICROAPPS_OPENCODE_MODEL=ollama/deepseek-v4.1-flash:cloud

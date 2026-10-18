@@ -13,6 +13,7 @@ from unittest.mock import AsyncMock
 import pytest
 from sqlalchemy import select
 
+from app.core.config import Settings
 from app.db import session as db_session_module
 from app.models.message import Message
 from app.models.user import User
@@ -231,7 +232,8 @@ async def test_run_times_out(db_session, monkeypatch, captured_push):
     mechanism — see the idle-timeout test below.)
     """
     run = await _queued_run(db_session)
-    monkeypatch.setattr(workflow_runner, "MAX_RUN_SECONDS", 0.05)
+    settings = workflow_runner.get_settings().model_copy(update={"workflow_max_run_seconds": 1})
+    monkeypatch.setattr(workflow_runner, "get_settings", lambda: settings)
     monkeypatch.setattr(
         workflow_runner,
         "_start_opencode",
@@ -241,8 +243,8 @@ async def test_run_times_out(db_session, monkeypatch, captured_push):
     async def _slow(self, endpoint, instruction, session_id=None):
         # Keeps producing signal, so the idle watchdog never fires — only the
         # ceiling should end this run.
-        for _ in range(50):
-            await asyncio.sleep(0.05)
+        for _ in range(200):
+            await asyncio.sleep(0.02)
             yield ChatResponseChunk(type="heartbeat", content="")
         yield ChatResponseChunk(type="done", metadata={})
 
@@ -266,8 +268,10 @@ async def test_run_ended_when_the_agent_goes_silent(db_session, monkeypatch, cap
     """
     run = await _queued_run(db_session)
     # Ceiling far away — only the idle watchdog can end this run.
-    monkeypatch.setattr(workflow_runner, "MAX_RUN_SECONDS", 600)
-    monkeypatch.setattr(workflow_runner, "DEFAULT_IDLE_TIMEOUT_SECONDS", 0.15)
+    settings = workflow_runner.get_settings().model_copy(
+        update={"workflow_max_run_seconds": 600, "workflow_idle_timeout_seconds": 1}
+    )
+    monkeypatch.setattr(workflow_runner, "get_settings", lambda: settings)
     monkeypatch.setattr(workflow_runner, "_IDLE_POLL_SECONDS", 0.02)
     monkeypatch.setattr(
         workflow_runner,
@@ -290,32 +294,40 @@ async def test_run_ended_when_the_agent_goes_silent(db_session, monkeypatch, cap
 
 
 @pytest.mark.asyncio
-async def test_a_long_run_that_keeps_signalling_survives_past_the_old_cap(
-    db_session, monkeypatch, captured_push
+@pytest.mark.parametrize("override", [False, True], ids=["default", "environment-override"])
+async def test_run_uses_settings_runtime_and_idle_limits(
+    db_session, monkeypatch, captured_push, override
 ):
-    """Heartbeats alone must be enough to keep a run alive past 15 minutes.
-
-    The whole point of the change: a run that is still demonstrably alive is
-    not killed by the clock. Simulated by a ceiling well above the old
-    ``15 * 60`` and a stream that reports liveness for longer than the old
-    budget would have allowed, in compressed time.
-    """
+    """Inspect the actual watchdog inputs without replacing either duration."""
     run = await _queued_run(db_session)
-    monkeypatch.setattr(workflow_runner, "MAX_RUN_SECONDS", 3 * 60 * 60)
-    monkeypatch.setattr(workflow_runner, "DEFAULT_IDLE_TIMEOUT_SECONDS", 30)
-    monkeypatch.setattr(workflow_runner, "_IDLE_POLL_SECONDS", 0.02)
-    monkeypatch.setattr(
-        workflow_runner,
-        "_start_opencode",
-        lambda workdir, settings: (_FakeProc(), "http://127.0.0.1:0"),
-    )
-    beats = 40
+    for variable in ("WORKFLOW_MAX_RUN_SECONDS", "WORKFLOW_IDLE_TIMEOUT_SECONDS"):
+        monkeypatch.delenv(variable, raising=False)
+    if override:
+        monkeypatch.setenv("WORKFLOW_MAX_RUN_SECONDS", "21600")
+        monkeypatch.setenv("WORKFLOW_IDLE_TIMEOUT_SECONDS", "1200")
+    settings = Settings(_env_file=None)
+    assert ("workflow_max_run_seconds" in settings.model_fields_set) is override
+    monkeypatch.setattr(workflow_runner, "get_settings", lambda: settings)
+
+    ceilings, idle_windows = [], []
+    original_wait = asyncio.wait
+    original_watchdog = workflow_runner._idle_watchdog
+
+    async def record_wait(tasks, **kwargs):
+        ceilings.append(kwargs["timeout"])
+        return await original_wait(tasks, **kwargs)
+
+    async def record_watchdog(activity, idle_timeout):
+        idle_windows.append(idle_timeout)
+        await original_watchdog(activity, idle_timeout)
+
+    monkeypatch.setattr(workflow_runner.asyncio, "wait", record_wait)
+    monkeypatch.setattr(workflow_runner, "_idle_watchdog", record_watchdog)
+    _stub_opencode(monkeypatch, [])
 
     async def _alive(self, endpoint, instruction, session_id=None):
-        # Each tick is shorter than the idle timeout, so the run stays "alive"
-        # and must never be killed by the watchdog.
-        for _ in range(beats):
-            await asyncio.sleep(0.05)
+        for _ in range(3):
+            await asyncio.sleep(0)
             yield ChatResponseChunk(type="heartbeat", content="")
         yield ChatResponseChunk(type="chunk", content="finished the refactor")
         yield ChatResponseChunk(type="done", metadata={})
@@ -325,6 +337,8 @@ async def test_a_long_run_that_keeps_signalling_survives_past_the_old_cap(
     await workflow_runner._run(run.id)
 
     await db_session.refresh(run)
+    assert ceilings == [21600 if override else 10800]
+    assert idle_windows == [1200 if override else 600]
     assert run.status == "done", run.error
     assert run.summary == "finished the refactor"
 

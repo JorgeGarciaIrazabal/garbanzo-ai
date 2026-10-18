@@ -64,3 +64,7 @@ it for procedures. This file is the agent quick reference.
 - Migrations auto-apply at backend startup; on first deploy the `ollama` volume is
   empty, so pull the app's models into the container (see `README.md`).
 - `MICROAPPS_PROXY_MODE` / `MICROAPPS_GIT_URL` are set here (not `backend/.env`).
+- Compose forwards `WORKFLOW_MAX_RUN_SECONDS` and
+  `WORKFLOW_IDLE_TIMEOUT_SECONDS` from `deploy/.env`, defaulting to 10800 and
+  600 seconds. The runner uses Settings directly; do not add independent
+  timeout defaults or ignore values absent from `model_fields_set`.

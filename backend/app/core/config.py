@@ -2,6 +2,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -118,8 +119,8 @@ class Settings(BaseSettings):
     # opencode. opencode emits ``server.heartbeat`` every ~10 s and we
     # forward it, so a healthy run keeps resetting the idle timer even while
     # the model is thinking or a tool is running long.
-    workflow_max_run_seconds: int = 10800  # 3 hours
-    workflow_idle_timeout_seconds: int = 600  # 10 minutes without any signal
+    workflow_max_run_seconds: int = Field(default=10800, gt=0)  # 3 hours
+    workflow_idle_timeout_seconds: int = Field(default=600, gt=0)  # 10 minutes without any signal
 
     @property
     def cors_origins_list(self) -> list[str]:

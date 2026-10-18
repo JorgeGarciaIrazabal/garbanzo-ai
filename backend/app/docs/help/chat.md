@@ -99,7 +99,8 @@ Three things worth knowing:
   long since the agent last reported anything, so a run that is thinking hard
   looks different from one that has stalled. Expand it for the full history
   with per-step timings. An agent that has genuinely gone quiet for ten minutes
-  is ended automatically; one that is still working may run for hours. Press
+  is ended automatically; one that is still working can run for up to three
+  hours by default. Your server administrator can configure both limits. Press
   the stop button on the progress line to end a run yourself.
 - **Your edits win.** If you change one of those files yourself while the agent
   is working, that file is reported as a conflict and skipped rather than

@@ -54,6 +54,7 @@ class PublicTunnelConfigTests(unittest.TestCase):
             "PUBLIC_APP_URL": "https://old.ngrok-free.app",
             "POSTGRES_PASSWORD": "test", "SECRET_KEY": "test", "GIT_SSH_KEY_PATH": "/dev/null",
             "GIT_USER_NAME": "Test", "GIT_USER_EMAIL": "test@example.com",
+            "READ_ALOUD_WORKER_TOKEN": "test-worker", "HF_TOKEN": "test-huggingface",
         }
         with tempfile.TemporaryDirectory() as directory:
             env_file = Path(directory) / ".env"
@@ -80,6 +81,7 @@ class PublicTunnelConfigTests(unittest.TestCase):
             "CLOUDFLARE_TUNNEL_TOKEN": "test-cloudflare", "POSTGRES_PASSWORD": "test",
             "SECRET_KEY": "test", "GIT_SSH_KEY_PATH": "/dev/null",
             "GIT_USER_NAME": "Test", "GIT_USER_EMAIL": "test@example.com",
+            "READ_ALOUD_WORKER_TOKEN": "test-worker", "HF_TOKEN": "test-huggingface",
         }
         with tempfile.TemporaryDirectory() as directory:
             env_file = Path(directory) / ".env"

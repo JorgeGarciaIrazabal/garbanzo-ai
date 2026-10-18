@@ -48,20 +48,6 @@ from app.topics.topic_ingestion_service import TopicIngestionService, enqueue_me
 
 logger = logging.getLogger(__name__)
 
-# Hard ceiling on one delegated run, used only when settings don't say
-# otherwise. Long enough for a real refactor, short enough that a wedged
-# opencode can't hold a snapshot (and a port) forever. The value that actually
-# protects against a hang is ``workflow_idle_timeout_seconds`` below — a run
-# that keeps producing signal is allowed to keep going.
-MAX_RUN_SECONDS = 15 * 60
-
-# Fallback for the idle watchdog. A run is failed when *nothing at all* has
-# arrived for this long: no opencode event, no heartbeat, no text. opencode
-# emits ``server.heartbeat`` every ~10 s on the bus we already hold open, and
-# we forward those as heartbeat chunks, so a healthy run resets this timer
-# even while the model is thinking or a tool is running long.
-DEFAULT_IDLE_TIMEOUT_SECONDS = 600.0
-
 # How often buffered progress chunks are flushed to the DB. Per-token writes
 # would hammer Postgres; a second of latency is invisible in a minutes-long run.
 _FLUSH_INTERVAL = 1.0
@@ -79,26 +65,6 @@ class _OpencodeEndpoint:
 
     opencode_base: str
     opencode_ready: bool = True
-
-
-def _configured(settings: Settings, field: str) -> int | None:
-    """Value of ``field`` only when it was explicitly set on ``settings``.
-
-    A pydantic ``BaseSettings`` field always reads back as *something*, so a
-    plain ``getattr`` cannot distinguish "the operator set this" from "this is
-    the built-in default". ``model_fields_set`` records which fields were
-    actually provided, which is what lets an explicit configuration override
-    the module constant while the constant still works as the default and as
-    the seam tests monkeypatch.
-    """
-    try:
-        provided = settings.model_fields_set
-    except AttributeError:  # pragma: no cover — non-pydantic stand-in
-        return None
-    if field not in provided:
-        return None
-    value = getattr(settings, field, None)
-    return int(value) if isinstance(value, int | float) and value else None
 
 
 async def _idle_watchdog(activity: dict[str, float], idle_timeout: float) -> None:
@@ -192,14 +158,11 @@ async def _run(run_id: str) -> None:
         # finally can always terminate the child even if the run was cancelled
         # or killed by the watchdog mid-flight.
         proc_holder: dict[str, subprocess.Popen | None] = {"proc": None}
-        # An explicitly configured setting wins; otherwise the module constant
-        # (the documented, monkeypatchable seam) applies. Using pydantic's
-        # default value unconditionally would make the constant unreachable and
-        # silently ignore any test or caller that overrides it.
-        ceiling = float(_configured(settings, "workflow_max_run_seconds") or MAX_RUN_SECONDS)
-        idle_timeout = float(
-            _configured(settings, "workflow_idle_timeout_seconds") or DEFAULT_IDLE_TIMEOUT_SECONDS
-        )
+        # Settings owns both defaults and operator overrides. Checking whether
+        # a field was explicitly provided previously discarded the three-hour
+        # default and revived the retired fifteen-minute ceiling.
+        ceiling = float(settings.workflow_max_run_seconds)
+        idle_timeout = float(settings.workflow_idle_timeout_seconds)
 
         try:
             # The watchdog must be able to interrupt the run, so it is raced
