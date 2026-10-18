@@ -35,6 +35,26 @@ any gaps. You do not need to send **Continue** to get that answer. If the model
 returns no answer, the app automatically tries once more. If it still cannot
 answer, the app shows an error rather than claiming the request was completed.
 
+## Can answers include interactive visuals?
+Yes. In main chat, the assistant automatically uses charts, comparison cards,
+tables, metrics, timelines, checklists or forms when they make an answer easier
+to understand or use. Simple answers stay as text. You can also explicitly ask
+for a visual comparison, a chart of uploaded data, or an interactive plan.
+
+Filter or sort a table, show or hide chart series, expand the chart's data, or
+check items in a plan without sending another message. These local interactions
+and unsubmitted form edits are not saved across devices or reloads.
+
+A form's labeled Submit button applies the stated action immediately, without
+another confirmation. Each action can be submitted once. Completed results
+remain visible when you reopen the conversation. Choices can send a contextual
+follow-up to the assistant. Older answers stay readable, but after a new request
+their forms cannot apply further changes; ask for an updated form instead.
+
+If a connection fails during submission, use **Check submission status** to
+inspect the saved outcome. Pending or failed submissions do not run again
+automatically. Copy and Listen use the visual answer's readable summary.
+
 ## How do I attach images or files?
 Use the paperclip (**Attach photos or files**) next to the input bar, or paste
 an image straight from the clipboard: copy a screenshot and press **Ctrl+V**

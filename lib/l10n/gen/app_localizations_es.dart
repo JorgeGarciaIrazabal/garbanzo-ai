@@ -3734,4 +3734,44 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get foldersKeepBoth => 'Conservar ambos';
+
+  @override
+  String get visualAnswerError =>
+      'No se pudo mostrar o actualizar esta respuesta visual';
+
+  @override
+  String get visualCheckStatus => 'Consultar el estado del envío';
+
+  @override
+  String get visualAnswerReadOnly =>
+      'Esta respuesta se puede consultar. Inicia una nueva solicitud para realizar más cambios.';
+
+  @override
+  String get visualFilter => 'Filtrar filas';
+
+  @override
+  String get visualNoChartData => 'No hay datos seleccionados';
+
+  @override
+  String get visualShowData => 'Mostrar los datos del gráfico';
+
+  @override
+  String get visualActionCompleted => 'Completado';
+
+  @override
+  String get visualActionFailed =>
+      'La acción falló. No se volverá a intentar automáticamente.';
+
+  @override
+  String get visualActionPending =>
+      'Envío recibido. El resultado aún no está confirmado; no se ejecutará de nuevo.';
+
+  @override
+  String get visualRequired => 'Este campo es obligatorio';
+
+  @override
+  String get visualInvalidNumber => 'Introduce un número válido';
+
+  @override
+  String get visualInvalidDate => 'Usa AAAA-MM-DD';
 }

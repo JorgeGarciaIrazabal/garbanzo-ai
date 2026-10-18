@@ -16,6 +16,12 @@ from app.models.conversation import Conversation
 from app.models.message import Message
 from app.models.user import User
 from app.schemas.chat import AttachmentIn, ChatOptions, ModelInfo
+from app.schemas.visual_ui import (
+    RENDER_UI_DESCRIPTOR,
+    RENDER_UI_TOOL,
+    VISUAL_UI_NUDGE,
+    Presentation,
+)
 from app.services.agent_turn import (
     ProgressEmit,
     TurnResult,
@@ -508,6 +514,55 @@ class ChatService:
             await enqueue_message_event(self.db, conversation, message, "delete")
         await self.db.execute(delete(Message).where(Message.id.in_(message_ids)))
 
+    async def respond_to_saved_message(
+        self, conversation_id: str, user_id: str, message_id: str
+    ) -> AsyncIterator[ChatChunk]:
+        """Answer the user turn atomically accepted by a visual submission."""
+        failure = None
+        try:
+            conversation = await self._conversations.get(conversation_id, user_id)
+            if conversation is None:
+                raise ValueError("Conversation not found")
+            last_user = next((m for m in reversed(conversation.messages) if m.role == "user"), None)
+            if last_user is None or last_user.id != message_id:
+                raise ValueError("The submitted follow-up was superseded by a newer request")
+            async for chunk in self._stream_assistant_turn(conversation):
+                if chunk.metadata and chunk.metadata.get("error"):
+                    failure = chunk.content or "The follow-up response failed"
+                yield chunk
+        except Exception as exc:
+            logger.exception("Visual follow-up response failed")
+            failure = str(exc)
+        if failure is not None:
+            # There is no SSE consumer to display terminal chunks. Persist one
+            # error message so existing recovery polling shows it and stops.
+            await self.db.rollback()
+            source = await self.db.get(Message, message_id)
+            if source is not None:
+                existing_error = await self.db.scalar(
+                    select(Message.id)
+                    .where(
+                        Message.conversation_id == conversation_id,
+                        Message.role == "assistant",
+                        Message.seq > source.seq,
+                        Message.meta["error"].as_boolean().is_(True),
+                    )
+                    .limit(1)
+                )
+                if existing_error is None:
+                    self.db.add(
+                        Message(
+                            id=str(uuid.uuid4()),
+                            conversation_id=conversation_id,
+                            role="assistant",
+                            content=failure,
+                            session_epoch=source.session_epoch,
+                            meta={"error": True, "error_type": "ui_followup_error"},
+                        )
+                    )
+                    await self.db.commit()
+            yield _error_chunk(failure, "ui_followup_error")
+
     async def _stream_assistant_turn(
         self,
         conversation,
@@ -556,12 +611,17 @@ class ChatService:
             await self._maybe_summarize_context(conversation, existing_messages)
 
         user = await self.db.get(User, conversation.user_id)
+        provider = self._get_provider()
         ollama_tools, tool_lookup = await self._resolve_tools_for_conversation(
             conversation, has_client_folder=has_client_folder
         )
+        if ollama_tools and await provider.get_model_supports_tools(conversation.model) is False:
+            ollama_tools, tool_lookup = [], {}
         dynamic_context = _build_dynamic_context(
             user, tool_lookup, has_client_folder, client_folder_label, talk_mode_instruction
         )
+        if RENDER_UI_TOOL in tool_lookup:
+            dynamic_context += "\n\n" + VISUAL_UI_NUDGE
         if VIRTUAL_FOLDERS_TOOL in tool_lookup:
             dynamic_context += "\n\n" + VIRTUAL_FOLDERS_NUDGE
             manifest = await VirtualFolderService(self.db).context_manifest(
@@ -590,7 +650,6 @@ class ChatService:
             dynamic_context=dynamic_context,
         )
 
-        provider = self._get_provider()
         opts = options or ChatOptions()
         opts.think = conversation.thinking_level
         cancel_event = asyncio.Event()
@@ -752,7 +811,7 @@ class ChatService:
         """
         enabled = getattr(conversation, "enabled_tools", None)
         if enabled is not None and not enabled:
-            return [], {}
+            return [RENDER_UI_DESCRIPTOR], {RENDER_UI_TOOL: ("__ui__", RENDER_UI_TOOL)}
         try:
             all_tools = await self._mcp.list_all_tools(
                 enabled_only=True,
@@ -789,6 +848,8 @@ class ChatService:
                 if key in allowed_set:
                     ollama_tools.append(desc)
                     lookup[tool_name] = (NATIVE_GARBO_SERVER_ID, tool_name)
+        ollama_tools.append(RENDER_UI_DESCRIPTOR)
+        lookup[RENDER_UI_TOOL] = ("__ui__", RENDER_UI_TOOL)
         return ollama_tools, lookup
 
     async def _execute_tool_call(
@@ -825,6 +886,11 @@ class ChatService:
             return {"ok": False, "error": f"Unknown tool: {name}"}
 
         server_id, tool_name = target
+        if server_id == "__ui__" and tool_name == RENDER_UI_TOOL:
+            try:
+                return Presentation.model_validate(args).result()
+            except ValueError as exc:
+                return {"ok": False, "error": str(exc)}
         if server_id == NATIVE_SERVER_ID:
             return await self._execute_native_tool(name, args, conversation, emit)
         if server_id == NATIVE_GARBO_SERVER_ID and tool_name in FOLDER_TOOLS:

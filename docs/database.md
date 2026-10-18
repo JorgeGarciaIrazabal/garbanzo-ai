@@ -54,6 +54,20 @@ half-migrated schema.
 
 ## Model Notes
 
+- `UISubmissionRecord` (`ui_submissions`, migration `054`) is a durable
+  at-most-once claim for a generated presentation action. `message_id` points
+  to the canonical `render_ui` tool-result message; its foreign key cascades
+  on physical message deletion. `(message_id, action_id)` is unique, so even
+  retries with new request IDs cannot run the same form twice. `id` is the
+  client submission identifier; `values` stores validated submitted fields.
+  `pending` is committed before tool execution, then becomes `completed` or
+  `failed` with its result. Follow-up actions save the user message and completed
+  result in one transaction before starting detached generation; replay never
+  creates or starts another turn. A crash may leave `pending` with an uncertain
+  outcome; it must never be treated as permission to retry. The original
+  component tree remains in `Message.meta.result.presentation`; no separate
+  surface table or duplicated chat history exists.
+
 - `User` uses `email` as the primary key. Fields: `email`, `hashed_password`, `full_name`, `is_admin`, `is_disabled`, `default_system_prompt`, `default_model`, `profile_picture_b64`, `timezone`, `locale`, `created_at`.
 - `User.timezone` (nullable IANA zone name) / `User.locale` (nullable BCP 47
   tag) are reported by the client via `PATCH /auth/me` and feed the dynamic

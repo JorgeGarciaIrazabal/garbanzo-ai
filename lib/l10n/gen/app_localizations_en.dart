@@ -3691,4 +3691,44 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get foldersKeepBoth => 'Keep both';
+
+  @override
+  String get visualAnswerError =>
+      'Could not display or update this visual answer';
+
+  @override
+  String get visualCheckStatus => 'Check submission status';
+
+  @override
+  String get visualAnswerReadOnly =>
+      'This answer is available for viewing. Start a new request to make further changes.';
+
+  @override
+  String get visualFilter => 'Filter rows';
+
+  @override
+  String get visualNoChartData => 'No data selected';
+
+  @override
+  String get visualShowData => 'Show chart data';
+
+  @override
+  String get visualActionCompleted => 'Completed';
+
+  @override
+  String get visualActionFailed =>
+      'The action failed. It will not be retried automatically.';
+
+  @override
+  String get visualActionPending =>
+      'Submission received. Its outcome is not yet confirmed; it will not be run again.';
+
+  @override
+  String get visualRequired => 'This field is required';
+
+  @override
+  String get visualInvalidNumber => 'Enter a valid number';
+
+  @override
+  String get visualInvalidDate => 'Use YYYY-MM-DD';
 }

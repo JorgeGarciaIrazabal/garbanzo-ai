@@ -1,15 +1,22 @@
 """Tests for the tool-calling loop in ChatService.send_message."""
 
+import uuid
 from collections.abc import AsyncIterator
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from sqlalchemy import select
 
+from app.models.message import Message
 from app.schemas.chat import ChatOptions
+from app.schemas.visual_ui import Presentation, UISubmission
 from app.services.chat_service import MAX_TOOL_ITERATIONS, ChatService
 from app.services.conversation_service import ConversationService
+from app.services.detached_chat_stream import DetachedChatStream
 from app.services.llm_provider import ChatChunk, LLMProvider, ModelInfo
 from app.services.llm_provider import Message as LLMMessage
+from app.services.visual_ui import UIActionService
 
 pytestmark = pytest.mark.asyncio
 
@@ -665,3 +672,184 @@ async def test_tool_result_truncated_to_cap(db_session, test_user_email, monkeyp
     tool_msgs = [m for m in provider.calls[1]["messages"] if m.role == "tool"]
     assert len(tool_msgs) == 1
     assert "[truncated" in tool_msgs[0].content
+
+
+async def test_visual_result_survives_stream_and_history_without_text_truncation(
+    db_session,
+    test_user_email,
+    monkeypatch,
+):
+    presentation = {
+        "summary": "Monthly totals.",
+        "surface_id": "totals",
+        "components": [
+            {
+                "id": "root",
+                "component": "Chart",
+                "kind": "bar",
+                "labels": ["January", "February"],
+                "series": [{"label": "Sales", "values": [10, 20]}],
+            }
+        ],
+    }
+    provider = _ScriptedProvider(
+        [
+            [
+                ChatChunk(
+                    content="",
+                    tool_calls=[{"id": "visual-1", "name": "render_ui", "arguments": presentation}],
+                ),
+                ChatChunk(content="", is_finished=True),
+            ],
+            [ChatChunk(content="February is higher."), ChatChunk(content="", is_finished=True)],
+        ]
+    )
+    service = await _make_service(db_session, provider)
+    conv_id = await _new_conversation(db_session, test_user_email, enabled_tools=[])
+    monkeypatch.setattr(
+        "app.services.agent_turn.get_settings", lambda: SimpleNamespace(tool_result_max_chars=10)
+    )
+    chunks = [
+        chunk
+        async for chunk in service.send_message(
+            conversation_id=conv_id, user_id=test_user_email, content="Plot monthly totals"
+        )
+    ]
+    live = [
+        c.metadata["tool_result"] for c in chunks if c.metadata and "tool_result" in c.metadata
+    ][0]
+    assert live["result"]["presentation"]["components"] == presentation["components"]
+    assert "truncated" not in live
+    saved = await db_session.scalar(
+        select(Message).where(Message.conversation_id == conv_id, Message.role == "tool_result")
+    )
+    assert saved.meta == live
+    assert saved.content == "Monthly totals."
+    assert any(t["function"]["name"] == "render_ui" for t in provider.calls[0]["tools"])
+    assert any(
+        m.role == "tool" and m.content == "Monthly totals." for m in provider.calls[1]["messages"]
+    )
+
+
+async def test_text_only_model_retains_plain_chat_without_presentation_tools(
+    db_session,
+    test_user_email,
+    monkeypatch,
+):
+    provider = _ScriptedProvider(
+        [[ChatChunk(content="Plain answer"), ChatChunk(content="", is_finished=True)]]
+    )
+    monkeypatch.setattr(provider, "get_model_supports_tools", AsyncMock(return_value=False))
+    original = provider.stream_chat
+
+    async def rejecting_stream(*args, tools=None, **kwargs):
+        assert tools is None, "Text-only model rejects any tool argument"
+        async for chunk in original(*args, tools=tools, **kwargs):
+            yield chunk
+
+    monkeypatch.setattr(provider, "stream_chat", rejecting_stream)
+    service = await _make_service(db_session, provider)
+    conv_id = await _new_conversation(db_session, test_user_email, enabled_tools=[])
+    chunks = [
+        c
+        async for c in service.send_message(
+            conversation_id=conv_id, user_id=test_user_email, content="Hello"
+        )
+    ]
+    assert any(c.content == "Plain answer" for c in chunks)
+    assert not any((c.metadata or {}).get("error") for c in chunks)
+
+
+@pytest.mark.parametrize("failure_kind", [None, "chunk", "startup"])
+async def test_visual_follow_up_is_saved_and_answered_without_client_resend(
+    db_session,
+    test_user_email,
+    monkeypatch,
+    failure_kind,
+):
+    provider = _ScriptedProvider(
+        [[ChatChunk(content="A is the best fit."), ChatChunk(content="", is_finished=True)]]
+    )
+    chat = await _make_service(db_session, provider)
+    if failure_kind == "chunk":
+        provider.responses = [
+            [
+                ChatChunk(
+                    content="Model unavailable",
+                    is_finished=True,
+                    metadata={"error": True, "auto_report": False},
+                )
+            ]
+        ]
+    if failure_kind == "startup":
+        monkeypatch.setattr(
+            provider,
+            "get_model_supports_tools",
+            AsyncMock(side_effect=RuntimeError("Model startup failed")),
+        )
+    monkeypatch.setattr(ChatService, "_spawn_title_generation", lambda *a: None)
+    conv_id = await _new_conversation(db_session, test_user_email, enabled_tools=[])
+    args = Presentation.model_validate(
+        {
+            "summary": "Choose an option",
+            "surface_id": "choices",
+            "components": [
+                {
+                    "id": "root",
+                    "component": "Choices",
+                    "action": "explain",
+                    "options": [{"label": "A", "value": "A"}],
+                }
+            ],
+            "actions": [{"id": "explain", "kind": "follow_up", "prompt": "Explain my choice"}],
+        }
+    )
+    db_session.add(
+        Message(
+            id=str(uuid.uuid4()),
+            conversation_id=conv_id,
+            role="tool_result",
+            content=args.summary,
+            meta={
+                "tool_call_id": "visual-followup",
+                "tool_name": "render_ui",
+                "result": args.result(),
+            },
+        )
+    )
+    await db_session.commit()
+    streams = []
+
+    def capture_stream(*args, **kwargs):
+        stream = DetachedChatStream(*args, **kwargs)
+        streams.append(stream)
+        return stream
+
+    monkeypatch.setattr("app.services.visual_ui.DetachedChatStream", capture_stream)
+    ui = UIActionService(db_session)
+    ui.chat = chat
+    request = UISubmission(
+        tool_call_id="visual-followup",
+        surface_id="choices",
+        action_id="explain",
+        submission_id=str(uuid.uuid4()),
+        values={"choice": "A"},
+    )
+    accepted = await ui.submit(conv_id, test_user_email, request)
+    await streams[0].wait_finished()
+    assert accepted["status"] == "completed"
+    replay = await ui.submit(conv_id, test_user_email, request)
+    assert replay == accepted
+    assert len(streams) == 1
+    messages = (
+        await db_session.scalars(select(Message).where(Message.conversation_id == conv_id))
+    ).all()
+    assert len([m for m in messages if m.role == "user"]) == 1
+    if failure_kind:
+        errors = [m for m in messages if m.role == "assistant" and (m.meta or {}).get("error")]
+        assert len(errors) == 1
+        assert errors[0].content == (
+            "Model unavailable" if failure_kind == "chunk" else "Model startup failed"
+        )
+    else:
+        assert any(m.role == "assistant" and m.content == "A is the best fit." for m in messages)

@@ -6464,6 +6464,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Keep both'**
   String get foldersKeepBoth;
+
+  /// Generated visual chat answer: visualAnswerError
+  ///
+  /// In en, this message translates to:
+  /// **'Could not display or update this visual answer'**
+  String get visualAnswerError;
+
+  /// Generated visual chat answer: visualCheckStatus
+  ///
+  /// In en, this message translates to:
+  /// **'Check submission status'**
+  String get visualCheckStatus;
+
+  /// Generated visual chat answer: visualAnswerReadOnly
+  ///
+  /// In en, this message translates to:
+  /// **'This answer is available for viewing. Start a new request to make further changes.'**
+  String get visualAnswerReadOnly;
+
+  /// Generated visual chat answer: visualFilter
+  ///
+  /// In en, this message translates to:
+  /// **'Filter rows'**
+  String get visualFilter;
+
+  /// Generated visual chat answer: visualNoChartData
+  ///
+  /// In en, this message translates to:
+  /// **'No data selected'**
+  String get visualNoChartData;
+
+  /// Generated visual chat answer: visualShowData
+  ///
+  /// In en, this message translates to:
+  /// **'Show chart data'**
+  String get visualShowData;
+
+  /// Generated visual chat answer: visualActionCompleted
+  ///
+  /// In en, this message translates to:
+  /// **'Completed'**
+  String get visualActionCompleted;
+
+  /// Generated visual chat answer: visualActionFailed
+  ///
+  /// In en, this message translates to:
+  /// **'The action failed. It will not be retried automatically.'**
+  String get visualActionFailed;
+
+  /// Generated visual chat answer: visualActionPending
+  ///
+  /// In en, this message translates to:
+  /// **'Submission received. Its outcome is not yet confirmed; it will not be run again.'**
+  String get visualActionPending;
+
+  /// Generated visual chat answer: visualRequired
+  ///
+  /// In en, this message translates to:
+  /// **'This field is required'**
+  String get visualRequired;
+
+  /// Generated visual chat answer: visualInvalidNumber
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a valid number'**
+  String get visualInvalidNumber;
+
+  /// Generated visual chat answer: visualInvalidDate
+  ///
+  /// In en, this message translates to:
+  /// **'Use YYYY-MM-DD'**
+  String get visualInvalidDate;
 }
 
 class _AppLocalizationsDelegate

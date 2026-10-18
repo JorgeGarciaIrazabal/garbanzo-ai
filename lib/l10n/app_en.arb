@@ -4555,5 +4555,54 @@
   "foldersKeepBoth": "Keep both",
   "@foldersKeepBoth": {
     "description": "Upload a separate copy with a unique filename"
+  },
+  "visualAnswerError": "Could not display or update this visual answer",
+  "@visualAnswerError": {
+    "description": "Generated visual chat answer: visualAnswerError"
+  },
+  "visualCheckStatus": "Check submission status",
+  "@visualCheckStatus": {
+    "description": "Generated visual chat answer: visualCheckStatus"
+  },
+  "visualAnswerReadOnly": "This answer is available for viewing. Start a new request to make further changes.",
+  "@visualAnswerReadOnly": {
+    "description": "Generated visual chat answer: visualAnswerReadOnly"
+  },
+  "visualFilter": "Filter rows",
+  "@visualFilter": {
+    "description": "Generated visual chat answer: visualFilter"
+  },
+  "visualNoChartData": "No data selected",
+  "@visualNoChartData": {
+    "description": "Generated visual chat answer: visualNoChartData"
+  },
+  "visualShowData": "Show chart data",
+  "@visualShowData": {
+    "description": "Generated visual chat answer: visualShowData"
+  },
+  "visualActionCompleted": "Completed",
+  "@visualActionCompleted": {
+    "description": "Generated visual chat answer: visualActionCompleted"
+  },
+  "visualActionFailed": "The action failed. It will not be retried automatically.",
+  "@visualActionFailed": {
+    "description": "Generated visual chat answer: visualActionFailed"
+  },
+  "visualActionPending": "Submission received. Its outcome is not yet confirmed; it will not be run again.",
+  "@visualActionPending": {
+    "description": "Generated visual chat answer: visualActionPending"
+  },
+  "visualRequired": "This field is required",
+  "@visualRequired": {
+    "description": "Generated visual chat answer: visualRequired"
+  },
+  "visualInvalidNumber": "Enter a valid number",
+  "@visualInvalidNumber": {
+    "description": "Generated visual chat answer: visualInvalidNumber"
+  },
+  "visualInvalidDate": "Use YYYY-MM-DD",
+  "@visualInvalidDate": {
+    "description": "Generated visual chat answer: visualInvalidDate"
   }
+
 }

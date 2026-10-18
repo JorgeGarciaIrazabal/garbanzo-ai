@@ -32,7 +32,35 @@ when you add or change an endpoint, update the matching row in the same commit.
 | **Health** | `GET /health` (includes `version` — the release baked in at deploy, `APP_VERSION`) |
 | **Version** | `GET /version/latest` (no auth; latest GitHub release for `GITHUB_REPO`, ~5-min cache — tag/notes/assets; feeds Linux, Windows, and Android auto-updaters) |
 
+### Generated visual-answer actions
+
+- `GET /chat/conversations/{id}/ui-actions?tool_call_id=...` returns
+  `{available, submissions}` for the owner's saved presentation.
+- `POST /chat/conversations/{id}/ui-actions` accepts
+  `{tool_call_id, surface_id, action_id, submission_id, values}`. The server
+  resolves the saved action and validates values and current tool permissions.
+  Returns `{action_id, submission_id, status, values, result}`; status is
+  `pending`, `completed`, or `failed`. A completed follow-up's result includes
+  `message_id` and `conversation_id`: its user message was saved atomically
+  and its assistant response started server-side. Clients must not resend it.
+  Tool results
+  contain the existing tool's response or a service-applied proposal result.
+- Repeated submissions return the existing record. Changing values after an
+  action is claimed returns 409. Old user turns/primary epochs and active
+  generation are unavailable for new submissions (409); disabled tools return
+  403, unknown resources 404, and invalid fields/arguments 422. Failed and
+  pending submissions never execute again. Both endpoints require JWT auth.
+- Presentation payloads use the existing `tool_result` SSE/message shape with
+  `tool_name: render_ui`, `result: {ok:true,presentation:{summary,surface_id,
+  components,actions}}`. Layout components reference child IDs, rooted at
+  `root`; components follow the shared native catalog. Actions are either
+  `follow_up` (`prompt`) or `tool` (`tool`, fixed `arguments`, and `bindings`
+  mapping tool argument names to form field names). Each action submits once.
+
+### Virtual folders
+
 Virtual folders return metadata arrays; file bytes never appear in metadata.
+
 Folder responses include `description`, a purpose/context string (up to 2,000
 characters). `POST /folders` accepts `{name,description?}`, defaulting to an empty
 description. `PATCH /folders/{id}` accepts name and/or description, preserving

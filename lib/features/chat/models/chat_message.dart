@@ -72,6 +72,15 @@ abstract class ChatMessage with _$ChatMessage {
   /// The tool_call_id of a tool_result message — keys a proposal's decision
   /// and, for delegate_workflow, the run the card re-attaches to.
   String? get toolCallId => _toolResultMeta?['tool_call_id'] as String?;
+
+  /// Validated native UI, identical in live SSE and reloaded history.
+  Map<String, dynamic>? get visualPresentation {
+    if (_toolResultMeta?['tool_name'] != 'render_ui') return null;
+    final result = _toolResultMeta?['result'];
+    if (result is! Map || result['ok'] != true) return null;
+    final presentation = result['presentation'];
+    return presentation is Map ? Map<String, dynamic>.from(presentation) : null;
+  }
 }
 
 /// A single tool invocation requested by the assistant.

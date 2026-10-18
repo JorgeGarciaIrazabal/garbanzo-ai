@@ -50,6 +50,49 @@ Chat attachment chips refresh when generation ends; the browser reloads on open.
 These folders are distinct from live desktop folders served through
 `ClientToolBridge` and `delegate_workflow`.
 
+## Automatic visual chat answers
+
+Main chat advertises the presentation-only `render_ui` tool even when the
+conversation disables data-changing tools. Known text-only models keep text
+generation without tools; unknown capabilities retain the provider's normal
+tool path. The model composes a bounded tree
+of native components; simple answers remain text. Python validates the shared
+`backend/app/schemas/visual_ui_catalog.json` catalog (also a Flutter asset).
+The self-contained surface uses A2UI v0.9 through pinned GenUI 0.10.4 and
+a2ui_core 0.1.1. The Flutter SDK is confined to `widgets/visual_answers/`;
+providers and model calls stay on the existing FastAPI/SSE path.
+
+The normal `tool_result` event and message metadata carry the validated
+presentation without text truncation. Only its readable summary goes back to
+the model as a tool result, into transcript exports, and into copy/read-aloud.
+No separate model call selects the presentation. Layouts compose text, cards,
+metrics, tables, charts, timelines, checklists, forms and choices. Table filters,
+chart series selection and checklist edits are local. Unsubmitted values are
+not synchronized between devices. Rooms do not advertise this tool.
+
+Forms and choices reference saved action IDs. The authenticated `ui-actions`
+endpoint resolves the original tool-call message and its saved definition;
+clients send field values, never a tool name or endpoint. Existing tool
+permissions and argument schemas are checked again at submit. A labeled
+Submit is the user's authorization, including for existing proposal tools.
+The current server services apply room/style/workflow proposals; normal chat
+proposal cards keep their existing flow. Follow-up actions atomically save
+the contextual user message with the submission result, then start the existing
+detached chat producer. Replays only return that saved message's identity;
+clients never send another copy. Flutter observes the answer through its
+existing response-recovery polling. Presentations from an older user turn or
+primary-chat epoch cannot submit further actions.
+
+Terminal follow-up error chunks and early generation exceptions become durable
+assistant error messages, so response-recovery polling can display the failure
+and stop rather than waiting indefinitely for a successful reply.
+
+`ui_submissions` claims each `(message_id, action_id)` before execution. A
+duplicate returns its saved status and result instead of repeating effects.
+An interrupted execution can remain pending; failed or uncertain submissions
+never retry automatically. Reloading or **Check submission status** reads the
+durable record. Rendering, validation, and request failures remain visible.
+
 ## Stack
 
 - **Backend:** FastAPI (async) + SQLAlchemy/AsyncPG + PostgreSQL (pgvector) + JWT auth

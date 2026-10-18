@@ -281,6 +281,15 @@ class ChatProvider extends ChangeNotifier {
 
   Future<void> refreshConversations() async => conversationList.load();
 
+  /// Observe a follow-up already accepted by a visual submission. Never resend
+  /// it: the server owns both its durable user message and detached response.
+  void followServerResponse(String conversationId) {
+    if (_currentConversation?.id != conversationId || isSending) return;
+    _beginResponseRecovery();
+    _responseRecoveryState = ChatResponseRecoveryState.syncing;
+    notifyListeners();
+  }
+
   bool _syncingFromServer = false;
 
   /// Reconcile idle chat state with changes made by another signed-in client.

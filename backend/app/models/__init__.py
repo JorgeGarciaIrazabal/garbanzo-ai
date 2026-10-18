@@ -13,6 +13,7 @@ from app.models.scheduled_action import ScheduledAction
 from app.models.shared_item import SharedItem
 from app.models.style import Style
 from app.models.system_prompt import SystemPromptTemplate
+from app.models.ui_submission import UISubmissionRecord
 from app.models.user import User
 from app.models.virtual_folder import ConversationFolder, VirtualFile, VirtualFolder
 from app.models.workflow_artifact import WorkflowArtifact
@@ -34,6 +35,7 @@ from app.topics.models import (
 )
 
 __all__ = [
+    "UISubmissionRecord",
     "VirtualFolder",
     "VirtualFile",
     "ConversationFolder",

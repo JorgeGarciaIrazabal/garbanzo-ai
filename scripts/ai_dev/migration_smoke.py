@@ -16,7 +16,126 @@ from typing import Any
 import asyncpg
 from migration_transport import compose_command
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+
+async def _visual_submission_concurrency_smoke(engine: Any) -> dict[str, bool]:
+    """Different request IDs must not claim one presentation action twice."""
+    from app.models.conversation import Conversation
+    from app.models.message import Message
+    from app.models.ui_submission import UISubmissionRecord
+    from app.schemas.visual_ui import Presentation, UISubmission
+    from app.services.visual_ui import UIActionService
+
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    message_id = "visual-ui-concurrency-smoke"
+    async with sessions() as session:
+        session.add(
+            Message(
+                id=message_id,
+                conversation_id="00000000-0000-0000-0000-000000000004",
+                role="tool_result",
+                content="Presentation summary",
+            )
+        )
+        await session.commit()
+
+    async def claim(request_id):
+        async with sessions() as session:
+            session.add(
+                UISubmissionRecord(
+                    id=request_id,
+                    message_id=message_id,
+                    action_id="submit",
+                    status="pending",
+                    values={"choice": "a"},
+                )
+            )
+            try:
+                await session.commit()
+                return True
+            except IntegrityError:
+                await session.rollback()
+                return False
+
+    winners = await asyncio.gather(claim("ui-request-one"), claim("ui-request-two"))
+    if sum(winners) != 1:
+        raise RuntimeError("Concurrent UI submissions did not have exactly one winner")
+    async with sessions() as session:
+        source = await session.get(Message, message_id)
+        await session.delete(source)
+        await session.commit()
+        count = await session.scalar(select(func.count(UISubmissionRecord.id)))
+        if count != 0:
+            raise RuntimeError("Deleting a presentation did not cascade to UI submissions")
+    # Exercise the service's claim/duplicate path with independent PostgreSQL
+    # sessions, including the atomically saved follow-up user message.
+    conversation_id = "00000000-0000-0000-0000-000000000004"
+    presentation = Presentation.model_validate(
+        {
+            "summary": "Choose",
+            "surface_id": "choices",
+            "components": [
+                {
+                    "id": "root",
+                    "component": "Choices",
+                    "action": "choose",
+                    "options": [{"label": "A", "value": "A"}],
+                }
+            ],
+            "actions": [{"id": "choose", "kind": "follow_up", "prompt": "Explain selection"}],
+        }
+    )
+    async with sessions() as session:
+        conversation = await session.get(Conversation, conversation_id)
+        session.add(
+            Message(
+                id="visual-followup-source",
+                conversation_id=conversation_id,
+                role="tool_result",
+                content=presentation.summary,
+                session_epoch=conversation.session_epoch,
+                meta={
+                    "tool_call_id": "visual-concurrent-call",
+                    "tool_name": "render_ui",
+                    "result": presentation.result(),
+                },
+            )
+        )
+        await session.commit()
+    started = []
+
+    class RecordingService(UIActionService):
+        def start_follow_up(self, conversation_id, user_id, message_id):
+            started.append(message_id)
+
+    async def submit(request_id):
+        async with sessions() as session:
+            return await RecordingService(session).submit(
+                conversation_id,
+                "topic-smoke@example.com",
+                UISubmission(
+                    tool_call_id="visual-concurrent-call",
+                    surface_id="choices",
+                    action_id="choose",
+                    submission_id=request_id,
+                    values={"choice": "A"},
+                ),
+            )
+
+    await asyncio.gather(submit("followup-request-one"), submit("followup-request-two"))
+    async with sessions() as session:
+        user_count = await session.scalar(
+            select(func.count(Message.id)).where(
+                Message.conversation_id == conversation_id,
+                Message.role == "user",
+                Message.meta["ui_submission_id"].as_string().is_not(None),
+            )
+        )
+    if user_count != 1 or len(started) != 1:
+        raise RuntimeError("Concurrent UI follow-ups created or started more than one turn")
+    return {"unique_ui_submissions": True, "unique_ui_followup": True}
 
 
 async def _topic_switch_concurrency_smoke(engine: Any) -> dict[str, bool]:
@@ -455,6 +574,7 @@ async def run_database_smoke(
             await connection.exec_driver_sql(
                 "DROP TABLE conversation_folders, virtual_files, virtual_folders"
             )
+            await connection.exec_driver_sql("DROP TABLE ui_submissions")
         original = migrations.MIGRATIONS_DIR
         migrations.MIGRATIONS_DIR = migrations_dir
         dsn = database_url.replace("postgresql+asyncpg://", "postgresql://", 1)
@@ -560,6 +680,7 @@ async def run_database_smoke(
             finally:
                 await connection.close()
             concurrency = await _topic_switch_concurrency_smoke(engine)
+            ui_concurrency = await _visual_submission_concurrency_smoke(engine)
             folder_concurrency = await _virtual_folder_concurrency_smoke(engine)
             await migrations.run_migrations(database_url)
             connection = await asyncpg.connect(dsn)
@@ -595,6 +716,7 @@ async def run_database_smoke(
         **style_models,
         **concurrency,
         **folder_concurrency,
+        **ui_concurrency,
     }
 
 
@@ -633,7 +755,9 @@ def main() -> int:
         f"unique_concurrent_copies={result['unique_concurrent_copies']}, "
         f"folder_metadata_upgrade={result['folder_metadata_upgrade']}, "
         f"style_default_upgrade={result['style_default_upgrade']}, "
-        f"style_model_refresh={result['style_model_refresh']}"
+        f"style_model_refresh={result['style_model_refresh']}, "
+        f"unique_ui_submissions={result['unique_ui_submissions']}, "
+        f"unique_ui_followup={result['unique_ui_followup']}"
     )
     return 0
 

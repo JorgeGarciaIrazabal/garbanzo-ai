@@ -175,6 +175,10 @@ class OllamaProvider(LLMProvider):
         context_length, _ = await self._get_model_meta(model)
         return context_length
 
+    async def get_model_supports_tools(self, model: str) -> bool | None:
+        _, capabilities = await self._get_model_meta(model)
+        return "tools" in capabilities if capabilities else None
+
     async def _stream_with_retry(
         self, client: AsyncClient, chat_kwargs: dict[str, Any]
     ) -> AsyncIterator[Any]:

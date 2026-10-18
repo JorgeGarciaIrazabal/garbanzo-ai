@@ -465,7 +465,8 @@ async def test_attached_manifest_and_tools_honor_disabled_tools(
     test_conversation.enabled_tools = []
     await db_session.commit()
     tools, lookup = await chat._resolve_tools_for_conversation(test_conversation)
-    assert tools == [] and lookup == {}
+    assert [tool["function"]["name"] for tool in tools] == ["render_ui"]
+    assert "virtual_folders" not in lookup
 
 
 @pytest.mark.asyncio

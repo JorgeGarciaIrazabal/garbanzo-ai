@@ -143,6 +143,10 @@ class LLMProvider(ABC):
         """Whether this provider can enforce a JSON/schema response format."""
         return False
 
+    async def get_model_supports_tools(self, model: str) -> bool | None:
+        """Tri-state tool capability; unknown providers retain their existing path."""
+        return None
+
     @abstractmethod
     async def list_models(self) -> list[ModelInfo]:
         """List available models from this provider.

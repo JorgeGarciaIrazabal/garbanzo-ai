@@ -1223,13 +1223,29 @@ class _ChatPageContentState extends State<_ChatPageContent>
     // Group consecutive tool_call/tool_result messages so they render as a
     // single collapsible "tool activity" section instead of N stacked cards.
     final items = <_ListItem>[];
-    final messages = chatProvider.messages;
+    final visualCallIds = {
+      for (final message in chatProvider.messages)
+        if (message.visualPresentation != null) message.toolCallId,
+    };
+    final messages = chatProvider.messages.where((message) {
+      final calls = message.metadata?['tool_calls'];
+      // Successful presentation calls are already represented by their visual
+      // answer. Preserve failed calls and ordinary tool activity for inspection.
+      return !(message.isToolCall &&
+          calls is List &&
+          calls.isNotEmpty &&
+          calls.every(
+            (call) => call is Map && visualCallIds.contains(call['id']),
+          ));
+    }).toList();
     // A proposal tool's result is a card the user acts on, not a step in the
     // agent's timeline — folding it into the collapsible "Used N tools"
     // section would bury it (and make ChatMessageWidget's card branch
     // unreachable), so it stays a top-level item.
     bool isGroupableTool(ChatMessage m) =>
-        (m.isToolCall || m.isToolResult) && m.actionProposal == null;
+        (m.isToolCall || m.isToolResult) &&
+        m.actionProposal == null &&
+        m.visualPresentation == null;
 
     var i = 0;
     var lastAssistantIdx = -1;

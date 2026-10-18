@@ -3058,5 +3058,18 @@
   "foldersDuplicateTitle": "El archivo ya existe",
   "foldersDuplicateBody": "«{name}» ya está en esta carpeta. ¿Quieres reemplazarlo o conservar ambos archivos?",
   "foldersReplace": "Reemplazar",
-  "foldersKeepBoth": "Conservar ambos"
+  "foldersKeepBoth": "Conservar ambos",
+  "visualAnswerError": "No se pudo mostrar o actualizar esta respuesta visual",
+  "visualCheckStatus": "Consultar el estado del envío",
+  "visualAnswerReadOnly": "Esta respuesta se puede consultar. Inicia una nueva solicitud para realizar más cambios.",
+  "visualFilter": "Filtrar filas",
+  "visualNoChartData": "No hay datos seleccionados",
+  "visualShowData": "Mostrar los datos del gráfico",
+  "visualActionCompleted": "Completado",
+  "visualActionFailed": "La acción falló. No se volverá a intentar automáticamente.",
+  "visualActionPending": "Envío recibido. El resultado aún no está confirmado; no se ejecutará de nuevo.",
+  "visualRequired": "Este campo es obligatorio",
+  "visualInvalidNumber": "Introduce un número válido",
+  "visualInvalidDate": "Usa AAAA-MM-DD"
+
 }

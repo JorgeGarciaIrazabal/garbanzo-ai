@@ -58,6 +58,14 @@ provider map, chat/SSE flow, rooms WebSocket) and `../docs/api.md` (endpoints).
 - `MarkdownWidget` already gets tables, task lists, and strikethrough from
   `ExtensionSet.gitHubWeb`. Do not register those syntaxes again: duplicate
   table parsers crash on temporarily incomplete tables during SSE streaming.
+- Generated `render_ui` results are answer content: keep them outside
+  `ChatPage`'s collapsible tool-activity groups, like proposal cards. The shared
+  catalog lives in `backend/app/schemas/visual_ui_catalog.json` and is bundled
+  as a Flutter asset. Update validation and rendering together.
+- GenUI error messages contain `DataPart` values exposed through the
+  `uiInteractionParts` view helper, not runtime `UiInteractionPart` instances.
+  Catalog widget tests evict the asset's cached `rootBundle` future between
+  tests so it cannot retain an earlier test's fake-async zone.
 
 - Micro-app panel on Android: the WebView loads a plain-HTTP dev-server URL in
   dev (port 8100–8500). Android 9+ blocks cleartext by default, so debug builds

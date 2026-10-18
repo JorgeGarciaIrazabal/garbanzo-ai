@@ -487,16 +487,28 @@ async def run_agent_turn(
                 )
 
                 raw_text = stringify_tool_result(tool_result)
-                result_text = truncate_tool_result(raw_text, get_settings().tool_result_max_chars)
+                is_presentation = (
+                    call.get("name") == "render_ui"
+                    and isinstance(tool_result, dict)
+                    and tool_result.get("ok") is True
+                    and isinstance(tool_result.get("presentation"), dict)
+                )
+                result_text = (
+                    tool_result["presentation"]["summary"]
+                    if is_presentation
+                    else truncate_tool_result(raw_text, get_settings().tool_result_max_chars)
+                )
                 result_meta = {
                     "tool_call_id": call.get("id"),
                     "tool_name": call.get("name"),
                     # Oversized results are stored truncated too — the
                     # meta JSONB otherwise carries the full payload.
-                    "result": tool_result if len(raw_text) == len(result_text) else result_text,
+                    "result": tool_result
+                    if is_presentation or len(raw_text) == len(result_text)
+                    else result_text,
                     "duration_ms": duration_ms,
                 }
-                if len(raw_text) != len(result_text):
+                if not is_presentation and len(raw_text) != len(result_text):
                     result_meta["truncated"] = True
                 await sink.persist_tool_result(result_text, result_meta)
 
