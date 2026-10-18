@@ -65,6 +65,10 @@ output; expand investigation only for failures or explicit acceptance criteria.
 ## Gotchas
 
 - Never commit `.env`; edit `.env.example` when adding a key.
+- If deployment reports a busy writer lock, inspect its holder with `lslocks`.
+  An orphaned `adb` server can retain the descriptor from an earlier deploy.
+  Confirm no deployment is running, then restart that identified local server
+  before retrying. Never remove the lock file to bypass an active writer.
 - Never replace or lose the Android release keystore: installed APKs accept
   updates only from the same signing key. Keep an encrypted off-machine backup.
 - `gh` must be authenticated on the deploy host with release write access;
