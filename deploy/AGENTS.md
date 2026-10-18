@@ -15,6 +15,15 @@ it for procedures. This file is the agent quick reference.
 - `just deploy-logs [backend|postgres|ngrok|cloudflared]` — tail prod logs
 - `just deploy-restart` — restart services (keeps data); `just deploy-down` — stop (keeps volumes)
 
+## Routine release execution
+
+Follow [the releases skill](../.agents/skills/releases/SKILL.md) sequentially.
+`just deploy` owns the exact-source full tests, builds, health checks, APK
+publication and initial evidence; reuse its results. Add only required focused
+behavior checks, watch desktop CI once, confirm assets once and finalize the
+existing evidence once. Keep polling and log processing in code with compact
+output; expand investigation only for failures or explicit acceptance criteria.
+
 ## Layout
 
 - `docker-compose.yml` — services: **postgres** (pgvector), **backend** (image

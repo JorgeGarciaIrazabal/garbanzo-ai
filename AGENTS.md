@@ -98,6 +98,9 @@ their `CLAUDE.md` names are compatibility links.
   follows the authorized task lifecycle; close only after fix deployment and
   report-specific verification. Keep raw evidence private in `.ai/local/`.
 - Answer investigation/review questions directly; do not infer implementation.
+- Put routine execution in code: sequence dependent steps and batch independent
+  reads, returning compact results. Reuse passing checks for unchanged inputs;
+  investigate failures instead of repeatedly polling or expanding verification.
 
 Daily workflow and prioritization: [`docs/ai-workflow-guide.md`](docs/ai-workflow-guide.md).
 Setup, internals, recovery and acceptance: [`docs/ai-development.md`](docs/ai-development.md).
