@@ -4,6 +4,10 @@ Release notes for Garbanzo AI. Each entry is generated automatically on
 `just deploy` — Codex writes it from the release's commits and
 the user reports it addressed. See `scripts/changelog-instructions.md`.
 
+## v1.0.43 — 2026-10-19
+
+- Chat can now provide interactive visual answers automatically with GenUI.
+
 ## v1.0.42 — 2026-10-18
 
 - Refreshed DeepSeek styles and added Mistral writing presets.
