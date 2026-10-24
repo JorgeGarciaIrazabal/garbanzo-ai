@@ -1,355 +1,262 @@
-"""Tests for the opencode → ChatResponseChunk event translator + agent guards."""
+"""Released OpenCode V2 stream contracts and failure regression coverage."""
 
 from __future__ import annotations
 
+import json
+from types import SimpleNamespace
+
+import httpx
 import pytest
 
-from app.services.microapp_agent import (
-    MicroappAgent,
-    StreamState,
-    _iter_sse_data,
-    translate_event,
-)
+from app.core.config import Settings
+from app.services import microapp_agent
+from app.services.microapp_agent import MicroappAgent, StreamState, _iter_sse_data, translate_event
 
-SID = "s1"
+SID = "ses_test"
 
 
-def _drive(events: list[dict]):
-    """Run a list of opencode events through the translator; return all chunks."""
-    state = StreamState(sid=SID)
+def event(kind, **data):
+    return {"type": kind, "created": 1000, "data": {"sessionID": SID, **data}}
+
+
+def test_text_and_reasoning_deltas_reconcile_terminal_values():
+    state = StreamState(SID)
     chunks = []
-    for ev in events:
-        chunks.extend(translate_event(ev, state))
-    return chunks, state
-
-
-def test_translate_full_sequence():
-    events = [
-        {
-            "type": "message.updated",
-            "properties": {"info": {"id": "m1", "role": "assistant", "sessionID": SID}},
-        },
-        {
-            "type": "message.part.updated",
-            "properties": {
-                "part": {
-                    "id": "p1",
-                    "messageID": "m1",
-                    "type": "text",
-                    "text": "Hello",
-                    "sessionID": SID,
-                }
-            },
-        },
-        {
-            "type": "message.part.updated",
-            "properties": {
-                "part": {
-                    "id": "p1",
-                    "messageID": "m1",
-                    "type": "text",
-                    "text": "Hello world",
-                    "sessionID": SID,
-                }
-            },
-        },
-        {
-            "type": "message.part.updated",
-            "properties": {
-                "part": {
-                    "id": "p2",
-                    "messageID": "m1",
-                    "type": "reasoning",
-                    "text": "let me think",
-                    "sessionID": SID,
-                }
-            },
-        },
-        {
-            "type": "message.part.updated",
-            "properties": {
-                "part": {
-                    "id": "t1",
-                    "messageID": "m1",
-                    "type": "tool",
-                    "tool": "edit",
-                    "callID": "c1",
-                    "state": {"status": "running", "input": {"filePath": "houses/x.house.json"}},
-                    "sessionID": SID,
-                }
-            },
-        },
-        {
-            "type": "message.part.updated",
-            "properties": {
-                "part": {
-                    "id": "t1",
-                    "messageID": "m1",
-                    "type": "tool",
-                    "tool": "edit",
-                    "callID": "c1",
-                    "state": {"status": "completed", "output": "done"},
-                    "sessionID": SID,
-                }
-            },
-        },
-        {"type": "session.idle", "properties": {"sessionID": SID}},
+    for kind in ("text", "reasoning"):
+        data = {"assistantMessageID": "msg_a", "ordinal": 0}
+        for frame in [
+            event(f"session.{kind}.delta", **data, delta="Hello"),
+            event(f"session.{kind}.ended", **data, text="Hello world"),
+            event(f"session.{kind}.delta", **data, delta="late"),
+        ]:
+            chunks.extend(translate_event(frame, state))
+    assert [(c.type, c.content) for c in chunks] == [
+        ("chunk", "Hello"),
+        ("chunk", " world"),
+        ("thinking", "Hello"),
+        ("thinking", " world"),
     ]
-    chunks, state = _drive(events)
-    types = [c.type for c in chunks]
-    # A tool now also reports its live execution state (started/finished with
-    # the label and duration) so the UI can show what is being worked on
-    # instead of only learning about it after the fact.
-    assert types == [
-        "chunk",
-        "chunk",
-        "thinking",
+
+
+def test_completion_is_gated_on_our_inbox_delivery():
+    state = StreamState(SID, prompt_id="msg_ours")
+    assert translate_event(event("session.execution.succeeded"), state) == []
+    assert translate_event(event("session.idle"), state) == []
+    translate_event(event("session.inbox.delivered", inboxID="msg_other"), state)
+    assert not state.prompt_delivered
+    translate_event(event("session.inbox.delivered", inboxID="msg_ours"), state)
+    chunks = translate_event(event("session.execution.succeeded"), state)
+    assert [c.type for c in chunks] == ["done"]
+    assert translate_event(event("session.execution.succeeded"), state) == []
+
+
+def test_tool_progress_terminal_dedup_and_stale_frames():
+    state = StreamState(SID)
+    frames = [
+        event("session.tool.input.started", id="call_1", name="shell"),
+        event("session.tool.called", id="call_1", input={"command": "git status"}),
+        {
+            **event(
+                "session.tool.success",
+                id="call_1",
+                content=[{"type": "text", "text": "clean"}],
+                metadata={"title": "Git status"},
+            ),
+            "created": 1400,
+        },
+        event("session.tool.called", id="call_1", input={"command": "stale"}),
+        event("session.tool.success", id="call_1", content=[{"type": "text", "text": "clean"}]),
+    ]
+    chunks = [chunk for frame in frames for chunk in translate_event(frame, state)]
+    assert [c.type for c in chunks] == [
         "tool_call",
         "tool_execution",
         "tool_execution",
         "tool_result",
-        "done",
     ]
-    assert chunks[0].content == "Hello"
-    assert chunks[1].content == " world"  # incremental delta
-    assert chunks[2].content == "let me think"
-    assert chunks[3].tool_calls[0]["name"] == "edit"
-    assert chunks[3].tool_calls[0]["id"] == "c1"
-    started = chunks[4].metadata["tool_execution"]
-    assert started["status"] == "started"
-    # While running there is no title yet, so the label comes from the input —
-    # this is what the collapsed progress line shows mid-call.
-    assert started["title"] == "x.house.json"
-    finished = chunks[5].metadata["tool_execution"]
-    assert finished["status"] == "finished"
-    assert chunks[6].tool_result["tool_call_id"] == "c1"
-    assert chunks[6].tool_result["result"] == "done"
-    assert chunks[6].tool_result["is_error"] is False
-    assert chunks[7].metadata == {"session_id": SID}
-    assert state.done is True
-
-
-def test_translate_session_error_is_terminal():
-    events = [{"type": "session.error", "properties": {"sessionID": SID, "error": "kaboom"}}]
-    chunks, state = _drive(events)
-    assert len(chunks) == 1
-    assert chunks[0].type == "error"
-    assert "kaboom" in chunks[0].error
-    assert state.done is True
-
-
-def test_translate_ignores_other_sessions():
-    events = [
-        {
-            "type": "message.updated",
-            "properties": {"info": {"id": "m1", "role": "assistant", "sessionID": "other"}},
-        },
-        {
-            "type": "message.part.updated",
-            "properties": {
-                "part": {
-                    "id": "p1",
-                    "messageID": "m1",
-                    "type": "text",
-                    "text": "nope",
-                    "sessionID": "other",
-                }
-            },
-        },
-    ]
-    chunks, _ = _drive(events)
-    assert chunks == []
-
-
-def test_translate_user_text_suppressed():
-    events = [
-        {
-            "type": "message.updated",
-            "properties": {"info": {"id": "m1", "role": "user", "sessionID": SID}},
-        },
-        {
-            "type": "message.part.updated",
-            "properties": {
-                "part": {
-                    "id": "p1",
-                    "messageID": "m1",
-                    "type": "text",
-                    "text": "my prompt",
-                    "sessionID": SID,
-                }
-            },
-        },
-    ]
-    chunks, _ = _drive(events)
-    assert chunks == []  # user's own echoed message is not re-streamed
-
-
-def test_tool_error_result():
-    events = [
-        {
-            "type": "message.part.updated",
-            "properties": {
-                "part": {
-                    "id": "t1",
-                    "type": "tool",
-                    "tool": "bash",
-                    "callID": "c9",
-                    "state": {"status": "error", "error": "boom"},
-                    "sessionID": SID,
-                }
-            },
-        },
-    ]
-    chunks, _ = _drive(events)
-    types = [c.type for c in chunks]
-    assert types == ["tool_call", "tool_execution", "tool_result"]
-    assert chunks[1].metadata["tool_execution"]["status"] == "failed"
-    assert chunks[2].tool_result["result"] == "boom"
-    assert chunks[2].tool_result["is_error"] is True
-
-
-def test_server_heartbeat_becomes_a_heartbeat_chunk():
-    """opencode's own liveness tick must reach the client.
-
-    Regression guard: this frame used to be dropped (it was mistaken for an SSE
-    comment line, which is a different wire format), leaving a long turn with no
-    signal at all between tool calls.
-    """
-    chunks, _ = _drive([{"type": "server.heartbeat", "properties": {}}])
-    assert [c.type for c in chunks] == ["heartbeat"]
-    payload = chunks[0].metadata["heartbeat"]
-    assert payload["phase"] == "working"
-    assert payload["schema_version"] == 1
-
-
-def test_step_boundaries_advance_the_heartbeat_counter():
-    """Steps give the heartbeat a number that moves while the model thinks."""
-    events = [
-        {
-            "type": "message.part.updated",
-            "properties": {"part": {"id": "s1", "type": "step-start", "sessionID": SID}},
-        },
-        {
-            "type": "message.part.updated",
-            "properties": {"part": {"id": "s1", "type": "step-finish", "sessionID": SID}},
-        },
-    ]
-    chunks, state = _drive(events)
-    assert state.steps == 1
-    beats = [c for c in chunks if c.type == "heartbeat"]
-    assert len(beats) == 1
-    assert beats[0].metadata["heartbeat"]["steps"] == 1
-
-
-def test_out_of_order_tool_frames_do_not_duplicate_or_regress():
-    """opencode emits completed before pending/running; that must not double-count.
-
-    Verified against a live 1.18.30 server, where a ``completed`` frame arrived
-    ahead of its own ``pending`` and ``running`` siblings.
-    """
-    base = {
-        "id": "t1",
-        "type": "tool",
-        "tool": "write",
-        "callID": "c1",
-        "sessionID": SID,
-    }
-    events = [
-        {
-            "type": "message.part.updated",
-            "properties": {
-                "part": {
-                    **base,
-                    "state": {
-                        "status": "completed",
-                        "input": {"filePath": "a/b/notes.md"},
-                        "output": "ok",
-                        "title": "a/b/notes.md",
-                        "time": {"start": 1000, "end": 1400},
-                    },
-                }
-            },
-        },
-        {
-            "type": "message.part.updated",
-            "properties": {"part": {**base, "state": {"status": "pending", "input": {}}}},
-        },
-        {
-            "type": "message.part.updated",
-            "properties": {
-                "part": {
-                    **base,
-                    "state": {"status": "running", "input": {"filePath": "a/b/notes.md"}},
-                }
-            },
-        },
-    ]
-    chunks, state = _drive(events)
+    assert chunks[1].metadata["tool_execution"]["title"] == "git status"
+    assert chunks[-1].tool_result["result"] == "clean"
+    assert chunks[-1].tool_result["duration_ms"] == 400
+    assert state.last_activity == "Git status"
     assert state.tools_completed == 1
-    # The late, lower-ranked frames must not produce a second terminal result.
-    assert [c.type for c in chunks].count("tool_result") == 1
-    assert [c.type for c in chunks].count("tool_call") == 1
-    # Duration is derived from the start seen on the running/completed frame.
-    result = next(c for c in chunks if c.type == "tool_result")
-    assert result.tool_result["duration_ms"] == 400
-    # opencode's own title is passed through verbatim (it is already a
-    # display-ready relative path); only labels derived from ``input`` are
-    # reduced to a basename, because those carry absolute host paths that
-    # should not be shipped to the client.
-    assert result.tool_result["title"] == "a/b/notes.md"
 
 
-def test_running_bash_reports_its_command_as_the_label():
-    """The collapsed line must name the command, not the word "bash"."""
-    events = [
-        {
-            "type": "message.part.updated",
-            "properties": {
-                "part": {
-                    "id": "t1",
-                    "type": "tool",
-                    "tool": "bash",
-                    "callID": "c1",
-                    "sessionID": SID,
-                    "state": {
-                        "status": "running",
-                        "input": {"command": "pytest -q"},
-                        "time": {"start": 5},
-                    },
-                }
-            },
-        }
+def test_duplicate_step_event_does_not_double_count():
+    state = StreamState(SID)
+    frame = {**event("session.step.started"), "id": "evt_step"}
+    assert len(translate_event(frame, state)) == 1
+    assert translate_event(frame, state) == []
+    assert state.steps == 1
+
+
+@pytest.mark.parametrize("raw", ['{"command":', "not-json"])
+def test_malformed_tool_input_relays_failure_and_allows_model_recovery(raw):
+    state = StreamState(SID)
+    frames = [
+        event("session.tool.input.started", id="bad", name="shell"),
+        event("session.tool.input.ended", id="bad", text=raw),
+        event("session.tool.failed", id="bad", error={"message": "Invalid tool arguments"}),
+        event("session.tool.input.started", id="retry", name="shell"),
+        event("session.tool.called", id="retry", input={"command": "git status"}),
+        event("session.tool.success", id="retry", content=[{"type": "text", "text": "clean"}]),
+        event("session.text.delta", assistantMessageID="answer", ordinal=0, delta="Recovered."),
+        event("session.execution.succeeded"),
     ]
-    chunks, state = _drive(events)
-    started = [c for c in chunks if c.type == "tool_execution"][0]
-    assert started.metadata["tool_execution"]["title"] == "pytest -q"
-    assert state.last_activity == "pytest -q"
+    chunks = [chunk for frame in frames for chunk in translate_event(frame, state)]
+    results = [chunk.tool_result for chunk in chunks if chunk.type == "tool_result"]
+    assert [result["is_error"] for result in results] == [True, False]
+    assert results[0]["result"] == "Invalid tool arguments"
+    assert any(chunk.content == "Recovered." for chunk in chunks)
+    assert chunks[-1].type == "done"
+    assert not any(chunk.type == "error" for chunk in chunks)
+
+
+@pytest.mark.parametrize(
+    "kind,data",
+    [
+        ("session.execution.failed", {"error": {"type": "provider", "message": "kaboom"}}),
+        ("session.execution.interrupted", {"reason": "inactivity"}),
+        ("permission.asked", {}),
+        ("form.created", {"form": {"sessionID": SID}}),
+    ],
+)
+def test_terminal_errors_surface(kind, data):
+    state = StreamState(SID)
+    chunks = translate_event(event(kind, **data), state)
+    assert [c.type for c in chunks] == ["error"]
+    assert state.done
+
+
+def test_other_session_and_user_prompt_are_not_output():
+    state = StreamState(SID)
+    assert (
+        translate_event({"type": "session.text.delta", "data": {"sessionID": "other"}}, state) == []
+    )
+    assert translate_event(event("session.inbox.enqueued", text="prompt"), state) == []
 
 
 def test_sse_data_framing():
-    buffer: list[str] = []
-    assert _iter_sse_data(": comment", buffer) == []
+    buffer = []
+    assert _iter_sse_data(": heartbeat", buffer) == []
     assert _iter_sse_data('data: {"a":1}', buffer) == []
-    completed = _iter_sse_data("", buffer)
-    assert completed == ['{"a":1}']
-    assert buffer == []
+    assert _iter_sse_data("", buffer) == ['{"a":1}']
+
+
+def mock_client(monkeypatch, frames, *, prompt_status=200):
+    calls = []
+
+    async def handle(request):
+        calls.append(
+            (
+                request.method,
+                request.url.path,
+                json.loads(request.content) if request.content else None,
+            )
+        )
+        if request.url.path == "/api/session":
+            return httpx.Response(200, json={"data": {"id": SID}})
+        if request.url.path == "/api/event":
+            greeting = {"type": "server.connected", "data": {}}
+            content = "".join(f"data: {json.dumps(f)}\n\n" for f in [greeting, *frames])
+            return httpx.Response(
+                200, content=content, headers={"content-type": "text/event-stream"}
+            )
+        if request.url.path.endswith("/prompt"):
+            return httpx.Response(prompt_status, json={"data": {"id": "msg_ours"}})
+        return httpx.Response(200, json={"interrupted": True})
+
+    factory = httpx.AsyncClient
+    monkeypatch.setattr(
+        microapp_agent.httpx,
+        "AsyncClient",
+        lambda **kw: factory(**kw, transport=httpx.MockTransport(handle)),
+    )
+    return calls
 
 
 @pytest.mark.asyncio
-async def test_stream_instruction_not_ready():
-    class Ws:
-        opencode_base = None
-        opencode_ready = False
+async def test_stream_uses_v2_endpoints_and_model_reference(monkeypatch):
+    calls = mock_client(
+        monkeypatch,
+        [
+            event("session.inbox.delivered", inboxID="msg_ours"),
+            event("session.text.delta", assistantMessageID="msg_a", ordinal=0, delta="result"),
+            event("session.execution.succeeded"),
+        ],
+    )
+    agent = MicroappAgent(Settings(microapps_opencode_model="ollama/fake#high"))
+    chunks = [
+        c
+        async for c in agent.stream_instruction(
+            SimpleNamespace(opencode_base="http://agent", opencode_ready=True), "hello"
+        )
+    ]
+    assert [c.type for c in chunks] == ["session", "chunk", "done"]
+    assert calls == [
+        (
+            "POST",
+            "/api/session",
+            {"title": "hello", "model": {"providerID": "ollama", "id": "fake", "variant": "high"}},
+        ),
+        ("GET", "/api/event", None),
+        ("POST", f"/api/session/{SID}/prompt", {"text": "hello"}),
+    ]
 
-    agent = MicroappAgent()
-    chunks = [c async for c in agent.stream_instruction(Ws(), "hi")]
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("prompt_status", [200, 400])
+async def test_disconnect_and_failed_prompt_are_errors(monkeypatch, prompt_status):
+    calls = mock_client(monkeypatch, [], prompt_status=prompt_status)
+    chunks = [
+        c
+        async for c in MicroappAgent().stream_instruction(
+            SimpleNamespace(opencode_base="http://agent", opencode_ready=True), "hello"
+        )
+    ]
+    assert [c.type for c in chunks] == ["session", "error", "done"]
+    assert calls[-1][1].endswith("/interrupt")
+
+
+@pytest.mark.asyncio
+async def test_not_ready():
+    chunks = [
+        c
+        async for c in MicroappAgent().stream_instruction(
+            SimpleNamespace(opencode_base=None), "hello"
+        )
+    ]
     assert [c.type for c in chunks] == ["error", "done"]
+    assert not await MicroappAgent().abort(SimpleNamespace(opencode_base=None), SID)
 
 
-@pytest.mark.asyncio
-async def test_abort_returns_false_without_base():
-    class Ws:
-        opencode_base = None
-
-    agent = MicroappAgent()
-    assert await agent.abort(Ws(), "s1") is False
+def test_code_mode_progress_and_nested_failure_surface():
+    state = StreamState(SID)
+    translate_event(event("session.tool.input.started", id="call_code", name="execute"), state)
+    translate_event(
+        event("session.tool.called", id="call_code", input={"code": "await tools.shell(...)"}),
+        state,
+    )
+    progress = translate_event(
+        event(
+            "session.tool.progress",
+            id="call_code",
+            metadata={
+                "toolCalls": [
+                    {"tool": "shell", "status": "running", "input": {"command": "git status"}},
+                ]
+            },
+        ),
+        state,
+    )
+    assert progress[-1].metadata["tool_execution"]["title"] == "git status"
+    failed = translate_event(
+        event(
+            "session.tool.success",
+            id="call_code",
+            metadata={"error": True},
+            content=[{"type": "text", "text": "nested tool failed"}],
+        ),
+        state,
+    )
+    assert failed[-1].tool_result["is_error"]
+    assert failed[-1].tool_result["result"] == "nested tool failed"

@@ -106,6 +106,7 @@ services:
       # Ollama hosted web_search/web_fetch API key (websearch MCP stdio server).
       OLLAMA_API_KEY: ${OLLAMA_API_KEY:-}
       DEFAULT_MODEL: ${DEFAULT_MODEL:-deepseek-v4.1-flash:cloud}
+      LLM_CONTEXT_WINDOW: ${LLM_CONTEXT_WINDOW:-300000}
       MEMORY_EXTRACTION_MODEL: ${MEMORY_EXTRACTION_MODEL:-deepseek-v4.1-flash:cloud}
       SCHEDULED_ACTION_MODEL: ${SCHEDULED_ACTION_MODEL:-deepseek-v4.1-flash:cloud}
       MICROAPPS_GIT_URL: ${MICROAPPS_GIT_URL:-}

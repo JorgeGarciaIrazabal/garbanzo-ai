@@ -19,6 +19,8 @@ demand: `../docs/architecture.md` (layout, flows, startup), `../docs/api.md`
   rule ruff lacks. Baseline of pre-existing offenders in
   `.pylint-allowlist`; shrink it by moving imports to top level. Run via
   `just check` (which also runs ruff, the FE linters, and both formatters).
+  Commit hooks use a separate pinned Ruff version and can report additional
+  rules; resolve those findings as well as passing `just check`.
 ## Where code goes
 
 - `app/api/v1/endpoints/*.py` — one router per resource, wired in `router.py`.
@@ -65,6 +67,12 @@ EXISTS`. Applied once each at startup (`db/migrations.py`), tracked in
 - Spawning opencode? Use `opencode_process.py` (setsid + `PR_SET_PDEATHSIG`,
   port picking, readiness probe) and `opencode_config.py` — shared by micro-apps
   and workflows, so the child-never-outlives-us guarantee holds in one place.
+  Runtime OpenCode is pinned to 2.1.4 (`just opencode-install` /
+  `just opencode-smoke`); V1 server endpoints are incompatible. V2 requires
+  Basic auth, acknowledged `/api/event` subscription before `/prompt`, native
+  events with `data`, and own inbox delivery before execution completion.
+  Heartbeats are SSE comments. Project permissions retain their ordered denies;
+  injected MCP tool policies cap the allowance independently of permissions.
 - PEP 723 scripts such as `mcp_stdio_servers/web_search.py` get an isolated
   `uv` environment and do not inherit `backend/uv.lock`. Keep their dependency
   bounds aligned with the backend; the web-search server currently requires

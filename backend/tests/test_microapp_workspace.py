@@ -240,15 +240,15 @@ def test_seeds_opencode_config(manager):
     cfg = ws.path / "opencode.json"
     assert cfg.is_file()
     data = json.loads(cfg.read_text())
-    assert "ollama" in data["provider"]
-    assert "deepseek-v4.1-flash:cloud" in data["provider"]["ollama"]["models"]
-    assert "deepseek-v4-flash:cloud" in data["provider"]["ollama"]["models"]
-    assert "deepseek-v4-pro:cloud" in data["provider"]["ollama"]["models"]
-    assert "glm-5.3-flash:cloud" in data["provider"]["ollama"]["models"]
-    assert "kimi-k3:cloud" in data["provider"]["ollama"]["models"]
-    assert "qwen3.5:cloud" in data["provider"]["ollama"]["models"]
+    assert "ollama" in data["providers"]
+    assert "deepseek-v4.1-flash:cloud" in data["providers"]["ollama"]["models"]
+    assert "deepseek-v4-flash:cloud" in data["providers"]["ollama"]["models"]
+    assert "deepseek-v4-pro:cloud" in data["providers"]["ollama"]["models"]
+    assert "glm-5.3-flash:cloud" in data["providers"]["ollama"]["models"]
+    assert "kimi-k3:cloud" in data["providers"]["ollama"]["models"]
+    assert "qwen3.5:cloud" in data["providers"]["ollama"]["models"]
     # Internal planning tools disabled — see _seed_opencode_config rationale.
-    assert data["tools"] == {"todowrite": False, "todoread": False}
+    assert {r["action"]: r["effect"] for r in data["permissions"]}["todowrite"] == "deny"
 
 
 def test_seeds_mcp_servers_into_the_workspace_config(manager):
@@ -266,18 +266,19 @@ def test_seeds_mcp_servers_into_the_workspace_config(manager):
         "websearch_abc12345": {
             "type": "local",
             "command": ["uv", "run", "/abs/app/mcp_stdio_servers/web_search.py"],
-            "enabled": True,
+            "disabled": False,
         }
     }
     ws.mcp_tool_rules = {"websearch_abc12345_web_search": True}
     manager._seed_opencode_config(ws)
 
     data = json.loads((ws.path / "opencode.json").read_text())
-    assert "websearch_abc12345" in data["mcp"]
-    assert data["mcp"]["websearch_abc12345"]["command"][-1].endswith("web_search.py")
+    assert "websearch_abc12345" in data["mcp"]["servers"]
+    assert data["mcp"]["servers"]["websearch_abc12345"]["command"][-1].endswith("web_search.py")
     # The per-tool whitelist must merge with, not replace, the tool switches.
-    assert data["tools"]["todowrite"] is False
-    assert data["tools"]["websearch_abc12345_web_search"] is True
+    rules = {r["action"]: r["effect"] for r in data["permissions"]}
+    assert rules["todowrite"] == "deny"
+    assert rules["websearch_abc12345_web_search"] == "allow"
 
 
 def test_no_mcp_block_when_no_servers_are_allowed(manager):

@@ -127,12 +127,12 @@ async def build_opencode_mcp_config(
                     server.command,
                     *resolve_stdio_paths(server.command, server.args or []),
                 ],
-                "enabled": True,
+                "disabled": False,
             }
             if server.env:
                 config["environment"] = dict(server.env)
         elif server.transport in ("http", "sse") and server.url:
-            config = {"type": "remote", "url": server.url, "enabled": True}
+            config = {"type": "remote", "url": server.url, "disabled": False}
             if server.auth_header:
                 config["headers"] = {"Authorization": server.auth_header}
         else:
@@ -142,7 +142,7 @@ async def build_opencode_mcp_config(
         if selected is not None:
             tool_rules[f"{config_name}_*"] = False
             for tool_name in selected[server.id]:
-                tool_rules[f"{config_name}_{tool_name}"] = True
+                tool_rules[f"{config_name}_{_MCP_NAME_UNSAFE.sub(chr(95), tool_name)}"] = True
     return mcp, tool_rules
 
 

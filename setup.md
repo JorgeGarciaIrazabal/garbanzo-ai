@@ -280,3 +280,22 @@ third-party documentation is needed.
 [ ] just be-dev starts without errors
 [ ] just fe-run opens the app
 ```
+
+## OpenCode agent runtime
+
+Delegated workflows and micro-app agents require OpenCode **2.1.4**. Install
+with `just opencode-install` (Node/npm required), then run `just opencode-smoke`
+to verify the real server API, streamed text/tool progress and interruption
+against a local fake model. This smoke needs no model credentials. The installer removes an existing
+package-managed V1 `opencode-ai` before installing V2 to prevent binary conflicts. `MICROAPPS_OPENCODE_BIN` must resolve to the pinned V2 binary;
+the backend rejects other versions. The production Dockerfile pins the same
+`@opencode/cli` release.
+
+The runtime writes native V2 providers, ordered permissions, and `mcp.servers`
+configuration. V1 project settings remain supported by upstream; workflow
+permission maps and tool switches are converted without removing project denies.
+Each backend process generates its own private loopback API credential. SSE
+subscription must acknowledge `server.connected` before prompt submission, and
+only completion after the submitted inbox item is delivered ends the turn.
+See [upstream migration](https://opencode.ai/v2/docs/migrate-v1/) and
+[V2 API](https://opencode.ai/v2/docs/api).

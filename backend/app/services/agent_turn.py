@@ -155,7 +155,7 @@ def _heartbeat_chunk(elapsed: float, *, activity: str, iteration: int) -> ChatCh
 def stringify_tool_result(result: Any) -> str:
     """Coerce a tool-call result dict into a string suitable for persistence."""
     try:
-        return json.dumps(result, default=str)
+        return json.dumps(result, ensure_ascii=False, default=str)
     except Exception:
         return str(result)
 

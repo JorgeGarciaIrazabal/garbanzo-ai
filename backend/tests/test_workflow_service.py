@@ -431,7 +431,7 @@ def test_a_permissionless_project_config_gets_the_allow_envelope(tmp_path):
     import json
 
     from app.core.config import get_settings
-    from app.services.opencode_config import DEFAULT_PERMISSION
+    from app.services.opencode_config import DEFAULT_PERMISSION, permission_rules
     from app.services.workflow_runner import seed_opencode_config
 
     (tmp_path / "opencode.json").write_text('{"model": "theirs"}')
@@ -440,7 +440,7 @@ def test_a_permissionless_project_config_gets_the_allow_envelope(tmp_path):
 
     config = json.loads((tmp_path / "opencode.json").read_text())
     assert config["model"] == "theirs"  # everything else is kept
-    assert config["permission"] == DEFAULT_PERMISSION
+    assert config["permissions"] == permission_rules(DEFAULT_PERMISSION)
     assert _collect_changes(tmp_path) == []  # the injection is not a "change"
 
 
@@ -456,14 +456,15 @@ def test_a_project_config_with_its_own_permissions_is_respected(tmp_path):
     assert _collect_changes(tmp_path) == []
 
 
-def test_a_non_json_project_config_is_left_alone(tmp_path):
+def test_a_non_json_project_config_fails_explicitly(tmp_path):
     from app.core.config import get_settings
     from app.services.workflow_runner import seed_opencode_config
 
     jsonc = '{\n  // comment makes this JSONC\n  "model": "theirs"\n}'
     (tmp_path / "opencode.json").write_text(jsonc)
     _git_baseline(tmp_path)
-    seed_opencode_config(tmp_path, get_settings())
+    with pytest.raises(ValueError, match="readable JSON object"):
+        seed_opencode_config(tmp_path, get_settings())
 
     assert (tmp_path / "opencode.json").read_text() == jsonc
 

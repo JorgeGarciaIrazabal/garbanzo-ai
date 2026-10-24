@@ -68,13 +68,14 @@ def _service_with_provider(db_session, provider) -> ChatService:
 
 
 async def test_context_length_capped_by_settings(db_session):
-    service = _service_with_provider(db_session, _FixedContextProvider(131072))
-    assert await service._get_context_length("any-model") == Settings().llm_context_window
+    service = _service_with_provider(db_session, _FixedContextProvider(1_000_000))
+    assert await service._get_context_length("any-model") == 300_000
 
 
-async def test_context_length_uses_model_max_when_below_cap(db_session):
-    service = _service_with_provider(db_session, _FixedContextProvider(2048))
-    assert await service._get_context_length("any-model") == 2048
+@pytest.mark.parametrize("model_max", [2048, 131072, 262144])
+async def test_context_length_uses_model_max_when_below_cap(db_session, model_max):
+    service = _service_with_provider(db_session, _FixedContextProvider(model_max))
+    assert await service._get_context_length("any-model") == model_max
 
 
 async def test_context_length_falls_back_to_heuristic_when_unknown(db_session):
@@ -93,8 +94,11 @@ async def test_context_length_survives_provider_errors(db_session):
 # ============================================================================
 
 
-async def test_stream_sets_num_ctx_and_stamps_context_length(db_session, test_user_email):
-    provider = _FixedContextProvider(2048)
+@pytest.mark.parametrize("model_max, effective", [(2048, 2048), (1_000_000, 300_000)])
+async def test_stream_sets_num_ctx_and_stamps_context_length(
+    db_session, test_user_email, model_max, effective
+):
+    provider = _FixedContextProvider(model_max)
     service = _service_with_provider(db_session, provider)
     conv = await ConversationService(db_session).create(user_id=test_user_email, title="ctx test")
     conv.enabled_tools = []
@@ -105,11 +109,11 @@ async def test_stream_sets_num_ctx_and_stamps_context_length(db_session, test_us
         chunks.append(chunk)
 
     assert provider.last_options is not None
-    assert provider.last_options.num_ctx == 2048
+    assert provider.last_options.num_ctx == effective
 
     done = chunks[-1]
     assert done.is_finished
-    assert done.metadata["context_length"] == 2048
+    assert done.metadata["context_length"] == effective
 
 
 async def test_client_num_ctx_is_clamped_to_server_ceiling(db_session, test_user_email):

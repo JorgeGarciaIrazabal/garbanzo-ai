@@ -33,7 +33,46 @@ CLOUD_MODELS = (
 
 # Default envelope: opencode may edit files, run commands, and fetch. Callers
 # tighten this where the run is not user-confirmed.
-DEFAULT_PERMISSION = {"edit": "allow", "bash": "allow", "webfetch": "allow"}
+DEFAULT_PERMISSION = {
+    "edit": "allow",
+    "shell": "allow",
+    "webfetch": "allow",
+    "external_directory": "ask",
+}
+
+_PERMISSION_ACTIONS = {
+    "bash": "shell",
+    "task": "subagent",
+    "write": "edit",
+    "patch": "edit",
+    "apply_patch": "edit",
+}
+
+
+def permission_rules(permission: dict | str) -> list[dict[str, str]]:
+    """Translate V1 permission maps, retaining wildcard/resource rule order."""
+    if isinstance(permission, str):
+        return [{"action": "*", "resource": "*", "effect": permission}]
+    rules = []
+    for action, value in permission.items():
+        action = _PERMISSION_ACTIONS.get(action, action)
+        for resource, effect in value.items() if isinstance(value, dict) else [("*", value)]:
+            if effect not in ("allow", "deny", "ask"):
+                raise ValueError(f"Invalid OpenCode permission effect: {effect!r}")
+            rules.append({"action": action, "resource": resource, "effect": effect})
+    return rules
+
+
+def tool_permission_rules(tools: dict[str, bool]) -> list[dict[str, str]]:
+    """V2 tools are permissions; keep broad denies before exact allows."""
+    return [
+        {
+            "action": _PERMISSION_ACTIONS.get(name, name),
+            "resource": "*",
+            "effect": "allow" if enabled else "deny",
+        }
+        for name, enabled in tools.items()
+    ]
 
 
 def build_config(
@@ -46,27 +85,28 @@ def build_config(
 ) -> dict[str, Any]:
     """Build the opencode config dict for a working directory."""
     model = settings.microapps_opencode_model
-    bare_model = model.split("/", 1)[1] if "/" in model else model
+    bare_model = (model.split("/", 1)[1] if "/" in model else model).split("#", 1)[0]
     models = {name: {"name": name} for name in (bare_model, *CLOUD_MODELS)}
     config: dict[str, Any] = {
         "$schema": "https://opencode.ai/config.json",
-        "provider": {
+        "providers": {
             "ollama": {
-                "npm": "@ai-sdk/openai-compatible",
+                "package": "aisdk:@ai-sdk/openai-compatible",
                 "name": "Ollama (local)",
-                "options": {"baseURL": f"{settings.ollama_base_url.rstrip('/')}/v1"},
+                "settings": {"baseURL": f"{settings.ollama_base_url.rstrip('/')}/v1"},
                 "models": models,
             }
         },
         "model": model,
-        "permission": dict(permission or DEFAULT_PERMISSION),
+        "permissions": permission_rules(DEFAULT_PERMISSION if permission is None else permission),
+        "update": "disable",
     }
     if tools is not None:
-        config["tools"] = tools
+        config["permissions"].extend(tool_permission_rules(tools))
     if instructions is not None:
         config["instructions"] = instructions
     if mcp:
-        config["mcp"] = mcp
+        config["mcp"] = {"servers": mcp}
     return config
 
 

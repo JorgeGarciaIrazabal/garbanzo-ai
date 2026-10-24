@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     default_model: str = "deepseek-v4.1-flash:cloud"
     memory_extraction_model: str = "deepseek-v4.1-flash:cloud"
     scheduled_action_model: str = "deepseek-v4.1-flash:cloud"
-    llm_context_window: int = 100000  # min(model max, this) passed as num_ctx
+    llm_context_window: int = 300000  # min(model max, this) passed as num_ctx
     memory_token_budget: int = 4000  # dropped beyond budget, see docs/environment.md
     kb_token_budget: int = 8000
     memory_top_k: int = 20
@@ -120,7 +120,7 @@ class Settings(BaseSettings):
     # A delegated run is bounded by evidence of life, not by the clock: the
     # hard ceiling only exists so a run can never hold a snapshot and a port
     # forever, while the idle watchdog is what actually catches a wedged
-    # opencode. opencode emits ``server.heartbeat`` every ~10 s and we
+    # opencode. OpenCode 2 emits SSE heartbeat comments every ~15 s and we
     # forward it, so a healthy run keeps resetting the idle timer even while
     # the model is thinking or a tool is running long.
     workflow_max_run_seconds: int = Field(default=10800, gt=0)  # 3 hours

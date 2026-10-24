@@ -35,7 +35,13 @@ from app.models.workflow_run import WorkflowRun
 from app.services import workflow_watchers
 from app.services.mcp_service import build_opencode_mcp_config
 from app.services.microapp_agent import MicroappAgent
-from app.services.opencode_config import DEFAULT_PERMISSION, build_config, write_config
+from app.services.opencode_config import (
+    DEFAULT_PERMISSION,
+    build_config,
+    permission_rules,
+    tool_permission_rules,
+    write_config,
+)
 from app.services.opencode_process import default_spawn, pick_free_port, terminate, wait_ready
 from app.services.workflow_outputs import capture_outputs
 from app.services.workflow_service import (
@@ -71,7 +77,7 @@ async def _idle_watchdog(activity: dict[str, float], idle_timeout: float) -> Non
     """Fail the run when nothing has arrived for ``idle_timeout`` seconds.
 
     ``activity["at"]`` is refreshed on every chunk the agent stream produces —
-    including the heartbeat opencode emits every ~10 s — so this fires only on
+    including the heartbeat OpenCode 2 emits every ~15 s — so this fires only on
     genuine silence, never merely because a turn is long or a tool is slow.
     """
     while True:
@@ -337,26 +343,55 @@ def _ensure_permission_envelope(
     cfg_path = workdir / "opencode.json"
     try:
         config = json.loads(cfg_path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return  # unreadable or not plain JSON — leave the project's file alone
+    except (OSError, ValueError) as exc:
+        raise ValueError("Workflow opencode.json must be a readable JSON object") from exc
     if not isinstance(config, dict):
-        return
-    changed = False
-    if "permission" not in config:
-        config["permission"] = dict(DEFAULT_PERMISSION)
-        changed = True
-    if mcp:
-        existing_mcp = config.setdefault("mcp", {})
-        if isinstance(existing_mcp, dict):
-            existing_mcp.update(mcp)
-            changed = True
+        raise ValueError("Workflow opencode.json must be a JSON object")
+    # Native V2 rules take precedence over migrated V1 rules. Preserve the
+    # complete ordered project envelope, including resource-specific denies.
+    rules = tool_permission_rules(config.pop("tools", {}))
+    if "permission" in config:
+        rules.extend(permission_rules(config.pop("permission")))
+    elif "permissions" not in config:
+        # Injected defaults must not override explicit project tool denials.
+        rules = [*permission_rules(DEFAULT_PERMISSION), *rules]
+    native = config.get("permissions", [])
+    if not isinstance(native, list):
+        raise ValueError("OpenCode permissions must be an ordered list")
+    boundary = {"action": "external_directory", "resource": "*", "effect": "ask"}
+    config["permissions"] = [
+        *([] if boundary in native or boundary in rules else [boundary]),
+        *tool_permission_rules(tools or {}),
+        *rules,
+        *native,
+    ]
     if tools:
-        existing_tools = config.setdefault("tools", {})
-        if isinstance(existing_tools, dict):
-            existing_tools.update(tools)
-            changed = True
-    if not changed:
-        return
+        # Policies cap the tool allowance independently of project permission
+        # rules. An allow here never grants permission over a project deny.
+        config.setdefault("policies", []).extend(
+            {
+                "action": "tool.use",
+                "resource": f"{name}:*",
+                "effect": "allow" if enabled else "deny",
+            }
+            for name, enabled in tools.items()
+        )
+    if mcp:
+        existing = config.setdefault("mcp", {})
+        if not isinstance(existing, dict):
+            raise ValueError("OpenCode mcp config must be an object")
+        # V1 MCP entries are accepted by V2, but mcp.servers has native
+        # precedence. Move them together before injecting authorized servers.
+        if "servers" not in existing:
+            existing = {"servers": existing}
+            config["mcp"] = existing
+        servers = existing.setdefault("servers", {})
+        for server in servers.values():
+            if "enabled" in server:
+                server["disabled"] = not server.pop("enabled")
+            if isinstance(server.get("timeout"), int | float):
+                server["timeout"] = {"catalog": server["timeout"], "execution": server["timeout"]}
+        servers.update(mcp)
     cfg_path.write_text(json.dumps(config, indent=2), encoding="utf-8")
     absorb_into_baseline(workdir, ["opencode.json"])
 

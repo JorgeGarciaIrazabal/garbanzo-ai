@@ -16,6 +16,15 @@ expandable activity cards.
 The **Skills library** page lists every connected tool with its
 description; **Show schema** displays the exact parameters a tool accepts.
 
+## How does web research use chat context?
+Web search returns short source excerpts with titles and citation links. When
+more detail is needed, the assistant can fetch passages matching a focused
+query instead of adding an entire page to the conversation. Excerpts are source
+text, not generated summaries. Results indicate when content was omitted or no
+query terms matched; the assistant can refine its query or read further pages.
+Search returns up to 1,200 content characters per source; page fetching defaults
+to 6,000 characters and supports up to 12,000 per call.
+
 ## How do I control which tools a conversation may use?
 The conversation's tools setting defaults to **All tools**; you can restrict
 it to a subset or none. Room agents have the same per-agent setting.

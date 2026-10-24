@@ -1,8 +1,8 @@
 """Relay the headless opencode agent's event stream as ChatResponseChunks.
 
 Ported from ``garbanzo-books/ui/chat.py``: create (or continue) an opencode
-session, fire the prompt asynchronously, subscribe to the global ``/event``
-stream, and translate opencode's events into the same SSE chunk envelope the
+session, subscribe to the authenticated V2 ``/api/event`` stream, submit a
+durable inbox prompt, and translate opencode's events into the same SSE chunk envelope the
 Garbanzo chat endpoint uses, so the existing frontend parser handles them.
 
 The translator (``translate_event``) is a pure function over a small mutable
@@ -23,18 +23,14 @@ import httpx
 
 from app.core.config import Settings, get_settings
 from app.schemas.chat import ChatResponseChunk
+from app.services.opencode_process import OPENCODE_AUTH
 
 logger = logging.getLogger(__name__)
 
 # Wake the watchdog this often to distinguish "slowly generating" from "dead".
 _WATCHDOG_TIMEOUT = 30.0
 
-# opencode emits its own ``server.heartbeat`` on the /event bus every ~10 s,
-# verified against 1.18.30 (frames at 10/20/30/40/50 s during a busy turn).
-# We surface it as a heartbeat chunk instead of dropping it: it is the cheapest
-# honest liveness signal in the system, and it is what keeps a quiet turn from
-# looking wedged — or from tripping an idle timeout upstream.
-_HEARTBEAT_EVENT = "server.heartbeat"
+# V2 sends SSE heartbeat comments every 15s; the stream loop relays them.
 
 # Tool status ranks. opencode does NOT guarantee frame order — a ``completed``
 # frame was observed arriving *before* its own ``pending``/``running`` siblings,
@@ -55,6 +51,7 @@ _LABEL_INPUT_KEYS = (
     "pattern",
     "query",
     "url",
+    "code",
 )
 
 
@@ -63,7 +60,11 @@ class StreamState:
     """Per-turn mutable state threaded through ``translate_event``."""
 
     sid: str
-    role_by_msg: dict[str, str] = field(default_factory=dict)
+    prompt_id: str | None = None
+    prompt_delivered: bool = False
+    seen_events: set[str] = field(default_factory=set)
+    ended_text: set[str] = field(default_factory=set)
+    tool_inputs: dict[str, dict] = field(default_factory=dict)
     text_len: dict[str, int] = field(default_factory=dict)
     tool_started: set[str] = field(default_factory=set)
     tool_finished: set[str] = field(default_factory=set)
@@ -143,92 +144,146 @@ def heartbeat_chunk(state: StreamState, *, phase: str = "working") -> ChatRespon
 
 
 def translate_event(ev: dict, state: StreamState) -> list[ChatResponseChunk]:
-    """Translate one opencode event dict into zero or more ChatResponseChunks.
+    """Translate released V2 native events (``type`` + ``data``).
 
-    Event mapping:
-      - message.part.updated / text      → chunk (incremental delta)
-      - message.part.updated / reasoning → thinking (incremental delta)
-      - message.part.updated / tool      → tool_call (on start) + tool_execution
-        (status/title/duration as it runs) + tool_result (on completion/error)
-      - message.part.updated / step-start|step-finish → step counter (feeds the
-        heartbeat, and marks genuine forward progress)
-      - server.heartbeat                 → heartbeat (liveness only, every ~10 s)
-      - session.error                    → error (terminal)
-      - session.idle                     → done  (terminal, metadata.session_id)
-
-    Every branch that represents real forward progress should also refresh
-    ``last_activity`` — the heartbeat reports it so a client joining a quiet
-    stretch still sees what the agent last did.
+    Only execution completion after our own durable inbox delivery ends a turn;
+    a stale idle notification from an earlier turn cannot truncate this prompt.
+    Text terminal values reconcile any missed delta without duplicating output.
     """
-    out: list[ChatResponseChunk] = []
-    props = ev.get("properties", {}) or {}
-    part = props.get("part", {}) or {}
-    ev_sid = (
-        props.get("sessionID")
-        or part.get("sessionID")
-        or (props.get("info", {}) or {}).get("sessionID")
-    )
-    if ev_sid and ev_sid != state.sid:
-        return out  # a different session's event on the global stream
-
-    etype = ev.get("type")
-
-    if etype == _HEARTBEAT_EVENT:
-        # opencode's own liveness tick. Not filtered per-session above (it
-        # carries no sessionID) and not a "comment line" — it is a real event
-        # frame that used to be discarded, leaving long turns indistinguishable
-        # from a hung process. Forward it verbatim as a heartbeat.
-        return [heartbeat_chunk(state)]
-
-    if etype == "message.updated":
-        info = props.get("info", {}) or {}
-        if info.get("id"):
-            state.role_by_msg[info["id"]] = info.get("role")
-        return out
-
-    if etype == "message.part.updated":
-        role = state.role_by_msg.get(part.get("messageID"))
-        ptype = part.get("type")
-        pid = part.get("id") or ""
-
-        if ptype == "text" and part.get("text") and role != "user":
-            full = part["text"]
-            prev = state.text_len.get(pid, 0)
-            if len(full) > prev:
-                out.append(ChatResponseChunk(type="chunk", content=full[prev:]))
-                state.text_len[pid] = len(full)
-
-        elif ptype == "reasoning" and part.get("text") and role != "user":
-            full = part["text"]
-            prev = state.text_len.get(pid, 0)
-            if len(full) > prev:
-                out.append(ChatResponseChunk(type="thinking", content=full[prev:]))
-                state.text_len[pid] = len(full)
-
-        elif ptype in ("step-start", "step-finish"):
-            # Step boundaries are the agent's own notion of "a unit of work".
-            # Counting them gives the heartbeat a number that moves even when
-            # the model is thinking and no tool has run for minutes.
-            if ptype == "step-start":
-                state.steps += 1
-                out.append(heartbeat_chunk(state, phase="step"))
-
-        elif ptype == "tool":
-            out.extend(_translate_tool_part(part, pid, state))
-        return out
-
-    if etype == "session.error":
-        err = props.get("error")
-        out.append(ChatResponseChunk(type="error", error=str(err)[:500]))
+    if state.done:
+        return []
+    data = ev.get("data") or {}
+    etype = ev.get("type", "")
+    event_sid = data.get("sessionID") or (data.get("form") or {}).get("sessionID")
+    if event_sid != state.sid:
+        return []
+    event_id = ev.get("id")
+    if event_id:
+        if event_id in state.seen_events:
+            return []
+        state.seen_events.add(event_id)
+    if etype == "session.inbox.delivered":
+        if data.get("inboxID") == state.prompt_id:
+            state.prompt_delivered = True
+        return []
+    if state.prompt_id and not state.prompt_delivered:
+        return []
+    if etype == "session.step.started":
+        state.steps += 1
+        return [heartbeat_chunk(state, phase="step")]
+    for kind, chunk_type in (("text", "chunk"), ("reasoning", "thinking")):
+        if etype in (f"session.{kind}.delta", f"session.{kind}.ended"):
+            key = f"{kind}:{data['assistantMessageID']}:{data['ordinal']}"
+            if key in state.ended_text:
+                return []
+            previous = state.text_len.get(key, 0)
+            if etype.endswith(".ended"):
+                text = data["text"][previous:]
+                state.ended_text.add(key)
+            else:
+                text = data["delta"]
+            state.text_len[key] = previous + len(text)
+            return [ChatResponseChunk(type=chunk_type, content=text)] if text else []
+    if etype.startswith("session.tool."):
+        call_id = data["id"]
+        if call_id in state.tool_finished:
+            return []
+        if etype == "session.tool.input.started":
+            state.tool_name[call_id] = data["name"]
+            return []
+        if etype == "session.tool.input.ended":
+            try:
+                parsed = json.loads(data["text"])
+            except json.JSONDecodeError:
+                # V2 reports malformed model arguments before its authoritative
+                # failed-tool event. Relay that outcome and allow model recovery.
+                logger.debug("Non-JSON tool input for %s; awaiting tool outcome", call_id)
+                return []
+            if isinstance(parsed, dict):
+                state.tool_inputs[call_id] = parsed
+            return []
+        statuses = {
+            "session.tool.called": "running",
+            "session.tool.progress": "running",
+            "session.tool.success": "completed",
+            "session.tool.failed": "error",
+        }
+        status = statuses.get(etype)
+        if status is None:
+            return []
+        if data.get("input") is not None:
+            state.tool_inputs[call_id] = data["input"]
+        metadata = data.get("metadata") or {}
+        title = metadata.get("title")
+        nested = metadata.get("toolCalls") or []
+        if not title and nested:
+            active = next(
+                (call for call in reversed(nested) if call.get("status") == "running"), nested[-1]
+            )
+            title = describe_tool(
+                active.get("tool", "tool"), {"input": active.get("input", {})}
+            ) or active.get("tool")
+        if status == "completed" and metadata.get("error"):
+            status = "error"
+        old_label = state.tool_label.get(call_id)
+        text_content = "\n".join(
+            item["text"] for item in data.get("content", []) if item.get("type") == "text"
+        )
+        tool_state = {
+            "status": status,
+            "input": state.tool_inputs.get(call_id, {}),
+            "title": title,
+            "output": text_content,
+            "time": {
+                "start": state.tool_started_at.get(call_id, ev.get("created")),
+                "end": ev.get("created"),
+            },
+        }
+        if status == "error":
+            tool_state["error"] = (data.get("error") or {}).get("message", "Tool failed")
+            tool_state["output"] = text_content or tool_state["error"]
+        chunks = _translate_tool_part(
+            {
+                "id": call_id,
+                "callID": call_id,
+                "tool": state.tool_name.get(call_id, "tool"),
+                "state": tool_state,
+            },
+            call_id,
+            state,
+        )
+        if etype == "session.tool.progress" and title and title != old_label:
+            chunks.append(
+                ChatResponseChunk(
+                    type="tool_execution",
+                    metadata={
+                        "tool_execution": {
+                            "tool_call_id": call_id,
+                            "tool_name": state.tool_name.get(call_id, "tool"),
+                            "status": "started",
+                            "title": title,
+                        }
+                    },
+                )
+            )
+        return chunks
+    if etype in ("permission.asked", "form.created"):
         state.done = True
-        return out
-
-    if etype == "session.idle":
-        out.append(ChatResponseChunk(type="done", metadata={"session_id": state.sid}))
+        return [
+            ChatResponseChunk(
+                type="error", error="Agent requires interactive approval; this run cannot continue."
+            )
+        ]
+    if etype in ("session.execution.failed", "session.execution.interrupted"):
         state.done = True
-        return out
-
-    return out
+        error = (data.get("error") or {}).get(
+            "message"
+        ) or f"Agent interrupted: {data.get('reason', 'unknown')}"
+        return [ChatResponseChunk(type="error", error=error[:500])]
+    if etype == "session.execution.succeeded":
+        state.done = True
+        return [ChatResponseChunk(type="done", metadata={"session_id": state.sid})]
+    return []
 
 
 def _translate_tool_part(part: dict, pid: str, state: StreamState) -> list[ChatResponseChunk]:
@@ -254,6 +309,8 @@ def _translate_tool_part(part: dict, pid: str, state: StreamState) -> list[ChatR
 
     rank = _TOOL_STATUS_RANK.get(status, -1)
     seen_rank = state.tool_rank.get(call_id, -1)
+    if rank < seen_rank:
+        return []
 
     # ``time.start`` only appears on the running/completed frames — the initial
     # pending frame carries ``time: None`` — so keep watching for it instead of
@@ -404,65 +461,90 @@ class MicroappAgent:
             return
 
         model = self._settings.microapps_opencode_model
-        provider_id, model_id = (model.split("/", 1) + [model])[:2]
+        provider_id, model_id = model.split("/", 1)
+        model_id, separator, variant = model_id.partition("#")
+        model_ref = {"providerID": provider_id, "id": model_id}
+        if separator:
+            model_ref["variant"] = variant
 
-        async with httpx.AsyncClient(base_url=base, timeout=None) as client:
+        async with httpx.AsyncClient(base_url=base, timeout=None, auth=OPENCODE_AUTH) as client:
             sid = session_id
             try:
                 if not sid:
-                    resp = await client.post("/session", json={"title": instruction[:60]})
-                    sid = resp.json()["id"]
-                yield ChatResponseChunk(type="session", metadata={"session_id": sid})
-
-                state = StreamState(sid=sid)
-                async with client.stream("GET", "/event", timeout=None) as es:
-                    await client.post(
-                        f"/session/{sid}/prompt_async",
-                        json={
-                            "model": {"providerID": provider_id, "modelID": model_id},
-                            "parts": [{"type": "text", "text": instruction}],
-                        },
+                    resp = await client.post(
+                        "/api/session", json={"title": instruction[:60], "model": model_ref}
                     )
+                    resp.raise_for_status()
+                    sid = resp.json()["data"]["id"]
+                else:
+                    resp = await client.post(f"/api/session/{sid}/model", json={"model": model_ref})
+                    resp.raise_for_status()
+                yield ChatResponseChunk(type="session", metadata={"session_id": sid})
+                state = StreamState(sid=sid)
+                async with client.stream("GET", "/api/event", timeout=None) as es:
+                    es.raise_for_status()
                     lines = es.aiter_lines()
                     buffer: list[str] = []
-                    while True:
-                        try:
-                            line = await asyncio.wait_for(anext(lines), timeout=_WATCHDOG_TIMEOUT)
-                        except TimeoutError:
-                            # Nothing on the bus for 30 s. opencode's own
-                            # heartbeat normally arrives every ~10 s, so a gap
-                            # this long means either a stalled socket or a dead
-                            # process. Probe /config to tell them apart — and if
-                            # it answers, emit a heartbeat rather than staying
-                            # silent, so the caller's idle watchdog can see that
-                            # the process is alive even though the bus is quiet.
-                            try:
-                                await client.get("/config", timeout=5.0)
-                            except Exception:  # noqa: BLE001
-                                yield ChatResponseChunk(
-                                    type="error",
-                                    error="Agent stopped responding (opencode crashed).",
-                                )
+                    # Opening the response is insufficient: server.connected is
+                    # emitted only once the live subscription is installed.
+                    async with asyncio.timeout(_WATCHDOG_TIMEOUT):
+                        async for line in lines:
+                            if any(
+                                json.loads(payload).get("type") == "server.connected"
+                                for payload in _iter_sse_data(line, buffer)
+                            ):
                                 break
-                            yield heartbeat_chunk(state, phase="quiet")
-                            continue
-                        except (StopAsyncIteration, httpx.ReadError):
-                            break
-
+                        else:
+                            raise RuntimeError("Agent event stream closed before subscription")
+                    resp = await client.post(
+                        f"/api/session/{sid}/prompt", json={"text": instruction}
+                    )
+                    resp.raise_for_status()
+                    state.prompt_id = resp.json()["data"]["id"]
+                    failed = False
+                    while not state.done:
+                        # Keep one pending read across watchdog ticks: cancelling
+                        # anext() on timeout would close the underlying stream.
+                        read = asyncio.create_task(anext(lines))
+                        try:
+                            while True:
+                                try:
+                                    line = await asyncio.wait_for(
+                                        asyncio.shield(read), timeout=_WATCHDOG_TIMEOUT
+                                    )
+                                    break
+                                except TimeoutError:
+                                    health = await client.get("/api/info", timeout=5.0)
+                                    health.raise_for_status()
+                                    yield heartbeat_chunk(state, phase="quiet")
+                        except StopAsyncIteration as exc:
+                            raise RuntimeError(
+                                "Agent event stream disconnected before completion."
+                            ) from exc
+                        finally:
+                            if not read.done():
+                                read.cancel()
+                                await asyncio.gather(read, return_exceptions=True)
+                        if line.startswith(":"):
+                            yield heartbeat_chunk(state)
                         for payload in _iter_sse_data(line, buffer):
-                            try:
-                                ev = json.loads(payload)
-                            except (json.JSONDecodeError, ValueError):
-                                continue
-                            for chunk in translate_event(ev, state):
+                            for chunk in translate_event(json.loads(payload), state):
+                                failed = failed or chunk.type == "error"
                                 yield chunk
-                        if state.done:
-                            break
-                if not state.done:
-                    yield ChatResponseChunk(type="done", metadata={"session_id": sid})
+                    if failed:
+                        await self.abort(workspace, sid)
+            except asyncio.CancelledError:
+                if sid:
+                    await self.abort(workspace, sid)
+                raise
             except Exception as exc:  # noqa: BLE001
                 logger.exception("microapp agent stream failed")
-                yield ChatResponseChunk(type="error", error=str(exc)[:500])
+                if sid:
+                    await self.abort(workspace, sid)
+                yield ChatResponseChunk(
+                    type="error",
+                    error=str(exc)[:500] or "Agent event stream disconnected before completion.",
+                )
                 yield ChatResponseChunk(type="done", metadata={"session_id": sid})
 
     async def abort(self, workspace, session_id: str) -> bool:
@@ -471,8 +553,8 @@ class MicroappAgent:
         if not base:
             return False
         try:
-            async with httpx.AsyncClient(base_url=base, timeout=10.0) as client:
-                resp = await client.post(f"/session/{session_id}/abort")
+            async with httpx.AsyncClient(base_url=base, timeout=10.0, auth=OPENCODE_AUTH) as client:
+                resp = await client.post(f"/api/session/{session_id}/interrupt")
                 return resp.status_code < 400
         except Exception:  # noqa: BLE001
             return False

@@ -182,6 +182,21 @@ dev-deps-user:
     printf 'Local libraries: %s/root/usr/lib/%s\n' "$native_root" "$(dpkg-architecture -qDEB_HOST_MULTIARCH)"
 
 
+# Install the application agent runtime (V2 server API is pinned to this release).
+opencode-install:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if npm ls --global opencode-ai --parseable >/dev/null 2>&1; then
+        npm uninstall --global opencode-ai
+    fi
+    npm install --global --allow-scripts=@opencode/cli @opencode/cli@2.1.4
+    test "$(opencode --version)" = "opencode v2.1.4"
+
+# Exercise the real pinned server with a local fake model; no model credentials.
+opencode-smoke:
+    cd backend; PYTHONPATH=. uv run --extra dev python ../scripts/opencode_smoke.py
+
+
 opencode:
 	ollama launch opencode --model deepseek-v4.1-flash:cloud --yes
 

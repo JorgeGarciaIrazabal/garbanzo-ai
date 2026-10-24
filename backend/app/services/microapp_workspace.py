@@ -255,14 +255,10 @@ class MicroappWorkspaceManager:
             # supply the structure. Smaller/cloud models otherwise waste turns on
             # malformed todowrite calls, whose schema errors leak into the SSE
             # stream the Flutter agent rail renders.
-            tools={"todowrite": False, "todoread": False},
+            tools={"todowrite": False, "todoread": False, **(ws.mcp_tool_rules or {})},
             instructions=["CLAUDE.md", "AGENTS.md"],
             mcp=ws.mcp_servers,
         )
-        if ws.mcp_tool_rules:
-            merged = dict(config.get("tools") or {})
-            merged.update(ws.mcp_tool_rules)
-            config["tools"] = merged
         write_opencode_config(ws.path, config, overwrite=True)
 
     # -- subprocesses -------------------------------------------------------
@@ -291,7 +287,7 @@ class MicroappWorkspaceManager:
         self._start_dev_server(ws)
 
     def _wait_opencode_ready(self, base: str, proc: subprocess.Popen) -> bool:
-        """Poll opencode ``/config`` until ready. Injectable-friendly (sync)."""
+        """Poll OpenCode 2's authenticated ``/api/info`` until ready."""
         return wait_opencode_ready(base, proc)
 
     @staticmethod

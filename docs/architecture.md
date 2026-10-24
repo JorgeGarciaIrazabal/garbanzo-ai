@@ -6,6 +6,56 @@ package-local conventions see `backend/AGENTS.md`, `lib/AGENTS.md`,
 change layouts, flows, or services (see "Maintaining agent docs" in the root
 `AGENTS.md`).
 
+## Chat context and web research
+
+`resolve_context_length` applies `min(model maximum, LLM_CONTEXT_WINDOW)`, with a
+default server ceiling of 300,000 tokens for the complete context. The same
+effective window drives Ollama `num_ctx`, summarization triggers and the usage
+indicator. Smaller models retain their supported window.
+
+The standalone `mcp_stdio_servers/web_search.py` reduces web payloads before
+they reach MCP consumers, chat persistence or subsequent model calls. Search
+returns at most five sources (three by default), deduplicated by URL, with
+1,200 content characters each. Query-term ranking selects literal source
+passages across the full returned text, weighting rare terms; it makes no
+additional model call. Titles, source URLs, original character counts and
+explicit truncation/match flags remain available. `web_fetch` accepts a query
+for focused passages, or an offset for sequential retrieval; its default
+content budget is 6,000 characters, capped at 12,000. Sequential retrieval keeps
+ten links and a `next_offset` cursor. Provider errors propagate. The generic
+`TOOL_RESULT_MAX_CHARS` cap remains a final guard for all other tool results.
+Tool-result JSON preserves Unicode characters directly, avoiding escape expansion
+that could otherwise discard a web page's continuation cursor at that guard.
+
+## OpenCode runtime
+
+Micro-apps and delegated workflows use the pinned `@opencode/cli@2.1.4`
+runtime. `just opencode-install` replaces the legacy npm CLI; Docker installs
+the same release. The shared process launcher rejects other binary versions,
+binds the server to loopback and supplies a random backend-lifetime Basic auth
+credential. Readiness checks authenticated `GET /api/info`, HTTP status and
+the server version. Process-group cleanup and parent-death handling are shared.
+
+`MicroappAgent` creates sessions with `POST /api/session`, subscribes to
+`GET /api/event` and waits for `server.connected` before submitting a durable
+inbox prompt to `/api/session/{id}/prompt`. Native events carry a `data` payload.
+Only execution completion after delivery of this prompt's inbox item ends its
+turn; stale events cannot prematurely complete a new request. Text/reasoning
+deltas, terminal text, tool progress and execution failures map to the existing
+Garbanzo chunks. SSE heartbeat comments keep the liveness signal active.
+Cancellation uses `/api/session/{id}/interrupt`; interactive permission or form
+requests fail visibly for unattended runs. `just opencode-smoke` exercises a
+real pinned server against a local model stub, including active interruption.
+
+Generated config uses native `providers`, ordered `permissions` and
+`mcp.servers`. Project permission rules retain precedence; policy rules
+independently cap MCP access to the conversation's allowance. Legacy project
+permission/tool/MCP fields are translated when injected, while existing model
+and provider settings are preserved. Invalid project JSON fails explicitly.
+The V1 external-directory approval boundary is retained in V2, which otherwise
+allows outside-directory access by default. Configuration follows the
+[upstream migration guide](https://opencode.ai/v2/docs/migrate-v1/).
+
 ## Persistent virtual folders
 
 `/folders` is a private file browser available through Settings pages, the
@@ -587,8 +637,8 @@ Long runs must never be silent, so the client can tell "still working" from
 - **`heartbeat`** carries `{schema_version, phase, elapsed_s, steps,
   tools_completed, tools_running, activity}` and **no content** — it is never
   persisted and can never be mistaken for part of the answer. Two sources feed
-  it: opencode's own `server.heartbeat` (every ~10 s on its `/event` bus, which
-  the agent relay forwards), and the chat turn engine's own ticker, raced
+  it: OpenCode 2's SSE heartbeat comments (every ~15 s on its session event
+  stream, which the agent relay forwards), and the chat turn engine's own ticker, raced
   against provider reads and long tool calls so a slow model or a minutes-long
   tool still reports life.
 - **`tool_execution`** reports a tool's status transitions

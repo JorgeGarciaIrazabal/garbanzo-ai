@@ -1,5 +1,11 @@
 # Chat
 
+## How much context can a chat use?
+The server allows up to 300,000 tokens in total for instructions, conversation
+history, tool results and the generated response. Models with smaller context
+windows use their supported maximum. The context indicator shows the effective
+window for your model; your administrator can configure a different ceiling.
+
 ## How do I start a new conversation?
 Press **New Chat** at the top of the conversation list (the left sidebar on
 desktop, the drawer on mobile).

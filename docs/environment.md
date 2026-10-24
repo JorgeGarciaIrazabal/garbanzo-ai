@@ -13,6 +13,9 @@ OLLAMA_BASE_URL=http://localhost:11434   # host.docker.internal when in Docker
 DEFAULT_MODEL=deepseek-v4.1-flash:cloud        # multimodal chats and general internal calls
 MEMORY_EXTRACTION_MODEL=deepseek-v4.1-flash:cloud    # daily automatic memory extraction
 SCHEDULED_ACTION_MODEL=deepseek-v4.1-flash:cloud     # scheduled actions without an explicit model
+LLM_CONTEXT_WINDOW=300000    # total context: prompt, history, tools and generated response;
+                              # clamped to the model's supported maximum
+TOOL_RESULT_MAX_CHARS=32000  # generic per-result persistence/model cap; web tools use smaller excerpts
 
 # Primary-chat topic context: realtime provisional + hourly deterministic manifest + optional 1-call/user curator (never per-topic). Threads use legacy.
 TOPIC_CONTEXT_ENABLED=true
@@ -103,7 +106,7 @@ GITHUB_REPO=JorgeGarciaIrazabal/garbanzo-ai  # owner/name whose Releases feed
 ROOM_AUTO_JUDGE_MODEL=deepseek-v4.1-flash:cloud
 
 # Delegated workflow runs (idea 18). A run is bounded by evidence of life
-# rather than by the clock: opencode emits server.heartbeat every ~10 s and the
+# rather than by the clock: OpenCode 2 emits SSE heartbeat comments every ~15 s and the
 # runner forwards it, so a healthy run keeps resetting the idle timer even while
 # the model is thinking or a tool is running long. The ceiling is only a
 # backstop so a run can't hold a snapshot (and a port) forever.
@@ -121,8 +124,6 @@ MICROAPPS_OPENCODE_MODEL=ollama/deepseek-v4.1-flash:cloud
 #   MICROAPPS_GIT_URL      — clone URL; also enables the periodic sync job
 #   MICROAPPS_PROXY_MODE   — serve the panel via the backend /micro-apps proxy
 # Deploy-script-only (read from deploy/.env by scripts/deploy.sh on the host):
-#   CHANGELOG_OPENCODE_MODEL — opencode model that writes CHANGELOG.md on deploy
-#                              (unset → opencode's own default; `opencode models`)
 #   ANDROID_KEYSTORE_PATH / ANDROID_KEYSTORE_ALIAS
 #   ANDROID_KEYSTORE_PASSWORD / ANDROID_KEY_PASSWORD
 #       — permanent local APK signing, generated once by

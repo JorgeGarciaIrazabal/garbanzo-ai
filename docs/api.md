@@ -127,6 +127,15 @@ CRUD only sees/touches global servers (404 on personal ones); `mcp/servers` CRUD
 only sees/touches the caller's own. `GET /mcp/tools` returns global + the
 caller's personal tools; rooms get global-only.
 
+The bundled Ollama MCP tools return bounded source content: `web_search(query,
+max_results=3)` accepts 1–5 results with up to 1,200 content characters each.
+`web_fetch(url, query="", max_chars=6000, offset=0)` returns query-matched
+passages, or sequential pages when query is empty. `max_chars` accepts
+500–12,000; `offset` is nonnegative and only used without a query. Results
+retain citation URLs, original character counts and explicit truncation flags.
+Query mode reports `query_matched`; page mode returns `next_offset` (null at
+the end) and at most ten links. These schemas are exposed by `GET /mcp/tools`.
+
 **Delegated workflows (idea 18).** Folder lives only on desktop (idea 17); run works on server snapshot uploaded by client, opencode edits copy, diff is auto-applied — no review gate (`/start` is detached, survives client close, summary → assistant message + FCM). Paths forced inside snapshot (400 on `..`/abs/symlink), `workdir` never serialized, `/changes` returns `base_sha256` for conflict check. Research mode (`scope.mode=research`): no upload/diff, git-init workdir, MCP allowance from conversation, summary → `/output`; leading `/agent` forces it. `POST /workflows` copies attachments to `.garbanzo-workflow-inputs/` (5 MB/file, 50 MB/run, Unicode-safe) — reserved dir excluded from snapshot/diff.
 
 ### Topic thread creation and legacy topic switching

@@ -36,9 +36,10 @@ cloud tags installed. Beam, Muse Spark Open, and Mistral Large 4 are absent.
 An installed tag or public listing does not prove an inference request will
 succeed with the current account.
 
-The live `llm_context_window` cap is **100,000 tokens**. The application uses
-the smaller of that cap and model metadata. Advertised 1M windows therefore
-do not distinguish these candidates for current Garbanzo conversations.
+At this October 17 review, the live `llm_context_window` cap was **100,000
+tokens**. The application uses the smaller of that cap and model metadata.
+Advertised 1M windows therefore did not distinguish candidates in this review.
+The current default is 300,000 tokens; see [environment.md](environment.md).
 
 ## Full catalog comparison
 
