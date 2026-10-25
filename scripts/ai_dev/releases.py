@@ -9,6 +9,8 @@ from pathlib import Path
 
 from .common import environment, local_dir, run, write_json
 
+DEPLOYMENT_CODEX_MODEL = "gpt-6-luna"
+
 
 def fallback(subjects: list[str]) -> str:
     entries = []
@@ -45,6 +47,12 @@ def changelog(root: Path, version: str, revision: str, *, use_model: bool = True
     notes = fallback(subjects)
     method = "deterministic"
     if use_model:
+        requested_model = os.getenv("CHANGELOG_CODEX_MODEL")
+        if requested_model and requested_model != DEPLOYMENT_CODEX_MODEL:
+            raise ValueError(
+                f"Deployment Codex model is pinned to {DEPLOYMENT_CODEX_MODEL}; "
+                "remove the conflicting CHANGELOG_CODEX_MODEL override"
+            )
         output = local_dir(root) / "release-notes.txt"
         output.unlink(missing_ok=True)
         prompt = (
@@ -65,7 +73,7 @@ def changelog(root: Path, version: str, revision: str, *, use_model: bool = True
                     "--sandbox",
                     "read-only",
                     "--model",
-                    os.getenv("CHANGELOG_CODEX_MODEL", "gpt-5.6-terra"),
+                    DEPLOYMENT_CODEX_MODEL,
                     "--output-last-message",
                     str(output),
                     "-",

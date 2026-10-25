@@ -5,6 +5,10 @@ description: Prepare and execute explicitly requested releases and report-specif
 
 Read deploy/AGENTS.md and deploy/README.md. Deploy only when requested; preserve
 signing keys, versioning, annotated tags, explicit just deploy and desktop assets.
+Run deployment orchestration only with GPT-6 Luna. If the active model is not
+`gpt-6-luna`, stop before `just deploy` and have the deployment request handled
+in a Luna session; start one with `just ai --model gpt-6-luna --effort medium`.
+The release-note Codex subprocess is pinned to the same model.
 Use the sequential procedure below; routine deployment is execution, not a new
 investigation. Use one writer lock with
 integration; never package uncommitted source accidentally. Release evidence

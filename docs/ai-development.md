@@ -232,8 +232,10 @@ and preserves signing, versioning, tags and desktop release behavior. The Docker
 image records its exact source SHA. The later version-bump commit is recorded
 separately in private deployment evidence. Codex changelog generation sees commit
 subjects and stable `Report-ID` associations, with a deterministic fallback.
-Raw production reports are not sent to the changelog model. Optional override:
-`CHANGELOG_CODEX_MODEL`. Deploy success does not automatically close reports.
+Raw production reports are not sent to the changelog model. Release-note
+generation is pinned to `gpt-6-luna`; a conflicting `CHANGELOG_CODEX_MODEL`
+override fails preflight before production changes. Run deployment orchestration
+from a GPT-6 Luna session. Deploy success does not automatically close reports.
 
 The changelog and deployment-evidence steps run *after* the stack is live and the
 tag is pushed, so a failure there leaves a shipped release with a fallback

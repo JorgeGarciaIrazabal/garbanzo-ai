@@ -24,6 +24,8 @@ step() { echo ""; echo "==> $*"; }
 # --- Preflight ---------------------------------------------------------------
 [[ -f "$ENV_FILE" ]] || die "deploy/.env missing — cp deploy/.env.example deploy/.env and fill it in"
 prod_config "$REPO"
+[[ -z "${CHANGELOG_CODEX_MODEL:-}" || "$CHANGELOG_CODEX_MODEL" == "gpt-6-luna" ]] \
+    || die "deployment Codex model is pinned to gpt-6-luna; remove the conflicting CHANGELOG_CODEX_MODEL override"
 STT_DEVICE="${STT_DEVICE:-cpu}"
 TTS_DEVICE="${TTS_DEVICE:-cpu}"
 GITHUB_REPO="${GITHUB_REPO:-JorgeGarciaIrazabal/garbanzo-ai}"
