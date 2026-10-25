@@ -49,6 +49,7 @@ just test            # all unit tests (individually: be-test / fe-test)
                      #          just fe-test test/path/widget_test.dart
 just docker-up       # Postgres + Whisper (docker-up-db: Postgres only)
 just deploy          # ship local main → web + backend image + prod stack + APK
+just ai-deploy       # start a deployment request with GPT-6 Luna at medium effort
 just ai-setup --install --migrate # install/check the Codex development tools
 just ai              # guided development with local startup
 just ai-startup --full # explicitly collect production and provider context

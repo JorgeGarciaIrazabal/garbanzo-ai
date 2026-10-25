@@ -621,6 +621,11 @@ claude-ollama model="qwen3.8:27b":
 ai *args:
     @python3 -m scripts.ai_dev guided "$@"
 
+# Start deployment work in its required GPT-6 Luna session.
+[positional-arguments]
+ai-deploy *args:
+    @python3 -m scripts.ai_dev guided --model gpt-6-luna --effort medium "$@"
+
 [positional-arguments]
 ai-setup *args:
     @python3 -m scripts.ai_dev setup "$@"

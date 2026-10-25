@@ -66,6 +66,11 @@ reports and capacity evidence. Scheduled overnight collection remains unchanged,
 and production collection remains available on request. Investigation
 and review questions receive answers directly; implementation needs user intent.
 
+Start deployment requests with `just ai-deploy [request]`. This launches Codex
+with `gpt-6-luna` at `medium` effort regardless of the general project model
+default. The release workflow requires a Luna session and its changelog
+subprocess is separately pinned to that model.
+
 Keep work in one session by default. Use Terra for routine implementation, Luna
 for narrow exploration, Sol for substantive review, and Astra for substantial
 design or architecture/security review. Delegate only substantial independent
