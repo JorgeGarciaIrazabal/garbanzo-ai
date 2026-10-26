@@ -3,6 +3,29 @@ import 'package:garbanzo_ai/features/chat/models/chat_message.dart';
 import 'package:garbanzo_ai/features/chat/providers/read_aloud_auto_play_tracker.dart';
 
 void main() {
+  test('visual auto-play uses summary and waits for its persisted ID', () {
+    final tracker = ReadAloudAutoPlayTracker();
+    ChatMessage visual(String id, {bool nested = false}) {
+      final meta = <String, dynamic>{'tool_call_id': 'visual', 'tool_name': 'render_ui', 'result': {
+        'ok': true, 'presentation': {'summary': 'Three tasks are complete.'},
+      }};
+      return ChatMessage(id: id, role: 'tool_result', content: 'render_ui',
+        createdAt: DateTime(2026), metadata: nested ? {'tool_result': meta} : meta);
+    }
+    final live = visual('temp-tool-result-visual', nested: true);
+    final saved = visual('saved-visual');
+    final placeholder = ChatMessage(id: 'temp-placeholder', role: 'assistant',
+      content: '', createdAt: DateTime(2026));
+    ChatMessage? observe(bool sending, List<ChatMessage> messages) => tracker.observe(
+      sending: sending, conversationId: 'thread', messages: messages, hasError: false,
+    );
+    expect(observe(true, []), isNull);
+    expect(observe(false, [live, placeholder]), isNull);
+    expect(observe(false, [saved])?.id, saved.id);
+    expect(readableReplyContent(live), 'Three tasks are complete.');
+    expect(readableReplyContent(saved), readableReplyContent(live));
+    expect(observe(false, [saved]), isNull);
+  });
   test('auto-play waits for the newly completed reply to have a stable ID', () {
     final tracker = ReadAloudAutoPlayTracker();
     ChatMessage reply(String id, String content) => ChatMessage(

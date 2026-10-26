@@ -61,7 +61,10 @@ provider map, chat/SSE flow, rooms WebSocket) and `../docs/api.md` (endpoints).
 - Generated `render_ui` results are answer content: keep them outside
   `ChatPage`'s collapsible tool-activity groups, like proposal cards. The shared
   catalog lives in `backend/app/schemas/visual_ui_catalog.json` and is bundled
-  as a Flutter asset. Update validation and rendering together.
+  as a Flutter asset. Update validation and rendering together. A successful
+  visual-only batch ends the turn without an assistant text message; speech
+  consumers must use the presentation summary, including before history reload.
+  Responsive layouts use surface constraints and text scale, not device width.
 - GenUI error messages contain `DataPart` values exposed through the
   `uiInteractionParts` view helper, not runtime `UiInteractionPart` instances.
   Catalog widget tests evict the asset's cached `rootBundle` future between

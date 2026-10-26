@@ -211,11 +211,38 @@ async def test_sse_framing_and_event_sequence(db_session):
         _clear_overrides()
 
 
-async def test_detached_turn_finishes_after_sse_consumer_disconnect(db_session):
+@pytest.mark.parametrize("visual", [False, True])
+async def test_detached_turn_finishes_after_sse_consumer_disconnect(
+    db_session, visual, monkeypatch
+):
     """Losing Android's response socket must not cancel model generation."""
     from app.api.v1.endpoints.chat import _sse_stream
 
     provider = _GatedProvider()
+    if visual:
+
+        async def stream_visual(*args, **kwargs):
+            yield ChatChunk(content="partial ")
+            await provider.finish.wait()
+            yield ChatChunk(
+                content="",
+                tool_calls=[
+                    {
+                        "id": "visual",
+                        "name": "render_ui",
+                        "arguments": {
+                            "summary": "Visual response ready",
+                            "surface_id": "answer",
+                            "components": [
+                                {"id": "root", "component": "Text", "text": "Visual response ready"}
+                            ],
+                        },
+                    }
+                ],
+            )
+            yield ChatChunk(content="", is_finished=True)
+
+        monkeypatch.setattr(provider, "stream_chat", stream_visual)
     ProviderRegistry.register(provider)
     conv_id = await _make_conversation(db_session)
     pushed: list[str] = []
@@ -255,8 +282,12 @@ async def test_detached_turn_finishes_after_sse_consumer_disconnect(db_session):
     ).scalars()
     history = [(message.role, message.content) for message in rows]
 
-    assert history == [("user", "hi"), ("assistant", "partial response")]
-    assert pushed == ["partial response"]
+    if visual:
+        assert history[-1] == ("tool_result", "Visual response ready")
+        assert pushed == ["partial \n\nVisual response ready"]
+    else:
+        assert history == [("user", "hi"), ("assistant", "partial response")]
+        assert pushed == ["partial response"]
 
 
 async def test_client_tool_request_chunk_serializes_with_its_type():

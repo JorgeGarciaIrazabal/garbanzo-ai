@@ -100,6 +100,38 @@ Future<ChatProvider> _providerWithOpenConversation(
 
 void main() {
   group('ChatProvider streaming channel', () {
+    for (final followUp in [false, true]) {
+      test('visual-only reply ends recovery for ${followUp ? 'follow-up' : 'connection loss'}', () async {
+        final service = _FakeChatService();
+        ChatMessage visual(String id) => ChatMessage(
+          id: id, role: 'tool_result', content: 'Visual summary',
+          createdAt: DateTime.utc(2026), metadata: {
+            'tool_call_id': id, 'tool_name': 'render_ui',
+            'result': {'ok': true, 'presentation': {'summary': 'Visual summary'}},
+          },
+        );
+        final old = visual('old-visual');
+        service.reloadedConversation = service._conversation.copyWith(messages: [old]);
+        final provider = await _providerWithOpenConversation(service,
+          recoveryPollInterval: const Duration(milliseconds: 10));
+        addTearDown(provider.dispose);
+        if (followUp) {
+          provider.followServerResponse('conv-1');
+        } else {
+          await provider.sendMessage('Compare these');
+          service.controller.addError(Exception('Connection closed while receiving data'));
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 30));
+        expect(provider.isRecoveringResponse, isTrue); // Old visual is not completion.
+        service.reloadedConversation = service._conversation.copyWith(messages: [old, visual('new-visual')]);
+        await Future<void>.delayed(const Duration(milliseconds: 40));
+        expect(provider.isRecoveringResponse, isFalse);
+        expect(provider.isSending, isFalse);
+        expect(provider.messages.last.visualPresentation, isNotNull);
+        if (followUp) service.controller.stream.listen((_) {});
+        await service.controller.close();
+      });
+    }
     test('content chunks update streamingMessage without notifying listeners',
         () async {
       final service = _FakeChatService();

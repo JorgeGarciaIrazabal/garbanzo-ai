@@ -4603,6 +4603,25 @@
   "visualInvalidDate": "Use YYYY-MM-DD",
   "@visualInvalidDate": {
     "description": "Generated visual chat answer: visualInvalidDate"
+  },
+  "visualSortBy": "Sort by",
+  "@visualSortBy": {
+    "description": "Table sort column selector"
+  },
+  "visualAscending": "Sort ascending",
+  "@visualAscending": {
+    "description": "Table sort direction"
+  },
+  "visualDescending": "Sort descending",
+  "@visualDescending": {
+    "description": "Table sort direction"
+  },
+  "visualNoRows": "No matching rows",
+  "@visualNoRows": {
+    "description": "Empty table after filtering"
+  },
+  "visualMoreRows": "Show more rows",
+  "@visualMoreRows": {
+    "description": "Reveal the next group of table rows"
   }
-
 }

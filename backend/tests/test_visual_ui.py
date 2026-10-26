@@ -19,6 +19,52 @@ from app.schemas.visual_ui import Presentation, UISubmission
 from app.services.visual_ui import UIActionService, validate_values
 
 
+@pytest.mark.parametrize(
+    "component",
+    [
+        {"component": "Callout", "text": "Check the source", "tone": "warning"},
+        {"component": "KeyValue", "items": [{"label": "Size", "value": "Small"}]},
+        {"component": "Progress", "label": "Complete", "value": 75},
+        {
+            "component": "Comparison",
+            "items": [
+                {
+                    "title": "Option A",
+                    "highlighted": True,
+                    "attributes": [{"label": "Benefit", "value": "Portable"}],
+                }
+            ],
+        },
+        {"component": "Accordion", "items": [{"title": "Details", "text": "Supporting detail"}]},
+    ],
+)
+def test_new_catalog_widgets_round_trip_and_reject_executable_fields(component):
+    payload = {
+        "surface_id": "details",
+        "summary": "Details",
+        "components": [{"id": "root", **component}],
+    }
+    presentation = Presentation.model_validate(payload)
+    assert presentation.result()["presentation"]["components"] == payload["components"]
+    payload["components"][0]["onClick"] = "arbitrary code"
+    with pytest.raises(ValueError):
+        Presentation.model_validate(payload)
+
+
+@pytest.mark.parametrize("value", [-1, 101, float("nan"), float("inf")])
+def test_progress_rejects_invalid_measurements(value):
+    with pytest.raises(ValueError):
+        Presentation.model_validate(
+            {
+                "surface_id": "progress",
+                "summary": "Progress",
+                "components": [
+                    {"id": "root", "component": "Progress", "label": "Work", "value": value}
+                ],
+            }
+        )
+
+
 def example():
     return {
         "summary": "Save a useful memory.",

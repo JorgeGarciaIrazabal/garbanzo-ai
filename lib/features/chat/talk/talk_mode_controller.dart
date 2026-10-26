@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:garbanzo_ai/core/guarded_state.dart';
 import 'package:garbanzo_ai/core/log.dart';
 import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
+import 'package:garbanzo_ai/features/chat/providers/read_aloud_auto_play_tracker.dart';
 import 'package:garbanzo_ai/features/chat/talk/talk_barge_in.dart';
 import 'package:garbanzo_ai/features/chat/talk/talk_recorder.dart';
 import 'package:garbanzo_ai/features/chat/talk/talk_tts_queue.dart';
@@ -564,7 +565,11 @@ class TalkModeController extends ChangeNotifier {
 
   String? _lastAssistantContent() {
     for (final msg in _chat.messages.reversed) {
-      if (msg.isAssistant) return msg.content;
+      if (msg.isUser) return null;
+      if (msg.isAssistant || msg.visualPresentation != null) {
+        final content = readableReplyContent(msg);
+        if (content.trim().isNotEmpty) return content;
+      }
     }
     return null;
   }

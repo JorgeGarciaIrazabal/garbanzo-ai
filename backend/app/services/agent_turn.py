@@ -416,6 +416,7 @@ async def run_agent_turn(
                 )
             )
 
+            visual_answers = []
             for call in tool_calls_this_iter:
                 active_tool_call_id = call.get("id")
                 execution = {
@@ -498,6 +499,8 @@ async def run_agent_turn(
                     if is_presentation
                     else truncate_tool_result(raw_text, get_settings().tool_result_max_chars)
                 )
+                if is_presentation:
+                    visual_answers.append(result_text)
                 result_meta = {
                     "tool_call_id": call.get("id"),
                     "tool_name": call.get("name"),
@@ -535,10 +538,33 @@ async def run_agent_turn(
                         },
                     )
 
-                llm_messages.append(LLMMessage(role="tool", content=result_text))
+                llm_messages.append(
+                    LLMMessage(
+                        role="tool",
+                        content=(
+                            "Visual answer displayed successfully. Its content is already visible "
+                            "to the user. Do not restate or summarize it. Only address outstanding "
+                            "tool failures or work not covered by the visual."
+                            if is_presentation
+                            else result_text
+                        ),
+                    )
+                )
                 active_tool_call_id = None
 
             await sink.commit()
+            # A presentation is the answer, not evidence for another prose answer.
+            # Mixed batches still need a model iteration to handle other results
+            # (including failures); do not hide them by ending the turn early.
+            if len(visual_answers) == len(tool_calls_this_iter):
+                result.content = "\n\n".join(visual_answers)
+                result.completed = True
+                yield ChatChunk(
+                    content="",
+                    is_finished=True,
+                    metadata={**(metadata or {}), "visual_answer": True},
+                )
+                return
 
         result.error = True
         yield ChatChunk(

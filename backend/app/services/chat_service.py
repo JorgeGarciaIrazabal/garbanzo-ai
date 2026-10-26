@@ -575,7 +575,16 @@ class ChatService:
         """Stream an LLM response for the current state of ``conversation``."""
         conversation_id = conversation.id
         existing_messages = list(conversation.messages)
-        is_first_exchange = not any(m.role == "assistant" for m in existing_messages)
+        is_first_exchange = not any(
+            m.role == "assistant"
+            or (
+                m.role == "tool_result"
+                and (m.meta or {}).get("tool_name") == RENDER_UI_TOOL
+                and isinstance((m.meta or {}).get("result"), dict)
+                and m.meta["result"].get("ok") is True
+            )
+            for m in existing_messages
+        )
         last_user_text = next(
             (m.content for m in reversed(existing_messages) if m.role == "user"),
             "",

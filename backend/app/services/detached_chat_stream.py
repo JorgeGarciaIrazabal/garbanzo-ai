@@ -81,6 +81,15 @@ class DetachedChatStream:
                             and not (chunk.metadata and chunk.metadata.get("error"))
                         ):
                             accumulated += chunk.content
+                        tool_result = (chunk.metadata or {}).get("tool_result", {})
+                        if tool_result.get("tool_name") == "render_ui":
+                            result = tool_result.get("result")
+                            if isinstance(result, dict) and result.get("ok") is True:
+                                presentation = result.get("presentation")
+                                if isinstance(presentation, dict) and isinstance(
+                                    presentation.get("summary"), str
+                                ):
+                                    accumulated += "\n\n" + presentation["summary"]
                         if not self._disconnected:
                             await self._queue.put(chunk)
                     await db.commit()

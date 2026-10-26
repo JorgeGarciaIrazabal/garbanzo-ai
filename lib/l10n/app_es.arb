@@ -3070,6 +3070,10 @@
   "visualActionPending": "Envío recibido. El resultado aún no está confirmado; no se ejecutará de nuevo.",
   "visualRequired": "Este campo es obligatorio",
   "visualInvalidNumber": "Introduce un número válido",
-  "visualInvalidDate": "Usa AAAA-MM-DD"
-
+  "visualInvalidDate": "Usa AAAA-MM-DD",
+  "visualSortBy": "Ordenar por",
+  "visualAscending": "Orden ascendente",
+  "visualDescending": "Orden descendente",
+  "visualNoRows": "No hay filas coincidentes",
+  "visualMoreRows": "Mostrar más filas"
 }

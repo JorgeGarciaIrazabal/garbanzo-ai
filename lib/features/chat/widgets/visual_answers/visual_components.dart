@@ -3,6 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:genui/genui.dart';
 
 import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
+import 'package:garbanzo_ai/features/chat/widgets/markdown_widget.dart';
+
+import 'package:garbanzo_ai/features/chat/widgets/visual_answers/visual_layout.dart';
+import 'package:garbanzo_ai/features/chat/widgets/visual_answers/visual_details.dart';
+import 'package:garbanzo_ai/features/chat/widgets/visual_answers/visual_table.dart';
+
+export 'package:garbanzo_ai/features/chat/widgets/visual_answers/visual_table.dart';
 
 typedef VisualSubmit =
     Future<void> Function(String action, Map<String, dynamic> values);
@@ -26,68 +33,60 @@ Widget buildVisualComponent(
   switch (item.type) {
     case 'Column':
       return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         spacing: 12,
         children: children,
       );
     case 'Row':
-      return LayoutBuilder(
-        builder: (context, constraints) {
-          final columns = constraints.maxWidth < 560
-              ? 1
-              : children.length.clamp(1, 3);
-          final width = (constraints.maxWidth - 12 * (columns - 1)) / columns;
-          return Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: children
-                .map((child) => SizedBox(width: width, child: child))
-                .toList(),
-          );
-        },
-      );
+      return VisualGrid(children: children);
     case 'Card':
-      return Card(
-        margin: EdgeInsets.zero,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            spacing: 12,
-            children: [
-              if (data['title'] != null)
-                Text(
-                  data['title'] as String,
-                  style: theme.textTheme.titleMedium,
-                ),
-              ...children,
-            ],
-          ),
+      return VisualPanel(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          spacing: 12,
+          children: [
+            if (data['title'] case final String title)
+              Text(title, style: theme.textTheme.titleMedium),
+            ...children,
+          ],
         ),
       );
     case 'Text':
-      return SelectableText(data['text'] as String);
+      return MarkdownWidget(
+        content: data['text'] as String,
+        colorScheme: theme.colorScheme,
+        textTheme: theme.textTheme.copyWith(
+          bodyMedium: switch (data['style']) {
+            'heading' => theme.textTheme.titleLarge,
+            'caption' => theme.textTheme.bodySmall,
+            _ => theme.textTheme.bodyMedium,
+          },
+        ),
+      );
+    case 'Callout':
+      return VisualCallout(data: data);
+    case 'KeyValue':
+      return VisualKeyValue(items: (data['items'] as List).cast<Map>());
+    case 'Comparison':
+      return VisualComparison(items: (data['items'] as List).cast<Map>());
+    case 'Progress':
+      return VisualProgress(data: data);
+    case 'Accordion':
+      return VisualAccordion(items: (data['items'] as List).cast<Map>());
     case 'Metric':
       return Semantics(
         label: '${data['label']}: ${data['value']}',
-        child: Card(
-          margin: EdgeInsets.zero,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  data['label'] as String,
-                  style: theme.textTheme.labelLarge,
-                ),
-                Text(
-                  data['value'] as String,
-                  style: theme.textTheme.headlineMedium,
-                ),
-                if (data['detail'] != null) Text(data['detail'] as String),
-              ],
-            ),
+        child: VisualPanel(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(data['label'] as String, style: theme.textTheme.labelLarge),
+              Text(
+                data['value'] as String,
+                style: theme.textTheme.headlineMedium,
+              ),
+              if (data['detail'] != null) Text(data['detail'] as String),
+            ],
           ),
         ),
       );
@@ -126,81 +125,6 @@ Widget buildVisualComponent(
   }
 }
 
-class VisualTable extends StatefulWidget {
-  const VisualTable({super.key, required this.data});
-  final Map<String, dynamic> data;
-  @override
-  State<VisualTable> createState() => _VisualTableState();
-}
-
-class _VisualTableState extends State<VisualTable> {
-  String _filter = '';
-  int? _sortColumn;
-  bool _ascending = true;
-
-  @override
-  Widget build(BuildContext context) {
-    final columns = (widget.data['columns'] as List).cast<String>();
-    final rows = (widget.data['rows'] as List)
-        .map((r) => List<Object?>.from(r as List))
-        .where((r) => r.any((v) => '$v'.toLowerCase().contains(_filter)))
-        .toList();
-    if (_sortColumn case final int index) {
-      rows.sort((a, b) {
-        final left = a[index], right = b[index];
-        final comparison = left is num && right is num
-            ? left.compareTo(right)
-            : '${left ?? ''}'.compareTo('${right ?? ''}');
-        return _ascending ? comparison : -comparison;
-      });
-    }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        TextField(
-          decoration: InputDecoration(
-            labelText: AppLocalizations.of(context)!.visualFilter,
-            prefixIcon: const Icon(Icons.search),
-          ),
-          onChanged: (value) => setState(() => _filter = value.toLowerCase()),
-        ),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: DataTable(
-            sortColumnIndex: _sortColumn,
-            sortAscending: _ascending,
-            dataRowMaxHeight: 100,
-            columns: [
-              for (final (index, label) in columns.indexed)
-                DataColumn(
-                  label: Text(label),
-                  onSort: (_, ascending) => setState(() {
-                    _sortColumn = index;
-                    _ascending = ascending;
-                  }),
-                ),
-            ],
-            rows: [
-              for (final row in rows)
-                DataRow(
-                  cells: [
-                    for (final value in row)
-                      DataCell(
-                        ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 240),
-                          child: Text('${value ?? ''}'),
-                        ),
-                      ),
-                  ],
-                ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 class VisualChart extends StatefulWidget {
   const VisualChart({super.key, required this.data});
   final Map<String, dynamic> data;
@@ -212,7 +136,11 @@ class _VisualChartState extends State<VisualChart> {
   final _hidden = <int>{};
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) => _build(context, constraints.maxWidth),
+  );
+
+  Widget _build(BuildContext context, double width) {
     final labels = (widget.data['labels'] as List).cast<String>();
     final series = (widget.data['series'] as List).cast<Map>();
     final scheme = Theme.of(context).colorScheme;
@@ -228,6 +156,11 @@ class _VisualChartState extends State<VisualChart> {
         .where((s) => !_hidden.contains(s.$1))
         .toList();
     final title = widget.data['title'] as String?;
+    final pie = widget.data['kind'] == 'pie';
+    final scale = MediaQuery.textScalerOf(context).scale(12) / 12;
+    final plotWidth = pie
+        ? width
+        : (labels.length * 52.0 * scale).clamp(width, double.infinity);
     final titles = FlTitlesData(
       topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
       rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
@@ -235,7 +168,7 @@ class _VisualChartState extends State<VisualChart> {
         sideTitles: SideTitles(
           showTitles: true,
           reservedSize: 42,
-          interval: (labels.length / 6).ceil().clamp(1, 100).toDouble(),
+          interval: 1,
           getTitlesWidget: (value, meta) {
             final index = value.toInt();
             if (index < 0 ||
@@ -311,15 +244,15 @@ class _VisualChartState extends State<VisualChart> {
       chart = PieChart(
         PieChartData(
           sectionsSpace: 2,
-          centerSpaceRadius: 32,
+          centerSpaceRadius: (width * .1).clamp(12, 32),
           sections: [
             for (final (index, value)
                 in (series.first['values'] as List).indexed)
               PieChartSectionData(
                 value: (value as num).toDouble(),
-                title: '${labels[index]}\n$value',
+                title: '',
                 color: colors[index % colors.length],
-                radius: 76,
+                radius: (width * .22).clamp(24, 76),
                 titleStyle: TextStyle(color: scheme.onPrimary, fontSize: 11),
               ),
           ],
@@ -357,12 +290,49 @@ class _VisualChartState extends State<VisualChart> {
                 ),
             ],
           ),
+        if (pie)
+          Wrap(
+            spacing: 16,
+            runSpacing: 8,
+            children: [
+              for (final (index, label) in labels.indexed)
+                ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: width),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    spacing: 6,
+                    children: [
+                      Icon(
+                        Icons.circle,
+                        size: 14,
+                        color: colors[index % colors.length],
+                      ),
+                      Flexible(
+                        child: Text(
+                          '$label: ${(series.first['values'] as List)[index]}',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
         Semantics(
           label: [
             ?title,
             for (final entry in series) '${entry['label']}: ${entry['values']}',
           ].join('. '),
-          child: SizedBox(height: 260, child: chart),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: SizedBox(
+              width: plotWidth,
+              height: pie
+                  ? (width * .7).clamp(200, 300)
+                  : 260 + 24 * (scale - 1),
+              child: Padding(padding: const EdgeInsets.all(12), child: chart),
+            ),
+          ),
         ),
         ExpansionTile(
           tilePadding: EdgeInsets.zero,
@@ -478,8 +448,15 @@ class _VisualFormState extends State<VisualForm> {
         crossAxisAlignment: CrossAxisAlignment.start,
         spacing: 12,
         children: [
-          for (final raw in widget.data['fields'] as List? ?? [])
-            _field(Map<String, dynamic>.from(raw as Map)),
+          if ((widget.data['fields'] as List? ?? []).isNotEmpty)
+            VisualGrid(
+              minWidth: 280,
+              maxColumns: 2,
+              children: [
+                for (final raw in widget.data['fields'] as List)
+                  _field(Map<String, dynamic>.from(raw as Map)),
+              ],
+            ),
           if (widget.data['options'] case final List options)
             Wrap(
               spacing: 8,

@@ -113,12 +113,28 @@ a2ui_core 0.1.1. The Flutter SDK is confined to `widgets/visual_answers/`;
 providers and model calls stay on the existing FastAPI/SSE path.
 
 The normal `tool_result` event and message metadata carry the validated
-presentation without text truncation. Only its readable summary goes back to
-the model as a tool result, into transcript exports, and into copy/read-aloud.
-No separate model call selects the presentation. Layouts compose text, cards,
-metrics, tables, charts, timelines, checklists, forms and choices. Table filters,
-chart series selection and checklist edits are local. Unsubmitted values are
-not synchronized between devices. Rooms do not advertise this tool.
+presentation without text truncation. Its readable summary is saved for future
+conversation context, transcript exports, copying and speech (including auto-play
+and Talk Mode). A batch consisting only of successful presentations completes the
+turn without another model call or a duplicate prose answer. Response recovery
+recognizes a saved visual result as a completed reply, and detached completion
+notifications include its readable summary. Failed presentations
+and mixed tool batches continue normally; successful visuals return a compact
+acknowledgement to the current model iteration instead of refeeding their summary.
+Models are instructed to gather evidence first and render the final answer alone,
+including recommendations, caveats and sources within the surface.
+
+No separate model call selects the presentation. The catalog includes layouts,
+Markdown text with heading/caption styles and source links, cards, metrics, tables,
+charts, timelines, checklists, forms, choices, comparison cards, key-value details,
+callouts, progress indicators and expandable sections. Layout columns use the
+surface's available width and text scale, including inside nested cards. Narrow
+tables become labeled records with sorting and filtering; both table layouts
+initially show ten rows with an explicit show-more control. Dense charts scroll
+horizontally and pie labels use a wrapping legend. Forms use up to two columns.
+Table filters, chart series selection, expansion and checklist edits are local.
+Unsubmitted values are not synchronized between devices. Rooms do not advertise
+this tool.
 
 Forms and choices reference saved action IDs. The authenticated `ui-actions`
 endpoint resolves the original tool-call message and its saved definition;

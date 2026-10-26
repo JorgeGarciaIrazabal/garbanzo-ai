@@ -206,7 +206,7 @@ class ChatProvider extends ChangeNotifier {
   bool get isRecoveringResponse => _responseRecoveryState != null;
   Timer? _responseRecoveryTimer;
   String? _recoveryConversationId;
-  Set<String> _assistantIdsBeforeRecovery = const {};
+  Set<String> _replyIdsBeforeRecovery = const {};
 
   List<Conversation> get conversations => conversationList.conversations;
 
@@ -1164,9 +1164,9 @@ class ChatProvider extends ChangeNotifier {
     if (conversationId == null) return;
     _responseRecoveryTimer?.cancel();
     _recoveryConversationId = conversationId;
-    _assistantIdsBeforeRecovery = {
+    _replyIdsBeforeRecovery = {
       for (final message in _messages)
-        if (message.isAssistant && !message.id.startsWith('temp-')) message.id,
+        if (_isSavedReply(message)) message.id,
     };
     _responseRecoveryState = ChatResponseRecoveryState.waitingForConnection;
     _scheduleResponseRecovery(Duration.zero);
@@ -1197,21 +1197,26 @@ class ChatProvider extends ChangeNotifier {
         _currentConversation?.id != _recoveryConversationId) {
       return;
     }
-    final hasNewAssistant = _messages.any(
+    final hasNewReply = _messages.any(
       (message) =>
-          message.isAssistant &&
-          !message.id.startsWith('temp-') &&
-          !_assistantIdsBeforeRecovery.contains(message.id),
+          _isSavedReply(message) &&
+          !_replyIdsBeforeRecovery.contains(message.id),
     );
-    if (hasNewAssistant) _cancelResponseRecovery();
+    if (hasNewReply) _cancelResponseRecovery();
   }
+
+  // A visual-only answer has no assistant text message. Recovery and visual
+  // follow-ups must recognize its saved result as a completed reply too.
+  static bool _isSavedReply(ChatMessage message) =>
+      !message.id.startsWith('temp-') &&
+      (message.isAssistant || message.visualPresentation != null);
 
   void _cancelResponseRecovery() {
     _responseRecoveryTimer?.cancel();
     _responseRecoveryTimer = null;
     _responseRecoveryState = null;
     _recoveryConversationId = null;
-    _assistantIdsBeforeRecovery = const {};
+    _replyIdsBeforeRecovery = const {};
   }
 
   /// Detach UI updates; preserve background delivery of client folder tools.

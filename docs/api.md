@@ -56,6 +56,11 @@ when you add or change an endpoint, update the matching row in the same commit.
   `root`; components follow the shared native catalog. Actions are either
   `follow_up` (`prompt`) or `tool` (`tool`, fixed `arguments`, and `bindings`
   mapping tool argument names to form field names). Each action submits once.
+  A batch containing only successful `render_ui` calls ends the turn without
+  an assistant text message; its final `done` metadata includes
+  `visual_answer:true`. The saved tool-result content remains the readable
+  summary. Clients should use the presentation summary for speech, including
+  while the live result's message ID is still temporary.
 
 ### Virtual folders
 

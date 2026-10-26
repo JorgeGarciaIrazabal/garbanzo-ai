@@ -3731,4 +3731,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get visualInvalidDate => 'Use YYYY-MM-DD';
+
+  @override
+  String get visualSortBy => 'Sort by';
+
+  @override
+  String get visualAscending => 'Sort ascending';
+
+  @override
+  String get visualDescending => 'Sort descending';
+
+  @override
+  String get visualNoRows => 'No matching rows';
+
+  @override
+  String get visualMoreRows => 'Show more rows';
 }

@@ -350,7 +350,7 @@ class _ChatPageContentState extends State<_ChatPageContent>
       unawaited(
         listening.start(
           messageId: message.id,
-          text: visibleAssistantContent(message.content),
+          text: readableReplyContent(message),
           voiceEn: settings.readAloudVoiceEn,
           voiceEs: settings.readAloudVoiceEs,
           speed: settings.ttsSpeed,

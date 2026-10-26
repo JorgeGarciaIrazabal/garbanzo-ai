@@ -6536,6 +6536,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Use YYYY-MM-DD'**
   String get visualInvalidDate;
+
+  /// Table sort column selector
+  ///
+  /// In en, this message translates to:
+  /// **'Sort by'**
+  String get visualSortBy;
+
+  /// Table sort direction
+  ///
+  /// In en, this message translates to:
+  /// **'Sort ascending'**
+  String get visualAscending;
+
+  /// Table sort direction
+  ///
+  /// In en, this message translates to:
+  /// **'Sort descending'**
+  String get visualDescending;
+
+  /// Empty table after filtering
+  ///
+  /// In en, this message translates to:
+  /// **'No matching rows'**
+  String get visualNoRows;
+
+  /// Reveal the next group of table rows
+  ///
+  /// In en, this message translates to:
+  /// **'Show more rows'**
+  String get visualMoreRows;
 }
 
 class _AppLocalizationsDelegate

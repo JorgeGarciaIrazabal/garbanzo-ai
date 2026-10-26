@@ -65,6 +65,95 @@ class _NoopSink:
         pass
 
 
+@pytest.mark.parametrize("mixed", [False, True])
+async def test_visual_completes_answer_without_repeating_summary(monkeypatch, mixed):
+    monkeypatch.setattr(
+        "app.services.agent_turn.resolve_context_length",
+        lambda provider, model: _async_return(4096),
+    )
+    calls = [{"id": "visual", "name": "render_ui"}]
+    if mixed:
+        calls.append({"id": "save", "name": "save"})
+    provider = _ScriptedProvider(
+        [
+            [ChatChunk(content="", tool_calls=calls), ChatChunk(content="", is_finished=True)],
+            [ChatChunk(content="Saving failed."), ChatChunk(content="", is_finished=True)],
+        ]
+    )
+    sink = _NoopSink()
+    sink.persist_tool_result = AsyncMock()
+    sink.persist_assistant = AsyncMock()
+    result = TurnResult()
+
+    async def execute(call, emit):
+        if call["name"] == "render_ui":
+            return {"ok": True, "presentation": {"summary": "Full accessible summary"}}
+        return {"ok": False, "error": "Saving failed"}
+
+    messages = [LLMMessage(role="user", content="Compare these")]
+    chunks = [
+        c
+        async for c in run_agent_turn(
+            provider=provider,
+            model="fake",
+            llm_messages=messages,
+            sink=sink,
+            result=result,
+            tools=[{"type": "function"}],
+            execute_tool=execute,
+        )
+    ]
+    assert result.completed
+    assert sink.persist_tool_result.call_args_list[0].args[0] == "Full accessible summary"
+    tool_messages = [m.content for m in messages if m.role == "tool"]
+    assert "Do not restate" in tool_messages[0]
+    assert "Full accessible summary" not in tool_messages[0]
+    if mixed:
+        assert provider._call == 2
+        sink.persist_assistant.assert_awaited_once()
+        assert "Saving failed" in tool_messages[1]
+    else:
+        assert provider._call == 1
+        sink.persist_assistant.assert_not_awaited()
+        assert result.content == "Full accessible summary"
+        assert chunks[-1].is_finished
+
+
+async def test_failed_visual_still_allows_model_to_repair(monkeypatch):
+    monkeypatch.setattr(
+        "app.services.agent_turn.resolve_context_length",
+        lambda provider, model: _async_return(4096),
+    )
+    provider = _ScriptedProvider(
+        [
+            [ChatChunk(content="", tool_calls=[{"id": "v1", "name": "render_ui"}])],
+            [
+                ChatChunk(content="The visual could not be displayed."),
+                ChatChunk(content="", is_finished=True),
+            ],
+        ]
+    )
+    execute = AsyncMock(return_value={"ok": False, "error": "Invalid chart values"})
+    result = TurnResult()
+    messages = [LLMMessage(role="user", content="Plot it")]
+    chunks = [
+        c
+        async for c in run_agent_turn(
+            provider=provider,
+            model="fake",
+            llm_messages=messages,
+            sink=_NoopSink(),
+            result=result,
+            tools=[{"type": "function"}],
+            execute_tool=execute,
+        )
+    ]
+    assert provider._call == 2
+    assert result.completed
+    assert "Invalid chart values" in next(m.content for m in messages if m.role == "tool")
+    assert any(c.content == "The visual could not be displayed." for c in chunks)
+
+
 def _tool_execution_status(chunk: ChatChunk) -> str | None:
     if chunk.metadata and "tool_execution" in chunk.metadata:
         return chunk.metadata["tool_execution"].get("status")

@@ -44,11 +44,16 @@ answer, the app shows an error rather than claiming the request was completed.
 ## Can answers include interactive visuals?
 Yes. In main chat, the assistant automatically uses charts, comparison cards,
 tables, metrics, timelines, checklists or forms when they make an answer easier
-to understand or use. Simple answers stay as text. You can also explicitly ask
+to understand or use. It can also show recommendations and caveats in callouts,
+key-value details, progress indicators and expandable explanations. The visual
+contains the answer, including its conclusion, without repeating it underneath. Simple answers stay as text. You can also explicitly ask
 for a visual comparison, a chart of uploaded data, or an interactive plan.
 
-Filter or sort a table, show or hide chart series, expand the chart's data, or
-check items in a plan without sending another message. These local interactions
+Cards and forms adapt to the available space on phones and desktops, including
+larger text sizes. Tables turn into labeled records on smaller screens. Filter
+or sort them, or use **Show more rows** for longer results. Show or hide chart
+series, scroll dense charts sideways, expand chart data or supporting details,
+or check items in a plan without sending another message. These local interactions
 and unsubmitted form edits are not saved across devices or reloads.
 
 A form's labeled Submit button applies the stated action immediately, without
@@ -59,7 +64,8 @@ their forms cannot apply further changes; ask for an updated form instead.
 
 If a connection fails during submission, use **Check submission status** to
 inspect the saved outcome. Pending or failed submissions do not run again
-automatically. Copy and Listen use the visual answer's readable summary.
+automatically. Copy, Listen, automatic read-aloud and Talk Mode use the visual
+answer's readable summary.
 
 ## How do I attach images or files?
 Use the paperclip (**Attach photos or files**) next to the input bar, or paste

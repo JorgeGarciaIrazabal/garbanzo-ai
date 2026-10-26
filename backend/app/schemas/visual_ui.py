@@ -1,4 +1,4 @@
-"""The small, shared GenUI catalog and main-chat presentation contract."""
+"""The shared GenUI catalog and main-chat presentation contract."""
 
 import json
 from datetime import date
@@ -163,13 +163,15 @@ RENDER_UI_DESCRIPTOR = {
         "description": (
             "Present an interactive native visual answer when it makes a comparison, data, "
             "explanation, plan, or task easier to understand or use. Use plain text for simple "
-            "answers. Compose components as a tree with id='root'. Only layout components "
+            "answers. Rendering completes your answer: gather evidence with other tools first, "
+            "then call render_ui alone. Put conclusions, caveats and sources inside the visual. "
+            "Compose components as a tree with id='root'. Only layout components "
             "have children (component IDs). Forms submit actions once; submitting executes "
             "the named enabled tool without another confirmation. Tool arguments are fixed "
             "in arguments; bindings maps tool argument names to form field names. Choices "
             "submit a value named choice. Use follow_up with a prompt for conversational "
             "exploration. Include a readable summary with the key information for speech "
-            "and copying. Do not repeat the full visual in your following text. "
+            "and copying, not as a second visible answer. "
             "Component schemas: " + json.dumps(CATALOG["components"], separators=(",", ":"))
         ),
         "parameters": Presentation.model_json_schema(),
@@ -177,10 +179,20 @@ RENDER_UI_DESCRIPTOR = {
 }
 
 VISUAL_UI_NUDGE = (
-    "Use render_ui automatically when interactive charts, comparisons, metrics, timelines, "
-    "checklists or forms improve this answer. Prefer concise text otherwise. Base visuals "
-    "on known data; never invent measurements. Use labeled form buttons explaining the "
-    "change they apply. Presentation is available even when data-changing tools are disabled; "
-    "only attach tool actions for enabled tools. After rendering, finish with a brief text "
-    "conclusion or guidance without repeating the full visual."
+    "Choose the answer format before writing. Prefer render_ui for structured answers: "
+    "Comparison for alternatives with trade-offs; Table for row/column data; Chart for "
+    "known numerical trends; Row of Metric for key figures; Timeline for ordered plans; "
+    "Checklist for tasks; KeyValue for facts or specifications; Progress for known completion; "
+    "Callout for a recommendation or caveat; Accordion for optional details; Choices for "
+    "next-step exploration; Form to collect inputs for an enabled action. Compose these "
+    "with Column, Row and Card, using short headings and concise content. Use visuals "
+    "without waiting to be asked when they help scanning, comparing or acting. Simple "
+    "questions, prose, code and explicitly text-only requests should stay text. Base visuals "
+    "on known data; never invent measurements or progress. Include source links in Text "
+    "components where relevant. Use descriptive form buttons explaining the change they "
+    "apply. Presentation is available even when data-changing tools are disabled; only "
+    "attach tool actions for enabled tools. Gather evidence first, then call render_ui "
+    "alone as the final answer. Rendering completes the response. Put the recommendation "
+    "and any essential caveats inside the surface; do not write a duplicate introduction, "
+    "summary, table or conclusion around it. The summary is for copying and speech only."
 )

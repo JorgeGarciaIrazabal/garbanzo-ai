@@ -48,7 +48,7 @@ class ReadAloudAutoPlayTracker {
         if (latest != null &&
             latest.id != _baselineReplyId &&
             latest.metadata?['stopped'] != true) {
-          final text = visibleAssistantContent(latest.content);
+          final text = readableReplyContent(latest);
           if (text.isNotEmpty) {
             _pendingConversationId = conversationId;
             _pendingText = text;
@@ -73,7 +73,7 @@ class ReadAloudAutoPlayTracker {
     if (latest == null ||
         latest.id.startsWith('temp-') ||
         latest.id == _pendingBaselineReplyId ||
-        visibleAssistantContent(latest.content) != pendingText) {
+        readableReplyContent(latest) != pendingText) {
       return null;
     }
     _clearPending();
@@ -90,16 +90,16 @@ class ReadAloudAutoPlayTracker {
   static ChatMessage? _latestReply(List<ChatMessage> messages) => messages
       .where(
         (message) =>
-            message.isAssistant && !message.isToolCall && !message.isToolResult,
+            (message.isAssistant || message.visualPresentation != null) &&
+            readableReplyContent(message).trim().isNotEmpty,
       )
       .lastOrNull;
 
   static ChatMessage? _latestStableReply(List<ChatMessage> messages) => messages
       .where(
         (message) =>
-            message.isAssistant &&
-            !message.isToolCall &&
-            !message.isToolResult &&
+            (message.isAssistant || message.visualPresentation != null) &&
+            readableReplyContent(message).trim().isNotEmpty &&
             !message.id.startsWith('temp-'),
       )
       .lastOrNull;
@@ -112,3 +112,9 @@ String visibleAssistantContent(String raw) {
   }
   return raw;
 }
+
+/// A visual result's live message content is the tool name; its summary is the
+/// same readable answer used after history reload, without serializing widgets.
+String readableReplyContent(ChatMessage message) =>
+    message.visualPresentation?['summary'] as String? ??
+    visibleAssistantContent(message.content);

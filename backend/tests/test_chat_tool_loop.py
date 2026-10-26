@@ -709,6 +709,8 @@ async def test_visual_result_survives_stream_and_history_without_text_truncation
     monkeypatch.setattr(
         "app.services.agent_turn.get_settings", lambda: SimpleNamespace(tool_result_max_chars=10)
     )
+    titles = []
+    monkeypatch.setattr(service, "_spawn_title_generation", lambda *args: titles.append(args))
     chunks = [
         chunk
         async for chunk in service.send_message(
@@ -726,6 +728,18 @@ async def test_visual_result_survives_stream_and_history_without_text_truncation
     assert saved.meta == live
     assert saved.content == "Monthly totals."
     assert any(t["function"]["name"] == "render_ui" for t in provider.calls[0]["tools"])
+    # The surface is the answer. There is no second generation to paraphrase it.
+    assert len(provider.calls) == 1
+    assert not any(c.content for c in chunks)
+    assert chunks[-1].is_finished
+    assert len(titles) == 1
+    # A later question retains the accessible visual summary as context, but
+    # must not treat the visual-only exchange as another first answer.
+    async for _chunk in service.send_message(
+        conversation_id=conv_id, user_id=test_user_email, content="Which month is higher?"
+    ):
+        pass
+    assert len(titles) == 1
     assert any(
         m.role == "tool" and m.content == "Monthly totals." for m in provider.calls[1]["messages"]
     )
