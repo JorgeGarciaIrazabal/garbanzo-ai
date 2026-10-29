@@ -3618,11 +3618,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get foldersLimits =>
-      'Up to 10 MiB per file, 100 MiB and 500 files per folder.';
+      'Up to 25 MiB per file, 100 MiB and 500 files per folder.';
 
   @override
   String get foldersLimitExceeded =>
-      'Upload exceeds the folder limit: 10 MiB per file, 100 MiB or 500 files per folder.';
+      'Upload exceeds the folder limit: 25 MiB per file, 100 MiB or 500 files per folder.';
 
   @override
   String get foldersBytesUnavailable =>

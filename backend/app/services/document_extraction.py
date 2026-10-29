@@ -4,12 +4,13 @@ import io
 import json
 import subprocess
 import sys
-import tempfile
 import zipfile
 from pathlib import Path
 
-from markitdown import MarkItDown
+from markitdown import StreamInfo
+from markitdown.converters import DocxConverter, EpubConverter, HtmlConverter, PptxConverter
 
+from app.file_limits import MAX_FILE_BYTES
 from app.services.document_text import (
     MARKITDOWN_EXTENSIONS,
     STRUCTURED_EXTENSIONS,
@@ -19,11 +20,11 @@ from app.services.document_text import (
 )
 
 # Parser budgets are independent of workflow storage and folder quotas.
-MAX_INPUT_BYTES = 5 * 1024 * 1024
-MAX_EXPANDED_BYTES = 50 * 1024 * 1024
+MAX_INPUT_BYTES = MAX_FILE_BYTES
+MAX_EXPANDED_BYTES = 250 * 1024 * 1024
 MAX_ARCHIVE_ENTRIES = 10000
-MAX_TEXT_CHARS = 5 * 1024 * 1024
-EXTRACTION_TIMEOUT_SECONDS = 20
+MAX_TEXT_CHARS = 25 * 1024 * 1024
+EXTRACTION_TIMEOUT_SECONDS = 60
 
 
 class DocumentExtractionError(Exception):
@@ -42,6 +43,8 @@ def extract_document(path: str, data: bytes) -> str:
 
 def _extract_document(path: str, data: bytes) -> str:
     """Strict extraction: unsupported/corrupt/oversized content is an error, never text."""
+    if len(data) > MAX_INPUT_BYTES:
+        raise DocumentExtractionError("Document exceeds the input limit.")
     suffix = Path(path).suffix.lower()
     if suffix in {".xlsx", ".xlsm", ".ods", ".docx", ".pptx", ".epub"}:
         with zipfile.ZipFile(io.BytesIO(data)) as archive:
@@ -75,11 +78,25 @@ def _extract_document(path: str, data: bytes) -> str:
 
 
 def _strict_markdown(path: str, data: bytes) -> str:
-    # The legacy client helper suppresses conversion errors; strict reads propagate them.
-    with tempfile.NamedTemporaryFile(suffix=Path(path).suffix) as tmp:
-        tmp.write(data)
-        tmp.flush()
-        return MarkItDown().convert(tmp.name).text_content
+    # The extension is already known. Calling MarkItDown() would initialize
+    # Magika's ONNX detector and its thread pool inside the worker's memory cap.
+    # Direct public converters avoid that unrelated model dependency.
+    suffix = Path(path).suffix.lower()
+    converters = {
+        ".docx": DocxConverter,
+        ".pptx": PptxConverter,
+        ".epub": EpubConverter,
+        ".html": HtmlConverter,
+        ".htm": HtmlConverter,
+    }
+    converter = converters.get(suffix)
+    if converter is None:
+        raise DocumentExtractionError(f"No supported document parser for {suffix} files.")
+    return (
+        converter()
+        .convert(io.BytesIO(data), StreamInfo(extension=suffix), strict=True)
+        .text_content
+    )
 
 
 def extract_isolated(path: str, data: bytes) -> str:

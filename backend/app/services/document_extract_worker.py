@@ -7,7 +7,7 @@ import sys
 
 # Set limits before importing the document parser stack.
 resource.setrlimit(resource.RLIMIT_AS, (1024 * 1024 * 1024, 1024 * 1024 * 1024))
-resource.setrlimit(resource.RLIMIT_CPU, (10, 10))
+resource.setrlimit(resource.RLIMIT_CPU, (30, 30))
 for thread_setting in ("OPENBLAS_NUM_THREADS", "OMP_NUM_THREADS", "MKL_NUM_THREADS"):
     os.environ[thread_setting] = "1"
 

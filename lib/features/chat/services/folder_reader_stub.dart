@@ -1,3 +1,4 @@
+import 'package:garbanzo_ai/core/file_limits.dart';
 import 'package:garbanzo_ai/features/chat/services/folder_read_error.dart';
 import 'package:garbanzo_ai/features/chat/services/folder_walk.dart';
 
@@ -7,7 +8,7 @@ import 'package:garbanzo_ai/features/chat/services/folder_walk.dart';
 class FolderReader {
   const FolderReader();
 
-  static const int maxFileBytes = 5 * 1024 * 1024;
+  static const int maxFileBytes = maxFolderFileBytes;
 
   String? safeResolve(String root, String relPath) => null;
 

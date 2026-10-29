@@ -3661,11 +3661,11 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get foldersLimits =>
-      'Hasta 10 MiB por archivo, 100 MiB y 500 archivos por carpeta.';
+      'Hasta 25 MiB por archivo, 100 MiB y 500 archivos por carpeta.';
 
   @override
   String get foldersLimitExceeded =>
-      'La carga supera el límite: 10 MiB por archivo, 100 MiB o 500 archivos por carpeta.';
+      'La carga supera el límite: 25 MiB por archivo, 100 MiB o 500 archivos por carpeta.';
 
   @override
   String get foldersBytesUnavailable =>

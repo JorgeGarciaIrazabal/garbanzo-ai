@@ -299,10 +299,18 @@ than recalculating formulas. `document_extraction.py` owns strict filename/bytes
 parsing, archive/text limits (including XLSM) and subprocess execution.
 Folders and workflow outputs map
 `DocumentExtractionError` to their own errors. `document_extract_worker.py`
-enforces a 5 MiB rich-document input limit, 1 GiB address-space limit and
-10-second CPU limit; the parent times out at 20 seconds. Extraction preserves
-stored bytes and raises for corruption or unsupported content. Client-file
-conversion retains its distinct legacy replacement-decoding/conversion contract.
+enforces a 25 MiB rich-document input limit, 1 GiB address-space limit and
+30-second CPU limit; the parent times out at 60 seconds. Extraction preserves
+stored bytes and raises for corruption or unsupported content. Client-served
+known document formats use the same isolated parser off the API event loop and
+return failed tool results when parsing fails. Known Office/HTML formats call
+MarkItDown's public format-specific converters directly, avoiding Magika/ONNX
+format detection and native thread creation inside the bounded worker. Plain
+text and unknown-extension detection retain their existing decoding behavior. Folder storage, workflow
+transfers and parser inputs share a 25 MiB file budget from the import-free
+`app/file_limits.py`; aggregate storage/snapshot quotas remain independent.
+Archive expansion is limited to 250 MiB and extracted text to 25 Mi characters;
+model tool-result budgets apply separately.
 The parser modules have no workflow, persistence or provider imports.
 `app.services` has an import-free initializer; classes are imported from their
 owning modules. Worker startup loads only document service modules, so its

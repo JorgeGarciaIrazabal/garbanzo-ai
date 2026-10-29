@@ -7,8 +7,8 @@ import sys
 import zipfile
 from unittest.mock import Mock
 
-import markitdown
 import pytest
+from docx import Document
 from openpyxl import Workbook
 
 from app.services import document_extraction
@@ -60,6 +60,17 @@ def test_xlsm_isolated_extraction_and_mime_dispatch():
     assert "Energy | 125" in isolated
     assert "=1+1" not in isolated
     assert "inert-macro-sentinel" not in isolated
+
+
+def test_docx_isolated_conversion_uses_known_format_without_detection():
+    document = Document()
+    document.add_heading("Energy summary", 1)
+    document.add_paragraph("Annual consumption is available.")
+    buffer = io.BytesIO()
+    document.save(buffer)
+    text = extract_isolated("summary.docx", buffer.getvalue())
+    assert "Energy summary" in text
+    assert "Annual consumption is available." in text
 
 
 @pytest.mark.parametrize("filename", ["report.docx", "report.xlsm"])
@@ -143,7 +154,7 @@ def test_worker_only_loads_document_services_and_enforces_limits():
         check=True,
     )
     result = json.loads(proc.stdout)
-    assert result["limits"] == [[1024 * 1024 * 1024] * 2, [10, 10]]
+    assert result["limits"] == [[1024 * 1024 * 1024] * 2, [30, 30]]
     assert result["services"] == [
         "app.services.document_extract_worker",
         "app.services.document_extraction",
@@ -152,15 +163,20 @@ def test_worker_only_loads_document_services_and_enforces_limits():
     assert result["state"] == []
 
 
-def test_client_legacy_conversion_failure_keeps_its_distinct_contract(monkeypatch):
-    parser = Mock()
-    parser.convert.side_effect = ValueError("conversion failed")
-    converter = Mock(return_value=parser)
-    monkeypatch.setattr(markitdown, "MarkItDown", converter)
-    monkeypatch.setattr(document_extraction, "MarkItDown", converter)
-    assert extract_file_text("notes.rtf", b"plain readable bytes") == "plain readable bytes"
+def test_client_known_format_conversion_failure_is_explicit(monkeypatch):
+    monkeypatch.setattr(
+        document_extraction.HtmlConverter,
+        "convert",
+        Mock(side_effect=ValueError("conversion failed")),
+    )
+    # Both readers must surface the failure of a known document parser.
+    monkeypatch.setattr(
+        "app.services.client_file_extract.extract_isolated", document_extraction.extract_document
+    )
     with pytest.raises(DocumentExtractionError, match="conversion failed"):
-        extract_document("notes.rtf", b"plain readable bytes")
+        extract_file_text("notes.html", b"plain readable bytes")
+    with pytest.raises(DocumentExtractionError, match="conversion failed"):
+        extract_document("notes.html", b"plain readable bytes")
 
 
 def test_worker_parser_failure_propagates_without_a_text_fallback(monkeypatch):

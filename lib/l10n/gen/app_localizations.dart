@@ -6342,13 +6342,13 @@ abstract class AppLocalizations {
   /// Virtual folders: foldersLimits
   ///
   /// In en, this message translates to:
-  /// **'Up to 10 MiB per file, 100 MiB and 500 files per folder.'**
+  /// **'Up to 25 MiB per file, 100 MiB and 500 files per folder.'**
   String get foldersLimits;
 
   /// Virtual folders: foldersLimitExceeded
   ///
   /// In en, this message translates to:
-  /// **'Upload exceeds the folder limit: 10 MiB per file, 100 MiB or 500 files per folder.'**
+  /// **'Upload exceeds the folder limit: 25 MiB per file, 100 MiB or 500 files per folder.'**
   String get foldersLimitExceeded;
 
   /// Virtual folders: foldersBytesUnavailable

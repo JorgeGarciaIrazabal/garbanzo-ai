@@ -7,6 +7,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+from app.file_limits import MAX_FILE_BYTES as MAX_FILE_BYTES
+
 WorkflowStatus = Literal[
     "draft",
     "uploading",
@@ -23,7 +25,6 @@ TERMINAL_STATUSES = frozenset({"done", "error", "cancelled"})
 
 # Snapshot budgets. Per-file matches the idea-17 read cap; the totals stop a
 # stray "attach my home directory" from filling the server's disk.
-MAX_FILE_BYTES = 5 * 1024 * 1024
 MAX_TOTAL_BYTES = 50 * 1024 * 1024
 MAX_FILE_COUNT = 2000
 

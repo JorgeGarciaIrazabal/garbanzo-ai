@@ -49,6 +49,27 @@ void main() {
   });
 
   group('readFile', () {
+    test('reads and snapshots the reported 17 MiB workbook size', () {
+      final file = File('${root.path}/annual.xlsm');
+      final handle = file.openSync(mode: FileMode.write);
+      handle.truncateSync(17 * 1024 * 1024);
+      handle.closeSync();
+
+      final result = reader.readFile(root.path, 'annual.xlsm');
+      expect(result.bytes.length, 17 * 1024 * 1024);
+      expect(reader.walk(root.path).paths, contains('annual.xlsm'));
+    });
+
+    test('rejects files above the 25 MiB limit', () {
+      final file = File('${root.path}/large.xlsm');
+      final handle = file.openSync(mode: FileMode.write);
+      handle.truncateSync(25 * 1024 * 1024 + 1);
+      handle.closeSync();
+      expect(
+        () => reader.readFile(root.path, 'large.xlsm'),
+        throwsA(isA<FolderReadError>()),
+      );
+    });
     test('reads a file inside the folder', () {
       final result = reader.readFile(root.path, 'notes.txt');
       expect(String.fromCharCodes(result.bytes), 'hello world');

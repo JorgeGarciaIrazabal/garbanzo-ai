@@ -71,7 +71,7 @@ characters). `POST /folders` accepts `{name,description?}`, defaulting to an emp
 description. `PATCH /folders/{id}` accepts name and/or description, preserving
 omitted fields; an empty description clears it. Empty patches, explicit nulls,
 unknown fields and invalid values return 422.
-Limits: 10 MiB/file, 100 MiB and 500 files/folder, 100 folders and 500 MiB/user,
+Limits: 25 MiB/file, 100 MiB and 500 files/folder, 100 folders and 500 MiB/user,
 20 folders/chat. Duplicate uploads and file/directory path collisions return 409.
 Multipart upload accepts optional `keep_both=true`: if that exact path exists,
 the server assigns a unique sibling name such as `report (2).pdf` under its quota
@@ -84,7 +84,7 @@ UTF-8 text/source/CSV files; PDF/Office extraction is read-only, with explicit
 errors for unsupported/corrupt documents. Creates return 201; deletes return 204.
 Spreadsheet text extraction supports XLSX and XLSM, including sheet names and
 saved cell values. Macros are not executed and formulas are not recalculated;
-the 5 MiB document extraction input limit also applies to XLSM.
+the 25 MiB document extraction input limit also applies to XLSM.
 The native `virtual_folders` tool adds paginated discovery, metadata updates
 (`update_folder` with `folder_id` and name and/or description), read/write, current-chat
 attachment and download references; downloads render authenticated buttons in chat.
@@ -144,7 +144,7 @@ retain citation URLs, original character counts and explicit truncation flags.
 Query mode reports `query_matched`; page mode returns `next_offset` (null at
 the end) and at most ten links. These schemas are exposed by `GET /mcp/tools`.
 
-**Delegated workflows (idea 18).** Folder lives only on desktop (idea 17); run works on server snapshot uploaded by client, opencode edits copy, diff is auto-applied — no review gate (`/start` is detached, survives client close, summary → assistant message + FCM). Paths forced inside snapshot (400 on `..`/abs/symlink), `workdir` never serialized, `/changes` returns `base_sha256` for conflict check. Research mode (`scope.mode=research`): no upload/diff, git-init workdir, MCP allowance from conversation, summary → `/output`; leading `/agent` forces it. `POST /workflows` copies attachments to `.garbanzo-workflow-inputs/` (5 MB/file, 50 MB/run, Unicode-safe) — reserved dir excluded from snapshot/diff.
+**Delegated workflows (idea 18).** Folder lives only on desktop (idea 17); run works on server snapshot uploaded by client, opencode edits copy, diff is auto-applied — no review gate (`/start` is detached, survives client close, summary → assistant message + FCM). Paths forced inside snapshot (400 on `..`/abs/symlink), `workdir` never serialized, `/changes` returns `base_sha256` for conflict check. Research mode (`scope.mode=research`): no upload/diff, git-init workdir, MCP allowance from conversation, summary → `/output`; leading `/agent` forces it. `POST /workflows` copies attachments to `.garbanzo-workflow-inputs/` (25 MiB/file, 50 MB/run, Unicode-safe) — reserved dir excluded from snapshot/diff.
 
 ### Topic thread creation and legacy topic switching
 
@@ -240,8 +240,8 @@ configured serialized tool-result budget, preserving the cursor. Running runs,
 missing reports, invalid arguments, unavailable files, unsupported binaries and
 failed extraction return explicit `{ok:false,error}`. Failed/cancelled reports
 are labelled with their actual status. Raw bytes remain downloadable. Document
-extraction runs in an isolated process (20s wall time, 10s CPU, 1 GiB address
-space), with 50 MiB expanded archive and 5 Mi-character extracted text limits.
+extraction runs in an isolated process (60s wall time, 30s CPU, 1 GiB address
+space), with 250 MiB expanded archive and 25 Mi-character extracted text limits.
 
 
 Room WebSocket `error` events also report automatic reply-selection failures

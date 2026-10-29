@@ -38,6 +38,7 @@ from app.services.client_file_extract import extract_file_text
 from app.services.client_tool_bridge import client_tool_bridge
 from app.services.conversation_service import ConversationService
 from app.services.conversation_turn_sink import ConversationTurnSink
+from app.services.document_extraction import DocumentExtractionError
 from app.services.document_parser import decode_attachment_bytes, extract_attachment_text
 from app.services.error_reporting import report_chat_error
 from app.services.image_utils import downscale_image_b64
@@ -1064,7 +1065,10 @@ class ChatService:
                 raw = base64.b64decode(data_b64)
             except Exception:
                 return {"ok": False, "error": "The app returned invalid file content."}
-            content = extract_file_text(filename, raw)
+            try:
+                content = await asyncio.to_thread(extract_file_text, filename, raw)
+            except DocumentExtractionError as exc:
+                return {"ok": False, "path": args.get("path"), "error": str(exc)}
             return {"ok": True, "path": args.get("path"), "content": content}
 
         # list_files: the client returns the directory entries verbatim.

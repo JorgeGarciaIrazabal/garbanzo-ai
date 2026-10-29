@@ -4462,11 +4462,11 @@
   "@foldersRefresh": {
     "description": "Virtual folders: foldersRefresh"
   },
-  "foldersLimits": "Up to 10 MiB per file, 100 MiB and 500 files per folder.",
+  "foldersLimits": "Up to 25 MiB per file, 100 MiB and 500 files per folder.",
   "@foldersLimits": {
     "description": "Virtual folders: foldersLimits"
   },
-  "foldersLimitExceeded": "Upload exceeds the folder limit: 10 MiB per file, 100 MiB or 500 files per folder.",
+  "foldersLimitExceeded": "Upload exceeds the folder limit: 25 MiB per file, 100 MiB or 500 files per folder.",
   "@foldersLimitExceeded": {
     "description": "Virtual folders: foldersLimitExceeded"
   },

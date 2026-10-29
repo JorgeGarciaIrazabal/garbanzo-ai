@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:garbanzo_ai/core/api_client.dart';
 import 'package:garbanzo_ai/core/api_error.dart';
+import 'package:garbanzo_ai/core/file_limits.dart';
 import 'package:garbanzo_ai/features/chat/services/export_downloader.dart';
 import 'package:garbanzo_ai/features/folders/models/virtual_folder.dart';
 
@@ -20,7 +21,7 @@ class FoldersService {
     : _api = api ?? ApiClient.instance,
       _downloader = downloader ?? const ExportDownloader();
 
-  static const maxFileBytes = 10 * 1024 * 1024;
+  static const maxFileBytes = maxFolderFileBytes;
   static const maxFolderBytes = 100 * 1024 * 1024;
   static const maxFolderFiles = 500;
   static const _base = '/api/v1/folders';
@@ -87,7 +88,7 @@ class FoldersService {
     bool keepBoth = false,
   }) async {
     if (bytes.length > maxFileBytes) {
-      throw const FolderException(413, 'File exceeds 10 MiB');
+      throw const FolderException(413, 'File exceeds 25 MiB');
     }
     return FolderFile.fromJson(
       _checked(
@@ -109,7 +110,7 @@ class FoldersService {
 
   Future<FolderFile> replaceFile(FolderFile file, Uint8List bytes) async {
     if (bytes.length > maxFileBytes) {
-      throw const FolderException(413, 'File exceeds 10 MiB');
+      throw const FolderException(413, 'File exceeds 25 MiB');
     }
     return FolderFile.fromJson(
       _checked(

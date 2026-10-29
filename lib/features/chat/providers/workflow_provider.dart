@@ -438,7 +438,7 @@ class WorkflowProvider extends ChangeNotifier {
         }
       }
       // Anything left out of the snapshot is something the agent will never
-      // see — large binaries (a big .pptx/.xlsx clears the 5 MB per-file cap
+      // see — large binaries (a big .pptx/.xlsx clears the 25 MiB per-file cap
       // easily) or files past the folder budget. Surfacing this beats letting
       // the user assume the whole project was sent.
       if (walk != null) {

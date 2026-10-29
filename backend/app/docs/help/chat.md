@@ -94,6 +94,9 @@ On Android, you can also choose **Garbanzo AI** from another app's Share menu.
 Shared pictures, files, and any accompanying text are staged in the chat
 composer so you can review them and add instructions before sending.
 
+Documents and other non-image attachments accept up to 25 MiB per file.
+XLSX and XLSM attachments use saved cell values for their spreadsheet preview.
+
 ## How do I include a folder in a chat? (desktop)
 On the desktop app, open the paperclip menu and choose **Folder**, or drag a
 folder onto the chat. The assistant can then read files inside that folder on
@@ -107,7 +110,7 @@ desktop-only — web can't reach your files.
 
 XLSX and macro-enabled XLSM spreadsheets are read as sheet names and saved cell
 values. Macros are not run and formulas are not recalculated. Live-folder reads
-are limited to 5 MiB per file.
+are limited to 25 MiB per file.
 
 ## Can the assistant change files in my folder?
 Not directly, but it can hand the job to an agent that does. When you ask for
@@ -142,7 +145,7 @@ Three things worth knowing:
   is working, that file is reported as a conflict and skipped rather than
   overwritten.
 - **Big folders are trimmed.** Hidden files, `.git`, and `node_modules` are
-  never uploaded, and files over 5 MB are skipped. Expanding the progress
+  never uploaded, and files over 25 MiB are skipped. Expanding the progress
   line tells you when something was left out — the agent can't act on what
   it never received.
 
@@ -199,7 +202,7 @@ share sheet.
 If you attach files to the same message that launches the agent, the agent gets
 private input copies in its workspace in both folder and folderless mode. Those
 copies never overwrite the originals and are not included in changes written
-back to an attached folder. Each delegated input file is limited to 5 MB. If an
+back to an attached folder. Each delegated input file is limited to 25 MiB. If an
 older app version did not retain the original bytes, attach the file again.
 
 ## Can it work on slides, spreadsheets, or images?
@@ -211,9 +214,9 @@ best on code and text formats. It can still handle office files by scripting
 them (for example with a spreadsheet library), but treat that as something to
 review carefully rather than assume.
 
-One practical limit: files over 5 MB aren't uploaded at all — which many real
+One practical limit: files over 25 MiB aren't uploaded at all — which many real
 decks exceed. The agent can still produce one (its output is written to your
-folder on completion), but anything over 5 MB it generates is reported as
+folder on completion), but anything over 25 MiB it generates is reported as
 skipped rather than written.
 
 ## How do I dictate a message?

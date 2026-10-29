@@ -23,10 +23,24 @@ from app.services.document_extraction import DocumentExtractionError
 from app.services.llm_provider import ChatChunk
 from app.services.native_tools import execute_native_tool
 from app.services.virtual_folder_service import FolderError, VirtualFolderService
+from tests.spreadsheet_fixture import xlsm_bytes
 from tests.test_chat_tool_loop import _make_service, _ScriptedProvider
 from tests.test_workflow_endpoints import _clear_overrides, _client, _install_overrides, _UserSwitch
 
 OWNER = "test@example.com"
+
+
+@pytest.mark.asyncio
+async def test_large_xlsm_upload_and_text_preview(db_session):
+    service = VirtualFolderService(db_session)
+    folder = await service.create_folder(OWNER, "Annual energy")
+    payload = xlsm_bytes(binary_bytes=17 * 1024 * 1024)
+    file = await service.create_file(folder.id, OWNER, "annual.xlsm", payload)
+    downloaded = await service.get_file(folder.id, file.id, OWNER, data=True)
+    assert downloaded.data == payload
+    preview = await service.read_text(folder.id, file.id, OWNER)
+    assert "January | 125" in preview.text
+    assert "Generation | 90" in preview.text
 
 
 @pytest_asyncio.fixture
@@ -368,7 +382,7 @@ async def test_quotas_and_file_directory_collisions(db_session, monkeypatch):
     monkeypatch.setattr(virtual_folder_service, "MAX_FOLDER_BYTES", 8)
     monkeypatch.setattr(virtual_folder_service, "MAX_USER_BYTES", 9)
     file = await service.create_text(folder.id, OWNER, "first.txt", "12345")
-    with pytest.raises(FolderError, match="10 MiB"):
+    with pytest.raises(FolderError, match="File exceeds"):
         await service.create_file(folder.id, OWNER, "large", b"123456")
     with pytest.raises(FolderError, match="100 MiB"):
         await service.create_file(folder.id, OWNER, "second", b"1234")

@@ -47,7 +47,7 @@ JSON and CSV. PDF/Office files have read-only extracted previews; binary files
 can be stored and downloaded but cannot be edited through the text editor.
 XLSX and macro-enabled XLSM workbooks can be read as sheet names and cell values.
 Macros are not run and formulas use the workbook's saved results; Garbanzo AI
-does not recalculate them. Document extraction accepts files up to 5 MiB.
+does not recalculate them. Document extraction accepts files up to 25 MiB.
 If another device or chat changes a file, a stale save fails instead of
 overwriting the newer version. Refresh and read the latest version before saving.
 
@@ -59,7 +59,7 @@ provides a Download button in chat. Desktop opens Save As; Android opens its
 share/save options. Downloads contain the original file bytes.
 
 ## What are the limits?
-10 MiB per file, 100 MiB and 500 files per folder, 100 folders and 500 MiB total
+25 MiB per file, 100 MiB and 500 files per folder, 100 folders and 500 MiB total
 per user, and 20 attached folders per chat. Empty files are allowed. Replacing a
 file uses only its change in size for storage limits and does not add another file.
 Keeping both uses a new file slot and stores the new copy separately.

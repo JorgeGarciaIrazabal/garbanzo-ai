@@ -7,8 +7,20 @@ import pytest
 
 from app.schemas.chat import AttachmentIn
 from app.services.document_parser import extract_attachment_text
+from tests.spreadsheet_fixture import xlsm_bytes
 
 pytestmark = pytest.mark.asyncio
+
+
+async def test_large_xlsm_attachment_extracts_cells():
+    attachment = _attachment(
+        name="annual.xlsm",
+        mime_type="application/vnd.ms-excel.sheet.macroEnabled.12",
+        raw=xlsm_bytes(binary_bytes=17 * 1024 * 1024),
+    )
+    text = await extract_attachment_text(attachment)
+    assert "January | 125" in text
+    assert "Generation | 90" in text
 
 
 def _attachment(*, name: str, mime_type: str, raw: bytes) -> AttachmentIn:

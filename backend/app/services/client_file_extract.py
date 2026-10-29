@@ -6,8 +6,8 @@ locally and sends its raw bytes to the backend; this module turns those bytes
 into text. The backend never reads the host filesystem — it only processes an
 upload, exactly like a chat attachment.
 
-Reuses the shared document byte readers (PDF/CSV/spreadsheet/plain) and falls back
-to markitdown for Office/HTML formats (DOCX/PPTX/HTML/…).
+Known PDF/Office/HTML documents use the shared isolated parser. Plain text is
+decoded directly; unknown formats retain content detection.
 """
 
 from __future__ import annotations
@@ -15,16 +15,14 @@ from __future__ import annotations
 import tempfile
 from pathlib import Path
 
+from app.file_limits import MAX_FILE_BYTES
+from app.services.document_extraction import DocumentExtractionError, extract_isolated
 from app.services.document_text import (
     MARKITDOWN_EXTENSIONS,
     STRUCTURED_EXTENSIONS,
     TEXT_EXTENSIONS,
-    extract_text,
     looks_like_text,
 )
-
-# Files larger than this are refused rather than slurped into the model context.
-MAX_FILE_BYTES = 5 * 1024 * 1024
 
 
 def _extract_with_markitdown(filename: str, data: bytes) -> str | None:
@@ -48,24 +46,19 @@ def _extract_with_markitdown(filename: str, data: bytes) -> str | None:
 def extract_file_text(filename: str, data: bytes) -> str:
     """Turn client-provided file ``data`` into text, choosing the best extractor.
 
-    Returns a human-readable message (not a raise) for oversized or unreadable
-    files so the model gets useful feedback in the tool result.
+    Known document formats use the bounded isolated parser. Parser failures
+    propagate so the caller can return an explicit failed tool result.
     """
     if len(data) > MAX_FILE_BYTES:
-        return (
+        raise DocumentExtractionError(
             f"File '{filename}' is too large to read "
             f"({len(data) // 1024} KB > {MAX_FILE_BYTES // 1024} KB limit)."
         )
 
     suffix = Path(filename).suffix.lower()
 
-    if suffix in STRUCTURED_EXTENSIONS:
-        return extract_text(data, filename, "")
-
-    if suffix in MARKITDOWN_EXTENSIONS:
-        text = _extract_with_markitdown(filename, data)
-        if text is not None:
-            return text
+    if suffix in STRUCTURED_EXTENSIONS | MARKITDOWN_EXTENSIONS:
+        return extract_isolated(filename, data)
 
     if suffix in TEXT_EXTENSIONS or suffix == "":
         return data.decode("utf-8", errors="replace")

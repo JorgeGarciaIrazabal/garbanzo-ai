@@ -114,6 +114,18 @@ async def test_add_files_rejects_oversized_file(db_session):
 
 
 @pytest.mark.asyncio
+async def test_add_files_accepts_reported_workbook_size(db_session):
+    service, run = await _new_run(db_session)
+    payload = b"x" * (17 * 1024 * 1024)
+    count, total = await service.add_files(
+        run, [("annual.xlsm", base64.b64encode(payload).decode())]
+    )
+    assert count == 1
+    assert total == len(payload)
+    assert (Path(run.workdir) / "annual.xlsm").read_bytes() == payload
+
+
+@pytest.mark.asyncio
 async def test_add_files_rejects_too_many_files(db_session):
     service, run = await _new_run(db_session)
     run.scope = {**run.scope, "file_count": MAX_FILE_COUNT}

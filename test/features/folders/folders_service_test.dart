@@ -10,6 +10,17 @@ import 'package:garbanzo_ai/features/folders/widgets/folder_download_button.dart
 import 'folders_test_support.dart';
 
 void main() {
+  test('uploads and replaces a 17 MiB workbook', () async {
+    final api = RecordingApi();
+    final service = FoldersService(api: api);
+    final bytes = Uint8List(17 * 1024 * 1024);
+    api.response = Response(requestOptions: RequestOptions(), statusCode: 201, data: testFile.toJson());
+    await service.upload('folder', 'annual.xlsm', bytes);
+    expect((api.data as FormData).files.single.value.length, bytes.length);
+    api.response = Response(requestOptions: RequestOptions(), statusCode: 200, data: testFile.toJson());
+    await service.replaceFile(testFile, bytes);
+    expect((api.data as FormData).files.single.value.length, bytes.length);
+  });
   test('duplicate upload choices send copy intent or original replacement revision', () async {
     final api = RecordingApi();
     final service = FoldersService(api: api);

@@ -19,6 +19,8 @@ from openpyxl import Workbook
 from app.services.chat_service import ChatService
 from app.services.client_file_extract import MAX_FILE_BYTES, extract_file_text
 from app.services.client_tool_bridge import ClientToolBridge
+from app.services.document_extraction import DocumentExtractionError
+from tests.spreadsheet_fixture import xlsm_bytes
 
 # ------------------------------------------------------------ extraction
 
@@ -59,8 +61,8 @@ def test_extract_html_via_markitdown():
 
 
 def test_extract_enforces_size_limit():
-    out = extract_file_text("big.txt", b"a" * (MAX_FILE_BYTES + 1))
-    assert "too large" in out.lower()
+    with pytest.raises(DocumentExtractionError, match="too large"):
+        extract_file_text("big.txt", b"a" * (MAX_FILE_BYTES + 1))
 
 
 def test_extract_rejects_binary():
@@ -117,19 +119,22 @@ def test_bridge_resolve_unknown_returns_false():
 
 
 @pytest.mark.asyncio
-async def test_execute_client_folder_tool_read_file(db_session):
+@pytest.mark.parametrize("large_workbook", [False, True])
+async def test_execute_client_folder_tool_read_file(db_session, large_workbook):
     from app.services import chat_service as chat_service_module
 
     svc = ChatService(db_session)
     conversation = SimpleNamespace(id="conv1", user_id="u@example.com")
     emitted = []
+    raw = xlsm_bytes(binary_bytes=17 * 1024 * 1024) if large_workbook else b"hello from the folder"
+    filename = "annual.xlsm" if large_workbook else "a.txt"
 
     async def emit(chunk):
         emitted.append(chunk)
 
     async def responder():
-        data = base64.b64encode(b"hello from the folder").decode()
-        payload = {"ok": True, "filename": "a.txt", "data": data}
+        data = base64.b64encode(raw).decode()
+        payload = {"ok": True, "filename": filename, "data": data}
         for _ in range(200):
             if chat_service_module.client_tool_bridge.resolve("conv1", "tc1", payload):
                 return
@@ -139,17 +144,43 @@ async def test_execute_client_folder_tool_read_file(db_session):
     result = await svc._execute_client_folder_tool(
         {"id": "tc1", "name": "read_file"},
         "read_file",
-        {"path": "a.txt"},
+        {"path": filename},
         conversation,
         emit,
     )
     await task
 
     assert result["ok"] is True
-    assert result["content"] == "hello from the folder"
+    if large_workbook:
+        assert "January | 125" in result["content"]
+        assert "Generation | 90" in result["content"]
+    else:
+        assert result["content"] == "hello from the folder"
     # The client was asked via a client_tool_request chunk.
     assert emitted[0].metadata["client_tool_request"]["tool_name"] == "read_file"
-    assert emitted[0].metadata["client_tool_request"]["args"] == {"path": "a.txt"}
+    assert emitted[0].metadata["client_tool_request"]["args"] == {"path": filename}
+
+
+@pytest.mark.asyncio
+async def test_client_document_parser_failure_is_a_failed_tool_result(db_session, monkeypatch):
+    from app.services import chat_service as chat_service_module
+
+    async def request(**kwargs):
+        return {"ok": True, "filename": "broken.xlsm", "data": base64.b64encode(b"bad").decode()}
+
+    async def emit(chunk):
+        pass
+
+    monkeypatch.setattr(chat_service_module.client_tool_bridge, "request", request)
+    result = await ChatService(db_session)._execute_client_folder_tool(
+        {"id": "broken", "name": "read_file"},
+        "read_file",
+        {"path": "broken.xlsm"},
+        SimpleNamespace(id="c", user_id="u@example.com"),
+        emit,
+    )
+    assert result["ok"] is False
+    assert "extraction failed" in result["error"].lower()
 
 
 @pytest.mark.asyncio

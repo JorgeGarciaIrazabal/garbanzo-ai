@@ -6,6 +6,19 @@ import 'package:garbanzo_ai/features/chat/widgets/input/file_picker_helper.dart'
 import 'package:image/image.dart' as image_lib;
 
 void main() {
+  test('accepts a 17 MiB XLSM attachment and rejects files over 25 MiB', () async {
+    final result = await FilePickerHelper.validate(
+      files: [
+        (name: 'annual.xlsm', bytes: Uint8List(17 * 1024 * 1024)),
+        (name: 'too-large.txt', bytes: Uint8List(25 * 1024 * 1024 + 1)),
+      ],
+      existingNames: {},
+    );
+    expect(result.added, hasLength(1));
+    expect(result.added.single.mimeType, 'application/vnd.ms-excel.sheet.macroEnabled.12');
+    expect(result.rejected, hasLength(1));
+    expect(result.rejected.single, contains('too-large.txt'));
+  });
   test('validation rejects duplicate names within one shared batch', () async {
     final result = await FilePickerHelper.validate(
       files: [

@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
+import 'package:garbanzo_ai/core/file_limits.dart';
 import 'package:garbanzo_ai/features/chat/services/folder_read_error.dart';
 import 'package:garbanzo_ai/features/chat/services/folder_walk.dart';
 
@@ -16,7 +17,7 @@ class FolderReader {
   const FolderReader();
 
   /// Largest file we'll read and upload; mirrors the backend's cap.
-  static const int maxFileBytes = 5 * 1024 * 1024;
+  static const int maxFileBytes = maxFolderFileBytes;
 
   static const int _maxListEntries = 500;
   static const Set<String> _skipNames = {

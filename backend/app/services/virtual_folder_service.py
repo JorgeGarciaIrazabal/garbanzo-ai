@@ -196,7 +196,7 @@ class VirtualFolderService:
         self, folder_id: str, user_id: str, size: int, *, old_size: int = 0, creating: bool = True
     ) -> None:
         if size > MAX_FILE_BYTES:
-            raise FolderError("File exceeds the 10 MiB limit.", 413)
+            raise FolderError(f"File exceeds the {MAX_FILE_BYTES // (1024 * 1024)} MiB limit.", 413)
         count, folder_bytes = (
             await self.db.execute(
                 select(func.count(), func.coalesce(func.sum(VirtualFile.size_bytes), 0)).where(

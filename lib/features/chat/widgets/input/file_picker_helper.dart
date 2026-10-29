@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:image/image.dart' as image_lib;
 import 'package:image_picker/image_picker.dart';
 
+import 'package:garbanzo_ai/core/file_limits.dart';
 import 'package:garbanzo_ai/features/chat/models/chat_attachment.dart';
 import 'package:garbanzo_ai/features/chat/services/clipboard_image_reader.dart';
 
@@ -207,15 +208,6 @@ class FilePickerHelper {
       var name = file.name;
       var mime = inferMime(name, bytes);
       final isImage = mime.startsWith('image/');
-      final isPdf = mime == 'application/pdf';
-      final isSpreadsheet =
-          mime.endsWith('spreadsheetml.sheet') ||
-          mime == 'application/vnd.ms-excel' ||
-          mime == 'application/vnd.oasis.opendocument.spreadsheet' ||
-          name.toLowerCase().endsWith('.csv') ||
-          name.toLowerCase().endsWith('.xlsx') ||
-          name.toLowerCase().endsWith('.xls') ||
-          name.toLowerCase().endsWith('.ods');
 
       if (isImage && bytes.length > imageLimitBytes) {
         final fitted = await compute(_fitImageToLimit, (
@@ -235,11 +227,7 @@ class FilePickerHelper {
         bytes = fitted.bytes;
       }
 
-      final maxBytes = isPdf
-          ? 20 * 1024 * 1024
-          : isSpreadsheet
-          ? 10 * 1024 * 1024
-          : 10 * 1024 * 1024;
+      const maxBytes = maxFolderFileBytes;
 
       if (!isImage && bytes.length > maxBytes) {
         rejected.add(
@@ -277,6 +265,16 @@ class FilePickerHelper {
     if (lower.endsWith('.json')) return 'application/json';
     if (lower.endsWith('.html') || lower.endsWith('.htm')) return 'text/html';
     if (lower.endsWith('.csv')) return 'text/csv';
+    if (lower.endsWith('.xlsx')) {
+      return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    }
+    if (lower.endsWith('.xlsm')) {
+      return 'application/vnd.ms-excel.sheet.macroEnabled.12';
+    }
+    if (lower.endsWith('.xls')) return 'application/vnd.ms-excel';
+    if (lower.endsWith('.ods')) {
+      return 'application/vnd.oasis.opendocument.spreadsheet';
+    }
     if (lower.endsWith('.xml')) return 'application/xml';
     return 'text/plain';
   }

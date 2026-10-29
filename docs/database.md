@@ -26,7 +26,7 @@ The service locks the user, then folder, then conversation as applicable so
 concurrent writes cannot evade user/folder quotas or overwrite stale revisions.
 Locks use PostgreSQL `FOR NO KEY UPDATE`: the IDs never change, and chat ingestion
 can already hold foreign-key `KEY SHARE` locks on the same owner/conversation.
-Limits are 10 MiB/file, 100 MiB and 500 files/folder, 500 MiB and 100 folders/user,
+Limits are 25 MiB/file, 100 MiB and 500 files/folder, 500 MiB and 100 folders/user,
 and 20 folder links/conversation. `ConversationFolder` links are independent of
 file ownership: detaching or deleting a chat retains the folder and its files.
 Deleting a folder cascades to its files and chat links; deleting its user also
@@ -331,7 +331,7 @@ half-migrated schema.
   `size_bytes`, `sha256`, and timestamp. `(run_id, path)` is unique. The parent
   run supplies ownership; run deletion cascades to artifacts. Bytes are deferred
   in ORM metadata listings and included in normal database backups. Snapshot
-  bounds are 5 MiB/file, 50 MiB/run and 2,000 files, with 10,000 visited entries
+  bounds are 25 MiB/file, 50 MiB/run and 2,000 files, with 10,000 visited entries
   and depth 100. Symlinks/special files are rejected. Input copies, Git/OpenCode
   state, dependency/cache directories and generated configuration are excluded.
   Folder artifacts contain added/modified files compared with the saved baseline;

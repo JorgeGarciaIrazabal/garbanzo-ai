@@ -4,7 +4,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-MAX_FILE_BYTES = 10 * 1024 * 1024
+from app.file_limits import MAX_FILE_BYTES
+
 MAX_FOLDER_BYTES = 100 * 1024 * 1024
 MAX_USER_BYTES = 500 * 1024 * 1024
 MAX_FILES = 500

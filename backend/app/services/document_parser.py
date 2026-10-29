@@ -26,6 +26,7 @@ _PLAIN_TEXT_EXTENSIONS = (".txt", ".md", ".json", ".py", ".js", ".ts", ".dart", 
 
 _SPREADSHEET_MIME_TYPES = (
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/vnd.ms-excel.sheet.macroenabled.12",
     "application/vnd.ms-excel",
     "application/vnd.oasis.opendocument.spreadsheet",
 )

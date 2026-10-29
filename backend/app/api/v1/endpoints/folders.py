@@ -106,7 +106,7 @@ async def upload_file(
     await service.owned_folder(folder_id, user["email"])
     payload = await file.read(MAX_FILE_BYTES + 1)
     if len(payload) > MAX_FILE_BYTES:
-        raise FolderError("File exceeds the 10 MiB limit.", 413)
+        raise FolderError(f"File exceeds the {MAX_FILE_BYTES // (1024 * 1024)} MiB limit.", 413)
     return await service.create_file(
         folder_id, user["email"], path or file.filename or "file", payload, keep_both=keep_both
     )
@@ -135,7 +135,7 @@ async def replace_file(
     await service.get_file(folder_id, file_id, user["email"])
     payload = await file.read(MAX_FILE_BYTES + 1)
     if len(payload) > MAX_FILE_BYTES:
-        raise FolderError("File exceeds the 10 MiB limit.", 413)
+        raise FolderError(f"File exceeds the {MAX_FILE_BYTES // (1024 * 1024)} MiB limit.", 413)
     return await service.replace_file(folder_id, file_id, user["email"], payload, revision)
 
 
