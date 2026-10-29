@@ -33,8 +33,11 @@ class _FakeChatService extends ChatService {
   );
 
   @override
-  Future<Conversation> getConversation(String id, {int? messageLimit, bool silent = false}) async =>
-      _conversation;
+  Future<Conversation> getConversation(
+    String id, {
+    int? messageLimit,
+    bool silent = false,
+  }) async => _conversation;
 
   @override
   Future<ConversationList> listConversations({
@@ -146,7 +149,8 @@ class _FakeWorkflowService extends WorkflowService {
     listStarted?.complete();
     final pending = listCompleter;
     if (pending != null) return pending.future;
-    return listResponse ?? [_run(id: 'run-1', status: 'done', summary: 'all good')];
+    return listResponse ??
+        [_run(id: 'run-1', status: 'done', summary: 'all good')];
   }
 }
 
@@ -249,26 +253,29 @@ void main() {
       expect(runs[1]?.id, 'run-1');
     });
 
-    test('does not restart a proposal that already has a restored run', () async {
-      service.listResponse = [
-        service._run(
-          id: 'finished-run',
-          status: 'done',
+    test(
+      'does not restart a proposal that already has a restored run',
+      () async {
+        service.listResponse = [
+          service._run(
+            id: 'finished-run',
+            status: 'done',
+            conversationId: 'conv-1',
+          ),
+        ];
+        await provider.loadForConversation('conv-1');
+
+        final run = await provider.startFromProposal(
+          toolCallId: 'tc-1',
+          instruction: 'deep research',
           conversationId: 'conv-1',
-        ),
-      ];
-      await provider.loadForConversation('conv-1');
+        );
 
-      final run = await provider.startFromProposal(
-        toolCallId: 'tc-1',
-        instruction: 'deep research',
-        conversationId: 'conv-1',
-      );
-
-      expect(run?.id, 'finished-run');
-      expect(service.createdModes, isEmpty);
-      expect(service.started, isEmpty);
-    });
+        expect(run?.id, 'finished-run');
+        expect(service.createdModes, isEmpty);
+        expect(service.started, isEmpty);
+      },
+    );
 
     test('reports files the snapshot had to leave out', () async {
       File('${root.path}/a.txt').writeAsStringSync('alpha');
@@ -494,22 +501,25 @@ void main() {
       expect(downloader.title, 'Research report');
     });
 
-    test('does not fetch or apply a diff for a completed research run', () async {
-      service.listResponse = [
-        service._run(
-          id: 'research-1',
-          status: 'done',
-          conversationId: 'conv-1',
-          scope: {'mode': 'research'},
-        ),
-      ];
+    test(
+      'does not fetch or apply a diff for a completed research run',
+      () async {
+        service.listResponse = [
+          service._run(
+            id: 'research-1',
+            status: 'done',
+            conversationId: 'conv-1',
+            scope: {'mode': 'research'},
+          ),
+        ];
 
-      await provider.loadForConversation('conv-1');
-      await Future<void>.delayed(const Duration(milliseconds: 100));
+        await provider.loadForConversation('conv-1');
+        await Future<void>.delayed(const Duration(milliseconds: 100));
 
-      expect(service.appliedRuns, isEmpty);
-      expect(provider.applyResultFor('tc-1'), isNull);
-    });
+        expect(service.appliedRuns, isEmpty);
+        expect(provider.applyResultFor('tc-1'), isNull);
+      },
+    );
   });
 
   group('polling', () {

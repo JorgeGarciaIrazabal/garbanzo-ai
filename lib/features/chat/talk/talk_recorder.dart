@@ -182,7 +182,9 @@ class TalkRecorder {
     if (recorder != null) {
       try {
         await recorder.cancel();
-      } catch (_) {}
+      } catch (_) {
+        // Recorder may already have stopped before cancellation.
+      }
       await recorder.dispose();
     }
     await pcmSub?.cancel();
@@ -192,7 +194,9 @@ class TalkRecorder {
     if (path != null) {
       try {
         await File(path).delete();
-      } catch (_) {}
+      } catch (_) {
+        // Temp recording file may not have been created yet.
+      }
     }
     _pcm.clear();
     _levelRemainder = Uint8List(0);
@@ -461,7 +465,9 @@ class TalkRecorder {
     } finally {
       try {
         await file.delete();
-      } catch (_) {}
+      } catch (_) {
+        // Best-effort temp WAV cleanup after transcription completes.
+      }
     }
   }
 

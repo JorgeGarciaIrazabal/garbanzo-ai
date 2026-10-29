@@ -158,15 +158,13 @@ class TopicBanner extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(horizontal: 8),
                     ),
                     onPressed: () {
-                      ChatProvider? chat;
-                      try {
-                        chat = Provider.of<ChatProvider>(
-                          context,
-                          listen: false,
-                        );
-                      } catch (_) {}
-                      final conversationId =
-                          chat?.currentConversation?.id ?? '';
+                      final conversationId = context
+                          .read<ChatProvider?>()
+                          ?.currentConversation
+                          ?.id;
+                      if (conversationId == null || conversationId.isEmpty) {
+                        return;
+                      }
                       topics.acceptDrift(conversationId, mode: 'combine');
                     },
                     child: Text(
@@ -182,15 +180,13 @@ class TopicBanner extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(horizontal: 8),
                     ),
                     onPressed: () {
-                      ChatProvider? chat;
-                      try {
-                        chat = Provider.of<ChatProvider>(
-                          context,
-                          listen: false,
-                        );
-                      } catch (_) {}
-                      final conversationId =
-                          chat?.currentConversation?.id ?? '';
+                      final conversationId = context
+                          .read<ChatProvider?>()
+                          ?.currentConversation
+                          ?.id;
+                      if (conversationId == null || conversationId.isEmpty) {
+                        return;
+                      }
                       topics.acceptDrift(conversationId, mode: 'start');
                     },
                     child: Text(

@@ -4,8 +4,11 @@ import 'package:garbanzo_ai/features/mentions/models/mention_query.dart';
 
 const _triggers = {'@', '/', '#'};
 
-MentionQuery? _scan(String text, int cursor) =>
-    activeMentionQuery(text, TextSelection.collapsed(offset: cursor), _triggers);
+MentionQuery? _scan(String text, int cursor) => activeMentionQuery(
+  text,
+  TextSelection.collapsed(offset: cursor),
+  _triggers,
+);
 
 void main() {
   group('activeMentionQuery', () {

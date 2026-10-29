@@ -70,8 +70,9 @@ void main() {
 
   group('sendRequest', () {
     test('returns the status and reloads the list', () async {
-      when(() => service.sendRequest('bob@example.com'))
-          .thenAnswer((_) async => 'pending');
+      when(
+        () => service.sendRequest('bob@example.com'),
+      ).thenAnswer((_) async => 'pending');
 
       final p = provider();
       await Future<void>.delayed(Duration.zero);
@@ -87,8 +88,9 @@ void main() {
     });
 
     test('surfaces the backend detail on failure', () async {
-      when(() => service.sendRequest('nobody@example.com'))
-          .thenThrow(Exception('API Error (400): No user with that email'));
+      when(
+        () => service.sendRequest('nobody@example.com'),
+      ).thenThrow(Exception('API Error (400): No user with that email'));
 
       final p = provider();
       await Future<void>.delayed(Duration.zero);
@@ -106,9 +108,9 @@ void main() {
 
       final p = provider();
       await Future<void>.delayed(Duration.zero);
-      when(() => service.list()).thenAnswer(
-        (_) async => const FriendsList(friends: [_friend]),
-      );
+      when(
+        () => service.list(),
+      ).thenAnswer((_) async => const FriendsList(friends: [_friend]));
 
       expect(await p.accept(_incoming), isTrue);
       expect(p.friends, hasLength(1));
@@ -117,8 +119,9 @@ void main() {
     });
 
     test('decline failure returns false and sets error', () async {
-      when(() => service.decline('r1'))
-          .thenThrow(Exception('API Error (404): Friend request not found'));
+      when(
+        () => service.decline('r1'),
+      ).thenThrow(Exception('API Error (404): Friend request not found'));
 
       final p = provider();
       await Future<void>.delayed(Duration.zero);
@@ -141,24 +144,27 @@ void main() {
   });
 
   group('block / unblock', () {
-    test('block calls the service and the list gains the blocked entry',
-        () async {
-      when(() => service.block('ana@example.com')).thenAnswer((_) async {});
+    test(
+      'block calls the service and the list gains the blocked entry',
+      () async {
+        when(() => service.block('ana@example.com')).thenAnswer((_) async {});
 
-      final p = provider();
-      await Future<void>.delayed(Duration.zero);
-      when(() => service.list()).thenAnswer(
-        (_) async => const FriendsList(blocked: [_friend]),
-      );
+        final p = provider();
+        await Future<void>.delayed(Duration.zero);
+        when(
+          () => service.list(),
+        ).thenAnswer((_) async => const FriendsList(blocked: [_friend]));
 
-      expect(await p.block('ana@example.com'), isTrue);
-      expect(p.blocked.single.email, 'ana@example.com');
-      p.dispose();
-    });
+        expect(await p.block('ana@example.com'), isTrue);
+        expect(p.blocked.single.email, 'ana@example.com');
+        p.dispose();
+      },
+    );
 
     test('unblock failure returns false and sets error', () async {
-      when(() => service.unblock('ana@example.com'))
-          .thenThrow(Exception('API Error (404): Block not found'));
+      when(
+        () => service.unblock('ana@example.com'),
+      ).thenThrow(Exception('API Error (404): Block not found'));
 
       final p = provider();
       await Future<void>.delayed(Duration.zero);
@@ -207,7 +213,9 @@ void main() {
           itemId: 'st1',
           recipientEmail: 'x@example.com',
         ),
-      ).thenThrow(Exception('API Error (400): You can only share with your friends.'));
+      ).thenThrow(
+        Exception('API Error (400): You can only share with your friends.'),
+      );
 
       final p = provider();
       await Future<void>.delayed(Duration.zero);

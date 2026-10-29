@@ -1,13 +1,17 @@
+import 'package:dio/dio.dart';
+
 import 'package:garbanzo_ai/core/api_client.dart';
+import 'package:garbanzo_ai/core/api_error.dart';
 import 'package:garbanzo_ai/features/scheduled_actions/models/scheduled_action.dart';
 
 /// HTTP client for the `/api/v1/scheduled-actions` endpoints.
 class ScheduledActionsApiService {
-  ScheduledActionsApiService._();
+  ScheduledActionsApiService({ApiClient? api})
+    : _api = api ?? ApiClient.instance;
   static final ScheduledActionsApiService instance =
-      ScheduledActionsApiService._();
+      ScheduledActionsApiService();
 
-  final ApiClient _api = ApiClient.instance;
+  final ApiClient _api;
 
   Future<List<ScheduledAction>> list() async {
     final response = await _api.get('/api/v1/scheduled-actions');
@@ -91,12 +95,6 @@ class ScheduledActionsApiService {
     }
   }
 
-  Exception _error(dynamic response) {
-    final body = response.data;
-    if (body is Map<String, dynamic>) {
-      final detail = body['detail'] as String? ?? 'Unknown error';
-      return Exception('API Error (${response.statusCode}): $detail');
-    }
-    return Exception('API Error (${response.statusCode}): $body');
-  }
+  Exception _error(Response<dynamic> response) =>
+      apiResponseError(response, operation: 'Scheduled action request failed');
 }

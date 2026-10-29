@@ -342,20 +342,36 @@ registration remains explicit in the application startup flow.
 ## Frontend Layout (`lib/`)
 
 ```
-main.dart            AuthGate: checks token → routes to Login or ChatPage
+main.dart            MaterialApp.router + _AppProviders(key: ValueKey(epoch)):
+                     auth epoch wipes & recreates user-scoped providers on logout;
                      PushService.init() at startup; registers device on login
 core/
-  api_client.dart    Singleton HTTP client ( dio ); resolves base URL;
-                     stores token in SharedPreferences
-  auth_service.dart  Singleton; login/register/logout; caches current user
+  router.dart        GoRouter configuration refreshed via AuthState
+  api_client.dart    Singleton HTTP client (Dio, validateStatus: (_) => true);
+                     resolves base URL; stores JWT in SharedPreferences
+  api_error.dart     ApiResponseException, apiErrorDetail (422-safe),
+                     apiResponseError, expectStatus
+  guarded_state.dart GuardedStateMixin (runGuarded, HTTP status mapping,
+                     post-dispose notifyListeners guard)
+  throttled_message_notifier.dart
+                     ThrottledMessageNotifier<T> (80ms stream chunk coalescing
+                     shared by ChatStreamController and RoomProvider)
+  auth_state.dart    Auth session + epoch ChangeNotifier
+  auth_service.dart  Login/register/logout + current user cache
+  error_reporter.dart Client error telemetry reporter
+  smart_scroll_controller.dart
+                     Reader-friendly streaming follow + jump-to-bottom anchor
   responsive.dart    Breakpoint helpers for desktop / tablet / mobile UI
 features/chat/
   models/            ChatMessage, Conversation, ChatAttachment, ModelInfo,
                      ChatResponseChunk, SystemPromptTemplate, SearchResult,
-                     Style, ThinkingLevel
-                     ( all use freezed + json_serializable )
-  providers/         ChatProvider, ModelProvider, SearchProvider,
-                     SystemPromptProvider, StyleProvider,
+                     Style, ThinkingLevel, AgentLiveness
+                     (Freezed + json_serializable)
+  providers/         ChatProvider, ChatStreamController, AgentLivenessController,
+                     ChatResponseRecoveryController, MessageStarController,
+                     ConversationListController, ClientFolderController,
+                     ModelProvider, SearchProvider, SystemPromptProvider,
+                     StyleProvider, ReadAloudController,
                       WorkflowProvider (idea 18: drives delegated workflows —
                       optional folder walk/upload, polling, folder AUTO-APPLY,
                       and research markdown export. Folder diffs apply the
@@ -376,7 +392,8 @@ features/chat/
                       current epoch, and opens the result in a dialog.
                       Explicit dismissals persist on the device.)
   services/          chat_service.dart (CRUD + SSE streaming),
-                     audio_service.dart (STT/TTS), tts_audio_source.dart
+                     audio_service.dart (STT/TTS), read_aloud_service.dart,
+                     tts_audio_source.dart
                      (seekable temporary files on Android; in-memory sources
                      elsewhere), style_service.dart,
                      folder_reader.dart / folder_writer.dart (facades that
@@ -398,28 +415,49 @@ features/chat/
                      VOICE_COMMUNICATION PCM; RMS VAD over the captured samples;
                      capability-gated AEC), talk_tts_queue.dart
                      (sentence-streamed MP3 playback)
-  widgets/           ChatPage (silently reconciles the conversation list and
-                     open idle chat every 10s while foregrounded, plus once on
-                     app resume), ChatInputWidget, ChatMessageWidget,
-                     ConversationListWidget, StylePicker (StylePickerButton
-                     + popover/bottom-sheet panel; replaced the old
-                     ModelSelectorWidget dropdown),
+  widgets/           ChatPage (route↔provider URL sync + room host; silently
+                     reconciles the conversation list and open idle chat every
+                     10s while foregrounded, plus once on app resume),
+                     ChatTranscriptView, ChatDropZone, ResizableMicroAppPane,
+                     ChatInputWidget, ChatMessageWidget, ChatSidebar,
+                     StylePicker + styles/ (StylePickerPanel, StyleCardsSegment,
+                     StyleCustomizeControls, StyleEditor),
                      SearchWidget, SearchResultsWidget, SystemPromptBanner,
                      SystemPromptEditorDialog, ContextWindowIndicator,
-                     ContextSummaryWidget, MemoryToggleWidget,
-                     RememberThisButton, EmptyChatState, ImageViewer,
-                     MermaidDiagram, MarkdownWidget,
+                     ContextSummaryWidget, TopicBanner, EmptyChatState,
+                     ImageViewer, MermaidDiagram, MarkdownWidget,
                      message/ ThinkingContent, BranchButton, EditButton,
                      RegenerateButton, SpeakButton, CopyButton,
                      MessageMetadata, MessageContent, AttachmentDisplay
+features/topics/
+  models/            TopicNode, ActiveContext, TopicSwitchResponse (@immutable DTOs)
+  providers/         TopicDiscoveryProvider, ActiveContextProvider
+  services/          topic_service.dart, active_context_service.dart
+  widgets/           TopicLanding, TopicContextEmptyState, TopicGreetingCard,
+                     ActiveContextPanel, ContextTopicSection, ContextTree,
+                     TopicArchivesDialog
+features/folders/
+  models/            SharedFolder (@immutable DTOs)
+  pages/             FoldersPage
+  services/          folders_service.dart
+  widgets/           ChatFolderAttachments, FolderDownloadButton, FolderTextDialog
+features/reports/
+  models/            UserReport (@immutable DTOs)
+  services/          reports_service.dart
+  widgets/           SubmitReportDialog
 features/memory/
   providers/         MemoryProvider
   pages/             MemoryPage (CRUD UI for user memories)
 features/settings/
-  providers/         SettingsProvider (voice, theme, auto-play toggles),
+  pages/             SettingsPage (/settings — authoritative full app settings)
+  providers/         SettingsProvider (voice, theme, locale, auto-play toggles),
                      UpdateProvider (Linux/Windows/Android auto-update state)
   services/          update_service.dart (version check), update_installer.dart
-                     (desktop staged swap/relaunch; Android PackageInstaller)
+                     (desktop staged swap/relaunch; Android PackageInstaller),
+                     user_mcp_service.dart
+  widgets/           SettingsDrawer (compact quick menu: This conversation,
+                     Pages, 1-tap theme toggle, Open full settings),
+                     VoiceSettingsTiles (shared Voice & Talk Mode controls)
 features/knowledge_base/
   pages/             KnowledgeBasePage
   providers/         KnowledgeBaseProvider
@@ -457,13 +495,12 @@ features/usage/
   services/          usage_service.dart
   models/            UsageSummary
 features/rooms/
-  pages/             RoomsPage, RoomChatPage
   providers/         RoomProvider
   services/          room_service.dart, room_socket_service.dart (WebSocket)
   models/            RoomModels
-  widgets/           RoomsSidebar, RoomsListView, CreateRoomDialog,
-                     AddAgentDialog, RoomComposeBar, RoomMessageBubble,
-                     RoomAudioNotePlayer
+  widgets/           RoomChatView (hosted inside ChatPage at /rooms/:roomId),
+                     RoomsListView, CreateRoomDialog, AddAgentDialog,
+                     RoomMessageBubble, RoomAudioNotePlayer
 features/admin/
   pages/             AdminPage
   providers/         AdminProvider
@@ -480,11 +517,11 @@ features/scheduled_actions/
   services/          scheduled_actions_api_service.dart
   models/            ScheduledAction
 features/microapps/
-  providers/         MicroAppPanelController
+  providers/         MicroappPanelController
   services/          microapp_service.dart
   models/            MicroApp
   widgets/           MicroAppPanel, MicroAppView (native/web conditional impls)
-pages/               LoginPage, RegisterPage
+pages/               LoginPage (/login — toggles between sign-in and register)
 ```
 
 ## Chat Message Flow

@@ -1,16 +1,17 @@
 import 'package:flutter/foundation.dart';
 
 import 'package:garbanzo_ai/core/api_client.dart';
+import 'package:garbanzo_ai/core/api_error.dart';
 import 'package:garbanzo_ai/features/topics/models/active_context.dart';
 
 class ActiveContextService {
-  ActiveContextService._();
-  static final ActiveContextService instance = ActiveContextService._();
+  ActiveContextService({ApiClient? api}) : _api = api ?? ApiClient.instance;
+  static final ActiveContextService instance = ActiveContextService();
 
   @visibleForTesting
-  ActiveContextService.forTesting();
+  ActiveContextService.forTesting() : this();
 
-  final ApiClient _api = ApiClient.instance;
+  final ApiClient _api;
 
   Future<ActiveContext> getContext(String conversationId) async {
     final response = await _api.get(
@@ -18,7 +19,10 @@ class ActiveContextService {
       silent: true,
     );
     if (response.statusCode != 200) {
-      throw ActiveContextServiceException(response.statusCode ?? 0);
+      throw ActiveContextServiceException(
+        response.statusCode ?? 0,
+        detail: apiErrorDetail(response.data),
+      );
     }
     return ActiveContext.fromJson(response.data as Map<String, dynamic>);
   }
@@ -34,7 +38,10 @@ class ActiveContextService {
       data: {'state': state.name, 'context_version': contextVersion},
     );
     if (response.statusCode != 200) {
-      throw ActiveContextServiceException(response.statusCode ?? 0);
+      throw ActiveContextServiceException(
+        response.statusCode ?? 0,
+        detail: apiErrorDetail(response.data),
+      );
     }
     final version =
         ((response.data as Map<String, dynamic>)['context_version'] as num)
@@ -61,7 +68,10 @@ class ActiveContextService {
       },
     );
     if (response.statusCode != 200 && response.statusCode != 201) {
-      throw ActiveContextServiceException(response.statusCode ?? 0);
+      throw ActiveContextServiceException(
+        response.statusCode ?? 0,
+        detail: apiErrorDetail(response.data),
+      );
     }
     return ((response.data as Map<String, dynamic>)['context_version'] as num)
         .toInt();
@@ -69,6 +79,12 @@ class ActiveContextService {
 }
 
 class ActiveContextServiceException implements Exception {
-  const ActiveContextServiceException(this.statusCode);
+  const ActiveContextServiceException(this.statusCode, {this.detail});
   final int statusCode;
+  final String? detail;
+
+  @override
+  String toString() => detail == null || detail!.isEmpty
+      ? 'ActiveContextServiceException ($statusCode)'
+      : 'API Error ($statusCode): $detail';
 }

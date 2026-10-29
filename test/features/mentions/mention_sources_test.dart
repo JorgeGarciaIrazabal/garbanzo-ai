@@ -6,7 +6,10 @@ import 'package:garbanzo_ai/features/mentions/models/mention_sources.dart';
 import 'package:garbanzo_ai/features/rooms/models/room_models.dart';
 import 'package:garbanzo_ai/features/tools/models/mcp_tool.dart';
 
-Room _room({List<RoomMember> members = const [], List<RoomAgent> agents = const []}) {
+Room _room({
+  List<RoomMember> members = const [],
+  List<RoomAgent> agents = const [],
+}) {
   return Room(
     id: 'r1',
     name: 'Room',
@@ -164,10 +167,10 @@ void main() {
           insertText: '#search_docs',
         ),
       ];
-      expect(
-        filterMentionCandidates(tied, 'search').map((c) => c.id),
-        ['a', 'b'],
-      );
+      expect(filterMentionCandidates(tied, 'search').map((c) => c.id), [
+        'a',
+        'b',
+      ]);
     });
   });
 }

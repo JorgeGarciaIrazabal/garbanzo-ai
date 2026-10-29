@@ -1,57 +1,39 @@
 import 'dart:async';
-import 'dart:io';
 
-import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
-import 'package:garbanzo_ai/core/api_client.dart';
-import 'package:garbanzo_ai/core/platform_info.dart';
-import 'package:garbanzo_ai/core/reading_column.dart';
-import 'package:garbanzo_ai/core/smart_scroll_controller.dart';
-import 'package:garbanzo_ai/core/widgets/fade_slide_in.dart';
 import 'package:garbanzo_ai/core/responsive.dart';
-import 'package:garbanzo_ai/features/microapps/widgets/micro_app_panel.dart';
-import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
-import 'package:garbanzo_ai/features/settings/widgets/settings_drawer.dart';
+import 'package:garbanzo_ai/core/smart_scroll_controller.dart';
 import 'package:garbanzo_ai/features/chat/models/chat_attachment.dart';
-import 'package:garbanzo_ai/features/chat/models/agent_liveness.dart';
-import 'package:garbanzo_ai/features/chat/utils/agent_progress_builder.dart';
-import 'package:garbanzo_ai/features/chat/utils/composer_conversation.dart';
-import 'package:garbanzo_ai/features/chat/models/chat_message.dart';
 import 'package:garbanzo_ai/features/chat/models/conversation.dart';
 import 'package:garbanzo_ai/features/chat/providers/chat_provider.dart';
+import 'package:garbanzo_ai/features/chat/providers/model_provider.dart';
 import 'package:garbanzo_ai/features/chat/providers/read_aloud_auto_play_tracker.dart';
 import 'package:garbanzo_ai/features/chat/providers/read_aloud_controller.dart';
 import 'package:garbanzo_ai/features/chat/services/transcript_export_service.dart';
-import 'package:garbanzo_ai/features/chat/providers/model_provider.dart';
-import 'package:garbanzo_ai/features/topics/models/topic_node.dart';
-import 'package:garbanzo_ai/features/topics/providers/active_context_provider.dart';
-import 'package:garbanzo_ai/features/topics/providers/topic_discovery_provider.dart';
 import 'package:garbanzo_ai/features/chat/widgets/chat_app_bar.dart';
+import 'package:garbanzo_ai/features/chat/widgets/chat_drop_zone.dart';
 import 'package:garbanzo_ai/features/chat/widgets/chat_input_widget.dart';
-import 'package:garbanzo_ai/features/chat/widgets/input/file_picker_helper.dart';
-import 'package:garbanzo_ai/features/chat/widgets/panel_resize_handle.dart';
-import 'package:garbanzo_ai/features/chat/widgets/response_recovery_notice.dart';
-import 'package:garbanzo_ai/features/chat/widgets/workflow_completion_notice.dart';
-import 'package:garbanzo_ai/features/chat/widgets/chat_message_widget.dart';
+import 'package:garbanzo_ai/features/chat/widgets/chat_page_actions.dart';
 import 'package:garbanzo_ai/features/chat/widgets/chat_sidebar.dart';
-import 'package:garbanzo_ai/features/chat/widgets/mobile_drawer.dart';
-import 'package:garbanzo_ai/features/chat/widgets/context_summary_widget.dart';
+import 'package:garbanzo_ai/features/chat/widgets/chat_transcript_view.dart';
 import 'package:garbanzo_ai/features/chat/widgets/context_window_indicator.dart';
-import 'package:garbanzo_ai/features/chat/widgets/empty_chat_state.dart';
-import 'package:garbanzo_ai/features/topics/widgets/topic_landing.dart';
+import 'package:garbanzo_ai/features/chat/widgets/mobile_drawer.dart';
+import 'package:garbanzo_ai/features/chat/widgets/response_recovery_notice.dart';
 import 'package:garbanzo_ai/features/chat/widgets/topic_banner.dart';
-import 'package:garbanzo_ai/features/topics/widgets/active_context_panel.dart';
-import 'package:garbanzo_ai/features/topics/widgets/topic_context_empty_state.dart';
-import 'package:garbanzo_ai/features/chat/widgets/system_prompt_banner.dart';
-import 'package:garbanzo_ai/features/chat/widgets/progress/agent_progress_card.dart';
-import 'package:garbanzo_ai/features/chat/widgets/transcript_export_menu.dart';
 import 'package:garbanzo_ai/features/chat/widgets/vision_model_warning_dialog.dart';
+import 'package:garbanzo_ai/features/chat/widgets/workflow_completion_notice.dart';
+import 'package:garbanzo_ai/features/microapps/widgets/micro_app_panel.dart';
 import 'package:garbanzo_ai/features/rooms/models/room_models.dart';
 import 'package:garbanzo_ai/features/rooms/providers/room_provider.dart';
 import 'package:garbanzo_ai/features/rooms/widgets/room_chat_view.dart';
+import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
+import 'package:garbanzo_ai/features/settings/widgets/settings_drawer.dart';
+import 'package:garbanzo_ai/features/topics/providers/active_context_provider.dart';
+import 'package:garbanzo_ai/features/topics/providers/topic_discovery_provider.dart';
+import 'package:garbanzo_ai/features/topics/widgets/active_context_panel.dart';
 import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 @visibleForTesting
@@ -235,16 +217,9 @@ class _ChatPageContentState extends State<_ChatPageContent>
   final SmartScrollController _scroll = SmartScrollController();
   ScrollController get _scrollController => _scroll.controller;
   Timer? _syncTimer;
-  bool _isDragOver = false;
   bool _visionWarningScheduled = false;
   bool _visionWarningOpen = false;
   bool _showActiveContext = true;
-
-  /// User-chosen width of the micro-app side panel (null = default). Adjusted
-  /// by dragging the divider between the chat and the panel.
-  double? _panelWidth;
-  static const double _minPanelWidth = 320;
-  static const double _minChatWidth = 360;
 
   // Smart auto-scroll: follow new content only when the user is already
   // reading the latest messages; never yank them away from scrollback.
@@ -438,10 +413,6 @@ class _ChatPageContentState extends State<_ChatPageContent>
   bool _showSidebar(BuildContext context) => context.isWide;
 
   // ------------------------------------------------------- shell navigation
-  //
-  // With a room active the conversation URL sync is suspended (see
-  // ChatPage._syncUrlFromProvider), so selection handlers navigate explicitly
-  // to swap the content pane back to a conversation.
 
   void _selectConversation(String id) async {
     if (widget.roomId != null) {
@@ -508,8 +479,6 @@ class _ChatPageContentState extends State<_ChatPageContent>
     if (wasActive && mounted) context.go('/chat');
   }
 
-  /// Narrow-layout drawer opened from the room header (the chat app bar has
-  /// its own trigger).
   void _openMobileDrawer() {
     final chatProvider = context.read<ChatProvider>();
     showMobileConversationDrawer(
@@ -530,176 +499,17 @@ class _ChatPageContentState extends State<_ChatPageContent>
     );
   }
 
-  /// Asks for a format and downloads the thread's transcript.
-  ///
-  /// The transcript is always the server's full history for the thread, not
-  /// what the current view has paged in — a download that silently stopped at
-  /// the loaded window would be worse than no download.
-  Future<void> _downloadConversation(Conversation conversation) async {
-    await _downloadTranscript(
-      load: (format) => _transcriptExport.downloadConversation(
-        conversation.id,
-        format: format,
-        title: conversation.displayTitle,
-      ),
-    );
-  }
+  Future<void> _downloadConversation(Conversation conversation) =>
+      downloadConversationTranscript(context, _transcriptExport, conversation);
 
-  /// Same flow for a room transcript.
-  Future<void> _downloadRoom(Room room) async {
-    await _downloadTranscript(
-      load: (format) => _transcriptExport.downloadRoom(
-        room.id,
-        format: format,
-        title: room.name,
-      ),
-    );
-  }
+  Future<void> _downloadRoom(Room room) =>
+      downloadRoomTranscript(context, _transcriptExport, room);
 
-  Future<void> _downloadTranscript({
-    required Future<void> Function(TranscriptExportFormat format) load,
-  }) async {
-    final format = await showTranscriptFormatSheet(context);
-    if (format == null || !mounted) return;
-    final l10n = AppLocalizations.of(context)!;
-    try {
-      await load(format);
-      if (mounted) _snack(l10n.messageTranscriptDownloaded);
-    } catch (e) {
-      if (!mounted) return;
-      // The server's own reason (404/422/…) is more useful than a generic
-      // failure when the export can't be produced at all.
-      final detail = e is ExportDownloadException ? e.detail : null;
-      _snack(
-        detail == null
-            ? l10n.messageTranscriptDownloadFailed
-            : '${l10n.messageTranscriptDownloadFailed} ($detail)',
-        error: true,
-      );
-    }
-  }
+  void _deleteWithUndo(ChatProvider chatProvider, String id) =>
+      deleteConversationWithUndoSnack(context, chatProvider, id);
 
-  /// Delete with an undo window: the provider defers the API call, and the
-  /// snackbar's Undo restores the conversation before it fires.
-  void _deleteWithUndo(ChatProvider chatProvider, String id) {
-    chatProvider.deleteConversation(id);
-
-    // Anchor the snackbar near the top of the window: SnackBars dock to the
-    // bottom by default, so a large bottom margin lifts a floating one up,
-    // while symmetric horizontal margins keep it from spanning the full width.
-    final media = MediaQuery.of(context);
-    final horizontalMargin = ((media.size.width - 420) / 2).clamp(16.0, 400.0);
-    final bottomMargin = (media.size.height - media.padding.top - 88).clamp(
-      80.0,
-      2000.0,
-    );
-
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(
-            AppLocalizations.of(context)!.messageConversationDeleted,
-          ),
-          duration: const Duration(seconds: 3),
-          behavior: SnackBarBehavior.floating,
-          showCloseIcon: true,
-          margin: EdgeInsets.only(
-            left: horizontalMargin,
-            right: horizontalMargin,
-            bottom: bottomMargin,
-          ),
-          action: SnackBarAction(
-            label: AppLocalizations.of(context)!.labelUndo,
-            onPressed: () => chatProvider.undoDeleteConversation(id),
-          ),
-        ),
-      );
-  }
-
-  void _snack(String msg, {bool error = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg),
-        backgroundColor: error ? Theme.of(context).colorScheme.error : null,
-        behavior: error ? SnackBarBehavior.floating : null,
-      ),
-    );
-  }
-
-  Future<void> _stageFiles(
-    List<RawPickedFile> raw,
-    ChatProvider provider,
-  ) async {
-    final result = await FilePickerHelper.validate(
-      files: raw,
-      existingNames: {...?provider.pendingAttachments?.map((a) => a.name)},
-    );
-    if (!mounted) return;
-    for (final e in result.validationErrors) {
-      _snack(e);
-    }
-    if (result.rejected.isNotEmpty) {
-      _snack(
-        AppLocalizations.of(
-          context,
-        )!.messageFilesTooLarge(result.rejected.join('\n')),
-        error: true,
-      );
-    }
-    if (result.added.isNotEmpty) provider.addAttachments(result.added);
-  }
-
-  Future<void> _handleDroppedFiles(List<dynamic> files) async {
-    setState(() => _isDragOver = false);
-    final chatProvider = context.read<ChatProvider>();
-    if (!chatProvider.hasActiveConversation) {
-      _snack(AppLocalizations.of(context)!.messageStartAConversationFirst);
-      return;
-    }
-    final raw = <RawPickedFile>[];
-    for (final f in files) {
-      if (f is! File) continue;
-      raw.add((name: f.path.split('/').last, bytes: await f.readAsBytes()));
-    }
-    await _stageFiles(raw, chatProvider);
-  }
-
-  Future<void> _handleOsDrop(List<DropItem> items) async {
-    setState(() => _isDragOver = false);
-    if (widget.roomId != null) return;
-    final chatProvider = context.read<ChatProvider>();
-    final folder = items
-        .where((i) => FileSystemEntity.isDirectorySync(i.path))
-        .firstOrNull;
-    if (folder != null) {
-      try {
-        await chatProvider.attachClientFolder(
-          composerConversation(context, listen: false)?.id,
-          folder.path,
-        );
-      } catch (_) {
-        if (mounted) {
-          _snack(AppLocalizations.of(context)!.messageFolderAttachFailed);
-        }
-      }
-      return;
-    }
-    await _handleDroppedFiles([for (final i in items) File(i.path)]);
-  }
-
-  /// Wrap [child] in a desktop [DropTarget] so OS-level file/folder drops reach
-  /// [_handleOsDrop]. On mobile/web or in a room, returns [child] unchanged —
-  /// the native in-app [DragTarget] still handles those cases.
-  Widget _wrapDesktopDrop(Widget child) {
-    if (!PlatformInfo.isDesktop || widget.roomId != null) return child;
-    return DropTarget(
-      onDragEntered: (_) => setState(() => _isDragOver = true),
-      onDragExited: (_) => setState(() => _isDragOver = false),
-      onDragDone: (detail) => _handleOsDrop(detail.files),
-      child: child,
-    );
-  }
+  void _snack(String msg, {bool error = false}) =>
+      showChatSnack(context, msg, error: error);
 
   void _scheduleVisionModelWarning(
     ChatProvider chatProvider,
@@ -743,8 +553,7 @@ class _ChatPageContentState extends State<_ChatPageContent>
   Widget build(BuildContext context) {
     final chatProvider = context.watch<ChatProvider>();
     final modelProvider = context.watch<ModelProvider>();
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final topicDiscovery = context.watch<TopicDiscoveryProvider>();
     final l10n = AppLocalizations.of(context)!;
 
     final currentModelId = chatProvider.currentConversation?.model;
@@ -765,6 +574,14 @@ class _ChatPageContentState extends State<_ChatPageContent>
     // layouts only) instead of backing out of the app.
     final panelOverlayOpen = chatProvider.panel.isOpen && context.isNarrow;
 
+    final isTopicConversation =
+        chatProvider.currentConversation?.isPrimary == true ||
+        chatProvider.currentConversation?.activeTopicId != null;
+    final showTopicSurface =
+        isTopicConversation &&
+        (chatProvider.currentConversation?.isPrimary != true ||
+            !topicDiscovery.showLanding);
+
     return PopScope(
       canPop: !panelOverlayOpen,
       onPopInvokedWithResult: (didPop, _) {
@@ -773,701 +590,215 @@ class _ChatPageContentState extends State<_ChatPageContent>
       child: Scaffold(
         key: _scaffoldKey,
         endDrawer: const SettingsDrawer(),
-        body: _wrapDesktopDrop(
-          DragTarget<List<dynamic>>(
-            onWillAcceptWithDetails: (details) {
-              // Attachments belong to conversations; ignore drops on a room.
-              if (widget.roomId != null) return false;
-              final data = details.data;
-              if (data.isEmpty) return false;
-              setState(() => _isDragOver = true);
-              return true;
-            },
-            onLeave: (_) {
-              setState(() => _isDragOver = false);
-            },
-            onAcceptWithDetails: (details) => _handleDroppedFiles(details.data),
-            builder: (context, candidateData, rejectedData) {
-              return Stack(
+        body: ChatDropZone(
+          enabled: widget.roomId == null,
+          onSnack: _snack,
+          child: Stack(
+            children: [
+              Row(
                 children: [
-                  Row(
-                    children: [
-                      if (_showSidebar(context))
-                        ChatSidebar(
-                          conversations: chatProvider.conversations,
-                          selectedConversationId:
-                              chatProvider.currentConversation?.id,
-                          onSelectConversation: _selectConversation,
-                          onDeleteConversation: (id) =>
-                              _deleteWithUndo(chatProvider, id),
-                          onNewChat: _newChat,
-                          onTogglePin: (id) => chatProvider.togglePin(id),
-                          onMuteConversation: (id, duration) =>
-                              chatProvider.setMute(id, duration),
-                          onDownloadConversation: _downloadConversation,
-                          onDownloadRoom: _downloadRoom,
-                          isLoadingConversations:
-                              chatProvider.isLoadingConversations,
-                          selectedRoomId: widget.roomId,
-                          initialTab: widget.roomId != null ? 1 : 0,
-                          onSelectRoom: _selectRoom,
-                          onDeleteRoom: _deleteRoom,
-                        ),
-                      if (widget.roomId != null)
-                        Expanded(
-                          child: RoomChatView(
-                            roomId: widget.roomId!,
+                  if (_showSidebar(context))
+                    ChatSidebar(
+                      conversations: chatProvider.conversations,
+                      selectedConversationId:
+                          chatProvider.currentConversation?.id,
+                      onSelectConversation: _selectConversation,
+                      onDeleteConversation: (id) =>
+                          _deleteWithUndo(chatProvider, id),
+                      onNewChat: _newChat,
+                      onTogglePin: (id) => chatProvider.togglePin(id),
+                      onMuteConversation: (id, duration) =>
+                          chatProvider.setMute(id, duration),
+                      onDownloadConversation: _downloadConversation,
+                      onDownloadRoom: _downloadRoom,
+                      isLoadingConversations:
+                          chatProvider.isLoadingConversations,
+                      selectedRoomId: widget.roomId,
+                      initialTab: widget.roomId != null ? 1 : 0,
+                      onSelectRoom: _selectRoom,
+                      onDeleteRoom: _deleteRoom,
+                    ),
+                  if (widget.roomId != null)
+                    Expanded(
+                      child: RoomChatView(
+                        roomId: widget.roomId!,
+                        onOpenSettings: () =>
+                            _scaffoldKey.currentState?.openEndDrawer(),
+                        onOpenDrawer: _showSidebar(context)
+                            ? null
+                            : _openMobileDrawer,
+                      ),
+                    )
+                  else
+                    Expanded(
+                      child: Column(
+                        children: [
+                          ChatAppBar(
                             onOpenSettings: () =>
                                 _scaffoldKey.currentState?.openEndDrawer(),
-                            onOpenDrawer: _showSidebar(context)
-                                ? null
-                                : _openMobileDrawer,
+                            onDeleteConversation: (id) =>
+                                _deleteWithUndo(chatProvider, id),
+                            onNewChat: _newChat,
                           ),
-                        )
-                      else
-                        Expanded(
-                          child: Column(
-                            children: [
-                              ChatAppBar(
-                                onOpenSettings: () =>
-                                    _scaffoldKey.currentState?.openEndDrawer(),
-                                onDeleteConversation: (id) =>
-                                    _deleteWithUndo(chatProvider, id),
-                                onNewChat: _newChat,
-                              ),
-                              if (chatProvider.error != null &&
-                                  chatProvider.errorType !=
-                                      'unsupported_image_input')
-                                _ErrorBanner(
-                                  message: chatProvider.error!,
-                                  onDismiss: chatProvider.clearError,
-                                ),
-                              if (chatProvider.responseRecoveryState != null)
-                                ResponseRecoveryNotice(
-                                  state: chatProvider.responseRecoveryState!,
-                                ),
-                              Builder(
-                                builder: (ctx) {
-                                  final tokensUsed = _getLastTokensPrompt(
-                                    chatProvider,
-                                  );
-                                  final contextLength =
-                                      _getLastContextLength(chatProvider) ??
-                                      modelProvider
-                                          .selectedModel
-                                          ?.contextLength;
-                                  if (tokensUsed != null &&
-                                      contextLength != null &&
-                                      contextLength > 0) {
-                                    return ContextWindowIndicator(
-                                      tokensUsed: tokensUsed,
-                                      contextLength: contextLength,
+                          if (chatProvider.error != null &&
+                              chatProvider.errorType !=
+                                  'unsupported_image_input')
+                            ChatErrorBanner(
+                              message: chatProvider.error!,
+                              onDismiss: chatProvider.clearError,
+                            ),
+                          if (chatProvider.responseRecoveryState != null)
+                            ResponseRecoveryNotice(
+                              state: chatProvider.responseRecoveryState!,
+                            ),
+                          Builder(
+                            builder: (_) {
+                              final tokensUsed = _getLastTokensPrompt(
+                                chatProvider,
+                              );
+                              final contextLength =
+                                  _getLastContextLength(chatProvider) ??
+                                  modelProvider.selectedModel?.contextLength;
+                              if (tokensUsed != null &&
+                                  contextLength != null &&
+                                  contextLength > 0) {
+                                return ContextWindowIndicator(
+                                  tokensUsed: tokensUsed,
+                                  contextLength: contextLength,
+                                );
+                              }
+                              return const SizedBox.shrink();
+                            },
+                          ),
+                          if (showTopicSurface) const TopicBanner(),
+                          Expanded(
+                            child: Stack(
+                              children: [
+                                ChatTranscriptView(
+                                  scrollController: _scrollController,
+                                  streamAnchorKey: _scroll.streamAnchorKey,
+                                  onOpenActiveContext: _openActiveContext,
+                                  onStarterFromLanding: (message) async {
+                                    await submitChatComposerMessage(
+                                      chatProvider: chatProvider,
+                                      topicDiscovery: topicDiscovery,
+                                      message: message,
+                                      attachments: const [],
                                     );
-                                  }
-                                  return const SizedBox.shrink();
-                                },
-                              ),
-                              if ((chatProvider
-                                              .currentConversation
-                                              ?.isPrimary ==
-                                          true ||
-                                      chatProvider
-                                              .currentConversation
-                                              ?.activeTopicId !=
-                                          null) &&
-                                  (chatProvider
-                                              .currentConversation
-                                              ?.isPrimary !=
-                                          true ||
-                                      !context
-                                          .watch<TopicDiscoveryProvider>()
-                                          .showLanding))
-                                const TopicBanner(),
-                              Expanded(
-                                child: Stack(
-                                  children: [
-                                    _buildMessageList(chatProvider, theme),
-                                    ValueListenableBuilder<bool>(
-                                      valueListenable: _scroll.showJumpToBottom,
-                                      builder: (context, show, _) => show
-                                          ? Positioned(
-                                              right: 16,
-                                              bottom: 12,
-                                              child: FloatingActionButton.small(
-                                                heroTag: 'jump_to_bottom',
-                                                tooltip:
-                                                    'Jump to latest message',
-                                                onPressed: _scroll.resumeFollow,
-                                                child: const Icon(
-                                                  Icons.keyboard_arrow_down,
-                                                ),
-                                              ),
-                                            )
-                                          : const SizedBox.shrink(),
-                                    ),
-                                  ],
+                                  },
                                 ),
-                              ),
-                              WorkflowCompletionNotice(
-                                conversation: chatProvider.currentConversation,
-                              ),
-                              Consumer<ChatProvider>(
-                                builder: (context, provider, _) {
-                                  return ChatInputWidget(
-                                    onFolderAttached: (id) async {
-                                      // Creating a conversation can replace this
-                                      // route before attach finishes. Reloading the
-                                      // provider lets the new composer fetch attachments.
-                                      if (chatProvider
-                                                  .currentConversation
-                                                  ?.id ==
-                                              id &&
-                                          !chatProvider.isSending) {
-                                        await chatProvider.loadConversation(id);
-                                      }
-                                    },
-                                    ensureFolderConversation: () async {
-                                      final topicDiscovery = context
-                                          .read<TopicDiscoveryProvider>();
-                                      var conversation =
-                                          chatProvider.currentConversation;
-                                      if (conversation == null ||
-                                          (conversation.isPrimary &&
-                                              topicDiscovery.showLanding)) {
-                                        conversation = await chatProvider
-                                            .createConversation();
-                                        if (conversation == null) {
-                                          throw StateError(
-                                            chatProvider.error ??
-                                                'Could not create conversation',
-                                          );
-                                        }
-                                        topicDiscovery.conversationStarted();
-                                      }
-                                      return conversation.id;
-                                    },
-                                    onSend: (message, attachments) async {
-                                      // Merge any pending attachments from drag-drop
-                                      final merged = [...attachments];
-                                      if (provider.pendingAttachments != null) {
-                                        merged.addAll(
-                                          provider.pendingAttachments!,
-                                        );
-                                        provider.clearPendingAttachments();
-                                      }
-                                      await submitChatComposerMessage(
-                                        chatProvider: provider,
-                                        topicDiscovery: context
-                                            .read<TopicDiscoveryProvider>(),
-                                        message: message,
-                                        attachments: merged,
+                                ValueListenableBuilder<bool>(
+                                  valueListenable: _scroll.showJumpToBottom,
+                                  builder: (context, show, _) => show
+                                      ? Positioned(
+                                          right: 16,
+                                          bottom: 12,
+                                          child: FloatingActionButton.small(
+                                            heroTag: 'jump_to_bottom',
+                                            tooltip: l10n.jumpToLatestMessage,
+                                            onPressed: _scroll.resumeFollow,
+                                            child: const Icon(
+                                              Icons.keyboard_arrow_down,
+                                            ),
+                                          ),
+                                        )
+                                      : const SizedBox.shrink(),
+                                ),
+                              ],
+                            ),
+                          ),
+                          WorkflowCompletionNotice(
+                            conversation: chatProvider.currentConversation,
+                          ),
+                          Consumer<ChatProvider>(
+                            builder: (context, provider, _) {
+                              return ChatInputWidget(
+                                onFolderAttached: (id) async {
+                                  if (chatProvider.currentConversation?.id ==
+                                          id &&
+                                      !chatProvider.isSending) {
+                                    await chatProvider.loadConversation(id);
+                                  }
+                                },
+                                ensureFolderConversation: () async {
+                                  final discovery = context
+                                      .read<TopicDiscoveryProvider>();
+                                  var conversation =
+                                      chatProvider.currentConversation;
+                                  if (conversation == null ||
+                                      (conversation.isPrimary &&
+                                          discovery.showLanding)) {
+                                    conversation = await chatProvider
+                                        .createConversation();
+                                    if (conversation == null) {
+                                      throw StateError(
+                                        chatProvider.error ??
+                                            'Could not create conversation',
                                       );
-                                    },
-                                    onStop:
-                                        provider.canStopGeneration &&
-                                            !context
-                                                .watch<TopicDiscoveryProvider>()
-                                                .startingTopic
-                                        ? () => provider.stopStreaming()
-                                        : null,
-                                    isLoading:
-                                        chatProvider.isSending ||
-                                        context
-                                            .watch<TopicDiscoveryProvider>()
-                                            .startingTopic,
-                                    initialAttachments:
-                                        provider.pendingAttachments,
-                                    onOpenContext:
-                                        provider
-                                                    .currentConversation
-                                                    ?.isPrimary ==
-                                                true ||
-                                            provider
-                                                    .currentConversation
-                                                    ?.activeTopicId !=
-                                                null
-                                        ? _openActiveContext
-                                        : null,
+                                    }
+                                    discovery.conversationStarted();
+                                  }
+                                  return conversation.id;
+                                },
+                                onSend: (message, attachments) async {
+                                  final merged = [...attachments];
+                                  if (provider.pendingAttachments != null) {
+                                    merged.addAll(provider.pendingAttachments!);
+                                    provider.clearPendingAttachments();
+                                  }
+                                  await submitChatComposerMessage(
+                                    chatProvider: provider,
+                                    topicDiscovery: context
+                                        .read<TopicDiscoveryProvider>(),
+                                    message: message,
+                                    attachments: merged,
                                   );
                                 },
-                              ),
-                            ],
+                                onStop:
+                                    provider.canStopGeneration &&
+                                        !topicDiscovery.startingTopic
+                                    ? () => provider.stopStreaming()
+                                    : null,
+                                isLoading:
+                                    chatProvider.isSending ||
+                                    topicDiscovery.startingTopic,
+                                initialAttachments: provider.pendingAttachments,
+                                onOpenContext: isTopicConversation
+                                    ? _openActiveContext
+                                    : null,
+                              );
+                            },
                           ),
-                        ),
-                      if (widget.roomId == null &&
-                          (chatProvider.currentConversation?.isPrimary ==
-                                  true ||
-                              chatProvider.currentConversation?.activeTopicId !=
-                                  null) &&
-                          (chatProvider.currentConversation?.isPrimary !=
-                                  true ||
-                              !context
-                                  .watch<TopicDiscoveryProvider>()
-                                  .showLanding) &&
-                          _showActiveContext &&
-                          context.isWide)
-                        SizedBox(
-                          width: 340,
-                          child: ActiveContextPanel(
-                            conversationId:
-                                chatProvider.currentConversation!.id,
-                            onRedirect: _newChat,
-                            onClose: () =>
-                                setState(() => _showActiveContext = false),
-                          ),
-                        ),
-                      // Wide layout: the live micro-app sits beside the chat in a
-                      // panel the user can widen/narrow by dragging the divider.
-                      if (chatProvider.panel.isOpen && context.isWide)
-                        Builder(
-                          builder: (context) {
-                            final screenW = MediaQuery.of(context).size.width;
-                            final maxW = (screenW - _minChatWidth).clamp(
-                              _minPanelWidth,
-                              screenW,
-                            );
-                            // Default to a big portion of the screen (Claude-canvas
-                            // style): the panel is the dominant pane, chat sits beside.
-                            final defaultW = (screenW * 0.6).clamp(
-                              _minPanelWidth,
-                              maxW,
-                            );
-                            final width = (_panelWidth ?? defaultW).clamp(
-                              _minPanelWidth,
-                              maxW,
-                            );
-                            return SizedBox(
-                              width: width,
-                              child: Row(
-                                children: [
-                                  PanelResizeHandle(
-                                    // Accumulate each drag delta against
-                                    // `_panelWidth` (the state) — NOT against
-                                    // `width` (the rendered snapshot captured
-                                    // by this closure at build time). Multiple
-                                    // `onHorizontalDragUpdate` events can fire
-                                    // within one frame before the rebuild
-                                    // lands; reading the stale `width` here
-                                    // made consecutive deltas overwrite each
-                                    // other instead of accumulating, so the
-                                    // panel barely moved even on a long drag.
-                                    onDrag: (dx) => setState(() {
-                                      final current = _panelWidth ?? defaultW;
-                                      _panelWidth = (current + dx).clamp(
-                                        _minPanelWidth,
-                                        maxW,
-                                      );
-                                    }),
-                                    onReset: () =>
-                                        setState(() => _panelWidth = null),
-                                  ),
-                                  Expanded(
-                                    child: MicroAppPanel(
-                                      panel: chatProvider.panel,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          },
-                        ),
-                    ],
-                  ),
-                  // Narrow layout: the micro-app takes over as a full-screen overlay.
-                  if (chatProvider.panel.isOpen && context.isNarrow)
-                    Positioned.fill(
-                      child: MicroAppPanel(
-                        panel: chatProvider.panel,
-                        showCloseAsBack: true,
+                        ],
                       ),
                     ),
-                  if (_isDragOver)
-                    Positioned.fill(
-                      child: IgnorePointer(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: colorScheme.primary.withValues(alpha: 0.1),
-                            border: Border.all(
-                              color: colorScheme.primary,
-                              width: 4,
-                              strokeAlign: BorderSide.strokeAlignInside,
-                            ),
-                          ),
-                          child: Center(
-                            child: Container(
-                              padding: const EdgeInsets.all(24),
-                              decoration: BoxDecoration(
-                                color: colorScheme.surface,
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.cloud_upload,
-                                    size: 64,
-                                    color: colorScheme.primary,
-                                  ),
-                                  const SizedBox(height: 16),
-                                  Text(
-                                    AppLocalizations.of(
-                                      context,
-                                    )!.messageDropFilesHere,
-                                    style: theme.textTheme.headlineSmall
-                                        ?.copyWith(
-                                          color: colorScheme.primary,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    'Images, PDFs, CSVs, and text files',
-                                    style: theme.textTheme.bodyMedium?.copyWith(
-                                      color: colorScheme.onSurfaceVariant,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
+                  if (widget.roomId == null &&
+                      showTopicSurface &&
+                      _showActiveContext &&
+                      context.isWide)
+                    SizedBox(
+                      width: 340,
+                      child: ActiveContextPanel(
+                        conversationId: chatProvider.currentConversation!.id,
+                        onRedirect: _newChat,
+                        onClose: () =>
+                            setState(() => _showActiveContext = false),
                       ),
                     ),
+                  if (chatProvider.panel.isOpen && context.isWide)
+                    ResizableMicroAppPane(panel: chatProvider.panel),
                 ],
-              );
-            },
+              ),
+              if (chatProvider.panel.isOpen && context.isNarrow)
+                Positioned.fill(
+                  child: MicroAppPanel(
+                    panel: chatProvider.panel,
+                    showCloseAsBack: true,
+                  ),
+                ),
+            ],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildMessageList(ChatProvider chatProvider, ThemeData theme) {
-    final conversation = chatProvider.currentConversation;
-    final topicDiscovery = context.watch<TopicDiscoveryProvider>();
-    if (conversation?.isPrimary == true && topicDiscovery.showLanding) {
-      return TopicLanding(
-        conversationId: conversation!.id,
-        onStarterSelected: (message) async {
-          // A starter prompt from the map is an unselected landing send: it
-          // must open a clean regular thread rather than continue the primary.
-          await submitChatComposerMessage(
-            chatProvider: chatProvider,
-            topicDiscovery: topicDiscovery,
-            message: message,
-            attachments: const [],
-          );
-        },
-      );
-    }
-    if (chatProvider.messages.isEmpty &&
-        chatProvider.currentConversation == null) {
-      return EmptyChatState(
-        onSendMessage: (msg) => chatProvider.sendMessage(msg),
-      );
-    }
-
-    final hasUserMessages = chatProvider.messages.any((m) => m.role == 'user');
-
-    final activeTopic =
-        conversation?.activeTopic ??
-        (conversation?.activeTopicId != null &&
-                topicDiscovery.selectedTopic?.id == conversation?.activeTopicId
-            ? topicDiscovery.selectedTopic
-            : (conversation?.activeTopicId != null
-                  ? TopicNode(
-                      id: conversation!.activeTopicId!,
-                      label: conversation.title ?? 'Topic',
-                      origin: TopicOrigin.history,
-                      description: conversation.contextSummary,
-                      starterPrompts: [
-                        'Continue with ${conversation.title ?? 'Topic'}',
-                        'What should I do next about ${conversation.title ?? 'Topic'}?',
-                      ],
-                    )
-                  : null));
-
-    if (!hasUserMessages && activeTopic != null && conversation != null) {
-      return TopicContextEmptyState(
-        conversationId: conversation.id,
-        topic: activeTopic,
-        onStarterSelected: (message) => chatProvider.sendMessage(message),
-        onOpenContext: _openActiveContext,
-      );
-    }
-
-    if (chatProvider.messages.isEmpty && chatProvider.isLoadingConversations) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    final showSystemPrompt = context.watch<SettingsProvider>().showSystemPrompt;
-    final isTopicChat =
-        chatProvider.currentConversation?.isPrimary == true ||
-        chatProvider.currentConversation?.activeTopicId != null ||
-        context.watch<TopicDiscoveryProvider>().selectedTopic != null;
-    final summary = isTopicChat
-        ? null
-        : chatProvider.currentConversation?.contextSummary;
-    final hasSummary = summary != null && summary.isNotEmpty;
-    final hasBanner =
-        showSystemPrompt && chatProvider.currentConversation != null;
-    // B-03: a spinner above the oldest loaded message while an older page
-    // fetched via scroll-to-top (see _maybeLoadOlderMessages) is in flight.
-    final showLoadingOlder = chatProvider.loadingOlderMessages;
-
-    var itemOffset = 0;
-    if (showLoadingOlder) itemOffset++;
-    if (hasBanner) itemOffset++;
-    if (hasSummary) itemOffset++;
-
-    // Group consecutive tool_call/tool_result messages so they render as a
-    // single collapsible "tool activity" section instead of N stacked cards.
-    final items = <_ListItem>[];
-    final visualCallIds = {
-      for (final message in chatProvider.messages)
-        if (message.visualPresentation != null) message.toolCallId,
-    };
-    final messages = chatProvider.messages.where((message) {
-      final calls = message.metadata?['tool_calls'];
-      // Successful presentation calls are already represented by their visual
-      // answer. Preserve failed calls and ordinary tool activity for inspection.
-      return !(message.isToolCall &&
-          calls is List &&
-          calls.isNotEmpty &&
-          calls.every(
-            (call) => call is Map && visualCallIds.contains(call['id']),
-          ));
-    }).toList();
-    // A proposal tool's result is a card the user acts on, not a step in the
-    // agent's timeline — folding it into the collapsible "Used N tools"
-    // section would bury it (and make ChatMessageWidget's card branch
-    // unreachable), so it stays a top-level item.
-    bool isGroupableTool(ChatMessage m) =>
-        (m.isToolCall || m.isToolResult) &&
-        m.actionProposal == null &&
-        m.visualPresentation == null;
-
-    var i = 0;
-    var lastAssistantIdx = -1;
-    for (var j = 0; j < messages.length; j++) {
-      if (messages[j].isAssistant) lastAssistantIdx = j;
-    }
-    while (i < messages.length) {
-      final m = messages[i];
-      if (isGroupableTool(m)) {
-        final start = i;
-        while (i < messages.length && isGroupableTool(messages[i])) {
-          i++;
-        }
-        items.add(_ToolGroupItem(messages.sublist(start, i), endIdx: i - 1));
-      } else {
-        items.add(_MessageItem(m, idx: i));
-        i++;
-      }
-    }
-
-    // Every list item lives in a centered reading column so wide desktop
-    // windows don't stretch prose to unreadable line lengths.
-    Widget centered(Widget child) => ReadingColumn(child: child);
-
-    return ListView.builder(
-      controller: _scrollController,
-      padding: const EdgeInsets.symmetric(vertical: 16),
-      itemCount: items.length + itemOffset,
-      itemBuilder: (context, index) {
-        var leadingIdx = 0;
-        if (showLoadingOlder) {
-          if (index == leadingIdx) {
-            return const Padding(
-              padding: EdgeInsets.symmetric(vertical: 12),
-              child: Center(
-                child: SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-              ),
-            );
-          }
-          leadingIdx++;
-        }
-        if (hasBanner) {
-          if (index == leadingIdx) return centered(const SystemPromptBanner());
-          leadingIdx++;
-        }
-        if (hasSummary) {
-          if (index == leadingIdx) {
-            return centered(ContextSummaryWidget(summary: summary));
-          }
-        }
-        final item = items[index - itemOffset];
-        if (item is _ToolGroupItem) {
-          // The streaming assistant placeholder stays anchored after tool
-          // messages, so an active tool group is technically penultimate.
-          // Treat it as live while everything after it is that still-empty
-          // placeholder; once answer text arrives the activity is complete.
-          final messagesAfter = messages.skip(item.endIdx + 1);
-          final isActive =
-              chatProvider.isSending &&
-              messagesAfter.every(
-                (message) =>
-                    message.id == chatProvider.streamingMessageId &&
-                    message.isAssistant &&
-                    message.content.isEmpty,
-              );
-          return FadeSlideIn(
-            child: centered(
-              // Subscribes to the liveness channel directly: heartbeats arrive
-              // seconds apart and must repaint only this object, never the
-              // whole transcript.
-              ValueListenableBuilder<AgentLiveness?>(
-                valueListenable: chatProvider.agentLiveness,
-                builder: (context, liveness, _) => _LiveAgentProgress(
-                  messages: item.messages,
-                  live: isActive,
-                  liveness: liveness,
-                ),
-              ),
-            ),
-          );
-        }
-        final messageItem = item as _MessageItem;
-        final message = messageItem.message;
-        final msgIdx = messageItem.idx;
-        final isLastMessage = msgIdx == messages.length - 1;
-
-        Widget buildBubble(ChatMessage m) => FadeSlideIn(
-          child: centered(
-            ChatMessageWidget(
-              message: m,
-              isStreaming:
-                  isLastMessage && chatProvider.isSending && m.isAssistant,
-              conversationId: chatProvider.currentConversation?.id,
-              isLastAssistant: m.isAssistant && msgIdx == lastAssistantIdx,
-              onOpenTopicContext: _openActiveContext,
-            ),
-          ),
-        );
-
-        // The in-flight assistant bubble subscribes to the streaming
-        // channel directly, so per-chunk updates repaint only this one
-        // widget instead of the whole list. The anchor key lets the smart
-        // scroll helper locate the bubble to chase/pin it while streaming.
-        if (message.id == chatProvider.streamingMessageId) {
-          return KeyedSubtree(
-            key: _scroll.streamAnchorKey,
-            child: ValueListenableBuilder<ChatMessage?>(
-              valueListenable: chatProvider.streamingMessage,
-              builder: (context, live, _) => buildBubble(
-                live != null && live.id == message.id ? live : message,
-              ),
-            ),
-          );
-        }
-        return buildBubble(message);
-      },
-    );
-  }
-}
-
-/// Builds the agent progress object from a tool group's messages plus the live
-/// liveness channel.
-///
-/// Split out so the (cheap) message fold and the (frequent) liveness update stay
-/// separable: heartbeats repaint only through the ValueListenableBuilder that
-/// owns this widget, never the whole transcript.
-class _LiveAgentProgress extends StatelessWidget {
-  const _LiveAgentProgress({
-    required this.messages,
-    required this.live,
-    required this.liveness,
-  });
-
-  final List<ChatMessage> messages;
-  final bool live;
-  final AgentLiveness? liveness;
-
-  @override
-  Widget build(BuildContext context) {
-    final progress = AgentProgressBuilder.fromMessages(
-      messages,
-      live: live,
-      startedAt: liveness?.startedAt,
-      heartbeatActivity: liveness?.activity,
-      heartbeatElapsedSeconds: liveness?.elapsedSeconds,
-      secondsSinceSignal: liveness?.secondsSinceSignal,
-      completedCount: liveness?.completedCount,
-    );
-    return AgentProgressCard(progress: progress, dense: true);
-  }
-}
-
-sealed class _ListItem {
-  const _ListItem();
-}
-
-class _MessageItem extends _ListItem {
-  const _MessageItem(this.message, {required this.idx});
-  final ChatMessage message;
-  final int idx;
-}
-
-class _ToolGroupItem extends _ListItem {
-  const _ToolGroupItem(this.messages, {required this.endIdx});
-  final List<ChatMessage> messages;
-  final int endIdx;
-}
-
-/// Dismissible error banner displayed at the top of the chat area.
-class _ErrorBanner extends StatelessWidget {
-  const _ErrorBanner({required this.message, required this.onDismiss});
-
-  final String message;
-  final VoidCallback onDismiss;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final theme = Theme.of(context);
-
-    return Container(
-      width: double.infinity,
-      constraints: const BoxConstraints(maxHeight: 120),
-      color: colorScheme.errorContainer,
-      padding: const EdgeInsets.all(12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(top: 2),
-            child: Icon(
-              Icons.error_outline,
-              color: colorScheme.onErrorContainer,
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: SingleChildScrollView(
-              child: Text(
-                message,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: colorScheme.onErrorContainer,
-                ),
-              ),
-            ),
-          ),
-          IconButton(
-            tooltip: 'Dismiss error',
-            icon: Icon(
-              Icons.close,
-              color: colorScheme.onErrorContainer,
-              size: 20,
-            ),
-            onPressed: onDismiss,
-            visualDensity: VisualDensity.compact,
-          ),
-        ],
       ),
     );
   }

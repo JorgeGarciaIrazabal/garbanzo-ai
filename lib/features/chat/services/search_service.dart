@@ -1,12 +1,13 @@
 import 'package:garbanzo_ai/core/api_client.dart';
+import 'package:garbanzo_ai/core/api_error.dart';
 import 'package:garbanzo_ai/features/chat/models/search_result.dart';
 
 class SearchService {
-  SearchService._();
+  SearchService({ApiClient? api}) : _api = api ?? ApiClient.instance;
 
-  static final instance = SearchService._();
+  static final SearchService instance = SearchService();
 
-  final _api = ApiClient.instance;
+  final ApiClient _api;
 
   Future<SearchResults> searchConversations({
     required String query,
@@ -23,15 +24,13 @@ class SearchService {
       );
     }
 
-    try {
-      final response = await _api.get(
-        '/api/v1/chat/conversations/search',
-        queryParameters: {'q': query, 'page': page, 'page_size': pageSize},
-      );
-
-      return SearchResults.fromJson(response.data);
-    } catch (e) {
-      rethrow;
-    }
+    final response = await _api.get(
+      '/api/v1/chat/conversations/search',
+      queryParameters: {'q': query, 'page': page, 'page_size': pageSize},
+    );
+    expectStatus(response, const {
+      200,
+    }, operation: 'Conversation search failed');
+    return SearchResults.fromJson(response.data as Map<String, dynamic>);
   }
 }

@@ -24,28 +24,28 @@ void main() {
 
   setUpAll(() => registerFallbackValue(_FakeSource()));
 
-  Widget app(
-    RoomAudioLoader loader, {
-    AudioPlayer Function()? playerFactory,
-  }) => MaterialApp(
-    localizationsDelegates: const [
-      AppLocalizations.delegate,
-      GlobalMaterialLocalizations.delegate,
-      GlobalWidgetsLocalizations.delegate,
-      GlobalCupertinoLocalizations.delegate,
-    ],
-    supportedLocales: AppLocalizations.supportedLocales,
-    home: Scaffold(
-      body: RoomAudioNotePlayer(
-        roomId: 'room-1',
-        note: note,
-        loader: loader,
-        playerFactory: playerFactory,
-      ),
-    ),
-  );
+  Widget app(RoomAudioLoader loader, {AudioPlayer Function()? playerFactory}) =>
+      MaterialApp(
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: RoomAudioNotePlayer(
+            roomId: 'room-1',
+            note: note,
+            loader: loader,
+            playerFactory: playerFactory,
+          ),
+        ),
+      );
 
-  testWidgets('audio bytes are loaded lazily on the first play', (tester) async {
+  testWidgets('audio bytes are loaded lazily on the first play', (
+    tester,
+  ) async {
     var calls = 0;
     Future<Uint8List> loader(String roomId, String noteId) async {
       calls++;
@@ -69,7 +69,9 @@ void main() {
     debugDefaultTargetPlatformOverride = TargetPlatform.linux;
     final player = _MockAudioPlayer();
     final completed = StreamController<void>();
-    when(() => player.onPositionChanged).thenAnswer((_) => const Stream.empty());
+    when(
+      () => player.onPositionChanged,
+    ).thenAnswer((_) => const Stream.empty());
     when(() => player.onPlayerComplete).thenAnswer((_) => completed.stream);
     when(
       () => player.play(any(), position: any(named: 'position')),
@@ -83,9 +85,7 @@ void main() {
       ),
     );
 
-    final playButton = find.byKey(
-      const ValueKey('audio_note_play_note-1'),
-    );
+    final playButton = find.byKey(const ValueKey('audio_note_play_note-1'));
     await tester.tap(playButton);
     for (var i = 0; i < 5; i++) {
       await tester.pump();
@@ -96,9 +96,7 @@ void main() {
     await tester.pump();
     debugDefaultTargetPlatformOverride = null;
 
-    verify(
-      () => player.play(any(), position: Duration.zero),
-    ).called(2);
+    verify(() => player.play(any(), position: Duration.zero)).called(2);
 
     await completed.close();
   });
@@ -106,7 +104,9 @@ void main() {
   testWidgets('playback speed cycles through 1x, 1.5x, and 2x', (tester) async {
     debugDefaultTargetPlatformOverride = TargetPlatform.linux;
     final player = _MockAudioPlayer();
-    when(() => player.onPositionChanged).thenAnswer((_) => const Stream.empty());
+    when(
+      () => player.onPositionChanged,
+    ).thenAnswer((_) => const Stream.empty());
     when(() => player.onPlayerComplete).thenAnswer((_) => const Stream.empty());
     when(
       () => player.play(any(), position: any(named: 'position')),
@@ -120,16 +120,12 @@ void main() {
         playerFactory: () => player,
       ),
     );
-    await tester.tap(
-      find.byKey(const ValueKey('audio_note_play_note-1')),
-    );
+    await tester.tap(find.byKey(const ValueKey('audio_note_play_note-1')));
     for (var i = 0; i < 5; i++) {
       await tester.pump();
     }
 
-    final speedButton = find.byKey(
-      const ValueKey('audio_note_speed_note-1'),
-    );
+    final speedButton = find.byKey(const ValueKey('audio_note_speed_note-1'));
     expect(find.text('1x'), findsOneWidget);
 
     await tester.tap(speedButton);

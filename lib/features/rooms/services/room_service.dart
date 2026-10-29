@@ -3,24 +3,23 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 
 import 'package:garbanzo_ai/core/api_client.dart';
+import 'package:garbanzo_ai/core/api_error.dart';
 import 'package:garbanzo_ai/features/chat/models/thinking_level.dart';
 import 'package:garbanzo_ai/features/rooms/models/room_models.dart';
 
 /// REST client for multi-person chat rooms.
 class RoomService {
-  RoomService._();
-  static final RoomService instance = RoomService._();
+  RoomService({ApiClient? api}) : _api = api ?? ApiClient.instance;
+  static final RoomService instance = RoomService();
 
-  final _api = ApiClient.instance;
+  final ApiClient _api;
 
   Future<List<Room>> listRooms({int page = 1, int pageSize = 50}) async {
     final resp = await _api.get(
       '/api/v1/rooms',
       queryParameters: {'page': page, 'page_size': pageSize},
     );
-    if (resp.statusCode != 200) {
-      throw Exception('Failed to list rooms: ${resp.statusCode}');
-    }
+    expectStatus(resp, const {200}, operation: 'Failed to list rooms');
     final items = (resp.data['items'] as List)
         .map((e) => Room.fromJson(e as Map<String, dynamic>))
         .toList();
@@ -44,17 +43,13 @@ class RoomService {
         'member_emails': memberEmails,
       },
     );
-    if (resp.statusCode != 201 && resp.statusCode != 200) {
-      throw Exception('Failed to create room: ${resp.statusCode} ${resp.data}');
-    }
+    expectStatus(resp, const {200, 201}, operation: 'Failed to create room');
     return Room.fromJson(resp.data as Map<String, dynamic>);
   }
 
   Future<Room> getRoom(String roomId) async {
     final resp = await _api.get('/api/v1/rooms/$roomId');
-    if (resp.statusCode != 200) {
-      throw Exception('Failed to load room: ${resp.statusCode}');
-    }
+    expectStatus(resp, const {200}, operation: 'Failed to load room');
     return Room.fromJson(resp.data as Map<String, dynamic>);
   }
 
@@ -75,17 +70,13 @@ class RoomService {
     }
     if (ownerId != null) payload['owner_id'] = ownerId;
     final resp = await _api.patch('/api/v1/rooms/$roomId', data: payload);
-    if (resp.statusCode != 200) {
-      throw Exception('Failed to update room: ${resp.statusCode}');
-    }
+    expectStatus(resp, const {200}, operation: 'Failed to update room');
     return Room.fromJson(resp.data as Map<String, dynamic>);
   }
 
   Future<void> deleteRoom(String roomId) async {
     final resp = await _api.delete('/api/v1/rooms/$roomId');
-    if (resp.statusCode != 204) {
-      throw Exception('Failed to delete room: ${resp.statusCode}');
-    }
+    expectStatus(resp, const {204}, operation: 'Failed to delete room');
   }
 
   Future<RoomMember> addMember(
@@ -97,17 +88,13 @@ class RoomService {
       '/api/v1/rooms/$roomId/members',
       data: {'user_id': email, 'role': role},
     );
-    if (resp.statusCode != 201) {
-      throw Exception('Failed to add member: ${resp.statusCode} ${resp.data}');
-    }
+    expectStatus(resp, const {201}, operation: 'Failed to add member');
     return RoomMember.fromJson(resp.data as Map<String, dynamic>);
   }
 
   Future<void> removeMember(String roomId, String email) async {
     final resp = await _api.delete('/api/v1/rooms/$roomId/members/$email');
-    if (resp.statusCode != 204) {
-      throw Exception('Failed to remove member: ${resp.statusCode}');
-    }
+    expectStatus(resp, const {204}, operation: 'Failed to remove member');
   }
 
   /// Mute or unmute the current user's notifications for [roomId].
@@ -119,9 +106,7 @@ class RoomService {
       '/api/v1/rooms/$roomId/members/me/mute',
       data: {'duration': duration},
     );
-    if (resp.statusCode != 200) {
-      throw Exception('Failed to update mute: ${resp.statusCode} ${resp.data}');
-    }
+    expectStatus(resp, const {200}, operation: 'Failed to update mute');
     return RoomMember.fromJson(resp.data as Map<String, dynamic>);
   }
 
@@ -154,9 +139,7 @@ class RoomService {
         'enabled_tools': ?enabledTools,
       },
     );
-    if (resp.statusCode != 201) {
-      throw Exception('Failed to add agent: ${resp.statusCode} ${resp.data}');
-    }
+    expectStatus(resp, const {201}, operation: 'Failed to add agent');
     return RoomAgent.fromJson(resp.data as Map<String, dynamic>);
   }
 
@@ -169,17 +152,13 @@ class RoomService {
       '/api/v1/rooms/$roomId/agents/$agentId',
       data: patch,
     );
-    if (resp.statusCode != 200) {
-      throw Exception('Failed to update agent: ${resp.statusCode}');
-    }
+    expectStatus(resp, const {200}, operation: 'Failed to update agent');
     return RoomAgent.fromJson(resp.data as Map<String, dynamic>);
   }
 
   Future<void> deleteAgent(String roomId, String agentId) async {
     final resp = await _api.delete('/api/v1/rooms/$roomId/agents/$agentId');
-    if (resp.statusCode != 204) {
-      throw Exception('Failed to delete agent: ${resp.statusCode}');
-    }
+    expectStatus(resp, const {204}, operation: 'Failed to delete agent');
   }
 
   Future<List<RoomMessage>> listMessages(
@@ -191,9 +170,7 @@ class RoomService {
       '/api/v1/rooms/$roomId/messages',
       queryParameters: {'page': page, 'page_size': pageSize},
     );
-    if (resp.statusCode != 200) {
-      throw Exception('Failed to list messages: ${resp.statusCode}');
-    }
+    expectStatus(resp, const {200}, operation: 'Failed to list messages');
     return (resp.data['items'] as List)
         .map((e) => RoomMessage.fromJson(e as Map<String, dynamic>))
         .toList();
@@ -210,10 +187,7 @@ class RoomService {
         'file': MultipartFile.fromBytes(audioBytes, filename: filename),
       }),
     );
-    if (response.statusCode != 201) {
-      final detail = response.data is Map ? response.data['detail'] : null;
-      throw Exception(detail ?? 'Failed to post audio note');
-    }
+    expectStatus(response, const {201}, operation: 'Failed to post audio note');
     final data = response.data as Map<String, dynamic>;
     return RoomMessage.fromJson(data['message'] as Map<String, dynamic>);
   }
@@ -223,7 +197,7 @@ class RoomService {
       '/api/v1/rooms/$roomId/audio-notes/$noteId',
     );
     if (response.statusCode != 200 || response.data == null) {
-      throw Exception('Failed to load audio note: ${response.statusCode}');
+      throw apiResponseError(response, operation: 'Failed to load audio note');
     }
     return Uint8List.fromList(response.data!);
   }
@@ -233,9 +207,7 @@ class RoomService {
       '/api/v1/rooms/$roomId/export',
       queryParameters: {'format': 'markdown'},
     );
-    if (resp.statusCode != 200) {
-      throw Exception('Failed to export: ${resp.statusCode}');
-    }
+    expectStatus(resp, const {200}, operation: 'Failed to export');
     return resp.data.toString();
   }
 
@@ -254,9 +226,7 @@ class RoomService {
         'page_size': pageSize,
       },
     );
-    if (resp.statusCode != 200) {
-      throw Exception('Search failed: ${resp.statusCode}');
-    }
+    expectStatus(resp, const {200}, operation: 'Search failed');
     return (resp.data['items'] as List)
         .map((e) => Room.fromJson(e as Map<String, dynamic>))
         .toList();

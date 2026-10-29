@@ -119,7 +119,9 @@ class UpdateInstaller {
       // Only reached on failure — clean the downloaded archive and rethrow.
       try {
         tempDir.deleteSync(recursive: true);
-      } catch (_) {}
+      } catch (_) {
+        // Best-effort archive cleanup before rethrowing the upgrade failure.
+      }
       rethrow;
     }
     exit(0);

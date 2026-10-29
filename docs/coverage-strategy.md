@@ -177,19 +177,23 @@ widgets with non-trivial interaction (`MessageComposer`, `ChatPage` search,
 - For jobs, call `apply_migrations()` then run the job function directly —
   don't wait for the scheduler.
 - Naming: `tests/<area>/test_<thing>_test.py::test_<scenario>`.
-- Run: `cd backend; uv run pytest tests/path/test_x.py::test_name` (or
-  `just be-test`).
+- Run: `just be-test tests/path/test_x.py::test_name` (or `just be-test`).
 
 ### Frontend
-- Providers/services: `ProviderContainer` + `mockito` fake APIs. Assert
-  state transitions and emitted side effects, not widget trees.
-- Repositories: fake the HTTP client with a stub returning canned JSON.
-- Widget tests: only for widgets with branching logic (search debounce,
-  composer keyboard handling, form validation in dialogs). Use
-  `testWidgets` + `WidgetTester`; pump and assert on `find.byType`/`byKey`.
+- Providers/services: `ChangeNotifier` / `MultiProvider` + `mocktail` mocks
+  injected via `{ApiClient? api}` service constructors (or `@visibleForTesting`
+  `.forTesting()` service subclasses). Assert state transitions, `error`
+  surfaces, and emitted side effects rather than widget trees.
+- HTTP responses: remember `ApiClient` sets `validateStatus: (_) => true`, so
+  stubbed `ApiClient` methods return `Response(statusCode: 4xx/5xx, ...)` for
+  HTTP errors (including FastAPI 422 validation lists) and throw `DioException`
+  only for transport/timeout failures.
+- Widget tests: focus on widgets with branching interaction logic (composer,
+  dialogs, error/retry states). Wrap widgets with `pumpLocalizedApp`
+  (`test/helpers/pump_app.dart`) and assert via `find.byKey` / `find.text`.
 - Keep tests deterministic — no real timers. Use `fakeAsync` where needed.
 - Naming: `test/<area>/<thing>_test.dart`.
-- Run: `flutter test test/path/test_x.dart` (or `just fe-test`).
+- Run: `just fe-test test/path/test_x.dart` (or `just fe-test`).
 
 ## Workflow
 

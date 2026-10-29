@@ -12,12 +12,13 @@ import 'package:garbanzo_ai/features/settings/widgets/drawer_sections/pages_sect
 import 'package:garbanzo_ai/features/settings/widgets/drawer_sections/section_header.dart';
 import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
-/// Right-side drawer, organized into three groups:
-///   1. Pages — navigation to every feature page
-///   2. This conversation — model, prompt, context, tools for the open chat
-///   3. App settings — appearance, chat display, voice, notifications
+/// Right-side quick menu drawer, organized into three groups:
+///   1. This conversation — active chat context, model, prompt, tools
+///   2. Pages — navigation hub to every feature page
+///   3. Quick theme toggle — 1-tap Light / Dark / System switcher
 ///
-/// Section content lives in `drawer_sections/`; this file is just the shell.
+/// Full app preferences live on `/settings` ([SettingsPage]), reachable from
+/// the header account row or the "Open full settings" tile.
 class SettingsDrawer extends StatelessWidget {
   const SettingsDrawer({super.key});
 
@@ -82,21 +83,18 @@ class SettingsDrawer extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     GroupHeader(
-                      title: AppLocalizations.of(context)!.titlePages,
-                    ),
-                    PagesSection(),
-                    Divider(height: 24),
-                    GroupHeader(
                       title: AppLocalizations.of(
                         context,
                       )!.titleThisConversation,
                     ),
-                    ConversationSection(),
-                    Divider(height: 24),
+                    const ConversationSection(),
+                    const Divider(height: 24),
                     GroupHeader(
-                      title: AppLocalizations.of(context)!.titleAppSettings,
+                      title: AppLocalizations.of(context)!.titlePages,
                     ),
-                    AppSettingsSection(),
+                    const PagesSection(),
+                    const Divider(height: 24),
+                    const AppSettingsSection(),
                   ],
                 ),
               ),

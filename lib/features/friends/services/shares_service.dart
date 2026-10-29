@@ -1,17 +1,22 @@
+import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
+
 import 'package:garbanzo_ai/core/api_client.dart';
+import 'package:garbanzo_ai/core/api_error.dart';
 import 'package:garbanzo_ai/features/friends/models/share_models.dart';
 
 /// REST client for sharing styles / prompt templates with friends
 /// (`/api/v1/shares`). Copy-on-accept: accepting materializes the snapshot
 /// as the caller's own style/template.
 class SharesService {
-  SharesService._();
-  static final SharesService instance = SharesService._();
+  SharesService({ApiClient? api}) : _api = api ?? ApiClient.instance;
+  static final SharesService instance = SharesService();
 
   /// Test seam — mirrors `FriendsService.forTesting`.
-  SharesService.forTesting();
+  @visibleForTesting
+  SharesService.forTesting() : this();
 
-  final _api = ApiClient.instance;
+  final ApiClient _api;
 
   /// Shares a style or prompt template ([kind] 'style' | 'prompt') with a
   /// friend. Throws with the backend's message on business-rule errors
@@ -60,11 +65,6 @@ class SharesService {
     if (resp.statusCode != 204) throw _error(resp);
   }
 
-  Exception _error(dynamic response) {
-    final body = response.data;
-    final detail = body is Map<String, dynamic>
-        ? (body['detail'] as String? ?? 'Unknown error')
-        : '$body';
-    return Exception('API Error (${response.statusCode}): $detail');
-  }
+  Exception _error(Response<dynamic> response) =>
+      apiResponseError(response, operation: 'Share request failed');
 }

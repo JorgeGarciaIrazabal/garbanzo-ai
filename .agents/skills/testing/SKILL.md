@@ -19,7 +19,8 @@ One heavy Flutter test/build job at a time. Runtime exploratory inspection uses
 Dart MCP, Marionette and Playwright; see e2e-testing for established setup.
 Do not describe passing health checks as verification of a reported bug.
 
-For focused Flutter name filters, use a single-word substring such as
-`just fe-test test/widgets/style_picker_test.dart --plain-name new-topic`.
-The recipe expands arguments unquoted, so ordinary shell quotes around a
-multiword name do not preserve it as one Flutter argument.
+For focused Flutter name filters, quote multi-word test names normally, e.g.
+`just fe-test test/core/guarded_state_test.dart --plain-name "post-dispose completion"`
+(`fe-test` and `fe-test-cov` forward positional arguments via `"$@"`).
+`just check` also runs `just fe-lint-arch` to verify ARB key/placeholder parity,
+UI import boundaries, and non-generated Dart file-size ceilings.

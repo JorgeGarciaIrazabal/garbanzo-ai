@@ -45,9 +45,10 @@ void main() {
     return ChangeNotifierProvider(
       create: (_) => NotificationProvider(service: service),
       child: MaterialApp.router(
-  localizationsDelegates: AppLocalizations.localizationsDelegates,
-  supportedLocales: AppLocalizations.supportedLocales,
-routerConfig: router),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        routerConfig: router,
+      ),
     );
   }
 
@@ -80,8 +81,9 @@ routerConfig: router),
     verify(() => service.markRead('n1')).called(1);
   });
 
-  testWidgets('tapping a notification with no navigable data just marks read',
-      (tester) async {
+  testWidgets('tapping a notification with no navigable data just marks read', (
+    tester,
+  ) async {
     when(() => service.list()).thenAnswer(
       (_) async => NotificationListResult(
         items: [

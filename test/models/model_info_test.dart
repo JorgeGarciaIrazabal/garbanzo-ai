@@ -17,23 +17,14 @@ void main() {
       expect(info.contextLength, 4096);
       expect(info.provider, 'ollama');
     });
-
   });
 
   group('ModelList', () {
     test('fromJson parses model list', () {
       final list = ModelList.fromJson({
         'models': [
-          {
-            'id': 'model-1',
-            'name': 'Model 1',
-            'provider': 'ollama',
-          },
-          {
-            'id': 'model-2',
-            'name': 'Model 2',
-            'provider': 'ollama',
-          },
+          {'id': 'model-1', 'name': 'Model 1', 'provider': 'ollama'},
+          {'id': 'model-2', 'name': 'Model 2', 'provider': 'ollama'},
         ],
       });
       expect(list.models.length, 2);

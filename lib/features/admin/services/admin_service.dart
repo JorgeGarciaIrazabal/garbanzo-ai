@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
 import 'package:garbanzo_ai/core/api_client.dart';
+import 'package:garbanzo_ai/core/api_error.dart';
 import 'package:garbanzo_ai/features/admin/models/admin_model.dart';
 import 'package:garbanzo_ai/features/admin/models/admin_user.dart';
 import 'package:garbanzo_ai/features/admin/models/mcp_server.dart';
@@ -8,12 +9,12 @@ import 'package:garbanzo_ai/features/admin/models/mcp_server.dart';
 /// HTTP service for admin endpoints (users + MCP servers).
 ///
 /// All calls require the current user to be an admin — non-admin tokens
-/// receive a 403 and the service throws an [Exception].
+/// receive a 403 and the service throws an [ApiResponseException].
 class AdminService {
-  AdminService._();
-  static final AdminService instance = AdminService._();
+  AdminService({ApiClient? api}) : _api = api ?? ApiClient.instance;
+  static final AdminService instance = AdminService();
 
-  final ApiClient _api = ApiClient.instance;
+  final ApiClient _api;
 
   // ==========================================================================
   // Users
@@ -208,12 +209,6 @@ class AdminService {
   // Error handling
   // ==========================================================================
 
-  Exception _handleError(Response response) {
-    final body = response.data;
-    if (body is Map<String, dynamic>) {
-      final detail = body['detail']?.toString() ?? 'Unknown error';
-      return Exception('API Error (${response.statusCode}): $detail');
-    }
-    return Exception('API Error (${response.statusCode}): $body');
-  }
+  Exception _handleError(Response<dynamic> response) =>
+      apiResponseError(response, operation: 'Admin request failed');
 }

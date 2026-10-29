@@ -3746,4 +3746,38 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get visualMoreRows => 'Show more rows';
+
+  @override
+  String get bargeInOff => 'Off';
+
+  @override
+  String get bargeInLow => 'Low sensitivity';
+
+  @override
+  String get bargeInNormal => 'Normal';
+
+  @override
+  String get bargeInHigh => 'High sensitivity';
+
+  @override
+  String get failedToLoadVoices => 'Could not load voices';
+
+  @override
+  String get failedToLoadPromptTemplates => 'Could not load prompt templates';
+
+  @override
+  String get defaultModelServerFallback =>
+      'Server fallback (usually deepseek-v4.1-flash:cloud)';
+
+  @override
+  String get jumpToLatestMessage => 'Jump to latest message';
+
+  @override
+  String get dropFilesSupportedFormats => 'Images, PDFs, CSVs, and text files';
+
+  @override
+  String get manageSavedMemories => 'Manage saved memories';
+
+  @override
+  String get searchTopicsHint => 'Search topics...';
 }

@@ -105,13 +105,16 @@ void main() {
       expect(p.selectedModelId, ModelProvider.visionModelId);
     });
 
-    test('fallback chain prefers qwen3.8 when recommended model absent', () async {
-      stubModels(['llama3.2', 'qwen3:8b', 'qwen3.8:27b']);
+    test(
+      'fallback chain prefers qwen3.8 when recommended model absent',
+      () async {
+        stubModels(['llama3.2', 'qwen3:8b', 'qwen3.8:27b']);
 
-      final p = await loaded();
+        final p = await loaded();
 
-      expect(p.selectedModelId, 'qwen3.8:27b');
-    });
+        expect(p.selectedModelId, 'qwen3.8:27b');
+      },
+    );
 
     test('fallback lands on first model when no pattern matches', () async {
       stubModels(['mistral', 'phi3']);
@@ -124,8 +127,9 @@ void main() {
 
   group('load failure', () {
     test('surfaces an error and leaves selection empty', () async {
-      when(() => chat.listModels())
-          .thenThrow(Exception('API Error (500): boom'));
+      when(
+        () => chat.listModels(),
+      ).thenThrow(Exception('API Error (500): boom'));
 
       final p = await loaded();
 
@@ -161,8 +165,9 @@ void main() {
   group('setDefaultModel', () {
     test('returns true when the profile update succeeds', () async {
       stubModels(['llama3.2'], serverDefault: 'llama3.2');
-      when(() => auth.updateProfile(defaultModel: 'llama3.2'))
-          .thenAnswer((_) async => AuthResult.success());
+      when(
+        () => auth.updateProfile(defaultModel: 'llama3.2'),
+      ).thenAnswer((_) async => AuthResult.success());
       final p = await loaded();
 
       expect(await p.setDefaultModel('llama3.2'), isTrue);
@@ -170,8 +175,9 @@ void main() {
 
     test('returns false when the profile update fails', () async {
       stubModels(['llama3.2'], serverDefault: 'llama3.2');
-      when(() => auth.updateProfile(defaultModel: any(named: 'defaultModel')))
-          .thenAnswer((_) async => AuthResult.failure('nope'));
+      when(
+        () => auth.updateProfile(defaultModel: any(named: 'defaultModel')),
+      ).thenAnswer((_) async => AuthResult.failure('nope'));
       final p = await loaded();
 
       expect(await p.setDefaultModel('llama3.2'), isFalse);
@@ -179,38 +185,35 @@ void main() {
   });
 
   group('recommendedVisionModel', () {
-    test('keeps a local conversation local when a local Vision model exists', () async {
-      stubModelInfo(
-        [
+    test(
+      'keeps a local conversation local when a local Vision model exists',
+      () async {
+        stubModelInfo([
           _model('text-local', vision: false),
           _model('vision-local', vision: true, tools: true),
           _model('vision-cloud:cloud', vision: true, tools: true),
-        ],
-        serverDefault: 'vision-cloud:cloud',
-      );
-      final p = await loaded();
+        ], serverDefault: 'vision-cloud:cloud');
+        final p = await loaded();
 
-      final recommendation = p.recommendedVisionModel(
-        currentModelId: 'text-local',
-      );
+        final recommendation = p.recommendedVisionModel(
+          currentModelId: 'text-local',
+        );
 
-      expect(recommendation?.id, 'vision-local');
-    });
+        expect(recommendation?.id, 'vision-local');
+      },
+    );
 
     test('uses the server default within the same cloud class', () async {
-      stubModelInfo(
-        [
-          _model('text-cloud:cloud', vision: false),
-          _model('other-cloud:cloud', vision: true, tools: true),
-          _model(
-            'recommended-cloud:cloud',
-            vision: true,
-            tools: true,
-            thinking: true,
-          ),
-        ],
-        serverDefault: 'recommended-cloud:cloud',
-      );
+      stubModelInfo([
+        _model('text-cloud:cloud', vision: false),
+        _model('other-cloud:cloud', vision: true, tools: true),
+        _model(
+          'recommended-cloud:cloud',
+          vision: true,
+          tools: true,
+          thinking: true,
+        ),
+      ], serverDefault: 'recommended-cloud:cloud');
       final p = await loaded();
 
       final recommendation = p.recommendedVisionModel(
@@ -222,24 +225,21 @@ void main() {
     });
 
     test('preserves thinking capability ahead of the server default', () async {
-      stubModelInfo(
-        [
-          _model('text-cloud:cloud', vision: false),
-          _model(
-            'default-cloud:cloud',
-            vision: true,
-            tools: true,
-            thinking: false,
-          ),
-          _model(
-            'thinking-cloud:cloud',
-            vision: true,
-            tools: true,
-            thinking: true,
-          ),
-        ],
-        serverDefault: 'default-cloud:cloud',
-      );
+      stubModelInfo([
+        _model('text-cloud:cloud', vision: false),
+        _model(
+          'default-cloud:cloud',
+          vision: true,
+          tools: true,
+          thinking: false,
+        ),
+        _model(
+          'thinking-cloud:cloud',
+          vision: true,
+          tools: true,
+          thinking: true,
+        ),
+      ], serverDefault: 'default-cloud:cloud');
       final p = await loaded();
 
       final recommendation = p.recommendedVisionModel(
@@ -251,16 +251,10 @@ void main() {
     });
 
     test('returns null when no model advertises Vision support', () async {
-      stubModelInfo([
-        _model('text-only', vision: false),
-        _model('unknown'),
-      ]);
+      stubModelInfo([_model('text-only', vision: false), _model('unknown')]);
       final p = await loaded();
 
-      expect(
-        p.recommendedVisionModel(currentModelId: 'text-only'),
-        isNull,
-      );
+      expect(p.recommendedVisionModel(currentModelId: 'text-only'), isNull);
     });
   });
 
@@ -282,15 +276,18 @@ void main() {
       ]);
     });
 
-    test('does not offer the recommended model without confirmed Vision support', () async {
-      stubModelInfo([
-        _model(ModelProvider.visionModelId),
-        _model('other', vision: false),
-      ]);
-      final p = await loaded();
+    test(
+      'does not offer the recommended model without confirmed Vision support',
+      () async {
+        stubModelInfo([
+          _model(ModelProvider.visionModelId),
+          _model('other', vision: false),
+        ]);
+        final p = await loaded();
 
-      expect(p.visionModelChoices(), isEmpty);
-    });
+        expect(p.visionModelChoices(), isEmpty);
+      },
+    );
 
     test('falls back to another enabled Vision model', () async {
       stubModelInfo([_model('llava', vision: true)]);

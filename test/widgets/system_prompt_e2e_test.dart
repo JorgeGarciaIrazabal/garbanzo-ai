@@ -95,22 +95,24 @@ class _FakeTemplateProvider extends SystemPromptProvider {
   }
 }
 
-SystemPromptTemplate _template(String id, String name, {bool builtin = false}) =>
-    SystemPromptTemplate(
-      id: id,
-      name: name,
-      content: 'content of $name',
-      isBuiltin: builtin,
-      createdAt: DateTime(2026),
-    );
+SystemPromptTemplate _template(
+  String id,
+  String name, {
+  bool builtin = false,
+}) => SystemPromptTemplate(
+  id: id,
+  name: name,
+  content: 'content of $name',
+  isBuiltin: builtin,
+  createdAt: DateTime(2026),
+);
 
 Future<void> _openEditor(WidgetTester tester, SystemPromptProvider p) async {
   await tester.pumpWidget(
     MaterialApp(
-      
-  localizationsDelegates: AppLocalizations.localizationsDelegates,
-  supportedLocales: AppLocalizations.supportedLocales,
-home: MultiProvider(
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: MultiProvider(
         providers: [
           ChangeNotifierProvider<SystemPromptProvider>.value(value: p),
           ChangeNotifierProvider<ModelProvider>.value(
@@ -157,17 +159,17 @@ void main() {
   });
 
   group('SystemPromptEditorDialog.show', () {
-    testWidgets('reaches a route-scoped provider from the dialog route',
-        (tester) async {
+    testWidgets('reaches a route-scoped provider from the dialog route', (
+      tester,
+    ) async {
       // Mirrors the real app: the provider lives inside a route (ChatPage /
       // SettingsPage subtree), below the Navigator. The dialog opens on its
       // own route, so it can only see the provider if show() re-exposes it.
       await tester.pumpWidget(
         MaterialApp(
-          
-  localizationsDelegates: AppLocalizations.localizationsDelegates,
-  supportedLocales: AppLocalizations.supportedLocales,
-home: MultiProvider(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: MultiProvider(
             providers: [
               ChangeNotifierProvider<SystemPromptProvider>.value(
                 value: _FakeSystemPromptProvider(null, const []),
@@ -201,10 +203,9 @@ home: MultiProvider(
     testWidgets('shows "Create with AI" button', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
-          
-  localizationsDelegates: AppLocalizations.localizationsDelegates,
-  supportedLocales: AppLocalizations.supportedLocales,
-home: MultiProvider(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: MultiProvider(
             providers: [
               ChangeNotifierProvider<SystemPromptProvider>.value(
                 value: _FakeSystemPromptProvider(null, const []),
@@ -232,14 +233,14 @@ home: MultiProvider(
       expect(find.text('Create with AI'), findsOneWidget);
     });
 
-    testWidgets('tapping "Create with AI" opens the generation panel',
-        (tester) async {
+    testWidgets('tapping "Create with AI" opens the generation panel', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
-          
-  localizationsDelegates: AppLocalizations.localizationsDelegates,
-  supportedLocales: AppLocalizations.supportedLocales,
-home: MultiProvider(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: MultiProvider(
             providers: [
               ChangeNotifierProvider<SystemPromptProvider>.value(
                 value: _FakeSystemPromptProvider(null, const []),
@@ -371,24 +372,21 @@ home: MultiProvider(
           ),
         ],
         child: MaterialApp(
-          
-  localizationsDelegates: AppLocalizations.localizationsDelegates,
-  supportedLocales: AppLocalizations.supportedLocales,
-home: Scaffold(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
             body: Align(
               alignment: Alignment.topLeft,
-              child: SizedBox(
-                width: width,
-                child: const SystemPromptBanner(),
-              ),
+              child: SizedBox(width: width, child: const SystemPromptBanner()),
             ),
           ),
         ),
       );
     }
 
-    testWidgets('shows "Conversation override" label when conv has prompt',
-        (tester) async {
+    testWidgets('shows "Conversation override" label when conv has prompt', (
+      tester,
+    ) async {
       final conv = Conversation(
         id: 'c1',
         title: 'Test',
@@ -405,25 +403,27 @@ home: Scaffold(
       await tester.pumpAndSettle(const Duration(seconds: 2));
     });
 
-    testWidgets('shows "Global default" when no conv prompt, has user default',
-        (tester) async {
-      final conv = Conversation(
-        id: 'c1',
-        title: 'Test',
-        model: 'test',
-        createdAt: DateTime(2025),
-        updatedAt: DateTime(2025),
-        messageCount: 0,
-        useMemory: true,
-      );
-      await tester
-          .pumpWidget(wrap(conversation: conv, userDefault: 'global default'));
-      expect(find.text('Global default'), findsOneWidget);
-      await tester.pumpAndSettle(const Duration(seconds: 2));
-    });
+    testWidgets(
+      'shows "Global default" when no conv prompt, has user default',
+      (tester) async {
+        final conv = Conversation(
+          id: 'c1',
+          title: 'Test',
+          model: 'test',
+          createdAt: DateTime(2025),
+          updatedAt: DateTime(2025),
+          messageCount: 0,
+          useMemory: true,
+        );
+        await tester.pumpWidget(
+          wrap(conversation: conv, userDefault: 'global default'),
+        );
+        expect(find.text('Global default'), findsOneWidget);
+        await tester.pumpAndSettle(const Duration(seconds: 2));
+      },
+    );
 
-    testWidgets('shows "No system prompt" when nothing is set',
-        (tester) async {
+    testWidgets('shows "No system prompt" when nothing is set', (tester) async {
       final conv = Conversation(
         id: 'c1',
         title: 'Test',
@@ -503,7 +503,10 @@ home: Scaffold(
         find.byKey(const ValueKey('system_prompt_banner_title')),
       );
       await tester.pump();
-      expect(find.text('Explore this topic as a patient tutor.'), findsOneWidget);
+      expect(
+        find.text('Explore this topic as a patient tutor.'),
+        findsOneWidget,
+      );
       expect(tester.takeException(), isNull);
       // The fake providers inherit constructor-triggered guarded API loads;
       // let their zero-duration Dio timers settle like the sibling banner

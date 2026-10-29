@@ -10,13 +10,10 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-          
-  localizationsDelegates: AppLocalizations.localizationsDelegates,
-  supportedLocales: AppLocalizations.supportedLocales,
-home: Scaffold(
-            body: Form(
-              child: PasswordField(controller: controller),
-            ),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: Form(child: PasswordField(controller: controller)),
           ),
         ),
       );
@@ -24,13 +21,17 @@ home: Scaffold(
       TextField field = tester.widget(find.byType(TextField));
       expect(field.obscureText, isTrue);
 
-      await tester.tap(find.byKey(const ValueKey('password_visibility_toggle')));
+      await tester.tap(
+        find.byKey(const ValueKey('password_visibility_toggle')),
+      );
       await tester.pump();
 
       field = tester.widget(find.byType(TextField));
       expect(field.obscureText, isFalse);
 
-      await tester.tap(find.byKey(const ValueKey('password_visibility_toggle')));
+      await tester.tap(
+        find.byKey(const ValueKey('password_visibility_toggle')),
+      );
       await tester.pump();
 
       field = tester.widget(find.byType(TextField));
@@ -43,10 +44,9 @@ home: Scaffold(
 
       await tester.pumpWidget(
         MaterialApp(
-          
-  localizationsDelegates: AppLocalizations.localizationsDelegates,
-  supportedLocales: AppLocalizations.supportedLocales,
-home: Scaffold(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
             body: Form(
               child: PasswordField(
                 controller: controller,
@@ -70,10 +70,9 @@ home: Scaffold(
 
       await tester.pumpWidget(
         MaterialApp(
-          
-  localizationsDelegates: AppLocalizations.localizationsDelegates,
-  supportedLocales: AppLocalizations.supportedLocales,
-home: Scaffold(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
             body: Form(
               key: formKey,
               child: PasswordField(controller: controller),
@@ -87,22 +86,20 @@ home: Scaffold(
       expect(find.text('Enter your password'), findsOneWidget);
     });
 
-    testWidgets('validator rejects passwords shorter than minLength', (tester) async {
+    testWidgets('validator rejects passwords shorter than minLength', (
+      tester,
+    ) async {
       final controller = TextEditingController(text: '123');
       final formKey = GlobalKey<FormState>();
 
       await tester.pumpWidget(
         MaterialApp(
-          
-  localizationsDelegates: AppLocalizations.localizationsDelegates,
-  supportedLocales: AppLocalizations.supportedLocales,
-home: Scaffold(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
             body: Form(
               key: formKey,
-              child: PasswordField(
-                controller: controller,
-                minLength: 6,
-              ),
+              child: PasswordField(controller: controller, minLength: 6),
             ),
           ),
         ),
@@ -110,7 +107,10 @@ home: Scaffold(
 
       expect(formKey.currentState!.validate(), isFalse);
       await tester.pump();
-      expect(find.text('Password must be at least 6 characters'), findsOneWidget);
+      expect(
+        find.text('Password must be at least 6 characters'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('validator accepts password meeting minLength', (tester) async {
@@ -119,16 +119,12 @@ home: Scaffold(
 
       await tester.pumpWidget(
         MaterialApp(
-          
-  localizationsDelegates: AppLocalizations.localizationsDelegates,
-  supportedLocales: AppLocalizations.supportedLocales,
-home: Scaffold(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
             body: Form(
               key: formKey,
-              child: PasswordField(
-                controller: controller,
-                minLength: 6,
-              ),
+              child: PasswordField(controller: controller, minLength: 6),
             ),
           ),
         ),
@@ -142,10 +138,9 @@ home: Scaffold(
     testWidgets('shows label when not loading', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
-          
-  localizationsDelegates: AppLocalizations.localizationsDelegates,
-  supportedLocales: AppLocalizations.supportedLocales,
-home: Scaffold(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
             body: AuthSubmitButton(
               label: 'Sign in',
               isLoading: false,
@@ -159,14 +154,15 @@ home: Scaffold(
       expect(find.byType(CircularProgressIndicator), findsNothing);
     });
 
-    testWidgets('shows spinner when loading and button is disabled', (tester) async {
+    testWidgets('shows spinner when loading and button is disabled', (
+      tester,
+    ) async {
       var tapped = 0;
       await tester.pumpWidget(
         MaterialApp(
-          
-  localizationsDelegates: AppLocalizations.localizationsDelegates,
-  supportedLocales: AppLocalizations.supportedLocales,
-home: Scaffold(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
             body: AuthSubmitButton(
               label: 'Sign in',
               isLoading: true,
@@ -188,10 +184,9 @@ home: Scaffold(
       var tapped = 0;
       await tester.pumpWidget(
         MaterialApp(
-          
-  localizationsDelegates: AppLocalizations.localizationsDelegates,
-  supportedLocales: AppLocalizations.supportedLocales,
-home: Scaffold(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
             body: AuthSubmitButton(
               label: 'Go',
               isLoading: false,
@@ -210,10 +205,11 @@ home: Scaffold(
     testWidgets('displays the message', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-          
-  localizationsDelegates: AppLocalizations.localizationsDelegates,
-  supportedLocales: AppLocalizations.supportedLocales,
-home: Scaffold(body: AuthErrorBanner(message: 'Something went wrong')),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: AuthErrorBanner(message: 'Something went wrong'),
+          ),
         ),
       );
       expect(find.text('Something went wrong'), findsOneWidget);
@@ -226,10 +222,9 @@ home: Scaffold(body: AuthErrorBanner(message: 'Something went wrong')),
       final formKey = GlobalKey<FormState>();
       await tester.pumpWidget(
         MaterialApp(
-          
-  localizationsDelegates: AppLocalizations.localizationsDelegates,
-  supportedLocales: AppLocalizations.supportedLocales,
-home: AuthFormLayout(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: AuthFormLayout(
             icon: Icons.person,
             heading: 'Welcome',
             formKey: formKey,

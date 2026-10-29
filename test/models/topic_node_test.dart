@@ -36,36 +36,42 @@ void main() {
       expect(topic.updatedAt, DateTime.utc(2026, 8, 30, 12, 34, 56));
     });
 
-    test('falls back safely for unknown enum values and missing optional data', () {
-      final topic = TopicNode.fromJson({
-        'id': 'new-topic',
-        'label': 'Something new',
-        'origin': 'unrecognized-source',
-        'context_status': 'unknown',
-      });
+    test(
+      'falls back safely for unknown enum values and missing optional data',
+      () {
+        final topic = TopicNode.fromJson({
+          'id': 'new-topic',
+          'label': 'Something new',
+          'origin': 'unrecognized-source',
+          'context_status': 'unknown',
+        });
 
-      expect(topic.origin, TopicOrigin.history);
-      expect(topic.contextStatus, TopicContextStatus.empty);
-      expect(topic.childCount, 0);
-      expect(topic.children, isEmpty);
-      expect(topic.canStart, isTrue);
-    });
+        expect(topic.origin, TopicOrigin.history);
+        expect(topic.contextStatus, TopicContextStatus.empty);
+        expect(topic.childCount, 0);
+        expect(topic.children, isEmpty);
+        expect(topic.canStart, isTrue);
+      },
+    );
 
-    test('preserves public history and suggested origins for discovery routing', () {
-      final learned = TopicNode.fromJson({
-        'id': 'learned',
-        'label': 'Learned from history',
-        'origin': 'history',
-      });
-      final explore = TopicNode.fromJson({
-        'id': 'explore',
-        'label': 'Something new',
-        'origin': 'suggested',
-      });
+    test(
+      'preserves public history and suggested origins for discovery routing',
+      () {
+        final learned = TopicNode.fromJson({
+          'id': 'learned',
+          'label': 'Learned from history',
+          'origin': 'history',
+        });
+        final explore = TopicNode.fromJson({
+          'id': 'explore',
+          'label': 'Something new',
+          'origin': 'suggested',
+        });
 
-      expect(learned.origin, TopicOrigin.history);
-      expect(explore.origin, TopicOrigin.suggested);
-    });
+        expect(learned.origin, TopicOrigin.history);
+        expect(explore.origin, TopicOrigin.suggested);
+      },
+    );
 
     test('serializes and deserializes combinedTopics', () {
       final node = TopicNode.fromJson({
@@ -86,9 +92,18 @@ void main() {
   group('shortenTopicTitle', () {
     test('preserves short and concise topic titles', () {
       expect(shortenTopicTitle('Finance', isMobile: true), 'Finance');
-      expect(shortenTopicTitle('Cooking Pasta', isMobile: true), 'Cooking Pasta');
-      expect(shortenTopicTitle('Machine Learning', isMobile: true), 'Machine Learning');
-      expect(shortenTopicTitle('Travel someday', isMobile: true), 'Travel someday');
+      expect(
+        shortenTopicTitle('Cooking Pasta', isMobile: true),
+        'Cooking Pasta',
+      );
+      expect(
+        shortenTopicTitle('Machine Learning', isMobile: true),
+        'Machine Learning',
+      );
+      expect(
+        shortenTopicTitle('Travel someday', isMobile: true),
+        'Travel someday',
+      );
     });
 
     test('preserves full title when isMobile is false', () {
@@ -98,7 +113,10 @@ void main() {
 
     test('extracts concise clause from delimited titles', () {
       expect(
-        shortenTopicTitle('Review Intermediation Contract – Madrid Property Sale', isMobile: true),
+        shortenTopicTitle(
+          'Review Intermediation Contract – Madrid Property Sale',
+          isMobile: true,
+        ),
         'Madrid Property Sale',
       );
       expect(
@@ -109,15 +127,24 @@ void main() {
 
     test('strips verbose suffixes when exceeding maxChars', () {
       expect(
-        shortenTopicTitle('Guadarrama & Aranjuez Property Search', isMobile: true),
+        shortenTopicTitle(
+          'Guadarrama & Aranjuez Property Search',
+          isMobile: true,
+        ),
         'Guadarrama & Aranjuez',
       );
       expect(
-        shortenTopicTitle('Asset-Backed Mortgage for Home Purchase', isMobile: true),
+        shortenTopicTitle(
+          'Asset-Backed Mortgage for Home Purchase',
+          isMobile: true,
+        ),
         'Asset-Backed Mortgage',
       );
       expect(
-        shortenTopicTitle('Local Inference Hardware Benchmarks', isMobile: true),
+        shortenTopicTitle(
+          'Local Inference Hardware Benchmarks',
+          isMobile: true,
+        ),
         'Local Inference',
       );
     });

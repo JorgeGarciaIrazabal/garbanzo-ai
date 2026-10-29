@@ -25,10 +25,10 @@ class VoiceOption {
 }
 
 class AudioService {
-  AudioService._();
-  static final AudioService instance = AudioService._();
+  AudioService({ApiClient? api}) : _api = api ?? ApiClient.instance;
+  static final AudioService instance = AudioService();
 
-  final ApiClient _api = ApiClient.instance;
+  final ApiClient _api;
 
   /// Transcribe audio bytes via the STT backend. Returns the text plus the
   /// language faster-whisper detected (ISO code, null if unknown) — Talk Mode
@@ -118,7 +118,7 @@ class AudioService {
           .toList();
     }
 
-    throw Exception('Failed to load voices: ${response.statusCode}');
+    throw apiResponseError(response, operation: 'Failed to load voices');
   }
 
   /// Stream synthesized speech to a temp file, calling [onReady] with the file
@@ -141,7 +141,7 @@ class AudioService {
     );
 
     if (response.statusCode != 200 || response.data == null) {
-      throw Exception('Speech stream failed: ${response.statusCode}');
+      throw apiResponseError(response, operation: 'Speech stream failed');
     }
 
     final dir = Directory.systemTemp;

@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:garbanzo_ai/core/auth_service.dart';
 import 'package:garbanzo_ai/core/error_reporter.dart';
 import 'package:garbanzo_ai/core/guarded_state.dart';
+import 'package:garbanzo_ai/core/throttled_message_notifier.dart';
 import 'package:garbanzo_ai/features/chat/models/chat_attachment.dart';
 import 'package:garbanzo_ai/features/chat/models/thinking_level.dart';
 import 'package:garbanzo_ai/features/rooms/models/room_models.dart';
@@ -72,54 +73,23 @@ class RoomProvider extends ChangeNotifier {
   // events: stream start, the canonical `message`, presence, typing,
   // connection-state changes, and errors.
 
+  final ThrottledMessageNotifier<RoomMessage> _streamChannel =
+      ThrottledMessageNotifier<RoomMessage>(idOf: (m) => m.id);
+
   /// Live view of the agent message currently being streamed.
-  final ValueNotifier<RoomMessage?> streamingMessage = ValueNotifier(null);
+  ValueNotifier<RoomMessage?> get streamingMessage => _streamChannel.notifier;
 
   /// ID of the in-flight agent placeholder currently owning the live channel.
-  String? get streamingMessageId => _streamingMessageId;
-  String? _streamingMessageId;
+  String? get streamingMessageId => _streamChannel.messageId;
 
-  static const _streamPushInterval = Duration(milliseconds: 80);
-  DateTime _lastStreamPush = DateTime.fromMillisecondsSinceEpoch(0);
-  Timer? _streamFlushTimer;
-  RoomMessage? _pendingStreamMessage;
-
-  void _pushStreamingUpdate(RoomMessage message, {bool force = false}) {
-    _pendingStreamMessage = message;
-    final now = DateTime.now();
-    if (force || now.difference(_lastStreamPush) >= _streamPushInterval) {
-      _streamFlushTimer?.cancel();
-      _streamFlushTimer = null;
-      _lastStreamPush = now;
-      streamingMessage.value = message;
-    } else {
-      _streamFlushTimer ??= Timer(_streamPushInterval, () {
-        _streamFlushTimer = null;
-        _lastStreamPush = DateTime.now();
-        final pending = _pendingStreamMessage;
-        if (pending != null && pending.id == _streamingMessageId) {
-          streamingMessage.value = pending;
-        }
-      });
-    }
-  }
+  void _pushStreamingUpdate(RoomMessage message, {bool force = false}) =>
+      _streamChannel.push(message, force: force);
 
   /// Commit the latest streamed content into [_messages] before a structural
   /// change, so the list never lags behind what the user already saw live.
-  void _syncStreamingIntoList() {
-    final pending = _pendingStreamMessage ?? streamingMessage.value;
-    if (pending != null && pending.id == _streamingMessageId) {
-      _upsertMessage(pending);
-    }
-  }
+  void _syncStreamingIntoList() => _streamChannel.sync(_upsertMessage);
 
-  void _clearStreamingChannel() {
-    _streamFlushTimer?.cancel();
-    _streamFlushTimer = null;
-    _pendingStreamMessage = null;
-    _streamingMessageId = null;
-    streamingMessage.value = null;
-  }
+  void _clearStreamingChannel() => _streamChannel.clear();
 
   void _upsertMessage(RoomMessage msg) {
     final idx = _messages.indexWhere((m) => m.id == msg.id);
@@ -374,7 +344,7 @@ class RoomProvider extends ChangeNotifier {
         final msg = RoomMessage.fromJson(msgJson);
         // If the canonical message finalizes the live stream, tear the
         // channel down first so the bubble stops listening to it.
-        if (msg.id == _streamingMessageId) {
+        if (msg.id == streamingMessageId) {
           _clearStreamingChannel();
         }
         _streaming.remove(msg.id);
@@ -398,7 +368,7 @@ class RoomProvider extends ChangeNotifier {
           meta: {'agent_name': event['agent_name']},
         );
         _streaming[id] = _StreamingMessage(placeholder, agentId: agentId);
-        _streamingMessageId = id;
+        _streamChannel.messageId = id;
         _upsertMessage(placeholder);
         _pushStreamingUpdate(placeholder, force: true);
         notifyListeners();
@@ -410,7 +380,7 @@ class RoomProvider extends ChangeNotifier {
         final stream = _streaming[id];
         if (stream == null) return;
         stream.content += chunk;
-        if (id == _streamingMessageId) {
+        if (id == streamingMessageId) {
           _pushStreamingUpdate(stream.build());
         } else {
           // Non-current concurrent stream: fall back to a structural update.
@@ -426,7 +396,7 @@ class RoomProvider extends ChangeNotifier {
         final stream = _streaming[id];
         if (stream == null) return;
         stream.thinking += chunk;
-        if (id == _streamingMessageId) {
+        if (id == streamingMessageId) {
           _pushStreamingUpdate(stream.build());
         } else {
           _upsertMessage(stream.build());
@@ -441,7 +411,7 @@ class RoomProvider extends ChangeNotifier {
         if (id == null) return;
         final stream = _streaming.remove(id);
         if (stream == null) return;
-        if (id == _streamingMessageId) {
+        if (id == streamingMessageId) {
           _syncStreamingIntoList();
           _clearStreamingChannel();
         }
@@ -468,7 +438,7 @@ class RoomProvider extends ChangeNotifier {
           'duration_ms': event['duration_ms'],
           'result': event['result'],
         });
-        if (id == _streamingMessageId) {
+        if (id == streamingMessageId) {
           _pushStreamingUpdate(stream.build());
         } else {
           _upsertMessage(stream.build());
@@ -660,13 +630,12 @@ class RoomProvider extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
-    _streamFlushTimer?.cancel();
     _recoveryNoticeTimer?.cancel();
     _clearTypingState();
     _socketSub?.cancel();
     _socket?.connectionState.removeListener(_onConnectionStateChanged);
     _socket?.close();
-    streamingMessage.dispose();
+    _streamChannel.dispose();
     super.dispose();
   }
 }

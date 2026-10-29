@@ -41,10 +41,9 @@ void main() {
   });
 
   Widget app() => MaterialApp(
-    
-  localizationsDelegates: AppLocalizations.localizationsDelegates,
-  supportedLocales: AppLocalizations.supportedLocales,
-home: ChangeNotifierProvider(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
+    home: ChangeNotifierProvider(
       create: (_) => FriendsProvider(service: service, sharesService: shares),
       child: const FriendsPage(),
     ),
@@ -83,8 +82,9 @@ home: ChangeNotifierProvider(
   });
 
   testWidgets('sends a friend request from the email field', (tester) async {
-    when(() => service.sendRequest('bob@example.com'))
-        .thenAnswer((_) async => 'pending');
+    when(
+      () => service.sendRequest('bob@example.com'),
+    ).thenAnswer((_) async => 'pending');
 
     await tester.pumpWidget(app());
     await tester.pumpAndSettle();
@@ -97,17 +97,15 @@ home: ChangeNotifierProvider(
     await tester.pumpAndSettle();
 
     verify(() => service.sendRequest('bob@example.com')).called(1);
-    expect(
-      find.text('Friend request sent to bob@example.com'),
-      findsOneWidget,
-    );
+    expect(find.text('Friend request sent to bob@example.com'), findsOneWidget);
   });
 
-  testWidgets('accepting an incoming request calls the service',
-      (tester) async {
-    when(() => service.list()).thenAnswer(
-      (_) async => const FriendsList(incomingRequests: [_incoming]),
-    );
+  testWidgets('accepting an incoming request calls the service', (
+    tester,
+  ) async {
+    when(
+      () => service.list(),
+    ).thenAnswer((_) async => const FriendsList(incomingRequests: [_incoming]));
     when(() => service.accept('r1')).thenAnswer((_) async {});
 
     await tester.pumpWidget(app());
@@ -120,9 +118,9 @@ home: ChangeNotifierProvider(
   });
 
   testWidgets('removing a friend asks for confirmation first', (tester) async {
-    when(() => service.list()).thenAnswer(
-      (_) async => const FriendsList(friends: [_friend]),
-    );
+    when(
+      () => service.list(),
+    ).thenAnswer((_) async => const FriendsList(friends: [_friend]));
     when(() => service.remove('ana@example.com')).thenAnswer((_) async {});
 
     await tester.pumpWidget(app());
@@ -141,9 +139,9 @@ home: ChangeNotifierProvider(
   });
 
   testWidgets('blocking a friend asks for confirmation first', (tester) async {
-    when(() => service.list()).thenAnswer(
-      (_) async => const FriendsList(friends: [_friend]),
-    );
+    when(
+      () => service.list(),
+    ).thenAnswer((_) async => const FriendsList(friends: [_friend]));
     when(() => service.block('ana@example.com')).thenAnswer((_) async {});
 
     await tester.pumpWidget(app());
@@ -181,10 +179,10 @@ home: ChangeNotifierProvider(
     verify(() => service.unblock('evil@example.com')).called(1);
   });
 
-  testWidgets('shows a dismissible error banner on load failure',
-      (tester) async {
-    when(() => service.list())
-        .thenThrow(Exception('API Error (500): boom'));
+  testWidgets('shows a dismissible error banner on load failure', (
+    tester,
+  ) async {
+    when(() => service.list()).thenThrow(Exception('API Error (500): boom'));
 
     await tester.pumpWidget(app());
     await tester.pumpAndSettle();

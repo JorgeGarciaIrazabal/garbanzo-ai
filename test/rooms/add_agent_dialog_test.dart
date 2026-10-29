@@ -18,52 +18,51 @@ import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 import 'fake_room_channel.dart';
 
 class _MockRoomService extends Mock implements RoomService {}
+
 class _MockToolService extends Mock implements ToolService {}
 
 final _now = DateTime.utc(2026, 8, 30);
 
 RoomAgent _agent() => RoomAgent(
-      id: 'a1',
-      roomId: 'r1',
-      name: 'Botty',
-      model: 'llama3.2',
-      provider: 'ollama',
-      responseMode: 'mention',
-      turnOrder: 0,
-      isActive: true,
-      isModerator: false,
-      createdAt: _now,
-    );
+  id: 'a1',
+  roomId: 'r1',
+  name: 'Botty',
+  model: 'llama3.2',
+  provider: 'ollama',
+  responseMode: 'mention',
+  turnOrder: 0,
+  isActive: true,
+  isModerator: false,
+  createdAt: _now,
+);
 
 Future<ModelList> _models() async => const ModelList(
-      models: [
-        ModelInfo(
-          id: 'llama3.2',
-          name: 'Llama 3.2',
-          provider: 'ollama',
-          supportsTools: true,
-        ),
-      ],
-      defaultModel: 'llama3.2',
-    );
+  models: [
+    ModelInfo(
+      id: 'llama3.2',
+      name: 'Llama 3.2',
+      provider: 'ollama',
+      supportsTools: true,
+    ),
+  ],
+  defaultModel: 'llama3.2',
+);
 
 Widget _host(Widget page, {ToolProvider? toolProvider}) => MultiProvider(
-      providers: [
-        ChangeNotifierProvider.value(
-          value: toolProvider ?? _buildToolsProvider(),
-        ),
-      ],
-      child: MaterialApp(
-        localizationsDelegates: const [
-          AppLocalizations.delegate,
-          GlobalMaterialLocalizations.delegate,
-          GlobalWidgetsLocalizations.delegate,
-          GlobalCupertinoLocalizations.delegate,
-        ],
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: page,
-      ),
-    );
+  providers: [
+    ChangeNotifierProvider.value(value: toolProvider ?? _buildToolsProvider()),
+  ],
+  child: MaterialApp(
+    localizationsDelegates: const [
+      AppLocalizations.delegate,
+      GlobalMaterialLocalizations.delegate,
+      GlobalWidgetsLocalizations.delegate,
+      GlobalCupertinoLocalizations.delegate,
+    ],
+    supportedLocales: AppLocalizations.supportedLocales,
+    home: page,
+  ),
+);
 
 ToolProvider _buildToolsProvider() {
   final toolService = _MockToolService();
@@ -101,20 +100,24 @@ void main() {
         agents: const [],
       );
       when(() => service.getRoom('r1')).thenAnswer((_) async => room);
-      when(() => service.addAgent('r1',
-              name: any(named: 'name'),
-              model: any(named: 'model'),
-              provider: any(named: 'provider'),
-              avatar: any(named: 'avatar'),
-              systemPrompt: any(named: 'systemPrompt'),
-              thinkingLevel: any(named: 'thinkingLevel'),
-              responseMode: any(named: 'responseMode'),
-              turnOrder: any(named: 'turnOrder'),
-              isModerator: any(named: 'isModerator'),
-              enabledTools: any(named: 'enabledTools')))
-          .thenAnswer((_) async => _agent());
-      when(() => service.listMessages('r1'))
-          .thenAnswer((_) async => <RoomMessage>[]);
+      when(
+        () => service.addAgent(
+          'r1',
+          name: any(named: 'name'),
+          model: any(named: 'model'),
+          provider: any(named: 'provider'),
+          avatar: any(named: 'avatar'),
+          systemPrompt: any(named: 'systemPrompt'),
+          thinkingLevel: any(named: 'thinkingLevel'),
+          responseMode: any(named: 'responseMode'),
+          turnOrder: any(named: 'turnOrder'),
+          isModerator: any(named: 'isModerator'),
+          enabledTools: any(named: 'enabledTools'),
+        ),
+      ).thenAnswer((_) async => _agent());
+      when(
+        () => service.listMessages('r1'),
+      ).thenAnswer((_) async => <RoomMessage>[]);
 
       final provider = RoomProvider(
         service: service,
@@ -165,10 +168,7 @@ void main() {
       );
       expect(button.onPressed, isNull, reason: 'no name typed yet');
 
-      await tester.enterText(
-        find.byType(TextField).first,
-        'Research Bot',
-      );
+      await tester.enterText(find.byType(TextField).first, 'Research Bot');
       await tester.pumpAndSettle();
 
       // The regression: the TextEditingController drives no rebuild, so the
@@ -179,24 +179,29 @@ void main() {
           matching: find.byType(FilledButton),
         ),
       );
-      expect(button.onPressed, isNotNull,
-          reason: 'typing a name must enable the Add button');
+      expect(
+        button.onPressed,
+        isNotNull,
+        reason: 'typing a name must enable the Add button',
+      );
 
       await tester.tap(find.text('Add'));
       await tester.pumpAndSettle();
 
       verify(
-        () => service.addAgent('r1',
-            name: any(named: 'name'),
-            model: any(named: 'model'),
-            provider: any(named: 'provider'),
-            avatar: any(named: 'avatar'),
-            systemPrompt: any(named: 'systemPrompt'),
-            thinkingLevel: any(named: 'thinkingLevel'),
-            responseMode: any(named: 'responseMode'),
-            turnOrder: any(named: 'turnOrder'),
-            isModerator: any(named: 'isModerator'),
-            enabledTools: any(named: 'enabledTools')),
+        () => service.addAgent(
+          'r1',
+          name: any(named: 'name'),
+          model: any(named: 'model'),
+          provider: any(named: 'provider'),
+          avatar: any(named: 'avatar'),
+          systemPrompt: any(named: 'systemPrompt'),
+          thinkingLevel: any(named: 'thinkingLevel'),
+          responseMode: any(named: 'responseMode'),
+          turnOrder: any(named: 'turnOrder'),
+          isModerator: any(named: 'isModerator'),
+          enabledTools: any(named: 'enabledTools'),
+        ),
       ).called(1);
 
       provider.dispose();

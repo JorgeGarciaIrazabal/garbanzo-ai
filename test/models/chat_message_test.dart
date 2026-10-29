@@ -43,18 +43,18 @@ void main() {
     });
 
     test('isUser, isAssistant, isSystem', () {
-      final user =
-          ChatMessage.fromJson({...sampleJson, 'role': 'user'});
+      final user = ChatMessage.fromJson({...sampleJson, 'role': 'user'});
       expect(user.isUser, true);
       expect(user.isAssistant, false);
       expect(user.isSystem, false);
 
-      final assistant =
-          ChatMessage.fromJson({...sampleJson, 'role': 'assistant'});
+      final assistant = ChatMessage.fromJson({
+        ...sampleJson,
+        'role': 'assistant',
+      });
       expect(assistant.isAssistant, true);
 
-      final system =
-          ChatMessage.fromJson({...sampleJson, 'role': 'system'});
+      final system = ChatMessage.fromJson({...sampleJson, 'role': 'system'});
       expect(system.isSystem, true);
     });
   });

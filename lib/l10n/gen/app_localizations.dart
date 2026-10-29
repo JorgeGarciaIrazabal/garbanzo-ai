@@ -6566,6 +6566,72 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Show more rows'**
   String get visualMoreRows;
+
+  /// Talk Mode voice interruption sensitivity: disabled
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get bargeInOff;
+
+  /// Talk Mode voice interruption sensitivity: low
+  ///
+  /// In en, this message translates to:
+  /// **'Low sensitivity'**
+  String get bargeInLow;
+
+  /// Talk Mode voice interruption sensitivity: normal
+  ///
+  /// In en, this message translates to:
+  /// **'Normal'**
+  String get bargeInNormal;
+
+  /// Talk Mode voice interruption sensitivity: high
+  ///
+  /// In en, this message translates to:
+  /// **'High sensitivity'**
+  String get bargeInHigh;
+
+  /// Error shown in Voice settings when the TTS voice catalog request fails
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load voices'**
+  String get failedToLoadVoices;
+
+  /// Error shown when prompt templates cannot be fetched
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load prompt templates'**
+  String get failedToLoadPromptTemplates;
+
+  /// Subtitle in Settings -> Models when no explicit default model is pinned
+  ///
+  /// In en, this message translates to:
+  /// **'Server fallback (usually deepseek-v4.1-flash:cloud)'**
+  String get defaultModelServerFallback;
+
+  /// Tooltip on the floating button that scrolls the chat transcript to the bottom
+  ///
+  /// In en, this message translates to:
+  /// **'Jump to latest message'**
+  String get jumpToLatestMessage;
+
+  /// Subtitle on the desktop drag-and-drop overlay listing supported attachment types
+  ///
+  /// In en, this message translates to:
+  /// **'Images, PDFs, CSVs, and text files'**
+  String get dropFilesSupportedFormats;
+
+  /// Action row in Settings -> Memory linking to the saved memories page
+  ///
+  /// In en, this message translates to:
+  /// **'Manage saved memories'**
+  String get manageSavedMemories;
+
+  /// Placeholder text in the topic landing search input
+  ///
+  /// In en, this message translates to:
+  /// **'Search topics...'**
+  String get searchTopicsHint;
 }
 
 class _AppLocalizationsDelegate

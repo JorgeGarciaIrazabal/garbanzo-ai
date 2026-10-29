@@ -10,25 +10,31 @@ void main() {
       SharedPreferences.setMockInitialValues({});
     });
 
-    test('setToken(null) does not re-read stale token from prefs on next get',
-        () async {
-      // Pre-seed prefs with a stale token to simulate a previous session.
-      SharedPreferences.setMockInitialValues({'auth_token': 'stale-token'});
+    test(
+      'setToken(null) does not re-read stale token from prefs on next get',
+      () async {
+        // Pre-seed prefs with a stale token to simulate a previous session.
+        SharedPreferences.setMockInitialValues({'auth_token': 'stale-token'});
 
-      final client = ApiClient.instance;
-      await client.loadToken();
+        final client = ApiClient.instance;
+        await client.loadToken();
 
-      expect(await client.getToken(), 'stale-token');
+        expect(await client.getToken(), 'stale-token');
 
-      // Clear the in-memory token synchronously. The prefs.remove() is
-      // still in flight, but getToken must not fall back to it.
-      final future = client.setToken(null);
-      expect(await client.getToken(), isNull,
-          reason: 'After setToken(null), getToken must return null even if '
-              'prefs.remove has not yet flushed');
-      await future;
-      expect(await client.getToken(), isNull);
-    });
+        // Clear the in-memory token synchronously. The prefs.remove() is
+        // still in flight, but getToken must not fall back to it.
+        final future = client.setToken(null);
+        expect(
+          await client.getToken(),
+          isNull,
+          reason:
+              'After setToken(null), getToken must return null even if '
+              'prefs.remove has not yet flushed',
+        );
+        await future;
+        expect(await client.getToken(), isNull);
+      },
+    );
 
     test('setToken persists and survives a fresh getToken', () async {
       final client = ApiClient.instance;

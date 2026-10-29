@@ -148,8 +148,11 @@ class _FakeStyleProvider extends StyleProvider {
       name: name,
       modelId: modelId,
       thinkingLevel: thinkingLevel,
-      systemPromptTemplateId: systemPromptTemplateId ??
-          (systemPromptContent != null && systemPromptContent.isNotEmpty ? 'saved-prompt' : null),
+      systemPromptTemplateId:
+          systemPromptTemplateId ??
+          (systemPromptContent != null && systemPromptContent.isNotEmpty
+              ? 'saved-prompt'
+              : null),
       isDefault: isDefault,
       createdAt: DateTime(2026),
       updatedAt: DateTime(2026),
@@ -235,8 +238,7 @@ class _FakeSystemPromptProvider extends SystemPromptProvider {
   String? get error => failRefresh ? 'Refresh failed' : null;
 
   @override
-  List<SystemPromptTemplate> get templates =>
-      List.unmodifiable(_fakeTemplates);
+  List<SystemPromptTemplate> get templates => List.unmodifiable(_fakeTemplates);
 
   @override
   bool get isLoading => false;
@@ -245,7 +247,8 @@ class _FakeSystemPromptProvider extends SystemPromptProvider {
 
   @override
   Future<SystemPromptTemplate?> resolveTemplate(String templateId) async =>
-      templates.where((t) => t.id == templateId).firstOrNull ?? uncachedTemplate;
+      templates.where((t) => t.id == templateId).firstOrNull ??
+      uncachedTemplate;
 
   Stream<ChatResponseChunk> generatedInstructions = const Stream.empty();
 
@@ -363,17 +366,13 @@ Widget _wrap({
       ChangeNotifierProvider<SettingsProvider>.value(value: settings),
   ];
   return MaterialApp(
-    
-  localizationsDelegates: AppLocalizations.localizationsDelegates,
-  supportedLocales: AppLocalizations.supportedLocales,
-  home: MultiProvider(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
+    home: MultiProvider(
       providers: providers,
       child: const Scaffold(
         appBar: null,
-        body: Align(
-          alignment: Alignment.topRight,
-          child: StylePickerButton(),
-        ),
+        body: Align(alignment: Alignment.topRight, child: StylePickerButton()),
       ),
     ),
   );
@@ -433,25 +432,49 @@ void main() {
   });
 
   group('StylePickerButton', () {
-    _testPicker('topic-landing shows and customizes pending settings without editing its source', (tester) async {
-      _setScreenSize(tester, const Size(390, 844));
-      final chat = _FakeChatProvider(conversation: _conversation(model: 'llama3.2').copyWith(isPrimary: true));
-      final models = _FakeModelProvider(models: _defaultModels, selectedId: 'qwen3');
-      final styles = _FakeStyleProvider(styles: [_style('new-style', 'New thread style', modelId: 'qwen3', thinkingLevel: ThinkingLevel.high)]);
-      await tester.pumpWidget(_wrap(
-        chat: chat, models: models, styles: styles, prompts: _FakeSystemPromptProvider(),
-        topics: TopicDiscoveryProvider(),
-      ));
-      expect(find.text('qwen3'), findsOneWidget);
-      expect(find.text('llama3.2'), findsNothing);
-      await _openPicker(tester);
-      await tester.tap(find.text('New thread style'));
-      await tester.pumpAndSettle();
-      expect(chat.updates, isEmpty);
-      expect(chat.currentConversation?.model, 'llama3.2');
-      expect(styles.pendingThinkingLevel, ThinkingLevel.high);
-      expect(models.selectedModelId, 'qwen3');
-    });
+    _testPicker(
+      'topic-landing shows and customizes pending settings without editing its source',
+      (tester) async {
+        _setScreenSize(tester, const Size(390, 844));
+        final chat = _FakeChatProvider(
+          conversation: _conversation(
+            model: 'llama3.2',
+          ).copyWith(isPrimary: true),
+        );
+        final models = _FakeModelProvider(
+          models: _defaultModels,
+          selectedId: 'qwen3',
+        );
+        final styles = _FakeStyleProvider(
+          styles: [
+            _style(
+              'new-style',
+              'New thread style',
+              modelId: 'qwen3',
+              thinkingLevel: ThinkingLevel.high,
+            ),
+          ],
+        );
+        await tester.pumpWidget(
+          _wrap(
+            chat: chat,
+            models: models,
+            styles: styles,
+            prompts: _FakeSystemPromptProvider(),
+            topics: TopicDiscoveryProvider(),
+          ),
+        );
+        expect(find.text('qwen3'), findsOneWidget);
+        expect(find.text('llama3.2'), findsNothing);
+        await _openPicker(tester);
+        await tester.tap(find.text('New thread style'));
+        await tester.pumpAndSettle();
+        expect(chat.updates, isEmpty);
+        expect(chat.currentConversation?.model, 'llama3.2');
+        expect(styles.pendingThinkingLevel, ThinkingLevel.high);
+        expect(models.selectedModelId, 'qwen3');
+      },
+    );
     _testPicker('shows the effective model name without exceptions', (
       tester,
     ) async {
@@ -477,7 +500,9 @@ void main() {
       _setScreenSize(tester, const Size(390, 844));
       await tester.pumpWidget(
         _wrap(
-          chat: _FakeChatProvider(conversation: _conversation(model: 'llama3.2')),
+          chat: _FakeChatProvider(
+            conversation: _conversation(model: 'llama3.2'),
+          ),
           models: _FakeModelProvider(
             models: _defaultModels,
             selectedId: 'qwen3',
@@ -543,42 +568,41 @@ void main() {
       },
     );
 
-    _testPicker(
-      'keeps the style persona when thinking is overridden',
-      (tester) async {
-        _setScreenSize(tester, const Size(390, 844));
-        final styles = _FakeStyleProvider(
-          styles: [
-            _style(
-              's1',
-              'Deep work',
-              modelId: 'llama3.2',
-              thinkingLevel: ThinkingLevel.high,
-            ),
-          ],
-        );
-        await styles.recordLastUsed('s1');
-        await tester.pumpWidget(
-          _wrap(
-            chat: _FakeChatProvider(
-              conversation: _conversation(model: 'llama3.2'),
-            ),
-            models: _FakeModelProvider(
-              models: _defaultModels,
-              selectedId: 'qwen3',
-            ),
-            // Thinking differs from the saved bundle, but effort is a
-            // per-chat override and does not replace the named persona.
-            styles: styles,
-            prompts: _FakeSystemPromptProvider(),
+    _testPicker('keeps the style persona when thinking is overridden', (
+      tester,
+    ) async {
+      _setScreenSize(tester, const Size(390, 844));
+      final styles = _FakeStyleProvider(
+        styles: [
+          _style(
+            's1',
+            'Deep work',
+            modelId: 'llama3.2',
+            thinkingLevel: ThinkingLevel.high,
           ),
-        );
-        expect(tester.takeException(), isNull);
-        expect(find.text('Deep work'), findsOneWidget);
-        expect(find.text('llama3.2'), findsNothing);
-        expect(find.text('D'), findsOneWidget);
-      },
-    );
+        ],
+      );
+      await styles.recordLastUsed('s1');
+      await tester.pumpWidget(
+        _wrap(
+          chat: _FakeChatProvider(
+            conversation: _conversation(model: 'llama3.2'),
+          ),
+          models: _FakeModelProvider(
+            models: _defaultModels,
+            selectedId: 'qwen3',
+          ),
+          // Thinking differs from the saved bundle, but effort is a
+          // per-chat override and does not replace the named persona.
+          styles: styles,
+          prompts: _FakeSystemPromptProvider(),
+        ),
+      );
+      expect(tester.takeException(), isNull);
+      expect(find.text('Deep work'), findsOneWidget);
+      expect(find.text('llama3.2'), findsNothing);
+      expect(find.text('D'), findsOneWidget);
+    });
 
     _testPicker(
       'explicit style identity survives an effort change even when another '
@@ -593,16 +617,8 @@ void main() {
         );
         final styles = _FakeStyleProvider(
           styles: [
-            _style(
-              'fast',
-              'Super fast',
-              thinkingLevel: ThinkingLevel.medium,
-            ),
-            _style(
-              'deep',
-              'Deep work',
-              thinkingLevel: ThinkingLevel.high,
-            ),
+            _style('fast', 'Super fast', thinkingLevel: ThinkingLevel.medium),
+            _style('deep', 'Deep work', thinkingLevel: ThinkingLevel.high),
           ],
         );
         await styles.recordLastUsed('fast');
@@ -702,91 +718,129 @@ void main() {
       const Size(390, 844),
       const Size(700, 900),
     ]) {
-      _testPicker('mobile picker uses the safe screen and pins creation at $size', (tester) async {
-        _setScreenSize(tester, size);
-        tester.view.padding = const FakeViewPadding(top: 24, bottom: 24);
-        addTearDown(tester.view.resetPadding);
-        await tester.pumpWidget(_wrap(
-          chat: _FakeChatProvider(),
-          models: _FakeModelProvider(models: _defaultModels, selectedId: 'qwen3'),
-          styles: _FakeStyleProvider(styles: [
-            for (var i = 0; i < 20; i++) _style('s$i', 'Style $i'),
-          ]),
-          prompts: _FakeSystemPromptProvider(),
-        ));
-        await _openPicker(tester);
+      _testPicker(
+        'mobile picker uses the safe screen and pins creation at $size',
+        (tester) async {
+          _setScreenSize(tester, size);
+          tester.view.padding = const FakeViewPadding(top: 24, bottom: 24);
+          addTearDown(tester.view.resetPadding);
+          await tester.pumpWidget(
+            _wrap(
+              chat: _FakeChatProvider(),
+              models: _FakeModelProvider(
+                models: _defaultModels,
+                selectedId: 'qwen3',
+              ),
+              styles: _FakeStyleProvider(
+                styles: [
+                  for (var i = 0; i < 20; i++) _style('s$i', 'Style $i'),
+                ],
+              ),
+              prompts: _FakeSystemPromptProvider(),
+            ),
+          );
+          await _openPicker(tester);
 
-        final sheet = tester.getRect(find.byType(BottomSheet));
-        expect(sheet.width, size.width);
-        expect(sheet.top, greaterThanOrEqualTo(24));
-        expect(sheet.top, lessThan(size.height * 0.12));
-        final create = find.byKey(const ValueKey('new_style_button'));
-        final buttonRect = tester.getRect(create);
-        expect(create.hitTestable(), findsOneWidget);
-        expect(buttonRect.bottom, lessThanOrEqualTo(size.height - 24));
+          final sheet = tester.getRect(find.byType(BottomSheet));
+          expect(sheet.width, size.width);
+          expect(sheet.top, greaterThanOrEqualTo(24));
+          expect(sheet.top, lessThan(size.height * 0.12));
+          final create = find.byKey(const ValueKey('new_style_button'));
+          final buttonRect = tester.getRect(create);
+          expect(create.hitTestable(), findsOneWidget);
+          expect(buttonRect.bottom, lessThanOrEqualTo(size.height - 24));
 
-        await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -700));
-        await tester.pumpAndSettle();
-        expect(tester.getRect(create), buttonRect);
-        expect(create.hitTestable(), findsOneWidget);
-        expect(find.text('Chat style').hitTestable(), findsOneWidget);
-        await tester.tap(create);
-        await tester.pumpAndSettle();
-        expect(find.byKey(const ValueKey('style_editor_page')), findsOneWidget);
-        expect(tester.testTextInput.isVisible, isFalse);
-        expect(tester.takeException(), isNull);
-      });
+          await tester.drag(
+            find.byType(SingleChildScrollView),
+            const Offset(0, -700),
+          );
+          await tester.pumpAndSettle();
+          expect(tester.getRect(create), buttonRect);
+          expect(create.hitTestable(), findsOneWidget);
+          expect(find.text('Chat style').hitTestable(), findsOneWidget);
+          await tester.tap(create);
+          await tester.pumpAndSettle();
+          expect(
+            find.byKey(const ValueKey('style_editor_page')),
+            findsOneWidget,
+          );
+          expect(tester.testTextInput.isVisible, isFalse);
+          expect(tester.takeException(), isNull);
+        },
+      );
     }
 
-    _testPicker('mobile editor keeps Save visible with the keyboard and after rotation', (tester) async {
-      _setScreenSize(tester, const Size(320, 568));
-      final styles = _FakeStyleProvider(styles: [_style('s1', 'Existing')]);
-      await tester.pumpWidget(_wrap(
-        chat: _FakeChatProvider(),
-        models: _FakeModelProvider(models: _defaultModels, selectedId: 'qwen3'),
-        styles: styles,
-        prompts: _FakeSystemPromptProvider(),
-      ));
-      await _openPicker(tester);
-      await tester.tap(find.text('New style'));
-      await tester.pumpAndSettle();
+    _testPicker(
+      'mobile editor keeps Save visible with the keyboard and after rotation',
+      (tester) async {
+        _setScreenSize(tester, const Size(320, 568));
+        final styles = _FakeStyleProvider(styles: [_style('s1', 'Existing')]);
+        await tester.pumpWidget(
+          _wrap(
+            chat: _FakeChatProvider(),
+            models: _FakeModelProvider(
+              models: _defaultModels,
+              selectedId: 'qwen3',
+            ),
+            styles: styles,
+            prompts: _FakeSystemPromptProvider(),
+          ),
+        );
+        await _openPicker(tester);
+        await tester.tap(find.text('New style'));
+        await tester.pumpAndSettle();
 
-      expect(find.byType(AlertDialog), findsNothing);
-      expect(tester.getSize(find.byKey(const ValueKey('style_editor_page'))), const Size(320, 568));
-      expect(tester.testTextInput.isVisible, isFalse);
-      await tester.enterText(find.byKey(const ValueKey('style_name_field')), 'Phone style');
-      await tester.enterText(find.byKey(const ValueKey('style_instructions_field')), 'Use examples.');
-      tester.view.viewInsets = const FakeViewPadding(bottom: 280);
-      addTearDown(tester.view.resetViewInsets);
-      await tester.pumpAndSettle();
-      final save = find.byKey(const ValueKey('save_style_confirm'));
-      final buttonRect = tester.getRect(save);
-      expect(save.hitTestable(), findsOneWidget);
-      expect(buttonRect.bottom, lessThan(568 - 280));
-      await tester.ensureVisible(find.byKey(const ValueKey('style_advanced_settings')));
-      await tester.tap(find.byKey(const ValueKey('style_advanced_settings')));
-      await tester.pumpAndSettle();
-      expect(tester.getRect(save), buttonRect);
-      expect(save.hitTestable(), findsOneWidget);
+        expect(find.byType(AlertDialog), findsNothing);
+        expect(
+          tester.getSize(find.byKey(const ValueKey('style_editor_page'))),
+          const Size(320, 568),
+        );
+        expect(tester.testTextInput.isVisible, isFalse);
+        await tester.enterText(
+          find.byKey(const ValueKey('style_name_field')),
+          'Phone style',
+        );
+        await tester.enterText(
+          find.byKey(const ValueKey('style_instructions_field')),
+          'Use examples.',
+        );
+        tester.view.viewInsets = const FakeViewPadding(bottom: 280);
+        addTearDown(tester.view.resetViewInsets);
+        await tester.pumpAndSettle();
+        final save = find.byKey(const ValueKey('save_style_confirm'));
+        final buttonRect = tester.getRect(save);
+        expect(save.hitTestable(), findsOneWidget);
+        expect(buttonRect.bottom, lessThan(568 - 280));
+        await tester.ensureVisible(
+          find.byKey(const ValueKey('style_advanced_settings')),
+        );
+        await tester.tap(find.byKey(const ValueKey('style_advanced_settings')));
+        await tester.pumpAndSettle();
+        expect(tester.getRect(save), buttonRect);
+        expect(save.hitTestable(), findsOneWidget);
 
-      tester.view.viewInsets = const FakeViewPadding();
-      tester.view.physicalSize = const Size(844, 390);
-      await tester.pumpAndSettle();
-      expect(find.byKey(const ValueKey('style_editor_page')), findsOneWidget);
-      expect(find.byType(AlertDialog), findsNothing);
-      expect(save.hitTestable(), findsOneWidget);
-      await tester.tap(save);
-      await tester.pumpAndSettle();
-      expect(styles.created.single['name'], 'Phone style');
-      expect(styles.created.single['systemPromptContent'], 'Use examples.');
-      expect(tester.getSize(find.byType(BottomSheet)).width, 844);
-      expect(find.byKey(const ValueKey('new_style_button')).hitTestable(), findsOneWidget);
-      await tester.tap(find.byKey(const ValueKey('new_style_button')));
-      await tester.pumpAndSettle();
-      expect(find.byKey(const ValueKey('style_editor_page')), findsOneWidget);
-      expect(find.byType(AlertDialog), findsNothing);
-      expect(tester.takeException(), isNull);
-    });
+        tester.view.viewInsets = const FakeViewPadding();
+        tester.view.physicalSize = const Size(844, 390);
+        await tester.pumpAndSettle();
+        expect(find.byKey(const ValueKey('style_editor_page')), findsOneWidget);
+        expect(find.byType(AlertDialog), findsNothing);
+        expect(save.hitTestable(), findsOneWidget);
+        await tester.tap(save);
+        await tester.pumpAndSettle();
+        expect(styles.created.single['name'], 'Phone style');
+        expect(styles.created.single['systemPromptContent'], 'Use examples.');
+        expect(tester.getSize(find.byType(BottomSheet)).width, 844);
+        expect(
+          find.byKey(const ValueKey('new_style_button')).hitTestable(),
+          findsOneWidget,
+        );
+        await tester.tap(find.byKey(const ValueKey('new_style_button')));
+        await tester.pumpAndSettle();
+        expect(find.byKey(const ValueKey('style_editor_page')), findsOneWidget);
+        expect(find.byType(AlertDialog), findsNothing);
+        expect(tester.takeException(), isNull);
+      },
+    );
 
     _testPicker('opens with saved style cards and no exceptions', (
       tester,
@@ -838,10 +892,7 @@ void main() {
 
         // No saved styles: composing is the only thing to do, so the
         // Customize section is the visible one (its model list is rendered).
-        expect(
-          find.byKey(const ValueKey('model_row_qwen3')),
-          findsOneWidget,
-        );
+        expect(find.byKey(const ValueKey('model_row_qwen3')), findsOneWidget);
 
         // The Styles section explains itself and links back to Customize.
         await tester.tap(find.text('Styles'));
@@ -853,7 +904,10 @@ void main() {
         await tester.tap(find.text('New style'));
         await tester.pumpAndSettle();
         expect(find.byKey(const ValueKey('style_name_field')), findsOneWidget);
-        expect(find.byKey(const ValueKey('style_instructions_field')), findsOneWidget);
+        expect(
+          find.byKey(const ValueKey('style_instructions_field')),
+          findsOneWidget,
+        );
       },
     );
 
@@ -965,16 +1019,15 @@ void main() {
         // The search field and capability filter chips were removed; the model
         // list is the only model-selection surface now.
         expect(find.byKey(const ValueKey('style_search_field')), findsNothing);
-        expect(
-          find.byKey(const ValueKey('capability_filter')),
-          findsNothing,
-        );
+        expect(find.byKey(const ValueKey('capability_filter')), findsNothing);
         expect(find.byKey(const ValueKey('model_row_qwen3')), findsOneWidget);
         // qwen3 advertises thinking+tools; gemma3-vision advertises vision.
         expect(_badge('qwen3', Icons.psychology_outlined), findsOneWidget);
         expect(_badge('qwen3', Icons.build_outlined), findsOneWidget);
-        expect(_badge('gemma3-vision', Icons.visibility_outlined),
-            findsOneWidget);
+        expect(
+          _badge('gemma3-vision', Icons.visibility_outlined),
+          findsOneWidget,
+        );
         // Reported false / unreported earns no badge.
         expect(_badge('qwen3', Icons.visibility_outlined), findsNothing);
         expect(_badge('llama3.2', Icons.psychology_outlined), findsNothing);
@@ -1009,9 +1062,7 @@ void main() {
       expect(find.text('Chat style'), findsOneWidget);
     });
 
-    _testPicker('thinking control sets the level and pends it', (
-      tester,
-    ) async {
+    _testPicker('thinking control sets the level and pends it', (tester) async {
       _setScreenSize(tester, const Size(390, 844));
       final chat = _FakeChatProvider(conversation: _conversation());
       final styles = _FakeStyleProvider();
@@ -1105,10 +1156,7 @@ void main() {
         await tester.pump();
         // Falls back to the sentinel and flags the custom prompt.
         expect(find.text('No template'), findsOneWidget);
-        expect(
-          find.textContaining('custom prompt'),
-          findsOneWidget,
-        );
+        expect(find.textContaining('custom prompt'), findsOneWidget);
       },
     );
 
@@ -1190,25 +1238,51 @@ void main() {
     for (final width in [390.0, 1100.0]) {
       _testPicker('one-save instructions form at width $width', (tester) async {
         _setScreenSize(tester, Size(width, 844));
-        final chat = _FakeChatProvider(conversation: _conversation(systemPrompt: 'Original instructions'));
+        final chat = _FakeChatProvider(
+          conversation: _conversation(systemPrompt: 'Original instructions'),
+        );
         final styles = _FakeStyleProvider(styles: [_style('s1', 'Existing')]);
-        final models = _FakeModelProvider(models: _defaultModels, selectedId: 'qwen3');
-        await tester.pumpWidget(_wrap(chat: chat, models: models,
-          styles: styles, prompts: _FakeSystemPromptProvider()));
+        final models = _FakeModelProvider(
+          models: _defaultModels,
+          selectedId: 'qwen3',
+        );
+        await tester.pumpWidget(
+          _wrap(
+            chat: chat,
+            models: models,
+            styles: styles,
+            prompts: _FakeSystemPromptProvider(),
+          ),
+        );
         await _openPicker(tester);
         await tester.tap(find.text('New style'));
         await tester.pumpAndSettle();
-        expect(find.byType(AlertDialog), width > 800 ? findsOneWidget : findsNothing);
-        expect(find.byKey(const ValueKey('style_editor_page')), width > 800 ? findsNothing : findsOneWidget);
+        expect(
+          find.byType(AlertDialog),
+          width > 800 ? findsOneWidget : findsNothing,
+        );
+        expect(
+          find.byKey(const ValueKey('style_editor_page')),
+          width > 800 ? findsNothing : findsOneWidget,
+        );
         expect(find.text('Original instructions'), findsOneWidget);
-        await tester.enterText(find.byKey(const ValueKey('style_name_field')), 'My tutor');
-        await tester.enterText(find.byKey(const ValueKey('style_instructions_field')), 'Ask one question at a time.');
+        await tester.enterText(
+          find.byKey(const ValueKey('style_name_field')),
+          'My tutor',
+        );
+        await tester.enterText(
+          find.byKey(const ValueKey('style_instructions_field')),
+          'Ask one question at a time.',
+        );
         expect(find.byKey(const ValueKey('template_dropdown')), findsNothing);
         await tester.tap(find.byKey(const ValueKey('save_style_confirm')));
         await tester.pumpAndSettle();
         expect(styles.created, hasLength(1));
         expect(styles.created.single['name'], 'My tutor');
-        expect(styles.created.single['systemPromptContent'], 'Ask one question at a time.');
+        expect(
+          styles.created.single['systemPromptContent'],
+          'Ask one question at a time.',
+        );
         expect(chat.updates, isEmpty);
         expect(models.selections, isEmpty);
         expect(find.byKey(const ValueKey('style_card_new-1')), findsOneWidget);
@@ -1216,56 +1290,116 @@ void main() {
       });
     }
 
-    _testPicker('AI suggestion must be accepted before the style can save', (tester) async {
+    _testPicker('AI suggestion must be accepted before the style can save', (
+      tester,
+    ) async {
       _setScreenSize(tester, const Size(390, 844));
       final stream = StreamController<ChatResponseChunk>();
       addTearDown(stream.close);
       final styles = _FakeStyleProvider(styles: [_style('s1', 'Existing')]);
-      final prompts = _FakeSystemPromptProvider()..generatedInstructions = stream.stream;
-      await tester.pumpWidget(_wrap(chat: _FakeChatProvider(),
-        models: _FakeModelProvider(models: _defaultModels, selectedId: 'qwen3'),
-        styles: styles, prompts: prompts));
+      final prompts = _FakeSystemPromptProvider()
+        ..generatedInstructions = stream.stream;
+      await tester.pumpWidget(
+        _wrap(
+          chat: _FakeChatProvider(),
+          models: _FakeModelProvider(
+            models: _defaultModels,
+            selectedId: 'qwen3',
+          ),
+          styles: styles,
+          prompts: prompts,
+        ),
+      );
       await _openPicker(tester);
       await tester.tap(find.text('New style'));
       await tester.pumpAndSettle();
-      await tester.enterText(find.byKey(const ValueKey('style_name_field')), 'AI tutor');
+      await tester.enterText(
+        find.byKey(const ValueKey('style_name_field')),
+        'AI tutor',
+      );
       await tester.ensureVisible(find.byKey(const ValueKey('style_ai_help')));
       await tester.tap(find.byKey(const ValueKey('style_ai_help')));
       await tester.pumpAndSettle();
-      await tester.enterText(find.byKey(const ValueKey('style_ai_request')), 'A friendly tutor');
+      await tester.enterText(
+        find.byKey(const ValueKey('style_ai_request')),
+        'A friendly tutor',
+      );
       await tester.pump();
-      await tester.ensureVisible(find.byKey(const ValueKey('style_ai_generate')));
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('style_ai_generate')),
+      );
       await tester.tap(find.byKey(const ValueKey('style_ai_generate')));
       await tester.pump();
-      expect(tester.widget<FilledButton>(find.byKey(const ValueKey('save_style_confirm'))).onPressed, isNull);
-      stream.add(const ChatResponseChunk(type: 'chunk', content: 'Explain patiently.'));
+      expect(
+        tester
+            .widget<FilledButton>(
+              find.byKey(const ValueKey('save_style_confirm')),
+            )
+            .onPressed,
+        isNull,
+      );
+      stream.add(
+        const ChatResponseChunk(type: 'chunk', content: 'Explain patiently.'),
+      );
       stream.add(const ChatResponseChunk(type: 'done'));
       await tester.pumpAndSettle();
-      expect(tester.widget<FilledButton>(find.byKey(const ValueKey('save_style_confirm'))).onPressed, isNull);
+      expect(
+        tester
+            .widget<FilledButton>(
+              find.byKey(const ValueKey('save_style_confirm')),
+            )
+            .onPressed,
+        isNull,
+      );
       expect(styles.created, isEmpty);
       await tester.ensureVisible(find.byKey(const ValueKey('style_ai_accept')));
       await tester.tap(find.byKey(const ValueKey('style_ai_accept')));
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.byKey(const ValueKey('style_instructions_field')));
-      await tester.enterText(find.byKey(const ValueKey('style_instructions_field')), 'Explain patiently. Give examples.');
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('style_instructions_field')),
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey('style_instructions_field')),
+        'Explain patiently. Give examples.',
+      );
       await tester.tap(find.byKey(const ValueKey('save_style_confirm')));
       await tester.pumpAndSettle();
-      expect(styles.created.single['systemPromptContent'], 'Explain patiently. Give examples.');
+      expect(
+        styles.created.single['systemPromptContent'],
+        'Explain patiently. Give examples.',
+      );
       expect(tester.takeException(), isNull);
     });
 
-    _testPicker('failed save retains draft and retry finishes only once', (tester) async {
+    _testPicker('failed save retains draft and retry finishes only once', (
+      tester,
+    ) async {
       _setScreenSize(tester, const Size(390, 844));
-      final styles = _FakeStyleProvider(styles: [_style('s1', 'Existing')])..failSave = true;
+      final styles = _FakeStyleProvider(styles: [_style('s1', 'Existing')])
+        ..failSave = true;
       final prompts = _FakeSystemPromptProvider();
-      await tester.pumpWidget(_wrap(chat: _FakeChatProvider(),
-        models: _FakeModelProvider(models: _defaultModels, selectedId: 'qwen3'),
-        styles: styles, prompts: prompts));
+      await tester.pumpWidget(
+        _wrap(
+          chat: _FakeChatProvider(),
+          models: _FakeModelProvider(
+            models: _defaultModels,
+            selectedId: 'qwen3',
+          ),
+          styles: styles,
+          prompts: prompts,
+        ),
+      );
       await _openPicker(tester);
       await tester.tap(find.text('New style'));
       await tester.pumpAndSettle();
-      await tester.enterText(find.byKey(const ValueKey('style_name_field')), 'Keep me');
-      await tester.enterText(find.byKey(const ValueKey('style_instructions_field')), 'Be brief.');
+      await tester.enterText(
+        find.byKey(const ValueKey('style_name_field')),
+        'Keep me',
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey('style_instructions_field')),
+        'Be brief.',
+      );
       await tester.tap(find.byKey(const ValueKey('save_style_confirm')));
       await tester.pumpAndSettle();
       expect(find.text('Keep me'), findsOneWidget);
@@ -1280,65 +1414,123 @@ void main() {
       prompts.failRefresh = false;
       await tester.tap(find.text('Retry'));
       await tester.pumpAndSettle();
-      expect(styles.created, hasLength(2), reason: 'Sync retry must not create another style');
+      expect(
+        styles.created,
+        hasLength(2),
+        reason: 'Sync retry must not create another style',
+      );
       expect(find.byKey(const ValueKey('style_name_field')), findsNothing);
     });
 
-    _testPicker('closing after failed refresh never applies empty instructions', (tester) async {
-      _setScreenSize(tester, const Size(390, 844));
-      final chat = _FakeChatProvider(conversation: _conversation(systemPrompt: 'Original'));
-      final styles = _FakeStyleProvider(styles: [_style('s1', 'Existing')]);
-      final prompts = _FakeSystemPromptProvider()..failRefresh = true;
-      await tester.pumpWidget(_wrap(chat: chat,
-        models: _FakeModelProvider(models: _defaultModels, selectedId: 'qwen3'),
-        styles: styles, prompts: prompts));
-      await _openPicker(tester);
-      await tester.tap(find.text('New style'));
-      await tester.pumpAndSettle();
-      await tester.enterText(find.byKey(const ValueKey('style_name_field')), 'New instructions');
-      await tester.enterText(find.byKey(const ValueKey('style_instructions_field')), 'Be brief.');
-      await tester.tap(find.byKey(const ValueKey('save_style_confirm')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('style_editor_back')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('style_card_new-1')));
-      await tester.pumpAndSettle();
-      expect(chat.updates, isEmpty);
-      expect(chat.currentConversation!.systemPrompt, 'Original');
-      expect(find.text('Could not load this style’s instructions. Please try again.'), findsOneWidget);
-    });
+    _testPicker(
+      'closing after failed refresh never applies empty instructions',
+      (tester) async {
+        _setScreenSize(tester, const Size(390, 844));
+        final chat = _FakeChatProvider(
+          conversation: _conversation(systemPrompt: 'Original'),
+        );
+        final styles = _FakeStyleProvider(styles: [_style('s1', 'Existing')]);
+        final prompts = _FakeSystemPromptProvider()..failRefresh = true;
+        await tester.pumpWidget(
+          _wrap(
+            chat: chat,
+            models: _FakeModelProvider(
+              models: _defaultModels,
+              selectedId: 'qwen3',
+            ),
+            styles: styles,
+            prompts: prompts,
+          ),
+        );
+        await _openPicker(tester);
+        await tester.tap(find.text('New style'));
+        await tester.pumpAndSettle();
+        await tester.enterText(
+          find.byKey(const ValueKey('style_name_field')),
+          'New instructions',
+        );
+        await tester.enterText(
+          find.byKey(const ValueKey('style_instructions_field')),
+          'Be brief.',
+        );
+        await tester.tap(find.byKey(const ValueKey('save_style_confirm')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const ValueKey('style_editor_back')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const ValueKey('style_card_new-1')));
+        await tester.pumpAndSettle();
+        expect(chat.updates, isEmpty);
+        expect(chat.currentConversation!.systemPrompt, 'Original');
+        expect(
+          find.text(
+            'Could not load this style’s instructions. Please try again.',
+          ),
+          findsOneWidget,
+        );
+      },
+    );
 
-    _testPicker('missing instructions block style application without clearing chat', (tester) async {
-      _setScreenSize(tester, const Size(390, 844));
-      final chat = _FakeChatProvider(conversation: _conversation(systemPrompt: 'Keep this'));
-      final models = _FakeModelProvider(models: _defaultModels, selectedId: 'qwen3');
-      final styles = _FakeStyleProvider(styles: [_style('s1', 'Needs refresh', templateId: 'missing')]);
-      final prompts = _FakeSystemPromptProvider();
-      await tester.pumpWidget(_wrap(chat: chat, models: models, styles: styles, prompts: prompts));
-      await _openPicker(tester);
-      await tester.tap(find.byKey(const ValueKey('style_card_s1')));
-      await tester.pumpAndSettle();
-      expect(chat.updates, isEmpty);
-      expect(models.selections, isEmpty);
-      expect(find.text('Could not load this style’s instructions. Please try again.'), findsOneWidget);
-      prompts.uncachedTemplate = _template('missing', 'Recovered');
-      await tester.tap(find.byKey(const ValueKey('style_card_s1')));
-      await tester.pumpAndSettle();
-      expect(chat.updates.single['systemPrompt'], 'content of Recovered');
-      expect(chat.updates.single['clearSystemPrompt'], false);
-    });
+    _testPicker(
+      'missing instructions block style application without clearing chat',
+      (tester) async {
+        _setScreenSize(tester, const Size(390, 844));
+        final chat = _FakeChatProvider(
+          conversation: _conversation(systemPrompt: 'Keep this'),
+        );
+        final models = _FakeModelProvider(
+          models: _defaultModels,
+          selectedId: 'qwen3',
+        );
+        final styles = _FakeStyleProvider(
+          styles: [_style('s1', 'Needs refresh', templateId: 'missing')],
+        );
+        final prompts = _FakeSystemPromptProvider();
+        await tester.pumpWidget(
+          _wrap(chat: chat, models: models, styles: styles, prompts: prompts),
+        );
+        await _openPicker(tester);
+        await tester.tap(find.byKey(const ValueKey('style_card_s1')));
+        await tester.pumpAndSettle();
+        expect(chat.updates, isEmpty);
+        expect(models.selections, isEmpty);
+        expect(
+          find.text(
+            'Could not load this style’s instructions. Please try again.',
+          ),
+          findsOneWidget,
+        );
+        prompts.uncachedTemplate = _template('missing', 'Recovered');
+        await tester.tap(find.byKey(const ValueKey('style_card_s1')));
+        await tester.pumpAndSettle();
+        expect(chat.updates.single['systemPrompt'], 'content of Recovered');
+        expect(chat.updates.single['clearSystemPrompt'], false);
+      },
+    );
 
-    _testPicker('cancel discards style draft without changing chat', (tester) async {
+    _testPicker('cancel discards style draft without changing chat', (
+      tester,
+    ) async {
       _setScreenSize(tester, const Size(390, 844));
       final chat = _FakeChatProvider(conversation: _conversation());
       final styles = _FakeStyleProvider(styles: [_style('s1', 'Existing')]);
-      await tester.pumpWidget(_wrap(chat: chat,
-        models: _FakeModelProvider(models: _defaultModels, selectedId: 'qwen3'),
-        styles: styles, prompts: _FakeSystemPromptProvider()));
+      await tester.pumpWidget(
+        _wrap(
+          chat: chat,
+          models: _FakeModelProvider(
+            models: _defaultModels,
+            selectedId: 'qwen3',
+          ),
+          styles: styles,
+          prompts: _FakeSystemPromptProvider(),
+        ),
+      );
       await _openPicker(tester);
       await tester.tap(find.text('New style'));
       await tester.pumpAndSettle();
-      await tester.enterText(find.byKey(const ValueKey('style_instructions_field')), 'Discard this');
+      await tester.enterText(
+        find.byKey(const ValueKey('style_instructions_field')),
+        'Discard this',
+      );
       await tester.tap(find.byKey(const ValueKey('style_editor_back')));
       await tester.pumpAndSettle();
       expect(styles.created, isEmpty);
@@ -1423,7 +1615,11 @@ void main() {
           models: models,
           styles: styles,
           prompts: _FakeSystemPromptProvider()
-            ..uncachedTemplate = _template('english-builtin', 'English instructions', isBuiltin: true),
+            ..uncachedTemplate = _template(
+              'english-builtin',
+              'English instructions',
+              isBuiltin: true,
+            ),
         ),
       );
       await _openPicker(tester);
@@ -1469,150 +1665,141 @@ void main() {
       expect(find.text('Editing "Deep work"'), findsNothing);
     });
 
-    _testPicker(
-      'built-in styles are filtered to the active locale '
-      '(en user sees Concise, not Conciso)',
-      (tester) async {
-        _setScreenSize(tester, const Size(390, 844));
-        final settings = SettingsProvider();
-        // Let the constructor's async _load() finish before overriding,
-        // or it would stomp the value we set here.
-        await tester.runAsync(() async {
-          while (!settings.loaded) {
-            await Future<void>.delayed(const Duration(milliseconds: 1));
-          }
-        });
-        await settings.setAppLocale(AppLocale.english);
-        await tester.pumpWidget(
-          _wrap(
-            chat: _FakeChatProvider(),
-            models: _FakeModelProvider(
-              models: _defaultModels,
-              selectedId: 'qwen3',
-            ),
-            styles: _FakeStyleProvider(
-              styles: [
-                _style(
-                  'b-en',
-                  'Concise',
-                  modelId: 'llama3.2',
-                  isBuiltin: true,
-                  locale: 'en',
-                ),
-                _style(
-                  'b-es',
-                  'Conciso',
-                  modelId: 'llama3.2',
-                  isBuiltin: true,
-                  locale: 'es',
-                ),
-                // User-saved styles (locale = null) always show.
-                _style('u1', 'My style', modelId: 'llama3.2'),
-              ],
-            ),
-            prompts: _FakeSystemPromptProvider(),
-            settings: settings,
+    _testPicker('built-in styles are filtered to the active locale '
+        '(en user sees Concise, not Conciso)', (tester) async {
+      _setScreenSize(tester, const Size(390, 844));
+      final settings = SettingsProvider();
+      // Let the constructor's async _load() finish before overriding,
+      // or it would stomp the value we set here.
+      await tester.runAsync(() async {
+        while (!settings.loaded) {
+          await Future<void>.delayed(const Duration(milliseconds: 1));
+        }
+      });
+      await settings.setAppLocale(AppLocale.english);
+      await tester.pumpWidget(
+        _wrap(
+          chat: _FakeChatProvider(),
+          models: _FakeModelProvider(
+            models: _defaultModels,
+            selectedId: 'qwen3',
           ),
-        );
-        await _openPicker(tester);
-
-        expect(tester.takeException(), isNull);
-        expect(find.text('Concise'), findsOneWidget);
-        expect(find.text('My style'), findsOneWidget);
-        expect(find.text('Conciso'), findsNothing);
-      },
-    );
-
-    _testPicker(
-      'built-in styles follow the locale when set to spanish '
-      '(es user sees Conciso, not Concise)',
-      (tester) async {
-        _setScreenSize(tester, const Size(390, 844));
-        final settings = SettingsProvider();
-        await tester.runAsync(() async {
-          while (!settings.loaded) {
-            await Future<void>.delayed(const Duration(milliseconds: 1));
-          }
-        });
-        await settings.setAppLocale(AppLocale.spanish);
-        await tester.pumpWidget(
-          _wrap(
-            chat: _FakeChatProvider(),
-            models: _FakeModelProvider(
-              models: _defaultModels,
-              selectedId: 'qwen3',
-            ),
-            styles: _FakeStyleProvider(
-              styles: [
-                _style(
-                  'b-en',
-                  'Concise',
-                  modelId: 'llama3.2',
-                  isBuiltin: true,
-                  locale: 'en',
-                ),
-                _style(
-                  'b-es',
-                  'Conciso',
-                  modelId: 'llama3.2',
-                  isBuiltin: true,
-                  locale: 'es',
-                ),
-              ],
-            ),
-            prompts: _FakeSystemPromptProvider(),
-            settings: settings,
+          styles: _FakeStyleProvider(
+            styles: [
+              _style(
+                'b-en',
+                'Concise',
+                modelId: 'llama3.2',
+                isBuiltin: true,
+                locale: 'en',
+              ),
+              _style(
+                'b-es',
+                'Conciso',
+                modelId: 'llama3.2',
+                isBuiltin: true,
+                locale: 'es',
+              ),
+              // User-saved styles (locale = null) always show.
+              _style('u1', 'My style', modelId: 'llama3.2'),
+            ],
           ),
-        );
-        await _openPicker(tester);
+          prompts: _FakeSystemPromptProvider(),
+          settings: settings,
+        ),
+      );
+      await _openPicker(tester);
 
-        expect(tester.takeException(), isNull);
-        expect(find.text('Conciso'), findsOneWidget);
-        expect(find.text('Concise'), findsNothing);
-      },
-    );
+      expect(tester.takeException(), isNull);
+      expect(find.text('Concise'), findsOneWidget);
+      expect(find.text('My style'), findsOneWidget);
+      expect(find.text('Conciso'), findsNothing);
+    });
 
-    _testPicker(
-      'without SettingsProvider in the tree, all built-ins show '
-      '(preserves isolated-widget-test behavior)',
-      (tester) async {
-        _setScreenSize(tester, const Size(390, 844));
-        await tester.pumpWidget(
-          _wrap(
-            chat: _FakeChatProvider(),
-            models: _FakeModelProvider(
-              models: _defaultModels,
-              selectedId: 'qwen3',
-            ),
-            styles: _FakeStyleProvider(
-              styles: [
-                _style(
-                  'b-en',
-                  'Concise',
-                  modelId: 'llama3.2',
-                  isBuiltin: true,
-                  locale: 'en',
-                ),
-                _style(
-                  'b-es',
-                  'Conciso',
-                  modelId: 'llama3.2',
-                  isBuiltin: true,
-                  locale: 'es',
-                ),
-              ],
-            ),
-            prompts: _FakeSystemPromptProvider(),
+    _testPicker('built-in styles follow the locale when set to spanish '
+        '(es user sees Conciso, not Concise)', (tester) async {
+      _setScreenSize(tester, const Size(390, 844));
+      final settings = SettingsProvider();
+      await tester.runAsync(() async {
+        while (!settings.loaded) {
+          await Future<void>.delayed(const Duration(milliseconds: 1));
+        }
+      });
+      await settings.setAppLocale(AppLocale.spanish);
+      await tester.pumpWidget(
+        _wrap(
+          chat: _FakeChatProvider(),
+          models: _FakeModelProvider(
+            models: _defaultModels,
+            selectedId: 'qwen3',
           ),
-        );
-        await _openPicker(tester);
+          styles: _FakeStyleProvider(
+            styles: [
+              _style(
+                'b-en',
+                'Concise',
+                modelId: 'llama3.2',
+                isBuiltin: true,
+                locale: 'en',
+              ),
+              _style(
+                'b-es',
+                'Conciso',
+                modelId: 'llama3.2',
+                isBuiltin: true,
+                locale: 'es',
+              ),
+            ],
+          ),
+          prompts: _FakeSystemPromptProvider(),
+          settings: settings,
+        ),
+      );
+      await _openPicker(tester);
 
-        expect(tester.takeException(), isNull);
-        // No SettingsProvider -> null language code -> no filtering.
-        expect(find.text('Concise'), findsOneWidget);
-        expect(find.text('Conciso'), findsOneWidget);
-      },
-    );
+      expect(tester.takeException(), isNull);
+      expect(find.text('Conciso'), findsOneWidget);
+      expect(find.text('Concise'), findsNothing);
+    });
+
+    _testPicker('without SettingsProvider in the tree, all built-ins show '
+        '(preserves isolated-widget-test behavior)', (tester) async {
+      _setScreenSize(tester, const Size(390, 844));
+      await tester.pumpWidget(
+        _wrap(
+          chat: _FakeChatProvider(),
+          models: _FakeModelProvider(
+            models: _defaultModels,
+            selectedId: 'qwen3',
+          ),
+          styles: _FakeStyleProvider(
+            styles: [
+              _style(
+                'b-en',
+                'Concise',
+                modelId: 'llama3.2',
+                isBuiltin: true,
+                locale: 'en',
+              ),
+              _style(
+                'b-es',
+                'Conciso',
+                modelId: 'llama3.2',
+                isBuiltin: true,
+                locale: 'es',
+              ),
+            ],
+          ),
+          prompts: _FakeSystemPromptProvider(),
+        ),
+      );
+      await _openPicker(tester);
+
+      expect(tester.takeException(), isNull);
+      // No SettingsProvider -> null language code -> no filtering.
+      expect(find.text('Concise'), findsOneWidget);
+      expect(find.text('Conciso'), findsOneWidget);
+    });
 
     _testPicker(
       'Styles segment splits user and predefined styles into sections '
@@ -1645,12 +1832,12 @@ void main() {
 
         expect(tester.takeException(), isNull);
         // "Your styles" precedes "Predefined" vertically.
-        final yourCenter = tester.getCenter(find.byKey(
-          const ValueKey('styles_section_header_Your styles'),
-        ));
-        final predefinedCenter = tester.getCenter(find.byKey(
-          const ValueKey('styles_section_header_Predefined'),
-        ));
+        final yourCenter = tester.getCenter(
+          find.byKey(const ValueKey('styles_section_header_Your styles')),
+        );
+        final predefinedCenter = tester.getCenter(
+          find.byKey(const ValueKey('styles_section_header_Predefined')),
+        );
         expect(yourCenter.dy < predefinedCenter.dy, isTrue);
         // The user style and built-in both appear once each (neither matches
         // the active effective model, so neither shows in the pill).
@@ -1742,7 +1929,9 @@ void main() {
       expect(find.text('Chat style'), findsNothing);
     });
 
-    _testPicker('popover shows model list without search/filter UI', (tester) async {
+    _testPicker('popover shows model list without search/filter UI', (
+      tester,
+    ) async {
       _setScreenSize(tester, const Size(1280, 800));
       await tester.pumpWidget(
         _wrap(
@@ -1764,31 +1953,35 @@ void main() {
       // The Customize section renders the model list, but not the removed
       // search field or capability filter chips.
       expect(find.byKey(const ValueKey('model_row_qwen3')), findsOneWidget);
-      expect(find.byKey(const ValueKey('model_row_gemma3-vision')),
-          findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('model_row_gemma3-vision')),
+        findsOneWidget,
+      );
       expect(find.byKey(const ValueKey('style_search_field')), findsNothing);
       expect(find.byKey(const ValueKey('capability_filter')), findsNothing);
     });
   });
 
   group('ChatProvider pending style state', () {
-    test('new conversations are created with pending thinking and prompt',
-        () async {
-      final service = _RecordingChatService();
-      final chat = ChatProvider(
-        selectedModelId: 'qwen3',
-        chatService: service,
-      );
-      chat.pendingThinkingLevel = ThinkingLevel.high;
-      chat.pendingSystemPrompt = 'be brief';
+    test(
+      'new conversations are created with pending thinking and prompt',
+      () async {
+        final service = _RecordingChatService();
+        final chat = ChatProvider(
+          selectedModelId: 'qwen3',
+          chatService: service,
+        );
+        chat.pendingThinkingLevel = ThinkingLevel.high;
+        chat.pendingSystemPrompt = 'be brief';
 
-      await chat.sendMessage('hello');
+        await chat.sendMessage('hello');
 
-      expect(service.createArgs, isNotNull);
-      expect(service.createArgs!['model'], 'qwen3');
-      expect(service.createArgs!['thinkingLevel'], ThinkingLevel.high);
-      expect(service.createArgs!['systemPrompt'], 'be brief');
-    });
+        expect(service.createArgs, isNotNull);
+        expect(service.createArgs!['model'], 'qwen3');
+        expect(service.createArgs!['thinkingLevel'], ThinkingLevel.high);
+        expect(service.createArgs!['systemPrompt'], 'be brief');
+      },
+    );
   });
 
   group('StyleProvider last-used persistence', () {
@@ -1900,7 +2093,10 @@ void main() {
 
           expect(seed?.id, 'seed');
           expect(provider.selectedStyleId, 'seed');
-          expect(provider.pendingThinkingLevel, savedLevel ?? ThinkingLevel.medium);
+          expect(
+            provider.pendingThinkingLevel,
+            savedLevel ?? ThinkingLevel.medium,
+          );
         });
       }
     }
@@ -1917,10 +2113,13 @@ void main() {
       expect(provider.pendingThinkingLevel, ThinkingLevel.medium);
     });
 
-    test('re-entering a new topic recomposes over a picker override',
-        () async {
-      final defaultStyle = _style('default', 'Default',
-          thinkingLevel: ThinkingLevel.low, isDefault: true);
+    test('re-entering a new topic recomposes over a picker override', () async {
+      final defaultStyle = _style(
+        'default',
+        'Default',
+        thinkingLevel: ThinkingLevel.low,
+        isDefault: true,
+      );
       final provider = StyleProvider(
         styleService: _FakeStyleService([defaultStyle]),
       );
@@ -1971,8 +2170,7 @@ class _RecordingChatService extends ChatService {
     String conversationId, {
     int? messageLimit,
     bool silent = false,
-  }) async =>
-      _conversation(model: createArgs?['model'] as String? ?? 'qwen3');
+  }) async => _conversation(model: createArgs?['model'] as String? ?? 'qwen3');
 
   @override
   Future<ConversationList> listConversations({
@@ -1994,6 +2192,5 @@ class _RecordingChatService extends ChatService {
     bool hasClientFolder = false,
     String? clientFolderLabel,
     String? talkModeInstruction,
-  }) =>
-      Stream.fromIterable([const ChatResponseChunk(type: 'done')]);
+  }) => Stream.fromIterable([const ChatResponseChunk(type: 'done')]);
 }

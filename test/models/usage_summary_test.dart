@@ -27,11 +27,7 @@ void main() {
           },
         ],
         'by_day': [
-          {
-            'date': '2026-04-21',
-            'tokens_prompt': 50,
-            'tokens_generated': 100,
-          },
+          {'date': '2026-04-21', 'tokens_prompt': 50, 'tokens_generated': 100},
         ],
       });
 

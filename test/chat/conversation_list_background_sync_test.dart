@@ -31,10 +31,8 @@ class _TransientErrorChatService extends ChatService {
 
 void main() {
   group('ConversationListController background sync', () {
-    test(
-        'background load (showLoading: false) swallows transient DioException '
-        'without surfacing an error (user-report #248cf6f6)',
-        () async {
+    test('background load (showLoading: false) swallows transient DioException '
+        'without surfacing an error (user-report #248cf6f6)', () async {
       final service = _TransientErrorChatService();
       final controller = ConversationListController(chatService: service);
 
@@ -47,22 +45,30 @@ void main() {
       // Background sync (the periodic timer path) must NOT surface an error —
       // the next tick will retry, transient network blips aren't user-facing.
       await controller.load(showLoading: false);
-      expect(controller.error, isNull,
-          reason: 'Background sync should not surface transient errors');
+      expect(
+        controller.error,
+        isNull,
+        reason: 'Background sync should not surface transient errors',
+      );
       expect(service.listCalls, 2);
     });
 
-    test('foreground load still surfaces DioException with a clean message',
-        () async {
-      final service = _TransientErrorChatService();
-      final controller = ConversationListController(chatService: service);
+    test(
+      'foreground load still surfaces DioException with a clean message',
+      () async {
+        final service = _TransientErrorChatService();
+        final controller = ConversationListController(chatService: service);
 
-      await controller.load(showLoading: true);
-      expect(controller.error, isNotNull);
-      // The DioException's message is surfaced, not the opaque
-      // "DioException [bad response]: null" that triggered the original report.
-      expect(controller.error, contains('Connection closed before full header'));
-      controller.dispose();
-    });
+        await controller.load(showLoading: true);
+        expect(controller.error, isNotNull);
+        // The DioException's message is surfaced, not the opaque
+        // "DioException [bad response]: null" that triggered the original report.
+        expect(
+          controller.error,
+          contains('Connection closed before full header'),
+        );
+        controller.dispose();
+      },
+    );
   });
 }

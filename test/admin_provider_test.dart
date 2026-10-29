@@ -45,8 +45,7 @@ void main() {
     });
 
     test('loadUsers sets error on failure', () async {
-      when(() => service.listUsers())
-          .thenThrow(Exception('network down'));
+      when(() => service.listUsers()).thenThrow(Exception('network down'));
 
       await provider.loadUsers();
       expect(provider.usersError, contains('Failed to load users'));
@@ -54,9 +53,9 @@ void main() {
     });
 
     test('updateUser replaces existing entry', () async {
-      when(() => service.listUsers()).thenAnswer(
-        (_) async => [const AdminUser(email: 'a@b.com')],
-      );
+      when(
+        () => service.listUsers(),
+      ).thenAnswer((_) async => [const AdminUser(email: 'a@b.com')]);
       when(
         () => service.updateUser('a@b.com', isAdmin: true, isDisabled: null),
       ).thenAnswer(
@@ -140,8 +139,9 @@ void main() {
           ),
         ],
       );
-      when(() => service.deleteMCPServer('1'))
-          .thenAnswer((_) async => Future.value());
+      when(
+        () => service.deleteMCPServer('1'),
+      ).thenAnswer((_) async => Future.value());
 
       await provider.loadServers();
       expect(provider.servers.length, 1);
@@ -151,8 +151,9 @@ void main() {
     });
 
     test('testServer returns a MCPTestResult even on failure', () async {
-      when(() => service.testMCPServer('1'))
-          .thenThrow(Exception('connection refused'));
+      when(
+        () => service.testMCPServer('1'),
+      ).thenThrow(Exception('connection refused'));
 
       final result = await provider.testServer('1');
       expect(result, isNotNull);

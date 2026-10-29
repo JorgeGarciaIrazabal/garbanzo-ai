@@ -29,25 +29,27 @@ void main() {
   });
 
   group('FilePickerHelper.pasteImage', () {
-    test('a pasted image is validated into a stageable image attachment',
-        () async {
-      final bytes = Uint8List.fromList([137, 80, 78, 71, 13, 10, 26, 10]);
-      ClipboardImageReader.debugOverride = () async => [
-        (name: 'pasted_20260101_120000.png', bytes: bytes),
-      ];
+    test(
+      'a pasted image is validated into a stageable image attachment',
+      () async {
+        final bytes = Uint8List.fromList([137, 80, 78, 71, 13, 10, 26, 10]);
+        ClipboardImageReader.debugOverride = () async => [
+          (name: 'pasted_20260101_120000.png', bytes: bytes),
+        ];
 
-      final result = await FilePickerHelper.pasteImage(existingNames: {});
+        final result = await FilePickerHelper.pasteImage(existingNames: {});
 
-      expect(result, isNotNull);
-      expect(result!.rejected, isEmpty);
-      expect(result.validationErrors, isEmpty);
-      expect(result.added, hasLength(1));
-      final attachment = result.added.single;
-      expect(attachment.name, 'pasted_20260101_120000.png');
-      expect(attachment.mimeType, 'image/png');
-      expect(attachment.isImage, isTrue);
-      expect(attachment.bytes, bytes);
-    });
+        expect(result, isNotNull);
+        expect(result!.rejected, isEmpty);
+        expect(result.validationErrors, isEmpty);
+        expect(result.added, hasLength(1));
+        final attachment = result.added.single;
+        expect(attachment.name, 'pasted_20260101_120000.png');
+        expect(attachment.mimeType, 'image/png');
+        expect(attachment.isImage, isTrue);
+        expect(attachment.bytes, bytes);
+      },
+    );
 
     test('returns null so the composer falls back to pasting text', () async {
       ClipboardImageReader.debugOverride = () async => const [];
@@ -55,23 +57,25 @@ void main() {
       expect(await FilePickerHelper.pasteImage(existingNames: {}), isNull);
     });
 
-    test('a pasted image colliding with a staged name is reported, not staged',
-        () async {
-      ClipboardImageReader.debugOverride = () async => [
-        (
-          name: 'pasted_20260101_120000.png',
-          bytes: Uint8List.fromList([1, 2, 3]),
-        ),
-      ];
+    test(
+      'a pasted image colliding with a staged name is reported, not staged',
+      () async {
+        ClipboardImageReader.debugOverride = () async => [
+          (
+            name: 'pasted_20260101_120000.png',
+            bytes: Uint8List.fromList([1, 2, 3]),
+          ),
+        ];
 
-      final result = await FilePickerHelper.pasteImage(
-        existingNames: {'pasted_20260101_120000.png'},
-      );
+        final result = await FilePickerHelper.pasteImage(
+          existingNames: {'pasted_20260101_120000.png'},
+        );
 
-      expect(result!.added, isEmpty);
-      expect(result.validationErrors, [
-        'Duplicate file: pasted_20260101_120000.png',
-      ]);
-    });
+        expect(result!.added, isEmpty);
+        expect(result.validationErrors, [
+          'Duplicate file: pasted_20260101_120000.png',
+        ]);
+      },
+    );
   });
 }

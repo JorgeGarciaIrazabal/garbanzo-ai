@@ -126,7 +126,7 @@ def doctor(args):
     checks.append(
         {
             "name": "codex-model-policy",
-            "ok": configuration.get("model") == "gpt-6-astra",
+            "ok": configuration.get("model") == "gpt-6.1-sol",
             "required": True,
         }
     )
@@ -196,7 +196,7 @@ def guided(args):
     print(json.dumps(findings, indent=2, default=str), flush=True)
     model, effort = guided_route(
         args.root,
-        model=getattr(args, "model", "gpt-6-astra"),
+        model=getattr(args, "model", "gpt-6.1-sol"),
         effort=getattr(args, "effort", "medium"),
     )
     argv = [
@@ -282,8 +282,8 @@ def register(subparsers):
     )
     parser.add_argument(
         "--model",
-        default="gpt-6-astra",
-        help="Cached account model to launch (default: gpt-6-astra)",
+        default="gpt-6.1-sol",
+        help="Cached account model to launch (default: gpt-6.1-sol)",
     )
     parser.add_argument(
         "--effort",

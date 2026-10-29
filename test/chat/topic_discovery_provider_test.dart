@@ -128,303 +128,352 @@ void main() {
     children: [child],
   );
 
-  test('keeps navigation path while applying a nested live topic update', () async {
-    final service = _FakeTopicService(personalTopics: [parent]);
-    final provider = TopicDiscoveryProvider(service: service);
-    await provider.load();
-    provider.openChildren(parent);
+  test(
+    'keeps navigation path while applying a nested live topic update',
+    () async {
+      final service = _FakeTopicService(personalTopics: [parent]);
+      final provider = TopicDiscoveryProvider(service: service);
+      await provider.load();
+      provider.openChildren(parent);
 
-    provider.applyTopicUpdate({
-      'id': '401k',
-      'parent_id': 'retirement',
-      'label': 'Updated contribution plan',
-      'origin': 'personal',
-      'context_status': 'ready',
-    });
+      provider.applyTopicUpdate({
+        'id': '401k',
+        'parent_id': 'retirement',
+        'label': 'Updated contribution plan',
+        'origin': 'personal',
+        'context_status': 'ready',
+      });
 
-    expect(provider.path.single.id, 'retirement');
-    expect(provider.visibleTopics.single.label, 'Updated contribution plan');
-    expect(provider.visibleTopics.single.contextStatus, TopicContextStatus.ready);
-  });
+      expect(provider.path.single.id, 'retirement');
+      expect(provider.visibleTopics.single.label, 'Updated contribution plan');
+      expect(
+        provider.visibleTopics.single.contextStatus,
+        TopicContextStatus.ready,
+      );
+    },
+  );
 
-  test('stores a load response in its requested mode after mode changes', () async {
-    final personalLoad = Completer<List<TopicNode>>();
-    const personal = TopicNode(
-      id: 'personal-topic',
-      label: 'Personal topic',
-      origin: TopicOrigin.personal,
-    );
-    const explore = TopicNode(
-      id: 'explore-topic',
-      label: 'Explore topic',
-      origin: TopicOrigin.explore,
-    );
-    final service = _FakeTopicService(
-      exploreTopics: [explore],
-      onListTopics: (mode) => mode == TopicOrigin.personal
-          ? personalLoad.future
-          : Future.value([explore]),
-    );
-    final provider = TopicDiscoveryProvider(service: service);
+  test(
+    'stores a load response in its requested mode after mode changes',
+    () async {
+      final personalLoad = Completer<List<TopicNode>>();
+      const personal = TopicNode(
+        id: 'personal-topic',
+        label: 'Personal topic',
+        origin: TopicOrigin.personal,
+      );
+      const explore = TopicNode(
+        id: 'explore-topic',
+        label: 'Explore topic',
+        origin: TopicOrigin.explore,
+      );
+      final service = _FakeTopicService(
+        exploreTopics: [explore],
+        onListTopics: (mode) => mode == TopicOrigin.personal
+            ? personalLoad.future
+            : Future.value([explore]),
+      );
+      final provider = TopicDiscoveryProvider(service: service);
 
-    final loadingPersonal = provider.load();
-    final switchingMode = provider.setMode(TopicOrigin.explore);
-    personalLoad.complete([personal]);
-    await loadingPersonal;
-    await switchingMode;
+      final loadingPersonal = provider.load();
+      final switchingMode = provider.setMode(TopicOrigin.explore);
+      personalLoad.complete([personal]);
+      await loadingPersonal;
+      await switchingMode;
 
-    expect(provider.mode, TopicOrigin.explore);
-    expect(provider.topics.single.id, explore.id);
-    await provider.setMode(TopicOrigin.personal);
-    expect(provider.topics.single.id, personal.id);
-  });
+      expect(provider.mode, TopicOrigin.explore);
+      expect(provider.topics.single.id, explore.id);
+      await provider.setMode(TopicOrigin.personal);
+      expect(provider.topics.single.id, personal.id);
+    },
+  );
 
-  test('uses the server-owned tree without synthetic presentation topics', () async {
-    const tokyo = TopicNode(
-      id: 'tokyo',
-      label: 'Time Tokyo',
-      origin: TopicOrigin.history,
-    );
-    const madrid = TopicNode(
-      id: 'madrid',
-      label: 'Time Madrid',
-      origin: TopicOrigin.history,
-    );
-    final provider = TopicDiscoveryProvider(
-      service: _FakeTopicService(personalTopics: [tokyo, madrid]),
-    );
+  test(
+    'uses the server-owned tree without synthetic presentation topics',
+    () async {
+      const tokyo = TopicNode(
+        id: 'tokyo',
+        label: 'Time Tokyo',
+        origin: TopicOrigin.history,
+      );
+      const madrid = TopicNode(
+        id: 'madrid',
+        label: 'Time Madrid',
+        origin: TopicOrigin.history,
+      );
+      final provider = TopicDiscoveryProvider(
+        service: _FakeTopicService(personalTopics: [tokyo, madrid]),
+      );
 
-    await provider.load();
+      await provider.load();
 
-    expect(provider.topics.map((topic) => topic.id), ['tokyo', 'madrid']);
-    expect(provider.topics.map((topic) => topic.label), ['Time Tokyo', 'Time Madrid']);
-  });
+      expect(provider.topics.map((topic) => topic.id), ['tokyo', 'madrid']);
+      expect(provider.topics.map((topic) => topic.label), [
+        'Time Tokyo',
+        'Time Madrid',
+      ]);
+    },
+  );
 
-  test('searches the full tree and retains each matching descendant path', () async {
-    const matchingLeaf = TopicNode(
-      id: 'contributions',
-      parentId: 'retirement',
-      label: 'Contribution limits',
-      origin: TopicOrigin.personal,
-    );
-    const nestedParent = TopicNode(
-      id: 'retirement',
-      parentId: 'finance',
-      label: 'Retirement',
-      origin: TopicOrigin.personal,
-      children: [matchingLeaf],
-    );
-    const root = TopicNode(
-      id: 'finance',
-      label: 'Finance',
-      origin: TopicOrigin.personal,
-      children: [nestedParent],
-    );
-    final provider = TopicDiscoveryProvider(
-      service: _FakeTopicService(personalTopics: [root]),
-    );
-    await provider.load();
+  test(
+    'searches the full tree and retains each matching descendant path',
+    () async {
+      const matchingLeaf = TopicNode(
+        id: 'contributions',
+        parentId: 'retirement',
+        label: 'Contribution limits',
+        origin: TopicOrigin.personal,
+      );
+      const nestedParent = TopicNode(
+        id: 'retirement',
+        parentId: 'finance',
+        label: 'Retirement',
+        origin: TopicOrigin.personal,
+        children: [matchingLeaf],
+      );
+      const root = TopicNode(
+        id: 'finance',
+        label: 'Finance',
+        origin: TopicOrigin.personal,
+        children: [nestedParent],
+      );
+      final provider = TopicDiscoveryProvider(
+        service: _FakeTopicService(personalTopics: [root]),
+      );
+      await provider.load();
 
-    provider.setSearchQuery('contribution');
+      provider.setSearchQuery('contribution');
 
-    final result = provider.visibleTopics.single;
-    expect(result.id, matchingLeaf.id);
-    expect(result.parentLabel, 'Finance › Retirement');
-  });
+      final result = provider.visibleTopics.single;
+      expect(result.id, matchingLeaf.id);
+      expect(result.parentLabel, 'Finance › Retirement');
+    },
+  );
 
-  test('activating applies the authoritative response and does not prepare again',
-      () async {
-    final serverTopic = TopicSwitchTopic(
-      id: 'canonical-id',
-      label: 'Canonical topic',
-      parentId: 'parent-id',
-      parentLabel: 'Canonical parent',
-      description: 'Server description',
-      pinned: true,
-    );
-    final retained = ActiveContextItem(
-      id: 'pinned-item',
-      sourceType: 'message',
-      sourceId: 'message-1',
-      state: ActiveContextItemState.pinned,
-      reason: 'User retained this source',
-    );
-    final service = _FakeTopicService(
-      switchResult: _response(
-        conversationId: 'primary-conversation',
-        topic: serverTopic,
-        contextStatus: TopicContextStatus.preparing,
-        retainedItems: [retained],
-        idempotencyKey: 'server-key',
-      ),
-    );
-    final provider = TopicDiscoveryProvider(service: service);
-
-    await provider.activate('primary-conversation', child);
-
-    expect(provider.showLanding, isFalse);
-    expect(provider.selectedTopic?.id, 'canonical-id');
-    expect(provider.selectedTopic?.label, 'Canonical topic');
-    expect(provider.selectedTopic?.parentLabel, 'Canonical parent');
-    expect(provider.contextStatus, TopicContextStatus.preparing);
-    expect(provider.retainedItems, [retained]);
-    expect(provider.lastSwitchIdempotencyKey, 'server-key');
-    expect(service.lastMode, 'start');
-  });
-
-  test('server selection sync does not close the explicitly opened landing', () {
-    final provider = TopicDiscoveryProvider(
-      service: _FakeTopicService(personalTopics: [child]),
-    );
-
-    provider.setSelectedTopic(child);
-    expect(provider.showLanding, isFalse);
-
-    provider.startNewTopic();
-    provider.synchronizeSelectedTopic(
-      child.copyWith(contextStatus: TopicContextStatus.ready),
-    );
-
-    expect(provider.showLanding, isTrue);
-    expect(provider.selectedTopic?.id, child.id);
-    expect(provider.contextStatus, TopicContextStatus.ready);
-  });
-
-  test('free-text activation replaces its provisional selection with the server topic',
-      () async {
-    final service = _FakeTopicService(
-      switchResult: _response(
-        conversationId: 'primary-conversation',
-        topic: TopicSwitchTopic(
-          id: 'server-created-topic',
-          label: 'Server-normalized label',
-          pinned: true,
+  test(
+    'activating applies the authoritative response and does not prepare again',
+    () async {
+      final serverTopic = TopicSwitchTopic(
+        id: 'canonical-id',
+        label: 'Canonical topic',
+        parentId: 'parent-id',
+        parentLabel: 'Canonical parent',
+        description: 'Server description',
+        pinned: true,
+      );
+      final retained = ActiveContextItem(
+        id: 'pinned-item',
+        sourceType: 'message',
+        sourceId: 'message-1',
+        state: ActiveContextItemState.pinned,
+        reason: 'User retained this source',
+      );
+      final service = _FakeTopicService(
+        switchResult: _response(
+          conversationId: 'primary-conversation',
+          topic: serverTopic,
+          contextStatus: TopicContextStatus.preparing,
+          retainedItems: [retained],
+          idempotencyKey: 'server-key',
         ),
-        contextStatus: TopicContextStatus.ready,
-      ),
-    );
-    final provider = TopicDiscoveryProvider(service: service);
+      );
+      final provider = TopicDiscoveryProvider(service: service);
 
-    await provider.activateFreeText('primary-conversation', 'New subject');
+      await provider.activate('primary-conversation', child);
 
-    expect(provider.selectedTopic?.id, 'server-created-topic');
-    expect(provider.selectedTopic?.label, 'Server-normalized label');
-    expect(provider.selectedTopic?.id, isNot(startsWith('provisional-')));
-  });
+      expect(provider.showLanding, isFalse);
+      expect(provider.selectedTopic?.id, 'canonical-id');
+      expect(provider.selectedTopic?.label, 'Canonical topic');
+      expect(provider.selectedTopic?.parentLabel, 'Canonical parent');
+      expect(provider.contextStatus, TopicContextStatus.preparing);
+      expect(provider.retainedItems, [retained]);
+      expect(provider.lastSwitchIdempotencyKey, 'server-key');
+      expect(service.lastMode, 'start');
+    },
+  );
 
-  test('failed switching does not fall back to the legacy activate endpoint', () async {
-    final service = _FakeTopicService(switchError: StateError('switch failed'));
-    final provider = TopicDiscoveryProvider(service: service);
+  test(
+    'server selection sync does not close the explicitly opened landing',
+    () {
+      final provider = TopicDiscoveryProvider(
+        service: _FakeTopicService(personalTopics: [child]),
+      );
 
-    await provider.activate('primary-conversation', child);
+      provider.setSelectedTopic(child);
+      expect(provider.showLanding, isFalse);
 
-    expect(provider.showLanding, isTrue);
-    expect(provider.selectedTopic, isNull);
-    expect(provider.error, isNotNull);
-  });
+      provider.startNewTopic();
+      provider.synchronizeSelectedTopic(
+        child.copyWith(contextStatus: TopicContextStatus.ready),
+      );
 
-  test('failed navigation retries the same created thread and settings', () async {
-    final service = _FakeTopicService(switchResult: _response(
-      conversationId: 'new-thread',
-      topic: TopicSwitchTopic(id: child.id, label: child.label, pinned: true),
-    ));
-    final provider = TopicDiscoveryProvider(service: service)
-      ..newThreadSettings = () => {'model': 'test-model', 'system_prompt': null, 'thinking_level': 'medium'};
-    var failed = false;
-    provider.onTopicSwitched = (response) async {
-      expect(response.conversationId, 'new-thread');
-      if (!failed) { failed = true; throw StateError('load failed'); }
-    };
-    await provider.activate('source-thread', child);
-    expect(provider.showLanding, isTrue);
-    await provider.activate('source-thread', child);
-    expect(service.actionKeys[0], service.actionKeys[1]);
-    expect(service.lastSettings?['model'], 'test-model');
-    expect(service.lastSettings?['system_prompt'], isNull);
-    expect(provider.showLanding, isFalse);
-    expect(provider.error, isNull);
-  });
+      expect(provider.showLanding, isTrue);
+      expect(provider.selectedTopic?.id, child.id);
+      expect(provider.contextStatus, TopicContextStatus.ready);
+    },
+  );
 
-  test('combine keeps combine behavior and sends a distinct action key', () async {
-    final service = _FakeTopicService();
-    final provider = TopicDiscoveryProvider(service: service);
-    var combinedCount = 0;
-    provider.onTopicCombined = (_) async => combinedCount++;
+  test(
+    'free-text activation replaces its provisional selection with the server topic',
+    () async {
+      final service = _FakeTopicService(
+        switchResult: _response(
+          conversationId: 'primary-conversation',
+          topic: TopicSwitchTopic(
+            id: 'server-created-topic',
+            label: 'Server-normalized label',
+            pinned: true,
+          ),
+          contextStatus: TopicContextStatus.ready,
+        ),
+      );
+      final provider = TopicDiscoveryProvider(service: service);
 
-    await provider.combineTopics(
-      'primary-conversation',
-      topicId: 'topic-combine',
-      idempotencyKey: 'combine-key',
-    );
+      await provider.activateFreeText('primary-conversation', 'New subject');
 
-    expect(combinedCount, 1);
-    expect(service.lastMode, 'combine');
-    expect(service.lastIdempotencyKey, 'combine-key');
-  });
+      expect(provider.selectedTopic?.id, 'server-created-topic');
+      expect(provider.selectedTopic?.label, 'Server-normalized label');
+      expect(provider.selectedTopic?.id, isNot(startsWith('provisional-')));
+    },
+  );
 
-  test('TopicService accepts only the current topic-list response shape', () async {
-    final service = _ContractTopicService(
-      response: _httpResponse({
-        'mode': 'personal',
-        'topics': [
-          {
-            'id': 'topic-1',
-            'label': 'One',
-            'origin': 'history',
-          },
-        ],
-      }),
-    );
+  test(
+    'failed switching does not fall back to the legacy activate endpoint',
+    () async {
+      final service = _FakeTopicService(
+        switchError: StateError('switch failed'),
+      );
+      final provider = TopicDiscoveryProvider(service: service);
 
-    expect((await service.listTopics(TopicOrigin.personal)).single.id, 'topic-1');
+      await provider.activate('primary-conversation', child);
 
-    service.response = _httpResponse({'items': const []});
-    await expectLater(
-      service.listTopics(TopicOrigin.personal),
-      throwsA(isA<FormatException>()),
-    );
-  });
+      expect(provider.showLanding, isTrue);
+      expect(provider.selectedTopic, isNull);
+      expect(provider.error, isNotNull);
+    },
+  );
 
-  test('TopicService sends retention and idempotency fields without carryover',
-      () async {
-    final service = _ContractTopicService(
-      response: _httpResponse({
-        'conversation_id': 'primary-conversation',
-        'topic': {
-          'id': 'topic-1',
-          'label': 'One',
-          'pinned': true,
-        },
-        'context_version': 4,
-        'session_epoch': 3,
-        'archived': true,
-        'retained_items': const [],
-        'context_status': {'readiness': 'preparing'},
-        'idempotency_key': 'switch-key',
-      }),
-    );
+  test(
+    'failed navigation retries the same created thread and settings',
+    () async {
+      final service = _FakeTopicService(
+        switchResult: _response(
+          conversationId: 'new-thread',
+          topic: TopicSwitchTopic(
+            id: child.id,
+            label: child.label,
+            pinned: true,
+          ),
+        ),
+      );
+      final provider = TopicDiscoveryProvider(service: service)
+        ..newThreadSettings = () => {
+          'model': 'test-model',
+          'system_prompt': null,
+          'thinking_level': 'medium',
+        };
+      var failed = false;
+      provider.onTopicSwitched = (response) async {
+        expect(response.conversationId, 'new-thread');
+        if (!failed) {
+          failed = true;
+          throw StateError('load failed');
+        }
+      };
+      await provider.activate('source-thread', child);
+      expect(provider.showLanding, isTrue);
+      await provider.activate('source-thread', child);
+      expect(service.actionKeys[0], service.actionKeys[1]);
+      expect(service.lastSettings?['model'], 'test-model');
+      expect(service.lastSettings?['system_prompt'], isNull);
+      expect(provider.showLanding, isFalse);
+      expect(provider.error, isNull);
+    },
+  );
 
-    final response = await service.switchTopic(
-      'primary-conversation',
-      topicId: 'topic-1',
-      retainPinned: false,
-      idempotencyKey: 'switch-key',
-    );
+  test(
+    'combine keeps combine behavior and sends a distinct action key',
+    () async {
+      final service = _FakeTopicService();
+      final provider = TopicDiscoveryProvider(service: service);
+      var combinedCount = 0;
+      provider.onTopicCombined = (_) async => combinedCount++;
 
-    expect(service.switchPayload?['retain_pinned'], isFalse);
-    expect(service.switchPayload?['idempotency_key'], 'switch-key');
-    expect(service.switchPayload, isNot(contains('carryover')));
-    expect(response.contextStatus, TopicContextStatus.preparing);
-    expect(response.idempotencyKey, 'switch-key');
+      await provider.combineTopics(
+        'primary-conversation',
+        topicId: 'topic-combine',
+        idempotencyKey: 'combine-key',
+      );
 
-    await expectLater(
-      service.switchTopic(
+      expect(combinedCount, 1);
+      expect(service.lastMode, 'combine');
+      expect(service.lastIdempotencyKey, 'combine-key');
+    },
+  );
+
+  test(
+    'TopicService accepts only the current topic-list response shape',
+    () async {
+      final service = _ContractTopicService(
+        response: _httpResponse({
+          'mode': 'personal',
+          'topics': [
+            {'id': 'topic-1', 'label': 'One', 'origin': 'history'},
+          ],
+        }),
+      );
+
+      expect(
+        (await service.listTopics(TopicOrigin.personal)).single.id,
+        'topic-1',
+      );
+
+      service.response = _httpResponse({'items': const []});
+      await expectLater(
+        service.listTopics(TopicOrigin.personal),
+        throwsA(isA<FormatException>()),
+      );
+    },
+  );
+
+  test(
+    'TopicService sends retention and idempotency fields without carryover',
+    () async {
+      final service = _ContractTopicService(
+        response: _httpResponse({
+          'conversation_id': 'primary-conversation',
+          'topic': {'id': 'topic-1', 'label': 'One', 'pinned': true},
+          'context_version': 4,
+          'session_epoch': 3,
+          'archived': true,
+          'retained_items': const [],
+          'context_status': {'readiness': 'preparing'},
+          'idempotency_key': 'switch-key',
+        }),
+      );
+
+      final response = await service.switchTopic(
         'primary-conversation',
         topicId: 'topic-1',
-        label: 'One',
-        idempotencyKey: 'invalid-targets',
-      ),
-      throwsArgumentError,
-    );
-  });
+        retainPinned: false,
+        idempotencyKey: 'switch-key',
+      );
+
+      expect(service.switchPayload?['retain_pinned'], isFalse);
+      expect(service.switchPayload?['idempotency_key'], 'switch-key');
+      expect(service.switchPayload, isNot(contains('carryover')));
+      expect(response.contextStatus, TopicContextStatus.preparing);
+      expect(response.idempotencyKey, 'switch-key');
+
+      await expectLater(
+        service.switchTopic(
+          'primary-conversation',
+          topicId: 'topic-1',
+          label: 'One',
+          idempotencyKey: 'invalid-targets',
+        ),
+        throwsArgumentError,
+      );
+    },
+  );
 }

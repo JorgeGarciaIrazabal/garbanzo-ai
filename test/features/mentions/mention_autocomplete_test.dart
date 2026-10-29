@@ -55,10 +55,9 @@ void main() {
   });
 
   Widget app() => MaterialApp(
-    
-  localizationsDelegates: AppLocalizations.localizationsDelegates,
-  supportedLocales: AppLocalizations.supportedLocales,
-home: Scaffold(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
+    home: Scaffold(
       body: Align(
         alignment: Alignment.bottomCenter,
         child: MentionAutocomplete(
@@ -211,10 +210,9 @@ home: Scaffold(
       late BuildContext ctx;
       await tester.pumpWidget(
         MaterialApp(
-          
-  localizationsDelegates: AppLocalizations.localizationsDelegates,
-  supportedLocales: AppLocalizations.supportedLocales,
-home: Builder(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Builder(
             builder: (c) {
               ctx = c;
               return const SizedBox();

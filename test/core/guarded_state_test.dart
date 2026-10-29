@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:garbanzo_ai/core/api_error.dart';
 import 'package:garbanzo_ai/core/guarded_state.dart';
 
 DioException _dio(DioExceptionType type, {Object? error, String? message}) {
@@ -19,6 +22,8 @@ class _TestProvider extends ChangeNotifier with GuardedStateMixin {
   _TestProvider() {
     addListener(() => notifyCount++);
   }
+
+  bool get disposed => isDisposed;
 
   Future<int?> run(Future<int> Function() fn, {bool trackLoading = true}) {
     return runGuarded('Failed to do the thing', fn, trackLoading: trackLoading);
@@ -125,6 +130,30 @@ void main() {
       );
     });
 
+    test('ApiResponseException maps status and detail directly', () {
+      expect(
+        describeFailure(
+          const ApiResponseException(
+            statusCode: 422,
+            operation: 'Failed to save prompt',
+            detail: 'Name must not be empty',
+          ),
+          label: 'Failed to save prompt',
+        ),
+        'Failed to save prompt: Name must not be empty',
+      );
+      expect(
+        describeFailure(
+          const ApiResponseException(
+            statusCode: 503,
+            operation: 'Failed to load models',
+            detail: 'Upstream down',
+          ),
+        ),
+        'Server error — please try again.',
+      );
+    });
+
     test('4xx with no detail falls back to label', () {
       expect(
         describeFailure(
@@ -175,7 +204,6 @@ void main() {
       expect(result, 42);
       expect(p.isLoading, isFalse);
       expect(p.error, isNull);
-      // Saw loading=true at start and loading=false at end.
       expect(states.first, isTrue);
       expect(states.last, isFalse);
     });
@@ -190,7 +218,6 @@ void main() {
       expect(result, isNull);
       expect(p.error, 'Server error — please try again.');
       expect(p.isLoading, isFalse);
-      // Raw error retained for debugging, not shown to the user.
       expect(p.lastErrorDetail, contains('boom'));
     });
 
@@ -233,6 +260,24 @@ void main() {
       final before = p.notifyCount;
       p.clearError();
       expect(p.notifyCount, before);
+    });
+
+    test('post-dispose completion does not throw FlutterError', () async {
+      final p = _TestProvider();
+      final completer = Completer<int>();
+      final future = p.run(() => completer.future);
+
+      final countBeforeDispose = p.notifyCount;
+      p.dispose();
+      expect(p.disposed, isTrue);
+
+      completer.completeError(
+        const ApiResponseException(statusCode: 500, operation: 'Late failure'),
+      );
+
+      final result = await future;
+      expect(result, isNull);
+      expect(p.notifyCount, countBeforeDispose);
     });
   });
 }

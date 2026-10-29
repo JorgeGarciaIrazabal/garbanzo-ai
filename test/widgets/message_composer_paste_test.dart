@@ -10,7 +10,9 @@ import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 Widget _wrap(Widget child) => MaterialApp(
   localizationsDelegates: AppLocalizations.localizationsDelegates,
   supportedLocales: AppLocalizations.supportedLocales,
-  home: Scaffold(body: Align(alignment: Alignment.bottomCenter, child: child)),
+  home: Scaffold(
+    body: Align(alignment: Alignment.bottomCenter, child: child),
+  ),
 );
 
 /// Presses Ctrl+V on the focused composer, the real user shortcut.

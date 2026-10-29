@@ -17,10 +17,9 @@ void main() {
       testWidgets('renders inline math correctly', (tester) async {
         await tester.pumpWidget(
           MaterialApp(
-            
-  localizationsDelegates: AppLocalizations.localizationsDelegates,
-  supportedLocales: AppLocalizations.supportedLocales,
-home: Scaffold(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
               body: MarkdownWidget(
                 content: r'The equation $x^2$ is inline.',
                 colorScheme: colorScheme,
@@ -37,10 +36,9 @@ home: Scaffold(
       testWidgets('renders multiple inline math expressions', (tester) async {
         await tester.pumpWidget(
           MaterialApp(
-            
-  localizationsDelegates: AppLocalizations.localizationsDelegates,
-  supportedLocales: AppLocalizations.supportedLocales,
-home: Scaffold(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
               body: MarkdownWidget(
                 content: r'From $a$ to $b$ and back to $a$.',
                 colorScheme: colorScheme,
@@ -56,10 +54,9 @@ home: Scaffold(
       testWidgets('handles escaped dollar signs correctly', (tester) async {
         await tester.pumpWidget(
           MaterialApp(
-            
-  localizationsDelegates: AppLocalizations.localizationsDelegates,
-  supportedLocales: AppLocalizations.supportedLocales,
-home: Scaffold(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
               body: MarkdownWidget(
                 content: r'The price is \$100, not math.',
                 colorScheme: colorScheme,
@@ -74,14 +71,14 @@ home: Scaffold(
         // The text should show as literal \$100 or $100
       });
 
-      testWidgets('does not match single dollar sign without closing',
-          (tester) async {
+      testWidgets('does not match single dollar sign without closing', (
+        tester,
+      ) async {
         await tester.pumpWidget(
           MaterialApp(
-            
-  localizationsDelegates: AppLocalizations.localizationsDelegates,
-  supportedLocales: AppLocalizations.supportedLocales,
-home: Scaffold(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
               body: MarkdownWidget(
                 content: r'This costs $100 only.',
                 colorScheme: colorScheme,
@@ -98,10 +95,9 @@ home: Scaffold(
       testWidgets('handles LaTeX commands with backslashes', (tester) async {
         await tester.pumpWidget(
           MaterialApp(
-            
-  localizationsDelegates: AppLocalizations.localizationsDelegates,
-  supportedLocales: AppLocalizations.supportedLocales,
-home: Scaffold(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
               body: MarkdownWidget(
                 content: r'Integral: $\int_0^1 x dx$',
                 colorScheme: colorScheme,
@@ -119,10 +115,9 @@ home: Scaffold(
       testWidgets('renders single-line block math correctly', (tester) async {
         await tester.pumpWidget(
           MaterialApp(
-            
-  localizationsDelegates: AppLocalizations.localizationsDelegates,
-  supportedLocales: AppLocalizations.supportedLocales,
-home: Scaffold(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
               body: MarkdownWidget(
                 content: r'$$\int_0^1 x dx$$',
                 colorScheme: colorScheme,
@@ -138,10 +133,9 @@ home: Scaffold(
       testWidgets('renders multi-line block math correctly', (tester) async {
         await tester.pumpWidget(
           MaterialApp(
-            
-  localizationsDelegates: AppLocalizations.localizationsDelegates,
-  supportedLocales: AppLocalizations.supportedLocales,
-home: Scaffold(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
               body: MarkdownWidget(
                 content: '''
 \$\$
@@ -161,10 +155,9 @@ home: Scaffold(
       testWidgets('renders block math with multiple lines', (tester) async {
         await tester.pumpWidget(
           MaterialApp(
-            
-  localizationsDelegates: AppLocalizations.localizationsDelegates,
-  supportedLocales: AppLocalizations.supportedLocales,
-home: Scaffold(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
               body: MarkdownWidget(
                 content: '''
 \$\$
@@ -183,14 +176,14 @@ x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}
     });
 
     group('mixed content', () {
-      testWidgets('renders markdown with inline and block math together',
-          (tester) async {
+      testWidgets('renders markdown with inline and block math together', (
+        tester,
+      ) async {
         await tester.pumpWidget(
           MaterialApp(
-            
-  localizationsDelegates: AppLocalizations.localizationsDelegates,
-  supportedLocales: AppLocalizations.supportedLocales,
-home: Scaffold(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
               body: MarkdownWidget(
                 content: '''
 # Math Examples
@@ -218,10 +211,9 @@ More text with \$x^2\$ inline.
       testWidgets('renders empty content without error', (tester) async {
         await tester.pumpWidget(
           MaterialApp(
-            
-  localizationsDelegates: AppLocalizations.localizationsDelegates,
-  supportedLocales: AppLocalizations.supportedLocales,
-home: Scaffold(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
               body: MarkdownWidget(
                 content: '',
                 colorScheme: colorScheme,

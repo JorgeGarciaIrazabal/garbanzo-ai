@@ -13,6 +13,7 @@ import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
 import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 class _MockChatProvider extends Mock implements ChatProvider {}
+
 class _MockReadAloudController extends Mock implements ReadAloudController {}
 
 Widget _wrap(ChatMessage message) {
@@ -28,17 +29,13 @@ Widget _wrap(ChatMessage message) {
       ChangeNotifierProvider<SettingsProvider>(
         create: (_) => SettingsProvider(),
       ),
-      ChangeNotifierProvider<ChatProvider>.value(
-        value: chat,
-      ),
+      ChangeNotifierProvider<ChatProvider>.value(value: chat),
       ChangeNotifierProvider<ReadAloudController>.value(value: readAloud),
     ],
     child: MaterialApp(
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
-      home: Scaffold(
-        body: ChatMessageWidget(message: message),
-      ),
+      home: Scaffold(body: ChatMessageWidget(message: message)),
     ),
   );
 }

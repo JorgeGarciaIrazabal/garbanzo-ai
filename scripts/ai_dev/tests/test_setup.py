@@ -24,7 +24,7 @@ class SetupTests(unittest.TestCase):
             root = Path(temporary)
             config = root / ".codex/config.toml"
             config.parent.mkdir(parents=True)
-            config.write_text('model = "gpt-6-astra"\n')
+            config.write_text('model = "gpt-6.1-sol"\n')
             with (
                 patch.object(setup.shutil, "which", return_value="/tool"),
                 patch.object(setup, "run", return_value="1.0"),

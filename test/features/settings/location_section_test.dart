@@ -5,10 +5,9 @@ import 'package:garbanzo_ai/features/settings/widgets/location_section.dart';
 import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 Widget _wrap(UserInfo? user) => MaterialApp(
-  
   localizationsDelegates: AppLocalizations.localizationsDelegates,
   supportedLocales: AppLocalizations.supportedLocales,
-home: Scaffold(
+  home: Scaffold(
     body: LocationSection(user: user, onUserChanged: () {}),
   ),
 );

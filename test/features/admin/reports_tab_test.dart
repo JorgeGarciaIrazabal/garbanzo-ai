@@ -25,10 +25,9 @@ void main() {
   }) async {
     await tester.pumpWidget(
       MaterialApp(
-        
-  localizationsDelegates: AppLocalizations.localizationsDelegates,
-  supportedLocales: AppLocalizations.supportedLocales,
-home: Scaffold(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
           body: ReportsTab(load: load, updateStatus: updateStatus),
         ),
       ),

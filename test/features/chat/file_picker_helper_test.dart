@@ -6,19 +6,25 @@ import 'package:garbanzo_ai/features/chat/widgets/input/file_picker_helper.dart'
 import 'package:image/image.dart' as image_lib;
 
 void main() {
-  test('accepts a 17 MiB XLSM attachment and rejects files over 25 MiB', () async {
-    final result = await FilePickerHelper.validate(
-      files: [
-        (name: 'annual.xlsm', bytes: Uint8List(17 * 1024 * 1024)),
-        (name: 'too-large.txt', bytes: Uint8List(25 * 1024 * 1024 + 1)),
-      ],
-      existingNames: {},
-    );
-    expect(result.added, hasLength(1));
-    expect(result.added.single.mimeType, 'application/vnd.ms-excel.sheet.macroEnabled.12');
-    expect(result.rejected, hasLength(1));
-    expect(result.rejected.single, contains('too-large.txt'));
-  });
+  test(
+    'accepts a 17 MiB XLSM attachment and rejects files over 25 MiB',
+    () async {
+      final result = await FilePickerHelper.validate(
+        files: [
+          (name: 'annual.xlsm', bytes: Uint8List(17 * 1024 * 1024)),
+          (name: 'too-large.txt', bytes: Uint8List(25 * 1024 * 1024 + 1)),
+        ],
+        existingNames: {},
+      );
+      expect(result.added, hasLength(1));
+      expect(
+        result.added.single.mimeType,
+        'application/vnd.ms-excel.sheet.macroEnabled.12',
+      );
+      expect(result.rejected, hasLength(1));
+      expect(result.rejected.single, contains('too-large.txt'));
+    },
+  );
   test('validation rejects duplicate names within one shared batch', () async {
     final result = await FilePickerHelper.validate(
       files: [
@@ -32,26 +38,29 @@ void main() {
     expect(result.validationErrors, ['Duplicate file: photo.png']);
   });
 
-  test('oversized BMP is downscaled below 3 MiB without changing format', () async {
-    final source = image_lib.Image(width: 1200, height: 1200);
-    final bytes = image_lib.encodeBmp(source);
-    expect(bytes.length, greaterThan(3 * 1024 * 1024));
+  test(
+    'oversized BMP is downscaled below 3 MiB without changing format',
+    () async {
+      final source = image_lib.Image(width: 1200, height: 1200);
+      final bytes = image_lib.encodeBmp(source);
+      expect(bytes.length, greaterThan(3 * 1024 * 1024));
 
-    final result = await FilePickerHelper.validate(
-      files: [(name: 'scan.bmp', bytes: bytes)],
-      existingNames: {},
-    );
+      final result = await FilePickerHelper.validate(
+        files: [(name: 'scan.bmp', bytes: bytes)],
+        existingNames: {},
+      );
 
-    expect(result.rejected, isEmpty);
-    expect(result.added, hasLength(1));
-    final fitted = result.added.single;
-    expect(fitted.name, 'scan.bmp');
-    expect(fitted.mimeType, 'image/bmp');
-    expect(fitted.bytes.length, lessThanOrEqualTo(3 * 1024 * 1024));
-    final decoded = image_lib.decodeBmp(fitted.bytes)!;
-    expect(decoded.width, lessThan(1200));
-    expect(decoded.width, decoded.height);
-  });
+      expect(result.rejected, isEmpty);
+      expect(result.added, hasLength(1));
+      final fitted = result.added.single;
+      expect(fitted.name, 'scan.bmp');
+      expect(fitted.mimeType, 'image/bmp');
+      expect(fitted.bytes.length, lessThanOrEqualTo(3 * 1024 * 1024));
+      final decoded = image_lib.decodeBmp(fitted.bytes)!;
+      expect(decoded.width, lessThan(1200));
+      expect(decoded.width, decoded.height);
+    },
+  );
 
   test('oversized WebP falls back to PNG', () async {
     final tinyWebp = base64Decode(

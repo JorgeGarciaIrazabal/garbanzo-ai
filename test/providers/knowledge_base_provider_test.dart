@@ -34,8 +34,9 @@ void main() {
 
   group('refresh', () {
     test('loads documents and clears loading', () async {
-      when(() => service.listDocuments())
-          .thenAnswer((_) async => [_doc('d1'), _doc('d2')]);
+      when(
+        () => service.listDocuments(),
+      ).thenAnswer((_) async => [_doc('d1'), _doc('d2')]);
 
       final p = provider();
       await p.refresh();
@@ -46,8 +47,9 @@ void main() {
     });
 
     test('surfaces a load failure as a user-facing error', () async {
-      when(() => service.listDocuments())
-          .thenThrow(Exception('API Error (500): boom'));
+      when(
+        () => service.listDocuments(),
+      ).thenThrow(Exception('API Error (500): boom'));
 
       final p = provider();
       await p.refresh();
@@ -58,14 +60,14 @@ void main() {
     });
 
     test('replaces the list and clears a prior error', () async {
-      when(() => service.listDocuments())
-          .thenThrow(Exception('API Error (500): boom'));
+      when(
+        () => service.listDocuments(),
+      ).thenThrow(Exception('API Error (500): boom'));
       final p = provider();
       await p.refresh();
       expect(p.error, isNotNull);
 
-      when(() => service.listDocuments())
-          .thenAnswer((_) async => [_doc('d1')]);
+      when(() => service.listDocuments()).thenAnswer((_) async => [_doc('d1')]);
       await p.refresh();
 
       expect(p.error, isNull);
@@ -75,9 +77,9 @@ void main() {
 
   group('hasProcessingDocuments', () {
     test('is true when any document is pending or processing', () async {
-      when(() => service.listDocuments()).thenAnswer(
-        (_) async => [_doc('d1'), _doc('d2', status: 'processing')],
-      );
+      when(
+        () => service.listDocuments(),
+      ).thenAnswer((_) async => [_doc('d1'), _doc('d2', status: 'processing')]);
 
       final p = provider();
       await p.refresh();
@@ -86,9 +88,9 @@ void main() {
     });
 
     test('is false when all documents are ready or failed', () async {
-      when(() => service.listDocuments()).thenAnswer(
-        (_) async => [_doc('d1'), _doc('d2', status: 'failed')],
-      );
+      when(
+        () => service.listDocuments(),
+      ).thenAnswer((_) async => [_doc('d1'), _doc('d2', status: 'failed')]);
 
       final p = provider();
       await p.refresh();
@@ -99,8 +101,9 @@ void main() {
 
   group('upload', () {
     test('prepends the uploaded document and returns it', () async {
-      when(() => service.listDocuments())
-          .thenAnswer((_) async => [_doc('old')]);
+      when(
+        () => service.listDocuments(),
+      ).thenAnswer((_) async => [_doc('old')]);
       when(
         () => service.uploadDocument(
           filename: any(named: 'filename'),
@@ -118,8 +121,9 @@ void main() {
     });
 
     test('keeps the list intact and returns null when upload fails', () async {
-      when(() => service.listDocuments())
-          .thenAnswer((_) async => [_doc('old')]);
+      when(
+        () => service.listDocuments(),
+      ).thenAnswer((_) async => [_doc('old')]);
       when(
         () => service.uploadDocument(
           filename: any(named: 'filename'),
@@ -140,8 +144,9 @@ void main() {
 
   group('delete', () {
     test('removes the document from the list', () async {
-      when(() => service.listDocuments())
-          .thenAnswer((_) async => [_doc('d1'), _doc('d2')]);
+      when(
+        () => service.listDocuments(),
+      ).thenAnswer((_) async => [_doc('d1'), _doc('d2')]);
       when(() => service.deleteDocument('d1')).thenAnswer((_) async {});
 
       final p = provider();
@@ -152,10 +157,10 @@ void main() {
     });
 
     test('keeps the document when the API call fails', () async {
-      when(() => service.listDocuments())
-          .thenAnswer((_) async => [_doc('d1')]);
-      when(() => service.deleteDocument('d1'))
-          .thenThrow(Exception('API Error (500): nope'));
+      when(() => service.listDocuments()).thenAnswer((_) async => [_doc('d1')]);
+      when(
+        () => service.deleteDocument('d1'),
+      ).thenThrow(Exception('API Error (500): nope'));
 
       final p = provider();
       await p.refresh();
@@ -168,10 +173,12 @@ void main() {
 
   group('refreshProcessing', () {
     test('updates a document whose status changed', () async {
-      when(() => service.listDocuments())
-          .thenAnswer((_) async => [_doc('d1', status: 'processing')]);
-      when(() => service.getDocument('d1'))
-          .thenAnswer((_) async => _doc('d1', status: 'ready'));
+      when(
+        () => service.listDocuments(),
+      ).thenAnswer((_) async => [_doc('d1', status: 'processing')]);
+      when(
+        () => service.getDocument('d1'),
+      ).thenAnswer((_) async => _doc('d1', status: 'ready'));
 
       final p = provider();
       await p.refresh();
@@ -182,8 +189,9 @@ void main() {
     });
 
     test('does nothing when no documents are processing', () async {
-      when(() => service.listDocuments())
-          .thenAnswer((_) async => [_doc('d1', status: 'ready')]);
+      when(
+        () => service.listDocuments(),
+      ).thenAnswer((_) async => [_doc('d1', status: 'ready')]);
 
       final p = provider();
       await p.refresh();
@@ -193,10 +201,12 @@ void main() {
     });
 
     test('ignores transient polling errors', () async {
-      when(() => service.listDocuments())
-          .thenAnswer((_) async => [_doc('d1', status: 'processing')]);
-      when(() => service.getDocument('d1'))
-          .thenThrow(Exception('API Error (503): unavailable'));
+      when(
+        () => service.listDocuments(),
+      ).thenAnswer((_) async => [_doc('d1', status: 'processing')]);
+      when(
+        () => service.getDocument('d1'),
+      ).thenThrow(Exception('API Error (503): unavailable'));
 
       final p = provider();
       await p.refresh();

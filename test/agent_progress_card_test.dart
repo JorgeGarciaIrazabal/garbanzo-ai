@@ -41,10 +41,7 @@ void main() {
     await tester.pumpWidget(
       wrap(
         AgentProgressCard(
-          progress: AgentProgress(
-            steps: [step()],
-            live: false,
-          ),
+          progress: AgentProgress(steps: [step()], live: false),
         ),
       ),
     );
@@ -72,10 +69,7 @@ void main() {
     await tester.pumpWidget(
       wrap(
         AgentProgressCard(
-          progress: AgentProgress(
-            steps: [step(done: false)],
-            live: false,
-          ),
+          progress: AgentProgress(steps: [step(done: false)], live: false),
         ),
       ),
     );
@@ -111,7 +105,11 @@ void main() {
         AgentProgressCard(
           progress: AgentProgress(
             steps: [
-              step(id: 'a', label: 'first.md', phase: AgentProgressPhase.reading),
+              step(
+                id: 'a',
+                label: 'first.md',
+                phase: AgentProgressPhase.reading,
+              ),
               step(id: 'b', label: 'second.md'),
               step(id: 'c', label: 'third.md'),
             ],

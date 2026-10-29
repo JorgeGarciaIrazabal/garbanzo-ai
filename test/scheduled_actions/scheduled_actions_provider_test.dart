@@ -33,9 +33,9 @@ void main() {
 
   group('load', () {
     test('populates actions on success', () async {
-      when(() => api.list()).thenAnswer(
-        (_) async => [_action(id: '1'), _action(id: '2')],
-      );
+      when(
+        () => api.list(),
+      ).thenAnswer((_) async => [_action(id: '1'), _action(id: '2')]);
 
       expect(provider.actions, isEmpty);
       await provider.load();
@@ -91,10 +91,7 @@ void main() {
         ),
       ).thenThrow(Exception('bad cron'));
 
-      final result = await provider.create(
-        prompt: 'x',
-        cronExpr: '0 9 * * *',
-      );
+      final result = await provider.create(prompt: 'x', cronExpr: '0 9 * * *');
       expect(result, isNull);
       expect(provider.error, contains('Failed to create scheduled action'));
       expect(provider.actions, isEmpty);
@@ -166,9 +163,9 @@ void main() {
 
   group('setActive', () {
     test('replaces the action in the list', () async {
-      when(() => api.list()).thenAnswer(
-        (_) async => [_action(id: '1', isActive: true)],
-      );
+      when(
+        () => api.list(),
+      ).thenAnswer((_) async => [_action(id: '1', isActive: true)]);
       when(
         () => api.update(
           any(),
@@ -189,9 +186,9 @@ void main() {
     });
 
     test('sets error and preserves list on failure', () async {
-      when(() => api.list()).thenAnswer(
-        (_) async => [_action(id: '1', isActive: true)],
-      );
+      when(
+        () => api.list(),
+      ).thenAnswer((_) async => [_action(id: '1', isActive: true)]);
       when(
         () => api.update(
           any(),
@@ -215,9 +212,9 @@ void main() {
 
   group('delete', () {
     test('removes the action from the list on success', () async {
-      when(() => api.list()).thenAnswer(
-        (_) async => [_action(id: '1'), _action(id: '2')],
-      );
+      when(
+        () => api.list(),
+      ).thenAnswer((_) async => [_action(id: '1'), _action(id: '2')]);
       when(() => api.delete('1')).thenAnswer((_) async => Future.value());
 
       await provider.load();

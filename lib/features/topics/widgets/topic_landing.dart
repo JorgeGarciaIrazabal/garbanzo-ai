@@ -88,12 +88,8 @@ class _TopicLandingState extends State<TopicLanding> {
 
     // Styles are the heart of the seed; without the provider there is nothing
     // to do. Model selection is optional in isolated widget tests.
-    final StyleProvider styles;
-    try {
-      styles = context.read<StyleProvider>();
-    } catch (_) {
-      return;
-    }
+    final styles = context.read<StyleProvider?>();
+    if (styles == null) return;
     bool current() =>
         mounted &&
         _topics?.newTopicEpoch == epoch &&
@@ -105,12 +101,8 @@ class _TopicLandingState extends State<TopicLanding> {
     }
     final seededRevision = styles.pendingRevision;
 
-    final ModelProvider models;
-    try {
-      models = context.read<ModelProvider>();
-    } catch (_) {
-      return;
-    }
+    final models = context.read<ModelProvider?>();
+    if (models == null) return;
     await models.ensureLoaded();
     if (!current() || styles.pendingRevision != seededRevision) return;
     _applySeedModel(models, seed);
@@ -618,7 +610,7 @@ class _TopicSearchBar extends StatelessWidget {
         onChanged: onChanged,
         style: theme.textTheme.bodyMedium,
         decoration: InputDecoration(
-          hintText: 'Search topics...',
+          hintText: _l10n(context).searchTopicsHint,
           hintStyle: theme.textTheme.bodyMedium?.copyWith(
             color: cs.onSurfaceVariant.withValues(alpha: 0.7),
           ),

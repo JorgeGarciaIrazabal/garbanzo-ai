@@ -20,7 +20,7 @@ effort explicitly:
 just ai --model gpt-5.6-terra --effort medium "Implement garbanzo-abcd"
 ```
 
-The default remains `gpt-6-astra` with `medium` effort. `just ai` rejects model
+The default is `gpt-6.1-sol` with `medium` effort. `just ai` rejects model
 or effort choices absent from the cached catalog; run `just ai-models` to refresh it.
 
 Inside an existing Codex session, speak naturally. You do not need to translate
@@ -242,6 +242,31 @@ just ai-capacity
 lane stops using a provider at 80% allowance usage and pauses on missing, stale,
 or invalid readings. Overnight work is limited to two explicitly safe, small
 tasks between midnight and 06:00 America/New_York; it never deploys.
+
+## Review architecture every two weeks
+
+Use the repository's [architecture-review skill](../.agents/skills/architecture-review/SKILL.md)
+every two weeks to identify changes that make the code easier to maintain and
+extend. In an existing session, ask:
+
+```text
+Use $architecture-review for our two-week architecture and maintainability review.
+Review recent changes and rotate into one or two feature flows. Report the
+highest-value simplifications with code evidence, effort, risk and acceptance
+criteria, and compare with the previous review.
+```
+
+The first review establishes a baseline. Later reviews revisit previous findings,
+inspect changes since that baseline and rotate through less recently reviewed
+areas. File size and churn help choose where to look; recommendations must show
+a concrete maintenance problem and a useful improvement.
+
+Reports live in `.ai/local/architecture-reviews/` and record their exact source
+revision, included local edits, reviewed areas and next suggested review date.
+Ask to record worthwhile follow-ups in Beads, then select small refactors using
+the usual priorities and verification gates. A review request produces findings;
+implementation follows when requested. This is a suggested cadence; automatic
+execution is not configured by adding the skill.
 
 ## A practical weekly routine
 

@@ -18,26 +18,26 @@ class _MockRoomService extends Mock implements RoomService {}
 final _now = DateTime.utc(2026, 7, 11);
 
 Room _room() => Room(
-      id: 'r1',
-      name: 'Room One',
-      ownerId: 'owner@x.com',
-      isPublic: false,
-      maxAgentTurnDepth: 3,
-      mode: 'chat',
-      createdAt: _now,
-      updatedAt: _now,
-      memberCount: 1,
-      agentCount: 1,
-      members: [
-        RoomMember(
-          roomId: 'r1',
-          userId: 'owner@x.com',
-          role: 'owner',
-          joinedAt: _now,
-        ),
-      ],
-      agents: const [],
-    );
+  id: 'r1',
+  name: 'Room One',
+  ownerId: 'owner@x.com',
+  isPublic: false,
+  maxAgentTurnDepth: 3,
+  mode: 'chat',
+  createdAt: _now,
+  updatedAt: _now,
+  memberCount: 1,
+  agentCount: 1,
+  members: [
+    RoomMember(
+      roomId: 'r1',
+      userId: 'owner@x.com',
+      role: 'owner',
+      joinedAt: _now,
+    ),
+  ],
+  agents: const [],
+);
 
 /// Wires a provider to a mocked REST service and a single injected fake
 /// channel. Returns both so the test can drive frames and inspect state.
@@ -48,8 +48,9 @@ Room _room() => Room(
 }) {
   final service = _MockRoomService();
   when(() => service.getRoom(any())).thenAnswer((_) async => _room());
-  when(() => service.listMessages(any()))
-      .thenAnswer((_) async => messages?.call() ?? const <RoomMessage>[]);
+  when(
+    () => service.listMessages(any()),
+  ).thenAnswer((_) async => messages?.call() ?? const <RoomMessage>[]);
 
   final provider = RoomProvider(
     service: service,
@@ -65,34 +66,36 @@ Room _room() => Room(
 }
 
 void main() {
-  test('a transport failure opening a room surfaces a friendly message',
-      () async {
-    final service = _MockRoomService();
-    // The exact DioException shape behind the "Connection closed before full
-    // header was received" user reports: connection-level, no HTTP response.
-    when(() => service.getRoom(any())).thenThrow(
-      DioException.connectionError(
-        requestOptions: RequestOptions(path: '/api/v1/rooms/r1'),
-        reason: 'Connection closed before full header was received',
-      ),
-    );
+  test(
+    'a transport failure opening a room surfaces a friendly message',
+    () async {
+      final service = _MockRoomService();
+      // The exact DioException shape behind the "Connection closed before full
+      // header was received" user reports: connection-level, no HTTP response.
+      when(() => service.getRoom(any())).thenThrow(
+        DioException.connectionError(
+          requestOptions: RequestOptions(path: '/api/v1/rooms/r1'),
+          reason: 'Connection closed before full header was received',
+        ),
+      );
 
-    final provider = RoomProvider(
-      service: service,
-      socketFactory: (id) => RoomSocketService(
-        id,
-        channelFactory: (_) => throw StateError('never reached'),
-        tokenProvider: () async => 'test-token',
-        uriBuilder: (_) => Uri.parse('ws://test/$id'),
-      ),
-    );
+      final provider = RoomProvider(
+        service: service,
+        socketFactory: (id) => RoomSocketService(
+          id,
+          channelFactory: (_) => throw StateError('never reached'),
+          tokenProvider: () async => 'test-token',
+          uriBuilder: (_) => Uri.parse('ws://test/$id'),
+        ),
+      );
 
-    await provider.openRoom('r1');
+      await provider.openRoom('r1');
 
-    expect(provider.error, "Can't reach the server. Check your connection.");
-    expect(provider.currentRoom, isNull);
-    provider.dispose();
-  });
+      expect(provider.error, "Can't reach the server. Check your connection.");
+      expect(provider.currentRoom, isNull);
+      provider.dispose();
+    },
+  );
 
   test('sendAudioNote upserts the HTTP response message', () async {
     final channel = FakeRoomChannel();
@@ -126,72 +129,78 @@ void main() {
   });
 
   group('RoomProvider streaming channel', () {
-    test('stream_start adds an empty placeholder and claims the live channel',
-        () async {
-      final channel = FakeRoomChannel();
-      final wired = _wire(channel);
-      final provider = wired.provider;
+    test(
+      'stream_start adds an empty placeholder and claims the live channel',
+      () async {
+        final channel = FakeRoomChannel();
+        final wired = _wire(channel);
+        final provider = wired.provider;
 
-      await provider.openRoom('r1');
-      await Future<void>.delayed(const Duration(milliseconds: 20));
-      expect(provider.connectionState, RoomConnectionState.connected);
+        await provider.openRoom('r1');
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        expect(provider.connectionState, RoomConnectionState.connected);
 
-      channel.emit(jsonEncode({
-        'type': 'stream_start',
-        'message_id': 'm1',
-        'agent_id': 'a1',
-        'agent_name': 'Botty',
-      }));
-      await Future<void>.delayed(Duration.zero);
+        channel.emit(
+          jsonEncode({
+            'type': 'stream_start',
+            'message_id': 'm1',
+            'agent_id': 'a1',
+            'agent_name': 'Botty',
+          }),
+        );
+        await Future<void>.delayed(Duration.zero);
 
-      expect(provider.streamingMessageId, 'm1');
-      expect(provider.messages.where((m) => m.id == 'm1'), hasLength(1));
-      expect(provider.messages.last.content, isEmpty);
+        expect(provider.streamingMessageId, 'm1');
+        expect(provider.messages.where((m) => m.id == 'm1'), hasLength(1));
+        expect(provider.messages.last.content, isEmpty);
 
-      provider.dispose();
-    });
+        provider.dispose();
+      },
+    );
 
-    test('chunks accumulate through the throttled notifier, not the list',
-        () async {
-      final channel = FakeRoomChannel();
-      final provider = _wire(channel).provider;
+    test(
+      'chunks accumulate through the throttled notifier, not the list',
+      () async {
+        final channel = FakeRoomChannel();
+        final provider = _wire(channel).provider;
 
-      await provider.openRoom('r1');
-      await Future<void>.delayed(const Duration(milliseconds: 20));
+        await provider.openRoom('r1');
+        await Future<void>.delayed(const Duration(milliseconds: 20));
 
-      channel.emit(jsonEncode({
-        'type': 'stream_start',
-        'message_id': 'm1',
-        'agent_id': 'a1',
-        'agent_name': 'Botty',
-      }));
-      await Future<void>.delayed(Duration.zero);
+        channel.emit(
+          jsonEncode({
+            'type': 'stream_start',
+            'message_id': 'm1',
+            'agent_id': 'a1',
+            'agent_name': 'Botty',
+          }),
+        );
+        await Future<void>.delayed(Duration.zero);
 
-      var pushes = 0;
-      provider.streamingMessage.addListener(() => pushes++);
+        var pushes = 0;
+        provider.streamingMessage.addListener(() => pushes++);
 
-      // 20 chunks back-to-back — far faster than the 80ms push interval.
-      for (var i = 0; i < 20; i++) {
-        channel.emit(jsonEncode({
-          'type': 'chunk',
-          'message_id': 'm1',
-          'content': 'x',
-        }));
-      }
-      await Future<void>.delayed(const Duration(milliseconds: 300));
+        // 20 chunks back-to-back — far faster than the 80ms push interval.
+        for (var i = 0; i < 20; i++) {
+          channel.emit(
+            jsonEncode({'type': 'chunk', 'message_id': 'm1', 'content': 'x'}),
+          );
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 300));
 
-      // Coalesced into a handful of pushes, but nothing was dropped.
-      expect(pushes, lessThan(20));
-      expect(provider.streamingMessage.value?.content, 'x' * 20);
-      // The list copy still holds the empty placeholder — the live content
-      // lives on the notifier until a structural event syncs it.
-      expect(
-        provider.messages.firstWhere((m) => m.id == 'm1').content,
-        isEmpty,
-      );
+        // Coalesced into a handful of pushes, but nothing was dropped.
+        expect(pushes, lessThan(20));
+        expect(provider.streamingMessage.value?.content, 'x' * 20);
+        // The list copy still holds the empty placeholder — the live content
+        // lives on the notifier until a structural event syncs it.
+        expect(
+          provider.messages.firstWhere((m) => m.id == 'm1').content,
+          isEmpty,
+        );
 
-      provider.dispose();
-    });
+        provider.dispose();
+      },
+    );
 
     test('thinking chunks accumulate into meta (incl. legacy alias)', () async {
       final channel = FakeRoomChannel();
@@ -200,24 +209,26 @@ void main() {
       await provider.openRoom('r1');
       await Future<void>.delayed(const Duration(milliseconds: 20));
 
-      channel.emit(jsonEncode({
-        'type': 'stream_start',
-        'message_id': 'm1',
-        'agent_id': 'a1',
-      }));
+      channel.emit(
+        jsonEncode({
+          'type': 'stream_start',
+          'message_id': 'm1',
+          'agent_id': 'a1',
+        }),
+      );
       await Future<void>.delayed(Duration.zero);
 
-      channel.emit(jsonEncode({
-        'type': 'thinking',
-        'message_id': 'm1',
-        'content': 'hmm ',
-      }));
+      channel.emit(
+        jsonEncode({'type': 'thinking', 'message_id': 'm1', 'content': 'hmm '}),
+      );
       // Legacy pre-unification name still handled.
-      channel.emit(jsonEncode({
-        'type': 'thinking_chunk',
-        'message_id': 'm1',
-        'content': 'ok',
-      }));
+      channel.emit(
+        jsonEncode({
+          'type': 'thinking_chunk',
+          'message_id': 'm1',
+          'content': 'ok',
+        }),
+      );
       await Future<void>.delayed(const Duration(milliseconds: 200));
 
       expect(provider.streamingMessage.value?.meta?['thinking'], 'hmm ok');
@@ -225,115 +236,125 @@ void main() {
       provider.dispose();
     });
 
-    test('the canonical message finalizes and releases the live channel',
-        () async {
-      final channel = FakeRoomChannel();
-      final provider = _wire(channel).provider;
+    test(
+      'the canonical message finalizes and releases the live channel',
+      () async {
+        final channel = FakeRoomChannel();
+        final provider = _wire(channel).provider;
 
-      await provider.openRoom('r1');
-      await Future<void>.delayed(const Duration(milliseconds: 20));
+        await provider.openRoom('r1');
+        await Future<void>.delayed(const Duration(milliseconds: 20));
 
-      channel.emit(jsonEncode({
-        'type': 'stream_start',
-        'message_id': 'm1',
-        'agent_id': 'a1',
-      }));
-      channel.emit(jsonEncode({
-        'type': 'chunk',
-        'message_id': 'm1',
-        'content': 'hello',
-      }));
-      await Future<void>.delayed(const Duration(milliseconds: 150));
-      expect(provider.streamingMessageId, 'm1');
+        channel.emit(
+          jsonEncode({
+            'type': 'stream_start',
+            'message_id': 'm1',
+            'agent_id': 'a1',
+          }),
+        );
+        channel.emit(
+          jsonEncode({'type': 'chunk', 'message_id': 'm1', 'content': 'hello'}),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 150));
+        expect(provider.streamingMessageId, 'm1');
 
-      channel.emit(jsonEncode({
-        'type': 'message',
-        'message': {
-          'id': 'm1',
-          'room_id': 'r1',
-          'role': 'assistant',
-          'sender_agent_id': 'a1',
-          'content': 'hello',
-          'created_at': _now.toIso8601String(),
-        },
-      }));
-      await Future<void>.delayed(Duration.zero);
+        channel.emit(
+          jsonEncode({
+            'type': 'message',
+            'message': {
+              'id': 'm1',
+              'room_id': 'r1',
+              'role': 'assistant',
+              'sender_agent_id': 'a1',
+              'content': 'hello',
+              'created_at': _now.toIso8601String(),
+            },
+          }),
+        );
+        await Future<void>.delayed(Duration.zero);
 
-      expect(provider.streamingMessageId, isNull);
-      expect(provider.streamingMessage.value, isNull);
-      expect(
-        provider.messages.firstWhere((m) => m.id == 'm1').content,
-        'hello',
-      );
+        expect(provider.streamingMessageId, isNull);
+        expect(provider.streamingMessage.value, isNull);
+        expect(
+          provider.messages.firstWhere((m) => m.id == 'm1').content,
+          'hello',
+        );
 
-      provider.dispose();
-    });
+        provider.dispose();
+      },
+    );
 
-    test('done without a canonical message drops an empty placeholder',
-        () async {
-      final channel = FakeRoomChannel();
-      final provider = _wire(channel).provider;
+    test(
+      'done without a canonical message drops an empty placeholder',
+      () async {
+        final channel = FakeRoomChannel();
+        final provider = _wire(channel).provider;
 
-      await provider.openRoom('r1');
-      await Future<void>.delayed(const Duration(milliseconds: 20));
+        await provider.openRoom('r1');
+        await Future<void>.delayed(const Duration(milliseconds: 20));
 
-      channel.emit(jsonEncode({
-        'type': 'stream_start',
-        'message_id': 'm1',
-        'agent_id': 'a1',
-      }));
-      await Future<void>.delayed(Duration.zero);
-      expect(provider.messages.where((m) => m.id == 'm1'), hasLength(1));
+        channel.emit(
+          jsonEncode({
+            'type': 'stream_start',
+            'message_id': 'm1',
+            'agent_id': 'a1',
+          }),
+        );
+        await Future<void>.delayed(Duration.zero);
+        expect(provider.messages.where((m) => m.id == 'm1'), hasLength(1));
 
-      // The turn failed server-side: no chunks, no canonical message.
-      channel.emit(jsonEncode({
-        'type': 'done',
-        'message_id': 'm1',
-        'agent_id': 'a1',
-      }));
-      await Future<void>.delayed(Duration.zero);
+        // The turn failed server-side: no chunks, no canonical message.
+        channel.emit(
+          jsonEncode({'type': 'done', 'message_id': 'm1', 'agent_id': 'a1'}),
+        );
+        await Future<void>.delayed(Duration.zero);
 
-      expect(provider.streamingMessageId, isNull);
-      expect(provider.messages.where((m) => m.id == 'm1'), isEmpty);
+        expect(provider.streamingMessageId, isNull);
+        expect(provider.messages.where((m) => m.id == 'm1'), isEmpty);
 
-      provider.dispose();
-    });
+        provider.dispose();
+      },
+    );
 
-    test('done without a canonical message keeps partial streamed content',
-        () async {
-      final channel = FakeRoomChannel();
-      final provider = _wire(channel).provider;
+    test(
+      'done without a canonical message keeps partial streamed content',
+      () async {
+        final channel = FakeRoomChannel();
+        final provider = _wire(channel).provider;
 
-      await provider.openRoom('r1');
-      await Future<void>.delayed(const Duration(milliseconds: 20));
+        await provider.openRoom('r1');
+        await Future<void>.delayed(const Duration(milliseconds: 20));
 
-      channel.emit(jsonEncode({
-        'type': 'stream_start',
-        'message_id': 'm1',
-        'agent_id': 'a1',
-      }));
-      channel.emit(jsonEncode({
-        'type': 'chunk',
-        'message_id': 'm1',
-        'content': 'partial',
-      }));
-      await Future<void>.delayed(const Duration(milliseconds: 150));
+        channel.emit(
+          jsonEncode({
+            'type': 'stream_start',
+            'message_id': 'm1',
+            'agent_id': 'a1',
+          }),
+        );
+        channel.emit(
+          jsonEncode({
+            'type': 'chunk',
+            'message_id': 'm1',
+            'content': 'partial',
+          }),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 150));
 
-      channel.emit(jsonEncode({
-        'type': 'done',
-        'message_id': 'm1',
-        'agent_id': 'a1',
-      }));
-      await Future<void>.delayed(Duration.zero);
+        channel.emit(
+          jsonEncode({'type': 'done', 'message_id': 'm1', 'agent_id': 'a1'}),
+        );
+        await Future<void>.delayed(Duration.zero);
 
-      expect(provider.streamingMessageId, isNull);
-      expect(
-        provider.messages.firstWhere((m) => m.id == 'm1').content,
-        'partial',
-      );
+        expect(provider.streamingMessageId, isNull);
+        expect(
+          provider.messages.firstWhere((m) => m.id == 'm1').content,
+          'partial',
+        );
 
-      provider.dispose();
-    });
+        provider.dispose();
+      },
+    );
   });
 
   group('RoomProvider reconnect', () {
@@ -385,8 +406,9 @@ void main() {
         final channels = <FakeRoomChannel>[];
         final service = _MockRoomService();
         when(() => service.getRoom(any())).thenAnswer((_) async => _room());
-        when(() => service.listMessages(any()))
-            .thenAnswer((_) async => const <RoomMessage>[]);
+        when(
+          () => service.listMessages(any()),
+        ).thenAnswer((_) async => const <RoomMessage>[]);
         final provider = RoomProvider(
           service: service,
           recoveryNoticeDuration: const Duration(seconds: 2),
@@ -432,11 +454,13 @@ void main() {
       await provider.openRoom('r1');
       await Future<void>.delayed(const Duration(milliseconds: 20));
 
-      channel.emit(jsonEncode({
-        'type': 'typing',
-        'user_id': 'alice@x.com',
-        'typing': true,
-      }));
+      channel.emit(
+        jsonEncode({
+          'type': 'typing',
+          'user_id': 'alice@x.com',
+          'typing': true,
+        }),
+      );
       await Future<void>.delayed(Duration.zero);
       expect(provider.typingUsers, contains('alice@x.com'));
 
@@ -454,43 +478,47 @@ void main() {
       await provider.openRoom('r1');
       await Future<void>.delayed(const Duration(milliseconds: 20));
 
-      channel.emit(jsonEncode(
-          {'type': 'typing', 'user_id': 'bob@x.com', 'typing': true}));
+      channel.emit(
+        jsonEncode({'type': 'typing', 'user_id': 'bob@x.com', 'typing': true}),
+      );
       await Future<void>.delayed(Duration.zero);
       expect(provider.typingUsers, contains('bob@x.com'));
 
-      channel.emit(jsonEncode(
-          {'type': 'typing', 'user_id': 'bob@x.com', 'typing': false}));
+      channel.emit(
+        jsonEncode({'type': 'typing', 'user_id': 'bob@x.com', 'typing': false}),
+      );
       await Future<void>.delayed(Duration.zero);
       expect(provider.typingUsers, isEmpty);
 
       provider.dispose();
     });
 
-    test('composer changes send typing:true once per interval, false on clear',
-        () async {
-      final channel = FakeRoomChannel();
-      final provider = _wire(channel).provider;
+    test(
+      'composer changes send typing:true once per interval, false on clear',
+      () async {
+        final channel = FakeRoomChannel();
+        final provider = _wire(channel).provider;
 
-      await provider.openRoom('r1');
-      await Future<void>.delayed(const Duration(milliseconds: 20));
+        await provider.openRoom('r1');
+        await Future<void>.delayed(const Duration(milliseconds: 20));
 
-      bool isTyping(String frame, bool value) {
-        final decoded = jsonDecode(frame) as Map<String, dynamic>;
-        return decoded['type'] == 'typing' && decoded['typing'] == value;
-      }
+        bool isTyping(String frame, bool value) {
+          final decoded = jsonDecode(frame) as Map<String, dynamic>;
+          return decoded['type'] == 'typing' && decoded['typing'] == value;
+        }
 
-      provider.handleComposerChanged('h');
-      provider.handleComposerChanged('he');
-      provider.handleComposerChanged('hel');
-      // Debounced: only one typing:true within the send interval.
-      expect(channel.sent.where((f) => isTyping(f, true)), hasLength(1));
+        provider.handleComposerChanged('h');
+        provider.handleComposerChanged('he');
+        provider.handleComposerChanged('hel');
+        // Debounced: only one typing:true within the send interval.
+        expect(channel.sent.where((f) => isTyping(f, true)), hasLength(1));
 
-      provider.handleComposerChanged('');
-      // Emptying the field flips it off.
-      expect(channel.sent.where((f) => isTyping(f, false)), hasLength(1));
+        provider.handleComposerChanged('');
+        // Emptying the field flips it off.
+        expect(channel.sent.where((f) => isTyping(f, false)), hasLength(1));
 
-      provider.dispose();
-    });
+        provider.dispose();
+      },
+    );
   });
 }

@@ -52,7 +52,8 @@ void main() {
   group('isGatewayFailure', () {
     test('detects the ngrok ERR_NGROK_3004 503 from user reports', () {
       // Body from the real report e8b8cc0f: plain text, not FastAPI JSON.
-      const body = 'ngrok gateway error\r\n'
+      const body =
+          'ngrok gateway error\r\n'
           'The server returned an invalid or incomplete HTTP response.\r\n'
           '\r\n'
           'ERR_NGROK_3004';
@@ -60,8 +61,10 @@ void main() {
     });
 
     test('detects generic nginx/Cloudflare gateway pages', () {
-      expect(isGatewayFailure(502, body: '<html>502 Bad Gateway</html>'),
-          isTrue);
+      expect(
+        isGatewayFailure(502, body: '<html>502 Bad Gateway</html>'),
+        isTrue,
+      );
       expect(isGatewayFailure(503, body: 'cloudflare error page'), isTrue);
       expect(isGatewayFailure(504, body: 'Gateway Timeout'), isTrue);
     });
@@ -145,8 +148,11 @@ void main() {
   });
 
   group('ApiClient.shouldReportResponse', () {
-    Response buildResponse(int status, Object? data,
-        {ResponseType responseType = ResponseType.json}) {
+    Response buildResponse(
+      int status,
+      Object? data, {
+      ResponseType responseType = ResponseType.json,
+    }) {
       final options = RequestOptions(
         path: '/api/v1/things',
         responseType: responseType,
@@ -165,9 +171,7 @@ void main() {
 
     test('reports a JSON 500 from the backend', () {
       expect(
-        ApiClient.shouldReportResponse(
-          buildResponse(500, {'detail': 'boom'}),
-        ),
+        ApiClient.shouldReportResponse(buildResponse(500, {'detail': 'boom'})),
         isTrue,
       );
     });
@@ -179,7 +183,9 @@ void main() {
     test('does NOT report stream responses (callers handle them)', () {
       expect(
         ApiClient.shouldReportResponse(
-          buildResponse(500, {'detail': 'boom'}, responseType: ResponseType.stream),
+          buildResponse(500, {
+            'detail': 'boom',
+          }, responseType: ResponseType.stream),
         ),
         isFalse,
       );

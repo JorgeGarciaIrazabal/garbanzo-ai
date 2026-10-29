@@ -96,54 +96,62 @@ Future<void> _pump(
     tester.view.resetDevicePixelRatio();
   });
   final settings = SettingsProvider();
-  await tester.pumpWidget(MultiProvider(
-    providers: [
-      ChangeNotifierProvider<ReadAloudController>.value(value: listening),
-      ChangeNotifierProvider<SettingsProvider>.value(value: settings),
-    ],
-    child: MaterialApp(
-      locale: const Locale('es'),
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: Scaffold(
-        body: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (messageId == null)
-                const SpeakButton(
-                  content: 'Test message.',
-                  messageId: 'message-1',
-                )
-              else
-                ValueListenableBuilder<String>(
-                  valueListenable: messageId,
-                  builder: (context, id, _) => SpeakButton(
+  await tester.pumpWidget(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider<ReadAloudController>.value(value: listening),
+        ChangeNotifierProvider<SettingsProvider>.value(value: settings),
+      ],
+      child: MaterialApp(
+        locale: const Locale('es'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (messageId == null)
+                  const SpeakButton(
                     content: 'Test message.',
-                    messageId: id,
+                    messageId: 'message-1',
+                  )
+                else
+                  ValueListenableBuilder<String>(
+                    valueListenable: messageId,
+                    builder: (context, id, _) =>
+                        SpeakButton(content: 'Test message.', messageId: id),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
     ),
-  ));
+  );
   await tester.pump();
 }
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('speaking button pauses, resumes, cycles speed and offers Stop', (tester) async {
+  testWidgets('speaking button pauses, resumes, cycles speed and offers Stop', (
+    tester,
+  ) async {
     final listening = _Listening();
     await _pump(tester, listening);
     expect(tester.takeException(), isNull);
     expect(find.byKey(const ValueKey('read_aloud_speed')), findsOneWidget);
     expect(find.byKey(const ValueKey('read_aloud_more')), findsOneWidget);
     expect(find.byKey(const ValueKey('read_aloud_stop')), findsNothing);
-    expect(tester.getSize(find.byKey(const ValueKey('read_aloud_speed'))).width, greaterThanOrEqualTo(48));
-    expect(tester.getSize(find.byKey(const ValueKey('read_aloud_more'))).width, greaterThanOrEqualTo(48));
+    expect(
+      tester.getSize(find.byKey(const ValueKey('read_aloud_speed'))).width,
+      greaterThanOrEqualTo(48),
+    );
+    expect(
+      tester.getSize(find.byKey(const ValueKey('read_aloud_more'))).width,
+      greaterThanOrEqualTo(48),
+    );
 
     await tester.tap(find.byKey(const ValueKey('speak_button')));
     await tester.pump();
@@ -168,7 +176,9 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('an old message menu cannot stop a newer session', (tester) async {
+  testWidgets('an old message menu cannot stop a newer session', (
+    tester,
+  ) async {
     final listening = _Listening();
     final messageId = ValueNotifier('message-1');
     await _pump(tester, listening, messageId: messageId);
@@ -182,7 +192,9 @@ void main() {
     expect(listening.stopCalls, 0);
   });
 
-  testWidgets('failed paragraph offers retry without narrow-screen overflow', (tester) async {
+  testWidgets('failed paragraph offers retry without narrow-screen overflow', (
+    tester,
+  ) async {
     final listening = _Listening()..fail();
     await _pump(tester, listening);
     expect(find.byKey(const ValueKey('read_aloud_retry')), findsNothing);

@@ -6,15 +6,16 @@ import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_timezone/flutter_timezone.dart';
 
 import 'package:garbanzo_ai/core/api_client.dart';
+import 'package:garbanzo_ai/core/api_error.dart';
 
 /// Sentinel marking "argument not provided" in optional-null contexts.
 const Object _unset = Object();
 
 class AuthService {
-  AuthService._();
-  static final AuthService instance = AuthService._();
+  AuthService({ApiClient? api}) : _client = api ?? ApiClient.instance;
+  static final AuthService instance = AuthService();
 
-  final _client = ApiClient.instance;
+  final ApiClient _client;
 
   UserInfo? _cachedUser;
 
@@ -43,10 +44,7 @@ class AuthService {
         _cachedUser = UserInfo.fromJson(res.data as Map<String, dynamic>);
         return AuthResult.success();
       }
-      final data = res.data;
-      final detail = data is Map<String, dynamic>
-          ? data['detail'] as String?
-          : null;
+      final detail = apiErrorDetail(res.data);
       return AuthResult.failure(detail ?? 'Failed to update profile');
     } on DioException catch (e) {
       return AuthResult.failure(_dioErrorMessage(e));
@@ -72,10 +70,7 @@ class AuthService {
       if (res.statusCode == 401) {
         return AuthResult.failure('Current password is incorrect');
       }
-      final data = res.data;
-      final detail = data is Map<String, dynamic>
-          ? data['detail'] as String?
-          : null;
+      final detail = apiErrorDetail(res.data);
       return AuthResult.failure(detail ?? 'Failed to change password');
     } on DioException catch (e) {
       return AuthResult.failure(_dioErrorMessage(e));

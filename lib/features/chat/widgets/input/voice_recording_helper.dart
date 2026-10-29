@@ -107,7 +107,9 @@ class VoiceRecordingHelper {
       // Clean up temp file
       try {
         await file.delete();
-      } catch (_) {}
+      } catch (_) {
+        // Best-effort temp file cleanup after reading bytes.
+      }
     }
   }
 

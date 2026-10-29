@@ -24,19 +24,22 @@ void main() {
       expect(vad.isSpeaking, isTrue);
     });
 
-    test('speechEnd after the level falls back to the floor for the window', () {
-      final vad = TalkVad(
-        silenceDuration: const Duration(milliseconds: 900),
-        minSpeechDuration: const Duration(milliseconds: 300),
-      );
-      calibrate(vad); // establish floor ~-50
-      expect(vad.update(-20, at(100)), VadEvent.speechStart);
-      expect(vad.update(-20, at(500)), VadEvent.none); // still talking
-      expect(vad.update(-50, at(600)), VadEvent.none); // silence begins
-      expect(vad.update(-50, at(1000)), VadEvent.none); // <900ms silent
-      expect(vad.update(-50, at(1550)), VadEvent.speechEnd); // >=900ms silent
-      expect(vad.isSpeaking, isFalse);
-    });
+    test(
+      'speechEnd after the level falls back to the floor for the window',
+      () {
+        final vad = TalkVad(
+          silenceDuration: const Duration(milliseconds: 900),
+          minSpeechDuration: const Duration(milliseconds: 300),
+        );
+        calibrate(vad); // establish floor ~-50
+        expect(vad.update(-20, at(100)), VadEvent.speechStart);
+        expect(vad.update(-20, at(500)), VadEvent.none); // still talking
+        expect(vad.update(-50, at(600)), VadEvent.none); // silence begins
+        expect(vad.update(-50, at(1000)), VadEvent.none); // <900ms silent
+        expect(vad.update(-50, at(1550)), VadEvent.speechEnd); // >=900ms silent
+        expect(vad.isSpeaking, isFalse);
+      },
+    );
 
     test('adapts to a noisy room: quiet-ish sounds no longer trigger', () {
       final vad = TalkVad();
@@ -68,7 +71,10 @@ void main() {
       calibrate(vad);
       expect(vad.update(-20, at(100)), VadEvent.speechStart);
       expect(vad.update(-50, at(150)), VadEvent.none);
-      expect(vad.update(-50, at(360)), VadEvent.none); // silent 210ms, spoke 260
+      expect(
+        vad.update(-50, at(360)),
+        VadEvent.none,
+      ); // silent 210ms, spoke 260
     });
 
     test('forceSpeaking enters speech and ends after normal silence', () {

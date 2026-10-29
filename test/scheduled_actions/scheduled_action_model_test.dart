@@ -4,13 +4,13 @@ import 'package:garbanzo_ai/features/scheduled_actions/models/scheduled_action.d
 void main() {
   group('ScheduledAction.fromJson', () {
     Map<String, dynamic> base() => {
-          'id': 'a1',
-          'user_id': 'u@example.com',
-          'prompt': 'Hi',
-          'is_active': true,
-          'created_at': '2026-04-21T00:00:00.000Z',
-          'updated_at': '2026-04-21T01:00:00.000Z',
-        };
+      'id': 'a1',
+      'user_id': 'u@example.com',
+      'prompt': 'Hi',
+      'is_active': true,
+      'created_at': '2026-04-21T00:00:00.000Z',
+      'updated_at': '2026-04-21T01:00:00.000Z',
+    };
 
     test('parses a minimal recurring action', () {
       final action = ScheduledAction.fromJson({

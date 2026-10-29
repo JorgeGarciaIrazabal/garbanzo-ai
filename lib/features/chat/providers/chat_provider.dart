@@ -3,31 +3,34 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
-import 'package:garbanzo_ai/core/log.dart';
 import 'package:garbanzo_ai/core/error_reporter.dart';
-import 'package:garbanzo_ai/features/microapps/providers/microapp_panel_controller.dart';
+import 'package:garbanzo_ai/core/log.dart';
 import 'package:garbanzo_ai/features/chat/models/agent_liveness.dart';
 import 'package:garbanzo_ai/features/chat/models/chat_attachment.dart';
 import 'package:garbanzo_ai/features/chat/models/chat_message.dart';
 import 'package:garbanzo_ai/features/chat/models/conversation.dart';
 import 'package:garbanzo_ai/features/chat/models/thinking_level.dart';
-import 'package:garbanzo_ai/features/chat/providers/conversation_list_controller.dart';
+import 'package:garbanzo_ai/features/chat/providers/agent_liveness_controller.dart';
+import 'package:garbanzo_ai/features/chat/providers/chat_message_list_helpers.dart';
+import 'package:garbanzo_ai/features/chat/providers/chat_response_recovery.dart';
 import 'package:garbanzo_ai/features/chat/providers/chat_stream_controller.dart';
 import 'package:garbanzo_ai/features/chat/providers/client_folder_controller.dart';
+import 'package:garbanzo_ai/features/chat/providers/conversation_list_controller.dart';
 import 'package:garbanzo_ai/features/chat/services/chat_service.dart';
 import 'package:garbanzo_ai/features/chat/services/folder_reader.dart';
-import 'package:garbanzo_ai/features/topics/models/topic_node.dart';
+import 'package:garbanzo_ai/features/microapps/providers/microapp_panel_controller.dart';
 import 'package:garbanzo_ai/features/topics/models/topic_switch.dart';
 
-const _uuid = Uuid();
+export 'package:garbanzo_ai/features/chat/providers/chat_response_recovery.dart'
+    show ChatResponseRecoveryState;
 
-enum ChatResponseRecoveryState { waitingForConnection, syncing }
+const _uuid = Uuid();
 
 /// Provider for managing chat conversation and message state.
 ///
 /// Model selection is handled by [ModelProvider]. The currently-selected
 /// model id is pushed in via [selectedModelId] (wired through a
-/// `ChangeNotifierProxyProvider` in the page) so the two stay decoupled.
+/// `ChangeNotifierProxyProvider`) so the two stay decoupled.
 class ChatProvider extends ChangeNotifier {
   ChatProvider({
     String? selectedModelId,
@@ -35,51 +38,44 @@ class ChatProvider extends ChangeNotifier {
     FolderReader folderReader = const FolderReader(),
     Duration recoveryPollInterval = const Duration(seconds: 2),
   }) : _selectedModelIdValue = selectedModelId,
-       _chatService = chatService ?? ChatService.instance,
-       _recoveryPollInterval = recoveryPollInterval {
+       _chatService = chatService ?? ChatService.instance {
     conversationList = ConversationListController(chatService: _chatService);
-    // Rebuild chat widgets when the micro-app panel opens/closes/reloads
-    // or the sidebar list changes.
-    panel.addListener(notifyListeners);
-    conversationList.addListener(notifyListeners);
+    panel.addListener(_notifySafely);
+    conversationList.addListener(_notifySafely);
     conversationList.load();
     _folders = ClientFolderController(
       chatService: _chatService,
-      onChanged: notifyListeners,
+      onChanged: _notifySafely,
       folderReader: folderReader,
     );
     _folders.load();
+    _recovery = ChatResponseRecoveryController(
+      pollInterval: recoveryPollInterval,
+      currentConversationId: () => _currentConversation?.id,
+      reloadCurrentConversation: _reloadCurrentConversation,
+      onStateChanged: _notifySafely,
+    );
   }
 
   final ChatService _chatService;
-  final Duration _recoveryPollInterval;
   late final ClientFolderController _folders;
-
-  /// Sidebar conversation list (loading, pin, optimistic delete + undo).
-  /// Notifications are forwarded, so watching this provider is enough.
+  late final ChatResponseRecoveryController _recovery;
   late final ConversationListController conversationList;
+
+  final MessageStarController _stars = MessageStarController();
+  final ChatStreamController _stream = ChatStreamController();
+  final AgentLivenessController _liveness = AgentLivenessController();
+  final MicroappPanelController panel = MicroappPanelController();
+
   String? _selectedModelIdValue;
-
-  /// Latest model selection from [ModelProvider]; updated by the
-  /// ProxyProvider without rebuilding this provider. No notify — selection
-  /// only affects *future* sends/creates, not currently-rendered state.
   set selectedModelId(String? id) => _selectedModelIdValue = id;
-
   String? _selectedModelId() => _selectedModelIdValue;
 
   ThinkingLevel? _pendingThinkingLevelValue;
-
-  /// Thinking level composed in the style picker for the *next* new
-  /// conversation; pushed in from [StyleProvider] by the ProxyProvider (same
-  /// pattern as [selectedModelId]). No notify — it only affects future
-  /// creates.
   set pendingThinkingLevel(ThinkingLevel? level) =>
       _pendingThinkingLevelValue = level;
 
   String? _pendingSystemPromptValue;
-
-  /// System prompt (resolved template content) for the *next* new
-  /// conversation; pushed in from [StyleProvider] like [selectedModelId].
   set pendingSystemPrompt(String? prompt) => _pendingSystemPromptValue = prompt;
 
   ValueChanged<Map<String, dynamic>>? onTopicUpdate;
@@ -88,106 +84,53 @@ class ChatProvider extends ChangeNotifier {
   ValueChanged<Map<String, dynamic>>? onTopicDrift;
   VoidCallback? onConversationStarted;
 
-  /// Drives the live micro-app panel beside the chat. Opened when the model
-  /// calls the `house_designer` tool (see the tool_result branch below) or by
-  /// the manual 🏠 composer button.
-  final MicroappPanelController panel = MicroappPanelController();
-
-  // ==========================================================================
-  // State
-  // ==========================================================================
-
   Conversation? _currentConversation;
   Conversation? get currentConversation => _currentConversation;
 
   List<ChatMessage> _messages = [];
   List<ChatMessage> get messages => List.unmodifiable(_messages);
 
-  final Set<({String conversationId, String messageId})> _starUpdates = {};
-  int _starEpoch = 0;
-  final Map<
-    ({String conversationId, String messageId}),
-    ({int epoch, bool isStarred})
-  >
-  _confirmedStars = {};
   bool _disposed = false;
-
-  bool isUpdatingMessageStar(String messageId) => _starUpdates.contains((
-    conversationId: _currentConversation?.id ?? '',
-    messageId: messageId,
-  ));
-
-  /// Bookmarks are confirmed by the server before updating the visible flag.
-  /// Only that flag is merged so a delayed response cannot replace message text.
-  Future<bool> setMessageStar(
-    String messageId, {
-    required bool isStarred,
-  }) async {
-    final conversation = _currentConversation;
-    final message = _messages.where((m) => m.id == messageId).firstOrNull;
-    if (_disposed ||
-        conversation == null ||
-        isSending ||
-        message == null ||
-        messageId.startsWith('temp-') ||
-        (!message.isUser && !message.isAssistant)) {
-      return false;
-    }
-    final key = (conversationId: conversation.id, messageId: messageId);
-    if (!_starUpdates.add(key)) return false;
-    _starEpoch++;
-    _clearError();
-    notifyListeners();
-    bool stillVisible() =>
-        !_disposed &&
-        _currentConversation?.id == conversation.id &&
-        _currentConversation?.sessionEpoch == conversation.sessionEpoch;
-    try {
-      final saved = await _chatService.setMessageStar(
-        conversation.id,
-        messageId,
-        isStarred: isStarred,
-      );
-      if (!_disposed) {
-        _confirmedStars[key] = (epoch: ++_starEpoch, isStarred: saved);
-      }
-      if (stillVisible()) {
-        _messages = [
-          for (final current in _messages)
-            if (current.id == messageId)
-              current.copyWith(isStarred: saved)
-            else
-              current,
-        ];
-        _currentConversation = _currentConversation!.copyWith(
-          messages: _messages,
-        );
-      }
-      return true;
-    } catch (e) {
-      if (stillVisible()) {
-        _setError('Failed to update message star: $e');
-      }
-      return false;
-    } finally {
-      _starUpdates.remove(key);
-      if (!_disposed) {
-        _starEpoch++;
-        notifyListeners();
-      }
-    }
+  void _notifySafely() {
+    if (!_disposed) notifyListeners();
   }
 
-  // Initial/reload window size (B-03): a full multi-hundred-message history
-  // is slow to transfer and parse, so only this many recent messages are
-  // fetched up front. Older ones page in on demand via loadOlderMessages.
-  static const int _messageWindow = 60;
+  bool isUpdatingMessageStar(String messageId) =>
+      _stars.isUpdating(_currentConversation?.id, messageId);
 
-  // Backend cap on GET /conversations/{id}?message_limit= (le=500); asking
-  // for more is a validation error, not a bigger window.
+  Future<bool> setMessageStar(String messageId, {required bool isStarred}) =>
+      _stars.setStar(
+        chatService: _chatService,
+        conversation: _currentConversation,
+        messages: _messages,
+        messageId: messageId,
+        isStarred: isStarred,
+        isSending: isSending,
+        isDisposed: () => _disposed,
+        currentConversation: () => _currentConversation,
+        onBeforeRequest: () {
+          _clearError();
+          _notifySafely();
+        },
+        onConfirmedVisible: (saved) {
+          _messages = [
+            for (final current in _messages)
+              if (current.id == messageId)
+                current.copyWith(isStarred: saved)
+              else
+                current,
+          ];
+          _currentConversation = _currentConversation!.copyWith(
+            messages: _messages,
+          );
+        },
+        onErrorVisible: (e) => _setError('Failed to update message star: $e'),
+        onFinallyNotify: _notifySafely,
+      );
+
+  static const int _messageWindow = 60;
   static const int _maxMessageLimit = 500;
 
-  /// Whether older messages exist beyond what's currently loaded.
   bool get hasMoreMessages => _currentConversation?.hasMoreMessages ?? false;
 
   bool _loadingOlderMessages = false;
@@ -200,16 +143,10 @@ class ChatProvider extends ChangeNotifier {
   bool get canStopGeneration =>
       !_isOpeningConversation && (_isSending || isRecoveringResponse);
 
-  ChatResponseRecoveryState? _responseRecoveryState;
-  ChatResponseRecoveryState? get responseRecoveryState =>
-      _responseRecoveryState;
-  bool get isRecoveringResponse => _responseRecoveryState != null;
-  Timer? _responseRecoveryTimer;
-  String? _recoveryConversationId;
-  Set<String> _replyIdsBeforeRecovery = const {};
+  ChatResponseRecoveryState? get responseRecoveryState => _recovery.state;
+  bool get isRecoveringResponse => _recovery.isRecovering;
 
   List<Conversation> get conversations => conversationList.conversations;
-
   bool get isLoadingConversations => conversationList.isLoading;
 
   String? _error;
@@ -230,73 +167,27 @@ class ChatProvider extends ChangeNotifier {
     logDebug(msg);
   }
 
-  static const _connectionHints = [
-    'connection closed',
-    'connection error',
-    'connection refused',
-    'failed host lookup',
-    'network is unreachable',
-    'software caused connection abort',
-  ];
-
-  bool _isConnectionText(String s) =>
-      _connectionHints.any((h) => s.contains(h));
-
-  final ChatStreamController _stream = ChatStreamController();
-
-  // ==========================================================================
-  // Streaming message channel
-  // ==========================================================================
-  //
-  // Per-chunk content updates go through this ValueNotifier instead of
-  // notifyListeners(), so only the streaming bubble rebuilds — not the whole
-  // message list (which would also re-parse every visible message's
-  // markdown). The list itself only changes on structural events: stream
-  // start, tool calls/results, per-iteration done, and end of stream.
-
-  /// Live view of the assistant message currently being streamed.
   ValueNotifier<ChatMessage?> get streamingMessage => _stream.streamingMessage;
-
-  /// ID of the in-flight assistant placeholder, if a stream is active.
   String? get streamingMessageId => _stream.messageId;
+  ValueNotifier<AgentLiveness?> get agentLiveness => _liveness.notifier;
 
-  void _pushStreamingUpdate(ChatMessage message, {bool force = false}) {
-    _stream.push(message, force: force);
-  }
-
-  /// Commit the latest streamed content into [_messages] before a structural
-  /// change (tool insert, stop, end of stream), so list state never lags
-  /// behind what the user already saw in the live bubble.
-  void _syncStreamingIntoList() {
-    _stream.sync(_upsertIntoList);
-  }
-
-  void _clearStreamingState() {
-    _stream.clear();
-  }
-
-  // ==========================================================================
-  // Conversations
-  // ==========================================================================
+  void _syncStreamingIntoList() => _stream.sync(_upsertIntoList);
 
   Future<void> refreshConversations() async => conversationList.load();
 
-  /// Observe a follow-up already accepted by a visual submission. Never resend
-  /// it: the server owns both its durable user message and detached response.
+  /// Observe a follow-up already accepted by a visual submission.
   void followServerResponse(String conversationId) {
     if (_currentConversation?.id != conversationId || isSending) return;
-    _beginResponseRecovery();
-    _responseRecoveryState = ChatResponseRecoveryState.syncing;
-    notifyListeners();
+    _recovery.begin(
+      conversationId: conversationId,
+      currentMessages: _messages,
+      initialState: ChatResponseRecoveryState.syncing,
+    );
+    _notifySafely();
   }
 
   bool _syncingFromServer = false;
 
-  /// Reconcile idle chat state with changes made by another signed-in client.
-  ///
-  /// The sidebar refresh stays silent so foreground polling does not flash a
-  /// loading state. An active local stream owns the message list and must not
-  /// be replaced by a remote snapshot midway through generation.
   Future<void> syncFromServer() async {
     if (_syncingFromServer) return;
     _syncingFromServer = true;
@@ -321,8 +212,8 @@ class ChatProvider extends ChangeNotifier {
     final actionEpoch = _actionEpoch;
     _isOpeningConversation = true;
     _clearError();
-    notifyListeners();
-    final starEpoch = _starEpoch;
+    _notifySafely();
+    final starEpoch = _stars.epoch;
     try {
       await navigation;
       final conversation = await _chatService.getConversation(
@@ -331,14 +222,13 @@ class ChatProvider extends ChangeNotifier {
       );
       if (actionEpoch != _actionEpoch || _disposed) return;
       _messages = [
-        for (final message in _hydrateAttachments(conversation.messages ?? []))
-          _mergeConfirmedStar(conversationId, message, starEpoch),
+        for (final msg in hydrateMessageAttachments(
+          conversation.messages ?? [],
+        ))
+          _stars.mergeConfirmed(conversationId, msg, starEpoch),
       ];
       _currentConversation = conversation.copyWith(messages: _messages);
       _setErrorContext();
-      // Loading an existing conversation discards any folder the user picked
-      // on a new-chat composer — it belonged to the chat they were about to
-      // start, not this one. (The create path adopts it instead.)
       if (adoptPendingFolder) {
         await _folders.adoptPending(conversationId);
       } else {
@@ -349,28 +239,10 @@ class ChatProvider extends ChangeNotifier {
       _setError('Failed to load conversation: $e');
     } finally {
       if (actionEpoch == _actionEpoch) _isOpeningConversation = false;
-      if (!_disposed) notifyListeners();
+      _notifySafely();
     }
   }
 
-  /// An explicit navigation GET may have read its snapshot before an in-flight
-  /// PATCH committed. Keep just the newer confirmed star, retaining server text.
-  ChatMessage _mergeConfirmedStar(
-    String conversationId,
-    ChatMessage message,
-    int readEpoch,
-  ) {
-    final saved =
-        _confirmedStars[(
-          conversationId: conversationId,
-          messageId: message.id,
-        )];
-    return saved != null && saved.epoch > readEpoch
-        ? message.copyWith(isStarred: saved.isStarred)
-        : message;
-  }
-
-  /// Applies the committed primary-topic boundary before topic listeners run.
   Future<void> applyTopicSwitch(TopicSwitchResponse response) async {
     final current = _currentConversation;
     if (current?.id != response.conversationId) {
@@ -383,7 +255,7 @@ class ChatProvider extends ChangeNotifier {
         throw StateError(_error ?? 'Could not open the topic conversation');
       }
       conversationList.prepend(opened!);
-      notifyListeners();
+      _notifySafely();
       return;
     }
     if (current == null) return;
@@ -400,15 +272,9 @@ class ChatProvider extends ChangeNotifier {
       activeTopicId: switched?.id,
       activeTopic: switched == null
           ? null
-          : TopicNode(
-              id: switched.id,
-              label: switched.label,
-              origin: TopicOrigin.history,
-              parentId: switched.parentId,
-              parentLabel: switched.parentLabel,
-              description: switched.description,
+          : topicNodeFromSwitched(
+              switched,
               contextStatus: response.contextStatus,
-              combinedTopics: switched.combinedTopics,
             ),
       topicIsPinned: switched?.pinned ?? false,
       contextVersion: response.contextVersion,
@@ -416,10 +282,9 @@ class ChatProvider extends ChangeNotifier {
     );
     _clearError();
     _updateConversationInList();
-    notifyListeners();
+    _notifySafely();
   }
 
-  /// Applies an authoritative combine result without starting a new session.
   void applyTopicCombine(TopicSwitchResponse response) {
     final current = _currentConversation;
     final combined = response.topic;
@@ -432,28 +297,20 @@ class ChatProvider extends ChangeNotifier {
     _currentConversation = current.copyWith(
       title: combined.label,
       activeTopicId: combined.id,
-      activeTopic: TopicNode(
-        id: combined.id,
-        label: combined.label,
-        origin: TopicOrigin.history,
-        parentId: combined.parentId,
-        parentLabel: combined.parentLabel,
-        description: combined.description,
+      activeTopic: topicNodeFromSwitched(
+        combined,
         contextStatus: response.contextStatus,
-        combinedTopics: combined.combinedTopics,
       ),
       topicIsPinned: combined.pinned,
       contextVersion: response.contextVersion,
       sessionEpoch: response.sessionEpoch,
     );
     _updateConversationInList();
-    notifyListeners();
+    _notifySafely();
   }
 
   Future<void>? _primaryEnsureFuture;
 
-  /// Opens the user's additive primary conversation without changing the
-  /// legacy thread-loading path used by deep links and sidebar selection.
   Future<void> enterPrimaryConversation() {
     if (_currentConversation?.isPrimary == true) return Future.value();
     return _primaryEnsureFuture ??= _ensurePrimaryConversation();
@@ -464,7 +321,7 @@ class ChatProvider extends ChangeNotifier {
     final actionEpoch = _actionEpoch;
     _isOpeningConversation = true;
     _error = null;
-    notifyListeners();
+    _notifySafely();
     try {
       await navigation;
       final conversation = await _chatService.getOrCreatePrimary(
@@ -479,7 +336,7 @@ class ChatProvider extends ChangeNotifier {
       );
       if (actionEpoch != _actionEpoch) return;
       _currentConversation = detailed;
-      _messages = _hydrateAttachments(detailed.messages ?? const []);
+      _messages = hydrateMessageAttachments(detailed.messages ?? const []);
       _setErrorContext();
     } catch (error) {
       if (actionEpoch != _actionEpoch) return;
@@ -488,12 +345,10 @@ class ChatProvider extends ChangeNotifier {
     } finally {
       _primaryEnsureFuture = null;
       if (actionEpoch == _actionEpoch) _isOpeningConversation = false;
-      if (!_disposed) notifyListeners();
+      _notifySafely();
     }
   }
 
-  /// Pages in messages older than the oldest one currently loaded (B-03),
-  /// e.g. triggered when the user scrolls to the top of the message list.
   Future<void> loadOlderMessages() async {
     final conversation = _currentConversation;
     if (conversation == null ||
@@ -504,7 +359,7 @@ class ChatProvider extends ChangeNotifier {
     }
 
     _loadingOlderMessages = true;
-    notifyListeners();
+    _notifySafely();
 
     final oldestId = _messages.first.id;
     try {
@@ -513,14 +368,14 @@ class ChatProvider extends ChangeNotifier {
         oldestId,
       );
       if (_currentConversation?.id == conversation.id) {
-        _messages = [..._hydrateAttachments(older), ..._messages];
+        _messages = [...hydrateMessageAttachments(older), ..._messages];
         _currentConversation = conversation.copyWith(hasMoreMessages: hasMore);
       }
     } catch (e) {
       logDebug('Failed to load older messages: $e');
     } finally {
       _loadingOlderMessages = false;
-      notifyListeners();
+      _notifySafely();
     }
   }
 
@@ -537,7 +392,7 @@ class ChatProvider extends ChangeNotifier {
     final actionEpoch = _actionEpoch;
     _isOpeningConversation = true;
     _clearError();
-    notifyListeners();
+    _notifySafely();
 
     try {
       await navigation;
@@ -563,23 +418,18 @@ class ChatProvider extends ChangeNotifier {
         conversation.id,
         messageLimit: _messageWindow,
       );
-
       if (actionEpoch != _actionEpoch) return null;
 
       _currentConversation = detailed;
-      _messages = _hydrateAttachments(detailed.messages ?? []);
+      _messages = hydrateMessageAttachments(detailed.messages ?? []);
       _setErrorContext();
 
-      // A folder the user attached on the empty "new chat" state keys onto
-      // the real conversation id now that it exists, so the first send
-      // carries `has_client_folder=true` and the chip keeps showing.
       await _folders.adoptPending(conversation.id);
       if (actionEpoch != _actionEpoch || _disposed) return null;
       _isOpeningConversation = false;
 
-      // Immediately add the new conversation to the list for sidebar visibility
       conversationList.prepend(detailed);
-      notifyListeners();
+      _notifySafely();
 
       if ((initialMessage?.isNotEmpty ?? false) ||
           initialAttachments.isNotEmpty) {
@@ -588,7 +438,7 @@ class ChatProvider extends ChangeNotifier {
           attachments: initialAttachments,
         );
       } else {
-        notifyListeners();
+        _notifySafely();
       }
 
       await conversationList.load();
@@ -598,7 +448,7 @@ class ChatProvider extends ChangeNotifier {
       _setError('Failed to create conversation: $e');
       _isSending = false;
       logDebug(_error!);
-      notifyListeners();
+      _notifySafely();
       return null;
     } finally {
       if (actionEpoch == _actionEpoch) _isOpeningConversation = false;
@@ -621,7 +471,7 @@ class ChatProvider extends ChangeNotifier {
     if (_currentConversation == null) return;
 
     _clearError();
-    notifyListeners();
+    _notifySafely();
 
     try {
       final updated = await _chatService.updateConversation(
@@ -642,27 +492,22 @@ class ChatProvider extends ChangeNotifier {
       await conversationList.load();
     } catch (e) {
       _setError('Failed to update conversation: $e');
-      notifyListeners();
+      _notifySafely();
     }
   }
 
-  /// Change only this conversation's model and retry its latest user turn.
-  /// The backend edit path preserves attachment metadata, while the partial
-  /// update leaves the conversation prompt, thinking level, and tools intact.
-  /// Saved styles and new-chat defaults live in separate providers and are
-  /// deliberately not changed here.
   Future<bool> switchModelAndRetryLastTurn(String modelId) async {
     final conversation = _currentConversation;
     if (conversation == null || isSending) return false;
 
     _clearError();
     _isSending = true;
-    notifyListeners();
+    _notifySafely();
 
     try {
       await _stream.cancel();
       _syncStreamingIntoList();
-      _clearStreamingState();
+      _stream.clear();
 
       await _chatService.updateConversation(conversation.id, model: modelId);
       final refreshed = await _chatService.getConversation(
@@ -670,7 +515,7 @@ class ChatProvider extends ChangeNotifier {
         messageLimit: _messageWindow,
       );
       _currentConversation = refreshed;
-      _messages = _hydrateAttachments(refreshed.messages ?? []);
+      _messages = hydrateMessageAttachments(refreshed.messages ?? []);
 
       final userIndex = _messages.lastIndexWhere((message) => message.isUser);
       if (userIndex < 0) {
@@ -680,13 +525,13 @@ class ChatProvider extends ChangeNotifier {
       _isSending = false;
       await editUserMessage(
         userMessage.id,
-        _editableUserContent(userMessage.content),
+        stripAttachedFileMarker(userMessage.content),
       );
       return true;
     } catch (e) {
       _isSending = false;
       _setError('Failed to switch models and retry: $e');
-      notifyListeners();
+      _notifySafely();
       return false;
     }
   }
@@ -695,28 +540,17 @@ class ChatProvider extends ChangeNotifier {
     final updated = await conversationList.togglePin(conversationId);
     if (updated != null && _currentConversation?.id == conversationId) {
       _currentConversation = updated;
-      notifyListeners();
+      _notifySafely();
     }
   }
 
-  /// Mute or unmute [conversationId]. [duration] is one of `8h`, `1w`,
-  /// `forever`, `unmute`.
   Future<void> setMute(String conversationId, String duration) async {
     final updated = await conversationList.setMute(conversationId, duration);
     if (updated != null && _currentConversation?.id == conversationId) {
       _currentConversation = updated;
-      notifyListeners();
+      _notifySafely();
     }
   }
-
-  // ==========================================================================
-  // Client-side folder attachment (idea 17)
-  //
-  // The attached folder lives ONLY on this client — never sent to the backend.
-  // When a folder is attached, sends set has_client_folder=true so the agent
-  // gets read_file/list_files; the backend delegates each read back here via a
-  // client_tool_request chunk, which [ClientFolderController] fulfils locally.
-  // ==========================================================================
 
   String? clientFolderFor(String? conversationId) =>
       _folders.folderFor(conversationId);
@@ -737,12 +571,11 @@ class ChatProvider extends ChangeNotifier {
     if (_currentConversation?.id == conversationId) {
       _currentConversation = null;
       _messages = [];
-      notifyListeners();
+      _notifySafely();
     }
     conversationList.delete(conversationId);
   }
 
-  /// Restore a conversation deleted within the undo window.
   void undoDeleteConversation(String conversationId) =>
       conversationList.undoDelete(conversationId);
 
@@ -751,22 +584,17 @@ class ChatProvider extends ChangeNotifier {
     _isOpeningConversation = false;
     _currentConversation = null;
     _messages = [];
-    _cancelResponseRecovery();
+    _recovery.cancel();
     _clearError();
-    notifyListeners();
+    _notifySafely();
   }
 
   bool get hasActiveConversation => _currentConversation != null;
 
-  /// Add attachments to the current message being composed.
-  /// Called when files are dragged onto the chat area.
   void addAttachments(List<ChatAttachment> attachments) {
-    // For now, we just store them in a temporary holder.
-    // The attachments will be sent with the next message.
-    // This mirrors the file picker behavior in ChatInputWidget.
     _pendingAttachments ??= [];
     _pendingAttachments!.addAll(attachments);
-    notifyListeners();
+    _notifySafely();
   }
 
   List<ChatAttachment>? _pendingAttachments;
@@ -774,22 +602,13 @@ class ChatProvider extends ChangeNotifier {
 
   void clearPendingAttachments() {
     _pendingAttachments = null;
-    notifyListeners();
+    _notifySafely();
   }
 
-  // ==========================================================================
-  // Helpers
-  // ==========================================================================
-
-  /// Updates the current conversation's entry in the conversations list.
   void _updateConversationInList() {
     final current = _currentConversation;
     if (current != null) conversationList.replaceEntry(current);
   }
-
-  // ==========================================================================
-  // Messaging
-  // ==========================================================================
 
   Future<void> sendMessage(
     String content, {
@@ -798,16 +617,12 @@ class ChatProvider extends ChangeNotifier {
   }) async {
     if (content.trim().isEmpty && attachments.isEmpty) return;
 
-    // A primary chat is ensured asynchronously when opening `/chat`. Wait for
-    // that request so a quick first send cannot accidentally create a legacy
-    // thread while the idempotent primary conversation is still loading.
     final primaryEnsure = _primaryEnsureFuture;
     if (primaryEnsure != null) {
       await primaryEnsure;
       if (_currentConversation == null) return;
     }
 
-    // Guard: prevent sending while already streaming.
     if (isSending) return;
 
     if (_currentConversation?.isPrimary == true) {
@@ -838,14 +653,13 @@ class ChatProvider extends ChangeNotifier {
     _messages = [..._messages, userMessage];
     _setErrorContext(messageId: userMessage.id);
 
-    // Update current conversation with new message count for sidebar
     if (_currentConversation != null) {
       _currentConversation = _currentConversation!.copyWith(
         messageCount: _messages.length,
       );
       _updateConversationInList();
     }
-    notifyListeners();
+    _notifySafely();
 
     try {
       final stream = _chatService.streamChatResponse(
@@ -858,13 +672,12 @@ class ChatProvider extends ChangeNotifier {
       );
       _consumeAssistantStream(stream);
     } catch (e) {
-      _setError(_friendlyStreamError(e));
+      _setError(friendlyStreamError(e));
       _isSending = false;
-      notifyListeners();
+      _notifySafely();
     }
   }
 
-  /// Regenerate the last assistant reply in the current conversation.
   Future<void> regenerateLastAssistant() async {
     if (_currentConversation == null || isSending) return;
 
@@ -877,10 +690,8 @@ class ChatProvider extends ChangeNotifier {
     _clearError();
     _actionEpoch++;
     _isSending = true;
-    // Trim the old assistant reply and any trailing tool turns we've already
-    // rendered locally; the backend does the same deletion for us.
     _messages = _messages.sublist(0, lastAssistantIdx);
-    notifyListeners();
+    _notifySafely();
 
     try {
       final stream = _chatService.regenerateMessage(
@@ -889,13 +700,12 @@ class ChatProvider extends ChangeNotifier {
       );
       _consumeAssistantStream(stream);
     } catch (e) {
-      _setError(_friendlyStreamError(e));
+      _setError(friendlyStreamError(e));
       _isSending = false;
-      notifyListeners();
+      _notifySafely();
     }
   }
 
-  /// Edit a user message's text and re-run the conversation from that point.
   Future<void> editUserMessage(String messageId, String newContent) async {
     if (_currentConversation == null || isSending) return;
     if (newContent.trim().isEmpty) return;
@@ -909,10 +719,9 @@ class ChatProvider extends ChangeNotifier {
     _actionEpoch++;
     _isSending = true;
 
-    // Optimistically update the message text and drop everything after it.
     final edited = target.copyWith(content: newContent);
     _messages = [..._messages.sublist(0, idx), edited];
-    notifyListeners();
+    _notifySafely();
 
     try {
       final stream = _chatService.editMessage(
@@ -922,38 +731,33 @@ class ChatProvider extends ChangeNotifier {
       );
       _consumeAssistantStream(stream);
     } catch (e) {
-      _setError(_friendlyStreamError(e));
+      _setError(friendlyStreamError(e));
       _isSending = false;
-      notifyListeners();
+      _notifySafely();
     }
   }
 
-  /// Fork the conversation from a specific message into a new branch.
   Future<void> branchFromMessage(String messageId) async {
     if (_currentConversation == null) return;
 
     _clearError();
-    notifyListeners();
+    _notifySafely();
 
     try {
       final newConv = await _chatService.branchConversation(
         _currentConversation!.id,
         messageId,
       );
-      // Prepend to sidebar list
       conversationList.prepend(newConv);
-      // Navigate to new branch
       await loadConversation(newConv.id);
     } catch (e) {
       _setError('Failed to branch conversation: $e');
-      notifyListeners();
+      _notifySafely();
     }
   }
 
   void _consumeAssistantStream(Stream<ChatResponseChunk> stream) {
     final assistantMessageId = 'temp-${_uuid.v4()}';
-    // The conversation this stream belongs to, captured so a client_tool_request
-    // is served against the right folder even if the user navigates away.
     final streamConversationId = _currentConversation?.id;
     final streamActionEpoch = _actionEpoch;
     bool ownsCurrentState() =>
@@ -967,26 +771,16 @@ class ChatProvider extends ChangeNotifier {
     var accumulatedThinking = '';
 
     ChatMessage current([Map<String, dynamic>? doneMetadata]) =>
-        _buildAssistantMessage(
+        buildStreamingAssistantMessage(
           assistantMessageId,
           accumulatedContent,
           accumulatedThinking,
           doneMetadata,
         );
 
-    // Single assistant placeholder, anchored at the END of the message list
-    // throughout the stream. Tool calls / tool results get inserted BEFORE
-    // it as they arrive, mirroring the canonical layout the server sends
-    // back on reload — so there's no jarring "two placeholders merge into
-    // one" jolt when the stream finishes. Thinking from tool-calling
-    // iterations accumulates onto the same placeholder; the backend
-    // persists it the same way.
-    //
-    // Per-chunk content flows through [streamingMessage] only; the list
-    // (and notifyListeners) is reserved for structural changes.
     _upsertIntoList(current());
-    _pushStreamingUpdate(current(), force: true);
-    notifyListeners();
+    _stream.push(current(), force: true);
+    _notifySafely();
 
     _stream.listen(
       stream,
@@ -1001,68 +795,63 @@ class ChatProvider extends ChangeNotifier {
         }
         if (!ownsCurrentState()) return;
         if (chunk.type == 'topic_update') {
-          onTopicUpdate?.call(_dynamicEventPayload(chunk));
+          onTopicUpdate?.call(extractDynamicEventPayload(chunk));
         } else if (chunk.type == 'context_preparing') {
-          onContextPreparing?.call(_dynamicEventPayload(chunk));
+          onContextPreparing?.call(extractDynamicEventPayload(chunk));
         } else if (chunk.type == 'context_update') {
           onContextUpdate?.call({
-            ..._dynamicEventPayload(chunk),
+            ...extractDynamicEventPayload(chunk),
             'conversation_id': streamConversationId,
           });
         } else if (chunk.type == 'topic_drift') {
-          onTopicDrift?.call(_dynamicEventPayload(chunk));
+          onTopicDrift?.call(extractDynamicEventPayload(chunk));
         } else if (chunk.isThinking && chunk.content != null) {
           accumulatedThinking += chunk.content!;
-          _pushStreamingUpdate(current());
+          _stream.push(current());
         } else if (chunk.isChunk && chunk.content != null) {
           accumulatedContent += chunk.content!;
-          _pushStreamingUpdate(current());
+          _stream.push(current());
         } else if (chunk.isToolCall) {
           _syncStreamingIntoList();
-          _insertToolCallMessagesBefore(
+          _messages = insertMessagesBeforeAnchor(
+            _messages,
             assistantMessageId,
-            chunk.toolCalls ?? const [],
+            buildTempToolCallMessages(chunk.toolCalls ?? const []),
           );
-          notifyListeners();
+          _notifySafely();
         } else if (chunk.isToolResult) {
           _syncStreamingIntoList();
-          _insertToolResultMessageBefore(assistantMessageId, chunk.toolResult);
-          // A house_designer result carries a panel signal — reveal/refresh
-          // the live micro-app view next to the chat.
+          final resultMsg = buildTempToolResultMessage(chunk.toolResult);
+          if (resultMsg != null) {
+            _messages = insertMessagesBeforeAnchor(
+              _messages,
+              assistantMessageId,
+              [resultMsg],
+            );
+          }
           final tr = chunk.toolResult;
           if (tr != null) {
             panel.openFromToolResult(tr.toolName, tr.result);
           }
-          notifyListeners();
+          _notifySafely();
         } else if (chunk.isToolExecution) {
-          // Live tool status (started / finished + duration): merge it into
-          // the matching tool_call message so its bubble re-renders.
           _applyToolExecution(chunk.toolExecution);
         } else if (chunk.isHeartbeat) {
-          // Liveness only — never persisted, never part of the answer. It keeps
-          // the progress object honest during long silent stretches (a loading
-          // model, a slow tool) and proves the turn is still running.
-          _applyHeartbeat(chunk.heartbeat);
+          _liveness.applyHeartbeat(chunk.heartbeat);
         } else if (chunk.isDone) {
-          // The backend emits a `done` chunk PER LLM ITERATION (one for the
-          // tool-call iteration, one for the final-answer iteration). It is
-          // NOT the end-of-stream marker — that's the SSE stream's own
-          // onDone callback. So here we only commit metadata to whatever
-          // assistant message has been accumulating; we do NOT flip
-          // _isSending or reload (a reload mid-stream would replace
-          // _messages with the partial server state and erase everything we
-          // just streamed).
+          // Emitted per LLM iteration (tool-call iteration + final answer).
+          // Commit iteration metadata without ending the SSE stream.
           if (accumulatedContent.isNotEmpty || accumulatedThinking.isNotEmpty) {
             final committed = current(chunk.metadata);
             _upsertIntoList(committed);
-            _pushStreamingUpdate(committed, force: true);
-            notifyListeners();
+            _stream.push(committed, force: true);
+            _notifySafely();
           }
         } else if (chunk.isError) {
           _syncStreamingIntoList();
           _setError(chunk.error ?? 'An error occurred', meta: chunk.metadata);
           _isSending = false;
-          notifyListeners();
+          _notifySafely();
         }
       },
       onError: (e) {
@@ -1070,30 +859,31 @@ class ChatProvider extends ChangeNotifier {
         _syncStreamingIntoList();
         _isSending = false;
         logDebug('Stream error: $e');
-        _clearStreamingState();
-        _resetAgentLiveness();
-        if (_isConnectionError(e)) {
+        _stream.clear();
+        _liveness.reset();
+        final connErr = isStreamConnectionError(e);
+        if (connErr) {
           _clearError();
-          _beginResponseRecovery();
+          final id = _currentConversation?.id;
+          if (id != null) {
+            _recovery.begin(conversationId: id, currentMessages: _messages);
+          }
         } else {
-          _setError(_friendlyStreamError(e));
+          _setError(friendlyStreamError(e));
         }
-        notifyListeners();
-        if (!_isConnectionError(e)) _reloadCurrentConversation();
+        _notifySafely();
+        if (!connErr) _reloadCurrentConversation();
       },
       onDone: () {
         if (!ownsCurrentState()) return;
-        // Real end of the SSE stream — finalize and reconcile with server.
         _isSending = false;
         _syncStreamingIntoList();
-        _clearStreamingState();
-        // The turn is over, so its liveness clock stops; the progress object
-        // settles into its finished state instead of ticking on.
-        _resetAgentLiveness();
+        _stream.clear();
+        _liveness.reset();
         if (accumulatedContent.isEmpty && accumulatedThinking.isEmpty) {
-          // Drop the trailing empty placeholder if iteration N+1 never
-          // produced anything (e.g., turn ended right after a tool call).
-          _removeMessage(assistantMessageId);
+          _messages = _messages
+              .where((m) => m.id != assistantMessageId)
+              .toList();
         }
         if (_currentConversation != null) {
           _currentConversation = _currentConversation!.copyWith(
@@ -1101,28 +891,11 @@ class ChatProvider extends ChangeNotifier {
           );
           _updateConversationInList();
         }
-        notifyListeners();
+        _notifySafely();
         _reloadCurrentConversation();
         _scheduleTitleRefresh();
       },
     );
-  }
-
-  Map<String, dynamic> _dynamicEventPayload(ChatResponseChunk chunk) {
-    final metadata = chunk.metadata ?? const <String, dynamic>{};
-    final nested = metadata[chunk.type] ?? metadata['payload'];
-    if (nested is Map<String, dynamic>) return nested;
-    if (nested is Map) {
-      return nested.map((key, value) => MapEntry(key.toString(), value));
-    }
-    return metadata;
-  }
-
-  void _removeMessage(String id) {
-    final filtered = _messages.where((m) => m.id != id).toList();
-    if (filtered.length != _messages.length) {
-      _messages = filtered;
-    }
   }
 
   void _setErrorContext({String? messageId}) {
@@ -1133,100 +906,12 @@ class ChatProvider extends ChangeNotifier {
     );
   }
 
-  /// Translate a stream error into a short, user-facing English message.
-  /// Raw [DioException]s and [Exception] strings like
-  /// "Exception: Chat failed: 503 - ..." are replaced with friendly text;
-  /// [ChatException] carries a machine-readable kind that maps directly.
-  /// Localized at the widget layer where a context is available.
-  String _friendlyStreamError(Object e) {
-    if (e is ChatException) {
-      return switch (e.kind) {
-        'connection' =>
-          'Couldn\'t reach the AI service. Check your connection and try again.',
-        'unavailable' =>
-          'The AI service is temporarily unavailable. Please try again in a moment.',
-        'server' => 'The server encountered an error. Please try again.',
-        _ => e.detail != null ? 'Chat error: ${e.detail}' : 'Chat error.',
-      };
-    }
-    if (_isConnectionText('$e'.toLowerCase())) {
-      return 'Couldn\'t reach the AI service. Check your connection and try again.';
-    }
-    return 'Streaming error: $e';
-  }
-
-  bool _isConnectionError(Object e) => e is ChatException
-      ? e.kind == 'connection'
-      : _isConnectionText('$e'.toLowerCase());
-
-  void _beginResponseRecovery() {
-    final conversationId = _currentConversation?.id;
-    if (conversationId == null) return;
-    _responseRecoveryTimer?.cancel();
-    _recoveryConversationId = conversationId;
-    _replyIdsBeforeRecovery = {
-      for (final message in _messages)
-        if (_isSavedReply(message)) message.id,
-    };
-    _responseRecoveryState = ChatResponseRecoveryState.waitingForConnection;
-    _scheduleResponseRecovery(Duration.zero);
-  }
-
-  void _scheduleResponseRecovery(Duration delay) {
-    _responseRecoveryTimer?.cancel();
-    _responseRecoveryTimer = Timer(delay, () => unawaited(_recoverResponse()));
-  }
-
-  Future<void> _recoverResponse() async {
-    if (!isRecoveringResponse ||
-        _currentConversation?.id != _recoveryConversationId) {
-      return;
-    }
-    final reachedServer = await _reloadCurrentConversation();
-    if (!isRecoveringResponse) return;
-    if (reachedServer &&
-        _responseRecoveryState != ChatResponseRecoveryState.syncing) {
-      _responseRecoveryState = ChatResponseRecoveryState.syncing;
-      notifyListeners();
-    }
-    _scheduleResponseRecovery(_recoveryPollInterval);
-  }
-
-  void _completeRecoveryIfResponseArrived() {
-    if (!isRecoveringResponse ||
-        _currentConversation?.id != _recoveryConversationId) {
-      return;
-    }
-    final hasNewReply = _messages.any(
-      (message) =>
-          _isSavedReply(message) &&
-          !_replyIdsBeforeRecovery.contains(message.id),
-    );
-    if (hasNewReply) _cancelResponseRecovery();
-  }
-
-  // A visual-only answer has no assistant text message. Recovery and visual
-  // follow-ups must recognize its saved result as a completed reply too.
-  static bool _isSavedReply(ChatMessage message) =>
-      !message.id.startsWith('temp-') &&
-      (message.isAssistant || message.visualPresentation != null);
-
-  void _cancelResponseRecovery() {
-    _responseRecoveryTimer?.cancel();
-    _responseRecoveryTimer = null;
-    _responseRecoveryState = null;
-    _recoveryConversationId = null;
-    _replyIdsBeforeRecovery = const {};
-  }
-
-  /// Detach UI updates; preserve background delivery of client folder tools.
-  /// The server finishes and saves in the original thread. Stop cancels it.
   Future<void> _detachStreamForNavigation() {
     _actionEpoch++;
-    _cancelResponseRecovery();
+    _recovery.cancel();
     _isSending = false;
     _stream.detach();
-    _clearStreamingState();
+    _stream.clear();
     return Future.value();
   }
 
@@ -1234,18 +919,16 @@ class ChatProvider extends ChangeNotifier {
     if (_isOpeningConversation) return;
     unawaited(_stream.cancel());
     _isSending = false;
-    _cancelResponseRecovery();
+    _recovery.cancel();
     _actionEpoch++;
-    // Keep what was already streamed, marked as interrupted so the partial
-    // answer isn't mistaken for a complete one.
     final pending = streamingMessage.value;
     if (pending != null && pending.id == streamingMessageId) {
       _upsertIntoList(
         pending.copyWith(metadata: {...?pending.metadata, 'stopped': true}),
       );
     }
-    _clearStreamingState();
-    notifyListeners();
+    _stream.clear();
+    _notifySafely();
 
     if (_currentConversation != null) {
       try {
@@ -1256,76 +939,10 @@ class ChatProvider extends ChangeNotifier {
     }
   }
 
-  ChatMessage _buildAssistantMessage(
-    String id,
-    String content,
-    String thinking,
-    Map<String, dynamic>? doneMetadata,
-  ) {
-    final meta = <String, dynamic>{
-      if (thinking.isNotEmpty) 'thinking': thinking,
-      ...?doneMetadata,
-    };
-
-    return ChatMessage(
-      id: id,
-      role: 'assistant',
-      content: content,
-      createdAt: DateTime.now(),
-      metadata: meta.isEmpty ? null : meta,
-    );
-  }
-
   void _upsertIntoList(ChatMessage message) {
-    final existingIndex = _messages.indexWhere((m) => m.id == message.id);
-    if (existingIndex >= 0) {
-      final newMessages = List<ChatMessage>.from(_messages);
-      newMessages[existingIndex] = message;
-      _messages = newMessages;
-    } else {
-      _messages = [..._messages, message];
-    }
+    _messages = upsertMessageInList(_messages, message);
   }
 
-  void _insertBefore(String anchor, List<ChatMessage> extra) {
-    if (extra.isEmpty) return;
-    final idx = _messages.indexWhere((m) => m.id == anchor);
-    if (idx < 0) {
-      _messages = [..._messages, ...extra];
-      return;
-    }
-    _messages = [
-      ..._messages.sublist(0, idx),
-      ...extra,
-      ..._messages.sublist(idx),
-    ];
-  }
-
-  void _insertToolCallMessagesBefore(String anchorId, List<ToolCall> calls) {
-    if (calls.isEmpty) return;
-    _insertBefore(anchorId, [
-      for (final c in calls)
-        ChatMessage(
-          id: 'temp-tool-call-${c.id}',
-          role: 'tool_call',
-          content: c.name,
-          createdAt: DateTime.now(),
-          metadata: {
-            'tool_calls': [
-              {
-                'id': c.id,
-                'name': c.name,
-                'arguments': c.arguments ?? const {},
-              },
-            ],
-          },
-        ),
-    ]);
-  }
-
-  /// Merge a live tool-execution status update into the matching temp
-  /// tool_call message's metadata, so its bubble can show "running…" /
-  /// "done in X.Xs" while the rest of the list stays untouched.
   void _applyToolExecution(Map<String, dynamic>? execution) {
     final callId = execution?['tool_call_id'];
     if (execution == null || callId == null) return;
@@ -1337,99 +954,12 @@ class ChatProvider extends ChangeNotifier {
         metadata: {...?message.metadata, 'tool_execution': execution},
       ),
     );
-    // A tool transition is real forward progress, so it also refreshes the
-    // liveness clock the progress object renders.
-    _noteAgentSignal();
-    notifyListeners();
+    _liveness.noteSignal();
+    _notifySafely();
   }
 
-  /// The live liveness state of the current agent turn.
-  ///
-  /// Kept out of the message list on purpose: this changes on every heartbeat
-  /// (seconds apart) and must not force a rebuild of the transcript. The
-  /// progress object subscribes to this notifier instead.
-  final ValueNotifier<AgentLiveness?> agentLiveness =
-      ValueNotifier<AgentLiveness?>(null);
-
-  DateTime? _agentSignalAt;
-  DateTime? _agentStartedAt;
-
-  /// Record that the agent just reported something, and refresh the clock.
-  void _noteAgentSignal() {
-    _agentStartedAt ??= DateTime.now();
-    _agentSignalAt = DateTime.now();
-    _publishLiveness();
-  }
-
-  void _publishLiveness() {
-    final started = _agentStartedAt;
-    if (started == null) {
-      agentLiveness.value = null;
-      return;
-    }
-    final beat = _agentHeartbeat;
-    agentLiveness.value = AgentLiveness(
-      startedAt: started,
-      secondsSinceSignal: _agentSignalAt == null
-          ? null
-          : DateTime.now().difference(_agentSignalAt!).inSeconds,
-      elapsedSeconds: _intOrNull(beat?['elapsed_s']),
-      activity: beat?['activity']?.toString(),
-      steps: _intOrNull(beat?['steps']) ?? 0,
-      completedCount: _intOrNull(beat?['tools_completed']) ?? 0,
-    );
-  }
-
-  Map<String, dynamic>? _agentHeartbeat;
-
-  void _applyHeartbeat(Map<String, dynamic>? heartbeat) {
-    if (heartbeat == null) return;
-    _agentHeartbeat = heartbeat;
-    _noteAgentSignal();
-  }
-
-  void _resetAgentLiveness() {
-    _agentStartedAt = null;
-    _agentSignalAt = null;
-    _agentHeartbeat = null;
-    agentLiveness.value = null;
-  }
-
-  static int? _intOrNull(Object? value) {
-    if (value is int) return value;
-    if (value is num) return value.round();
-    if (value is String) return int.tryParse(value);
-    return null;
-  }
-
-  void _insertToolResultMessageBefore(String anchorId, ToolResult? result) {
-    if (result == null) return;
-    _insertBefore(anchorId, [
-      ChatMessage(
-        id: 'temp-tool-result-${result.toolCallId}',
-        role: 'tool_result',
-        content: result.toolName,
-        createdAt: DateTime.now(),
-        metadata: {
-          'tool_result': {
-            'tool_call_id': result.toolCallId,
-            'tool_name': result.toolName,
-            'result': result.result,
-          },
-        },
-      ),
-    ]);
-  }
-
-  /// Bumped on every user action that changes message state (send, edit,
-  /// regenerate, stop, switch). In-flight reloads compare epochs and drop
-  /// their result if a newer action happened — otherwise the post-stream
-  /// server reload could clobber an optimistic edit made while it was
-  /// in flight.
   int _actionEpoch = 0;
 
-  /// Test-only access to [_reloadCurrentConversation] so the epoch guard can
-  /// be exercised against a reload that races a user action.
   @visibleForTesting
   Future<bool> reloadCurrentConversationForTest() =>
       _reloadCurrentConversation();
@@ -1437,35 +967,27 @@ class ChatProvider extends ChangeNotifier {
   Future<bool> _reloadCurrentConversation() async {
     final id = _currentConversation?.id;
     if (id == null) return false;
-    if (_starUpdates.any((key) => key.conversationId == id)) return false;
+    if (_stars.hasPendingFor(id)) return false;
     final epoch = _actionEpoch;
-    final starEpoch = _starEpoch;
+    final starEpoch = _stars.epoch;
     try {
-      // Request at least as many messages as are already displayed (which
-      // grows if the user paged older ones in via loadOlderMessages) so this
-      // reload — which runs after every single turn — never truncates
-      // already-visible history back down to the initial window (B-03).
-      // Past the backend's message_limit cap, fall back to the full history
-      // (null) — a capped value would 422, silently breaking every reload.
       final needed = _messages.length < _messageWindow
           ? _messageWindow
           : _messages.length;
       final conversation = await _chatService.getConversation(
         id,
         messageLimit: needed > _maxMessageLimit ? null : needed,
-        // Silent: this runs on background sync ticks and after every turn.
-        // Transient 5xx shouldn't fire user-facing error reports.
         silent: true,
       );
       if (epoch != _actionEpoch ||
-          starEpoch != _starEpoch ||
+          starEpoch != _stars.epoch ||
           _currentConversation?.id != id) {
-        return false; // stale — a newer action owns the state now
+        return false;
       }
       _currentConversation = conversation;
-      _messages = _hydrateAttachments(conversation.messages ?? []);
-      _completeRecoveryIfResponseArrived();
-      notifyListeners();
+      _messages = hydrateMessageAttachments(conversation.messages ?? []);
+      _recovery.completeIfArrived(_messages);
+      _notifySafely();
       return true;
     } catch (e) {
       logDebug('Failed to reload conversation: $e');
@@ -1473,16 +995,14 @@ class ChatProvider extends ChangeNotifier {
     }
   }
 
-  // The backend auto-titles a conversation in the background after its
-  // first exchange; refresh shortly after the stream ends so the generated
-  // title replaces the raw-first-message placeholder in the sidebar.
   Timer? _titleRefreshTimer;
 
   void _scheduleTitleRefresh() {
     _titleRefreshTimer?.cancel();
     _titleRefreshTimer = Timer(const Duration(seconds: 4), () async {
-      if (_isSending) return;
+      if (_disposed || _isSending) return;
       await conversationList.load();
+      if (_disposed) return;
       final id = _currentConversation?.id;
       if (id == null) return;
       final list = conversationList.conversations;
@@ -1491,60 +1011,27 @@ class ChatProvider extends ChangeNotifier {
         _currentConversation = _currentConversation!.copyWith(
           title: list[idx].title,
         );
-        notifyListeners();
+        _notifySafely();
       }
     });
   }
-
-  // ==========================================================================
-  // Attachment hydration
-  // ==========================================================================
-
-  /// Restore [ChatAttachment] objects from the metadata stored by the backend.
-  List<ChatMessage> _hydrateAttachments(List<ChatMessage> messages) {
-    return messages.map((msg) {
-      final raw = msg.metadata?['attachments'];
-      if (raw is! List || raw.isEmpty) return msg;
-
-      final attachments = raw
-          .whereType<Map<String, dynamic>>()
-          .map((a) => ChatAttachment.fromMetadata(a))
-          .toList();
-
-      return msg.copyWith(attachments: attachments);
-    }).toList();
-  }
-
-  String _editableUserContent(String content) {
-    const marker = '\n\n[Attached file: ';
-    final markerIndex = content.indexOf(marker);
-    return markerIndex < 0 ? content : content.substring(0, markerIndex);
-  }
-
-  // ==========================================================================
-  // Error handling
-  // ==========================================================================
 
   void clearError() {
     _clearError();
     if (conversationList.error != null) {
       conversationList.clearError();
     }
-    notifyListeners();
+    _notifySafely();
   }
-
-  // ==========================================================================
-  // Cleanup
-  // ==========================================================================
 
   @override
   void dispose() {
     _disposed = true;
     _stream.dispose();
-    _responseRecoveryTimer?.cancel();
+    _recovery.dispose();
+    _liveness.dispose();
     _titleRefreshTimer?.cancel();
     panel.dispose();
-    // Flushes pending undo-window deletions.
     conversationList.dispose();
     super.dispose();
   }

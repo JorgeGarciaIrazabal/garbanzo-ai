@@ -14,6 +14,7 @@ class _FakeChatService extends ChatService {
 
   final StreamController<ChatResponseChunk> controller =
       StreamController<ChatResponseChunk>();
+  Future<void> close() => controller.close();
   bool stopCalled = false;
 
   /// When non-null, [streamChatResponse] throws this synchronously instead of
@@ -43,7 +44,11 @@ class _FakeChatService extends ChatService {
     String kind = 'all',
   }) async {
     return ConversationList(
-        items: [_conversation], total: 1, page: 1, pageSize: 50);
+      items: [_conversation],
+      total: 1,
+      page: 1,
+      pageSize: 50,
+    );
   }
 
   @override
@@ -101,103 +106,134 @@ Future<ChatProvider> _providerWithOpenConversation(
 void main() {
   group('ChatProvider streaming channel', () {
     for (final followUp in [false, true]) {
-      test('visual-only reply ends recovery for ${followUp ? 'follow-up' : 'connection loss'}', () async {
-        final service = _FakeChatService();
-        ChatMessage visual(String id) => ChatMessage(
-          id: id, role: 'tool_result', content: 'Visual summary',
-          createdAt: DateTime.utc(2026), metadata: {
-            'tool_call_id': id, 'tool_name': 'render_ui',
-            'result': {'ok': true, 'presentation': {'summary': 'Visual summary'}},
-          },
-        );
-        final old = visual('old-visual');
-        service.reloadedConversation = service._conversation.copyWith(messages: [old]);
-        final provider = await _providerWithOpenConversation(service,
-          recoveryPollInterval: const Duration(milliseconds: 10));
-        addTearDown(provider.dispose);
-        if (followUp) {
-          provider.followServerResponse('conv-1');
-        } else {
-          await provider.sendMessage('Compare these');
-          service.controller.addError(Exception('Connection closed while receiving data'));
-        }
-        await Future<void>.delayed(const Duration(milliseconds: 30));
-        expect(provider.isRecoveringResponse, isTrue); // Old visual is not completion.
-        service.reloadedConversation = service._conversation.copyWith(messages: [old, visual('new-visual')]);
-        await Future<void>.delayed(const Duration(milliseconds: 40));
-        expect(provider.isRecoveringResponse, isFalse);
-        expect(provider.isSending, isFalse);
-        expect(provider.messages.last.visualPresentation, isNotNull);
-        if (followUp) service.controller.stream.listen((_) {});
-        await service.controller.close();
-      });
+      test(
+        'visual-only reply ends recovery for ${followUp ? 'follow-up' : 'connection loss'}',
+        () async {
+          final service = _FakeChatService();
+          ChatMessage visual(String id) => ChatMessage(
+            id: id,
+            role: 'tool_result',
+            content: 'Visual summary',
+            createdAt: DateTime.utc(2026),
+            metadata: {
+              'tool_call_id': id,
+              'tool_name': 'render_ui',
+              'result': {
+                'ok': true,
+                'presentation': {'summary': 'Visual summary'},
+              },
+            },
+          );
+          final old = visual('old-visual');
+          service.reloadedConversation = service._conversation.copyWith(
+            messages: [old],
+          );
+          final provider = await _providerWithOpenConversation(
+            service,
+            recoveryPollInterval: const Duration(milliseconds: 10),
+          );
+          addTearDown(provider.dispose);
+          if (followUp) {
+            provider.followServerResponse('conv-1');
+          } else {
+            await provider.sendMessage('Compare these');
+            service.controller.addError(
+              Exception('Connection closed while receiving data'),
+            );
+          }
+          await Future<void>.delayed(const Duration(milliseconds: 30));
+          expect(
+            provider.isRecoveringResponse,
+            isTrue,
+          ); // Old visual is not completion.
+          service.reloadedConversation = service._conversation.copyWith(
+            messages: [old, visual('new-visual')],
+          );
+          await Future<void>.delayed(const Duration(milliseconds: 40));
+          expect(provider.isRecoveringResponse, isFalse);
+          expect(provider.isSending, isFalse);
+          expect(provider.messages.last.visualPresentation, isNotNull);
+          if (followUp) service.controller.stream.listen((_) {});
+          await service.controller.close();
+        },
+      );
     }
-    test('content chunks update streamingMessage without notifying listeners',
-        () async {
-      final service = _FakeChatService();
-      final provider = await _providerWithOpenConversation(service);
+    test(
+      'content chunks update streamingMessage without notifying listeners',
+      () async {
+        final service = _FakeChatService();
+        final provider = await _providerWithOpenConversation(service);
 
-      var notifications = 0;
-      provider.addListener(() => notifications++);
+        var notifications = 0;
+        provider.addListener(() => notifications++);
 
-      await provider.sendMessage('hi');
-      // Placeholder added (structural) — listeners notified, stream id set.
-      final structuralBaseline = notifications;
-      expect(provider.streamingMessageId, isNotNull);
-      expect(provider.messages.last.role, 'assistant');
-      expect(provider.messages.last.content, isEmpty);
+        await provider.sendMessage('hi');
+        // Placeholder added (structural) — listeners notified, stream id set.
+        final structuralBaseline = notifications;
+        expect(provider.streamingMessageId, isNotNull);
+        expect(provider.messages.last.role, 'assistant');
+        expect(provider.messages.last.content, isEmpty);
 
-      service.controller
-          .add(const ChatResponseChunk(type: 'chunk', content: 'hel'));
-      service.controller
-          .add(const ChatResponseChunk(type: 'chunk', content: 'lo'));
-      await Future<void>.delayed(const Duration(milliseconds: 200));
+        service.controller.add(
+          const ChatResponseChunk(type: 'chunk', content: 'hel'),
+        );
+        service.controller.add(
+          const ChatResponseChunk(type: 'chunk', content: 'lo'),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 200));
 
-      // Content flowed through the ValueNotifier, not notifyListeners.
-      expect(notifications, structuralBaseline);
-      expect(provider.streamingMessage.value?.content, 'hello');
-      // The list copy still holds the empty placeholder (sync happens on
-      // structural events only).
-      expect(provider.messages.last.content, isEmpty);
+        // Content flowed through the ValueNotifier, not notifyListeners.
+        expect(notifications, structuralBaseline);
+        expect(provider.streamingMessage.value?.content, 'hello');
+        // The list copy still holds the empty placeholder (sync happens on
+        // structural events only).
+        expect(provider.messages.last.content, isEmpty);
 
-      // Per-iteration done commits content + metadata into the list.
-      service.controller.add(const ChatResponseChunk(
-          type: 'done', metadata: {'tokens_generated': 2}));
-      await Future<void>.delayed(Duration.zero);
-      expect(notifications, greaterThan(structuralBaseline));
-      expect(provider.messages.last.content, 'hello');
-      expect(provider.messages.last.metadata?['tokens_generated'], 2);
+        // Per-iteration done commits content + metadata into the list.
+        service.controller.add(
+          const ChatResponseChunk(
+            type: 'done',
+            metadata: {'tokens_generated': 2},
+          ),
+        );
+        await Future<void>.delayed(Duration.zero);
+        expect(notifications, greaterThan(structuralBaseline));
+        expect(provider.messages.last.content, 'hello');
+        expect(provider.messages.last.metadata?['tokens_generated'], 2);
 
-      await service.controller.close();
-      await Future<void>.delayed(Duration.zero);
-      expect(provider.isSending, isFalse);
-      expect(provider.streamingMessageId, isNull);
-      expect(provider.streamingMessage.value, isNull);
-    });
-
-    test('stopStreaming keeps already-streamed content, marked stopped',
-        () async {
-      final service = _FakeChatService();
-      final provider = await _providerWithOpenConversation(service);
-
-      await provider.sendMessage('hi');
-      service.controller
-          .add(const ChatResponseChunk(type: 'chunk', content: 'partial answ'));
-      await Future<void>.delayed(const Duration(milliseconds: 200));
-
-      await provider.stopStreaming();
-
-      expect(service.stopCalled, isTrue);
-      expect(provider.isSending, isFalse);
-      expect(provider.streamingMessageId, isNull);
-      // The partial content was committed to the list, not lost, and is
-      // flagged as interrupted.
-      expect(provider.messages.last.content, 'partial answ');
-      expect(provider.messages.last.metadata?['stopped'], isTrue);
-    });
+        await service.controller.close();
+        await Future<void>.delayed(Duration.zero);
+        expect(provider.isSending, isFalse);
+        expect(provider.streamingMessageId, isNull);
+        expect(provider.streamingMessage.value, isNull);
+      },
+    );
 
     test(
-        'stream error reloads the conversation to recover server-persisted '
+      'stopStreaming keeps already-streamed content, marked stopped',
+      () async {
+        final service = _FakeChatService();
+        final provider = await _providerWithOpenConversation(service);
+
+        await provider.sendMessage('hi');
+        service.controller.add(
+          const ChatResponseChunk(type: 'chunk', content: 'partial answ'),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+
+        await provider.stopStreaming();
+
+        expect(service.stopCalled, isTrue);
+        expect(provider.isSending, isFalse);
+        expect(provider.streamingMessageId, isNull);
+        // The partial content was committed to the list, not lost, and is
+        // flagged as interrupted.
+        expect(provider.messages.last.content, 'partial answ');
+        expect(provider.messages.last.metadata?['stopped'], isTrue);
+      },
+    );
+
+    test('stream error reloads the conversation to recover server-persisted '
         'content (B-01)', () async {
       final service = _FakeChatService();
       final provider = await _providerWithOpenConversation(service);
@@ -221,8 +257,9 @@ void main() {
       );
 
       await provider.sendMessage('hi');
-      service.controller
-          .addError(Exception('Connection closed while receiving data'));
+      service.controller.addError(
+        Exception('Connection closed while receiving data'),
+      );
       await Future<void>.delayed(const Duration(milliseconds: 20));
 
       // A transport drop is recovered quietly instead of showing the red
@@ -294,24 +331,26 @@ void main() {
       },
     );
 
-    test('undo within the window restores the conversation without API call',
-        () async {
-      final service = _FakeChatService();
-      final provider = await _providerWithOpenConversation(service);
-      expect(provider.conversations, hasLength(1));
+    test(
+      'undo within the window restores the conversation without API call',
+      () async {
+        final service = _FakeChatService();
+        final provider = await _providerWithOpenConversation(service);
+        expect(provider.conversations, hasLength(1));
 
-      await provider.deleteConversation('conv-1');
-      expect(provider.conversations, isEmpty);
-      expect(service.deletedIds, isEmpty); // API deferred
+        await provider.deleteConversation('conv-1');
+        expect(provider.conversations, isEmpty);
+        expect(service.deletedIds, isEmpty); // API deferred
 
-      provider.undoDeleteConversation('conv-1');
-      expect(provider.conversations, hasLength(1));
-      expect(provider.conversations.first.id, 'conv-1');
+        provider.undoDeleteConversation('conv-1');
+        expect(provider.conversations, hasLength(1));
+        expect(provider.conversations.first.id, 'conv-1');
 
-      // The undo cancelled the pending timer — no API call ever fires.
-      await Future<void>.delayed(const Duration(milliseconds: 50));
-      expect(service.deletedIds, isEmpty);
-    });
+        // The undo cancelled the pending timer — no API call ever fires.
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        expect(service.deletedIds, isEmpty);
+      },
+    );
 
     test('delete commits to the API after the undo window', () async {
       final service = _FakeChatService();
@@ -327,87 +366,102 @@ void main() {
       expect(service.deletedIds, ['conv-1']);
     });
 
-    test('tool_execution updates land on the matching tool_call message',
-        () async {
-      final service = _FakeChatService();
-      final provider = await _providerWithOpenConversation(service);
-      await provider.sendMessage('hi');
+    test(
+      'tool_execution updates land on the matching tool_call message',
+      () async {
+        final service = _FakeChatService();
+        final provider = await _providerWithOpenConversation(service);
+        await provider.sendMessage('hi');
 
-      service.controller.add(ChatResponseChunk(
-        type: 'tool_call',
-        toolCalls: [
-          const ToolCall(id: 'call-7', name: 'search', arguments: {}),
-        ],
-      ));
-      await Future<void>.delayed(Duration.zero);
+        service.controller.add(
+          ChatResponseChunk(
+            type: 'tool_call',
+            toolCalls: [
+              const ToolCall(id: 'call-7', name: 'search', arguments: {}),
+            ],
+          ),
+        );
+        await Future<void>.delayed(Duration.zero);
 
-      service.controller.add(const ChatResponseChunk(
-        type: 'tool_execution',
-        metadata: {
-          'tool_execution': {
-            'tool_call_id': 'call-7',
-            'tool_name': 'search',
-            'status': 'started',
-          },
-        },
-      ));
-      await Future<void>.delayed(Duration.zero);
+        service.controller.add(
+          const ChatResponseChunk(
+            type: 'tool_execution',
+            metadata: {
+              'tool_execution': {
+                'tool_call_id': 'call-7',
+                'tool_name': 'search',
+                'status': 'started',
+              },
+            },
+          ),
+        );
+        await Future<void>.delayed(Duration.zero);
 
-      var toolMsg = provider.messages
-          .firstWhere((m) => m.id == 'temp-tool-call-call-7');
-      expect(toolMsg.metadata?['tool_execution']?['status'], 'started');
-      // The original call payload is preserved alongside the status.
-      expect(toolMsg.metadata?['tool_calls'], isNotNull);
+        var toolMsg = provider.messages.firstWhere(
+          (m) => m.id == 'temp-tool-call-call-7',
+        );
+        expect(toolMsg.metadata?['tool_execution']?['status'], 'started');
+        // The original call payload is preserved alongside the status.
+        expect(toolMsg.metadata?['tool_calls'], isNotNull);
 
-      service.controller.add(const ChatResponseChunk(
-        type: 'tool_execution',
-        metadata: {
-          'tool_execution': {
-            'tool_call_id': 'call-7',
-            'tool_name': 'search',
-            'status': 'finished',
-            'duration_ms': 2300,
-          },
-        },
-      ));
-      await Future<void>.delayed(Duration.zero);
+        service.controller.add(
+          const ChatResponseChunk(
+            type: 'tool_execution',
+            metadata: {
+              'tool_execution': {
+                'tool_call_id': 'call-7',
+                'tool_name': 'search',
+                'status': 'finished',
+                'duration_ms': 2300,
+              },
+            },
+          ),
+        );
+        await Future<void>.delayed(Duration.zero);
 
-      toolMsg = provider.messages
-          .firstWhere((m) => m.id == 'temp-tool-call-call-7');
-      expect(toolMsg.metadata?['tool_execution']?['status'], 'finished');
-      expect(toolMsg.metadata?['tool_execution']?['duration_ms'], 2300);
+        toolMsg = provider.messages.firstWhere(
+          (m) => m.id == 'temp-tool-call-call-7',
+        );
+        expect(toolMsg.metadata?['tool_execution']?['status'], 'finished');
+        expect(toolMsg.metadata?['tool_execution']?['duration_ms'], 2300);
 
-      await service.controller.close();
-    });
+        await service.controller.close();
+      },
+    );
 
-    test('throttle coalesces rapid chunks but flushes the trailing state',
-        () async {
-      final service = _FakeChatService();
-      final provider = await _providerWithOpenConversation(service);
+    test(
+      'throttle coalesces rapid chunks but flushes the trailing state',
+      () async {
+        final service = _FakeChatService();
+        final provider = await _providerWithOpenConversation(service);
 
-      var pushes = 0;
-      await provider.sendMessage('hi');
-      provider.streamingMessage.addListener(() => pushes++);
+        var pushes = 0;
+        await provider.sendMessage('hi');
+        provider.streamingMessage.addListener(() => pushes++);
 
-      // 20 chunks back-to-back — far faster than the 80ms push interval.
-      for (var i = 0; i < 20; i++) {
-        service.controller
-            .add(const ChatResponseChunk(type: 'chunk', content: 'x'));
-      }
-      await Future<void>.delayed(const Duration(milliseconds: 300));
+        // 20 chunks back-to-back — far faster than the 80ms push interval.
+        for (var i = 0; i < 20; i++) {
+          service.controller.add(
+            const ChatResponseChunk(type: 'chunk', content: 'x'),
+          );
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 300));
 
-      // Coalesced into a handful of pushes, but nothing was dropped.
-      expect(pushes, lessThan(20));
-      expect(provider.streamingMessage.value?.content, 'x' * 20);
-    });
+        // Coalesced into a handful of pushes, but nothing was dropped.
+        expect(pushes, lessThan(20));
+        expect(provider.streamingMessage.value?.content, 'x' * 20);
+      },
+    );
 
     test('a 503 from the backend surfaces a friendly "service unavailable" '
         'message (user-report #71e9d25d)', () async {
       final service = _FakeChatService();
       // Simulate the backend returning 503 — ChatService maps that to a
       // ChatException(kind: 'unavailable'), which the provider translates.
-      service.streamChatError =
-          ChatException.fromStatus(503, detail: 'ollama down');
+      service.streamChatError = ChatException.fromStatus(
+        503,
+        detail: 'ollama down',
+      );
       final provider = await _providerWithOpenConversation(service);
 
       await provider.sendMessage('hi');

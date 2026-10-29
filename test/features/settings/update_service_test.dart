@@ -121,10 +121,14 @@ void main() {
     });
 
     test('reports up-to-date when running the latest (or newer)', () async {
-      expect((await _service('1.0.4', '1.0.4').checkForUpdates()).hasUpdate,
-          isFalse);
-      expect((await _service('1.0.5', '1.0.4').checkForUpdates()).hasUpdate,
-          isFalse);
+      expect(
+        (await _service('1.0.4', '1.0.4').checkForUpdates()).hasUpdate,
+        isFalse,
+      );
+      expect(
+        (await _service('1.0.5', '1.0.4').checkForUpdates()).hasUpdate,
+        isFalse,
+      );
     });
 
     test('throws on backend errors other than 404', () async {
@@ -151,13 +155,15 @@ void main() {
       installer: UpdateInstaller(),
     );
 
-    test('silent check exposes an available update and shows the banner',
-        () async {
-      final p = provider('1.0.3', '1.0.4');
-      await p.silentCheck();
-      expect(p.status, UpdateStatus.available);
-      expect(p.showBanner, isTrue);
-    });
+    test(
+      'silent check exposes an available update and shows the banner',
+      () async {
+        final p = provider('1.0.3', '1.0.4');
+        await p.silentCheck();
+        expect(p.status, UpdateStatus.available);
+        expect(p.showBanner, isTrue);
+      },
+    );
 
     test('up-to-date check shows no banner', () async {
       final p = provider('1.0.4', '1.0.4');
@@ -166,29 +172,33 @@ void main() {
       expect(p.showBanner, isFalse);
     });
 
-    test('snooze hides the banner and persists across provider instances',
-        () async {
-      final p = provider('1.0.3', '1.0.4');
-      await p.silentCheck();
-      await p.snooze();
-      expect(p.showBanner, isFalse);
+    test(
+      'snooze hides the banner and persists across provider instances',
+      () async {
+        final p = provider('1.0.3', '1.0.4');
+        await p.silentCheck();
+        await p.snooze();
+        expect(p.showBanner, isFalse);
 
-      final fresh = provider('1.0.3', '1.0.4');
-      await fresh.silentCheck();
-      expect(fresh.status, UpdateStatus.available);
-      expect(fresh.showBanner, isFalse);
-    });
+        final fresh = provider('1.0.3', '1.0.4');
+        await fresh.silentCheck();
+        expect(fresh.status, UpdateStatus.available);
+        expect(fresh.showBanner, isFalse);
+      },
+    );
 
-    test('a newer release than the snoozed one shows the banner again',
-        () async {
-      final p = provider('1.0.3', '1.0.4');
-      await p.silentCheck();
-      await p.snooze();
+    test(
+      'a newer release than the snoozed one shows the banner again',
+      () async {
+        final p = provider('1.0.3', '1.0.4');
+        await p.silentCheck();
+        await p.snooze();
 
-      final newer = provider('1.0.3', '1.0.5');
-      await newer.silentCheck();
-      expect(newer.showBanner, isTrue);
-    });
+        final newer = provider('1.0.3', '1.0.5');
+        await newer.silentCheck();
+        expect(newer.showBanner, isTrue);
+      },
+    );
 
     test('manual check surfaces errors', () async {
       final p = UpdateProvider(
@@ -273,22 +283,24 @@ void main() {
   });
 
   group('UpdateInstaller.swapDirs', () {
-    test('swaps staging into place and keeps the old install as .old',
-        () async {
-      final root = await Directory.systemTemp.createTemp('swap-test-');
-      addTearDown(() => root.delete(recursive: true));
-      final install = Directory('${root.path}/app')..createSync();
-      File('${install.path}/bin').writeAsStringSync('old');
-      final staging = Directory('${install.path}.staging')..createSync();
-      File('${staging.path}/bin').writeAsStringSync('new');
-      // A stale rollback dir from a previous update must not block the swap.
-      Directory('${install.path}.old').createSync();
+    test(
+      'swaps staging into place and keeps the old install as .old',
+      () async {
+        final root = await Directory.systemTemp.createTemp('swap-test-');
+        addTearDown(() => root.delete(recursive: true));
+        final install = Directory('${root.path}/app')..createSync();
+        File('${install.path}/bin').writeAsStringSync('old');
+        final staging = Directory('${install.path}.staging')..createSync();
+        File('${staging.path}/bin').writeAsStringSync('new');
+        // A stale rollback dir from a previous update must not block the swap.
+        Directory('${install.path}.old').createSync();
 
-      UpdateInstaller.swapDirs(install: install, staging: staging);
+        UpdateInstaller.swapDirs(install: install, staging: staging);
 
-      expect(File('${install.path}/bin').readAsStringSync(), 'new');
-      expect(File('${install.path}.old/bin').readAsStringSync(), 'old');
-      expect(staging.existsSync(), isFalse);
-    });
+        expect(File('${install.path}/bin').readAsStringSync(), 'new');
+        expect(File('${install.path}.old/bin').readAsStringSync(), 'old');
+        expect(staging.existsSync(), isFalse);
+      },
+    );
   });
 }

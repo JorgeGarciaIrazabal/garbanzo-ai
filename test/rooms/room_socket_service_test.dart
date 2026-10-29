@@ -97,8 +97,11 @@ void main() {
         // attempt counter climbs to exhaustion. With maxReconnectAttempts: 2
         // the service schedules two reconnects (1s, then 2s) and fails on the
         // disconnect after the second one.
-        final service =
-            _service(channels, readyNow: false, maxReconnectAttempts: 2);
+        final service = _service(
+          channels,
+          readyNow: false,
+          maxReconnectAttempts: 2,
+        );
 
         service.connect();
         async.flushMicrotasks();
@@ -132,30 +135,36 @@ void main() {
       });
     });
 
-    test('a policy-violation close is treated as auth failure — no reconnect',
-        () {
-      fakeAsync((async) {
-        final channels = <FakeRoomChannel>[];
-        final service = _service(channels);
+    test(
+      'a policy-violation close is treated as auth failure — no reconnect',
+      () {
+        fakeAsync((async) {
+          final channels = <FakeRoomChannel>[];
+          final service = _service(channels);
 
-        service.connect();
-        async.flushMicrotasks();
-        expect(service.connectionState.value, RoomConnectionState.connected);
+          service.connect();
+          async.flushMicrotasks();
+          expect(service.connectionState.value, RoomConnectionState.connected);
 
-        channels[0].serverClose(code: ws_status.policyViolation);
-        async.flushMicrotasks();
-        async.elapse(const Duration(seconds: 30));
-        async.flushMicrotasks();
+          channels[0].serverClose(code: ws_status.policyViolation);
+          async.flushMicrotasks();
+          async.elapse(const Duration(seconds: 30));
+          async.flushMicrotasks();
 
-        expect(service.connectionState.value, RoomConnectionState.closed);
-        expect(channels, hasLength(1)); // never retried
-      });
-    });
+          expect(service.connectionState.value, RoomConnectionState.closed);
+          expect(channels, hasLength(1)); // never retried
+        });
+      },
+    );
 
     test('retry() restarts from the failed state', () {
       fakeAsync((async) {
         final channels = <FakeRoomChannel>[];
-        final service = _service(channels, readyNow: false, maxReconnectAttempts: 1);
+        final service = _service(
+          channels,
+          readyNow: false,
+          maxReconnectAttempts: 1,
+        );
 
         service.connect();
         async.flushMicrotasks();
@@ -199,30 +208,39 @@ void main() {
       });
     });
 
-    test('background suspend pauses retries and resume reconnects immediately',
-        () {
-      fakeAsync((async) {
-        final channels = <FakeRoomChannel>[];
-        final service = _service(channels);
-        service.connect();
-        async.flushMicrotasks();
-        expect(service.connectionState.value, RoomConnectionState.connected);
+    test(
+      'background suspend pauses retries and resume reconnects immediately',
+      () {
+        fakeAsync((async) {
+          final channels = <FakeRoomChannel>[];
+          final service = _service(channels);
+          service.connect();
+          async.flushMicrotasks();
+          expect(service.connectionState.value, RoomConnectionState.connected);
 
-        service.suspend();
-        async.flushMicrotasks();
-        expect(channels.single.closed, isTrue);
-        expect(service.connectionState.value, RoomConnectionState.reconnecting);
+          service.suspend();
+          async.flushMicrotasks();
+          expect(channels.single.closed, isTrue);
+          expect(
+            service.connectionState.value,
+            RoomConnectionState.reconnecting,
+          );
 
-        async.elapse(const Duration(minutes: 5));
-        async.flushMicrotasks();
-        expect(channels, hasLength(1), reason: 'no retries while backgrounded');
+          async.elapse(const Duration(minutes: 5));
+          async.flushMicrotasks();
+          expect(
+            channels,
+            hasLength(1),
+            reason: 'no retries while backgrounded',
+          );
 
-        service.resume();
-        async.flushMicrotasks();
-        expect(channels, hasLength(2));
-        expect(service.connectionState.value, RoomConnectionState.connected);
-      });
-    });
+          service.resume();
+          async.flushMicrotasks();
+          expect(channels, hasLength(2));
+          expect(service.connectionState.value, RoomConnectionState.connected);
+        });
+      },
+    );
 
     test('suspend closes the socket with a transport-legal close code', () {
       fakeAsync((async) {

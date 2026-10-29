@@ -52,10 +52,7 @@ void main() {
   testWidgets('terminal failure offers an inline retry', (tester) async {
     var retries = 0;
     await tester.pumpWidget(
-      _app(
-        state: RoomConnectionState.failed,
-        onRetry: () => retries++,
-      ),
+      _app(state: RoomConnectionState.failed, onRetry: () => retries++),
     );
 
     expect(find.text("Couldn't reconnect."), findsOne);
@@ -66,10 +63,7 @@ void main() {
 
   testWidgets('connection statuses are localized in Spanish', (tester) async {
     await tester.pumpWidget(
-      _app(
-        state: RoomConnectionState.reconnecting,
-        locale: const Locale('es'),
-      ),
+      _app(state: RoomConnectionState.reconnecting, locale: const Locale('es')),
     );
 
     expect(find.text('Reconectando…'), findsOne);

@@ -14,10 +14,9 @@ void main() {
     testWidgets('renders with valid mermaid code in test mode', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
-          
-  localizationsDelegates: AppLocalizations.localizationsDelegates,
-  supportedLocales: AppLocalizations.supportedLocales,
-home: Scaffold(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
             body: MermaidDiagram(
               mermaidCode: '''
 graph TD
@@ -40,10 +39,9 @@ graph TD
     testWidgets('renders flowchart diagram in test mode', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
-          
-  localizationsDelegates: AppLocalizations.localizationsDelegates,
-  supportedLocales: AppLocalizations.supportedLocales,
-home: Scaffold(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
             body: MermaidDiagram(
               mermaidCode: '''
 flowchart LR
@@ -65,10 +63,9 @@ flowchart LR
     testWidgets('renders sequence diagram in test mode', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
-          
-  localizationsDelegates: AppLocalizations.localizationsDelegates,
-  supportedLocales: AppLocalizations.supportedLocales,
-home: Scaffold(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
             body: MermaidDiagram(
               mermaidCode: '''
 sequenceDiagram
@@ -89,10 +86,9 @@ sequenceDiagram
     testWidgets('renders class diagram in test mode', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
-          
-  localizationsDelegates: AppLocalizations.localizationsDelegates,
-  supportedLocales: AppLocalizations.supportedLocales,
-home: Scaffold(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
             body: MermaidDiagram(
               mermaidCode: '''
 classDiagram
@@ -119,10 +115,9 @@ classDiagram
     testWidgets('renders state diagram in test mode', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
-          
-  localizationsDelegates: AppLocalizations.localizationsDelegates,
-  supportedLocales: AppLocalizations.supportedLocales,
-home: Scaffold(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
             body: MermaidDiagram(
               mermaidCode: '''
 stateDiagram-v2
@@ -144,10 +139,9 @@ stateDiagram-v2
     testWidgets('handles empty mermaid code in test mode', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
-          
-  localizationsDelegates: AppLocalizations.localizationsDelegates,
-  supportedLocales: AppLocalizations.supportedLocales,
-home: Scaffold(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
             body: MermaidDiagram(
               mermaidCode: '',
               colorScheme: colorScheme,
@@ -168,10 +162,9 @@ home: Scaffold(
 
       await tester.pumpWidget(
         MaterialApp(
-          
-  localizationsDelegates: AppLocalizations.localizationsDelegates,
-  supportedLocales: AppLocalizations.supportedLocales,
-home: Scaffold(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
             body: MermaidDiagram(
               mermaidCode: '''
 graph TD
@@ -187,17 +180,17 @@ graph TD
       expect(find.byType(MermaidDiagram), findsOneWidget);
     });
 
-    testWidgets('widget updates when mermaid code changes in test mode',
-        (tester) async {
+    testWidgets('widget updates when mermaid code changes in test mode', (
+      tester,
+    ) async {
       const initialCode = 'graph TD\n    A --> B';
       const updatedCode = 'graph TD\n    A --> C';
 
       await tester.pumpWidget(
         MaterialApp(
-          
-  localizationsDelegates: AppLocalizations.localizationsDelegates,
-  supportedLocales: AppLocalizations.supportedLocales,
-home: Scaffold(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
             body: MermaidDiagram(
               mermaidCode: initialCode,
               colorScheme: colorScheme,
@@ -212,10 +205,9 @@ home: Scaffold(
       // Update with new code
       await tester.pumpWidget(
         MaterialApp(
-          
-  localizationsDelegates: AppLocalizations.localizationsDelegates,
-  supportedLocales: AppLocalizations.supportedLocales,
-home: Scaffold(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
             body: MermaidDiagram(
               mermaidCode: updatedCode,
               colorScheme: colorScheme,
@@ -231,10 +223,9 @@ home: Scaffold(
     testWidgets('shows copy button in header', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
-          
-  localizationsDelegates: AppLocalizations.localizationsDelegates,
-  supportedLocales: AppLocalizations.supportedLocales,
-home: Scaffold(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
             body: MermaidDiagram(
               mermaidCode: 'graph TD\n    A --> B',
               colorScheme: colorScheme,
@@ -252,10 +243,9 @@ home: Scaffold(
     testWidgets('shows mermaid label in header', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
-          
-  localizationsDelegates: AppLocalizations.localizationsDelegates,
-  supportedLocales: AppLocalizations.supportedLocales,
-home: Scaffold(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
             body: MermaidDiagram(
               mermaidCode: 'graph TD\n    A --> B',
               colorScheme: colorScheme,

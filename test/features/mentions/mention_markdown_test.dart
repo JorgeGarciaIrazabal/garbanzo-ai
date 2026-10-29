@@ -6,10 +6,9 @@ void main() {
     const tools = ['web_search', 'app_help', 'memories'];
 
     test('finds word-start #tokens for known tools only', () {
-      expect(
-        mentionedToolNames('use #web_search and #unknown here', tools),
-        ['web_search'],
-      );
+      expect(mentionedToolNames('use #web_search and #unknown here', tools), [
+        'web_search',
+      ]);
     });
 
     test('matches at start of text and before punctuation', () {

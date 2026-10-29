@@ -41,16 +41,18 @@ Widget _app(UpdateProvider provider) {
   final router = GoRouter(
     navigatorKey: rootNavigatorKey,
     routes: [
-      GoRoute(path: '/', builder: (_, _) => const Scaffold(body: Text('home'))),
+      GoRoute(
+        path: '/',
+        builder: (_, _) => const Scaffold(body: Text('home')),
+      ),
     ],
   );
   return ChangeNotifierProvider.value(
     value: provider,
     child: MaterialApp.router(
-      
-  localizationsDelegates: AppLocalizations.localizationsDelegates,
-  supportedLocales: AppLocalizations.supportedLocales,
-routerConfig: router,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      routerConfig: router,
       builder: (context, child) => UpdateBanner(child: child!),
     ),
   );

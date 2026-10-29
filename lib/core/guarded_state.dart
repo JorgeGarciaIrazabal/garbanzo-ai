@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
+import 'package:garbanzo_ai/core/api_error.dart';
 import 'package:garbanzo_ai/core/log.dart';
 
 /// Default user-facing message shown when a request fails with 401.
@@ -109,10 +110,13 @@ bool isGatewayFailure(int status, {Object? body}) {
       text.contains('<html');
 }
 
-/// Extracts an HTTP status code from [error] if one is discernible, either from
-/// a [DioException] response or from the embedded `(NNN)` / `HTTP NNN` marker in
-/// a service-thrown exception message.
+/// Extracts an HTTP status code from [error] if one is discernible, from an
+/// [ApiResponseException], a [DioException] response, or an embedded `(NNN)` /
+/// `HTTP NNN` marker in a legacy exception message.
 int? _statusCodeOf(Object error) {
+  if (error is ApiResponseException) {
+    return error.statusCode > 0 ? error.statusCode : null;
+  }
   if (error is DioException) {
     final code = error.response?.statusCode;
     if (code != null) return code;
@@ -125,9 +129,15 @@ int? _statusCodeOf(Object error) {
   return null;
 }
 
-/// Pulls a short human-readable reason out of a service exception of the form
-/// `"API Error (400): <detail>"`, if present and reasonably concise.
+/// Pulls a short human-readable reason out of an [ApiResponseException] or a
+/// service exception of the form `"API Error (400): <detail>"`, if present and
+/// reasonably concise.
 String? _serverDetail(Object error) {
+  if (error is ApiResponseException) {
+    final detail = error.detail?.trim();
+    if (detail == null || detail.isEmpty || detail.length > 200) return null;
+    return detail;
+  }
   final match = RegExp(
     r'API Error \(\d{3}\):\s*(.+)$',
   ).firstMatch(error.toString());
@@ -141,7 +151,8 @@ String? _serverDetail(Object error) {
 /// `String? _error` / `bool _isLoading` / `catch (e) { _error = '…$e'; … }`
 /// boilerplate. Wrap an async operation in [runGuarded] and it will manage the
 /// loading flag, map failures to a user-facing [error] message, retain the raw
-/// error in [lastErrorDetail] for debugging, and notify listeners.
+/// error in [lastErrorDetail] for debugging, and notify listeners (skipping
+/// notifications safely if the provider has been disposed mid-flight).
 mixin GuardedStateMixin on ChangeNotifier {
   String? _error;
 
@@ -159,12 +170,24 @@ mixin GuardedStateMixin on ChangeNotifier {
   /// Whether a guarded operation (with `trackLoading`) is in flight.
   bool get isLoading => _isLoading;
 
+  bool _disposed = false;
+
+  /// Whether [dispose] has been called on this notifier.
+  @protected
+  bool get isDisposed => _disposed;
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
+
   /// Clear any current [error] and notify listeners (only if something changed).
   void clearError() {
     if (_error == null && _lastError == null) return;
     _error = null;
     _lastError = null;
-    notifyListeners();
+    if (!_disposed) notifyListeners();
   }
 
   /// Set a user-facing error directly (e.g. for validation) plus optional raw
@@ -173,7 +196,7 @@ mixin GuardedStateMixin on ChangeNotifier {
   void setError(String message, [Object? detail]) {
     _error = message;
     _lastError = detail;
-    notifyListeners();
+    if (!_disposed) notifyListeners();
   }
 
   /// Run [fn], catching any failure. On success returns its value; on failure
@@ -182,29 +205,32 @@ mixin GuardedStateMixin on ChangeNotifier {
   ///
   /// When [trackLoading] is true (default), [isLoading] is set for the duration
   /// of the call. Listeners are notified at the start (when loading toggles or a
-  /// prior error is cleared) and always at the end.
+  /// prior error is cleared) and at the end unless the notifier was disposed.
   @protected
   Future<T?> runGuarded<T>(
     String label,
     Future<T> Function() fn, {
     bool trackLoading = true,
   }) async {
+    if (_disposed) return null;
     final hadError = _error != null || _lastError != null;
     _error = null;
     _lastError = null;
     if (trackLoading) _isLoading = true;
-    if (trackLoading || hadError) notifyListeners();
+    if ((trackLoading || hadError) && !_disposed) notifyListeners();
 
     try {
       return await fn();
     } catch (e) {
-      _error = describeFailure(e, label: label);
-      _lastError = e;
+      if (!_disposed) {
+        _error = describeFailure(e, label: label);
+        _lastError = e;
+      }
       logDebug('$label failed: $e');
       return null;
     } finally {
       if (trackLoading) _isLoading = false;
-      notifyListeners();
+      if (!_disposed) notifyListeners();
     }
   }
 }

@@ -5,8 +5,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:garbanzo_ai/features/chat/services/audio_service.dart';
 import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
-import 'package:garbanzo_ai/features/settings/widgets/drawer_sections/app_settings_section.dart';
-import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
+import 'package:garbanzo_ai/features/settings/widgets/voice_settings_tiles.dart';
+
+import '../../helpers/pump_app.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -17,10 +18,30 @@ void main() {
 
   group('VoiceSettingsTiles.uniqueLanguages', () {
     const voices = [
-      VoiceOption(id: 'af_heart', name: 'Heart', language: 'English', langCode: 'en'),
-      VoiceOption(id: 'am_adam', name: 'Adam', language: 'English', langCode: 'en'),
-      VoiceOption(id: 'ef_dora', name: 'Dora', language: 'Spanish', langCode: 'es'),
-      VoiceOption(id: 'ff_siwis', name: 'Siwis', language: 'French', langCode: 'fr'),
+      VoiceOption(
+        id: 'af_heart',
+        name: 'Heart',
+        language: 'English',
+        langCode: 'en',
+      ),
+      VoiceOption(
+        id: 'am_adam',
+        name: 'Adam',
+        language: 'English',
+        langCode: 'en',
+      ),
+      VoiceOption(
+        id: 'ef_dora',
+        name: 'Dora',
+        language: 'Spanish',
+        langCode: 'es',
+      ),
+      VoiceOption(
+        id: 'ff_siwis',
+        name: 'Siwis',
+        language: 'French',
+        langCode: 'fr',
+      ),
     ];
 
     test('dedupes by lang code, keeping catalog order', () {
@@ -36,26 +57,35 @@ void main() {
 
   group('VoiceSettingsTiles language settings', () {
     const voices = [
-      VoiceOption(id: 'af_heart', name: 'Heart', language: 'English', langCode: 'en'),
-      VoiceOption(id: 'ef_dora', name: 'Dora', language: 'Spanish', langCode: 'es'),
+      VoiceOption(
+        id: 'af_heart',
+        name: 'Heart',
+        language: 'English',
+        langCode: 'en',
+      ),
+      VoiceOption(
+        id: 'ef_dora',
+        name: 'Dora',
+        language: 'Spanish',
+        langCode: 'es',
+      ),
     ];
 
-    Future<SettingsProvider> pump(WidgetTester tester) async {
+    Future<SettingsProvider> pump(
+      WidgetTester tester, {
+      Future<List<VoiceOption>> Function()? loadVoices,
+    }) async {
       final settings = SettingsProvider();
-      await tester.pumpWidget(
-        ChangeNotifierProvider.value(
-          value: settings,
-          child: MaterialApp(
-            
-  localizationsDelegates: AppLocalizations.localizationsDelegates,
-  supportedLocales: AppLocalizations.supportedLocales,
-home: Scaffold(
-              body: SingleChildScrollView(
-                child: VoiceSettingsTiles(loadVoices: () async => voices),
-              ),
+      await pumpLocalizedApp(
+        tester,
+        Scaffold(
+          body: SingleChildScrollView(
+            child: VoiceSettingsTiles(
+              loadVoices: loadVoices ?? () async => voices,
             ),
           ),
         ),
+        providers: [ChangeNotifierProvider.value(value: settings)],
       );
       await tester.pump();
       return settings;
@@ -94,5 +124,30 @@ home: Scaffold(
       await tester.pump();
       expect(settings.preferredLanguages, ['en']);
     });
+
+    testWidgets(
+      'surfaces error and retry button when loadVoices fails instead of silently swallowing',
+      (tester) async {
+        var attempts = 0;
+        await pump(
+          tester,
+          loadVoices: () async {
+            attempts++;
+            if (attempts == 1) throw Exception('TTS backend down');
+            return voices;
+          },
+        );
+
+        expect(find.text('Could not load voices'), findsOneWidget);
+        final retry = find.byKey(const ValueKey('retry_load_voices'));
+        expect(retry, findsOneWidget);
+
+        await tester.tap(retry);
+        await tester.pumpAndSettle();
+
+        expect(find.text('Could not load voices'), findsNothing);
+        expect(find.byKey(const ValueKey('language_chip_en')), findsOneWidget);
+      },
+    );
   });
 }

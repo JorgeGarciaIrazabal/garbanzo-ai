@@ -2,24 +2,28 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
 import 'package:garbanzo_ai/core/api_client.dart';
+import 'package:garbanzo_ai/core/api_error.dart';
 import 'package:garbanzo_ai/features/chat/models/conversation.dart';
 import 'package:garbanzo_ai/features/topics/models/topic_node.dart';
 import 'package:garbanzo_ai/features/topics/models/topic_switch.dart';
 
 /// Narrow adapter for the evolving topic API contract.
 class TopicService {
-  TopicService._();
-  static final TopicService instance = TopicService._();
+  TopicService({ApiClient? api}) : _api = api ?? ApiClient.instance;
+  static final TopicService instance = TopicService();
 
   @visibleForTesting
-  TopicService.forTesting();
+  TopicService.forTesting() : this();
 
-  final ApiClient _api = ApiClient.instance;
+  final ApiClient _api;
 
   Future<List<TopicNode>> listTopics(TopicOrigin mode) async {
     final response = await getTopicListResponse(mode);
     if (response.statusCode != 200) {
-      throw TopicServiceException(response.statusCode ?? 0);
+      throw TopicServiceException(
+        response.statusCode ?? 0,
+        detail: apiErrorDetail(response.data),
+      );
     }
     final body = response.data;
     if (body is! Map<String, dynamic> || body['topics'] is! List<dynamic>) {
@@ -46,7 +50,10 @@ class TopicService {
       data: {'pinned': pinned, 'context_version': contextVersion},
     );
     if (response.statusCode != 200) {
-      throw TopicServiceException(response.statusCode ?? 0);
+      throw TopicServiceException(
+        response.statusCode ?? 0,
+        detail: apiErrorDetail(response.data),
+      );
     }
   }
 
@@ -73,7 +80,10 @@ class TopicService {
       ...?settings,
     });
     if (response.statusCode != 200) {
-      throw TopicServiceException(response.statusCode ?? 0);
+      throw TopicServiceException(
+        response.statusCode ?? 0,
+        detail: apiErrorDetail(response.data),
+      );
     }
     return TopicSwitchResponse.fromJson(response.data as Map<String, dynamic>);
   }
@@ -106,7 +116,10 @@ class TopicService {
   Future<List<TopicArchive>> listArchives(String topicId) async {
     final response = await _api.get('/api/v1/chat/topics/$topicId/archives');
     if (response.statusCode != 200) {
-      throw TopicServiceException(response.statusCode ?? 0);
+      throw TopicServiceException(
+        response.statusCode ?? 0,
+        detail: apiErrorDetail(response.data),
+      );
     }
     final body = response.data as Map<String, dynamic>;
     final raw = (body['archives'] as List<dynamic>? ?? const []);
@@ -121,7 +134,10 @@ class TopicService {
       '/api/v1/chat/topics/$topicId/conversations',
     );
     if (response.statusCode != 200) {
-      throw TopicServiceException(response.statusCode ?? 0);
+      throw TopicServiceException(
+        response.statusCode ?? 0,
+        detail: apiErrorDetail(response.data),
+      );
     }
     final body = response.data as Map<String, dynamic>;
     return (body['conversations'] as List<dynamic>)
@@ -134,7 +150,10 @@ class TopicService {
       '/api/v1/chat/topics/$topicId/archives/$archiveId/resume',
     );
     if (response.statusCode != 200) {
-      throw TopicServiceException(response.statusCode ?? 0);
+      throw TopicServiceException(
+        response.statusCode ?? 0,
+        detail: apiErrorDetail(response.data),
+      );
     }
     return Conversation.fromJson(response.data as Map<String, dynamic>);
   }
@@ -150,7 +169,10 @@ class TopicService {
       queryParameters: {'limit': limit, 'before': ?before},
     );
     if (response.statusCode != 200) {
-      throw TopicServiceException(response.statusCode ?? 0);
+      throw TopicServiceException(
+        response.statusCode ?? 0,
+        detail: apiErrorDetail(response.data),
+      );
     }
     final body = response.data;
     if (body is! Map<String, dynamic>) {
@@ -161,6 +183,12 @@ class TopicService {
 }
 
 class TopicServiceException implements Exception {
-  const TopicServiceException(this.statusCode);
+  const TopicServiceException(this.statusCode, {this.detail});
   final int statusCode;
+  final String? detail;
+
+  @override
+  String toString() => detail == null || detail!.isEmpty
+      ? 'TopicServiceException ($statusCode)'
+      : 'API Error ($statusCode): $detail';
 }

@@ -44,22 +44,25 @@ void main() {
       expect(json['data'], base64Encode(bytes));
     });
 
-    test('toJson for document preserves binary and Unicode bytes as base64', () {
-      final bytes = Uint8List.fromList([
-        ...utf8.encode('HÉBRIDAS, España'),
-        0,
-        255,
-      ]);
-      final att = ChatAttachment(
-        name: 'CONTRATO ISLAS HÉBRIDAS 70.pdf',
-        mimeType: 'application/pdf',
-        type: AttachmentType.document,
-        bytes: bytes,
-      );
-      final json = att.toJson();
-      expect(json['type'], 'document');
-      expect(json['encoding'], 'base64');
-      expect(base64Decode(json['data'] as String), bytes);
-    });
+    test(
+      'toJson for document preserves binary and Unicode bytes as base64',
+      () {
+        final bytes = Uint8List.fromList([
+          ...utf8.encode('HÉBRIDAS, España'),
+          0,
+          255,
+        ]);
+        final att = ChatAttachment(
+          name: 'CONTRATO ISLAS HÉBRIDAS 70.pdf',
+          mimeType: 'application/pdf',
+          type: AttachmentType.document,
+          bytes: bytes,
+        );
+        final json = att.toJson();
+        expect(json['type'], 'document');
+        expect(json['encoding'], 'base64');
+        expect(base64Decode(json['data'] as String), bytes);
+      },
+    );
   });
 }

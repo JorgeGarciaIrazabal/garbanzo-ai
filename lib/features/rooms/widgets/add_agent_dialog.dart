@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'package:garbanzo_ai/core/log.dart';
+
 import 'package:garbanzo_ai/core/widgets/animated_dialog.dart';
 import 'package:garbanzo_ai/features/chat/models/model_info.dart';
 import 'package:garbanzo_ai/features/chat/models/system_prompt_template.dart';
@@ -69,6 +71,7 @@ class _AddAgentDialogState extends State<AddAgentDialog> {
   String? _selectedModelId;
 
   List<SystemPromptTemplate> _templates = const [];
+  String? _templateLoadError;
   String? _selectedTemplateId;
 
   RoomAgent? get _existing => widget.existing;
@@ -132,8 +135,7 @@ class _AddAgentDialogState extends State<AddAgentDialog> {
   }
 
   /// The rooms page has no route-scoped SystemPromptProvider, so the saved
-  /// templates come straight from the service (mirrors _loadModels). Failure
-  /// just leaves the picker hidden — the free-text prompt still works.
+  /// templates come straight from the service (mirrors _loadModels).
   Future<void> _loadTemplates() async {
     try {
       final templates =
@@ -142,6 +144,7 @@ class _AddAgentDialogState extends State<AddAgentDialog> {
       if (!mounted) return;
       setState(() {
         _templates = templates;
+        _templateLoadError = null;
         // When editing, reflect the template the agent's prompt came from.
         final prompt = _promptCtrl.text.trim();
         if (prompt.isNotEmpty) {
@@ -151,7 +154,13 @@ class _AddAgentDialogState extends State<AddAgentDialog> {
               ?.id;
         }
       });
-    } catch (_) {}
+    } catch (e) {
+      logDebug('Failed to load prompt templates in AddAgentDialog: $e');
+      if (!mounted) return;
+      setState(() {
+        _templateLoadError = e.toString();
+      });
+    }
   }
 
   String? _pickDefault(List<ModelInfo> models) {
@@ -228,7 +237,7 @@ class _AddAgentDialogState extends State<AddAgentDialog> {
               _buildModelSelector(),
               const SizedBox(height: 12),
               _buildThinkingSelector(),
-              if (_templates.isNotEmpty) ...[
+              if (_templates.isNotEmpty || _templateLoadError != null) ...[
                 const SizedBox(height: 12),
                 _buildTemplateSelector(),
               ],
@@ -428,6 +437,23 @@ class _AddAgentDialogState extends State<AddAgentDialog> {
   /// Saved system-prompt templates; picking one fills the prompt field below
   /// (still editable — the text is what gets saved, like the prompt editor).
   Widget _buildTemplateSelector() {
+    final l10n = AppLocalizations.of(context)!;
+    if (_templateLoadError != null && _templates.isEmpty) {
+      return InputDecorator(
+        decoration: InputDecoration(
+          labelText: l10n.labelPromptTemplate,
+          errorText: l10n.failedToLoadPromptTemplates,
+        ),
+        child: TextButton.icon(
+          onPressed: () {
+            setState(() => _templateLoadError = null);
+            _loadTemplates();
+          },
+          icon: const Icon(Icons.refresh, size: 16),
+          label: Text(l10n.labelRetry),
+        ),
+      );
+    }
     return DropdownButtonFormField<String?>(
       key: const ValueKey('agent_prompt_template'),
       initialValue: _templates.any((t) => t.id == _selectedTemplateId)

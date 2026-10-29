@@ -470,16 +470,22 @@ fe-build-apk-release:
 # Concurrency is capped: on a 32-core box `flutter test` defaults to 32 parallel
 # processes, which stampedes memory (each spawns a full engine test binding) and
 # froze the machine. 4 is fast enough for the suite (~10s) and safe.
+[positional-arguments]
 fe-test *args:
-    flutter test --concurrency=4 {{args}}
+    flutter test --concurrency=4 "$@"
 
 # Run Flutter tests with coverage; accepts optional test paths/options
+[positional-arguments]
 fe-test-cov *args:
-    flutter test --concurrency=4 --coverage {{args}}
+    flutter test --concurrency=4 --coverage "$@"
 
-# Format Dart files (lib/ only — mirrors pre-commit hook)
+# Format Dart files across lib/ and test/
 fe-format:
-    dart format lib/
+    dart format lib/ test/
+
+# Check Dart formatting without modifying files (used in CI)
+fe-format-check:
+    dart format --output=none --set-exit-if-changed lib/ test/
 
 # Regenerate committed Freezed and json_serializable model sources
 fe-gen-models:
@@ -493,6 +499,10 @@ fe-gen-l10n:
 fe-lint: fe-gen-l10n
     flutter analyze
 
+# Enforce ARB parity, UI import boundaries, and Dart file-size ceilings
+fe-lint-arch:
+    python3 scripts/fe_lint_arch.py
+
 # Clean Flutter build files
 fe-clean:
     flutter clean
@@ -502,7 +512,7 @@ fe-clean:
 # ============================================================================
 
 # Format + lint everything (run before committing to satisfy pre-commit hooks)
-check: be-format fe-format be-lint be-lint-imports fe-lint
+check: be-format fe-format be-lint be-lint-imports fe-lint fe-lint-arch
     @echo "All checks passed — ready to commit."
 
 # Run all tests (backend + frontend unit tests)

@@ -200,14 +200,18 @@ class _FakeTopicService extends TopicService {
   Future<List<TopicArchive>> listArchives(String topicId) async => archives;
 
   @override
-  Future<List<Conversation>> listTopicConversations(String topicId) async => conversations;
+  Future<List<Conversation>> listTopicConversations(String topicId) async =>
+      conversations;
 
   @override
   Future<Conversation> resumeArchive(String topicId, String archiveId) async {
     resumeCalls++;
     return Conversation(
-      id: 'resumed-thread', model: 'test-model', activeTopicId: topicId,
-      createdAt: DateTime(2026), updatedAt: DateTime(2026),
+      id: 'resumed-thread',
+      model: 'test-model',
+      activeTopicId: topicId,
+      createdAt: DateTime(2026),
+      updatedAt: DateTime(2026),
     );
   }
 
@@ -243,22 +247,22 @@ class _FakeTopicService extends TopicService {
     }
     final selected = _topicById(topicId);
     return TopicSwitchResponse(
-        conversationId: conversationId,
-        contextVersion: 2,
-        sessionEpoch: 1,
-        archived: archive,
-        retainedItems: const [],
-        contextStatus: TopicContextStatus.preparing,
-        idempotencyKey: idempotencyKey,
-        topic: TopicSwitchTopic(
-          id: topicId ?? 'created-topic',
-          label: label ?? selected?.label ?? topicId ?? 'Created topic',
-          parentId: selected?.parentId,
-          parentLabel: selected?.parentLabel,
-          description: selected?.description,
-          pinned: true,
-        ),
-      );
+      conversationId: conversationId,
+      contextVersion: 2,
+      sessionEpoch: 1,
+      archived: archive,
+      retainedItems: const [],
+      contextStatus: TopicContextStatus.preparing,
+      idempotencyKey: idempotencyKey,
+      topic: TopicSwitchTopic(
+        id: topicId ?? 'created-topic',
+        label: label ?? selected?.label ?? topicId ?? 'Created topic',
+        parentId: selected?.parentId,
+        parentLabel: selected?.parentLabel,
+        description: selected?.description,
+        pinned: true,
+      ),
+    );
   }
 }
 
@@ -268,7 +272,8 @@ class _FakeActiveContextService extends ActiveContextService {
   String? addedSourceId;
 
   @override
-  Future<ActiveContext> getContext(String conversationId) async => activeContext;
+  Future<ActiveContext> getContext(String conversationId) async =>
+      activeContext;
 
   @override
   Future<int> addSource(
@@ -291,28 +296,33 @@ Widget _wrapWithApp(
   StyleProvider? styleProvider,
   ModelProvider? modelProvider,
   SystemPromptProvider? promptProvider,
-}) =>
-    MultiProvider(
-      providers: [
-        if (topicProvider != null) ChangeNotifierProvider.value(value: topicProvider),
-        if (contextProvider != null) ChangeNotifierProvider.value(value: contextProvider),
-        if (chatProvider != null) ChangeNotifierProvider.value(value: chatProvider),
-        if (settingsProvider != null) ChangeNotifierProvider.value(value: settingsProvider),
-        if (styleProvider != null) ChangeNotifierProvider.value(value: styleProvider),
-        if (modelProvider != null) ChangeNotifierProvider.value(value: modelProvider),
-        if (promptProvider != null) ChangeNotifierProvider.value(value: promptProvider),
-      ],
-      child: MaterialApp(
-        localizationsDelegates: const [
-          AppLocalizations.delegate,
-          GlobalMaterialLocalizations.delegate,
-          GlobalWidgetsLocalizations.delegate,
-          GlobalCupertinoLocalizations.delegate,
-        ],
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: Scaffold(body: child),
-      ),
-    );
+}) => MultiProvider(
+  providers: [
+    if (topicProvider != null)
+      ChangeNotifierProvider.value(value: topicProvider),
+    if (contextProvider != null)
+      ChangeNotifierProvider.value(value: contextProvider),
+    if (chatProvider != null) ChangeNotifierProvider.value(value: chatProvider),
+    if (settingsProvider != null)
+      ChangeNotifierProvider.value(value: settingsProvider),
+    if (styleProvider != null)
+      ChangeNotifierProvider.value(value: styleProvider),
+    if (modelProvider != null)
+      ChangeNotifierProvider.value(value: modelProvider),
+    if (promptProvider != null)
+      ChangeNotifierProvider.value(value: promptProvider),
+  ],
+  child: MaterialApp(
+    localizationsDelegates: const [
+      AppLocalizations.delegate,
+      GlobalMaterialLocalizations.delegate,
+      GlobalWidgetsLocalizations.delegate,
+      GlobalCupertinoLocalizations.delegate,
+    ],
+    supportedLocales: AppLocalizations.supportedLocales,
+    home: Scaffold(body: child),
+  ),
+);
 
 void main() {
   setUp(() {
@@ -346,7 +356,9 @@ void main() {
 
     expect(chat.createdConversations, hasLength(1));
     expect(chat.createdConversations.single['activeTopicId'], isNull);
-    expect(chat.createdConversations.single['initialAttachments'], [attachment]);
+    expect(chat.createdConversations.single['initialAttachments'], [
+      attachment,
+    ]);
     expect(chat.sentMessages, isEmpty);
   });
 
@@ -392,9 +404,10 @@ void main() {
         label: 'Previously active topic',
         origin: TopicOrigin.history,
       );
-      final topics = TopicDiscoveryProvider(service: _FakeTopicService(const []))
-        ..startNewTopic()
-        ..synchronizeSelectedTopic(synced);
+      final topics =
+          TopicDiscoveryProvider(service: _FakeTopicService(const []))
+            ..startNewTopic()
+            ..synchronizeSelectedTopic(synced);
       final chat = _FakeChatProvider(
         messages: [
           ChatMessage(
@@ -428,81 +441,107 @@ void main() {
     },
   );
 
-  testWidgets('TopicBanner renders active topic and topic drift chip with dismiss action', (tester) async {
-    final t1 = TopicNode(
-      id: 'topic-1',
-      label: 'Cooking Pasta',
-      origin: TopicOrigin.personal,
-      contextStatus: TopicContextStatus.ready,
-    );
-    final service = _FakeTopicService([t1]);
-    final provider = TopicDiscoveryProvider(service: service);
-    await provider.activate('c1', t1);
+  testWidgets(
+    'TopicBanner renders active topic and topic drift chip with dismiss action',
+    (tester) async {
+      final t1 = TopicNode(
+        id: 'topic-1',
+        label: 'Cooking Pasta',
+        origin: TopicOrigin.personal,
+        contextStatus: TopicContextStatus.ready,
+      );
+      final service = _FakeTopicService([t1]);
+      final provider = TopicDiscoveryProvider(service: service);
+      await provider.activate('c1', t1);
 
-    await tester.pumpWidget(_wrapWithApp(const TopicBanner(), topicProvider: provider));
-    await tester.pumpAndSettle();
-    expect(find.text('Cooking Pasta'), findsOneWidget);
-    expect(find.byKey(const ValueKey('topic_drift_banner')), findsNothing);
+      await tester.pumpWidget(
+        _wrapWithApp(const TopicBanner(), topicProvider: provider),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Cooking Pasta'), findsOneWidget);
+      expect(find.byKey(const ValueKey('topic_drift_banner')), findsNothing);
 
-    // Apply drift
-    provider.applyTopicDrift({
-      'topic_drift': {
-        'detected_topic_id': 'topic-2',
-        'label': 'Gym Workout',
-        'confidence': 0.88,
-      },
-    });
-    await tester.pumpAndSettle();
+      // Apply drift
+      provider.applyTopicDrift({
+        'topic_drift': {
+          'detected_topic_id': 'topic-2',
+          'label': 'Gym Workout',
+          'confidence': 0.88,
+        },
+      });
+      await tester.pumpAndSettle();
 
-    expect(find.byKey(const ValueKey('topic_drift_banner')), findsOneWidget);
-    expect(find.text('Shift detected: switch to Gym Workout?'), findsOneWidget);
-    expect(find.byKey(const ValueKey('topic_drift_switch_button')), findsOneWidget);
+      expect(find.byKey(const ValueKey('topic_drift_banner')), findsOneWidget);
+      expect(
+        find.text('Shift detected: switch to Gym Workout?'),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('topic_drift_switch_button')),
+        findsOneWidget,
+      );
 
-    // Tap dismiss
-    await tester.tap(find.byKey(const ValueKey('topic_drift_dismiss_button')));
-    await tester.pumpAndSettle();
+      // Tap dismiss
+      await tester.tap(
+        find.byKey(const ValueKey('topic_drift_dismiss_button')),
+      );
+      await tester.pumpAndSettle();
 
-    expect(find.byKey(const ValueKey('topic_drift_banner')), findsNothing);
-    expect(provider.pendingDrift, isNull);
-  });
+      expect(find.byKey(const ValueKey('topic_drift_banner')), findsNothing);
+      expect(provider.pendingDrift, isNull);
+    },
+  );
 
-  testWidgets('TopicLanding search bar filters visible topics and clear button resets query', (tester) async {
-    final t1 = TopicNode(id: '1', label: 'Machine Learning', origin: TopicOrigin.personal);
-    final t2 = TopicNode(id: '2', label: 'Web Development', origin: TopicOrigin.personal);
-    final service = _FakeTopicService([t1, t2]);
-    final provider = TopicDiscoveryProvider(service: service);
-    await provider.load();
+  testWidgets(
+    'TopicLanding search bar filters visible topics and clear button resets query',
+    (tester) async {
+      final t1 = TopicNode(
+        id: '1',
+        label: 'Machine Learning',
+        origin: TopicOrigin.personal,
+      );
+      final t2 = TopicNode(
+        id: '2',
+        label: 'Web Development',
+        origin: TopicOrigin.personal,
+      );
+      final service = _FakeTopicService([t1, t2]);
+      final provider = TopicDiscoveryProvider(service: service);
+      await provider.load();
 
-    await tester.pumpWidget(
-      _wrapWithApp(
-        TopicLanding(
-          conversationId: 'c1',
-          onStarterSelected: (_) {},
+      await tester.pumpWidget(
+        _wrapWithApp(
+          TopicLanding(conversationId: 'c1', onStarterSelected: (_) {}),
+          topicProvider: provider,
         ),
-        topicProvider: provider,
-      ),
-    );
-    await tester.pumpAndSettle();
+      );
+      await tester.pumpAndSettle();
 
-    expect(find.text('Machine Learning'), findsOneWidget);
-    expect(find.text('Web Development'), findsOneWidget);
+      expect(find.text('Machine Learning'), findsOneWidget);
+      expect(find.text('Web Development'), findsOneWidget);
 
-    // Enter search text
-    await tester.enterText(find.byKey(const ValueKey('topic_search_input')), 'web');
-    await tester.pumpAndSettle();
+      // Enter search text
+      await tester.enterText(
+        find.byKey(const ValueKey('topic_search_input')),
+        'web',
+      );
+      await tester.pumpAndSettle();
 
-    expect(find.text('Web Development'), findsOneWidget);
-    expect(find.text('Machine Learning'), findsNothing);
+      expect(find.text('Web Development'), findsOneWidget);
+      expect(find.text('Machine Learning'), findsNothing);
 
-    // Clear search
-    await tester.tap(find.byKey(const ValueKey('topic_search_clear')));
-    await tester.pumpAndSettle();
+      // Clear search
+      await tester.tap(find.byKey(const ValueKey('topic_search_clear')));
+      await tester.pumpAndSettle();
 
-    expect(find.text('Machine Learning'), findsOneWidget);
-    expect(find.text('Web Development'), findsOneWidget);
-  });
+      expect(find.text('Machine Learning'), findsOneWidget);
+      expect(find.text('Web Development'), findsOneWidget);
+    },
+  );
 
-  testWidgets('TopicLanding search shows a matching descendant parent path', (tester) async {
+  testWidgets('TopicLanding search shows a matching descendant parent path', (
+    tester,
+  ) async {
     const matchingLeaf = TopicNode(
       id: 'contributions',
       parentId: 'retirement',
@@ -522,9 +561,7 @@ void main() {
       origin: TopicOrigin.personal,
       children: [parent],
     );
-    final provider = TopicDiscoveryProvider(
-      service: _FakeTopicService([root]),
-    );
+    final provider = TopicDiscoveryProvider(service: _FakeTopicService([root]));
     await provider.load();
 
     await tester.pumpWidget(
@@ -548,84 +585,91 @@ void main() {
     expect(find.text('Subtopic in Finance › Retirement'), findsOneWidget);
   });
 
-  testWidgets('TopicLanding directly activates topic without switch dialog when no topic was selected', (tester) async {
-    final t1 = const TopicNode(id: '1', label: 'Machine Learning', origin: TopicOrigin.personal);
-    final service = _FakeTopicService([t1]);
-    final provider = TopicDiscoveryProvider(service: service);
-    await provider.load();
+  testWidgets(
+    'TopicLanding directly activates topic without switch dialog when no topic was selected',
+    (tester) async {
+      final t1 = const TopicNode(
+        id: '1',
+        label: 'Machine Learning',
+        origin: TopicOrigin.personal,
+      );
+      final service = _FakeTopicService([t1]);
+      final provider = TopicDiscoveryProvider(service: service);
+      await provider.load();
 
-    await tester.pumpWidget(
-      _wrapWithApp(
-        TopicLanding(
-          conversationId: 'c1',
-          onStarterSelected: (_) {},
+      await tester.pumpWidget(
+        _wrapWithApp(
+          TopicLanding(conversationId: 'c1', onStarterSelected: (_) {}),
+          topicProvider: provider,
         ),
-        topicProvider: provider,
-      ),
-    );
-    await tester.pumpAndSettle();
+      );
+      await tester.pumpAndSettle();
 
-    expect(provider.selectedTopic, isNull);
-    await tester.tap(find.text('Machine Learning'));
-    await tester.pumpAndSettle();
+      expect(provider.selectedTopic, isNull);
+      await tester.tap(find.text('Machine Learning'));
+      await tester.pumpAndSettle();
 
-    // Dialog should NOT be shown
-    expect(find.byKey(const ValueKey('topic_switch_dialog')), findsNothing);
-    // Topic is directly activated
-    expect(provider.selectedTopic?.label, 'Machine Learning');
-  });
+      // Dialog should NOT be shown
+      expect(find.byKey(const ValueKey('topic_switch_dialog')), findsNothing);
+      // Topic is directly activated
+      expect(provider.selectedTopic?.label, 'Machine Learning');
+    },
+  );
 
-  testWidgets('parent topic can start directly and exposes a separate subtopic browser', (
+  testWidgets(
+    'parent topic can start directly and exposes a separate subtopic browser',
+    (tester) async {
+      const children = [
+        TopicNode(
+          id: 'stories',
+          parentId: 'family',
+          label: 'Fun Stories for Clara',
+          origin: TopicOrigin.personal,
+        ),
+        TopicNode(
+          id: 'school',
+          parentId: 'family',
+          label: 'Clara School',
+          origin: TopicOrigin.personal,
+        ),
+      ];
+      const family = TopicNode(
+        id: 'family',
+        label: 'Family & Clara',
+        origin: TopicOrigin.personal,
+        children: children,
+      );
+      final provider = TopicDiscoveryProvider(
+        service: _FakeTopicService([family]),
+      );
+      await provider.load();
+
+      await tester.pumpWidget(
+        _wrapWithApp(
+          TopicLanding(conversationId: 'primary', onStarterSelected: (_) {}),
+          topicProvider: provider,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Family & Clara'));
+      await tester.pumpAndSettle();
+      expect(provider.selectedTopic?.id, family.id);
+
+      provider.startNewTopic();
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('browse_subtopics_family')));
+      await tester.pumpAndSettle();
+      expect(provider.selectedTopic, isNull);
+      expect(provider.path.map((topic) => topic.id), [family.id]);
+      expect(find.text('Fun Stories for Clara'), findsOneWidget);
+      expect(find.text('Clara School'), findsOneWidget);
+    },
+  );
+
+  testWidgets('ActiveContextPanel displays evidence provenance chip', (
     tester,
   ) async {
-    const children = [
-      TopicNode(
-        id: 'stories',
-        parentId: 'family',
-        label: 'Fun Stories for Clara',
-        origin: TopicOrigin.personal,
-      ),
-      TopicNode(
-        id: 'school',
-        parentId: 'family',
-        label: 'Clara School',
-        origin: TopicOrigin.personal,
-      ),
-    ];
-    const family = TopicNode(
-      id: 'family',
-      label: 'Family & Clara',
-      origin: TopicOrigin.personal,
-      children: children,
-    );
-    final provider = TopicDiscoveryProvider(
-      service: _FakeTopicService([family]),
-    );
-    await provider.load();
-
-    await tester.pumpWidget(
-      _wrapWithApp(
-        TopicLanding(conversationId: 'primary', onStarterSelected: (_) {}),
-        topicProvider: provider,
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('Family & Clara'));
-    await tester.pumpAndSettle();
-    expect(provider.selectedTopic?.id, family.id);
-
-    provider.startNewTopic();
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('browse_subtopics_family')));
-    await tester.pumpAndSettle();
-    expect(provider.selectedTopic, isNull);
-    expect(provider.path.map((topic) => topic.id), [family.id]);
-    expect(find.text('Fun Stories for Clara'), findsOneWidget);
-    expect(find.text('Clara School'), findsOneWidget);
-  });
-
-  testWidgets('ActiveContextPanel displays evidence provenance chip', (tester) async {
     final item = ActiveContextItem(
       id: 'item-1',
       sourceType: 'message',
@@ -654,10 +698,7 @@ void main() {
 
     await tester.pumpWidget(
       _wrapWithApp(
-        ActiveContextPanel(
-          conversationId: 'c1',
-          onRedirect: () {},
-        ),
+        ActiveContextPanel(conversationId: 'c1', onRedirect: () {}),
         contextProvider: provider,
         chatProvider: chatProvider,
       ),
@@ -670,7 +711,10 @@ void main() {
     await tester.tap(find.text('Database selection'));
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const ValueKey('context_item_provenance_item-1')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('context_item_provenance_item-1')),
+      findsOneWidget,
+    );
     expect(
       find.text('“We selected PostgreSQL for the application database.”'),
       findsOneWidget,
@@ -683,421 +727,509 @@ void main() {
     expect(chatProvider.loadedConversationId, 'source-chat');
   });
 
-  testWidgets('ActiveContextPanel adds a recent message through a source picker', (tester) async {
-    final activeContext = ActiveContext(
-      conversationId: 'c1',
-      version: 4,
-      readiness: ActiveContextReadiness.ready,
-      items: const [],
-    );
-    final service = _FakeActiveContextService(activeContext);
-    final provider = ActiveContextProvider(service: service);
-    final chatProvider = _FakeChatProvider(
-      messages: [
-        ChatMessage(
-          id: 'message-to-pin',
-          role: 'user',
-          content: 'Keep the deployment in the Virginia region.',
-          createdAt: DateTime(2026, 9, 5),
+  testWidgets(
+    'ActiveContextPanel adds a recent message through a source picker',
+    (tester) async {
+      final activeContext = ActiveContext(
+        conversationId: 'c1',
+        version: 4,
+        readiness: ActiveContextReadiness.ready,
+        items: const [],
+      );
+      final service = _FakeActiveContextService(activeContext);
+      final provider = ActiveContextProvider(service: service);
+      final chatProvider = _FakeChatProvider(
+        messages: [
+          ChatMessage(
+            id: 'message-to-pin',
+            role: 'user',
+            content: 'Keep the deployment in the Virginia region.',
+            createdAt: DateTime(2026, 9, 5),
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(
+        _wrapWithApp(
+          ActiveContextPanel(conversationId: 'c1', onRedirect: () {}),
+          contextProvider: provider,
+          chatProvider: chatProvider,
         ),
-      ],
-    );
+      );
+      await tester.pumpAndSettle();
 
-    await tester.pumpWidget(
-      _wrapWithApp(
-        ActiveContextPanel(conversationId: 'c1', onRedirect: () {}),
-        contextProvider: provider,
-        chatProvider: chatProvider,
-      ),
-    );
-    await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('context_add_source')));
+      await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const ValueKey('context_add_source')));
-    await tester.pumpAndSettle();
+      expect(find.text('Choose a recent message'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('context_source_message-to-pin')),
+        findsOneWidget,
+      );
+      expect(find.byType(TextField), findsNothing);
 
-    expect(find.text('Choose a recent message'), findsOneWidget);
-    expect(find.byKey(const ValueKey('context_source_message-to-pin')), findsOneWidget);
-    expect(find.byType(TextField), findsNothing);
+      await tester.tap(
+        find.byKey(const ValueKey('context_source_message-to-pin')),
+      );
+      await tester.pumpAndSettle();
+      expect(service.addedSourceId, 'message-to-pin');
+    },
+  );
 
-    await tester.tap(find.byKey(const ValueKey('context_source_message-to-pin')));
-    await tester.pumpAndSettle();
-    expect(service.addedSourceId, 'message-to-pin');
-  });
+  testWidgets(
+    'TopicSwitchConfirmationDialog renders pinned-source retention option and confirm button',
+    (tester) async {
+      final targetTopic = TopicNode(
+        id: 'target-topic',
+        label: 'Target Project',
+        origin: TopicOrigin.personal,
+      );
 
-  testWidgets('TopicSwitchConfirmationDialog renders pinned-source retention option and confirm button', (tester) async {
-    final targetTopic = TopicNode(
-      id: 'target-topic',
-      label: 'Target Project',
-      origin: TopicOrigin.personal,
-    );
-
-    await tester.pumpWidget(
-      _wrapWithApp(
-        TopicSwitchConfirmationDialog(
-          conversationId: 'c1',
-          targetTopic: targetTopic,
+      await tester.pumpWidget(
+        _wrapWithApp(
+          TopicSwitchConfirmationDialog(
+            conversationId: 'c1',
+            targetTopic: targetTopic,
+          ),
+          topicProvider: TopicDiscoveryProvider(service: _FakeTopicService([])),
         ),
-        topicProvider: TopicDiscoveryProvider(service: _FakeTopicService([])),
-      ),
-    );
-    await tester.pumpAndSettle();
+      );
+      await tester.pumpAndSettle();
 
-    expect(find.byKey(const ValueKey('topic_switch_dialog')), findsOneWidget);
-    expect(find.text('Target Project'), findsOneWidget);
-    expect(find.byKey(const ValueKey('topic_switch_retain_pinned_checkbox')), findsOneWidget);
-    expect(find.byKey(const ValueKey('topic_switch_confirm_button')), findsOneWidget);
-    expect(find.byKey(const ValueKey('topic_switch_combine_button')), findsOneWidget);
-    expect(find.byKey(const ValueKey('topic_switch_cancel_button')), findsOneWidget);
-  });
+      expect(find.byKey(const ValueKey('topic_switch_dialog')), findsOneWidget);
+      expect(find.text('Target Project'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('topic_switch_retain_pinned_checkbox')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('topic_switch_confirm_button')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('topic_switch_combine_button')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('topic_switch_cancel_button')),
+        findsOneWidget,
+      );
+    },
+  );
 
-  testWidgets('TopicSwitchConfirmationDialog combine button triggers combine action', (tester) async {
-    const targetTopic = TopicNode(
-      id: 'target-topic',
-      label: 'Target Project',
-      origin: TopicOrigin.personal,
-    );
+  testWidgets(
+    'TopicSwitchConfirmationDialog combine button triggers combine action',
+    (tester) async {
+      const targetTopic = TopicNode(
+        id: 'target-topic',
+        label: 'Target Project',
+        origin: TopicOrigin.personal,
+      );
 
-    final fakeService = _FakeTopicService([]);
-    final topicProvider = TopicDiscoveryProvider(service: fakeService);
+      final fakeService = _FakeTopicService([]);
+      final topicProvider = TopicDiscoveryProvider(service: fakeService);
 
-    await tester.pumpWidget(
-      _wrapWithApp(
-        TopicSwitchConfirmationDialog(
-          conversationId: 'c1',
-          targetTopic: targetTopic,
+      await tester.pumpWidget(
+        _wrapWithApp(
+          TopicSwitchConfirmationDialog(
+            conversationId: 'c1',
+            targetTopic: targetTopic,
+          ),
+          topicProvider: topicProvider,
         ),
-        topicProvider: topicProvider,
-      ),
-    );
-    await tester.pumpAndSettle();
+      );
+      await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const ValueKey('topic_switch_combine_button')));
-    await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const ValueKey('topic_switch_combine_button')),
+      );
+      await tester.pumpAndSettle();
 
-    expect(find.byKey(const ValueKey('topic_switch_dialog')), findsNothing);
-  });
+      expect(find.byKey(const ValueKey('topic_switch_dialog')), findsNothing);
+    },
+  );
 
-  testWidgets('TopicContextEmptyState renders topic title, structured context, and starter chips', (tester) async {
-    final activeContext = ActiveContext(
-      conversationId: 'c1',
-      version: 1,
-      readiness: ActiveContextReadiness.ready,
-      items: [
-        ActiveContextItem(
-          id: 'item-c1',
-          sourceType: 'topic_assertion',
-          sourceId: 'assertion-1',
-          state: ActiveContextItemState.pinned,
-          reason: 'Pinned by you',
-          preview: 'Using PostgreSQL with pgvector',
+  testWidgets(
+    'TopicContextEmptyState renders topic title, structured context, and starter chips',
+    (tester) async {
+      final activeContext = ActiveContext(
+        conversationId: 'c1',
+        version: 1,
+        readiness: ActiveContextReadiness.ready,
+        items: [
+          ActiveContextItem(
+            id: 'item-c1',
+            sourceType: 'topic_assertion',
+            sourceId: 'assertion-1',
+            state: ActiveContextItemState.pinned,
+            reason: 'Pinned by you',
+            preview: 'Using PostgreSQL with pgvector',
+          ),
+        ],
+        topic: null,
+      );
+
+      final contextProvider = ActiveContextProvider(
+        service: _FakeActiveContextService(activeContext),
+        topicService: _FakeTopicService([]),
+      );
+      await contextProvider.load('c1');
+
+      final topic = TopicNode(
+        id: 'ml-topic',
+        label: 'Machine Learning',
+        origin: TopicOrigin.personal,
+        starterPrompts: ['Explain transformer attention mechanisms'],
+      );
+
+      String? sentPrompt;
+
+      await tester.pumpWidget(
+        _wrapWithApp(
+          TopicContextEmptyState(
+            conversationId: 'c1',
+            topic: topic,
+            onStarterSelected: (p) => sentPrompt = p,
+          ),
+          contextProvider: contextProvider,
         ),
-      ],
-      topic: null,
-    );
+      );
+      await tester.pumpAndSettle();
 
-    final contextProvider = ActiveContextProvider(
-      service: _FakeActiveContextService(activeContext),
-      topicService: _FakeTopicService([]),
-    );
-    await contextProvider.load('c1');
+      expect(
+        find.byKey(const ValueKey('topic_context_empty_state')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('topic_empty_state_title')),
+        findsOneWidget,
+      );
+      expect(find.text('Machine Learning'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('topic_empty_state_context_card')),
+        findsOneWidget,
+      );
+      expect(find.text('STRUCTURED ACTIVE CONTEXT'), findsOneWidget);
+      expect(find.text('1 pinned'), findsOneWidget);
+      expect(find.text('Using PostgreSQL with pgvector'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('topic_starter_chip_0')),
+        findsOneWidget,
+      );
 
-    final topic = TopicNode(
-      id: 'ml-topic',
-      label: 'Machine Learning',
-      origin: TopicOrigin.personal,
-      starterPrompts: ['Explain transformer attention mechanisms'],
-    );
+      await tester.tap(find.byKey(const ValueKey('topic_starter_chip_0')));
+      expect(sentPrompt, 'Explain transformer attention mechanisms');
+    },
+  );
 
-    String? sentPrompt;
+  testWidgets(
+    'TopicBanner does not display preparingContext for TopicContextStatus.empty',
+    (tester) async {
+      final t1 = TopicNode(
+        id: 'topic-clean',
+        label: 'Fresh Topic',
+        origin: TopicOrigin.personal,
+        contextStatus: TopicContextStatus.empty,
+      );
+      final service = _FakeTopicService([t1]);
+      final provider = TopicDiscoveryProvider(service: service);
+      await provider.activate('c1', t1);
 
-    await tester.pumpWidget(
-      _wrapWithApp(
-        TopicContextEmptyState(
-          conversationId: 'c1',
-          topic: topic,
-          onStarterSelected: (p) => sentPrompt = p,
-        ),
-        contextProvider: contextProvider,
-      ),
-    );
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(
+        _wrapWithApp(const TopicBanner(), topicProvider: provider),
+      );
+      await tester.pumpAndSettle();
 
-    expect(find.byKey(const ValueKey('topic_context_empty_state')), findsOneWidget);
-    expect(find.byKey(const ValueKey('topic_empty_state_title')), findsOneWidget);
-    expect(find.text('Machine Learning'), findsOneWidget);
-    expect(find.byKey(const ValueKey('topic_empty_state_context_card')), findsOneWidget);
-    expect(find.text('STRUCTURED ACTIVE CONTEXT'), findsOneWidget);
-    expect(find.text('1 pinned'), findsOneWidget);
-    expect(find.text('Using PostgreSQL with pgvector'), findsOneWidget);
-    expect(find.byKey(const ValueKey('topic_starter_chip_0')), findsOneWidget);
+      expect(find.text('Fresh Topic'), findsOneWidget);
+      expect(find.text('Preparing context...'), findsNothing);
+    },
+  );
 
-    await tester.tap(find.byKey(const ValueKey('topic_starter_chip_0')));
-    expect(sentPrompt, 'Explain transformer attention mechanisms');
-  });
-
-  testWidgets('TopicBanner does not display preparingContext for TopicContextStatus.empty', (tester) async {
-    final t1 = TopicNode(
-      id: 'topic-clean',
-      label: 'Fresh Topic',
-      origin: TopicOrigin.personal,
-      contextStatus: TopicContextStatus.empty,
-    );
-    final service = _FakeTopicService([t1]);
-    final provider = TopicDiscoveryProvider(service: service);
-    await provider.activate('c1', t1);
-
-    await tester.pumpWidget(_wrapWithApp(const TopicBanner(), topicProvider: provider));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Fresh Topic'), findsOneWidget);
-    expect(find.text('Preparing context...'), findsNothing);
-  });
-
-  testWidgets('ActiveContextPanel renders Topic Context Tree, Lock Topic switch, and Switch Topic button', (tester) async {
-    final rootTopic = TopicNode(
-      id: 'parent-1',
-      label: 'Parent Knowledge',
-      origin: TopicOrigin.personal,
-      children: const [
-        TopicNode(
-          id: 'child-1',
-          label: 'Subtopic Alpha',
-          origin: TopicOrigin.personal,
-          parentId: 'parent-1',
-        ),
-      ],
-    );
-    final activeNode = TopicNode(
-      id: 'topic-active',
-      label: 'Deep Learning',
-      parentId: 'parent-1',
-      origin: TopicOrigin.personal,
-      children: const [
-        TopicNode(
-          id: 'child-sub',
-          label: 'Transformers',
-          origin: TopicOrigin.personal,
-        ),
-      ],
-    );
-    final activeContext = ActiveContext(
-      conversationId: 'c1',
-      version: 2,
-      readiness: ActiveContextReadiness.ready,
-      topicPinned: true,
-      topic: activeNode,
-      items: const [],
-      tokenCount: 200,
-      tokenBudget: 4000,
-    );
-
-    final fakeContextService = _FakeActiveContextService(activeContext);
-    final contextProvider = ActiveContextProvider(service: fakeContextService);
-    final fakeTopicService = _FakeTopicService([rootTopic, activeNode]);
-    final topicProvider = TopicDiscoveryProvider(service: fakeTopicService);
-    await topicProvider.load();
-
-    bool redirected = false;
-
-    await tester.pumpWidget(
-      _wrapWithApp(
-        ActiveContextPanel(
-          conversationId: 'c1',
-          onRedirect: () => redirected = true,
-        ),
-        contextProvider: contextProvider,
-        topicProvider: topicProvider,
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    expect(find.byKey(const ValueKey('active_context_panel')), findsOneWidget);
-    expect(find.byKey(const ValueKey('context_topic_section')), findsOneWidget);
-    expect(find.text('Deep Learning'), findsAtLeast(1));
-    expect(find.byKey(const ValueKey('context_topic_pin')), findsOneWidget);
-    expect(find.byKey(const ValueKey('context_redirect')), findsOneWidget);
-    expect(find.text('Parent Knowledge'), findsOneWidget);
-    expect(find.text('Transformers'), findsOneWidget);
-
-    // Tap switch topic
-    await tester.tap(find.byKey(const ValueKey('context_redirect')));
-    expect(redirected, isTrue);
-  });
-
-  testWidgets('ActiveContextPanel opens and resumes an archived topic session', (tester) async {
-    final archive = TopicArchive(
-      id: 'archive-1',
-      topicId: 'topic-active',
-      fromTopicId: 'topic-active',
-      conversationId: 'c1',
-      messageCount: 2,
-      createdAt: DateTime(2026, 9, 7, 14, 30),
-    );
-    final archivePage = TopicArchivePage(
-      archive: archive,
-      topicLabel: 'Deep Learning',
-      sessionEpoch: 3,
-      hasMore: false,
-      messages: [
-        ChatMessage(
-          id: 'old-user',
-          role: 'user',
-          content: 'Explain the previous deployment decision.',
-          createdAt: DateTime(2026, 9, 7, 14, 30),
-        ),
-        ChatMessage(
-          id: 'old-assistant',
-          role: 'assistant',
-          content: 'The earlier session selected the Virginia region.',
-          createdAt: DateTime(2026, 9, 7, 14, 31),
-        ),
-      ],
-    );
-    final activeContext = ActiveContext(
-      conversationId: 'c1',
-      version: 4,
-      readiness: ActiveContextReadiness.ready,
-      topic: const TopicNode(
+  testWidgets(
+    'ActiveContextPanel renders Topic Context Tree, Lock Topic switch, and Switch Topic button',
+    (tester) async {
+      final rootTopic = TopicNode(
+        id: 'parent-1',
+        label: 'Parent Knowledge',
+        origin: TopicOrigin.personal,
+        children: const [
+          TopicNode(
+            id: 'child-1',
+            label: 'Subtopic Alpha',
+            origin: TopicOrigin.personal,
+            parentId: 'parent-1',
+          ),
+        ],
+      );
+      final activeNode = TopicNode(
         id: 'topic-active',
         label: 'Deep Learning',
+        parentId: 'parent-1',
         origin: TopicOrigin.personal,
-      ),
-      items: const [],
-    );
-    final contextProvider = ActiveContextProvider(
-      service: _FakeActiveContextService(activeContext),
-    );
-    final topicService = _FakeTopicService(
+        children: const [
+          TopicNode(
+            id: 'child-sub',
+            label: 'Transformers',
+            origin: TopicOrigin.personal,
+          ),
+        ],
+      );
+      final activeContext = ActiveContext(
+        conversationId: 'c1',
+        version: 2,
+        readiness: ActiveContextReadiness.ready,
+        topicPinned: true,
+        topic: activeNode,
+        items: const [],
+        tokenCount: 200,
+        tokenBudget: 4000,
+      );
+
+      final fakeContextService = _FakeActiveContextService(activeContext);
+      final contextProvider = ActiveContextProvider(
+        service: fakeContextService,
+      );
+      final fakeTopicService = _FakeTopicService([rootTopic, activeNode]);
+      final topicProvider = TopicDiscoveryProvider(service: fakeTopicService);
+      await topicProvider.load();
+
+      bool redirected = false;
+
+      await tester.pumpWidget(
+        _wrapWithApp(
+          ActiveContextPanel(
+            conversationId: 'c1',
+            onRedirect: () => redirected = true,
+          ),
+          contextProvider: contextProvider,
+          topicProvider: topicProvider,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('active_context_panel')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('context_topic_section')),
+        findsOneWidget,
+      );
+      expect(find.text('Deep Learning'), findsAtLeast(1));
+      expect(find.byKey(const ValueKey('context_topic_pin')), findsOneWidget);
+      expect(find.byKey(const ValueKey('context_redirect')), findsOneWidget);
+      expect(find.text('Parent Knowledge'), findsOneWidget);
+      expect(find.text('Transformers'), findsOneWidget);
+
+      // Tap switch topic
+      await tester.tap(find.byKey(const ValueKey('context_redirect')));
+      expect(redirected, isTrue);
+    },
+  );
+
+  testWidgets(
+    'ActiveContextPanel opens and resumes an archived topic session',
+    (tester) async {
+      final archive = TopicArchive(
+        id: 'archive-1',
+        topicId: 'topic-active',
+        fromTopicId: 'topic-active',
+        conversationId: 'c1',
+        messageCount: 2,
+        createdAt: DateTime(2026, 9, 7, 14, 30),
+      );
+      final archivePage = TopicArchivePage(
+        archive: archive,
+        topicLabel: 'Deep Learning',
+        sessionEpoch: 3,
+        hasMore: false,
+        messages: [
+          ChatMessage(
+            id: 'old-user',
+            role: 'user',
+            content: 'Explain the previous deployment decision.',
+            createdAt: DateTime(2026, 9, 7, 14, 30),
+          ),
+          ChatMessage(
+            id: 'old-assistant',
+            role: 'assistant',
+            content: 'The earlier session selected the Virginia region.',
+            createdAt: DateTime(2026, 9, 7, 14, 31),
+          ),
+        ],
+      );
+      final activeContext = ActiveContext(
+        conversationId: 'c1',
+        version: 4,
+        readiness: ActiveContextReadiness.ready,
+        topic: const TopicNode(
+          id: 'topic-active',
+          label: 'Deep Learning',
+          origin: TopicOrigin.personal,
+        ),
+        items: const [],
+      );
+      final contextProvider = ActiveContextProvider(
+        service: _FakeActiveContextService(activeContext),
+      );
+      final topicService = _FakeTopicService(
         const [],
         archives: [archive],
         archivePage: archivePage,
-        conversations: [Conversation(
-          id: 'topic-thread', title: 'Earlier topic conversation', model: 'test-model',
-          activeTopicId: 'topic-active', messageCount: 4,
-          createdAt: DateTime(2026), updatedAt: DateTime(2026),
-        )],
-    );
-    final topicProvider = TopicDiscoveryProvider(service: topicService);
-    final chat = _FakeChatProvider();
-
-    await tester.pumpWidget(
-      _wrapWithApp(
-        SizedBox(
-          width: 304,
-          child: ActiveContextPanel(
-            conversationId: 'c1',
-            onRedirect: () {},
+        conversations: [
+          Conversation(
+            id: 'topic-thread',
+            title: 'Earlier topic conversation',
+            model: 'test-model',
+            activeTopicId: 'topic-active',
+            messageCount: 4,
+            createdAt: DateTime(2026),
+            updatedAt: DateTime(2026),
           ),
+        ],
+      );
+      final topicProvider = TopicDiscoveryProvider(service: topicService);
+      final chat = _FakeChatProvider();
+
+      await tester.pumpWidget(
+        _wrapWithApp(
+          SizedBox(
+            width: 304,
+            child: ActiveContextPanel(conversationId: 'c1', onRedirect: () {}),
+          ),
+          contextProvider: contextProvider,
+          topicProvider: topicProvider,
+          chatProvider: chat,
         ),
-        contextProvider: contextProvider,
-        topicProvider: topicProvider,
-        chatProvider: chat,
-      ),
-    );
-    await tester.pumpAndSettle();
+      );
+      await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const ValueKey('context_view_archives')));
-    await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('topic_archives_dialog')), findsOneWidget);
-    expect(find.byKey(const ValueKey('topic_conversation_topic-thread')), findsOneWidget);
-    expect(find.textContaining('2 messages'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('context_view_archives')));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('topic_archives_dialog')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('topic_conversation_topic-thread')),
+        findsOneWidget,
+      );
+      expect(find.textContaining('2 messages'), findsOneWidget);
 
-    await tester.tap(find.byKey(const ValueKey('topic_archive_archive-1')));
-    await tester.pumpAndSettle();
-    expect(
-      find.byKey(const ValueKey('topic_archive_messages_dialog')),
-      findsOneWidget,
-    );
-    expect(find.textContaining('Continue this session as a thread'), findsOneWidget);
-    expect(find.byKey(const ValueKey('topic_archive_resume')), findsOneWidget);
-    expect(find.text('Explain the previous deployment decision.'), findsOneWidget);
-    expect(
-      find.text('The earlier session selected the Virginia region.'),
-      findsOneWidget,
-    );
-    await tester.tap(find.byKey(const ValueKey('topic_archive_resume')));
-    await tester.pumpAndSettle();
-    expect(topicService.resumeCalls, 1);
-    expect(chat.loadedConversationId, 'resumed-thread');
-    expect(find.byKey(const ValueKey('topic_archives_dialog')), findsNothing);
-  });
+      await tester.tap(find.byKey(const ValueKey('topic_archive_archive-1')));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('topic_archive_messages_dialog')),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('Continue this session as a thread'),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('topic_archive_resume')),
+        findsOneWidget,
+      );
+      expect(
+        find.text('Explain the previous deployment decision.'),
+        findsOneWidget,
+      );
+      expect(
+        find.text('The earlier session selected the Virginia region.'),
+        findsOneWidget,
+      );
+      await tester.tap(find.byKey(const ValueKey('topic_archive_resume')));
+      await tester.pumpAndSettle();
+      expect(topicService.resumeCalls, 1);
+      expect(chat.loadedConversationId, 'resumed-thread');
+      expect(find.byKey(const ValueKey('topic_archives_dialog')), findsNothing);
+    },
+  );
 
-  testWidgets('ActiveContextPanel explains background preparation without a fake ETA', (tester) async {
-    final activeNode = TopicNode(
-      id: 'topic-nlp',
-      label: 'Natural Language Processing',
-      origin: TopicOrigin.personal,
-    );
-    final activeContext = ActiveContext(
-      conversationId: 'c1',
-      version: 1,
-      readiness: ActiveContextReadiness.preparing,
-      topicPinned: false,
-      topic: activeNode,
-      items: const [],
-      tokenCount: 0,
-      tokenBudget: 8000,
-    );
-    final fakeContextService = _FakeActiveContextService(activeContext);
-    final contextProvider = ActiveContextProvider(service: fakeContextService);
-    final fakeTopicService = _FakeTopicService([activeNode]);
-    final topicProvider = TopicDiscoveryProvider(service: fakeTopicService);
-    await topicProvider.load();
+  testWidgets(
+    'ActiveContextPanel explains background preparation without a fake ETA',
+    (tester) async {
+      final activeNode = TopicNode(
+        id: 'topic-nlp',
+        label: 'Natural Language Processing',
+        origin: TopicOrigin.personal,
+      );
+      final activeContext = ActiveContext(
+        conversationId: 'c1',
+        version: 1,
+        readiness: ActiveContextReadiness.preparing,
+        topicPinned: false,
+        topic: activeNode,
+        items: const [],
+        tokenCount: 0,
+        tokenBudget: 8000,
+      );
+      final fakeContextService = _FakeActiveContextService(activeContext);
+      final contextProvider = ActiveContextProvider(
+        service: fakeContextService,
+      );
+      final fakeTopicService = _FakeTopicService([activeNode]);
+      final topicProvider = TopicDiscoveryProvider(service: fakeTopicService);
+      await topicProvider.load();
 
-    await tester.pumpWidget(
-      _wrapWithApp(
-        ActiveContextPanel(
-          conversationId: 'c1',
-          onRedirect: () {},
+      await tester.pumpWidget(
+        _wrapWithApp(
+          ActiveContextPanel(conversationId: 'c1', onRedirect: () {}),
+          contextProvider: contextProvider,
+          topicProvider: topicProvider,
         ),
-        contextProvider: contextProvider,
-        topicProvider: topicProvider,
-      ),
-    );
-    await tester.pumpAndSettle();
+      );
+      await tester.pumpAndSettle();
 
-    expect(
-      find.text(
-        'Context is updating in the background. Current valid sources remain available.',
-      ),
-      findsOneWidget,
-    );
-    expect(find.textContaining('<10s'), findsNothing);
-    expect(find.byType(LinearProgressIndicator), findsOneWidget);
-  });
-
-  testWidgets('TopicLanding keeps the primary conversation and uses the switch contract', (tester) async {
-    final t1 = const TopicNode(id: 'topic-1', label: 'Machine Learning', origin: TopicOrigin.personal);
-    final service = _FakeTopicService([t1]);
-    final provider = TopicDiscoveryProvider(service: service);
-    await provider.load();
-    final fakeChat = _FakeChatProvider();
-
-    await tester.pumpWidget(
-      _wrapWithApp(
-        TopicLanding(
-          conversationId: 'primary',
-          onStarterSelected: (_) {},
+      expect(
+        find.text(
+          'Context is updating in the background. Current valid sources remain available.',
         ),
-        topicProvider: provider,
-        chatProvider: fakeChat,
-      ),
-    );
-    await tester.pumpAndSettle();
+        findsOneWidget,
+      );
+      expect(find.textContaining('<10s'), findsNothing);
+      expect(find.byType(LinearProgressIndicator), findsOneWidget);
+    },
+  );
 
-    expect(provider.selectedTopic, isNull);
-    await tester.tap(find.text('Machine Learning'));
-    await tester.pumpAndSettle();
+  testWidgets(
+    'TopicLanding keeps the primary conversation and uses the switch contract',
+    (tester) async {
+      final t1 = const TopicNode(
+        id: 'topic-1',
+        label: 'Machine Learning',
+        origin: TopicOrigin.personal,
+      );
+      final service = _FakeTopicService([t1]);
+      final provider = TopicDiscoveryProvider(service: service);
+      await provider.load();
+      final fakeChat = _FakeChatProvider();
 
-    // Verify dialog was NOT shown
-    expect(find.byKey(const ValueKey('topic_switch_dialog')), findsNothing);
-    // Verify topic selected
-    expect(provider.selectedTopic?.id, 'topic-1');
-    expect(fakeChat.createdConversations, isEmpty);
-  });
+      await tester.pumpWidget(
+        _wrapWithApp(
+          TopicLanding(conversationId: 'primary', onStarterSelected: (_) {}),
+          topicProvider: provider,
+          chatProvider: fakeChat,
+        ),
+      );
+      await tester.pumpAndSettle();
 
-  test('TopicGreetingData.tryParse extracts fields correctly from seeded greeting', () {
-    const greeting = '''
+      expect(provider.selectedTopic, isNull);
+      await tester.tap(find.text('Machine Learning'));
+      await tester.pumpAndSettle();
+
+      // Verify dialog was NOT shown
+      expect(find.byKey(const ValueKey('topic_switch_dialog')), findsNothing);
+      // Verify topic selected
+      expect(provider.selectedTopic?.id, 'topic-1');
+      expect(fakeChat.createdConversations, isEmpty);
+    },
+  );
+
+  test(
+    'TopicGreetingData.tryParse extracts fields correctly from seeded greeting',
+    () {
+      const greeting = '''
 ### Topic: **Retirement planning**
 
 *Financial planning for long-term retirement accounts and goals*
@@ -1109,21 +1241,36 @@ void main() {
 How can I help you with **Retirement planning** today?
 ''';
 
-    final data = TopicGreetingData.tryParse(greeting);
-    expect(data, isNotNull);
-    expect(data!.topicLabel, 'Retirement planning');
-    expect(data.topicDescription, 'Financial planning for long-term retirement accounts and goals');
-    expect(data.sentences, ['Maxing out 401(k) match is priority.', 'Target retirement age is 62.']);
-    expect(data.prompt, 'How can I help you with Retirement planning today?');
-  });
+      final data = TopicGreetingData.tryParse(greeting);
+      expect(data, isNotNull);
+      expect(data!.topicLabel, 'Retirement planning');
+      expect(
+        data.topicDescription,
+        'Financial planning for long-term retirement accounts and goals',
+      );
+      expect(data.sentences, [
+        'Maxing out 401(k) match is priority.',
+        'Target retirement age is 62.',
+      ]);
+      expect(data.prompt, 'How can I help you with Retirement planning today?');
+    },
+  );
 
-  test('TopicGreetingData.tryParse returns null for regular markdown or user message', () {
-    expect(TopicGreetingData.tryParse('Hello, how can you help me?'), isNull);
-    expect(TopicGreetingData.tryParse('# Heading 1\nJust an ordinary message'), isNull);
-  });
+  test(
+    'TopicGreetingData.tryParse returns null for regular markdown or user message',
+    () {
+      expect(TopicGreetingData.tryParse('Hello, how can you help me?'), isNull);
+      expect(
+        TopicGreetingData.tryParse('# Heading 1\nJust an ordinary message'),
+        isNull,
+      );
+    },
+  );
 
-  testWidgets('ChatMessageWidget renders TopicGreetingCard for topic greeting message', (tester) async {
-    const greeting = '''
+  testWidgets(
+    'ChatMessageWidget renders TopicGreetingCard for topic greeting message',
+    (tester) async {
+      const greeting = '''
 ### Topic: **Architecture**
 
 *Software design and patterns*
@@ -1135,50 +1282,59 @@ How can I help you with **Retirement planning** today?
 How can I help you with **Architecture** today?
 ''';
 
-    final message = ChatMessage(
-      id: 'greeting-msg-1',
-      role: 'assistant',
-      content: greeting,
-      createdAt: DateTime.now(),
-    );
+      final message = ChatMessage(
+        id: 'greeting-msg-1',
+        role: 'assistant',
+        content: greeting,
+        createdAt: DateTime.now(),
+      );
 
-    bool openedContext = false;
-    final settings = SettingsProvider();
+      bool openedContext = false;
+      final settings = SettingsProvider();
 
-    await tester.pumpWidget(
-      _wrapWithApp(
-        ChatMessageWidget(
-          message: message,
-          onOpenTopicContext: () => openedContext = true,
+      await tester.pumpWidget(
+        _wrapWithApp(
+          ChatMessageWidget(
+            message: message,
+            onOpenTopicContext: () => openedContext = true,
+          ),
+          settingsProvider: settings,
         ),
-        settingsProvider: settings,
-      ),
-    );
-    await tester.pumpAndSettle();
+      );
+      await tester.pumpAndSettle();
 
-    expect(find.byKey(const ValueKey('topic_greeting_card')), findsOneWidget);
-    expect(find.byKey(const ValueKey('topic_greeting_title')), findsOneWidget);
-    expect(find.text('Architecture'), findsOneWidget);
-    expect(find.text('THREAD CONTEXT'), findsOneWidget);
-    expect(find.text('Active'), findsOneWidget);
-    expect(find.text('Software design and patterns'), findsOneWidget);
-    expect(find.text('Using PostgreSQL with pgvector'), findsOneWidget);
-    expect(find.text('Flutter client with Provider'), findsOneWidget);
-    expect(find.text('How can I help you with Architecture today?'), findsOneWidget);
+      expect(find.byKey(const ValueKey('topic_greeting_card')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('topic_greeting_title')),
+        findsOneWidget,
+      );
+      expect(find.text('Architecture'), findsOneWidget);
+      expect(find.text('THREAD CONTEXT'), findsOneWidget);
+      expect(find.text('Active'), findsOneWidget);
+      expect(find.text('Software design and patterns'), findsOneWidget);
+      expect(find.text('Using PostgreSQL with pgvector'), findsOneWidget);
+      expect(find.text('Flutter client with Provider'), findsOneWidget);
+      expect(
+        find.text('How can I help you with Architecture today?'),
+        findsOneWidget,
+      );
 
-    // Verify assistant controls (regenerate, thumbs up, etc.) are NOT present
-    expect(find.byIcon(Icons.thumb_up_outlined), findsNothing);
-    expect(find.byIcon(Icons.refresh), findsNothing);
-    expect(find.byIcon(Icons.volume_up_outlined), findsNothing);
+      // Verify assistant controls (regenerate, thumbs up, etc.) are NOT present
+      expect(find.byIcon(Icons.thumb_up_outlined), findsNothing);
+      expect(find.byIcon(Icons.refresh), findsNothing);
+      expect(find.byIcon(Icons.volume_up_outlined), findsNothing);
 
-    // Verify "View Details" triggers onOpenTopicContext
-    expect(find.text('View Details'), findsOneWidget);
-    await tester.tap(find.text('View Details'));
-    expect(openedContext, isTrue);
-  });
+      // Verify "View Details" triggers onOpenTopicContext
+      expect(find.text('View Details'), findsOneWidget);
+      await tester.tap(find.text('View Details'));
+      expect(openedContext, isTrue);
+    },
+  );
 
-  testWidgets('ChatMessageWidget renders TopicGreetingCard with fallback description when sentences are empty', (tester) async {
-    const greeting = '''
+  testWidgets(
+    'ChatMessageWidget renders TopicGreetingCard with fallback description when sentences are empty',
+    (tester) async {
+      const greeting = '''
 ### Topic: **Retirement planning**
 
 *Financial planning for long-term retirement accounts and goals*
@@ -1188,94 +1344,116 @@ This thread is focused on **Retirement planning**. New facts, decisions, and pre
 How can I help you with **Retirement planning** today?
 ''';
 
-    final message = ChatMessage(
-      id: 'greeting-msg-2',
-      role: 'assistant',
-      content: greeting,
-      createdAt: DateTime.now(),
-    );
+      final message = ChatMessage(
+        id: 'greeting-msg-2',
+        role: 'assistant',
+        content: greeting,
+        createdAt: DateTime.now(),
+      );
 
-    final settings = SettingsProvider();
+      final settings = SettingsProvider();
 
-    await tester.pumpWidget(
-      _wrapWithApp(
-        ChatMessageWidget(message: message),
-        settingsProvider: settings,
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    expect(find.byKey(const ValueKey('topic_greeting_card')), findsOneWidget);
-    expect(find.text('Retirement planning'), findsOneWidget);
-    expect(find.text('Financial planning for long-term retirement accounts and goals'), findsOneWidget);
-    expect(find.textContaining('This thread is focused on Retirement planning'), findsOneWidget);
-    expect(find.text('How can I help you with Retirement planning today?'), findsOneWidget);
-  });
-
-  testWidgets('TopicContextEmptyState uses fallback starters when starterPrompts is empty', (tester) async {
-    final activeContext = ActiveContext(
-      conversationId: 'c2',
-      version: 1,
-      readiness: ActiveContextReadiness.ready,
-      items: const [],
-      topic: null,
-    );
-
-    final contextProvider = ActiveContextProvider(
-      service: _FakeActiveContextService(activeContext),
-      topicService: _FakeTopicService([]),
-    );
-    await contextProvider.load('c2');
-
-    final topic = TopicNode(
-      id: 'fresh-topic',
-      label: 'Home Renovation',
-      origin: TopicOrigin.personal,
-      starterPrompts: const [],
-    );
-
-    String? sentPrompt;
-
-    await tester.pumpWidget(
-      _wrapWithApp(
-        TopicContextEmptyState(
-          conversationId: 'c2',
-          topic: topic,
-          onStarterSelected: (p) => sentPrompt = p,
+      await tester.pumpWidget(
+        _wrapWithApp(
+          ChatMessageWidget(message: message),
+          settingsProvider: settings,
         ),
-        contextProvider: contextProvider,
-      ),
-    );
-    await tester.pumpAndSettle();
+      );
+      await tester.pumpAndSettle();
 
-    expect(find.byKey(const ValueKey('topic_context_empty_state')), findsOneWidget);
-    expect(find.text('Home Renovation'), findsOneWidget);
-    expect(find.text('Continue with Home Renovation'), findsOneWidget);
-    expect(find.text('What should I do next about Home Renovation?'), findsOneWidget);
-    expect(find.text('AVAILABLE TOPIC CONTEXT'), findsOneWidget);
-    expect(
-      find.text(
-        'No established context is available for this topic yet. New decisions and preferences will appear here as you chat.',
-      ),
-      findsOneWidget,
-    );
-    expect(find.textContaining('Clean session started'), findsNothing);
+      expect(find.byKey(const ValueKey('topic_greeting_card')), findsOneWidget);
+      expect(find.text('Retirement planning'), findsOneWidget);
+      expect(
+        find.text(
+          'Financial planning for long-term retirement accounts and goals',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('This thread is focused on Retirement planning'),
+        findsOneWidget,
+      );
+      expect(
+        find.text('How can I help you with Retirement planning today?'),
+        findsOneWidget,
+      );
+    },
+  );
 
-    await tester.tap(find.text('Continue with Home Renovation'));
-    expect(sentPrompt, 'Continue with Home Renovation');
-  });
+  testWidgets(
+    'TopicContextEmptyState uses fallback starters when starterPrompts is empty',
+    (tester) async {
+      final activeContext = ActiveContext(
+        conversationId: 'c2',
+        version: 1,
+        readiness: ActiveContextReadiness.ready,
+        items: const [],
+        topic: null,
+      );
+
+      final contextProvider = ActiveContextProvider(
+        service: _FakeActiveContextService(activeContext),
+        topicService: _FakeTopicService([]),
+      );
+      await contextProvider.load('c2');
+
+      final topic = TopicNode(
+        id: 'fresh-topic',
+        label: 'Home Renovation',
+        origin: TopicOrigin.personal,
+        starterPrompts: const [],
+      );
+
+      String? sentPrompt;
+
+      await tester.pumpWidget(
+        _wrapWithApp(
+          TopicContextEmptyState(
+            conversationId: 'c2',
+            topic: topic,
+            onStarterSelected: (p) => sentPrompt = p,
+          ),
+          contextProvider: contextProvider,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('topic_context_empty_state')),
+        findsOneWidget,
+      );
+      expect(find.text('Home Renovation'), findsOneWidget);
+      expect(find.text('Continue with Home Renovation'), findsOneWidget);
+      expect(
+        find.text('What should I do next about Home Renovation?'),
+        findsOneWidget,
+      );
+      expect(find.text('AVAILABLE TOPIC CONTEXT'), findsOneWidget);
+      expect(
+        find.text(
+          'No established context is available for this topic yet. New decisions and preferences will appear here as you chat.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.textContaining('Clean session started'), findsNothing);
+
+      await tester.tap(find.text('Continue with Home Renovation'));
+      expect(sentPrompt, 'Continue with Home Renovation');
+    },
+  );
 
   group('TopicLanding new-topic defaults', () {
-    Style defaultStyle({ThinkingLevel? thinkingLevel, String? templateId}) => Style(
-      id: 'default-style',
-      name: 'Deep work',
-      systemPromptTemplateId: templateId,
-      modelId: 'kimi-k3',
-      thinkingLevel: thinkingLevel,
-      isDefault: true,
-      createdAt: DateTime(2026),
-      updatedAt: DateTime(2026),
-    );
+    Style defaultStyle({ThinkingLevel? thinkingLevel, String? templateId}) =>
+        Style(
+          id: 'default-style',
+          name: 'Deep work',
+          systemPromptTemplateId: templateId,
+          modelId: 'kimi-k3',
+          thinkingLevel: thinkingLevel,
+          isDefault: true,
+          createdAt: DateTime(2026),
+          updatedAt: DateTime(2026),
+        );
 
     // The landing seeds asynchronously (styles load + pending settings), so pump
     // a few frames after mount to let its post-frame callback settle.
@@ -1286,187 +1464,113 @@ How can I help you with **Retirement planning** today?
       await tester.pumpAndSettle();
     }
 
-    testWidgets('required seed blocks keyboard and stale topic/starter callbacks', (tester) async {
-      const topic = TopicNode(
-        id: 'topic', label: 'Plan a trip', origin: TopicOrigin.explore,
-        starterPrompts: ['Suggest destinations'],
-      );
-      final service = _FakeTopicService([topic]);
-      final topics = TopicDiscoveryProvider(service: service);
-      await topics.setMode(TopicOrigin.explore);
-      topics.synchronizeSelectedTopic(topic);
-      final prompt = SystemPromptTemplate(
-        id: 'required', name: 'Required', content: 'Use these instructions',
-        createdAt: DateTime(2026),
-      );
-      final prompts = _SeedPromptService()..load = () async => [prompt];
-      final styles = StyleProvider(
-        styleService: _FakeStyleService([defaultStyle(templateId: 'required')]),
-        systemPromptService: prompts,
-      );
-      await styles.ensureLoaded();
-      final submitted = <String>[];
-      await tester.pumpWidget(_wrapWithApp(
-        TopicLanding(conversationId: 'primary', onStarterSelected: submitted.add),
-        topicProvider: topics, styleProvider: styles,
-      ));
-      await settle(tester);
-      expect(styles.pendingSeedBlocked, isFalse);
-      final somethingNew = find.byKey(const ValueKey('something_new_topic'));
-      final focus = Focus.of(tester.element(find.descendant(
-        of: somethingNew, matching: find.byType(Container),
-      ).first));
-      focus.requestFocus();
-      await tester.pump();
-      expect(focus.hasFocus, isTrue);
-      final startTopic = tester.widget<TopicField>(find.byType(TopicField)).onStart;
-      final startNew = tester.widget<InkWell>(somethingNew).onTap!;
-      final startPrompt = tester.widget<TopicStarterCard>(find.byType(TopicStarterCard)).onTap;
+    testWidgets(
+      'required seed blocks keyboard and stale topic/starter callbacks',
+      (tester) async {
+        const topic = TopicNode(
+          id: 'topic',
+          label: 'Plan a trip',
+          origin: TopicOrigin.explore,
+          starterPrompts: ['Suggest destinations'],
+        );
+        final service = _FakeTopicService([topic]);
+        final topics = TopicDiscoveryProvider(service: service);
+        await topics.setMode(TopicOrigin.explore);
+        topics.synchronizeSelectedTopic(topic);
+        final prompt = SystemPromptTemplate(
+          id: 'required',
+          name: 'Required',
+          content: 'Use these instructions',
+          createdAt: DateTime(2026),
+        );
+        final prompts = _SeedPromptService()..load = () async => [prompt];
+        final styles = StyleProvider(
+          styleService: _FakeStyleService([
+            defaultStyle(templateId: 'required'),
+          ]),
+          systemPromptService: prompts,
+        );
+        await styles.ensureLoaded();
+        final submitted = <String>[];
+        await tester.pumpWidget(
+          _wrapWithApp(
+            TopicLanding(
+              conversationId: 'primary',
+              onStarterSelected: submitted.add,
+            ),
+            topicProvider: topics,
+            styleProvider: styles,
+          ),
+        );
+        await settle(tester);
+        expect(styles.pendingSeedBlocked, isFalse);
+        final somethingNew = find.byKey(const ValueKey('something_new_topic'));
+        final focus = Focus.of(
+          tester.element(
+            find
+                .descendant(of: somethingNew, matching: find.byType(Container))
+                .first,
+          ),
+        );
+        focus.requestFocus();
+        await tester.pump();
+        expect(focus.hasFocus, isTrue);
+        final startTopic = tester
+            .widget<TopicField>(find.byType(TopicField))
+            .onStart;
+        final startNew = tester.widget<InkWell>(somethingNew).onTap!;
+        final startPrompt = tester
+            .widget<TopicStarterCard>(find.byType(TopicStarterCard))
+            .onTap;
 
-      final slow = Completer<List<SystemPromptTemplate>>();
-      prompts.load = () => slow.future;
-      final seeding = styles.applyDefaultForNewTopic();
-      expect(styles.pendingSeedBlocked, isTrue);
-      // Existing focus and callbacks predate the next rebuild. Check live state.
-      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
-      startTopic(topic);
-      startNew();
-      startPrompt();
-      expect(service.switchCalls, 0);
-      expect(submitted, isEmpty);
-      await tester.pump();
-      expect(focus.hasFocus, isFalse);
+        final slow = Completer<List<SystemPromptTemplate>>();
+        prompts.load = () => slow.future;
+        final seeding = styles.applyDefaultForNewTopic();
+        expect(styles.pendingSeedBlocked, isTrue);
+        // Existing focus and callbacks predate the next rebuild. Check live state.
+        await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+        startTopic(topic);
+        startNew();
+        startPrompt();
+        expect(service.switchCalls, 0);
+        expect(submitted, isEmpty);
+        await tester.pump();
+        expect(focus.hasFocus, isFalse);
 
-      slow.complete([prompt]);
-      await seeding;
-      await settle(tester);
-      expect(styles.pendingSeedBlocked, isFalse);
-      await tester.ensureVisible(find.text('Suggest destinations'));
-      await tester.tap(find.text('Suggest destinations'));
-      expect(submitted, ['Suggest destinations']);
-    });
+        slow.complete([prompt]);
+        await seeding;
+        await settle(tester);
+        expect(styles.pendingSeedBlocked, isFalse);
+        await tester.ensureVisible(find.text('Suggest destinations'));
+        await tester.tap(find.text('Suggest destinations'));
+        expect(submitted, ['Suggest destinations']);
+      },
+    );
 
-    testWidgets('required instructions block submission, show retry and recover without editing the chat',
-        (tester) async {
-      final topics = TopicDiscoveryProvider(service: _FakeTopicService(const []));
-      final prompts = _SeedPromptService()..load = () async => [];
-      final styles = StyleProvider(
-        styleService: _FakeStyleService([defaultStyle(templateId: 'required')]),
-        systemPromptService: prompts,
-      );
-      await styles.ensureLoaded();
-      final slow = Completer<List<SystemPromptTemplate>>();
-      prompts.load = () => slow.future;
-      final chat = _FakeChatProvider();
-      final models = _FakeModelProvider(
-        models: const [ModelInfo(id: 'kimi-k3', name: 'Kimi', provider: 'ollama')],
-        selectedId: 'kimi-k3',
-      );
-      final submitted = <String>[];
-      await tester.pumpWidget(_wrapWithApp(
-        Column(children: [
-          Expanded(child: TopicLanding(conversationId: 'primary', onStarterSelected: (_) {})),
-          ChatInputWidget(onSend: (text, _) => submitted.add(text)),
-        ]),
-        topicProvider: topics,
-        chatProvider: chat,
-        styleProvider: styles,
-        modelProvider: models,
-        promptProvider: _FakeSystemPromptProvider(),
-        settingsProvider: SettingsProvider(),
-      ));
-      await tester.pump();
-      await tester.pump();
-      var composer = tester.widget<MessageComposer>(find.byType(MessageComposer));
-      expect(styles.isSeeding, isTrue);
-      expect(composer.submitEnabled, isFalse);
-      composer.controller!.text = 'Keep this draft';
-      tester.state<MessageComposerState>(find.byType(MessageComposer)).submit();
-      // Also guard a direct callback racing the rebuild.
-      composer.onSend('Keep this draft');
-      expect(submitted, isEmpty);
-      expect(composer.controller!.text, 'Keep this draft');
-      slow.complete([]);
-      await settle(tester);
-      expect(find.byKey(const ValueKey('topic_style_seed_error')), findsOneWidget);
-      expect(tester.widget<MessageComposer>(find.byType(MessageComposer)).submitEnabled, isFalse);
-      expect(chat.updates, isEmpty);
-      expect(styles.pendingSystemPrompt, isNull);
-      prompts.load = () async => [SystemPromptTemplate(
-        id: 'required', name: 'Required', content: 'Use these instructions',
-        locale: 'es', createdAt: DateTime(2026),
-      )];
-      await tester.tap(find.descendant(
-        of: find.byKey(const ValueKey('topic_style_seed_error')),
-        matching: find.text('Try again'),
-      ));
-      await settle(tester);
-      expect(find.byKey(const ValueKey('topic_style_seed_error')), findsNothing);
-      expect(styles.pendingSystemPrompt, 'Use these instructions');
-      expect(styles.pendingThinkingLevel, ThinkingLevel.medium);
-      composer = tester.widget<MessageComposer>(find.byType(MessageComposer));
-      expect(composer.submitEnabled, isTrue);
-      expect(composer.controller!.text, 'Keep this draft');
-      expect(chat.updates, isEmpty);
-      expect(tester.takeException(), isNull);
-    });
-
-    testWidgets('required new-topic failure leaves existing-chat sending available',
-        (tester) async {
-      final topics = TopicDiscoveryProvider(service: _FakeTopicService(const []));
-      topics.conversationStarted();
-      final styles = StyleProvider(
-        styleService: _FakeStyleService([defaultStyle(templateId: 'missing')]),
-        systemPromptService: _SeedPromptService()..load = () async => [],
-      );
-      await styles.ensureLoaded();
-      final chat = _FakeChatProvider(conversation: Conversation(
-        id: 'existing', model: 'kimi-k3', systemPrompt: 'Existing instructions',
-        createdAt: DateTime(2026), updatedAt: DateTime(2026),
-      ));
-      await tester.pumpWidget(_wrapWithApp(
-        ChatInputWidget(onSend: (_, _) {}, foldersService: _EmptyFoldersService()),
-        topicProvider: topics,
-        chatProvider: chat,
-        styleProvider: styles,
-        modelProvider: _FakeModelProvider(
-          models: const [ModelInfo(id: 'kimi-k3', name: 'Kimi', provider: 'ollama')],
-          selectedId: 'kimi-k3',
-        ),
-        promptProvider: _FakeSystemPromptProvider(),
-        settingsProvider: SettingsProvider(),
-      ));
-      await settle(tester);
-      expect(styles.pendingSeedBlocked, isTrue);
-      expect(tester.widget<MessageComposer>(find.byType(MessageComposer)).submitEnabled, isTrue);
-      expect(chat.updates, isEmpty);
-      expect(tester.takeException(), isNull);
-    });
-
-    for (final savedLevel in <ThinkingLevel?>[...ThinkingLevel.values, null]) {
-      testWidgets('composer shows the default style and ${savedLevel?.name ?? 'Medium for Auto'} on each new topic',
-          (tester) async {
+    testWidgets(
+      'required instructions block submission, show retry and recover without editing the chat',
+      (tester) async {
         final topics = TopicDiscoveryProvider(
           service: _FakeTopicService(const []),
         );
+        final prompts = _SeedPromptService()..load = () async => [];
         final styles = StyleProvider(
           styleService: _FakeStyleService([
-            defaultStyle(thinkingLevel: savedLevel),
+            defaultStyle(templateId: 'required'),
           ]),
+          systemPromptService: prompts,
         );
+        await styles.ensureLoaded();
+        final slow = Completer<List<SystemPromptTemplate>>();
+        prompts.load = () => slow.future;
+        final chat = _FakeChatProvider();
         final models = _FakeModelProvider(
           models: const [
-            ModelInfo(
-              id: 'kimi-k3',
-              name: 'Kimi K3',
-              provider: 'ollama',
-              supportsThinking: true,
-              thinkingLevels: ThinkingLevel.values,
-            ),
+            ModelInfo(id: 'kimi-k3', name: 'Kimi', provider: 'ollama'),
           ],
           selectedId: 'kimi-k3',
         );
-
+        final submitted = <String>[];
         await tester.pumpWidget(
           _wrapWithApp(
             Column(
@@ -1477,42 +1581,217 @@ How can I help you with **Retirement planning** today?
                     onStarterSelected: (_) {},
                   ),
                 ),
-                ChatInputWidget(
-                  onSend: (_, _) {},
-                ),
+                ChatInputWidget(onSend: (text, _) => submitted.add(text)),
               ],
             ),
             topicProvider: topics,
-            chatProvider: _FakeChatProvider(),
+            chatProvider: chat,
             styleProvider: styles,
             modelProvider: models,
             promptProvider: _FakeSystemPromptProvider(),
             settingsProvider: SettingsProvider(),
           ),
         );
+        await tester.pump();
+        await tester.pump();
+        var composer = tester.widget<MessageComposer>(
+          find.byType(MessageComposer),
+        );
+        expect(styles.isSeeding, isTrue);
+        expect(composer.submitEnabled, isFalse);
+        composer.controller!.text = 'Keep this draft';
+        tester
+            .state<MessageComposerState>(find.byType(MessageComposer))
+            .submit();
+        // Also guard a direct callback racing the rebuild.
+        composer.onSend('Keep this draft');
+        expect(submitted, isEmpty);
+        expect(composer.controller!.text, 'Keep this draft');
+        slow.complete([]);
         await settle(tester);
-
-        final stylePill = find.byKey(const ValueKey('style_picker_button'));
-        final thinkingChip = find.byKey(const ValueKey('thinking_effort_chip'));
-        expect(find.descendant(of: stylePill, matching: find.text('Deep work')),
-            findsOneWidget);
-        final expectedLevel = savedLevel ?? ThinkingLevel.medium;
-        expect(find.descendant(of: thinkingChip, matching: find.text(expectedLevel.label)),
-            findsOneWidget);
-
-        // Cycling effort customizes this window; re-entry restores the saved value.
-        await tester.tap(thinkingChip);
+        expect(
+          find.byKey(const ValueKey('topic_style_seed_error')),
+          findsOneWidget,
+        );
+        expect(
+          tester
+              .widget<MessageComposer>(find.byType(MessageComposer))
+              .submitEnabled,
+          isFalse,
+        );
+        expect(chat.updates, isEmpty);
+        expect(styles.pendingSystemPrompt, isNull);
+        prompts.load = () async => [
+          SystemPromptTemplate(
+            id: 'required',
+            name: 'Required',
+            content: 'Use these instructions',
+            locale: 'es',
+            createdAt: DateTime(2026),
+          ),
+        ];
+        await tester.tap(
+          find.descendant(
+            of: find.byKey(const ValueKey('topic_style_seed_error')),
+            matching: find.text('Try again'),
+          ),
+        );
         await settle(tester);
-        expect(styles.pendingThinkingLevel, isNot(expectedLevel));
-        topics.startNewTopic();
-        await settle(tester);
-        expect(styles.pendingThinkingLevel, expectedLevel);
-        expect(find.descendant(of: stylePill, matching: find.text('Deep work')),
-            findsOneWidget);
-        expect(find.descendant(of: thinkingChip, matching: find.text(expectedLevel.label)),
-            findsOneWidget);
+        expect(
+          find.byKey(const ValueKey('topic_style_seed_error')),
+          findsNothing,
+        );
+        expect(styles.pendingSystemPrompt, 'Use these instructions');
+        expect(styles.pendingThinkingLevel, ThinkingLevel.medium);
+        composer = tester.widget<MessageComposer>(find.byType(MessageComposer));
+        expect(composer.submitEnabled, isTrue);
+        expect(composer.controller!.text, 'Keep this draft');
+        expect(chat.updates, isEmpty);
         expect(tester.takeException(), isNull);
-      });
+      },
+    );
+
+    testWidgets(
+      'required new-topic failure leaves existing-chat sending available',
+      (tester) async {
+        final topics = TopicDiscoveryProvider(
+          service: _FakeTopicService(const []),
+        );
+        topics.conversationStarted();
+        final styles = StyleProvider(
+          styleService: _FakeStyleService([
+            defaultStyle(templateId: 'missing'),
+          ]),
+          systemPromptService: _SeedPromptService()..load = () async => [],
+        );
+        await styles.ensureLoaded();
+        final chat = _FakeChatProvider(
+          conversation: Conversation(
+            id: 'existing',
+            model: 'kimi-k3',
+            systemPrompt: 'Existing instructions',
+            createdAt: DateTime(2026),
+            updatedAt: DateTime(2026),
+          ),
+        );
+        await tester.pumpWidget(
+          _wrapWithApp(
+            ChatInputWidget(
+              onSend: (_, _) {},
+              foldersService: _EmptyFoldersService(),
+            ),
+            topicProvider: topics,
+            chatProvider: chat,
+            styleProvider: styles,
+            modelProvider: _FakeModelProvider(
+              models: const [
+                ModelInfo(id: 'kimi-k3', name: 'Kimi', provider: 'ollama'),
+              ],
+              selectedId: 'kimi-k3',
+            ),
+            promptProvider: _FakeSystemPromptProvider(),
+            settingsProvider: SettingsProvider(),
+          ),
+        );
+        await settle(tester);
+        expect(styles.pendingSeedBlocked, isTrue);
+        expect(
+          tester
+              .widget<MessageComposer>(find.byType(MessageComposer))
+              .submitEnabled,
+          isTrue,
+        );
+        expect(chat.updates, isEmpty);
+        expect(tester.takeException(), isNull);
+      },
+    );
+
+    for (final savedLevel in <ThinkingLevel?>[...ThinkingLevel.values, null]) {
+      testWidgets(
+        'composer shows the default style and ${savedLevel?.name ?? 'Medium for Auto'} on each new topic',
+        (tester) async {
+          final topics = TopicDiscoveryProvider(
+            service: _FakeTopicService(const []),
+          );
+          final styles = StyleProvider(
+            styleService: _FakeStyleService([
+              defaultStyle(thinkingLevel: savedLevel),
+            ]),
+          );
+          final models = _FakeModelProvider(
+            models: const [
+              ModelInfo(
+                id: 'kimi-k3',
+                name: 'Kimi K3',
+                provider: 'ollama',
+                supportsThinking: true,
+                thinkingLevels: ThinkingLevel.values,
+              ),
+            ],
+            selectedId: 'kimi-k3',
+          );
+
+          await tester.pumpWidget(
+            _wrapWithApp(
+              Column(
+                children: [
+                  Expanded(
+                    child: TopicLanding(
+                      conversationId: 'primary',
+                      onStarterSelected: (_) {},
+                    ),
+                  ),
+                  ChatInputWidget(onSend: (_, _) {}),
+                ],
+              ),
+              topicProvider: topics,
+              chatProvider: _FakeChatProvider(),
+              styleProvider: styles,
+              modelProvider: models,
+              promptProvider: _FakeSystemPromptProvider(),
+              settingsProvider: SettingsProvider(),
+            ),
+          );
+          await settle(tester);
+
+          final stylePill = find.byKey(const ValueKey('style_picker_button'));
+          final thinkingChip = find.byKey(
+            const ValueKey('thinking_effort_chip'),
+          );
+          expect(
+            find.descendant(of: stylePill, matching: find.text('Deep work')),
+            findsOneWidget,
+          );
+          final expectedLevel = savedLevel ?? ThinkingLevel.medium;
+          expect(
+            find.descendant(
+              of: thinkingChip,
+              matching: find.text(expectedLevel.label),
+            ),
+            findsOneWidget,
+          );
+
+          // Cycling effort customizes this window; re-entry restores the saved value.
+          await tester.tap(thinkingChip);
+          await settle(tester);
+          expect(styles.pendingThinkingLevel, isNot(expectedLevel));
+          topics.startNewTopic();
+          await settle(tester);
+          expect(styles.pendingThinkingLevel, expectedLevel);
+          expect(
+            find.descendant(of: stylePill, matching: find.text('Deep work')),
+            findsOneWidget,
+          );
+          expect(
+            find.descendant(
+              of: thinkingChip,
+              matching: find.text(expectedLevel.label),
+            ),
+            findsOneWidget,
+          );
+          expect(tester.takeException(), isNull);
+        },
+      );
     }
 
     testWidgets(

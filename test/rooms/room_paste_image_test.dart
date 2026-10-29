@@ -70,7 +70,9 @@ Widget _app(RoomProvider provider) =>
       child: MaterialApp(
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
-        home: Scaffold(body: RoomChatView(roomId: 'r1', onOpenSettings: () {})),
+        home: Scaffold(
+          body: RoomChatView(roomId: 'r1', onOpenSettings: () {}),
+        ),
       ),
     );
 
@@ -175,8 +177,13 @@ void main() {
     await _pressPaste(tester);
     await tester.pump();
 
-    expect(tester.widget<TextField>(find.byKey(const ValueKey('message_input'))).controller!.text,
-        'pasted text');
+    expect(
+      tester
+          .widget<TextField>(find.byKey(const ValueKey('message_input')))
+          .controller!
+          .text,
+      'pasted text',
+    );
     expect(find.byType(AttachmentPreviewBar), findsNothing);
     expect(tester.takeException(), isNull);
   });

@@ -22,8 +22,17 @@ class _Prompts extends SystemPromptProvider {
     String? feedback,
     required String model,
   }) {
-    calls.add({'intent': intent, 'existing': existingPrompt, 'feedback': feedback, 'model': model});
-    final stream = StreamController<ChatResponseChunk>(onCancel: () { canceled++; });
+    calls.add({
+      'intent': intent,
+      'existing': existingPrompt,
+      'feedback': feedback,
+      'model': model,
+    });
+    final stream = StreamController<ChatResponseChunk>(
+      onCancel: () {
+        canceled++;
+      },
+    );
     streams.add(stream);
     return stream.stream;
   }
@@ -41,69 +50,101 @@ void main() {
   });
 
   tearDown(() {
-    for (final stream in prompts.streams) { unawaited(stream.close()); }
+    for (final stream in prompts.streams) {
+      unawaited(stream.close());
+    }
     prompts.dispose();
     instructions.dispose();
   });
 
   Future<void> mount(WidgetTester tester) async {
-    await tester.pumpWidget(MaterialApp(
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: Scaffold(body: SingleChildScrollView(child: StyleInstructionsAssistant(
-        controller: instructions,
-        prompts: prompts,
-        modelId: 'chosen-model',
-        enabled: true,
-        onPendingChanged: pending.add,
-      ))),
-    ));
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: StyleInstructionsAssistant(
+              controller: instructions,
+              prompts: prompts,
+              modelId: 'chosen-model',
+              enabled: true,
+              onPendingChanged: pending.add,
+            ),
+          ),
+        ),
+      ),
+    );
     await tester.tap(find.byKey(const ValueKey('style_ai_help')));
     await tester.pumpAndSettle();
-    await tester.enterText(find.byKey(const ValueKey('style_ai_request')), 'A patient tutor');
+    await tester.enterText(
+      find.byKey(const ValueKey('style_ai_request')),
+      'A patient tutor',
+    );
     await tester.pump();
     await tester.tap(find.byKey(const ValueKey('style_ai_generate')));
     await tester.pump();
   }
 
-  testWidgets('generate previews streamed instructions and applies only on accept', (tester) async {
-    await mount(tester);
-    expect(prompts.calls.single, {'intent': 'A patient tutor', 'existing': null, 'feedback': null, 'model': 'chosen-model'});
-    prompts.streams.single.add(const ChatResponseChunk(type: 'thinking', content: 'hidden reasoning'));
-    prompts.streams.single.add(const ChatResponseChunk(type: 'chunk', content: 'Teach with examples.'));
-    await tester.pump();
-    expect(instructions.text, isEmpty);
-    expect(find.text('hidden reasoning'), findsNothing);
-    expect(pending.last, true);
-    prompts.streams.single.add(const ChatResponseChunk(type: 'done'));
-    await tester.pumpAndSettle();
-    expect(instructions.text, isEmpty);
-    await tester.tap(find.byKey(const ValueKey('style_ai_accept')));
-    await tester.pumpAndSettle();
-    expect(instructions.text, 'Teach with examples.');
-    expect(pending.last, false);
-  });
+  testWidgets(
+    'generate previews streamed instructions and applies only on accept',
+    (tester) async {
+      await mount(tester);
+      expect(prompts.calls.single, {
+        'intent': 'A patient tutor',
+        'existing': null,
+        'feedback': null,
+        'model': 'chosen-model',
+      });
+      prompts.streams.single.add(
+        const ChatResponseChunk(type: 'thinking', content: 'hidden reasoning'),
+      );
+      prompts.streams.single.add(
+        const ChatResponseChunk(type: 'chunk', content: 'Teach with examples.'),
+      );
+      await tester.pump();
+      expect(instructions.text, isEmpty);
+      expect(find.text('hidden reasoning'), findsNothing);
+      expect(pending.last, true);
+      prompts.streams.single.add(const ChatResponseChunk(type: 'done'));
+      await tester.pumpAndSettle();
+      expect(instructions.text, isEmpty);
+      await tester.tap(find.byKey(const ValueKey('style_ai_accept')));
+      await tester.pumpAndSettle();
+      expect(instructions.text, 'Teach with examples.');
+      expect(pending.last, false);
+    },
+  );
 
-  testWidgets('enhance passes current draft and feedback; discard preserves edits', (tester) async {
-    instructions.text = 'My manually edited instructions';
-    await mount(tester);
-    expect(prompts.calls.single['existing'], instructions.text);
-    expect(prompts.calls.single['feedback'], 'A patient tutor');
-    prompts.streams.single.add(const ChatResponseChunk(type: 'chunk', content: 'A different draft'));
-    prompts.streams.single.add(const ChatResponseChunk(type: 'done'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('style_ai_discard')));
-    await tester.pumpAndSettle();
-    expect(instructions.text, 'My manually edited instructions');
-    expect(pending.last, false);
-  });
+  testWidgets(
+    'enhance passes current draft and feedback; discard preserves edits',
+    (tester) async {
+      instructions.text = 'My manually edited instructions';
+      await mount(tester);
+      expect(prompts.calls.single['existing'], instructions.text);
+      expect(prompts.calls.single['feedback'], 'A patient tutor');
+      prompts.streams.single.add(
+        const ChatResponseChunk(type: 'chunk', content: 'A different draft'),
+      );
+      prompts.streams.single.add(const ChatResponseChunk(type: 'done'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('style_ai_discard')));
+      await tester.pumpAndSettle();
+      expect(instructions.text, 'My manually edited instructions');
+      expect(pending.last, false);
+    },
+  );
 
-  testWidgets('cancel stops stream and cannot replace original instructions', (tester) async {
+  testWidgets('cancel stops stream and cannot replace original instructions', (
+    tester,
+  ) async {
     instructions.text = 'Keep me';
     await mount(tester);
     await tester.tap(find.byKey(const ValueKey('style_ai_discard')));
     await tester.pumpAndSettle();
-    prompts.streams.single.add(const ChatResponseChunk(type: 'chunk', content: 'Late result'));
+    prompts.streams.single.add(
+      const ChatResponseChunk(type: 'chunk', content: 'Late result'),
+    );
     prompts.streams.single.add(const ChatResponseChunk(type: 'done'));
     await tester.pumpAndSettle();
     expect(prompts.canceled, 1);
@@ -117,10 +158,14 @@ void main() {
       instructions.text = 'Keep me';
       await mount(tester);
       if (failure != 'empty') {
-        prompts.streams.single.add(const ChatResponseChunk(type: 'chunk', content: 'Partial'));
+        prompts.streams.single.add(
+          const ChatResponseChunk(type: 'chunk', content: 'Partial'),
+        );
       }
       if (failure == 'error') {
-        prompts.streams.single.add(const ChatResponseChunk(type: 'error', error: 'Failed'));
+        prompts.streams.single.add(
+          const ChatResponseChunk(type: 'error', error: 'Failed'),
+        );
       } else if (failure == 'disconnect') {
         unawaited(prompts.streams.single.close());
       } else if (failure == 'transport') {
@@ -140,7 +185,9 @@ void main() {
     });
   }
 
-  testWidgets('disposing cancels generation without touching instructions', (tester) async {
+  testWidgets('disposing cancels generation without touching instructions', (
+    tester,
+  ) async {
     instructions.text = 'Keep me';
     await mount(tester);
     await tester.pumpWidget(const SizedBox());

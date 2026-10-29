@@ -78,8 +78,7 @@ class _FakeChatService extends ChatService {
     String conversationId, {
     int? messageLimit,
     bool silent = false,
-  }) async =>
-      conversationsById[conversationId]!;
+  }) async => conversationsById[conversationId]!;
 
   @override
   Future<void> stopStreaming(String conversationId) async {}
@@ -120,15 +119,14 @@ void main() {
     });
 
     test('fromJson maps muted_until, tolerating its absence', () {
-      Conversation parse(Map<String, dynamic> extra) =>
-          Conversation.fromJson({
-            'id': 'c1',
-            'title': 'Convo',
-            'model': 'llama3.2',
-            'created_at': _now.toIso8601String(),
-            'updated_at': _now.toIso8601String(),
-            ...extra,
-          });
+      Conversation parse(Map<String, dynamic> extra) => Conversation.fromJson({
+        'id': 'c1',
+        'title': 'Convo',
+        'model': 'llama3.2',
+        'created_at': _now.toIso8601String(),
+        'updated_at': _now.toIso8601String(),
+        ...extra,
+      });
 
       expect(parse(const {}).mutedUntil, isNull);
       expect(parse(const {'muted_until': null}).mutedUntil, isNull);
@@ -182,8 +180,7 @@ void main() {
     });
 
     test('a failing request surfaces the error and returns null', () async {
-      final service = _FakeChatService()
-        ..setMuteError = Exception('boom');
+      final service = _FakeChatService()..setMuteError = Exception('boom');
       final controller = ConversationListController(chatService: service);
       await controller.load();
 
@@ -196,20 +193,23 @@ void main() {
   });
 
   group('ChatProvider.setMute', () {
-    test('syncs the currently-open conversation with the server response', () async {
-      final service = _FakeChatService();
-      final provider = ChatProvider(
-        selectedModelId: 'llama3.2',
-        chatService: service,
-      );
-      await provider.loadConversation('c1');
-      expect(provider.currentConversation?.isMuted, isFalse);
+    test(
+      'syncs the currently-open conversation with the server response',
+      () async {
+        final service = _FakeChatService();
+        final provider = ChatProvider(
+          selectedModelId: 'llama3.2',
+          chatService: service,
+        );
+        await provider.loadConversation('c1');
+        expect(provider.currentConversation?.isMuted, isFalse);
 
-      await provider.setMute('c1', muteDuration8h);
+        await provider.setMute('c1', muteDuration8h);
 
-      expect(provider.currentConversation?.isMuted, isTrue);
-      expect(provider.conversations.first.isMuted, isTrue);
-    });
+        expect(provider.currentConversation?.isMuted, isTrue);
+        expect(provider.conversations.first.isMuted, isTrue);
+      },
+    );
 
     test('leaves an unrelated open conversation untouched', () async {
       final service = _FakeChatService();
@@ -234,10 +234,9 @@ void main() {
     }) => ChangeNotifierProvider<SearchProvider>(
       create: (_) => SearchProvider(),
       child: MaterialApp(
-        
-  localizationsDelegates: AppLocalizations.localizationsDelegates,
-  supportedLocales: AppLocalizations.supportedLocales,
-home: Scaffold(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
           body: ConversationListWidget(
             conversations: conversations,
             selectedId: null,
@@ -278,10 +277,9 @@ home: Scaffold(
     ) async {
       final calls = <(String, String)>[];
       await tester.pumpWidget(
-        host(
-          [_conversation(mutedUntil: _foreverSentinel)],
-          onMute: (c, d) => calls.add((c.id, d)),
-        ),
+        host([
+          _conversation(mutedUntil: _foreverSentinel),
+        ], onMute: (c, d) => calls.add((c.id, d))),
       );
 
       expect(

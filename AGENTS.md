@@ -71,6 +71,7 @@ Use focused tests while iterating; run `just test` as the full pre-deploy gate.
 | Backend environment variables | [`docs/environment.md`](docs/environment.md) |
 | E2E testing (manual, Dart MCP + Marionette) | `/e2e-testing` skill |
 | Test coverage gaps, priorities, conventions | [`docs/coverage-strategy.md`](docs/coverage-strategy.md) |
+| Periodic architecture, simplification and maintainability review | [`architecture-review` skill](.agents/skills/architecture-review/SKILL.md); cadence in [`docs/ai-workflow-guide.md`](docs/ai-workflow-guide.md) |
 | New machine setup | [`setup.md`](setup.md) |
 
 Root `AGENTS.md` and `.agents/skills/` are authoritative. `CLAUDE.md` and
@@ -106,7 +107,8 @@ their `CLAUDE.md` names are compatibility links.
 Daily workflow and prioritization: [`docs/ai-workflow-guide.md`](docs/ai-workflow-guide.md).
 Setup, internals, recovery and acceptance: [`docs/ai-development.md`](docs/ai-development.md).
 Focused skills live in `.agents/skills/`: guided-development, coordination,
-production-triage, code-navigation, knowledge-retrieval, testing, releases.
+production-triage, code-navigation, knowledge-retrieval, architecture-review,
+testing, releases.
 `vibe-coding`, `task-runner`, `subagent-task-runner`, `team`, and `user-reports`
 remain compatibility entry points. E2E runtime guidance: `e2e-testing`.
 

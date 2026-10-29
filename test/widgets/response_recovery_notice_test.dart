@@ -28,7 +28,10 @@ void main() {
     );
 
     expect(find.byIcon(Icons.cloud_off_outlined), findsOneWidget);
-    expect(find.textContaining('Your response is still running'), findsOneWidget);
+    expect(
+      find.textContaining('Your response is still running'),
+      findsOneWidget,
+    );
     expect(find.byIcon(Icons.error_outline), findsNothing);
   });
 

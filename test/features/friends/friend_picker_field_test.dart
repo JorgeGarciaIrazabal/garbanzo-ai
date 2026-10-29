@@ -20,10 +20,9 @@ void main() {
     key = GlobalKey<FriendPickerFieldState>();
     lastSelection = [];
     return MaterialApp(
-      
-  localizationsDelegates: AppLocalizations.localizationsDelegates,
-  supportedLocales: AppLocalizations.supportedLocales,
-home: Scaffold(
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: Scaffold(
         body: FriendPickerField(
           key: key,
           friends: friends,

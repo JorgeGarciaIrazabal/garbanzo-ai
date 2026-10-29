@@ -1,0 +1,4 @@
+interface:
+  display_name: "Architecture & Maintainability Review"
+  short_description: "Review architecture and practical code simplifications"
+  default_prompt: "Use $architecture-review to review recent changes and selected feature flows, then report the highest-value simplifications with code evidence and verification criteria."

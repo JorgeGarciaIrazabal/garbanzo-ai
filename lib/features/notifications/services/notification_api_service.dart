@@ -1,4 +1,7 @@
+import 'package:dio/dio.dart';
+
 import 'package:garbanzo_ai/core/api_client.dart';
+import 'package:garbanzo_ai/core/api_error.dart';
 import 'package:garbanzo_ai/features/notifications/models/app_notification.dart';
 
 class NotificationListResult {
@@ -13,10 +16,10 @@ class NotificationListResult {
 
 /// Service for the in-app notification center and user preferences.
 class NotificationApiService {
-  NotificationApiService._();
-  static final NotificationApiService instance = NotificationApiService._();
+  NotificationApiService({ApiClient? api}) : _api = api ?? ApiClient.instance;
+  static final NotificationApiService instance = NotificationApiService();
 
-  final ApiClient _api = ApiClient.instance;
+  final ApiClient _api;
 
   Future<NotificationListResult> list() async {
     final response = await _api.get('/api/v1/notifications');
@@ -99,12 +102,6 @@ class NotificationApiService {
     throw _handleError(response);
   }
 
-  Exception _handleError(dynamic response) {
-    final body = response.data;
-    if (body is Map<String, dynamic>) {
-      final detail = body['detail'] as String? ?? 'Unknown error';
-      return Exception('API Error (${response.statusCode}): $detail');
-    }
-    return Exception('API Error (${response.statusCode}): $body');
-  }
+  Exception _handleError(Response<dynamic> response) =>
+      apiResponseError(response, operation: 'Notification request failed');
 }

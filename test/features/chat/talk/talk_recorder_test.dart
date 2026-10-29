@@ -61,10 +61,7 @@ void main() {
     test('keeps only the trailing bytes', () {
       final pcm = _pcmFromSamples([1, 2, 3, 4]);
       final tail = TalkRecorder.tailPcm(pcm, 4); // last two samples
-      expect(
-        ByteData.sublistView(tail).getInt16(0, Endian.little),
-        3,
-      );
+      expect(ByteData.sublistView(tail).getInt16(0, Endian.little), 3);
       expect(tail.lengthInBytes, 4);
     });
 
@@ -73,10 +70,7 @@ void main() {
       final tail = TalkRecorder.tailPcm(pcm, 3);
       // Start index is rounded down to an even offset, keeping sample framing.
       expect(tail.lengthInBytes, 4);
-      expect(
-        ByteData.sublistView(tail).getInt16(0, Endian.little),
-        3,
-      );
+      expect(ByteData.sublistView(tail).getInt16(0, Endian.little), 3);
     });
   });
 

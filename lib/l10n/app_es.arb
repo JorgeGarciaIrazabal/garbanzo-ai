@@ -3075,5 +3075,16 @@
   "visualAscending": "Orden ascendente",
   "visualDescending": "Orden descendente",
   "visualNoRows": "No hay filas coincidentes",
-  "visualMoreRows": "Mostrar más filas"
+  "visualMoreRows": "Mostrar más filas",
+  "bargeInOff": "Desactivado",
+  "bargeInLow": "Sensibilidad baja",
+  "bargeInNormal": "Normal",
+  "bargeInHigh": "Sensibilidad alta",
+  "failedToLoadVoices": "No se pudieron cargar las voces",
+  "failedToLoadPromptTemplates": "No se pudieron cargar las plantillas",
+  "defaultModelServerFallback": "Valor predeterminado del servidor (normalmente deepseek-v4.1-flash:cloud)",
+  "jumpToLatestMessage": "Ir al último mensaje",
+  "dropFilesSupportedFormats": "Imágenes, PDF, CSV y archivos de texto",
+  "manageSavedMemories": "Gestionar recuerdos guardados",
+  "searchTopicsHint": "Buscar temas..."
 }

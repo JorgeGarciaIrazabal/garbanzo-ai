@@ -7,12 +7,8 @@ import 'package:garbanzo_ai/features/chat/providers/model_provider.dart';
 import 'package:garbanzo_ai/features/chat/widgets/vision_model_warning_dialog.dart';
 import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
-ModelInfo _model(String id) => ModelInfo(
-  id: id,
-  name: id,
-  provider: 'ollama',
-  supportsVision: true,
-);
+ModelInfo _model(String id) =>
+    ModelInfo(id: id, name: id, provider: 'ollama', supportsVision: true);
 
 void main() {
   Widget app(List<VisionModelChoice> choices) => MaterialApp(

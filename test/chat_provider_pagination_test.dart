@@ -74,110 +74,119 @@ class _FakeChatService extends ChatService {
 
 void main() {
   group('ChatProvider windowed loading (B-03)', () {
-    test('loadConversation requests the initial window, not everything', () async {
-      final service = _FakeChatService()
-        ..conversationToReturn = Conversation(
-          id: 'c1',
-          title: 'Test',
-          model: 'llama3.2',
-          createdAt: DateTime.utc(2026),
-          updatedAt: DateTime.utc(2026),
-          messages: [_msg('m1'), _msg('m2')],
-          hasMoreMessages: true,
+    test(
+      'loadConversation requests the initial window, not everything',
+      () async {
+        final service = _FakeChatService()
+          ..conversationToReturn = Conversation(
+            id: 'c1',
+            title: 'Test',
+            model: 'llama3.2',
+            createdAt: DateTime.utc(2026),
+            updatedAt: DateTime.utc(2026),
+            messages: [_msg('m1'), _msg('m2')],
+            hasMoreMessages: true,
+          );
+        final provider = ChatProvider(
+          selectedModelId: 'llama3.2',
+          chatService: service,
         );
-      final provider = ChatProvider(
-        selectedModelId: 'llama3.2',
-        chatService: service,
-      );
 
-      await provider.loadConversation('c1');
+        await provider.loadConversation('c1');
 
-      expect(service.getConversationLimits, ['60']);
-      expect(provider.messages.map((m) => m.id), ['m1', 'm2']);
-      expect(provider.hasMoreMessages, isTrue);
-      provider.dispose();
-    });
+        expect(service.getConversationLimits, ['60']);
+        expect(provider.messages.map((m) => m.id), ['m1', 'm2']);
+        expect(provider.hasMoreMessages, isTrue);
+        provider.dispose();
+      },
+    );
 
-    test('loadOlderMessages prepends the page and updates hasMoreMessages',
-        () async {
-      final service = _FakeChatService()
-        ..conversationToReturn = Conversation(
-          id: 'c1',
-          title: 'Test',
-          model: 'llama3.2',
-          createdAt: DateTime.utc(2026),
-          updatedAt: DateTime.utc(2026),
-          messages: [_msg('m5'), _msg('m6')],
-          hasMoreMessages: true,
-        )
-        ..olderPageToReturn = ([_msg('m3'), _msg('m4')], false);
-      final provider = ChatProvider(
-        selectedModelId: 'llama3.2',
-        chatService: service,
-      );
-      await provider.loadConversation('c1');
-
-      await provider.loadOlderMessages();
-
-      expect(service.lastBeforeId, 'm5'); // oldest currently loaded
-      expect(provider.messages.map((m) => m.id), ['m3', 'm4', 'm5', 'm6']);
-      expect(provider.hasMoreMessages, isFalse);
-      provider.dispose();
-    });
-
-    test('post-turn reload requests at least what is already displayed',
-        () async {
-      final service = _FakeChatService()
-        ..conversationToReturn = Conversation(
-          id: 'c1',
-          title: 'Test',
-          model: 'llama3.2',
-          createdAt: DateTime.utc(2026),
-          updatedAt: DateTime.utc(2026),
-          messages: [for (var i = 0; i < 100; i++) _msg('m$i')],
+    test(
+      'loadOlderMessages prepends the page and updates hasMoreMessages',
+      () async {
+        final service = _FakeChatService()
+          ..conversationToReturn = Conversation(
+            id: 'c1',
+            title: 'Test',
+            model: 'llama3.2',
+            createdAt: DateTime.utc(2026),
+            updatedAt: DateTime.utc(2026),
+            messages: [_msg('m5'), _msg('m6')],
+            hasMoreMessages: true,
+          )
+          ..olderPageToReturn = ([_msg('m3'), _msg('m4')], false);
+        final provider = ChatProvider(
+          selectedModelId: 'llama3.2',
+          chatService: service,
         );
-      final provider = ChatProvider(
-        selectedModelId: 'llama3.2',
-        chatService: service,
-      );
-      await provider.loadConversation('c1');
+        await provider.loadConversation('c1');
 
-      // Empty stream → onDone → _reloadCurrentConversation. By then the
-      // user message is in the list (100 + 1), so the reload must ask for
-      // at least that many, not shrink back to the initial window.
-      await provider.sendMessage('hi');
-      await Future<void>.delayed(const Duration(milliseconds: 50));
+        await provider.loadOlderMessages();
 
-      expect(service.getConversationLimits, ['60', '101']);
-      provider.dispose();
-    });
+        expect(service.lastBeforeId, 'm5'); // oldest currently loaded
+        expect(provider.messages.map((m) => m.id), ['m3', 'm4', 'm5', 'm6']);
+        expect(provider.hasMoreMessages, isFalse);
+        provider.dispose();
+      },
+    );
 
-    test('post-turn reload falls back to full history past the backend cap',
-        () async {
-      final service = _FakeChatService()
-        ..conversationToReturn = Conversation(
-          id: 'c1',
-          title: 'Test',
-          model: 'llama3.2',
-          createdAt: DateTime.utc(2026),
-          updatedAt: DateTime.utc(2026),
-          messages: [for (var i = 0; i < 501; i++) _msg('m$i')],
+    test(
+      'post-turn reload requests at least what is already displayed',
+      () async {
+        final service = _FakeChatService()
+          ..conversationToReturn = Conversation(
+            id: 'c1',
+            title: 'Test',
+            model: 'llama3.2',
+            createdAt: DateTime.utc(2026),
+            updatedAt: DateTime.utc(2026),
+            messages: [for (var i = 0; i < 100; i++) _msg('m$i')],
+          );
+        final provider = ChatProvider(
+          selectedModelId: 'llama3.2',
+          chatService: service,
         );
-      final provider = ChatProvider(
-        selectedModelId: 'llama3.2',
-        chatService: service,
-      );
-      await provider.loadConversation('c1');
+        await provider.loadConversation('c1');
 
-      // 501 loaded + the new user message exceeds the backend's
-      // message_limit cap (le=500) — a capped request would 422, so the
-      // reload must drop the limit and fetch the full history instead.
-      await provider.sendMessage('hi');
-      await Future<void>.delayed(const Duration(milliseconds: 50));
+        // Empty stream → onDone → _reloadCurrentConversation. By then the
+        // user message is in the list (100 + 1), so the reload must ask for
+        // at least that many, not shrink back to the initial window.
+        await provider.sendMessage('hi');
+        await Future<void>.delayed(const Duration(milliseconds: 50));
 
-      expect(service.getConversationLimits, ['60', 'null']);
-      provider.dispose();
-    });
+        expect(service.getConversationLimits, ['60', '101']);
+        provider.dispose();
+      },
+    );
+
+    test(
+      'post-turn reload falls back to full history past the backend cap',
+      () async {
+        final service = _FakeChatService()
+          ..conversationToReturn = Conversation(
+            id: 'c1',
+            title: 'Test',
+            model: 'llama3.2',
+            createdAt: DateTime.utc(2026),
+            updatedAt: DateTime.utc(2026),
+            messages: [for (var i = 0; i < 501; i++) _msg('m$i')],
+          );
+        final provider = ChatProvider(
+          selectedModelId: 'llama3.2',
+          chatService: service,
+        );
+        await provider.loadConversation('c1');
+
+        // 501 loaded + the new user message exceeds the backend's
+        // message_limit cap (le=500) — a capped request would 422, so the
+        // reload must drop the limit and fetch the full history instead.
+        await provider.sendMessage('hi');
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+
+        expect(service.getConversationLimits, ['60', 'null']);
+        provider.dispose();
+      },
+    );
 
     test('loadOlderMessages is a no-op when there is nothing more', () async {
       final service = _FakeChatService()

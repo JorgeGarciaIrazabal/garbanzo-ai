@@ -114,9 +114,14 @@ void main() {
 
   test('pinning a topic uses the current optimistic context version', () async {
     final contextService = _FakeActiveContextService(_context(version: 6));
-    final topicService = _FakeTopicService(onPinned: (pinned) {
-      contextService.latest = contextService.latest.copyWith(topicPinned: pinned, version: 7);
-    });
+    final topicService = _FakeTopicService(
+      onPinned: (pinned) {
+        contextService.latest = contextService.latest.copyWith(
+          topicPinned: pinned,
+          version: 7,
+        );
+      },
+    );
     final provider = ActiveContextProvider(
       service: contextService,
       topicService: topicService,
@@ -131,24 +136,41 @@ void main() {
     expect(provider.context?.version, 7);
   });
 
-  test('late context loads and events cannot replace a different thread', () async {
-    final service = _DelayedContextService();
-    final provider = ActiveContextProvider(service: service);
-    final oldLoad = provider.load('old-thread');
-    final newLoad = provider.load('new-thread');
-    service.requests['new-thread']!.complete(const ActiveContext(
-      conversationId: 'new-thread', version: 0, readiness: ActiveContextReadiness.ready,
-    ));
-    await newLoad;
-    service.requests['old-thread']!.complete(const ActiveContext(
-      conversationId: 'old-thread', version: 10, readiness: ActiveContextReadiness.ready,
-    ));
-    await oldLoad;
-    provider.applyContextUpdate({'conversation_id': 'old-thread', 'context_version': 11});
-    expect(provider.context?.conversationId, 'new-thread');
-    expect(provider.context?.version, 0);
-    provider.applyContextUpdate({'conversation_id': 'new-thread', 'context_version': 1});
-    expect(provider.context?.version, 1);
-    provider.dispose();
-  });
+  test(
+    'late context loads and events cannot replace a different thread',
+    () async {
+      final service = _DelayedContextService();
+      final provider = ActiveContextProvider(service: service);
+      final oldLoad = provider.load('old-thread');
+      final newLoad = provider.load('new-thread');
+      service.requests['new-thread']!.complete(
+        const ActiveContext(
+          conversationId: 'new-thread',
+          version: 0,
+          readiness: ActiveContextReadiness.ready,
+        ),
+      );
+      await newLoad;
+      service.requests['old-thread']!.complete(
+        const ActiveContext(
+          conversationId: 'old-thread',
+          version: 10,
+          readiness: ActiveContextReadiness.ready,
+        ),
+      );
+      await oldLoad;
+      provider.applyContextUpdate({
+        'conversation_id': 'old-thread',
+        'context_version': 11,
+      });
+      expect(provider.context?.conversationId, 'new-thread');
+      expect(provider.context?.version, 0);
+      provider.applyContextUpdate({
+        'conversation_id': 'new-thread',
+        'context_version': 1,
+      });
+      expect(provider.context?.version, 1);
+      provider.dispose();
+    },
+  );
 }

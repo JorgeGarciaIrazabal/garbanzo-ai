@@ -10,9 +10,7 @@ Stream<String> _fromList(List<String> parts) async* {
 void main() {
   group('parseSseChunks', () {
     test('parses a single complete event', () async {
-      final stream = _fromList([
-        'data: {"type":"chunk","content":"hi"}\n\n',
-      ]);
+      final stream = _fromList(['data: {"type":"chunk","content":"hi"}\n\n']);
       final chunks = await parseSseChunks(stream).toList();
       expect(chunks, hasLength(1));
       expect(chunks.single.type, 'chunk');
@@ -26,16 +24,13 @@ void main() {
             'data: {"type":"done","metadata":{}}\n\n',
       ]);
       final chunks = await parseSseChunks(stream).toList();
-      expect(chunks.map((c) => c.type).toList(),
-          ['chunk', 'chunk', 'done']);
+      expect(chunks.map((c) => c.type).toList(), ['chunk', 'chunk', 'done']);
       expect(chunks[0].content, 'a');
       expect(chunks[1].content, 'b');
     });
 
-    test(
-        'reassembles a single event split across multiple byte chunks '
-        '(regression: previously the event was silently dropped)',
-        () async {
+    test('reassembles a single event split across multiple byte chunks '
+        '(regression: previously the event was silently dropped)', () async {
       // Split the JSON in the MIDDLE of the payload to mimic what TCP can do.
       final stream = _fromList([
         'data: {"type":"thi',
@@ -70,9 +65,7 @@ void main() {
     });
 
     test('flushes a trailing event without a final blank line', () async {
-      final stream = _fromList([
-        'data: {"type":"chunk","content":"trail"}\n',
-      ]);
+      final stream = _fromList(['data: {"type":"chunk","content":"trail"}\n']);
       final chunks = await parseSseChunks(stream).toList();
       expect(chunks, hasLength(1));
       expect(chunks.single.content, 'trail');

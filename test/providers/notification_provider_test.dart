@@ -114,8 +114,9 @@ void main() {
           unreadCount: 1,
         ),
       );
-      when(() => service.markRead('n1'))
-          .thenThrow(Exception('API Error (500): nope'));
+      when(
+        () => service.markRead('n1'),
+      ).thenThrow(Exception('API Error (500): nope'));
 
       final p = provider();
       await Future<void>.delayed(Duration.zero);
@@ -190,27 +191,27 @@ void main() {
       p.dispose();
     });
 
-    test('updatePreferences applies optimistically then keeps server truth',
-        () async {
-      when(() => service.getPreferences()).thenAnswer((_) async => _prefs);
-      when(
-        () => service.updatePreferences(
-          chatResponsesEnabled: any(named: 'chatResponsesEnabled'),
-          remindersEnabled: any(named: 'remindersEnabled'),
-          systemAlertsEnabled: any(named: 'systemAlertsEnabled'),
-        ),
-      ).thenAnswer(
-        (_) async => _prefs.copyWith(systemAlertsEnabled: true),
-      );
+    test(
+      'updatePreferences applies optimistically then keeps server truth',
+      () async {
+        when(() => service.getPreferences()).thenAnswer((_) async => _prefs);
+        when(
+          () => service.updatePreferences(
+            chatResponsesEnabled: any(named: 'chatResponsesEnabled'),
+            remindersEnabled: any(named: 'remindersEnabled'),
+            systemAlertsEnabled: any(named: 'systemAlertsEnabled'),
+          ),
+        ).thenAnswer((_) async => _prefs.copyWith(systemAlertsEnabled: true));
 
-      final p = provider();
-      await Future<void>.delayed(Duration.zero);
-      await p.loadPreferences();
-      await p.updatePreferences(systemAlertsEnabled: true);
+        final p = provider();
+        await Future<void>.delayed(Duration.zero);
+        await p.loadPreferences();
+        await p.updatePreferences(systemAlertsEnabled: true);
 
-      expect(p.preferences?.systemAlertsEnabled, isTrue);
-      p.dispose();
-    });
+        expect(p.preferences?.systemAlertsEnabled, isTrue);
+        p.dispose();
+      },
+    );
 
     test('a failed update reloads preferences from the server', () async {
       when(() => service.getPreferences()).thenAnswer((_) async => _prefs);

@@ -1,13 +1,14 @@
 import 'package:dio/dio.dart';
 
 import 'package:garbanzo_ai/core/api_client.dart';
+import 'package:garbanzo_ai/core/api_error.dart';
 import 'package:garbanzo_ai/features/knowledge_base/models/knowledge_document.dart';
 
 class KnowledgeBaseService {
-  KnowledgeBaseService._();
-  static final KnowledgeBaseService instance = KnowledgeBaseService._();
+  KnowledgeBaseService({ApiClient? api}) : _api = api ?? ApiClient.instance;
+  static final KnowledgeBaseService instance = KnowledgeBaseService();
 
-  final ApiClient _api = ApiClient.instance;
+  final ApiClient _api;
 
   Future<List<KnowledgeDocument>> listDocuments() async {
     final response = await _api.get('/api/v1/kb/documents');
@@ -58,12 +59,6 @@ class KnowledgeBaseService {
     }
   }
 
-  Exception _handleError(Response response) {
-    final body = response.data;
-    if (body is Map<String, dynamic>) {
-      final detail = body['detail']?.toString() ?? 'Unknown error';
-      return Exception('API Error (${response.statusCode}): $detail');
-    }
-    return Exception('API Error (${response.statusCode}): $body');
-  }
+  Exception _handleError(Response<dynamic> response) =>
+      apiResponseError(response, operation: 'Knowledge base request failed');
 }

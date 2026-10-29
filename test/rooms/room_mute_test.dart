@@ -18,27 +18,30 @@ final _now = DateTime.utc(2026, 7, 11);
 final _foreverSentinel = DateTime.utc(9999, 12, 31, 23, 59, 59);
 
 RoomMember _member({DateTime? mutedUntil}) => RoomMember(
-      roomId: 'r1',
-      userId: 'me@x.com',
-      role: 'member',
-      joinedAt: _now,
-      mutedUntil: mutedUntil,
-    );
+  roomId: 'r1',
+  userId: 'me@x.com',
+  role: 'member',
+  joinedAt: _now,
+  mutedUntil: mutedUntil,
+);
 
-Room _room({String id = 'r1', String name = 'Room One', DateTime? mutedUntil}) =>
-    Room(
-      id: id,
-      name: name,
-      ownerId: 'owner@x.com',
-      isPublic: false,
-      maxAgentTurnDepth: 3,
-      mode: 'chat',
-      createdAt: _now,
-      updatedAt: _now,
-      memberCount: 1,
-      agentCount: 0,
-      mutedUntil: mutedUntil,
-    );
+Room _room({
+  String id = 'r1',
+  String name = 'Room One',
+  DateTime? mutedUntil,
+}) => Room(
+  id: id,
+  name: name,
+  ownerId: 'owner@x.com',
+  isPublic: false,
+  maxAgentTurnDepth: 3,
+  mode: 'chat',
+  createdAt: _now,
+  updatedAt: _now,
+  memberCount: 1,
+  agentCount: 0,
+  mutedUntil: mutedUntil,
+);
 
 void main() {
   group('mute state', () {
@@ -64,24 +67,28 @@ void main() {
     });
 
     test('a timed mute is not a forever mute', () {
-      final m = _member(mutedUntil: DateTime.now().add(const Duration(days: 7)));
+      final m = _member(
+        mutedUntil: DateTime.now().add(const Duration(days: 7)),
+      );
       expect(m.isMuted, isTrue);
       expect(m.isMutedForever, isFalse);
     });
 
     test('fromJson maps muted_until, tolerating its absence', () {
       RoomMember parse(Map<String, dynamic> extra) => RoomMember.fromJson({
-            'room_id': 'r1',
-            'user_id': 'me@x.com',
-            'role': 'member',
-            'joined_at': _now.toIso8601String(),
-            ...extra,
-          });
+        'room_id': 'r1',
+        'user_id': 'me@x.com',
+        'role': 'member',
+        'joined_at': _now.toIso8601String(),
+        ...extra,
+      });
 
       expect(parse(const {}).mutedUntil, isNull);
       expect(parse(const {'muted_until': null}).mutedUntil, isNull);
       expect(
-        parse({'muted_until': _foreverSentinel.toIso8601String()}).isMutedForever,
+        parse({
+          'muted_until': _foreverSentinel.toIso8601String(),
+        }).isMutedForever,
         isTrue,
       );
     });
@@ -131,25 +138,28 @@ void main() {
       expect(room.memberFor(null), isNull);
     });
 
-    test('Room.isMuted reads the top-level muted_until from the list payload',
-        () {
-      expect(_room().isMuted, isFalse, reason: 'defaults to null/unmuted');
-      expect(_room(mutedUntil: _foreverSentinel).isMuted, isTrue);
-      expect(
-        _room(mutedUntil: DateTime.now().subtract(const Duration(days: 1)))
-            .isMuted,
-        isFalse,
-        reason: 'expired',
-      );
-      expect(
-        _room(mutedUntil: DateTime.now().add(const Duration(hours: 8)))
-            .isMuted,
-        isTrue,
-      );
-    });
-
     test(
-        'Room.fromJson maps the list payload\'s muted_until independently of '
+      'Room.isMuted reads the top-level muted_until from the list payload',
+      () {
+        expect(_room().isMuted, isFalse, reason: 'defaults to null/unmuted');
+        expect(_room(mutedUntil: _foreverSentinel).isMuted, isTrue);
+        expect(
+          _room(
+            mutedUntil: DateTime.now().subtract(const Duration(days: 1)),
+          ).isMuted,
+          isFalse,
+          reason: 'expired',
+        );
+        expect(
+          _room(
+            mutedUntil: DateTime.now().add(const Duration(hours: 8)),
+          ).isMuted,
+          isTrue,
+        );
+      },
+    );
+
+    test('Room.fromJson maps the list payload\'s muted_until independently of '
         'members', () {
       final room = Room.fromJson({
         'id': 'r1',
@@ -168,8 +178,7 @@ void main() {
       expect(room.members, isEmpty, reason: 'RoomOut carries no members');
     });
 
-    test(
-        'withViewerMutedUntil updates the top-level field and the matching '
+    test('withViewerMutedUntil updates the top-level field and the matching '
         'member without touching others', () {
       final other = RoomMember(
         roomId: 'r1',
@@ -191,10 +200,7 @@ void main() {
         members: [_member(), other],
       );
 
-      final updated = room.withViewerMutedUntil(
-        'me@x.com',
-        _foreverSentinel,
-      );
+      final updated = room.withViewerMutedUntil('me@x.com', _foreverSentinel);
 
       expect(updated.isMuted, isTrue);
       expect(updated.memberFor('me@x.com')?.isMuted, isTrue);
@@ -207,14 +213,14 @@ void main() {
   });
 
   group('RoomProvider.setMute', () {
-    test(
-        'adopts the server-returned expiry and updates the listed Room '
+    test('adopts the server-returned expiry and updates the listed Room '
         'rather than guessing it', () async {
       final service = _MockRoomService();
       final serverExpiry = DateTime.now().toUtc().add(const Duration(hours: 8));
       when(() => service.listRooms()).thenAnswer((_) async => [_room()]);
-      when(() => service.setMute(any(), any()))
-          .thenAnswer((_) async => _member(mutedUntil: serverExpiry));
+      when(
+        () => service.setMute(any(), any()),
+      ).thenAnswer((_) async => _member(mutedUntil: serverExpiry));
 
       final provider = RoomProvider(service: service);
       await provider.loadRooms();
@@ -239,10 +245,12 @@ void main() {
     test('unmute clears the listed Room state', () async {
       final service = _MockRoomService();
       when(() => service.listRooms()).thenAnswer((_) async => [_room()]);
-      when(() => service.setMute(any(), 'forever'))
-          .thenAnswer((_) async => _member(mutedUntil: _foreverSentinel));
-      when(() => service.setMute(any(), 'unmute'))
-          .thenAnswer((_) async => _member());
+      when(
+        () => service.setMute(any(), 'forever'),
+      ).thenAnswer((_) async => _member(mutedUntil: _foreverSentinel));
+      when(
+        () => service.setMute(any(), 'unmute'),
+      ).thenAnswer((_) async => _member());
 
       final provider = RoomProvider(service: service);
       await provider.loadRooms();
@@ -256,8 +264,7 @@ void main() {
       provider.dispose();
     });
 
-    test(
-        'a failing request surfaces a friendly error and leaves the listed '
+    test('a failing request surfaces a friendly error and leaves the listed '
         'Room untouched', () async {
       final service = _MockRoomService();
       when(() => service.listRooms()).thenAnswer((_) async => [_room()]);
@@ -277,10 +284,7 @@ void main() {
   });
 
   group('mute sheet', () {
-    Widget host(
-      List<Room> rooms, {
-      void Function(Room, String)? onMute,
-    }) =>
+    Widget host(List<Room> rooms, {void Function(Room, String)? onMute}) =>
         MaterialApp(
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
@@ -294,13 +298,15 @@ void main() {
           ),
         );
 
-    testWidgets('long-press opens the sheet and the choice calls back',
-        (tester) async {
+    testWidgets('long-press opens the sheet and the choice calls back', (
+      tester,
+    ) async {
       final calls = <(String, String)>[];
-      await tester.pumpWidget(host(
-        [_room()],
-        onMute: (room, duration) => calls.add((room.id, duration)),
-      ));
+      await tester.pumpWidget(
+        host([
+          _room(),
+        ], onMute: (room, duration) => calls.add((room.id, duration))),
+      );
 
       await tester.longPress(find.text('Room One'));
       await tester.pumpAndSettle();
@@ -317,12 +323,15 @@ void main() {
       expect(calls, [('r1', '8h')]);
     });
 
-    testWidgets('a muted room offers unmute and shows its status', (tester) async {
+    testWidgets('a muted room offers unmute and shows its status', (
+      tester,
+    ) async {
       final calls = <(String, String)>[];
-      await tester.pumpWidget(host(
-        [_room(mutedUntil: _foreverSentinel)],
-        onMute: (room, duration) => calls.add((room.id, duration)),
-      ));
+      await tester.pumpWidget(
+        host([
+          _room(mutedUntil: _foreverSentinel),
+        ], onMute: (room, duration) => calls.add((room.id, duration))),
+      );
 
       // The list entry carries the muted-bell glyph.
       expect(find.byKey(const ValueKey('room_muted_glyph')), findsOneWidget);
@@ -346,18 +355,21 @@ void main() {
     });
 
     testWidgets('an expired mute shows no bell glyph', (tester) async {
-      await tester.pumpWidget(host(
-        [_room(mutedUntil: DateTime.now().subtract(const Duration(days: 1)))],
-      ));
+      await tester.pumpWidget(
+        host([
+          _room(mutedUntil: DateTime.now().subtract(const Duration(days: 1))),
+        ]),
+      );
       expect(find.byKey(const ValueKey('room_muted_glyph')), findsNothing);
     });
 
     testWidgets('dismissing the sheet applies nothing', (tester) async {
       final calls = <(String, String)>[];
-      await tester.pumpWidget(host(
-        [_room()],
-        onMute: (room, duration) => calls.add((room.id, duration)),
-      ));
+      await tester.pumpWidget(
+        host([
+          _room(),
+        ], onMute: (room, duration) => calls.add((room.id, duration))),
+      );
 
       await tester.longPress(find.text('Room One'));
       await tester.pumpAndSettle();

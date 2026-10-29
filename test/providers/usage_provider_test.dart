@@ -7,14 +7,14 @@ import 'package:mocktail/mocktail.dart';
 class MockUsageService extends Mock implements UsageService {}
 
 UsageSummary _summary(int days) => UsageSummary(
-      days: days,
-      totalTokensPrompt: 100,
-      totalTokensGenerated: 50,
-      totalMessages: 4,
-      byModel: const [],
-      byConversation: const [],
-      byDay: const [],
-    );
+  days: days,
+  totalTokensPrompt: 100,
+  totalTokensGenerated: 50,
+  totalMessages: 4,
+  byModel: const [],
+  byConversation: const [],
+  byDay: const [],
+);
 
 void main() {
   late MockUsageService service;
@@ -26,8 +26,9 @@ void main() {
   UsageProvider provider() => UsageProvider(service: service);
 
   test('load stores the summary and clears loading', () async {
-    when(() => service.fetchSummary(days: 30))
-        .thenAnswer((_) async => _summary(30));
+    when(
+      () => service.fetchSummary(days: 30),
+    ).thenAnswer((_) async => _summary(30));
 
     final p = provider();
     await p.load();
@@ -39,8 +40,9 @@ void main() {
   });
 
   test('load(days:) updates the window and passes it to the service', () async {
-    when(() => service.fetchSummary(days: 7))
-        .thenAnswer((_) async => _summary(7));
+    when(
+      () => service.fetchSummary(days: 7),
+    ).thenAnswer((_) async => _summary(7));
 
     final p = provider();
     await p.load(days: 7);
@@ -50,8 +52,9 @@ void main() {
   });
 
   test('a fetch failure surfaces a user-facing error', () async {
-    when(() => service.fetchSummary(days: any(named: 'days')))
-        .thenThrow(Exception('API Error (500): boom'));
+    when(
+      () => service.fetchSummary(days: any(named: 'days')),
+    ).thenThrow(Exception('API Error (500): boom'));
 
     final p = provider();
     await p.load();

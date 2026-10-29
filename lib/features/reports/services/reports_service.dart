@@ -1,14 +1,15 @@
 import 'package:dio/dio.dart';
 
 import 'package:garbanzo_ai/core/api_client.dart';
+import 'package:garbanzo_ai/core/api_error.dart';
 import 'package:garbanzo_ai/features/reports/models/report.dart';
 
 /// HTTP client for `/api/v1/reports` and the admin triage endpoints.
 class ReportsService {
-  ReportsService._();
-  static final ReportsService instance = ReportsService._();
+  ReportsService({ApiClient? api}) : _api = api ?? ApiClient.instance;
+  static final ReportsService instance = ReportsService();
 
-  final ApiClient _api = ApiClient.instance;
+  final ApiClient _api;
 
   /// Submit a bug report or feature request.
   Future<Report> create({
@@ -77,11 +78,6 @@ class ReportsService {
     throw _error(response);
   }
 
-  Exception _error(Response<dynamic> response) {
-    final detail = switch (response.data) {
-      {'detail': final String d} => d,
-      _ => 'HTTP ${response.statusCode}',
-    };
-    return Exception(detail);
-  }
+  Exception _error(Response<dynamic> response) =>
+      apiResponseError(response, operation: 'Report request failed');
 }

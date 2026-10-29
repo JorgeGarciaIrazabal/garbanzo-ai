@@ -27,12 +27,30 @@ class _ChatService extends ChatService {
   _ChatService() : super.forTesting();
 
   @override
-  Future<ConversationList> listConversations({int page = 1, int pageSize = 20, bool silent = false}) async =>
-      ConversationList(items: const [], total: 0, page: page, pageSize: pageSize);
+  Future<ConversationList> listConversations({
+    int page = 1,
+    int pageSize = 20,
+    bool silent = false,
+  }) async => ConversationList(
+    items: const [],
+    total: 0,
+    page: page,
+    pageSize: pageSize,
+  );
 
   @override
-  Future<Conversation> getConversation(String conversationId, {int? messageLimit, bool silent = false}) async =>
-      Conversation(id: conversationId, title: 'Old primary topic', model: 'test-model', isPrimary: true, createdAt: DateTime(2026), updatedAt: DateTime(2026));
+  Future<Conversation> getConversation(
+    String conversationId, {
+    int? messageLimit,
+    bool silent = false,
+  }) async => Conversation(
+    id: conversationId,
+    title: 'Old primary topic',
+    model: 'test-model',
+    isPrimary: true,
+    createdAt: DateTime(2026),
+    updatedAt: DateTime(2026),
+  );
 }
 
 class _RoomProvider extends RoomProvider {
@@ -114,74 +132,83 @@ void main() {
       origin: TopicOrigin.history,
       childCount: 1,
     ),
-    const TopicNode(
-      id: 'travel',
-      label: 'Travel',
-      origin: TopicOrigin.history,
-    ),
+    const TopicNode(id: 'travel', label: 'Travel', origin: TopicOrigin.history),
   ];
 
-  testWidgets('topic field is vertical at 320px and horizontal on tablet/desktop', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      _app(
-        SizedBox(
-          width: 320,
-          child: TopicField(
-            topics: topics,
-            parentLabel: 'Personal finance',
-            onStart: (_) {},
-            onOpenChildren: (_) {},
+  testWidgets(
+    'topic field is vertical at 320px and horizontal on tablet/desktop',
+    (tester) async {
+      await tester.pumpWidget(
+        _app(
+          SizedBox(
+            width: 320,
+            child: TopicField(
+              topics: topics,
+              parentLabel: 'Personal finance',
+              onStart: (_) {},
+              onOpenChildren: (_) {},
+            ),
           ),
         ),
-      ),
-    );
+      );
 
-    expect(find.byKey(const ValueKey('topic_field_vertical')), findsOneWidget);
-    expect(find.byKey(const ValueKey('topic_field_horizontal')), findsNothing);
-    expect(find.text('Subtopic in Personal finance'), findsNWidgets(2));
-    expect(tester.takeException(), isNull);
+      expect(
+        find.byKey(const ValueKey('topic_field_vertical')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('topic_field_horizontal')),
+        findsNothing,
+      );
+      expect(find.text('Subtopic in Personal finance'), findsNWidgets(2));
+      expect(tester.takeException(), isNull);
 
-    await tester.pumpWidget(
-      _app(
-        SizedBox(
-          width: 768,
-          child: TopicField(
-            topics: topics,
-            onStart: (_) {},
-            onOpenChildren: (_) {},
+      await tester.pumpWidget(
+        _app(
+          SizedBox(
+            width: 768,
+            child: TopicField(
+              topics: topics,
+              onStart: (_) {},
+              onOpenChildren: (_) {},
+            ),
           ),
         ),
-      ),
-    );
+      );
 
-    expect(find.byKey(const ValueKey('topic_field_horizontal')), findsOneWidget);
-    expect(find.byKey(const ValueKey('topic_field_vertical')), findsNothing);
-    final financePosition = tester.getTopLeft(
-      find.byKey(const ValueKey('topic_button_finance')),
-    );
-    final travelPosition = tester.getTopLeft(
-      find.byKey(const ValueKey('topic_button_travel')),
-    );
-    expect(financePosition.dy, isNot(travelPosition.dy));
-    expect(tester.takeException(), isNull);
+      expect(
+        find.byKey(const ValueKey('topic_field_horizontal')),
+        findsOneWidget,
+      );
+      expect(find.byKey(const ValueKey('topic_field_vertical')), findsNothing);
+      final financePosition = tester.getTopLeft(
+        find.byKey(const ValueKey('topic_button_finance')),
+      );
+      final travelPosition = tester.getTopLeft(
+        find.byKey(const ValueKey('topic_button_travel')),
+      );
+      expect(financePosition.dy, isNot(travelPosition.dy));
+      expect(tester.takeException(), isNull);
 
-    await tester.pumpWidget(
-      _app(
-        SizedBox(
-          width: 1200,
-          child: TopicField(
-            topics: topics,
-            onStart: (_) {},
-            onOpenChildren: (_) {},
+      await tester.pumpWidget(
+        _app(
+          SizedBox(
+            width: 1200,
+            child: TopicField(
+              topics: topics,
+              onStart: (_) {},
+              onOpenChildren: (_) {},
+            ),
           ),
         ),
-      ),
-    );
-    expect(find.byKey(const ValueKey('topic_field_horizontal')), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
+      );
+      expect(
+        find.byKey(const ValueKey('topic_field_horizontal')),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets(
     'importance materially scales gradient nodes and phone promotes three ranked subtopics',
@@ -442,7 +469,8 @@ void main() {
         value: provider,
         child: _app(
           Builder(
-            builder: (context) => context.watch<TopicDiscoveryProvider>().showLanding
+            builder: (context) =>
+                context.watch<TopicDiscoveryProvider>().showLanding
                 ? const TopicLanding(
                     conversationId: 'primary',
                     onStarterSelected: _discardString,
@@ -468,80 +496,79 @@ void main() {
 
     expect(service.activatedTopicIds, ['retirement']);
     expect(find.byKey(const ValueKey('topic_landing')), findsNothing);
-    expect(find.byKey(const ValueKey('chat_composer_after_topic')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('chat_composer_after_topic')),
+      findsOneWidget,
+    );
   });
 
-  testWidgets('landing renders mockup chrome: mode pills, atmosphere, breadcrumbs', (
-    tester,
-  ) async {
-    final parent = TopicNode(
-      id: 'finance',
-      label: 'Finance',
-      origin: TopicOrigin.personal,
-      childCount: 2,
-      children: const [
-        TopicNode(
-          id: '401k',
-          parentId: 'finance',
-          label: '401(k) contributions',
-          origin: TopicOrigin.personal,
-          score: 0.9,
-        ),
-        TopicNode(
-          id: 'savings',
-          parentId: 'finance',
-          label: 'Savings',
-          origin: TopicOrigin.personal,
-          score: 0.8,
-        ),
-      ],
-    );
-    final provider = TopicDiscoveryProvider(
-      service: _TopicService([parent]),
-    );
+  testWidgets(
+    'landing renders mockup chrome: mode pills, atmosphere, breadcrumbs',
+    (tester) async {
+      final parent = TopicNode(
+        id: 'finance',
+        label: 'Finance',
+        origin: TopicOrigin.personal,
+        childCount: 2,
+        children: const [
+          TopicNode(
+            id: '401k',
+            parentId: 'finance',
+            label: '401(k) contributions',
+            origin: TopicOrigin.personal,
+            score: 0.9,
+          ),
+          TopicNode(
+            id: 'savings',
+            parentId: 'finance',
+            label: 'Savings',
+            origin: TopicOrigin.personal,
+            score: 0.8,
+          ),
+        ],
+      );
+      final provider = TopicDiscoveryProvider(service: _TopicService([parent]));
 
-    await tester.pumpWidget(
-      ChangeNotifierProvider.value(
-        value: provider,
-        child: _app(
-          SizedBox(
-            width: 1000,
-            child: TopicLanding(
-              conversationId: 'primary',
-              onStarterSelected: _discardString,
+      await tester.pumpWidget(
+        ChangeNotifierProvider.value(
+          value: provider,
+          child: _app(
+            SizedBox(
+              width: 1000,
+              child: TopicLanding(
+                conversationId: 'primary',
+                onStarterSelected: _discardString,
+              ),
             ),
           ),
         ),
-      ),
-    );
-    await tester.pump();
-    await tester.pump();
+      );
+      await tester.pump();
+      await tester.pump();
 
-    expect(find.byKey(const ValueKey('topic_mode_selector')), findsOneWidget);
-    expect(find.byKey(const ValueKey('topic_mode_personal')), findsOneWidget);
-    expect(find.byKey(const ValueKey('topic_mode_explore')), findsOneWidget);
+      expect(find.byKey(const ValueKey('topic_mode_selector')), findsOneWidget);
+      expect(find.byKey(const ValueKey('topic_mode_personal')), findsOneWidget);
+      expect(find.byKey(const ValueKey('topic_mode_explore')), findsOneWidget);
 
-    await tester.tap(find.byKey(const ValueKey('topic_mode_explore')));
-    await tester.pump();
-    await tester.pump();
+      await tester.tap(find.byKey(const ValueKey('topic_mode_explore')));
+      await tester.pump();
+      await tester.pump();
 
-    expect(
-      find.byKey(const ValueKey('something_new_topic')),
-      findsOneWidget,
-    );
+      expect(find.byKey(const ValueKey('something_new_topic')), findsOneWidget);
 
-    await tester.tap(find.byKey(const ValueKey('topic_mode_personal')));
-    await tester.pump();
-    await tester.pump();
+      await tester.tap(find.byKey(const ValueKey('topic_mode_personal')));
+      await tester.pump();
+      await tester.pump();
 
-    await tester.tap(find.byKey(const ValueKey('browse_subtopics_finance')));
-    await tester.pump();
+      await tester.tap(find.byKey(const ValueKey('browse_subtopics_finance')));
+      await tester.pump();
 
-    expect(find.byKey(const ValueKey('topic_breadcrumbs')), findsOneWidget);
-    expect(find.text('All topics'), findsOneWidget);
-    expect(find.text('Finance'), findsOneWidget);
-    expect(find.text('401(k) contributions'), findsOneWidget);
-  });
+      expect(find.byKey(const ValueKey('topic_breadcrumbs')), findsOneWidget);
+      expect(find.text('All topics'), findsOneWidget);
+      expect(find.text('Finance'), findsOneWidget);
+      expect(find.text('401(k) contributions'), findsOneWidget);
+    },
+  );
 
   testWidgets('active context is explainable and contains no Activity view', (
     tester,
@@ -593,7 +620,10 @@ void main() {
 
     expect(find.byKey(const ValueKey('active_context_panel')), findsOneWidget);
     expect(find.byKey(const ValueKey('context_branch_memory')), findsOneWidget);
-    expect(find.byKey(const ValueKey('context_branch_message')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('context_branch_message')),
+      findsOneWidget,
+    );
     expect(find.text('Next-turn preview'), findsOneWidget);
     expect(find.text('Activity'), findsNothing);
 
@@ -637,153 +667,170 @@ void main() {
     expect(find.byKey(const ValueKey('chat_sidebar_material')), findsOneWidget);
   });
 
-  testWidgets('sidebar offers Threads, Rooms, and one new conversation action', (
-    tester,
-  ) async {
-    var starts = 0;
-    final rooms = _RoomProvider();
-    await tester.pumpWidget(
-      MultiProvider(
-        providers: [
-          ChangeNotifierProvider<RoomProvider>.value(value: rooms),
-          ChangeNotifierProvider(create: (_) => SearchProvider()),
-        ],
-        child: MaterialApp(
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: SizedBox(
-            height: 700,
-            child: ChatSidebar(
-              conversations: const [],
-              selectedConversationId: null,
-              onSelectConversation: _discardString,
-              onDeleteConversation: _discardString,
-              onNewChat: () => starts++,
-              onTogglePin: _discardString,
-              isLoadingConversations: false,
-              onSelectRoom: _discardString,
-              onDeleteRoom: _discardString,
+  testWidgets(
+    'sidebar offers Threads, Rooms, and one new conversation action',
+    (tester) async {
+      var starts = 0;
+      final rooms = _RoomProvider();
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider<RoomProvider>.value(value: rooms),
+            ChangeNotifierProvider(create: (_) => SearchProvider()),
+          ],
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: SizedBox(
+              height: 700,
+              child: ChatSidebar(
+                conversations: const [],
+                selectedConversationId: null,
+                onSelectConversation: _discardString,
+                onDeleteConversation: _discardString,
+                onNewChat: () => starts++,
+                onTogglePin: _discardString,
+                isLoadingConversations: false,
+                onSelectRoom: _discardString,
+                onDeleteRoom: _discardString,
+              ),
             ),
           ),
         ),
-      ),
-    );
+      );
 
-    expect(find.byKey(const ValueKey('sidebar_tab_topics')), findsNothing);
-    expect(find.byKey(const ValueKey('sidebar_tab_threads')), findsOneWidget);
-    expect(find.byKey(const ValueKey('sidebar_tab_rooms')), findsOneWidget);
-    expect(find.text('New conversation'), findsOneWidget);
-    await tester.tap(find.text('New conversation'));
-    expect(starts, 1);
+      expect(find.byKey(const ValueKey('sidebar_tab_topics')), findsNothing);
+      expect(find.byKey(const ValueKey('sidebar_tab_threads')), findsOneWidget);
+      expect(find.byKey(const ValueKey('sidebar_tab_rooms')), findsOneWidget);
+      expect(find.text('New conversation'), findsOneWidget);
+      await tester.tap(find.text('New conversation'));
+      expect(starts, 1);
 
-    await tester.tap(find.byKey(const ValueKey('sidebar_tab_rooms')));
-    await tester.pump();
-    expect(rooms.loads, 1);
-    expect(find.text('New Room'), findsOneWidget);
-    expect(find.text('New conversation'), findsNothing);
+      await tester.tap(find.byKey(const ValueKey('sidebar_tab_rooms')));
+      await tester.pump();
+      expect(rooms.loads, 1);
+      expect(find.text('New Room'), findsOneWidget);
+      expect(find.text('New conversation'), findsNothing);
 
-    await tester.tap(find.byKey(const ValueKey('sidebar_tab_threads')));
-    await tester.pump();
-    expect(find.text('New conversation'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
+      await tester.tap(find.byKey(const ValueKey('sidebar_tab_threads')));
+      await tester.pump();
+      expect(find.text('New conversation'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
-  testWidgets('mobile drawer offers Threads and Rooms with the same start action', (
-    tester,
-  ) async {
-    var starts = 0;
-    final rooms = _RoomProvider();
-    await tester.pumpWidget(
-      MultiProvider(
-        providers: [
-          ChangeNotifierProvider<RoomProvider>.value(value: rooms),
-          ChangeNotifierProvider(create: (_) => SearchProvider()),
-        ],
-        child: MaterialApp(
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: Builder(
-            builder: (context) => Scaffold(
-              body: Center(
-                child: FilledButton(
-                  onPressed: () => showMobileConversationDrawer(
-                    context: context,
-                    conversations: const [],
-                    selectedId: null,
-                    onSelect: _discardString,
-                    onDelete: _discardString,
-                    onNewChat: () => starts++,
+  testWidgets(
+    'mobile drawer offers Threads and Rooms with the same start action',
+    (tester) async {
+      var starts = 0;
+      final rooms = _RoomProvider();
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider<RoomProvider>.value(value: rooms),
+            ChangeNotifierProvider(create: (_) => SearchProvider()),
+          ],
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Builder(
+              builder: (context) => Scaffold(
+                body: Center(
+                  child: FilledButton(
+                    onPressed: () => showMobileConversationDrawer(
+                      context: context,
+                      conversations: const [],
+                      selectedId: null,
+                      onSelect: _discardString,
+                      onDelete: _discardString,
+                      onNewChat: () => starts++,
+                    ),
+                    child: const Text('Open navigation'),
                   ),
-                  child: const Text('Open navigation'),
                 ),
               ),
             ),
           ),
         ),
-      ),
-    );
+      );
 
-    await tester.tap(find.text('Open navigation'));
-    await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('mobile_drawer_tab_topics')), findsNothing);
-    expect(find.byKey(const ValueKey('mobile_drawer_tab_threads')), findsOneWidget);
-    expect(find.text('New conversation'), findsOneWidget);
-    await tester.tap(find.byKey(const ValueKey('mobile_drawer_tab_rooms')));
-    await tester.pump();
-    expect(rooms.loads, 1);
-    expect(find.text('New Room'), findsOneWidget);
-    await tester.tap(find.byKey(const ValueKey('mobile_drawer_tab_threads')));
-    await tester.pump();
-    await tester.tap(find.byKey(const ValueKey('mobile_new_conversation')));
-    await tester.pumpAndSettle();
-    expect(starts, 1);
-    expect(find.byKey(const ValueKey('mobile_new_conversation')), findsNothing);
-    expect(tester.takeException(), isNull);
-  });
+      await tester.tap(find.text('Open navigation'));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('mobile_drawer_tab_topics')),
+        findsNothing,
+      );
+      expect(
+        find.byKey(const ValueKey('mobile_drawer_tab_threads')),
+        findsOneWidget,
+      );
+      expect(find.text('New conversation'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('mobile_drawer_tab_rooms')));
+      await tester.pump();
+      expect(rooms.loads, 1);
+      expect(find.text('New Room'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('mobile_drawer_tab_threads')));
+      await tester.pump();
+      await tester.tap(find.byKey(const ValueKey('mobile_new_conversation')));
+      await tester.pumpAndSettle();
+      expect(starts, 1);
+      expect(
+        find.byKey(const ValueKey('mobile_new_conversation')),
+        findsNothing,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
 
-  testWidgets('mobile app bar and its drawer share the new conversation callback', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(400, 800);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-    var starts = 0;
-    final chat = ChatProvider(chatService: _ChatService());
-    await chat.loadConversation('primary');
-    await tester.pumpWidget(
-      MultiProvider(
-        providers: [
-          ChangeNotifierProvider<ChatProvider>.value(value: chat),
-          ChangeNotifierProvider(create: (_) => TopicDiscoveryProvider(service: _TopicService(const []))),
-          ChangeNotifierProvider<RoomProvider>(create: (_) => _RoomProvider()),
-          ChangeNotifierProvider(create: (_) => SearchProvider()),
-        ],
-        child: MaterialApp(
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
-            appBar: ChatAppBar(
-              onOpenSettings: _noop,
-              onDeleteConversation: _discardString,
-              onNewChat: () => starts++,
+  testWidgets(
+    'mobile app bar and its drawer share the new conversation callback',
+    (tester) async {
+      tester.view.physicalSize = const Size(400, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      var starts = 0;
+      final chat = ChatProvider(chatService: _ChatService());
+      await chat.loadConversation('primary');
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider<ChatProvider>.value(value: chat),
+            ChangeNotifierProvider(
+              create: (_) =>
+                  TopicDiscoveryProvider(service: _TopicService(const [])),
+            ),
+            ChangeNotifierProvider<RoomProvider>(
+              create: (_) => _RoomProvider(),
+            ),
+            ChangeNotifierProvider(create: (_) => SearchProvider()),
+          ],
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              appBar: ChatAppBar(
+                onOpenSettings: _noop,
+                onDeleteConversation: _discardString,
+                onNewChat: () => starts++,
+              ),
             ),
           ),
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
-    expect(find.text('New conversation'), findsOneWidget);
-    expect(find.text('Old primary topic'), findsNothing);
-    await tester.tap(find.byTooltip('New conversation'));
-    expect(starts, 1);
-    await tester.tap(find.byIcon(Icons.menu));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('mobile_new_conversation')));
-    await tester.pumpAndSettle();
-    expect(starts, 2);
-    expect(tester.takeException(), isNull);
-  });
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('New conversation'), findsOneWidget);
+      expect(find.text('Old primary topic'), findsNothing);
+      await tester.tap(find.byTooltip('New conversation'));
+      expect(starts, 1);
+      await tester.tap(find.byIcon(Icons.menu));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('mobile_new_conversation')));
+      await tester.pumpAndSettle();
+      expect(starts, 2);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('topic banner surfaces selected topic and preparing state', (
     tester,
@@ -799,12 +846,7 @@ void main() {
     await tester.pumpWidget(
       ChangeNotifierProvider.value(
         value: provider,
-        child: _app(
-          const SizedBox(
-            height: 200,
-            child: TopicBanner(),
-          ),
-        ),
+        child: _app(const SizedBox(height: 200, child: TopicBanner())),
       ),
     );
     await tester.pump();

@@ -1,29 +1,26 @@
 import 'package:flutter/foundation.dart';
 
 import 'package:garbanzo_ai/core/api_client.dart';
+import 'package:garbanzo_ai/core/api_error.dart';
 import 'package:garbanzo_ai/features/chat/models/style.dart';
 import 'package:garbanzo_ai/features/chat/models/thinking_level.dart';
 
 /// Client for the `/api/v1/styles` endpoints.
 class StyleService {
-  StyleService._();
-  static final StyleService instance = StyleService._();
+  StyleService({ApiClient? api}) : _api = api ?? ApiClient.instance;
+  static final StyleService instance = StyleService();
 
   /// For tests only: lets a fake subclass exist outside this library.
   @visibleForTesting
-  StyleService.forTesting();
+  StyleService.forTesting() : this();
 
-  final ApiClient _api = ApiClient.instance;
+  final ApiClient _api;
 
   Future<List<Style>> listStyles() async {
     final response = await _api.get('/api/v1/styles');
-    if (response.statusCode == 200) {
-      final data = response.data as List<dynamic>;
-      return data
-          .map((e) => Style.fromJson(e as Map<String, dynamic>))
-          .toList();
-    }
-    throw Exception('Failed to list styles (${response.statusCode})');
+    expectStatus(response, const {200}, operation: 'Failed to list styles');
+    final data = response.data as List<dynamic>;
+    return data.map((e) => Style.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   Future<Style> createStyle({
@@ -45,10 +42,8 @@ class StyleService {
         'is_default': isDefault,
       },
     );
-    if (response.statusCode == 201) {
-      return Style.fromJson(response.data as Map<String, dynamic>);
-    }
-    throw Exception('Failed to create style (${response.statusCode})');
+    expectStatus(response, const {201}, operation: 'Failed to create style');
+    return Style.fromJson(response.data as Map<String, dynamic>);
   }
 
   /// Partial update. `thinking_level` and `system_prompt_template_id` have
@@ -76,16 +71,12 @@ class StyleService {
         'system_prompt_content': ?systemPromptContent,
       },
     );
-    if (response.statusCode == 200) {
-      return Style.fromJson(response.data as Map<String, dynamic>);
-    }
-    throw Exception('Failed to update style (${response.statusCode})');
+    expectStatus(response, const {200}, operation: 'Failed to update style');
+    return Style.fromJson(response.data as Map<String, dynamic>);
   }
 
   Future<void> deleteStyle(String styleId) async {
     final response = await _api.delete('/api/v1/styles/$styleId');
-    if (response.statusCode != 204) {
-      throw Exception('Failed to delete style (${response.statusCode})');
-    }
+    expectStatus(response, const {204}, operation: 'Failed to delete style');
   }
 }

@@ -136,81 +136,45 @@ This section documents the UI structure, element matching strategies, and common
 
 ## Matching Strategies
 
-**Prefer text matching** for most elements. Marionette's `tap(text: "...")` and `enter_text(focused_element: true, ...)` work reliably.
+**Prefer `ValueKey<String>`, text, and tooltip matching** (`tap(key: "...")`, `tap(text: "...")`, `enter_text(focused_element: true, ...)`).
 
-**Use coordinates** when text matching fails (e.g., for TextFormFields without labels).
-
-> **Warning:** Coordinates differ by device. The values below are for **Linux desktop** (1280×720). On a real Android device (e.g. Pixel 9, 1080×2400) coordinates will be different — use `take_screenshots()` + `get_interactive_elements()` to discover the correct positions.
-
-| Element | Bounds (center) — Linux desktop | Notes |
-|---------|--------------------------------|-------|
-| Login email field | (640, 368) | First TextFormField on login page |
-| Login password field | (640, 432) | Second TextFormField on login page |
-| Login submit button | (640, 498) | FilledButton below password |
-| Register email field | (640, 400) | Second TextFormField on register page |
-| Register password field | (640, 464) | Third TextFormField on register page |
-| Register submit button | (640, 530) | FilledButton at bottom |
+**Discover coordinates dynamically** via `get_interactive_elements()` only when key/text matching is unavailable — never rely on hardcoded pixel positions across sessions or window sizes.
 
 **Use tooltip matching** for IconButtons:
 
 | Tooltip | Action |
 |---------|--------|
-| "Settings" | Open settings drawer |
-| "Account menu" | Open account popup menu (logout) |
+| "Settings" | Open quick settings drawer (`SettingsDrawer`) |
 | "Attach file" | Open file picker |
 | "Voice input" | Start/stop voice recording |
 | "Stop generation" | Stop streaming response |
 
 ---
 
-## Login Page (`LoginPage`)
+## Auth Page (`LoginPage` at `/login`)
+
+`LoginPage` handles both **Sign in** and **Create account** via an in-page mode toggle (there is no separate `RegisterPage`).
 
 ### Elements
-- **Email field**: `TextFormField` — first text field, centered horizontally
-- **Password field**: `TextFormField` — second text field, below email
-- **Sign in button**: `FilledButton` — with text "Sign in"
-- **Create account link**: `TextButton` — with text "Create an account"
+- **Full name field** (register mode only): `TextFormField`
+- **Email field**: `TextFormField`
+- **Password field**: `TextFormField`
+- **Primary submit button**: `FilledButton` ("Sign in" or "Create account")
+- **Mode switch link**: `TextButton` ("Create an account" / "Already have an account? Sign in")
 
-### Login Flow
+### Login / Register Flow
 ```
-1. tap(coordinates: {x: 640, y: 368})  # Focus email field
-2. enter_text(focused_element: true, input: "user@example.com")
-3. tap(coordinates: {x: 640, y: 432})  # Focus password field
-4. enter_text(focused_element: true, input: "password123")
-5. tap(coordinates: {x: 640, y: 498})  # Tap Sign in button
+1. get_interactive_elements()                  # Discover email/password fields
+2. tap(key: ... or discovered email bounds)    # Focus email field
+3. enter_text(focused_element: true, input: "user@example.com")
+4. tap(key: ... or discovered password bounds) # Focus password field
+5. enter_text(focused_element: true, input: "password123")
+6. tap(text: "Sign in")                        # Or tap(text: "Create an account") first to register
 ```
 
 ### Error Messages
-- **"Incorrect email or password"**: Invalid credentials — appears as red text above the Sign in button
-- **"Enter your email"**: Empty email validation error
-- **"Enter your password"**: Empty password validation error
-
-### Create Account Navigation
-```
-tap(text: "Create an account")  # Navigate to register page
-```
-
----
-
-## Register Page (`RegisterPage`)
-
-### Elements
-- **Full name field**: `TextFormField` — optional, first field
-- **Email field**: `TextFormField` — second field
-- **Password field**: `TextFormField` — third field, with hint "At least 6 characters"
-- **Create account button**: `FilledButton` — with text "Create account"
-- **Sign in link**: `TextButton` — with text "Already have an account? Sign in"
-
-### Register Flow
-```
-1. tap(coordinates: {x: 640, y: 336})  # Focus full name (optional)
-2. enter_text(focused_element: true, input: "Test User")
-3. tap(coordinates: {x: 640, y: 400})  # Focus email field
-4. enter_text(focused_element: true, input: "test@example.com")
-5. tap(coordinates: {x: 640, y: 464})  # Focus password field
-6. enter_text(focused_element: true, input: "password123")
-7. tap(coordinates: {x: 640, y: 530})  # Tap Create account button
-```
+- **"Incorrect email or password"**: Invalid credentials
+- **"Enter your email"** / **"Enter your password"**: Validation errors
 
 ---
 
@@ -297,47 +261,33 @@ tap(text: "Conversation Title")  # Tap the conversation in the sidebar
 
 ---
 
-## Settings Drawer (`SettingsDrawer`)
+## Quick Menu Drawer (`SettingsDrawer`) & Full Settings (`SettingsPage`)
 
-### Opening Settings
+### Opening the Quick Menu Drawer
 ```
-tap(type: "IconButton")  # with tooltip "Settings"
-# or tap(coordinates: {x: 1212, y: 28})  # Settings gear icon
+tap(type: "IconButton")  # tooltip "Settings" in ChatAppBar / RoomChatView
 ```
 
-### Settings Sections
+`SettingsDrawer` is a fast Quick Menu containing:
+- **Notifications** badge (`NotificationsPage` `/notifications`)
+- **Account** card + **Sign out** button
+- **This conversation** toggles (`Use memory`, `Use knowledge base`)
+- **Pages** navigation links (`Memories`, `Knowledge base`, `Folders`, `Skills library`, `Scheduled actions`, `Friends`, `Usage`, `Admin`, `Report an issue`)
+- **Theme** 1-tap `SegmentedButton` (`Light` / `Dark` / `System`)
+- **Open full settings** button (`ValueKey('open_full_settings')`) → navigates to `/settings` (`SettingsPage`)
 
-#### Appearance Section
-- **Theme toggle**: `SegmentedButton` with "Light" / "Dark" / "System"
-  - Match by text: `tap(text: "Dark")` or `tap(text: "Light")`
+### Full App Settings (`SettingsPage` at `/settings`)
+All detailed preferences live on `SettingsPage`:
+- **Profile & Account** (avatar, display name, password, location, MCP servers)
+- **Appearance** (theme + app language `AppLocale`)
+- **Chat** (show message metadata, show system prompt)
+- **Models** (default model selector)
+- **Memory** (auto-extract toggle + `"Manage saved memories"` → `/memory`)
+- **Voice & Talk Mode** (`VoiceSettingsTiles`: auto-language, preferred languages, TTS voice/speed/auto-play, Talk Mode barge-in sensitivity)
 
-#### Chat Section
-- **Show message metadata**: `SwitchListTile` — toggle for token counts/response time
-
-#### Model Section
-- **LLM Model dropdown**: Shows current model name (e.g., "Qwen3 Coder Next (cloud)")
-  - Tap to open dropdown, then tap model name to select
-
-#### Memory Section
-- **View memories**: `ListTile` — navigate to MemoryPage
-  ```
-  tap(text: "View memories")
-  ```
-- **Use memory toggle**: `SwitchListTile` — enables memory injection (requires active conversation)
-
-#### Text-to-Speech Section
-- **Voice dropdown**: Select TTS voice (e.g., "Heart (English)")
-- **Speed slider**: `Slider` (0.5x to 2.0x)
-- **Auto-play responses**: `SwitchListTile` — auto-read assistant messages
-
-#### Speech Input Section
-- **Auto-send after transcription**: `SwitchListTile`
-
-### Closing Settings
+### Closing the Drawer
 ```
 tap(type: "IconButton")  # Close button (X) in drawer header
-# or swipe the drawer closed
-# or tap outside the drawer
 ```
 
 ---
@@ -563,8 +513,8 @@ Hot reload (not restart) preserves the connection — prefer it when possible.
 
 | Service | Value |
 |---------|-------|
-| Backend API | `http://localhost:8000` |
-| API base URL (debug) | `http://localhost:8000` (hardcoded in `lib/core/api_client.dart`) |
+| Backend API | `http://127.0.0.1:8000` |
+| API base URL (debug) | `http://127.0.0.1:8000` (configured in `lib/core/api_client.dart`) |
 | Override API URL | `--dart-define=API_BASE_URL=https://...` |
 
 ## Widget ValueKey Recommendations

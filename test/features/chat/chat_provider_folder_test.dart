@@ -21,6 +21,7 @@ class _FakeChatService extends ChatService {
   /// A fresh controller per stream so tests can close one send and start
   /// another (ChatProvider blocks concurrent sends while _isSending).
   late StreamController<ChatResponseChunk> controller;
+  Future<void> close() => controller.close();
   final List<({String conversationId, Map<String, dynamic> payload})> posted =
       [];
   bool? lastHasClientFolder;
@@ -50,8 +51,7 @@ class _FakeChatService extends ChatService {
     String conversationId, {
     int? messageLimit,
     bool silent = false,
-  }) async =>
-      _conversation;
+  }) async => _conversation;
 
   @override
   Stream<ChatResponseChunk> streamChatResponse(
@@ -82,15 +82,15 @@ class _FakeChatService extends ChatService {
 }
 
 ChatResponseChunk _readRequest(String path) => ChatResponseChunk(
-      type: 'client_tool_request',
-      metadata: {
-        'client_tool_request': {
-          'tool_call_id': 'tc-1',
-          'tool_name': 'read_file',
-          'args': {'path': path},
-        },
-      },
-    );
+  type: 'client_tool_request',
+  metadata: {
+    'client_tool_request': {
+      'tool_call_id': 'tc-1',
+      'tool_name': 'read_file',
+      'args': {'path': path},
+    },
+  },
+);
 
 Future<void> _pump() => Future<void>.delayed(const Duration(milliseconds: 50));
 
@@ -166,26 +166,28 @@ void main() {
     expect(service.lastTalkModeInstruction, 'Instrucción localizada');
   });
 
-  test('serves a read_file request by reading locally and posting bytes',
-      () async {
-    final service = _FakeChatService();
-    final provider = await openProvider(service);
-    await provider.attachClientFolder('conv-1', folder.path);
+  test(
+    'serves a read_file request by reading locally and posting bytes',
+    () async {
+      final service = _FakeChatService();
+      final provider = await openProvider(service);
+      await provider.attachClientFolder('conv-1', folder.path);
 
-    await provider.sendMessage('read notes');
-    service.controller.add(_readRequest('notes.txt'));
-    await _pump();
+      await provider.sendMessage('read notes');
+      service.controller.add(_readRequest('notes.txt'));
+      await _pump();
 
-    expect(service.posted, hasLength(1));
-    final payload = service.posted.single.payload;
-    expect(payload['tool_call_id'], 'tc-1');
-    expect(payload['ok'], isTrue);
-    expect(payload['filename'], 'notes.txt');
-    expect(
-      utf8.decode(base64Decode(payload['data'] as String)),
-      'hello from the folder',
-    );
-  });
+      expect(service.posted, hasLength(1));
+      final payload = service.posted.single.payload;
+      expect(payload['tool_call_id'], 'tc-1');
+      expect(payload['ok'], isTrue);
+      expect(payload['filename'], 'notes.txt');
+      expect(
+        utf8.decode(base64Decode(payload['data'] as String)),
+        'hello from the folder',
+      );
+    },
+  );
 
   test('reports an error when the path escapes the folder', () async {
     final service = _FakeChatService();

@@ -51,9 +51,10 @@ Widget _wrap(Widget child) => MultiProvider(
     ChangeNotifierProvider<ModelProvider>(create: (_) => ModelProvider()),
   ],
   child: MaterialApp(
-  localizationsDelegates: AppLocalizations.localizationsDelegates,
-  supportedLocales: AppLocalizations.supportedLocales,
-home: Scaffold(body: child)),
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
+    home: Scaffold(body: child),
+  ),
 );
 
 void main() {
@@ -62,7 +63,9 @@ void main() {
   });
 
   testWidgets('renders summary, details, and Confirm/Cancel', (tester) async {
-    await tester.pumpWidget(_wrap(ActionProposalCard(message: _proposalMessage())));
+    await tester.pumpWidget(
+      _wrap(ActionProposalCard(message: _proposalMessage())),
+    );
     await tester.pump();
 
     expect(tester.takeException(), isNull);
@@ -71,15 +74,26 @@ void main() {
       find.text("Create room 'Research' with ana@example.com"),
       findsOneWidget,
     );
-    expect(find.text('Agent: Researcher (qwen3, replies: mention)'), findsOneWidget);
-    expect(find.byKey(const ValueKey('action_proposal_confirm')), findsOneWidget);
-    expect(find.byKey(const ValueKey('action_proposal_cancel')), findsOneWidget);
+    expect(
+      find.text('Agent: Researcher (qwen3, replies: mention)'),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('action_proposal_confirm')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('action_proposal_cancel')),
+      findsOneWidget,
+    );
   });
 
   testWidgets('cancel dismisses and the decision survives a rebuild', (
     tester,
   ) async {
-    await tester.pumpWidget(_wrap(ActionProposalCard(message: _proposalMessage())));
+    await tester.pumpWidget(
+      _wrap(ActionProposalCard(message: _proposalMessage())),
+    );
     await tester.pump();
 
     await tester.tap(find.byKey(const ValueKey('action_proposal_cancel')));
@@ -89,7 +103,9 @@ void main() {
 
     // Fresh widget for the same proposal (as after an app reload): the
     // stored decision must keep the buttons gone — no re-confirm loophole.
-    await tester.pumpWidget(_wrap(ActionProposalCard(message: _proposalMessage())));
+    await tester.pumpWidget(
+      _wrap(ActionProposalCard(message: _proposalMessage())),
+    );
     await tester.pump();
     await tester.pump();
     expect(find.text('Dismissed'), findsOneWidget);
@@ -100,7 +116,9 @@ void main() {
     SharedPreferences.setMockInitialValues({
       'action_proposal_decision_call-1': 'confirmed',
     });
-    await tester.pumpWidget(_wrap(ActionProposalCard(message: _proposalMessage())));
+    await tester.pumpWidget(
+      _wrap(ActionProposalCard(message: _proposalMessage())),
+    );
     await tester.pump();
     await tester.pump();
 
@@ -110,11 +128,15 @@ void main() {
     expect(find.byKey(const ValueKey('action_proposal_open')), findsNothing);
   });
 
-  testWidgets('a stored confirmed decision keeps the deep link', (tester) async {
+  testWidgets('a stored confirmed decision keeps the deep link', (
+    tester,
+  ) async {
     SharedPreferences.setMockInitialValues({
       'action_proposal_decision_call-1': 'confirmed:/rooms/r42',
     });
-    await tester.pumpWidget(_wrap(ActionProposalCard(message: _proposalMessage())));
+    await tester.pumpWidget(
+      _wrap(ActionProposalCard(message: _proposalMessage())),
+    );
     await tester.pump();
     await tester.pump();
 

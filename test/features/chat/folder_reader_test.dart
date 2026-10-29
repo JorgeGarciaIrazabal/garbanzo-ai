@@ -34,8 +34,9 @@ void main() {
     });
 
     test('rejects a symlink escaping the root', () {
-      final outside = File('${root.parent.path}/outside_${root.uri.pathSegments.last}.txt')
-        ..writeAsStringSync('top secret');
+      final outside = File(
+        '${root.parent.path}/outside_${root.uri.pathSegments.last}.txt',
+      )..writeAsStringSync('top secret');
       addTearDown(() {
         if (outside.existsSync()) outside.deleteSync();
       });

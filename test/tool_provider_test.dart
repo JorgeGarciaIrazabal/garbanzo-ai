@@ -25,11 +25,7 @@ void main() {
             name: 'read_file',
             description: 'Read a file',
           ),
-          MCPTool(
-            serverId: 's1',
-            serverName: 'filesystem',
-            name: 'write_file',
-          ),
+          MCPTool(serverId: 's1', serverName: 'filesystem', name: 'write_file'),
         ],
       );
 
@@ -45,8 +41,7 @@ void main() {
     });
 
     test('load sets error on failure', () async {
-      when(() => service.listAllTools())
-          .thenThrow(Exception('no backend'));
+      when(() => service.listAllTools()).thenThrow(Exception('no backend'));
 
       await provider.load();
       expect(provider.error, isNotNull);

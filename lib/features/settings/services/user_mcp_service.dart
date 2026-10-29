@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
 import 'package:garbanzo_ai/core/api_client.dart';
+import 'package:garbanzo_ai/core/api_error.dart';
 import 'package:garbanzo_ai/features/admin/models/mcp_server.dart';
 
 /// HTTP service for a user's *personal* MCP servers (`/api/v1/mcp/servers`).
@@ -10,10 +11,10 @@ import 'package:garbanzo_ai/features/admin/models/mcp_server.dart';
 /// updates, or deletes servers that user owns. Global (admin-managed) servers
 /// are not reachable here.
 class UserMcpService {
-  UserMcpService._();
-  static final UserMcpService instance = UserMcpService._();
+  UserMcpService({ApiClient? api}) : _api = api ?? ApiClient.instance;
+  static final UserMcpService instance = UserMcpService();
 
-  final ApiClient _api = ApiClient.instance;
+  final ApiClient _api;
 
   Future<List<MCPServer>> listServers() async {
     final res = await _api.get('/api/v1/mcp/servers');
@@ -106,12 +107,6 @@ class UserMcpService {
     throw _handleError(res);
   }
 
-  Exception _handleError(Response response) {
-    final body = response.data;
-    if (body is Map<String, dynamic>) {
-      final detail = body['detail']?.toString() ?? 'Unknown error';
-      return Exception('API Error (${response.statusCode}): $detail');
-    }
-    return Exception('API Error (${response.statusCode}): $body');
-  }
+  Exception _handleError(Response<dynamic> response) =>
+      apiResponseError(response, operation: 'MCP server request failed');
 }

@@ -1,4 +1,7 @@
+import 'package:dio/dio.dart';
+
 import 'package:garbanzo_ai/core/api_client.dart';
+import 'package:garbanzo_ai/core/api_error.dart';
 import 'package:garbanzo_ai/features/memory/models/memory.dart';
 
 /// Service for interacting with the Memory API.
@@ -6,10 +9,10 @@ import 'package:garbanzo_ai/features/memory/models/memory.dart';
 /// All HTTP calls are routed through [ApiClient] so that base-URL resolution,
 /// auth headers, and JSON encoding stay in one place.
 class MemoryApiService {
-  MemoryApiService._();
-  static final MemoryApiService instance = MemoryApiService._();
+  MemoryApiService({ApiClient? api}) : _api = api ?? ApiClient.instance;
+  static final MemoryApiService instance = MemoryApiService();
 
-  final ApiClient _api = ApiClient.instance;
+  final ApiClient _api;
 
   // ==========================================================================
   // Memory CRUD operations
@@ -91,12 +94,6 @@ class MemoryApiService {
   // Error handling
   // ==========================================================================
 
-  Exception _handleError(dynamic response) {
-    final body = response.data;
-    if (body is Map<String, dynamic>) {
-      final detail = body['detail'] as String? ?? 'Unknown error';
-      return Exception('API Error (${response.statusCode}): $detail');
-    }
-    return Exception('API Error (${response.statusCode}): $body');
-  }
+  Exception _handleError(Response<dynamic> response) =>
+      apiResponseError(response, operation: 'Memory request failed');
 }

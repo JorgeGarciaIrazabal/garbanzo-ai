@@ -6,19 +6,38 @@ void main() {
   test('visual auto-play uses summary and waits for its persisted ID', () {
     final tracker = ReadAloudAutoPlayTracker();
     ChatMessage visual(String id, {bool nested = false}) {
-      final meta = <String, dynamic>{'tool_call_id': 'visual', 'tool_name': 'render_ui', 'result': {
-        'ok': true, 'presentation': {'summary': 'Three tasks are complete.'},
-      }};
-      return ChatMessage(id: id, role: 'tool_result', content: 'render_ui',
-        createdAt: DateTime(2026), metadata: nested ? {'tool_result': meta} : meta);
+      final meta = <String, dynamic>{
+        'tool_call_id': 'visual',
+        'tool_name': 'render_ui',
+        'result': {
+          'ok': true,
+          'presentation': {'summary': 'Three tasks are complete.'},
+        },
+      };
+      return ChatMessage(
+        id: id,
+        role: 'tool_result',
+        content: 'render_ui',
+        createdAt: DateTime(2026),
+        metadata: nested ? {'tool_result': meta} : meta,
+      );
     }
+
     final live = visual('temp-tool-result-visual', nested: true);
     final saved = visual('saved-visual');
-    final placeholder = ChatMessage(id: 'temp-placeholder', role: 'assistant',
-      content: '', createdAt: DateTime(2026));
-    ChatMessage? observe(bool sending, List<ChatMessage> messages) => tracker.observe(
-      sending: sending, conversationId: 'thread', messages: messages, hasError: false,
+    final placeholder = ChatMessage(
+      id: 'temp-placeholder',
+      role: 'assistant',
+      content: '',
+      createdAt: DateTime(2026),
     );
+    ChatMessage? observe(bool sending, List<ChatMessage> messages) =>
+        tracker.observe(
+          sending: sending,
+          conversationId: 'thread',
+          messages: messages,
+          hasError: false,
+        );
     expect(observe(true, []), isNull);
     expect(observe(false, [live, placeholder]), isNull);
     expect(observe(false, [saved])?.id, saved.id);
@@ -39,16 +58,20 @@ void main() {
     final temporary = reply('temp-new', '<think>Private.</think>New answer.');
     final stable = reply('new', '<think>Private.</think>New answer.');
 
-    ChatMessage? observe(bool sending, List<ChatMessage> messages) => tracker.observe(
-      sending: sending,
-      conversationId: 'thread',
-      messages: messages,
-      hasError: false,
-    );
+    ChatMessage? observe(bool sending, List<ChatMessage> messages) =>
+        tracker.observe(
+          sending: sending,
+          conversationId: 'thread',
+          messages: messages,
+          hasError: false,
+        );
 
     expect(observe(false, [history]), isNull); // Opening history never speaks.
     expect(observe(true, [history, empty]), isNull);
-    expect(observe(false, [history]), isNull); // Empty turn leaves history alone.
+    expect(
+      observe(false, [history]),
+      isNull,
+    ); // Empty turn leaves history alone.
     expect(observe(true, [history, temporary]), isNull);
     expect(observe(false, [history, temporary]), isNull);
     expect(observe(false, [history, stable])?.id, 'new');

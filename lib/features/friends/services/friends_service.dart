@@ -1,20 +1,24 @@
+import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
+
 import 'package:garbanzo_ai/core/api_client.dart';
+import 'package:garbanzo_ai/core/api_error.dart';
 import 'package:garbanzo_ai/features/friends/models/friend_models.dart';
 
 /// REST client for the friends graph (`/api/v1/friends`).
 ///
 /// [ApiClient] never throws on non-2xx (`validateStatus` accepts all), so
-/// every call checks the status code and throws an
-/// `Exception('API Error (NNN): detail')` — the shape
-/// `describeFailure`/`GuardedStateMixin` knows how to present.
+/// every call checks the status code and throws an [ApiResponseException] —
+/// the shape `describeFailure`/`GuardedStateMixin` knows how to present.
 class FriendsService {
-  FriendsService._();
-  static final FriendsService instance = FriendsService._();
+  FriendsService({ApiClient? api}) : _api = api ?? ApiClient.instance;
+  static final FriendsService instance = FriendsService();
 
   /// Test seam — mirrors `StyleService.forTesting`.
-  FriendsService.forTesting();
+  @visibleForTesting
+  FriendsService.forTesting() : this();
 
-  final _api = ApiClient.instance;
+  final ApiClient _api;
 
   Future<FriendsList> list() async {
     final resp = await _api.get('/api/v1/friends');
@@ -82,11 +86,6 @@ class FriendsService {
     throw _error(resp);
   }
 
-  Exception _error(dynamic response) {
-    final body = response.data;
-    final detail = body is Map<String, dynamic>
-        ? (body['detail'] as String? ?? 'Unknown error')
-        : '$body';
-    return Exception('API Error (${response.statusCode}): $detail');
-  }
+  Exception _error(Response<dynamic> response) =>
+      apiResponseError(response, operation: 'Friends request failed');
 }

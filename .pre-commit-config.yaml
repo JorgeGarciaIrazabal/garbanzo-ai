@@ -12,13 +12,13 @@ repos:
     hooks:
       - id: dart-format
         name: dart format (check)
-        entry: dart format --set-exit-if-changed lib/
+        entry: dart format --set-exit-if-changed lib/ test/
         language: system
-        files: ^lib/.*\.dart$
+        files: ^(lib|test)/.*\.dart$
         pass_filenames: false
       - id: flutter-analyze
         name: flutter analyze
-        entry: flutter analyze lib/
+        entry: flutter analyze
         language: system
-        files: ^lib/.*\.dart$
+        files: ^(lib|test)/.*\.dart$
         pass_filenames: false

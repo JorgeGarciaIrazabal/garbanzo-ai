@@ -1,7 +1,9 @@
 # Settings & Profile
 
-Open Settings from the gear icon. Sections: Profile, Appearance, Models,
-Tools, Voice, Memory, Notifications, and Software update on native builds.
+Tap the gear icon to open the quick menu drawer (conversation toggles, pages,
+theme switch, and **Open full settings**). Full Settings sections: Profile,
+Appearance, Models, Tools, Voice, Memory, Notifications, and Software update on
+native builds.
 
 ## How do I connect my own tool server?
 **Tools → My MCP servers → Add server**. Enter the connection details

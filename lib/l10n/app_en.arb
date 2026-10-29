@@ -4623,5 +4623,49 @@
   "visualMoreRows": "Show more rows",
   "@visualMoreRows": {
     "description": "Reveal the next group of table rows"
+  },
+  "bargeInOff": "Off",
+  "@bargeInOff": {
+    "description": "Talk Mode voice interruption sensitivity: disabled"
+  },
+  "bargeInLow": "Low sensitivity",
+  "@bargeInLow": {
+    "description": "Talk Mode voice interruption sensitivity: low"
+  },
+  "bargeInNormal": "Normal",
+  "@bargeInNormal": {
+    "description": "Talk Mode voice interruption sensitivity: normal"
+  },
+  "bargeInHigh": "High sensitivity",
+  "@bargeInHigh": {
+    "description": "Talk Mode voice interruption sensitivity: high"
+  },
+  "failedToLoadVoices": "Could not load voices",
+  "@failedToLoadVoices": {
+    "description": "Error shown in Voice settings when the TTS voice catalog request fails"
+  },
+  "failedToLoadPromptTemplates": "Could not load prompt templates",
+  "@failedToLoadPromptTemplates": {
+    "description": "Error shown when prompt templates cannot be fetched"
+  },
+  "defaultModelServerFallback": "Server fallback (usually deepseek-v4.1-flash:cloud)",
+  "@defaultModelServerFallback": {
+    "description": "Subtitle in Settings -> Models when no explicit default model is pinned"
+  },
+  "jumpToLatestMessage": "Jump to latest message",
+  "@jumpToLatestMessage": {
+    "description": "Tooltip on the floating button that scrolls the chat transcript to the bottom"
+  },
+  "dropFilesSupportedFormats": "Images, PDFs, CSVs, and text files",
+  "@dropFilesSupportedFormats": {
+    "description": "Subtitle on the desktop drag-and-drop overlay listing supported attachment types"
+  },
+  "manageSavedMemories": "Manage saved memories",
+  "@manageSavedMemories": {
+    "description": "Action row in Settings -> Memory linking to the saved memories page"
+  },
+  "searchTopicsHint": "Search topics...",
+  "@searchTopicsHint": {
+    "description": "Placeholder text in the topic landing search input"
   }
 }

@@ -4,8 +4,9 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
-import 'package:garbanzo_ai/core/log.dart';
 import 'package:garbanzo_ai/core/api_client.dart';
+import 'package:garbanzo_ai/core/api_error.dart';
+import 'package:garbanzo_ai/core/log.dart';
 import 'package:garbanzo_ai/features/chat/models/chat_attachment.dart';
 import 'package:garbanzo_ai/features/chat/models/chat_message.dart';
 import 'package:garbanzo_ai/features/chat/models/conversation.dart';
@@ -17,14 +18,14 @@ import 'package:garbanzo_ai/features/chat/models/thinking_level.dart';
 /// All HTTP calls are routed through [ApiClient] so that base-URL resolution,
 /// auth headers, and JSON encoding stay in one place.
 class ChatService {
-  ChatService._();
-  static final ChatService instance = ChatService._();
+  ChatService({ApiClient? api}) : _api = api ?? ApiClient.instance;
+  static final ChatService instance = ChatService();
 
   /// For tests only: lets a fake subclass exist outside this library.
   @visibleForTesting
-  ChatService.forTesting();
+  ChatService.forTesting() : this();
 
-  final ApiClient _api = ApiClient.instance;
+  final ApiClient _api;
 
   // ==========================================================================
   // Conversations
@@ -233,10 +234,14 @@ class ChatService {
     String conversationId,
     Map<String, dynamic> payload,
   ) async {
-    await _api.post(
+    final response = await _api.post(
       '/api/v1/chat/conversations/$conversationId/client-tool-result',
       data: payload,
     );
+    expectStatus(response, const {
+      200,
+      204,
+    }, operation: 'Failed to submit client tool result');
   }
 
   Future<void> deleteConversation(String conversationId) async {
@@ -348,17 +353,21 @@ class ChatService {
       String? detail;
       if (body is ResponseBody) {
         try {
-          detail = await body.stream
+          final raw = await body.stream
               .cast<List<int>>()
               .transform(utf8.decoder)
               .join();
+          try {
+            detail = apiErrorDetail(jsonDecode(raw)) ?? raw;
+          } catch (_) {
+            detail = raw;
+          }
         } catch (_) {
+          // Stream teardown mid-error-read is benign; status code suffices.
           detail = null;
         }
-      } else if (body is String) {
-        detail = body;
-      } else if (body is Map<String, dynamic>) {
-        detail = body['detail'] as String?;
+      } else {
+        detail = apiErrorDetail(body);
       }
       throw ChatException.fromStatus(response.statusCode ?? 0, detail: detail);
     }
@@ -404,14 +413,8 @@ class ChatService {
   // Error Handling
   // ==========================================================================
 
-  Exception _handleError(Response response) {
-    final body = response.data;
-    if (body is Map<String, dynamic>) {
-      final detail = body['detail'] as String? ?? 'Unknown error';
-      return Exception('API Error (${response.statusCode}): $detail');
-    }
-    return Exception('API Error (${response.statusCode}): $body');
-  }
+  Exception _handleError(Response<dynamic> response) =>
+      apiResponseError(response, operation: 'Chat request failed');
 }
 
 /// Typed exception for chat-stream failures, carrying a short machine-readable

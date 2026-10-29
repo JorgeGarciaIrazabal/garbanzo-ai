@@ -1,3 +1,5 @@
+import 'package:dio/dio.dart';
+
 /// Extracts a concise error reason from the response shapes used by FastAPI.
 ///
 /// Most endpoints return `{ "detail": "..." }`. Validation failures may use
@@ -51,5 +53,28 @@ class ApiResponseException implements Exception {
     final reason = detail?.trim();
     return 'API Error ($statusCode): '
         '${reason == null || reason.isEmpty ? operation : reason}';
+  }
+}
+
+/// Builds an [ApiResponseException] from a non-2xx Dio [response].
+ApiResponseException apiResponseError(
+  Response<dynamic> response, {
+  required String operation,
+}) {
+  return ApiResponseException(
+    statusCode: response.statusCode ?? 0,
+    operation: operation,
+    detail: apiErrorDetail(response.data),
+  );
+}
+
+/// Throws [ApiResponseException] unless [response.statusCode] is in [allowed].
+void expectStatus(
+  Response<dynamic> response,
+  Set<int> allowed, {
+  required String operation,
+}) {
+  if (!allowed.contains(response.statusCode)) {
+    throw apiResponseError(response, operation: operation);
   }
 }

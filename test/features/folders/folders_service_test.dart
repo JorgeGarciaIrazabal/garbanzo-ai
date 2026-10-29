@@ -6,7 +6,6 @@ import 'package:garbanzo_ai/features/folders/services/folders_service.dart';
 import 'package:garbanzo_ai/features/folders/models/virtual_folder.dart';
 import 'package:garbanzo_ai/features/folders/widgets/folder_download_button.dart';
 
-
 import 'folders_test_support.dart';
 
 void main() {
@@ -14,87 +13,219 @@ void main() {
     final api = RecordingApi();
     final service = FoldersService(api: api);
     final bytes = Uint8List(17 * 1024 * 1024);
-    api.response = Response(requestOptions: RequestOptions(), statusCode: 201, data: testFile.toJson());
+    api.response = Response(
+      requestOptions: RequestOptions(),
+      statusCode: 201,
+      data: testFile.toJson(),
+    );
     await service.upload('folder', 'annual.xlsm', bytes);
     expect((api.data as FormData).files.single.value.length, bytes.length);
-    api.response = Response(requestOptions: RequestOptions(), statusCode: 200, data: testFile.toJson());
+    api.response = Response(
+      requestOptions: RequestOptions(),
+      statusCode: 200,
+      data: testFile.toJson(),
+    );
     await service.replaceFile(testFile, bytes);
     expect((api.data as FormData).files.single.value.length, bytes.length);
   });
-  test('duplicate upload choices send copy intent or original replacement revision', () async {
-    final api = RecordingApi();
-    final service = FoldersService(api: api);
-    final bytes = Uint8List.fromList([0, 255, 65]);
-    api.response = Response(requestOptions: RequestOptions(), statusCode: 201, data: testFile.toJson());
-    await service.upload('folder', 'notes.txt', bytes, keepBoth: true);
-    final copy = api.data as FormData;
-    expect(Map.fromEntries(copy.fields), {'path': 'notes.txt', 'keep_both': 'true'});
-    api.response = Response(requestOptions: RequestOptions(), statusCode: 200, data: testFile.copyWith(revision: 8).toJson());
-    final replaced = await service.replaceFile(testFile, bytes);
-    expect(api.path, '/api/v1/folders/folder/files/file/content');
-    final replacement = api.data as FormData;
-    expect(Map.fromEntries(replacement.fields), {'revision': '7'});
-    expect(replacement.files.single.value.filename, 'notes.txt');
-    expect(replaced.revision, 8);
-    api.response = Response(requestOptions: RequestOptions(), statusCode: 409, data: {'detail': 'File changed'});
-    await expectLater(service.replaceFile(testFile, bytes), throwsA(isA<FolderException>().having((e) => e.status, 'status', 409)));
-  });
-  test('folder context survives serialization and metadata updates send only supplied fields', () async {
-    final api = RecordingApi();
-    final json = {'id': 'folder', 'name': 'Research', 'description': 'Compare source evidence', 'created_at': '2026-01-01T00:00:00Z', 'updated_at': '2026-01-01T00:00:00Z'};
-    api.response = Response(requestOptions: RequestOptions(), statusCode: 201, data: json);
-    final service = FoldersService(api: api);
-    final created = await service.create('Research', description: 'Compare source evidence');
-    expect(api.data, {'name': 'Research', 'description': 'Compare source evidence'});
-    expect(VirtualFolder.fromJson(created.toJson()).description, 'Compare source evidence');
-    api.response = Response(requestOptions: RequestOptions(), statusCode: 200, data: {...json, 'name': 'Sources'});
-    final renamed = await service.rename('folder', 'Sources');
-    expect(api.data, {'name': 'Sources'});
-    expect(renamed.description, 'Compare source evidence');
-    api.response = Response(requestOptions: RequestOptions(), statusCode: 200, data: {...json, 'description': ''});
-    final cleared = await service.update('folder', description: '');
-    expect(api.data, {'description': ''});
-    expect(cleared.description, isEmpty);
-    await expectLater(service.update('folder'), throwsArgumentError);
-    expect(VirtualFolder.fromJson({...json}..remove('description')).description, isEmpty);
-  });
-  test('download filenames cannot contain path separators or reserved names', () {
-    expect(safeDownloadFilename('Research/project.zip'), 'Research_project.zip');
-    expect(safeDownloadFilename(r'notes\final.txt'), 'notes_final.txt');
-    expect(safeDownloadFilename('CON.zip'), '_CON.zip');
-  });
-  test('editing and deleting transmit original revision; conflicts surface', () async {
-    final api = RecordingApi();
-    api.response = Response(requestOptions: RequestOptions(), statusCode: 409, data: {'detail': 'revision changed'});
-    final service = FoldersService(api: api);
-    await expectLater(service.saveText(testFile, 'new content'), throwsA(isA<FolderException>().having((e) => e.status, 'status', 409).having((e) => e.detail, 'detail', 'revision changed')));
-    expect(api.path, '/api/v1/folders/folder/files/file/text');
-    expect(api.data, {'content': 'new content', 'revision': 7});
-    api.response = Response(requestOptions: RequestOptions(), statusCode: 204);
-    await service.deleteFile(testFile);
-    expect(api.path, '/api/v1/folders/folder/files/file?revision=7');
-  });
+  test(
+    'duplicate upload choices send copy intent or original replacement revision',
+    () async {
+      final api = RecordingApi();
+      final service = FoldersService(api: api);
+      final bytes = Uint8List.fromList([0, 255, 65]);
+      api.response = Response(
+        requestOptions: RequestOptions(),
+        statusCode: 201,
+        data: testFile.toJson(),
+      );
+      await service.upload('folder', 'notes.txt', bytes, keepBoth: true);
+      final copy = api.data as FormData;
+      expect(Map.fromEntries(copy.fields), {
+        'path': 'notes.txt',
+        'keep_both': 'true',
+      });
+      api.response = Response(
+        requestOptions: RequestOptions(),
+        statusCode: 200,
+        data: testFile.copyWith(revision: 8).toJson(),
+      );
+      final replaced = await service.replaceFile(testFile, bytes);
+      expect(api.path, '/api/v1/folders/folder/files/file/content');
+      final replacement = api.data as FormData;
+      expect(Map.fromEntries(replacement.fields), {'revision': '7'});
+      expect(replacement.files.single.value.filename, 'notes.txt');
+      expect(replaced.revision, 8);
+      api.response = Response(
+        requestOptions: RequestOptions(),
+        statusCode: 409,
+        data: {'detail': 'File changed'},
+      );
+      await expectLater(
+        service.replaceFile(testFile, bytes),
+        throwsA(isA<FolderException>().having((e) => e.status, 'status', 409)),
+      );
+    },
+  );
+  test(
+    'folder context survives serialization and metadata updates send only supplied fields',
+    () async {
+      final api = RecordingApi();
+      final json = {
+        'id': 'folder',
+        'name': 'Research',
+        'description': 'Compare source evidence',
+        'created_at': '2026-01-01T00:00:00Z',
+        'updated_at': '2026-01-01T00:00:00Z',
+      };
+      api.response = Response(
+        requestOptions: RequestOptions(),
+        statusCode: 201,
+        data: json,
+      );
+      final service = FoldersService(api: api);
+      final created = await service.create(
+        'Research',
+        description: 'Compare source evidence',
+      );
+      expect(api.data, {
+        'name': 'Research',
+        'description': 'Compare source evidence',
+      });
+      expect(
+        VirtualFolder.fromJson(created.toJson()).description,
+        'Compare source evidence',
+      );
+      api.response = Response(
+        requestOptions: RequestOptions(),
+        statusCode: 200,
+        data: {...json, 'name': 'Sources'},
+      );
+      final renamed = await service.rename('folder', 'Sources');
+      expect(api.data, {'name': 'Sources'});
+      expect(renamed.description, 'Compare source evidence');
+      api.response = Response(
+        requestOptions: RequestOptions(),
+        statusCode: 200,
+        data: {...json, 'description': ''},
+      );
+      final cleared = await service.update('folder', description: '');
+      expect(api.data, {'description': ''});
+      expect(cleared.description, isEmpty);
+      await expectLater(service.update('folder'), throwsArgumentError);
+      expect(
+        VirtualFolder.fromJson({...json}..remove('description')).description,
+        isEmpty,
+      );
+    },
+  );
+  test(
+    'download filenames cannot contain path separators or reserved names',
+    () {
+      expect(
+        safeDownloadFilename('Research/project.zip'),
+        'Research_project.zip',
+      );
+      expect(safeDownloadFilename(r'notes\final.txt'), 'notes_final.txt');
+      expect(safeDownloadFilename('CON.zip'), '_CON.zip');
+    },
+  );
+  test(
+    'editing and deleting transmit original revision; conflicts surface',
+    () async {
+      final api = RecordingApi();
+      api.response = Response(
+        requestOptions: RequestOptions(),
+        statusCode: 409,
+        data: {'detail': 'revision changed'},
+      );
+      final service = FoldersService(api: api);
+      await expectLater(
+        service.saveText(testFile, 'new content'),
+        throwsA(
+          isA<FolderException>()
+              .having((e) => e.status, 'status', 409)
+              .having((e) => e.detail, 'detail', 'revision changed'),
+        ),
+      );
+      expect(api.path, '/api/v1/folders/folder/files/file/text');
+      expect(api.data, {'content': 'new content', 'revision': 7});
+      api.response = Response(
+        requestOptions: RequestOptions(),
+        statusCode: 204,
+      );
+      await service.deleteFile(testFile);
+      expect(api.path, '/api/v1/folders/folder/files/file?revision=7');
+    },
+  );
   test('oversized upload fails before sending bytes', () async {
     final api = RecordingApi();
-    await expectLater(FoldersService(api: api).upload('folder', 'large.bin', Uint8List(FoldersService.maxFileBytes + 1)), throwsA(isA<FolderException>().having((e) => e.status, 'status', 413)));
+    await expectLater(
+      FoldersService(api: api).upload(
+        'folder',
+        'large.bin',
+        Uint8List(FoldersService.maxFileBytes + 1),
+      ),
+      throwsA(isA<FolderException>().having((e) => e.status, 'status', 413)),
+    );
     expect(api.path, isNull);
   });
-  test('file and ZIP downloads use authenticated ApiClient and export delivery', () async {
-    final api = RecordingApi(); final downloader = RecordingDownloader();
-    final service = FoldersService(api: api, downloader: downloader);
-    await service.download(folderId: 'folder', fileId: 'file', filename: 'suggested.txt', mediaType: 'text/plain', title: 'Download');
-    expect(api.path, '/api/v1/folders/folder/files/file/content');
-    expect(downloader.filename, 'from-server.txt');
-    expect(downloader.bytes, [1,2,3]);
-    await service.download(folderId: 'folder', filename: 'folder.zip', mediaType: 'application/zip', title: 'Download');
-    expect(api.path, '/api/v1/folders/folder/download');
-  });
-  test('download result rejects errors, unrelated tools and malformed fields', () {
-    final result = {'ok': true, 'action': 'download', 'download': {'folder_id': 'folder', 'file_id': 'file', 'filename': 'notes.txt', 'media_type': 'text/plain'}};
-    expect(folderDownloadResult('virtual_folders', result)?['file_id'], 'file');
-    expect(folderDownloadResult('another_tool', result), isNull);
-    expect(folderDownloadResult('virtual_folders', {...result, 'ok': false}), isNull);
-    expect(folderDownloadResult('virtual_folders', {'ok': true, 'action': 'download', 'download': {'folder_id': 'folder'}}), isNull);
-    expect(folderDownloadResult('virtual_folders', 'not JSON'), isNull);
-  });
+  test(
+    'file and ZIP downloads use authenticated ApiClient and export delivery',
+    () async {
+      final api = RecordingApi();
+      final downloader = RecordingDownloader();
+      final service = FoldersService(api: api, downloader: downloader);
+      await service.download(
+        folderId: 'folder',
+        fileId: 'file',
+        filename: 'suggested.txt',
+        mediaType: 'text/plain',
+        title: 'Download',
+      );
+      expect(api.path, '/api/v1/folders/folder/files/file/content');
+      expect(downloader.filename, 'from-server.txt');
+      expect(downloader.bytes, [1, 2, 3]);
+      await service.download(
+        folderId: 'folder',
+        filename: 'folder.zip',
+        mediaType: 'application/zip',
+        title: 'Download',
+      );
+      expect(api.path, '/api/v1/folders/folder/download');
+    },
+  );
+  test(
+    'download result rejects errors, unrelated tools and malformed fields',
+    () {
+      final result = {
+        'ok': true,
+        'action': 'download',
+        'download': {
+          'folder_id': 'folder',
+          'file_id': 'file',
+          'filename': 'notes.txt',
+          'media_type': 'text/plain',
+        },
+      };
+      expect(
+        folderDownloadResult('virtual_folders', result)?['file_id'],
+        'file',
+      );
+      expect(folderDownloadResult('another_tool', result), isNull);
+      expect(
+        folderDownloadResult('virtual_folders', {...result, 'ok': false}),
+        isNull,
+      );
+      expect(
+        folderDownloadResult('virtual_folders', {
+          'ok': true,
+          'action': 'download',
+          'download': {'folder_id': 'folder'},
+        }),
+        isNull,
+      );
+      expect(folderDownloadResult('virtual_folders', 'not JSON'), isNull);
+    },
+  );
 }

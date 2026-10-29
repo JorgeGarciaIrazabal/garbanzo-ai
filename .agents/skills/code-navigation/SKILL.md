@@ -5,7 +5,10 @@ description: Investigate Python and Dart symbols and structural code changes wit
 
 Read the repository documentation map before exploring. Use Serena symbol,
 definition and reference tools, ast-grep for syntax-sensitive searches, and rg
-for exact text. Avoid duplicate full-tree exploration across workers.
+for exact text. When `dart-mcp-server` is connected in the session, also use its
+`analyze_files`, `lsp`, `rip_grep_packages`, and `read_package_uris` tools for
+instant Dart/Flutter diagnostics and package symbol lookups without spawning a
+separate CLI analyzer. Avoid duplicate full-tree exploration across workers.
 Start Serena with just ai-serena: the pinned upstream defaults to Dart 3.7.1,
 which cannot analyze this app. The runtime adapter selects the actual Flutter
 Dart executable; pyrightconfig.json selects backend/.venv and backend imports.

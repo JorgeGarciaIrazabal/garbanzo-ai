@@ -3789,4 +3789,40 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get visualMoreRows => 'Mostrar más filas';
+
+  @override
+  String get bargeInOff => 'Desactivado';
+
+  @override
+  String get bargeInLow => 'Sensibilidad baja';
+
+  @override
+  String get bargeInNormal => 'Normal';
+
+  @override
+  String get bargeInHigh => 'Sensibilidad alta';
+
+  @override
+  String get failedToLoadVoices => 'No se pudieron cargar las voces';
+
+  @override
+  String get failedToLoadPromptTemplates =>
+      'No se pudieron cargar las plantillas';
+
+  @override
+  String get defaultModelServerFallback =>
+      'Valor predeterminado del servidor (normalmente deepseek-v4.1-flash:cloud)';
+
+  @override
+  String get jumpToLatestMessage => 'Ir al último mensaje';
+
+  @override
+  String get dropFilesSupportedFormats =>
+      'Imágenes, PDF, CSV y archivos de texto';
+
+  @override
+  String get manageSavedMemories => 'Gestionar recuerdos guardados';
+
+  @override
+  String get searchTopicsHint => 'Buscar temas...';
 }

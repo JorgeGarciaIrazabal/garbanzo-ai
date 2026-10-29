@@ -56,7 +56,7 @@ disabled until its version-specific library documentation is needed.
 
 `just ai [request]` opens native Codex with fast local startup. Select an available
 cached model and reasoning effort explicitly with `just ai --model gpt-5.6-terra
---effort medium [request]`; the defaults remain `gpt-6-astra` and `medium`.
+--effort medium [request]`; the defaults are `gpt-6.1-sol` and `medium`.
 `just ai` validates the selection against `.ai/local/models.json` and reports an
 unsupported model or effort instead of changing the route. Refresh the cache with
 `just ai-models` when the account catalog has changed. Inside an existing session use

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 
 import 'package:garbanzo_ai/core/api_client.dart';
+import 'package:garbanzo_ai/core/api_error.dart';
 import 'package:garbanzo_ai/features/chat/models/chat_message.dart';
 import 'package:garbanzo_ai/features/chat/services/chat_service.dart'
     show parseSseChunks;
@@ -33,10 +34,10 @@ abstract class MicroappApi {
 /// The agent chat reuses the main chat's SSE envelope ([ChatResponseChunk])
 /// and [parseSseChunks], so agent narration renders with the same widgets.
 class MicroappService implements MicroappApi {
-  MicroappService._();
-  static final MicroappService instance = MicroappService._();
+  MicroappService({ApiClient? api}) : _client = api ?? ApiClient.instance;
+  static final MicroappService instance = MicroappService();
 
-  final _client = ApiClient.instance;
+  final ApiClient _client;
 
   /// Host part of the API base URL (scheme://host[:port]) — used to compose a
   /// dev-server URL reachable from THIS device (e.g. an Android phone), since
@@ -210,12 +211,9 @@ class MicroappService implements MicroappApi {
     return ws.devUrl; // loopback fallback (same-host web/desktop)
   }
 
-  void _ensureOk(Response res, {Set<int> expected = const {200}}) {
+  void _ensureOk(Response<dynamic> res, {Set<int> expected = const {200}}) {
     if (!expected.contains(res.statusCode)) {
-      final data = res.data;
-      final detail = data is Map<String, dynamic>
-          ? (data['detail'] as String? ?? '$data')
-          : '$data';
+      final detail = apiErrorDetail(res.data) ?? '${res.data}';
       throw MicroappApiException(res.statusCode ?? 0, detail);
     }
   }

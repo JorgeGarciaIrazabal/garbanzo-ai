@@ -13,24 +13,15 @@ void main() {
     });
 
     test('converts image markdown to alt text', () {
-      expect(
-        cleanTextForSpeech('![logo](https://example.com/x.png)'),
-        'logo',
-      );
+      expect(cleanTextForSpeech('![logo](https://example.com/x.png)'), 'logo');
     });
 
     test('converts link markdown to text', () {
-      expect(
-        cleanTextForSpeech('see [docs](https://example.com)'),
-        'see docs',
-      );
+      expect(cleanTextForSpeech('see [docs](https://example.com)'), 'see docs');
     });
 
     test('strips markdown headings', () {
-      expect(
-        cleanTextForSpeech('# Title\n## Sub\nBody'),
-        'Title\nSub\nBody',
-      );
+      expect(cleanTextForSpeech('# Title\n## Sub\nBody'), 'Title\nSub\nBody');
     });
 
     test('removes bold/italic/strike markers', () {
@@ -47,8 +38,11 @@ void main() {
       expect(out.contains('first'), isTrue);
       expect(out.contains('second'), isTrue);
       expect(out.contains('-'), isFalse, reason: 'bullets should be gone');
-      expect(RegExp(r'\d+\.').hasMatch(out), isFalse,
-          reason: 'numbered prefixes should be gone');
+      expect(
+        RegExp(r'\d+\.').hasMatch(out),
+        isFalse,
+        reason: 'numbered prefixes should be gone',
+      );
     });
 
     test('strips blockquote and horizontal rule markers', () {

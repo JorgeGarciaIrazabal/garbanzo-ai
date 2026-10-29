@@ -17,8 +17,10 @@ void main() {
       expect(user.email, 'jane@example.com');
       expect(user.fullName, 'Jane Doe');
       expect(user.createdAt, isNotNull);
-      expect(user.createdAt!.toUtc().toIso8601String(),
-          '2026-01-02T03:04:05.000Z');
+      expect(
+        user.createdAt!.toUtc().toIso8601String(),
+        '2026-01-02T03:04:05.000Z',
+      );
       expect(user.isAdmin, isTrue);
       expect(user.isDisabled, isFalse);
       expect(user.defaultModel, 'qwen3.6');
@@ -45,11 +47,7 @@ void main() {
     });
 
     test('toJson round-trips key fields', () {
-      const user = UserInfo(
-        email: 'a@b.c',
-        fullName: 'A B',
-        isAdmin: true,
-      );
+      const user = UserInfo(email: 'a@b.c', fullName: 'A B', isAdmin: true);
       final json = user.toJson();
       expect(json['email'], 'a@b.c');
       expect(json['full_name'], 'A B');

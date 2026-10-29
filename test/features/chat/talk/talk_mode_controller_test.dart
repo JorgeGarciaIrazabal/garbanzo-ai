@@ -36,29 +36,32 @@ class _TranscriptTalkRecorder extends _FakeTalkRecorder {
 
 void main() {
   group('TalkModeController.startCall', () {
-    test('starts listening immediately and ignores a duplicate start', () async {
-      final chat = _MockChatProvider();
-      final settings = _MockSettingsProvider();
-      final recorder = _FakeTalkRecorder();
-      final streamingMessage = ValueNotifier<ChatMessage?>(null);
-      when(() => chat.isSending).thenReturn(false);
-      when(() => chat.streamingMessage).thenReturn(streamingMessage);
-      final controller = TalkModeController(
-        chat: chat,
-        settings: settings,
-        systemInstruction: 'Talk instruction',
-        recorder: recorder,
-      );
+    test(
+      'starts listening immediately and ignores a duplicate start',
+      () async {
+        final chat = _MockChatProvider();
+        final settings = _MockSettingsProvider();
+        final recorder = _FakeTalkRecorder();
+        final streamingMessage = ValueNotifier<ChatMessage?>(null);
+        when(() => chat.isSending).thenReturn(false);
+        when(() => chat.streamingMessage).thenReturn(streamingMessage);
+        final controller = TalkModeController(
+          chat: chat,
+          settings: settings,
+          systemInstruction: 'Talk instruction',
+          recorder: recorder,
+        );
 
-      await controller.startCall();
-      await controller.startCall();
+        await controller.startCall();
+        await controller.startCall();
 
-      expect(controller.isCallActive, isTrue);
-      expect(controller.phase, TalkPhase.listening);
-      expect(recorder.starts, 1);
-      controller.dispose();
-      streamingMessage.dispose();
-    });
+        expect(controller.isCallActive, isTrue);
+        expect(controller.phase, TalkPhase.listening);
+        expect(recorder.starts, 1);
+        controller.dispose();
+        streamingMessage.dispose();
+      },
+    );
 
     test('sends the localized system instruction with the Talk turn', () async {
       final chat = _MockChatProvider();
@@ -67,9 +70,9 @@ void main() {
       final streamingMessage = ValueNotifier<ChatMessage?>(null);
       when(() => chat.isSending).thenReturn(false);
       when(() => chat.streamingMessage).thenReturn(streamingMessage);
-      when(() => settings.bargeInSensitivity).thenReturn(
-        BargeInSensitivity.normal,
-      );
+      when(
+        () => settings.bargeInSensitivity,
+      ).thenReturn(BargeInSensitivity.normal);
       when(() => settings.ttsVoice).thenReturn(SettingsProvider.defaultVoice);
       when(() => settings.ttsSpeed).thenReturn(SettingsProvider.defaultSpeed);
       when(() => settings.autoLanguage).thenReturn(false);

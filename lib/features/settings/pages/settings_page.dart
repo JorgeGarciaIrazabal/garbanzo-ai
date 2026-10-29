@@ -6,15 +6,14 @@ import 'package:go_router/go_router.dart';
 import 'package:garbanzo_ai/core/auth_service.dart';
 import 'package:garbanzo_ai/core/auth_state.dart';
 import 'package:garbanzo_ai/features/chat/providers/model_provider.dart';
-import 'package:garbanzo_ai/features/chat/services/audio_service.dart';
 import 'package:garbanzo_ai/features/notifications/providers/notification_provider.dart';
 import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
-import 'package:garbanzo_ai/features/settings/widgets/read_aloud_voice_settings.dart';
 import 'package:garbanzo_ai/core/platform_info.dart';
 import 'package:garbanzo_ai/features/settings/widgets/location_section.dart';
 import 'package:garbanzo_ai/features/settings/widgets/mcp_servers_section.dart';
 import 'package:garbanzo_ai/features/settings/widgets/profile_section.dart';
 import 'package:garbanzo_ai/features/settings/widgets/update_section.dart';
+import 'package:garbanzo_ai/features/settings/widgets/voice_settings_tiles.dart';
 import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
 /// Dedicated settings screen. Navigation target for `/settings`.
@@ -48,14 +47,11 @@ class _SettingsPageState extends State<SettingsPage> {
       .where((s) => s != _Section.updates || PlatformInfo.supportsSelfUpdate)
       .toList();
   UserInfo? _user;
-  List<VoiceOption> _voices = const [];
-  bool _loadingVoices = true;
 
   @override
   void initState() {
     super.initState();
     _user = AuthService.instance.cachedUser;
-    _loadVoices();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final np = context.read<NotificationProvider>();
       if (np.preferences == null && !np.loadingPreferences) {
@@ -68,20 +64,6 @@ class _SettingsPageState extends State<SettingsPage> {
     final u = await AuthService.instance.getCurrentUser();
     if (!mounted) return;
     setState(() => _user = u ?? _user);
-  }
-
-  Future<void> _loadVoices() async {
-    try {
-      final voices = await AudioService.instance.listVoices();
-      if (!mounted) return;
-      setState(() {
-        _voices = voices;
-        _loadingVoices = false;
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _loadingVoices = false);
-    }
   }
 
   @override
@@ -281,7 +263,7 @@ class _SettingsPageState extends State<SettingsPage> {
             title: Text(AppLocalizations.of(context)!.titleDefaultModel),
             subtitle: Text(
               defaultModel == null || defaultModel.isEmpty
-                  ? 'Server fallback (usually deepseek-v4.1-flash:cloud)'
+                  ? AppLocalizations.of(context)!.defaultModelServerFallback
                   : defaultModel,
               style: theme.textTheme.bodySmall,
             ),
@@ -334,92 +316,25 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Widget _voiceSection() {
-    final settings = context.watch<SettingsProvider>();
-    final theme = Theme.of(context);
-    return Card(
-      child: Column(
-        children: [
-          const ReadAloudVoiceSettings(),
-          const Divider(height: 1),
-          ListTile(
-            title: Text(AppLocalizations.of(context)!.talkModeVoice),
-            trailing: _loadingVoices
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : DropdownButton<String>(
-                    value: _voices.any((v) => v.id == settings.ttsVoice)
-                        ? settings.ttsVoice
-                        : (_voices.isNotEmpty ? _voices.first.id : null),
-                    underline: const SizedBox.shrink(),
-                    items: _voices
-                        .map(
-                          (v) => DropdownMenuItem(
-                            value: v.id,
-                            child: Text(
-                              '${v.name} (${v.language})',
-                              style: theme.textTheme.bodyMedium,
-                            ),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (value) {
-                      if (value != null) settings.setTtsVoice(value);
-                    },
-                  ),
-          ),
-          const Divider(height: 1),
-          ListTile(
-            title: Text(AppLocalizations.of(context)!.titleSpeed),
-            subtitle: Slider(
-              value: settings.ttsSpeed,
-              min: 0.5,
-              max: 2.0,
-              divisions: 6,
-              label: '${settings.ttsSpeed.toStringAsFixed(1)}x',
-              onChanged: settings.setTtsSpeed,
-            ),
-            trailing: Text('${settings.ttsSpeed.toStringAsFixed(1)}x'),
-          ),
-          const Divider(height: 1),
-          SwitchListTile(
-            title: Text(AppLocalizations.of(context)!.titleAutoPlayResponses),
-            subtitle: Text(
-              AppLocalizations.of(context)!.titleReadAloudNewAssistantMessages,
-            ),
-            value: settings.autoPlayTts,
-            onChanged: settings.setAutoPlayTts,
-          ),
-          const Divider(height: 1),
-          SwitchListTile(
-            title: Text(
-              AppLocalizations.of(context)!.titleAutoSendAfterTranscription,
-            ),
-            subtitle: Text(
-              AppLocalizations.of(
-                context,
-              )!.titleAutomaticallySendWhenVoiceInputFinishes,
-            ),
-            value: settings.autoSubmitStt,
-            onChanged: settings.setAutoSubmitStt,
-          ),
-        ],
-      ),
-    );
+    return const Card(child: VoiceSettingsTiles());
   }
 
   Widget _memorySection() {
+    final l10n = AppLocalizations.of(context)!;
     return Card(
       child: Column(
         children: [
           ListTile(
-            leading: Icon(Icons.info_outline),
-            title: Text(AppLocalizations.of(context)!.titleSavedMemories),
-            subtitle: Text(
-              AppLocalizations.of(context)!.messageSavedMemoriesHint,
-            ),
+            leading: const Icon(Icons.info_outline),
+            title: Text(l10n.titleSavedMemories),
+            subtitle: Text(l10n.messageSavedMemoriesHint),
+          ),
+          const Divider(height: 1),
+          ListTile(
+            leading: const Icon(Icons.bookmark_outline),
+            title: Text(l10n.manageSavedMemories),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push('/memory'),
           ),
         ],
       ),
