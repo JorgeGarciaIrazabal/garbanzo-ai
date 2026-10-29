@@ -4,6 +4,12 @@ Release notes for Garbanzo AI. Each entry is generated automatically on
 `just deploy` — Codex writes it from the release's commits and
 the user reports it addressed. See `scripts/changelog-instructions.md`.
 
+## v1.0.45 — 2026-10-29
+
+- File uploads can now be up to 25 MiB.
+- Improved spreadsheet reading for XLSM files.
+- Improved visual answers for smaller screens and reduced repeated prose.
+
 ## v1.0.44 — 2026-10-24
 
 - trim web context and migrate OpenCode runtime to v2
