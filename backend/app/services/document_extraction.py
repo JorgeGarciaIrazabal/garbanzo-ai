@@ -43,7 +43,7 @@ def extract_document(path: str, data: bytes) -> str:
 def _extract_document(path: str, data: bytes) -> str:
     """Strict extraction: unsupported/corrupt/oversized content is an error, never text."""
     suffix = Path(path).suffix.lower()
-    if suffix in {".xlsx", ".ods", ".docx", ".pptx", ".epub"}:
+    if suffix in {".xlsx", ".xlsm", ".ods", ".docx", ".pptx", ".epub"}:
         with zipfile.ZipFile(io.BytesIO(data)) as archive:
             if (
                 len(archive.infolist()) > MAX_ARCHIVE_ENTRIES

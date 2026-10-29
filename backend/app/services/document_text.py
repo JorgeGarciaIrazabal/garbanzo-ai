@@ -10,7 +10,7 @@ from openpyxl import load_workbook
 from pypdf import PdfReader
 
 # Handled directly by extract_text (bytes-based).
-STRUCTURED_EXTENSIONS = frozenset({".pdf", ".csv", ".xlsx", ".xls", ".ods"})
+STRUCTURED_EXTENSIONS = frozenset({".pdf", ".csv", ".xlsx", ".xlsm", ".xls", ".ods"})
 
 # Rich formats with no bytes-native extractor here — routed through markitdown.
 MARKITDOWN_EXTENSIONS = frozenset(
@@ -121,8 +121,9 @@ def extract_text(data: bytes, filename: str, mime_type: str) -> str:
         return _extract_csv(data)
     if mime in {
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "application/vnd.ms-excel.sheet.macroenabled.12",
         "application/vnd.ms-excel",
         "application/vnd.oasis.opendocument.spreadsheet",
-    } or lower_name.endswith((".xlsx", ".xls", ".ods")):
+    } or lower_name.endswith((".xlsx", ".xlsm", ".xls", ".ods")):
         return _extract_spreadsheet(data)
     return _extract_plain(data)

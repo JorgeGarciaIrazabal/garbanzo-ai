@@ -9,6 +9,7 @@ from unittest.mock import Mock
 
 import markitdown
 import pytest
+from openpyxl import Workbook
 
 from app.services import document_extraction
 from app.services.client_file_extract import extract_file_text
@@ -17,6 +18,7 @@ from app.services.document_extraction import (
     extract_document,
     extract_isolated,
 )
+from app.services.document_text import extract_text
 
 
 def _archive(entries):
@@ -27,11 +29,45 @@ def _archive(entries):
     return data.getvalue()
 
 
-def test_archive_entry_limit_is_explicit(monkeypatch):
+def test_xlsm_isolated_extraction_and_mime_dispatch():
+    workbook = Workbook()
+    workbook.active.title = "Annual consumption"
+    workbook.active.append(["Energy", 125])
+    workbook.active.append(["Formula", "=1+1"])
+    original = io.BytesIO()
+    workbook.save(original)
+    workbook.close()
+    # Give the synthetic workbook the actual macro-enabled workbook content
+    # type, with an inert VBA entry that must never become extracted text.
+    output = io.BytesIO()
+    with zipfile.ZipFile(original) as source, zipfile.ZipFile(output, "w") as target:
+        for name in source.namelist():
+            value = source.read(name)
+            if name == "[Content_Types].xml":
+                value = value.replace(
+                    b"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml",
+                    b"application/vnd.ms-excel.sheet.macroEnabled.main+xml",
+                )
+            target.writestr(name, value)
+        target.writestr("xl/vbaProject.bin", b"inert-macro-sentinel")
+
+    data = output.getvalue()
+    isolated = extract_isolated("annual.xlsm", data)
+    by_mime = extract_text(data, "annual.bin", "application/vnd.ms-excel.sheet.macroEnabled.12")
+
+    assert isolated == by_mime
+    assert "## Sheet: Annual consumption" in isolated
+    assert "Energy | 125" in isolated
+    assert "=1+1" not in isolated
+    assert "inert-macro-sentinel" not in isolated
+
+
+@pytest.mark.parametrize("filename", ["report.docx", "report.xlsm"])
+def test_archive_entry_limit_is_explicit(monkeypatch, filename):
     monkeypatch.setattr(document_extraction, "MAX_ARCHIVE_ENTRIES", 1)
     payload = _archive([("one.xml", "one"), ("two.xml", "two")])
     with pytest.raises(DocumentExtractionError, match="expanded extraction limits"):
-        extract_document("report.docx", payload)
+        extract_document(filename, payload)
 
 
 def test_malformed_archive_is_an_error():

@@ -10,9 +10,11 @@ the host filesystem. Covers:
 
 import asyncio
 import base64
+import io
 from types import SimpleNamespace
 
 import pytest
+from openpyxl import Workbook
 
 from app.services.chat_service import ChatService
 from app.services.client_file_extract import MAX_FILE_BYTES, extract_file_text
@@ -24,6 +26,31 @@ from app.services.client_tool_bridge import ClientToolBridge
 def test_extract_plain_and_csv():
     assert extract_file_text("notes.txt", b"hello world") == "hello world"
     assert "1,2" in extract_file_text("data.csv", b"x,y\n1,2\n")
+
+
+def test_extract_macro_enabled_spreadsheet_cells(monkeypatch):
+    """XLSM reads use the spreadsheet parser instead of generic conversion."""
+    from app.services import client_file_extract
+
+    def unexpected_conversion(*args):
+        raise AssertionError("XLSM must use the byte-based spreadsheet reader")
+
+    monkeypatch.setattr(client_file_extract, "_extract_with_markitdown", unexpected_conversion)
+    workbook = Workbook()
+    workbook.active.title = "Consumption"
+    workbook.active.append(["Month", "kWh"])
+    workbook.active.append(["January", 125])
+    workbook.create_sheet("Solar").append(["Generation", 90])
+    buffer = io.BytesIO()
+    workbook.save(buffer)
+    workbook.close()
+
+    text = extract_file_text("annual.XLSM", buffer.getvalue())
+
+    assert "## Sheet: Consumption" in text
+    assert "January | 125" in text
+    assert "## Sheet: Solar" in text
+    assert "Generation | 90" in text
 
 
 def test_extract_html_via_markitdown():

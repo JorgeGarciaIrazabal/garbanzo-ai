@@ -45,6 +45,9 @@ attached virtual folder. It can read supported documents, including PDF and
 Office files. It creates/edits UTF-8 text files such as Markdown, source code,
 JSON and CSV. PDF/Office files have read-only extracted previews; binary files
 can be stored and downloaded but cannot be edited through the text editor.
+XLSX and macro-enabled XLSM workbooks can be read as sheet names and cell values.
+Macros are not run and formulas use the workbook's saved results; Garbanzo AI
+does not recalculate them. Document extraction accepts files up to 5 MiB.
 If another device or chat changes a file, a stale save fails instead of
 overwriting the newer version. Refresh and read the latest version before saving.
 

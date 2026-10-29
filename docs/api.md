@@ -82,6 +82,9 @@ replacement quotas use the size delta and do not consume another file slot.
 Quota overflow returns 413. Empty files are valid. Text edits require genuine
 UTF-8 text/source/CSV files; PDF/Office extraction is read-only, with explicit
 errors for unsupported/corrupt documents. Creates return 201; deletes return 204.
+Spreadsheet text extraction supports XLSX and XLSM, including sheet names and
+saved cell values. Macros are not executed and formulas are not recalculated;
+the 5 MiB document extraction input limit also applies to XLSM.
 The native `virtual_folders` tool adds paginated discovery, metadata updates
 (`update_folder` with `folder_id` and name and/or description), read/write, current-chat
 attachment and download references; downloads render authenticated buttons in chat.

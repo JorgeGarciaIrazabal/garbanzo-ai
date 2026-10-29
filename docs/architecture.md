@@ -293,8 +293,11 @@ scheduler.py   APScheduler lifecycle + action registration
 ### Shared document extraction
 
 `document_text.py` owns byte readers, public format extensions and readable-text
-classification. `document_extraction.py` owns strict filename/bytes parsing,
-archive/text limits and subprocess execution. Folders and workflow outputs map
+classification. XLSM workbooks use the same read-only cell reader as XLSX.
+Workbook macros are not executed; formula cells use saved cached values rather
+than recalculating formulas. `document_extraction.py` owns strict filename/bytes
+parsing, archive/text limits (including XLSM) and subprocess execution.
+Folders and workflow outputs map
 `DocumentExtractionError` to their own errors. `document_extract_worker.py`
 enforces a 5 MiB rich-document input limit, 1 GiB address-space limit and
 10-second CPU limit; the parent times out at 20 seconds. Extraction preserves

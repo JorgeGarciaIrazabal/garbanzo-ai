@@ -105,6 +105,10 @@ its own — to change them, see delegating a task below. A chip above the input
 bar shows the attached folder; tap its **×** to detach it. This option is
 desktop-only — web can't reach your files.
 
+XLSX and macro-enabled XLSM spreadsheets are read as sheet names and saved cell
+values. Macros are not run and formulas are not recalculated. Live-folder reads
+are limited to 5 MiB per file.
+
 ## Can the assistant change files in my folder?
 Not directly, but it can hand the job to an agent that does. When you ask for
 something big — "refactor this module", "add tests across the package", "fix
