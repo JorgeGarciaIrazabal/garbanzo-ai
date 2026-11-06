@@ -4,6 +4,10 @@ Release notes for Garbanzo AI. Each entry is generated automatically on
 `just deploy` — Codex writes it from the release's commits and
 the user reports it addressed. See `scripts/changelog-instructions.md`.
 
+## v1.0.46 — 2026-11-06
+
+- Updated the available model catalog and clarified room prompt wording.
+
 ## v1.0.45 — 2026-10-29
 
 - File uploads can now be up to 25 MiB.
