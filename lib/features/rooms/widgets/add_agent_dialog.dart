@@ -12,6 +12,7 @@ import 'package:garbanzo_ai/features/chat/services/chat_service.dart';
 import 'package:garbanzo_ai/features/chat/services/system_prompt_service.dart';
 import 'package:garbanzo_ai/features/rooms/models/room_models.dart';
 import 'package:garbanzo_ai/features/rooms/providers/room_provider.dart';
+import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
 import 'package:garbanzo_ai/features/tools/providers/tool_provider.dart';
 import 'package:garbanzo_ai/l10n/gen/app_localizations.dart';
 
@@ -438,6 +439,18 @@ class _AddAgentDialogState extends State<AddAgentDialog> {
   /// (still editable — the text is what gets saved, like the prompt editor).
   Widget _buildTemplateSelector() {
     final l10n = AppLocalizations.of(context)!;
+    final languageCode = context
+        .watch<SettingsProvider?>()
+        ?.effectiveLanguageCode;
+    final visibleTemplates = _templates
+        .where(
+          (t) =>
+              languageCode == null ||
+              !t.isBuiltin ||
+              t.locale == null ||
+              t.locale == languageCode,
+        )
+        .toList();
     if (_templateLoadError != null && _templates.isEmpty) {
       return InputDecorator(
         decoration: InputDecoration(
@@ -456,7 +469,7 @@ class _AddAgentDialogState extends State<AddAgentDialog> {
     }
     return DropdownButtonFormField<String?>(
       key: const ValueKey('agent_prompt_template'),
-      initialValue: _templates.any((t) => t.id == _selectedTemplateId)
+      initialValue: visibleTemplates.any((t) => t.id == _selectedTemplateId)
           ? _selectedTemplateId
           : null,
       isExpanded: true,
@@ -469,7 +482,7 @@ class _AddAgentDialogState extends State<AddAgentDialog> {
           value: null,
           child: Text(AppLocalizations.of(context)!.none),
         ),
-        for (final tpl in _templates)
+        for (final tpl in visibleTemplates)
           DropdownMenuItem<String?>(
             value: tpl.id,
             child: Text(tpl.name, overflow: TextOverflow.ellipsis),

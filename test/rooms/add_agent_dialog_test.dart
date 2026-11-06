@@ -5,11 +5,13 @@ import 'package:mocktail/mocktail.dart';
 import 'package:provider/provider.dart';
 
 import 'package:garbanzo_ai/features/chat/models/model_info.dart';
+import 'package:garbanzo_ai/features/chat/models/system_prompt_template.dart';
 import 'package:garbanzo_ai/features/rooms/models/room_models.dart';
 import 'package:garbanzo_ai/features/rooms/providers/room_provider.dart';
 import 'package:garbanzo_ai/features/rooms/services/room_service.dart';
 import 'package:garbanzo_ai/features/rooms/services/room_socket_service.dart';
 import 'package:garbanzo_ai/features/rooms/widgets/add_agent_dialog.dart';
+import 'package:garbanzo_ai/features/settings/providers/settings_provider.dart';
 import 'package:garbanzo_ai/features/tools/models/mcp_tool.dart';
 import 'package:garbanzo_ai/features/tools/providers/tool_provider.dart';
 import 'package:garbanzo_ai/features/tools/services/tool_service.dart';
@@ -20,6 +22,8 @@ import 'fake_room_channel.dart';
 class _MockRoomService extends Mock implements RoomService {}
 
 class _MockToolService extends Mock implements ToolService {}
+
+class _MockSettings extends Mock implements SettingsProvider {}
 
 final _now = DateTime.utc(2026, 8, 30);
 
@@ -75,6 +79,54 @@ ToolProvider _buildToolsProvider() {
 }
 
 void main() {
+  testWidgets(
+    'prompt templates follow the app language and retain custom prompts',
+    (tester) async {
+      tester.view.physicalSize = const Size(1280, 1024);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final settings = _MockSettings();
+      when(() => settings.effectiveLanguageCode).thenReturn('es');
+      final room = RoomProvider(service: _MockRoomService());
+      addTearDown(room.dispose);
+      SystemPromptTemplate template(
+        String id, {
+        bool builtin = false,
+        String? locale,
+      }) => SystemPromptTemplate(
+        id: id,
+        name: id,
+        content: id,
+        isBuiltin: builtin,
+        locale: locale,
+        createdAt: _now,
+      );
+      await tester.pumpWidget(
+        ChangeNotifierProvider<SettingsProvider>.value(
+          value: settings,
+          child: _host(
+            Scaffold(
+              body: AddAgentDialog(
+                provider: room,
+                modelsLoader: _models,
+                templatesLoader: () async => [
+                  template('English persona', builtin: true, locale: 'en'),
+                  template('Spanish persona', builtin: true, locale: 'es'),
+                  template('Custom persona'),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('agent_prompt_template')));
+      await tester.pumpAndSettle();
+      expect(find.text('Spanish persona'), findsOneWidget);
+      expect(find.text('Custom persona'), findsOneWidget);
+      expect(find.text('English persona'), findsNothing);
+    },
+  );
   testWidgets(
     'Add button enables once a name is typed (was: stuck disabled forever)',
     (tester) async {

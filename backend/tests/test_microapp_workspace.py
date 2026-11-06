@@ -241,11 +241,12 @@ def test_seeds_opencode_config(manager):
     assert cfg.is_file()
     data = json.loads(cfg.read_text())
     assert "ollama" in data["providers"]
-    assert "deepseek-v4.1-flash:cloud" in data["providers"]["ollama"]["models"]
+    assert "deepseek-v4.1-flash:1017-cloud" in data["providers"]["ollama"]["models"]
     assert "deepseek-v4-flash:cloud" in data["providers"]["ollama"]["models"]
     assert "deepseek-v4-pro:cloud" in data["providers"]["ollama"]["models"]
     assert "glm-5.3-flash:cloud" in data["providers"]["ollama"]["models"]
-    assert "kimi-k3:cloud" in data["providers"]["ollama"]["models"]
+    assert "kimi-k3.1-pro:cloud" in data["providers"]["ollama"]["models"]
+    assert "kimi-k3:cloud" not in data["providers"]["ollama"]["models"]
     assert "qwen3.5:cloud" in data["providers"]["ollama"]["models"]
     # Internal planning tools disabled — see _seed_opencode_config rationale.
     assert {r["action"]: r["effect"] for r in data["permissions"]}["todowrite"] == "deny"

@@ -480,6 +480,10 @@ async def test_list_models_hides_dated_deepseek_preview_aliases():
         "deepseek-v4-flash:cloud",
         "deepseek-v4-pro:0813-cloud",
         "deepseek-v4-pro:cloud",
+        "deepseek-v4.1-flash:1017-cloud",
+        "deepseek-v4.1-flash:cloud",
+        "kimi-k3:cloud",
+        "kimi-k3.1-pro:cloud",
     ):
         model = MagicMock()
         model.model = model_id
@@ -503,6 +507,8 @@ async def test_list_models_hides_dated_deepseek_preview_aliases():
     assert [model.id for model in models] == [
         "deepseek-v4-flash:cloud",
         "deepseek-v4-pro:cloud",
+        "deepseek-v4.1-flash:1017-cloud",
+        "kimi-k3.1-pro:cloud",
     ]
 
 

@@ -22,7 +22,12 @@ _RETRY_BACKOFF_SECONDS = 0.75
 FIRST_CHUNK_TIMEOUT = 300.0
 CHUNK_TIMEOUT = 120.0
 
-_RETIRED_MODEL_ALIASES = {"deepseek-v4-flash:0731-cloud", "deepseek-v4-pro:0813-cloud"}
+_RETIRED_MODEL_ALIASES = {
+    "deepseek-v4-flash:0731-cloud",
+    "deepseek-v4-pro:0813-cloud",
+    "deepseek-v4.1-flash:cloud",
+    "kimi-k3:cloud",
+}
 _UNSUPPORTED_IMAGE_MESSAGE = (
     "This model cannot process image attachments. Switch to a model marked Vision and try again."
 )

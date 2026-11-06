@@ -19,12 +19,12 @@ from app.core.config import Settings
 # deploy/README.md. The key is the model id opencode sees; the value carries
 # its display name. The active model is always merged in, even if not listed.
 CLOUD_MODELS = (
-    "deepseek-v4.1-flash:cloud",
+    "deepseek-v4.1-flash:1017-cloud",
     "deepseek-v4-flash:cloud",
     "deepseek-v4-pro:cloud",
     "glm-5.3:cloud",
     "glm-5.3-flash:cloud",
-    "kimi-k3:cloud",
+    "kimi-k3.1-pro:cloud",
     "gemma4:cloud",
     "nemotron-3-ultra:cloud",
     "nemotron-3-super:cloud",

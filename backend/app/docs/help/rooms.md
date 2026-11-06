@@ -19,6 +19,8 @@ In **Members & agents**, press **Add agent**. Pick its name, model, a
 thinking level (Auto/Off/Low/Medium/High reasoning depth), an optional
 persona — write a system prompt or start from one of your saved prompt
 templates and tweak it — which tools it may use, and how it responds:
+Built-in prompt templates appear in your app language; your saved templates
+remain available in every language.
 - **Always respond** — replies to every message
 - **Auto — jump in when relevant (LLM)** — a judge model decides when it
   should speak

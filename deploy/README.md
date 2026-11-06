@@ -73,7 +73,7 @@ before the production Compose stack is replaced.
     just deploy-model nomic-embed-text
    ```
      Cloud models (e.g. `deepseek-v4.1-flash:cloud`, `glm-5.3:cloud`,
-     `glm-5.3-flash:cloud`, `kimi-k3:cloud`, `deepseek-v4-flash:cloud`,
+     `glm-5.3-flash:cloud`, `kimi-k3.1-pro:cloud`, `deepseek-v4-flash:cloud`,
      `deepseek-v4-pro:cloud`, `gemma4:cloud`, `nemotron-3-ultra:cloud`,
      `nemotron-3-super:cloud`, `qwen3.5:cloud`)
      require a **one-time** `ollama signin` inside the container: run
@@ -86,7 +86,7 @@ before the production Compose stack is replaced.
      just deploy-model deepseek-v4.1-flash:cloud
      just deploy-model glm-5.3:cloud
      just deploy-model glm-5.3-flash:cloud
-     just deploy-model kimi-k3:cloud
+     just deploy-model kimi-k3.1-pro:cloud
      just deploy-model deepseek-v4-flash:cloud
      just deploy-model deepseek-v4-pro:cloud
      just deploy-model gemma4:cloud

@@ -20,7 +20,7 @@ class VisionModelChoice {
 /// and shared across the app without tying it to a single conversation.
 /// The user's default model is persisted on the backend via `/auth/me`.
 class ModelProvider extends ChangeNotifier with GuardedStateMixin {
-  static const visionModelId = 'deepseek-v4.1-flash:cloud';
+  static const visionModelId = 'deepseek-v4.1-flash:1017-cloud';
 
   ModelProvider({ChatService? chatService, AuthService? authService})
     : _chatService = chatService ?? ChatService.instance,
